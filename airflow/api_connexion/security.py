@@ -29,9 +29,11 @@ def requires_authentication(function: T):
     """Decorator for functions that require authentication"""
     @wraps(function)
     def decorated(*args, **kwargs):
-        response = current_app.api_auth.requires_authentication(lambda: Response(status=200))()
+        response = current_app.api_auth.requires_authentication(Response)()
         if response.status_code != 200:
-            raise Unauthenticated()
+            # since this handler only checks authentication, not authorization,
+            # we should always return 401
+            raise Unauthenticated(headers=response.headers)
         return function(*args, **kwargs)
 
     return cast(T, decorated)

@@ -137,6 +137,21 @@ All changes made are backward compatible, but if you use the old import paths yo
 see a deprecation warning. The old import paths can be abandoned in the future.
 
 
+### Breaking Change in OAuth
+
+The flask-ouathlib has been replaced with authlib because flask-outhlib has
+been deprecated in favour of authlib.
+The Old and New provider configuration keys that have changed are as follows
+
+|      Old Keys       |      New keys     |
+|---------------------|-------------------|
+| consumer_key        | client_id         |
+| consumer_secret     | client_secret     |
+| base_url            | api_base_url      |
+| request_token_params| client_kwargs     |
+
+For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
+
 ### Migration Guide from Experimental API to Stable API v1
 In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
 If your application is still using the experimental API, you should consider migrating to the stable API.
@@ -1022,6 +1037,12 @@ of this provider.
 
 This section describes the changes that have been made, and what you need to do to update your if
 you use operators or hooks which integrate with Google services (including Google Cloud Platform - GCP).
+
+#### Direct impersonation added to operators communicating with Google services
+[Directly impersonating a service account](https://cloud.google.com/iam/docs/understanding-service-accounts#directly_impersonating_a_service_account)
+has been made possible for operators communicating with Google services via new argument called `impersonation_chain`
+(`google_impersonation_chain` in case of operators that also communicate with services of other cloud providers).
+As a result, GCSToS3Operator no longer derivatives from GCSListObjectsOperator.
 
 #### Normalize gcp_conn_id for Google Cloud Platform
 

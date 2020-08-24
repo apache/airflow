@@ -265,8 +265,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
             _client.auth.github.login(token=self.token)
 
     def _auth_gcp(self, _client: hvac.Client) -> None:
-        # noinspection PyProtectedMember
-        from airflow.providers.google.cloud.utils.credentials_provider import (
+        from airflow.providers.google.cloud.utils.credentials_provider import (  # noqa
             _get_scopes, get_credentials_and_project_id,
         )
         scopes = _get_scopes(self.gcp_scopes)

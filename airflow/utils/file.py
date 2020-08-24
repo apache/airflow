@@ -169,7 +169,6 @@ def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
 
     for file_path in find_path_from_directory(
             directory, ".airflowignore"):
-        # noinspection PyBroadException
         try:
             if not os.path.isfile(file_path):
                 continue
@@ -180,7 +179,7 @@ def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
                 continue
 
             file_paths.append(file_path)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:  # noqa pylint: disable=broad-except
             log.exception("Error while examining %s", file_path)
 
 

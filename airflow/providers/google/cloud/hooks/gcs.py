@@ -116,8 +116,8 @@ class GCSHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        google_cloud_storage_conn_id: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        google_cloud_storage_conn_id: Optional[str] = None
     ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day

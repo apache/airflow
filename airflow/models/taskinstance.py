@@ -135,8 +135,8 @@ def clear_task_instances(tis,
         ).delete()
 
     if job_ids:
-        from airflow.jobs.base_job import BaseJob as BJ
-        for job in session.query(BJ).filter(BJ.id.in_(job_ids)).all():
+        from airflow.jobs.base_job import BaseJob
+        for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():  # noqa
             job.state = State.SHUTDOWN
 
     if activate_dag_runs and tis:
@@ -442,16 +442,15 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     def log_filepath(self):
         """Filepath for TaskInstance"""
         iso = self.execution_date.isoformat()
-        log = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
-        return ("{log}/{dag_id}/{task_id}/{iso}.log".format(
-            log=log, dag_id=self.dag_id, task_id=self.task_id, iso=iso))
+        the_log = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
+        return f"{the_log}/{self.dag_id}/{self.task_id}/{iso}.log"
 
     @property
     def log_url(self):
         """Log URL for TaskInstance"""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
-        return base_url + (
+        return base_url + (  # noqa
             "/log?"
             "execution_date={iso}"
             "&task_id={task_id}"
@@ -463,7 +462,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """URL to mark TI success"""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
-        return base_url + (
+        return base_url + (  # noqa
             "/success"
             "?task_id={task_id}"
             "&dag_id={dag_id}"
@@ -537,7 +536,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self.state = ti.state
             # Get the raw value of try_number column, don't read through the
             # accessor here otherwise it will be incremented by one already.
-            self.try_number = ti._try_number    # pylint: disable=protected-access
+            self.try_number = ti._try_number    # noqa pylint: disable=protected-access
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname
             self.unixname = ti.unixname
@@ -834,7 +833,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                     yield dep_status
 
     def __repr__(self):
-        return (
+        return (  # noqa
             "<TaskInstance: {ti.dag_id}.{ti.task_id} "
             "{ti.execution_date} [{ti.state}]>"
         ).format(ti=self)
@@ -848,10 +847,10 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         if self.task.retry_exponential_backoff:
             # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
             # we must round up prior to converting to an int, otherwise a divide by zero error
-            # will occurr in the modded_hash calculation.
+            # will occur in the modded_hash calculation.
             min_backoff = int(math.ceil(delay.total_seconds() * (2 ** (self.try_number - 2))))
             # deterministic per task instance
-            ti_hash = int(hashlib.sha1("{}#{}#{}#{}".format(self.dag_id,
+            ti_hash = int(hashlib.sha1("{}#{}#{}#{}".format(self.dag_id,  # noqa
                                                             self.task_id,
                                                             self.execution_date,
                                                             self.try_number)
@@ -1074,7 +1073,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         try:
             if not mark_success:
                 context = self.get_template_context()
-                self._prepare_and_execute_task_with_callbacks(context, session, task)
+                self._prepare_and_execute_task_with_callbacks(context, task)
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
         except AirflowSkipException as e:
@@ -1095,7 +1094,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             )
         except AirflowRescheduleException as reschedule_exception:
             self.refresh_from_db()
-            self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, context)
+            self._handle_reschedule(actual_start_date, reschedule_exception, test_mode)
             return
         except AirflowFailException as e:
             self.refresh_from_db()
@@ -1135,23 +1134,16 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             session.merge(self)
         session.commit()
 
-    def _prepare_and_execute_task_with_callbacks(self, context, session, task):
+    def _prepare_and_execute_task_with_callbacks(
+            self,
+            context,
+            task):
         """
         Prepare Task for Execution
         """
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
-        from airflow.sensors.base_sensor_operator import BaseSensorOperator
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         task_copy = task.prepare_for_execution()
-        # Sensors in `poke` mode can block execution of DAGs when running
-        # with single process executor, thus we change the mode to`reschedule`
-        # to allow parallel task being scheduled and executed
-        if (
-            isinstance(task_copy, BaseSensorOperator) and
-            conf.get('core', 'executor') == "DebugExecutor"
-        ):
-            self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
-            task_copy.mode = 'reschedule'
         self.task = task_copy
 
         def signal_handler(signum, frame):  # pylint: disable=unused-argument
@@ -1167,8 +1159,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
         self.render_templates(context=context)
         if STORE_SERIALIZED_DAGS:
-            RTIF.write(RTIF(ti=self, render_templates=False))
-            RTIF.delete_old_records(self.task_id, self.dag_id)
+            RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
+            RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
 
         # Export context to make it available for operators to use.
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
@@ -1283,7 +1275,6 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                            actual_start_date,
                            reschedule_exception,
                            test_mode=False,
-                           context=None,    # pylint: disable=unused-argument
                            session=None):
         # Don't record reschedule request in test mode
         if test_mode:
@@ -1482,7 +1473,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             @staticmethod
             def get(
                 item: str,
-                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,   # pylint: disable=W0212
+                # pylint: disable=protected-access
+                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,  # noqa
             ):
                 """Get Airflow Variable value"""
                 return Variable.get(item, default_var=default_var)
@@ -1509,7 +1501,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             @staticmethod
             def get(
                 item: str,
-                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,   # pylint: disable=W0212
+                # pylint: disable=protected-access
+                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,   # noqa
             ):
                 """Get Airflow Variable after deserializing JSON value"""
                 return Variable.get(item, default_var=default_var, deserialize_json=True)
@@ -1561,9 +1554,9 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
         if STORE_SERIALIZED_DAGS:
-            rtif = RenderedTaskInstanceFields.get_templated_fields(self)
-            if rtif:
-                for field_name, rendered_value in rtif.items():
+            rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self)
+            if rendered_task_instance_fields:
+                for field_name, rendered_value in rendered_task_instance_fields.items():
                     setattr(self.task, field_name, rendered_value)
             else:
                 try:
@@ -1628,6 +1621,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
         subject = render('subject_template', default_subject)
         html_content = render('html_content_template', default_html_content)
+        # noinspection PyBroadException
         try:
             send_email(self.task.email, subject, html_content)
         except Exception:     # pylint: disable=broad-except
@@ -1662,7 +1656,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         :type key: str
         :param value: A value for the XCom. The value is pickled and stored
             in the database.
-        :type value: any pickleable object
+        :type value: any picklable object
         :param execution_date: if provided, the XCom will not be visible until
             this date. This can be used, for example, to send a message to a
             task on a future date without it being immediately visible.
@@ -1762,19 +1756,18 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         tis: Iterable[Union["TaskInstance", TaskInstanceKey]]
     ) -> Optional[BooleanClauseList]:
         """Returns SQLAlchemy filter to query selected task instances"""
-        TI = TaskInstance
         if not tis:
             return None
         if all(isinstance(t, TaskInstanceKey) for t in tis):
-            filter_for_tis = ([and_(TI.dag_id == tik.dag_id,
-                                    TI.task_id == tik.task_id,
-                                    TI.execution_date == tik.execution_date)
+            filter_for_tis = ([and_(TaskInstance.dag_id == tik.dag_id,
+                                    TaskInstance.task_id == tik.task_id,
+                                    TaskInstance.execution_date == tik.execution_date)
                                for tik in tis])
             return or_(*filter_for_tis)
         if all(isinstance(t, TaskInstance) for t in tis):
-            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
-                                    TI.task_id == ti.task_id,
-                                    TI.execution_date == ti.execution_date)
+            filter_for_tis = ([and_(TaskInstance.dag_id == ti.dag_id,
+                                    TaskInstance.task_id == ti.task_id,
+                                    TaskInstance.execution_date == ti.execution_date)
                                for ti in tis])
             return or_(*filter_for_tis)
 

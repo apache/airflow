@@ -178,7 +178,8 @@ class TestCloudSql(unittest.TestCase):
             'task_instance': mock.Mock()
         })
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.create_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             body=CREATE_BODY
@@ -200,7 +201,8 @@ class TestCloudSql(unittest.TestCase):
             'task_instance': mock.Mock()
         })
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.create_instance.assert_called_once_with(
             project_id=None,
             body=CREATE_BODY
@@ -223,7 +225,8 @@ class TestCloudSql(unittest.TestCase):
             'task_instance': mock.Mock()
         })
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.create_instance.assert_not_called()
         self.assertIsNone(result)
 
@@ -293,7 +296,8 @@ class TestCloudSql(unittest.TestCase):
         self.assertIn("The field 'settings.ipConfiguration.authorizedNetworks' "
                       "should be of list type according to the specification", str(err))
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
     def test_create_should_validate_non_empty_fields(self, mock_hook):
@@ -316,7 +320,8 @@ class TestCloudSql(unittest.TestCase):
         self.assertIn("The body field 'settings.tier' can't be empty. "
                       "Please provide a value.", str(err))
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
     def test_instance_patch(self, mock_hook):
@@ -329,7 +334,8 @@ class TestCloudSql(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.patch_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             body=PATCH_BODY,
@@ -347,7 +353,8 @@ class TestCloudSql(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.patch_instance.assert_called_once_with(
             project_id=None,
             body=PATCH_BODY,
@@ -372,7 +379,8 @@ class TestCloudSql(unittest.TestCase):
         err = cm.exception
         self.assertIn('specify another instance to patch', str(err))
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.patch_instance.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql"
@@ -388,7 +396,8 @@ class TestCloudSql(unittest.TestCase):
         result = op.execute(None)
         self.assertTrue(result)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME
@@ -406,7 +415,8 @@ class TestCloudSql(unittest.TestCase):
         result = op.execute(None)
         self.assertTrue(result)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=None,
             instance=INSTANCE_NAME
@@ -428,7 +438,8 @@ class TestCloudSql(unittest.TestCase):
         result = op.execute(None)
         self.assertTrue(result)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.delete_instance.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql"
@@ -444,7 +455,8 @@ class TestCloudSql(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.create_database.assert_called_once_with(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
@@ -464,7 +476,8 @@ class TestCloudSql(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.create_database.assert_called_once_with(
             project_id=None,
             instance=INSTANCE_NAME,
@@ -487,7 +500,8 @@ class TestCloudSql(unittest.TestCase):
         result = op.execute(None)
         self.assertTrue(result)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.create_database.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql"
@@ -504,7 +518,8 @@ class TestCloudSql(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.patch_database.assert_called_once_with(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
@@ -526,7 +541,8 @@ class TestCloudSql(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.patch_database.assert_called_once_with(
             project_id=None,
             instance=INSTANCE_NAME,
@@ -554,7 +570,8 @@ class TestCloudSql(unittest.TestCase):
         self.assertIn("Cloud SQL instance with ID", str(err))
         self.assertIn("does not contain database", str(err))
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.patch_database.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
@@ -587,7 +604,8 @@ class TestCloudSql(unittest.TestCase):
         result = op.execute(None)
         self.assertTrue(result)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.delete_database.assert_called_once_with(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
@@ -607,7 +625,8 @@ class TestCloudSql(unittest.TestCase):
         result = op.execute(None)
         self.assertTrue(result)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.delete_database.assert_called_once_with(
             project_id=None,
             instance=INSTANCE_NAME,
@@ -629,7 +648,8 @@ class TestCloudSql(unittest.TestCase):
         result = op.execute(None)
         self.assertTrue(result)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.delete_database.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
@@ -643,7 +663,8 @@ class TestCloudSql(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.export_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
@@ -661,7 +682,8 @@ class TestCloudSql(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.export_instance.assert_called_once_with(
             project_id=None,
             instance=INSTANCE_NAME,
@@ -680,7 +702,8 @@ class TestCloudSql(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.import_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
@@ -698,7 +721,8 @@ class TestCloudSql(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
-                                          gcp_conn_id="google_cloud_default")
+                                          gcp_conn_id="google_cloud_default",
+                                          impersonation_chain=None,)
         mock_hook.return_value.import_instance.assert_called_once_with(
             project_id=None,
             instance=INSTANCE_NAME,

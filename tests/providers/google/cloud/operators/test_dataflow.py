@@ -114,7 +114,7 @@ class TestDataflowPythonOperator(unittest.TestCase):
             dataflow=mock.ANY,
             py_options=PY_OPTIONS,
             py_interpreter=PY_INTERPRETER,
-            py_requirements=[],
+            py_requirements=None,
             py_system_site_packages=False,
             on_new_job_id_callback=mock.ANY,
             project_id=None,

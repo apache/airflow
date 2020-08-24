@@ -66,6 +66,15 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -78,6 +87,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -92,6 +102,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -104,9 +115,13 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         try:
             result = hook.create_entry(
                 location=self.location,
@@ -170,6 +185,15 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -181,6 +205,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -194,6 +219,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -205,9 +231,13 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         try:
             result = hook.create_entry_group(
                 location=self.location,
@@ -271,6 +301,15 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -284,6 +323,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -299,6 +339,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -312,9 +353,13 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         try:
             tag = hook.create_tag(
                 location=self.location,
@@ -389,6 +434,15 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -400,6 +454,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -413,6 +468,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -424,9 +480,13 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         try:
             result = hook.create_tag_template(
                 location=self.location,
@@ -491,6 +551,15 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -503,6 +572,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -517,6 +587,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -529,9 +600,13 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         try:
             result = hook.create_tag_template_field(
                 location=self.location,
@@ -588,6 +663,15 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -599,6 +683,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -612,6 +697,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -623,9 +709,13 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         try:
             hook.delete_entry(
                 location=self.location,
@@ -668,9 +758,19 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("location", "entry_group", "project_id", "retry", "timeout", "metadata", "gcp_conn_id")
+    template_fields = ("location", "entry_group", "project_id", "retry", "timeout", "metadata",
+                       "gcp_conn_id", "impersonation_chain",)
 
     @apply_defaults
     def __init__(
@@ -682,6 +782,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -692,9 +793,13 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         try:
             hook.delete_entry_group(
                 location=self.location,
@@ -738,6 +843,15 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -750,6 +864,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -764,6 +879,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -776,9 +892,13 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         try:
             hook.delete_tag(
                 location=self.location,
@@ -824,6 +944,15 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -835,6 +964,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -848,6 +978,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -859,9 +990,13 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         try:
             hook.delete_tag_template(
                 location=self.location,
@@ -906,6 +1041,15 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -918,6 +1062,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -932,6 +1077,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -944,9 +1090,13 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         try:
             hook.delete_tag_template_field(
                 location=self.location,
@@ -990,6 +1140,15 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -1001,6 +1160,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -1014,6 +1174,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1025,9 +1186,13 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         result = hook.get_entry(
             location=self.location,
             entry_group=self.entry_group,
@@ -1071,6 +1236,15 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -1082,6 +1256,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -1095,6 +1270,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1106,9 +1282,13 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         result = hook.get_entry_group(
             location=self.location,
             entry_group=self.entry_group,
@@ -1147,6 +1327,15 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -1157,6 +1346,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -1169,6 +1359,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1179,9 +1370,13 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         result = hook.get_tag_template(
             location=self.location,
             tag_template=self.tag_template,
@@ -1225,6 +1420,15 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -1237,6 +1441,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -1251,6 +1456,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1263,9 +1469,13 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         result = hook.list_tags(
             location=self.location,
             entry_group=self.entry_group,
@@ -1307,6 +1517,15 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -1317,6 +1536,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -1329,6 +1549,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1339,9 +1560,13 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         result = hook.lookup_entry(
             linked_resource=self.linked_resource,
             sql_resource=self.sql_resource,
@@ -1384,6 +1609,15 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -1396,6 +1630,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -1410,6 +1645,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1422,9 +1658,13 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         hook.rename_tag_template_field(
             location=self.location,
             tag_template=self.tag_template,
@@ -1492,6 +1732,15 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -1503,6 +1752,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -1516,6 +1766,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1527,9 +1778,13 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         result = hook.search_catalog(
             scope=self.scope,
             query=self.query,
@@ -1581,6 +1836,15 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -1594,6 +1858,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -1609,6 +1874,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1622,9 +1888,13 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         hook.update_entry(
             entry=self.entry,
             update_mask=self.update_mask,
@@ -1677,6 +1947,15 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -1691,6 +1970,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -1707,6 +1987,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1721,9 +2002,13 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         hook.update_tag(
             tag=self.tag,
             update_mask=self.update_mask,
@@ -1780,6 +2065,15 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -1792,6 +2086,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -1806,6 +2101,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1818,9 +2114,13 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         hook.update_tag_template(
             tag_template=self.tag_template,
             update_mask=self.update_mask,
@@ -1881,6 +2181,15 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -1895,6 +2204,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         "timeout",
         "metadata",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -1911,6 +2221,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1925,9 +2236,13 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudDataCatalogHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataCatalogHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
+        )
         hook.update_tag_template_field(
             tag_template_field=self.tag_template_field,
             update_mask=self.update_mask,

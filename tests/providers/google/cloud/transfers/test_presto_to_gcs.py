@@ -25,6 +25,7 @@ from airflow.providers.google.cloud.transfers.presto_to_gcs import PrestoToGCSOp
 TASK_ID = "test-presto-to-gcs"
 PRESTO_CONN_ID = "my-presto-conn"
 GCP_CONN_ID = "my-gcp-conn"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 SQL = "SELECT * FROM memory.default.test_multiple_types"
 BUCKET = "gs://test"
 FILENAME = "test_{}.ndjson"
@@ -48,11 +49,18 @@ SCHEMA_JSON = b'[{"name": "some_num", "type": "INT64"}, {"name": "some_str", "ty
 class TestPrestoToGCSOperator(unittest.TestCase):
     def test_init(self):
         """Test PrestoToGCSOperator instance is properly initialized."""
-        op = PrestoToGCSOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
+        op = PrestoToGCSOperator(
+            task_id=TASK_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         self.assertEqual(op.task_id, TASK_ID)
         self.assertEqual(op.sql, SQL)
         self.assertEqual(op.bucket, BUCKET)
         self.assertEqual(op.filename, FILENAME)
+        self.assertEqual(op.impersonation_chain, IMPERSONATION_CHAIN)
 
     @patch("airflow.providers.google.cloud.transfers.presto_to_gcs.PrestoHook")
     @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
@@ -88,12 +96,17 @@ class TestPrestoToGCSOperator(unittest.TestCase):
             filename=FILENAME,
             presto_conn_id=PRESTO_CONN_ID,
             gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         op.execute(None)
 
         mock_presto_hook.assert_called_once_with(presto_conn_id=PRESTO_CONN_ID)
-        mock_gcs_hook.assert_called_once_with(delegate_to=None, gcp_conn_id=GCP_CONN_ID)
+        mock_gcs_hook.assert_called_once_with(
+            delegate_to=None,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
 
         mock_gcs_hook.return_value.upload.assert_called()
 
@@ -218,6 +231,7 @@ class TestPrestoToGCSOperator(unittest.TestCase):
             export_format="csv",
             presto_conn_id=PRESTO_CONN_ID,
             gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         op.execute(None)
@@ -225,7 +239,11 @@ class TestPrestoToGCSOperator(unittest.TestCase):
         mock_gcs_hook.return_value.upload.assert_called()
 
         mock_presto_hook.assert_called_once_with(presto_conn_id=PRESTO_CONN_ID)
-        mock_gcs_hook.assert_called_once_with(delegate_to=None, gcp_conn_id=GCP_CONN_ID)
+        mock_gcs_hook.assert_called_once_with(
+            delegate_to=None,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
 
     @patch("airflow.providers.google.cloud.transfers.presto_to_gcs.PrestoHook")
     @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")

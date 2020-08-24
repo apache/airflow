@@ -20,7 +20,7 @@ This module contains Google Cloud Functions operators.
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient.errors import HttpError
 
@@ -116,9 +116,19 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
     :type zip_path: str
     :param validate_body: If set to False, body validation is not performed.
     :type validate_body: bool
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcf_function_deploy_template_fields]
-    template_fields = ('body', 'project_id', 'location', 'gcp_conn_id', 'api_version')
+    template_fields = ('body', 'project_id', 'location', 'gcp_conn_id', 'api_version',
+                       'impersonation_chain',)
     # [END gcf_function_deploy_template_fields]
 
     @apply_defaults
@@ -130,6 +140,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
                  api_version: str = 'v1',
                  zip_path: Optional[str] = None,
                  validate_body: bool = True,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.project_id = project_id
         self.location = location
@@ -139,6 +150,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         self.zip_path = zip_path
         self.zip_path_preprocessor = ZipPathPreprocessor(body, zip_path)
         self._field_validator = None  # type: Optional[GcpBodyFieldValidator]
+        self.impersonation_chain = impersonation_chain
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(CLOUD_FUNCTION_VALIDATION,
                                                           api_version=api_version)
@@ -191,7 +203,11 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
             {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
 
     def execute(self, context):
-        hook = CloudFunctionsHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = CloudFunctionsHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
         if self.zip_path_preprocessor.should_upload_function():
             self.body[GCF_SOURCE_UPLOAD_URL] = self._upload_source_code(hook)
         self._validate_all_body_fields()
@@ -308,9 +324,18 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
     :type gcp_conn_id: str
     :param api_version: API version used (for example v1 or v1beta1).
     :type api_version: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcf_function_delete_template_fields]
-    template_fields = ('name', 'gcp_conn_id', 'api_version')
+    template_fields = ('name', 'gcp_conn_id', 'api_version', 'impersonation_chain',)
     # [END gcf_function_delete_template_fields]
 
     @apply_defaults
@@ -318,10 +343,12 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
                  name: str,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.name = name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
+        self.impersonation_chain = impersonation_chain
         self._validate_inputs()
         super().__init__(**kwargs)
 
@@ -335,7 +362,11 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
                     'Parameter name must match pattern: {}'.format(FUNCTION_NAME_PATTERN))
 
     def execute(self, context):
-        hook = CloudFunctionsHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = CloudFunctionsHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
         try:
             return hook.delete_function(self.name)
         except HttpError as e:
@@ -365,9 +396,20 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :return: None
     """
-    template_fields = ('function_id', 'input_data', 'location', 'project_id')
+    template_fields = ('function_id', 'input_data', 'location', 'project_id',
+                       'impersonation_chain',)
 
     @apply_defaults
     def __init__(
@@ -378,6 +420,7 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -387,9 +430,14 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = CloudFunctionsHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        hook = CloudFunctionsHook(
+            api_version=self.api_version,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info('Calling function %s.', self.function_id)
         result = hook.call_function(
             function_id=self.function_id,

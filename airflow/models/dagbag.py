@@ -450,6 +450,27 @@ class DagBag(BaseDagBag, LoggingMixin):
                          format(filename),
                          file_stat.duration)
 
+    def collect_dags_from_db(self):
+        """Collects DAGs from database."""
+        from airflow.models.serialized_dag import SerializedDagModel
+        start_dttm = timezone.utcnow()
+        self.log.info("Filling up the DagBag from database")
+
+        # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
+        # from the table by the scheduler job.
+        self.dags = SerializedDagModel.read_all_dags()
+
+        # Adds subdags.
+        # DAG post-processing steps such as self.bag_dag and croniter are not needed as
+        # they are done by scheduler before serialization.
+        subdags = {}
+        for dag in self.dags.values():
+            for subdag in dag.subdags:
+                subdags[subdag.dag_id] = subdag
+        self.dags.update(subdags)
+
+        Stats.timing('collect_db_dags', timezone.utcnow() - start_dttm)
+
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""
         stats = self.dagbag_stats

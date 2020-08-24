@@ -566,7 +566,7 @@ class DagFileProcessor(LoggingMixin):
         # return if already reached maximum active runs and no timeout setting
         if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
             return None
-        timeouted_runs = 0
+        timed_out_runs = 0
         for dr in active_runs:
             if (
                 dr.start_date and dag.dagrun_timeout and
@@ -576,9 +576,9 @@ class DagFileProcessor(LoggingMixin):
                 dr.end_date = timezone.utcnow()
                 dag.handle_callback(dr, success=False, reason='dagrun_timeout',
                                     session=session)
-                timeouted_runs += 1
+                timed_out_runs += 1
         session.commit()
-        if len(active_runs) - timeouted_runs >= dag.max_active_runs:
+        if len(active_runs) - timed_out_runs >= dag.max_active_runs:
             return None
 
         # this query should be replaced by find dagrun

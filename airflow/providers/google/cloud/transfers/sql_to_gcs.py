@@ -23,6 +23,7 @@ import abc
 import json
 import warnings
 from tempfile import NamedTemporaryFile
+from typing import Optional, Sequence, Union
 
 import unicodecsv as csv
 
@@ -68,13 +69,24 @@ class BaseSQLToGCSOperator(BaseOperator):
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
         Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to
-        work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     :param parameters: a parameters dict that is substituted at query runtime.
     :type parameters: dict
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('sql', 'bucket', 'filename', 'schema_filename', 'schema', 'parameters')
+    template_fields = ('sql', 'bucket', 'filename', 'schema_filename', 'schema', 'parameters',
+                       'impersonation_chain',)
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
@@ -93,6 +105,7 @@ class BaseSQLToGCSOperator(BaseOperator):
                  gcp_conn_id='google_cloud_default',
                  google_cloud_storage_conn_id=None,
                  delegate_to=None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs):
         super().__init__(**kwargs)
 
@@ -114,6 +127,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.parameters = parameters
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         self.log.info("Executing query")
@@ -285,7 +299,9 @@ class BaseSQLToGCSOperator(BaseOperator):
         """
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to)
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         for tmp_file in files_to_upload:
             hook.upload(self.bucket, tmp_file.get('file_name'),
                         tmp_file.get('file_handle').name,

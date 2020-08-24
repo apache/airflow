@@ -106,7 +106,7 @@ h p: b: i:
 K: V:
 l a: t: d:
 v y n q f
-F P I E: C
+F P I E: C r
 L U X
 D: R: c g: s:
 S: N:
@@ -117,7 +117,7 @@ help python: backend: integration:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
 skip-mounting-local-sources install-airflow-version: install-airflow-reference: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials
-force-build-images force-pull-images production-image extras: force-clean-images
+force-build-images force-pull-images production-image extras: force-clean-images skip-rebuild-check
 build-cache-local build-cache-pulled build-cache-disabled
 dockerhub-user: dockerhub-repo: github-registry github-repository: github-image-id:
 postgres-version: mysql-version:

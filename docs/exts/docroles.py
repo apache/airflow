@@ -59,7 +59,6 @@ def get_template_field(env, fullname):
     return list(template_fields)
 
 
-# noinspection PyUnusedLocal
 def template_field_role(app,
                         typ,  # pylint: disable=unused-argument
                         rawtext,

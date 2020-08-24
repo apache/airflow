@@ -578,8 +578,9 @@ def merge_objects(base_obj, client_obj):
     client_obj_cp = copy.deepcopy(client_obj)
 
     if isinstance(base_obj, dict) and isinstance(client_obj_cp, dict):
-        client_obj_cp.update(base_obj)
-        return client_obj_cp
+        base_obj_cp = copy.deepcopy(base_obj)
+        base_obj_cp.update(client_obj_cp)
+        return base_obj_cp
 
     for base_key in base_obj.to_dict().keys():
         base_val = getattr(base_obj, base_key, None)

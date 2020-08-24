@@ -275,6 +275,9 @@ Azure: Microsoft Azure
 
 Airflow has limited support for `Microsoft Azure <https://azure.microsoft.com/>`__.
 
+Some hooks are based on :mod:`airflow.providers.microsoft.azure.hooks.base_azure`
+which authenticate Azure's Python SDK Clients.
+
 Service operators and hooks
 '''''''''''''''''''''''''''
 
@@ -485,6 +488,12 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_training`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_transform`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_tuning`
+
+   * - `Amazon Simple Email Service (SES) <https://aws.amazon.com/ses/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.ses`
+     -
+     -
 
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
      -

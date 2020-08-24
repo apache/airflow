@@ -77,7 +77,6 @@ create_training_params = \
     }
 
 
-# noinspection PyUnusedLocal
 # pylint: disable=unused-argument
 class TestSageMakerTrainingOperator(unittest.TestCase):
 

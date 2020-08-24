@@ -48,7 +48,6 @@ from .utilities import get_random_id
 
 
 # pylint: disable=redefined-builtin
-# noinspection PyShadowingBuiltins
 class FakeElasticsearch(Elasticsearch):
     __documents_dict = None
 

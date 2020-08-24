@@ -117,6 +117,42 @@ look like the following.
           -H 'Cache-Control: no-cache' \
           -H "Authorization: Bearer ${ID_TOKEN}"
 
+Basic authentication
+''''''''''''''''''''
+
+`Basic username password authentication <https://tools.ietf.org/html/rfc7617
+https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
+supported for the API. This works for users created through LDAP login or
+within Airflow Metadata DB using password.
+
+To enable basic authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.basic_auth
+
+Username and password needs to be base64 encoded and send through the
+``Authorization`` HTTP header in the following format:
+
+.. code-block:: text
+
+    Authorization: Basic Base64(username:password)
+
+Here is a sample curl command you can use to validate the setup:
+
+.. code-block:: bash
+
+    ENDPOINT_URL="http://locahost:8080/"
+    curl -X GET  \
+        --user "username:password" \
+        "${ENDPOINT_URL}/api/v1/pools"
+
+Note, you can still enable this setting to allow API access through username
+password credential even though Airflow webserver might be using another
+authentication method. Under this setup, only users created through LDAP or
+``airflow users create`` command will be able to pass the API authentication.
+
 Roll your own API authentication
 ''''''''''''''''''''''''''''''''
 
@@ -134,3 +170,10 @@ After writing your backend module, provide the fully qualified module name in th
 section of ``airflow.cfg``.
 
 Additional options to your auth backend can be configured in ``airflow.cfg``, as a new option.
+
+Page size limit
+---------------
+
+To protect against requests that may lead to application instability, the stable API has a limit of items in response.
+The default is 100 items, but you can change it using ``maximum_page_limit``  option in ``[api]``
+section in the ``airflow.cfg`` file.

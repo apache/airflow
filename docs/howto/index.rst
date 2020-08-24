@@ -38,12 +38,9 @@ configuring an Airflow environment.
     custom-operator
     connection/index
     variable
-    write-logs
     run-behind-proxy
     run-with-systemd
     run-with-upstart
     use-test-config
-    check-health
     define_extra_link
-    tracking-user-activity
     email-config

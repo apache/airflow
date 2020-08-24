@@ -19,7 +19,7 @@
 This module contains a Google PubSub sensor.
 """
 import warnings
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 from google.protobuf.json_format import MessageToDict
@@ -77,9 +77,9 @@ class PubSubPullSensor(BaseSensorOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request
-        must have domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param messages_callback: (Optional) Callback to process received messages.
         It's return value will be saved to XCom.
@@ -87,8 +87,17 @@ class PubSubPullSensor(BaseSensorOperator):
         If not provided, the default implementation will convert `ReceivedMessage` objects
         into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
     :type messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ['project_id', 'subscription']
+    template_fields = ['project_id', 'subscription', 'impersonation_chain', ]
     ui_color = '#ff7f50'
 
     @apply_defaults
@@ -103,6 +112,7 @@ class PubSubPullSensor(BaseSensorOperator):
             messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
             delegate_to: Optional[str] = None,
             project: Optional[str] = None,
+            impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
             **kwargs
     ) -> None:
         # To preserve backward compatibility
@@ -134,6 +144,7 @@ class PubSubPullSensor(BaseSensorOperator):
         self.return_immediately = return_immediately
         self.ack_messages = ack_messages
         self.messages_callback = messages_callback
+        self.impersonation_chain = impersonation_chain
 
         self._return_value = None
 
@@ -146,6 +157,7 @@ class PubSubPullSensor(BaseSensorOperator):
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         pulled_messages = hook.pull(

@@ -20,7 +20,7 @@ This module contains Google Compute Engine operators.
 """
 
 from copy import deepcopy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient.errors import HttpError
 from json_merge_patch import merge
@@ -45,12 +45,14 @@ class ComputeEngineBaseOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.project_id = project_id
         self.zone = zone
         self.resource_id = resource_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
+        self.impersonation_chain = impersonation_chain
         self._validate_inputs()
         super().__init__(**kwargs)
 
@@ -90,9 +92,19 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     :type api_version: str
     :param validate_body: Optional, If set to False, body validation is not performed.
         Defaults to False.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gce_instance_start_template_fields]
-    template_fields = ('project_id', 'zone', 'resource_id', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'zone', 'resource_id', 'gcp_conn_id', 'api_version',
+                       'impersonation_chain',)
     # [END gce_instance_start_template_fields]
 
     @apply_defaults
@@ -102,13 +114,19 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(
             project_id=project_id, zone=zone, resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id, api_version=api_version, **kwargs)
+            gcp_conn_id=gcp_conn_id, api_version=api_version,
+            impersonation_chain=impersonation_chain, **kwargs)
 
     def execute(self, context):
-        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain
+        )
         return hook.start_instance(zone=self.zone,
                                    resource_id=self.resource_id,
                                    project_id=self.project_id)
@@ -138,9 +156,19 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     :type api_version: str
     :param validate_body: Optional, If set to False, body validation is not performed.
         Defaults to False.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gce_instance_stop_template_fields]
-    template_fields = ('project_id', 'zone', 'resource_id', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'zone', 'resource_id', 'gcp_conn_id', 'api_version',
+                       'impersonation_chain',)
     # [END gce_instance_stop_template_fields]
 
     @apply_defaults
@@ -150,13 +178,19 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(
             project_id=project_id, zone=zone, resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id, api_version=api_version, **kwargs)
+            gcp_conn_id=gcp_conn_id, api_version=api_version,
+            impersonation_chain=impersonation_chain, **kwargs)
 
     def execute(self, context):
-        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain
+        )
         hook.stop_instance(zone=self.zone,
                            resource_id=self.resource_id,
                            project_id=self.project_id)
@@ -196,9 +230,19 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     :param validate_body: Optional, If set to False, body validation is not performed.
         Defaults to False.
     :type validate_body: bool
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gce_instance_set_machine_type_template_fields]
-    template_fields = ('project_id', 'zone', 'resource_id', 'body', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'zone', 'resource_id', 'body', 'gcp_conn_id', 'api_version',
+                       'impersonation_chain',)
     # [END gce_instance_set_machine_type_template_fields]
 
     @apply_defaults
@@ -210,6 +254,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
                  validate_body: bool = True,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.body = body
         self._field_validator = None  # type: Optional[GcpBodyFieldValidator]
@@ -218,14 +263,19 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
                 SET_MACHINE_TYPE_VALIDATION_SPECIFICATION, api_version=api_version)
         super().__init__(
             project_id=project_id, zone=zone, resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id, api_version=api_version, **kwargs)
+            gcp_conn_id=gcp_conn_id, api_version=api_version,
+            impersonation_chain=impersonation_chain, **kwargs)
 
     def _validate_all_body_fields(self):
         if self._field_validator:
             self._field_validator.validate(self.body)
 
     def execute(self, context):
-        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain
+        )
         self._validate_all_body_fields()
         return hook.set_machine_type(zone=self.zone,
                                      resource_id=self.resource_id,
@@ -317,10 +367,19 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     :param validate_body: Optional, If set to False, body validation is not performed.
         Defaults to False.
     :type validate_body: bool
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gce_instance_template_copy_operator_template_fields]
     template_fields = ('project_id', 'resource_id', 'request_id',
-                       'gcp_conn_id', 'api_version')
+                       'gcp_conn_id', 'api_version', 'impersonation_chain',)
     # [END gce_instance_template_copy_operator_template_fields]
 
     @apply_defaults
@@ -332,6 +391,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
                  validate_body: bool = True,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.body_patch = body_patch
         self.request_id = request_id
@@ -347,14 +407,19 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             GCE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id, zone='global', resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id, api_version=api_version, **kwargs)
+            gcp_conn_id=gcp_conn_id, api_version=api_version,
+            impersonation_chain=impersonation_chain, **kwargs)
 
     def _validate_all_body_fields(self):
         if self._field_validator:
             self._field_validator.validate(self.body_patch)
 
     def execute(self, context):
-        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain
+        )
         self._validate_all_body_fields()
         try:
             # Idempotence check (sort of) - we want to check if the new template
@@ -426,11 +491,20 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
     :param validate_body: Optional, If set to False, body validation is not performed.
         Defaults to False.
     :type validate_body: bool
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gce_igm_update_template_operator_template_fields]
     template_fields = ('project_id', 'resource_id', 'zone', 'request_id',
                        'source_template', 'destination_template',
-                       'gcp_conn_id', 'api_version')
+                       'gcp_conn_id', 'api_version', 'impersonation_chain',)
     # [END gce_igm_update_template_operator_template_fields]
 
     @apply_defaults
@@ -444,6 +518,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
                  request_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version='beta',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.zone = zone
         self.source_template = source_template
@@ -457,7 +532,8 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
                                    " api version or above")
         super().__init__(
             project_id=project_id, zone=self.zone, resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id, api_version=api_version, **kwargs)
+            gcp_conn_id=gcp_conn_id, api_version=api_version,
+            impersonation_chain=impersonation_chain, **kwargs)
 
     def _possibly_replace_template(self, dictionary: Dict) -> None:
         if dictionary.get('instanceTemplate') == self.source_template:
@@ -465,7 +541,11 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             self._change_performed = True
 
     def execute(self, context):
-        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain
+        )
         old_instance_group_manager = hook.get_instance_group_manager(
             zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
         patch_body = {}

@@ -408,9 +408,6 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_RUNTIME_DEPS``              |                                          | additional apt runtime dependencies to   |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``EMBEDDED_DAGS``                        | ``empty``                                | Folder containing dags embedded into the |
-|                                          |                                          | image in the ${AIRFLOW_HOME}/dags dir    |
-+------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and    |
 |                                          |                                          | sqlite databases are stored)             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -606,7 +603,7 @@ Running the CI image
 ====================
 
 The entrypoint in the CI image contains all the initialisation needed for tests to be immediately executed.
-It is copied from ``scripts/ci/in_container/entrypoint_ci.sh``.
+It is copied from ``scripts/in_container/entrypoint_ci.sh``.
 
 The default behaviour is that you are dropped into bash shell. However if RUN_TESTS variable is
 set to "true", then tests passed as arguments are executed
@@ -642,7 +639,7 @@ Using the PROD image
 ====================
 
 The entrypoint in the PROD image contains all the initialisation needed for tests to be immediately executed.
-It is copied from ``scripts/ci/in_container/entrypoint_prod.sh``.
+It is copied from ``scripts/in_container/entrypoint_prod.sh``.
 
 The PROD image entrypoint works as follows:
 

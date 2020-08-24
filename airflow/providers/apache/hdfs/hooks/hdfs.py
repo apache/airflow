@@ -34,7 +34,6 @@ class HDFSHookException(AirflowException):
     """Exception specific for HDFS"""
 
 
-# noinspection PyAbstractClass
 class HDFSHook(BaseHook):
     """
     Interact with HDFS. This class is a wrapper around the snakebite library.

@@ -51,8 +51,8 @@ class GKEHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        location: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        location: Optional[str] = None
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,

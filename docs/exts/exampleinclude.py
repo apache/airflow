@@ -130,7 +130,6 @@ class ExampleInclude(SphinxDirective):
 
 
 # pylint: disable=protected-access
-# noinspection PyProtectedMember
 def register_source(app, env, modname):
     """
     Registers source code.
@@ -147,7 +146,6 @@ def register_source(app, env, modname):
 
     code_tags = app.emit_firstresult("viewcode-find-source", modname)
     if code_tags is None:
-        # noinspection PyBroadException
         try:
             analyzer = ModuleAnalyzer.for_module(modname)
         except Exception as ex:  # pylint: disable=broad-except
@@ -208,7 +206,6 @@ def create_node(env, relative_path, show_button):
     return paragraph
 
 
-# noinspection PyProtectedMember
 # pylint: disable=protected-access
 def doctree_read(app, doctree):
     """

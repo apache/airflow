@@ -28,6 +28,7 @@ VALUES = [[1, 2, 3]]
 BUCKET = "destination_bucket"
 PATH = "path/to/reports"
 GCP_CONN_ID = "test"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestGoogleSheetsToGCSOperator:
@@ -97,13 +98,20 @@ class TestGoogleSheetsToGCSOperator:
             sheet_filter=FILTER,
             destination_path=PATH,
             gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context)
 
         mock_sheet_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
-        mock_gcs_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, delegate_to=None)
+        mock_gcs_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
 
         mock_sheet_hook.return_value.get_sheet_titles.assert_called_once_with(
             spreadsheet_id=SPREADSHEET_ID, sheet_filter=FILTER

@@ -30,7 +30,6 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
-# noinspection PyAbstractClass
 class LifeSciencesHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Life Sciences APIs.

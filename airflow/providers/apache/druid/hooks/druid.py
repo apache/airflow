@@ -120,7 +120,7 @@ class DruidHook(BaseHook):
 
             time.sleep(self.timeout)
 
-            sec = sec + self.timeout
+            sec += self.timeout
 
             status = req_status.json()['status']['status']
             if status == 'RUNNING':

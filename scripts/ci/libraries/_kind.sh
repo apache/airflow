@@ -34,7 +34,7 @@ function dump_kind_logs() {
     local DUMP_DIR_NAME DUMP_DIR
     DUMP_DIR_NAME=kind_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
     DUMP_DIR="/tmp/${DUMP_DIR_NAME}"
-    verbose_kind --name "${KIND_CLUSTER_NAME}" export logs "${DUMP_DIR}"
+    kind --name "${KIND_CLUSTER_NAME}" export logs "${DUMP_DIR}"
 }
 
 function make_sure_kubernetes_tools_are_installed() {
@@ -106,7 +106,7 @@ function create_cluster() {
         fi
         stop_output_heartbeat
     else
-        verbose_kind create cluster \
+        kind create cluster \
             --name "${KIND_CLUSTER_NAME}" \
             --config "${AIRFLOW_SOURCES}/scripts/ci/kubernetes/kind-cluster-conf.yaml" \
             --image "kindest/node:${KUBERNETES_VERSION}"
@@ -117,7 +117,7 @@ function create_cluster() {
 }
 
 function delete_cluster() {
-    verbose_kind delete cluster --name "${KIND_CLUSTER_NAME}"
+    kind delete cluster --name "${KIND_CLUSTER_NAME}"
     echo
     echo "Deleted cluster ${KIND_CLUSTER_NAME}"
     echo
@@ -147,7 +147,7 @@ function perform_kind_cluster_operation() {
             echo
             echo "Cluster name: ${KIND_CLUSTER_NAME}"
             echo
-            verbose_kind get nodes --name "${KIND_CLUSTER_NAME}"
+            kind get nodes --name "${KIND_CLUSTER_NAME}"
             echo
             exit
         else
@@ -182,7 +182,9 @@ function perform_kind_cluster_operation() {
             get_environment_for_builds_on_ci
             make_sure_kubernetes_tools_are_installed
             initialize_kind_variables
-            build_prod_image_for_kubernetes_tests
+            prepare_prod_build
+            build_prod_images
+            build_image_for_kubernetes_tests
             load_image_to_kind_cluster
             deploy_airflow_with_helm
             forward_port_to_kind_webserver
@@ -231,38 +233,43 @@ function perform_kind_cluster_operation() {
 }
 
 function check_cluster_ready_for_airflow() {
-    verbose_kubectl cluster-info --cluster "${KUBECTL_CLUSTER_NAME}"
-    verbose_kubectl get nodes --cluster "${KUBECTL_CLUSTER_NAME}"
+    kubectl cluster-info --cluster "${KUBECTL_CLUSTER_NAME}"
+    kubectl get nodes --cluster "${KUBECTL_CLUSTER_NAME}"
     echo
     echo "Showing storageClass"
     echo
-    verbose_kubectl get storageclass --cluster "${KUBECTL_CLUSTER_NAME}"
+    kubectl get storageclass --cluster "${KUBECTL_CLUSTER_NAME}"
     echo
     echo "Showing kube-system pods"
     echo
-    verbose_kubectl get -n kube-system pods --cluster "${KUBECTL_CLUSTER_NAME}"
+    kubectl get -n kube-system pods --cluster "${KUBECTL_CLUSTER_NAME}"
     echo
     echo "Airflow environment on kubernetes is good to go!"
     echo
-    verbose_kubectl create namespace test-namespace --cluster "${KUBECTL_CLUSTER_NAME}"
+    kubectl create namespace test-namespace --cluster "${KUBECTL_CLUSTER_NAME}"
 }
 
 
-function build_prod_image_for_kubernetes_tests() {
+function build_image_for_kubernetes_tests() {
     cd "${AIRFLOW_SOURCES}" || exit 1
-    export EMBEDDED_DAGS="airflow/example_dags"
-    export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
-    prepare_prod_build
-    build_prod_image
-    echo "The ${AIRFLOW_PROD_IMAGE} is prepared for test kubernetes deployment."
-    rm "${OUTPUT_LOG}"
+    docker build --tag "${AIRFLOW_PROD_IMAGE_KUBERNETES}" . -f - <<EOF
+FROM ${AIRFLOW_PROD_IMAGE}
+
+USER root
+
+COPY --chown=airflow:root airflow/example_dags/ \${AIRFLOW_HOME}/dags/
+
+USER airflow
+
+EOF
+    echo "The ${AIRFLOW_PROD_IMAGE_KUBERNETES} is prepared for test kubernetes deployment."
 }
 
 function load_image_to_kind_cluster() {
     echo
-    echo "Loading ${AIRFLOW_PROD_IMAGE} to ${KIND_CLUSTER_NAME}"
+    echo "Loading ${AIRFLOW_PROD_IMAGE_KUBERNETES} to ${KIND_CLUSTER_NAME}"
     echo
-    verbose_kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_PROD_IMAGE}"
+    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_PROD_IMAGE_KUBERNETES}"
 }
 
 function forward_port_to_kind_webserver() {
@@ -291,18 +298,18 @@ function deploy_airflow_with_helm() {
     echo "Deploying Airflow with Helm"
     echo
     echo "Deleting namespace ${HELM_AIRFLOW_NAMESPACE}"
-    verbose_kubectl delete namespace "${HELM_AIRFLOW_NAMESPACE}" >/dev/null 2>&1 || true
-    verbose_kubectl delete namespace "test-namespace" >/dev/null 2>&1 || true
-    verbose_kubectl create namespace "${HELM_AIRFLOW_NAMESPACE}"
-    verbose_kubectl create namespace "test-namespace"
+    kubectl delete namespace "${HELM_AIRFLOW_NAMESPACE}" >/dev/null 2>&1 || true
+    kubectl delete namespace "test-namespace" >/dev/null 2>&1 || true
+    kubectl create namespace "${HELM_AIRFLOW_NAMESPACE}"
+    kubectl create namespace "test-namespace"
     pushd "${AIRFLOW_SOURCES}/chart" || exit 1
-    verbose_helm repo add stable https://kubernetes-charts.storage.googleapis.com
-    verbose_helm dep update
-    verbose_helm install airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
+    helm repo add stable https://kubernetes-charts.storage.googleapis.com
+    helm dep update
+    helm install airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
         --set "defaultAirflowRepository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
         --set "images.airflow.repository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
-        --set "images.airflow.tag=${AIRFLOW_PROD_BASE_TAG}" -v 1 \
-        --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}" -v 1 \
+        --set "images.airflow.tag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
+        --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
         --set "config.api.auth_backend=airflow.api.auth.backend.default"
     echo
     popd || exit 1
@@ -313,7 +320,7 @@ function deploy_test_kubernetes_resources() {
     echo
     echo "Deploying Custom kubernetes resources"
     echo
-    verbose_kubectl apply -f "scripts/ci/kubernetes/volumes.yaml" --namespace default
+    kubectl apply -f "scripts/ci/kubernetes/volumes.yaml" --namespace default
 }
 
 
@@ -321,8 +328,8 @@ function dump_kubernetes_logs() {
     POD=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' \
         --cluster "${KUBECTL_CLUSTER_NAME}" | grep airflow | head -1)
     echo "------- pod description -------"
-    verbose_kubectl describe pod "${POD}" --cluster "${KUBECTL_CLUSTER_NAME}"
+    kubectl describe pod "${POD}" --cluster "${KUBECTL_CLUSTER_NAME}"
     echo "------- airflow pod logs -------"
-    verbose_kubectl logs "${POD}" --all-containers=true || true
+    kubectl logs "${POD}" --all-containers=true || true
     echo "--------------"
 }

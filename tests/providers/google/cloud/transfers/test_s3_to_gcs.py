@@ -30,6 +30,7 @@ GCS_PATH_PREFIX = 'gs://gcs-bucket/data/'
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 AWS_CONN_ID = 'aws_default'
 GCS_CONN_ID = 'google_cloud_default'
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
@@ -42,7 +43,9 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
             prefix=S3_PREFIX,
             delimiter=S3_DELIMITER,
             gcp_conn_id=GCS_CONN_ID,
-            dest_gcs=GCS_PATH_PREFIX)
+            dest_gcs=GCS_PATH_PREFIX,
+            google_impersonation_chain=IMPERSONATION_CHAIN,
+        )
 
         self.assertEqual(operator.task_id, TASK_ID)
         self.assertEqual(operator.bucket, S3_BUCKET)
@@ -50,6 +53,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(operator.delimiter, S3_DELIMITER)
         self.assertEqual(operator.gcp_conn_id, GCS_CONN_ID)
         self.assertEqual(operator.dest_gcs, GCS_PATH_PREFIX)
+        self.assertEqual(operator.google_impersonation_chain, IMPERSONATION_CHAIN)
 
     @mock.patch('airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook')
     @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
@@ -64,7 +68,9 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
             prefix=S3_PREFIX,
             delimiter=S3_DELIMITER,
             dest_gcs_conn_id=GCS_CONN_ID,
-            dest_gcs=GCS_PATH_PREFIX)
+            dest_gcs=GCS_PATH_PREFIX,
+            google_impersonation_chain=IMPERSONATION_CHAIN,
+        )
 
         s3_one_mock_hook.return_value.list_keys.return_value = MOCK_FILES
         s3_two_mock_hook.return_value.list_keys.return_value = MOCK_FILES
@@ -81,7 +87,10 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         s3_one_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
         s3_two_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
         gcs_mock_hook.assert_called_once_with(
-            google_cloud_storage_conn_id=GCS_CONN_ID, delegate_to=None)
+            google_cloud_storage_conn_id=GCS_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
 
         # we expect MOCK_FILES to be uploaded
         self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
@@ -107,6 +116,11 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         s3_two_mock_hook.return_value.list_keys.return_value = MOCK_FILES
 
         operator.execute(None)
+        gcs_mock_hook.assert_called_once_with(
+            google_cloud_storage_conn_id=GCS_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=None,
+        )
         gcs_mock_hook.return_value.upload.assert_has_calls(
             [
                 mock.call('gcs-bucket', 'data/TEST2.csv', mock.ANY, gzip=True),

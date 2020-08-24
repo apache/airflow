@@ -17,7 +17,7 @@
 # under the License.
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import Iterable
+from typing import Iterable, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -59,8 +59,8 @@ class S3ToGCSOperator(S3ListOperator):
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
     :type dest_gcs: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
     :param replace: Whether you want to replace existing destination files
@@ -68,6 +68,15 @@ class S3ToGCSOperator(S3ListOperator):
     :type replace: bool
     :param gzip: Option to compress file for upload
     :type gzip: bool
+    :param google_impersonation_chain: Optional Google service account to impersonate using
+        short-term credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type google_impersonation_chain: Union[str, Sequence[str]]
 
 
     **Example**:
@@ -88,7 +97,8 @@ class S3ToGCSOperator(S3ListOperator):
     templated, so you can use variables in them if you wish.
     """
 
-    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter', 'dest_gcs')
+    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter', 'dest_gcs',
+                                      'google_impersonation_chain',)
     ui_color = '#e09411'
 
     # pylint: disable=too-many-arguments
@@ -105,6 +115,7 @@ class S3ToGCSOperator(S3ListOperator):
                  delegate_to=None,
                  replace=False,
                  gzip=False,
+                 google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs):
 
         super().__init__(
@@ -126,6 +137,7 @@ class S3ToGCSOperator(S3ListOperator):
         self.replace = replace
         self.verify = verify
         self.gzip = gzip
+        self.google_impersonation_chain = google_impersonation_chain
 
         if dest_gcs and not self._gcs_object_is_directory(self.dest_gcs):
             self.log.info(
@@ -141,7 +153,9 @@ class S3ToGCSOperator(S3ListOperator):
 
         gcs_hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to)
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.google_impersonation_chain,
+        )
 
         # pylint: disable=too-many-nested-blocks
         if not self.replace:

@@ -473,6 +473,8 @@ export MYSQL_VERSION="${MYSQL_VERSION}"
 export AIRFLOW_SOURCES="${AIRFLOW_SOURCES}"
 export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
 export AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
+export AIRFLOW_PROD_IMAGE_KUBERNETES="${AIRFLOW_PROD_IMAGE_KUBERNETES}"
+export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
 export AIRFLOW_IMAGE="${AIRFLOW_IMAGE}"
 export SQLITE_URL="${SQLITE_URL}"
 docker-compose --log-level INFO ${CMD}
@@ -538,7 +540,10 @@ function prepare_command_files() {
     # Base python image for the build
     export PYTHON_BASE_IMAGE=python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
+    export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
+    export AIRFLOW_PROD_IMAGE_KUBERNETES="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-kubernetes"
     export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
+    export AIRFLOW_PROD_IMAGE_KUBERNETES="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-kubernetes"
     export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
     LAST_DC_CI_FILE="dc_ci"
@@ -714,6 +719,12 @@ function parse_arguments() {
           export DOCKER_CACHE="no-cache"
           export FORCE_BUILD_IMAGES="true"
           shift ;;
+        -r|--skip-rebuild-check)
+          echo "Skips checking image for rebuilds"
+          echo
+          export CHECK_IMAGE_FOR_REBUILD="false"
+          export SKIP_BUILDING_PROD_IMAGE="true"
+          shift ;;
         -L|--build-cache-local)
           echo "Use local cache to build images"
           echo
@@ -806,6 +817,7 @@ function parse_arguments() {
           export GITHUB_REGISTRY_PULL_IMAGE_TAG="${2}"
           export GITHUB_REGISTRY_PUSH_IMAGE_TAG="${2}"
           export CHECK_IMAGE_FOR_REBUILD="false"
+          export SKIP_BUILDING_PROD_IMAGE="true"
           export MOUNT_LOCAL_SOURCES="false"
           export SKIP_CHECK_REMOTE_IMAGE="true"
           shift 2;;
@@ -1598,7 +1610,7 @@ function flag_kubernetes_configuration() {
 Configuration for the KinD Kubernetes cluster and tests:
 
 -K, --kubernetes-mode <KUBERNETES_MODE>
-        Kubernetes mode - only used in case one of --kind-cluster-* commands is used.
+        Kubernetes mode - only used in case one of kind-cluster commands is used.
         One of:
 
 ${FORMATTED_KUBERNETES_MODES}
@@ -1606,7 +1618,7 @@ ${FORMATTED_KUBERNETES_MODES}
         Default: ${_BREEZE_DEFAULT_KUBERNETES_MODE:=}
 
 -V, --kubernetes-version <KUBERNETES_VERSION>
-        Kubernetes version - only used in case one of --kind-cluster-* commands is used.
+        Kubernetes version - only used in case one of kind-cluster commands is used.
         One of:
 
 ${FORMATTED_KUBERNETES_VERSIONS}
@@ -1614,7 +1626,7 @@ ${FORMATTED_KUBERNETES_VERSIONS}
         Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
 
 --kind-version <KIND_VERSION>
-        Kind version - only used in case one of --kind-cluster-* commands is used.
+        Kind version - only used in case one of kind-cluster commands is used.
         One of:
 
 ${FORMATTED_KIND_VERSIONS}
@@ -1622,7 +1634,7 @@ ${FORMATTED_KIND_VERSIONS}
         Default: ${_BREEZE_DEFAULT_KIND_VERSION:=}
 
 --helm-version <HELM_VERSION>
-        Helm version - only used in case one of --kind-cluster-* commands is used.
+        Helm version - only used in case one of kind-cluster commands is used.
         One of:
 
 ${FORMATTED_HELM_VERSIONS}
@@ -1736,6 +1748,9 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 -C, --force-clean-images
         Force build images with cache disabled. This will remove the pulled or build images
         and start building images from scratch. This might take a long time.
+
+-r, --skip-rebuild-check
+        Skips checking image for rebuilds. It will use whatever image is available locally/pulled.
 
 -L, --build-cache-local
         Uses local cache to build images. No pulled images will be used, but results of local
@@ -2130,7 +2145,7 @@ function run_build_command {
         build_image)
             if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
                 prepare_prod_build
-                build_prod_image
+                build_prod_images
             else
                 prepare_ci_build
                 calculate_md5sum_for_all_files
@@ -2211,7 +2226,7 @@ function run_breeze_command {
               : "${AIRFLOW_TESTING_CONTAINER:?"ERROR! Breeze must be running in order to exec into running container"}"
             set -e
             docker exec -it "${AIRFLOW_TESTING_CONTAINER}" \
-                "/opt/airflow/scripts/ci/in_container/entrypoint_exec.sh" "${@}"
+                "/opt/airflow/scripts/in_container/entrypoint_exec.sh" "${@}"
             ;;
         run_tests)
             export RUN_TESTS="true"
@@ -2249,7 +2264,7 @@ function run_breeze_command {
             if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
                 push_prod_images
             else
-                push_ci_image
+                push_ci_images
             fi
             ;;
         perform_initialize_local_virtualenv)

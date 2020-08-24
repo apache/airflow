@@ -211,7 +211,7 @@ class HiveCliHook(BaseHook):
 
         with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:
-                hql = hql + '\n'
+                hql += '\n'
                 f.write(hql.encode('UTF-8'))
                 f.flush()
                 hive_cmd = self._prepare_cli_cmd()

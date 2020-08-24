@@ -19,6 +19,7 @@
 This module contains a Google Cloud Bigtable Hook.
 """
 import enum
+import warnings
 from typing import Dict, List, Optional, Sequence, Union
 
 from google.cloud.bigtable import Client
@@ -109,6 +110,7 @@ class BigtableHook(GoogleBaseHook):
         main_cluster_id: str,
         main_cluster_zone: str,
         project_id: str,
+        replica_clusters: Optional[List[Dict[str, str]]] = None,
         replica_cluster_id: Optional[str] = None,
         replica_cluster_zone: Optional[str] = None,
         instance_display_name: Optional[str] = None,
@@ -132,11 +134,15 @@ class BigtableHook(GoogleBaseHook):
         :param project_id: Optional, Google Cloud Platform project ID where the
             BigTable exists. If set to None or missing,
             the default project_id from the GCP connection is used.
+        :type replica_clusters: List[Dict[str, str]]
+        :param replica_clusters: (optional) A list of replica clusters for the new
+            instance. Each cluster dictionary contains an id and a zone.
+            Example: [{"id": "replica-1", "zone": "us-west1-a"}]
         :type replica_cluster_id: str
-        :param replica_cluster_id: (optional) The ID for replica cluster for the new
+        :param replica_cluster_id: (deprecated) The ID for replica cluster for the new
             instance.
         :type replica_cluster_zone: str
-        :param replica_cluster_zone: (optional)  The zone for replica cluster.
+        :param replica_cluster_zone: (deprecated)  The zone for replica cluster.
         :type instance_type: enums.Instance.Type
         :param instance_type: (optional) The type of the instance.
         :type instance_display_name: str
@@ -173,12 +179,24 @@ class BigtableHook(GoogleBaseHook):
             )
         ]
         if replica_cluster_id and replica_cluster_zone:
+            warnings.warn(
+                "The replica_cluster_id and replica_cluster_zone parameter have been deprecated."
+                "You should pass the replica_clusters parameter.", DeprecationWarning, stacklevel=2)
             clusters.append(instance.cluster(
                 replica_cluster_id,
                 replica_cluster_zone,
                 cluster_nodes,
                 cluster_storage_type
             ))
+        if replica_clusters:
+            for replica_cluster in replica_clusters:
+                if "id" in replica_cluster and "zone" in replica_cluster:
+                    clusters.append(instance.cluster(
+                        replica_cluster["id"],
+                        replica_cluster["zone"],
+                        cluster_nodes,
+                        cluster_storage_type
+                    ))
         operation = instance.create(
             clusters=clusters
         )

@@ -861,7 +861,6 @@ kube
 kubeclient
 kubeconfig
 kubernetes
-kubernetesOperator
 kv
 kwarg
 kwargs
@@ -1220,7 +1219,6 @@ tez
 theService
 timedelta
 timeframe
-timeouted
 timezones
 tis
 tls
@@ -1288,7 +1286,6 @@ videointelligence
 virtualenv
 vm
 volumeMounts
-waitfordone
 wasb
 webProperty
 webhdfs

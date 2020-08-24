@@ -50,7 +50,10 @@ class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
         )
         result = op.poke(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.get_report.assert_called_once_with(
             profile_id=profile_id, report_id=report_id, file_id=file_id

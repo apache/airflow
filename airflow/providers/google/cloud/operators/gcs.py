@@ -22,7 +22,7 @@ import subprocess
 import sys
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 from google.api_core.exceptions import Conflict
 
@@ -75,10 +75,19 @@ class GCSCreateBucketOperator(BaseOperator):
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
         Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must
-        have domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     The following Operator would create a new bucket ``test-bucket``
     with ``MULTI_REGIONAL`` storage class in ``EU`` region
@@ -96,7 +105,7 @@ class GCSCreateBucketOperator(BaseOperator):
 
     """
     template_fields = ('bucket_name', 'storage_class',
-                       'location', 'project_id')
+                       'location', 'project_id', 'impersonation_chain',)
     ui_color = '#f0eee4'
 
     @apply_defaults
@@ -110,6 +119,7 @@ class GCSCreateBucketOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -127,11 +137,13 @@ class GCSCreateBucketOperator(BaseOperator):
         self.labels = labels
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
         try:
             hook.create_bucket(bucket_name=self.bucket_name,
@@ -165,10 +177,19 @@ class GCSListObjectsOperator(BaseOperator):
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
         Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id:
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     **Example**:
         The following Operator would list all the Avro files from ``sales/sales-2017``
@@ -182,7 +203,7 @@ class GCSListObjectsOperator(BaseOperator):
                 gcp_conn_id=google_cloud_conn_id
             )
     """
-    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter')
+    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter', 'impersonation_chain',)
 
     ui_color = '#f0eee4'
 
@@ -194,6 +215,7 @@ class GCSListObjectsOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -208,12 +230,14 @@ class GCSListObjectsOperator(BaseOperator):
         self.delimiter = delimiter
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
 
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         self.log.info('Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
@@ -242,13 +266,22 @@ class GCSDeleteObjectsOperator(BaseOperator):
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
         Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('bucket_name', 'prefix', 'objects')
+    template_fields = ('bucket_name', 'prefix', 'objects', 'impersonation_chain',)
 
     @apply_defaults
     def __init__(self, *,
@@ -258,6 +291,7 @@ class GCSDeleteObjectsOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
 
         if google_cloud_storage_conn_id:
@@ -271,6 +305,7 @@ class GCSDeleteObjectsOperator(BaseOperator):
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
         if not objects and not prefix:
             raise ValueError("Either object or prefix should be set. Both are None")
@@ -280,7 +315,8 @@ class GCSDeleteObjectsOperator(BaseOperator):
     def execute(self, context):
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         if self.objects:
@@ -321,9 +357,18 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
         Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcs_bucket_create_acl_template_fields]
-    template_fields = ('bucket', 'entity', 'role', 'user_project')
+    template_fields = ('bucket', 'entity', 'role', 'user_project', 'impersonation_chain',)
     # [END gcs_bucket_create_acl_template_fields]
 
     @apply_defaults
@@ -335,6 +380,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         user_project: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         google_cloud_storage_conn_id: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -350,10 +396,12 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         self.role = role
         self.user_project = user_project
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id
+            google_cloud_storage_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         hook.insert_bucket_acl(bucket_name=self.bucket, entity=self.entity, role=self.role,
                                user_project=self.user_project)
@@ -390,9 +438,19 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
         Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcs_object_create_acl_template_fields]
-    template_fields = ('bucket', 'object_name', 'entity', 'generation', 'role', 'user_project')
+    template_fields = ('bucket', 'object_name', 'entity', 'generation', 'role', 'user_project',
+                       'impersonation_chain',)
     # [END gcs_object_create_acl_template_fields]
 
     @apply_defaults
@@ -405,6 +463,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
                  user_project: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -421,10 +480,12 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         self.generation = generation
         self.user_project = user_project
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id
+            google_cloud_storage_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         hook.insert_object_acl(bucket_name=self.bucket,
                                object_name=self.object_name,
@@ -457,9 +518,19 @@ class GCSFileTransformOperator(BaseOperator):
     :type transform_script: Union[str, List[str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('source_bucket', 'destination_bucket', 'transform_script')
+    template_fields = ('source_bucket', 'destination_bucket', 'transform_script',
+                       'impersonation_chain',)
 
     @apply_defaults
     def __init__(
@@ -470,6 +541,7 @@ class GCSFileTransformOperator(BaseOperator):
         destination_bucket: Optional[str] = None,
         destination_object: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -481,9 +553,10 @@ class GCSFileTransformOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.transform_script = transform_script
         self.output_encoding = sys.getdefaultencoding()
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
+        hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
             self.log.info("Downloading file from %s", self.source_bucket)
@@ -543,24 +616,37 @@ class GCSDeleteBucketOperator(BaseOperator):
     :param force: false not allow to delete non empty bucket, set force=True
         allows to delete non empty bucket
     :type: bool
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('bucket_name', "gcp_conn_id")
+    template_fields = ('bucket_name', "gcp_conn_id", "impersonation_chain",)
 
     @apply_defaults
     def __init__(self, *,
                  bucket_name: str,
                  force: bool = True,
                  gcp_conn_id: str = 'google_cloud_default',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
         self.bucket_name = bucket_name
         self.force: bool = force
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
+        hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         hook.delete_bucket(bucket_name=self.bucket_name, force=self.force)
 
 
@@ -599,6 +685,21 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
             This option can delete data quickly if you specify the wrong source/destination combination.
 
     :type delete_extra_files: bool
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -611,6 +712,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         'allow_overwrite',
         'gcp_conn_id',
         'delegate_to',
+        'impersonation_chain',
     )
 
     @apply_defaults
@@ -625,6 +727,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         allow_overwrite: bool = False,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -637,11 +740,13 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         self.allow_overwrite = allow_overwrite
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
         hook.sync(
             source_bucket=self.source_bucket,

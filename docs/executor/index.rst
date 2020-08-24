@@ -36,6 +36,9 @@ the example below.
     $ airflow config get-value core executor
     SequentialExecutor
 
+Supported Backends
+^^^^^^^^^^^^^^^^^^
+
 .. toctree::
     :maxdepth: 1
 

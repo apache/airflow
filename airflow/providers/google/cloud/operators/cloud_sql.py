@@ -18,7 +18,7 @@
 """
 This module contains Google Cloud SQL operators.
 """
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 from googleapiclient.errors import HttpError
 
@@ -152,6 +152,15 @@ class CloudSQLBaseOperator(BaseOperator):
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     @apply_defaults
     def __init__(self, *,
@@ -159,11 +168,13 @@ class CloudSQLBaseOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1beta4',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.project_id = project_id
         self.instance = instance
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
+        self.impersonation_chain = impersonation_chain
         self._validate_inputs()
         super().__init__(**kwargs)
 
@@ -230,9 +241,19 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
     :type api_version: str
     :param validate_body: True if body should be validated, False otherwise.
     :type validate_body: bool
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_sql_create_template_fields]
-    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version',
+                       'impersonation_chain',)
     # [END gcp_sql_create_template_fields]
 
     @apply_defaults
@@ -243,12 +264,13 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1beta4',
                  validate_body: bool = True,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, **kwargs)
+            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -263,7 +285,8 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
     def execute(self, context):
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self._validate_body_fields()
         if not self._check_if_instance_exists(self.instance, hook):
@@ -311,9 +334,19 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_sql_patch_template_fields]
-    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version',
+                       'impersonation_chain',)
     # [END gcp_sql_patch_template_fields]
 
     @apply_defaults
@@ -323,11 +356,12 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1beta4',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.body = body
         super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, **kwargs)
+            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -337,7 +371,8 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
     def execute(self, context):
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_instance_exists(self.instance, hook):
             raise AirflowException('Cloud SQL instance with ID {} does not exist. '
@@ -367,9 +402,19 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_sql_delete_template_fields]
-    template_fields = ('project_id', 'instance', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'instance', 'gcp_conn_id', 'api_version',
+                       'impersonation_chain',)
     # [END gcp_sql_delete_template_fields]
 
     @apply_defaults
@@ -378,15 +423,17 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1beta4',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, **kwargs)
+            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
 
     def execute(self, context):
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_instance_exists(self.instance, hook):
             print("Cloud SQL instance with ID {} does not exist. Aborting delete."
@@ -420,9 +467,19 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
     :type api_version: str
     :param validate_body: Whether the body should be validated. Defaults to True.
     :type validate_body: bool
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_sql_db_create_template_fields]
-    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version',
+                       'impersonation_chain',)
     # [END gcp_sql_db_create_template_fields]
 
     @apply_defaults
@@ -433,12 +490,13 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1beta4',
                  validate_body: bool = True,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, **kwargs)
+            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -459,7 +517,8 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
             return False
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         if self._check_if_db_exists(database, hook):
             self.log.info("Cloud SQL instance with ID %s already contains database"
@@ -498,10 +557,19 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
     :type api_version: str
     :param validate_body: Whether the body should be validated. Defaults to True.
     :type validate_body: bool
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_sql_db_patch_template_fields]
     template_fields = ('project_id', 'instance', 'body', 'database', 'gcp_conn_id',
-                       'api_version')
+                       'api_version', 'impersonation_chain',)
     # [END gcp_sql_db_patch_template_fields]
 
     @apply_defaults
@@ -513,13 +581,14 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1beta4',
                  validate_body: bool = True,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.database = database
         self.body = body
         self.validate_body = validate_body
         super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, **kwargs)
+            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -537,7 +606,8 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         self._validate_body_fields()
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_db_exists(self.database, hook):
             raise AirflowException("Cloud SQL instance with ID {instance} does not contain "
@@ -571,10 +641,19 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_sql_db_delete_template_fields]
     template_fields = ('project_id', 'instance', 'database', 'gcp_conn_id',
-                       'api_version')
+                       'api_version', 'impersonation_chain',)
     # [END gcp_sql_db_delete_template_fields]
 
     @apply_defaults
@@ -584,11 +663,12 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1beta4',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.database = database
         super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, **kwargs)
+            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -598,7 +678,8 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
     def execute(self, context):
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_db_exists(self.database, hook):
             print("Cloud SQL instance with ID {} does not contain database '{}'. "
@@ -638,9 +719,19 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
     :type api_version: str
     :param validate_body: Whether the body should be validated. Defaults to True.
     :type validate_body: bool
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_sql_export_template_fields]
-    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version',
+                       'impersonation_chain',)
     # [END gcp_sql_export_template_fields]
 
     @apply_defaults
@@ -651,12 +742,13 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1beta4',
                  validate_body: bool = True,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, **kwargs)
+            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -672,7 +764,8 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         self._validate_body_fields()
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         return hook.export_instance(
             project_id=self.project_id,
@@ -718,9 +811,19 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
     :type api_version: str
     :param validate_body: Whether the body should be validated. Defaults to True.
     :type validate_body: bool
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_sql_import_template_fields]
-    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version')
+    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version',
+                       'impersonation_chain',)
     # [END gcp_sql_import_template_fields]
 
     @apply_defaults
@@ -731,12 +834,13 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1beta4',
                  validate_body: bool = True,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, **kwargs)
+            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -752,7 +856,8 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         self._validate_body_fields()
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         return hook.import_instance(
             project_id=self.project_id,

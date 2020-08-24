@@ -118,7 +118,6 @@ def gen_job_name(job_name: str) -> str:
     return f"{job_name}_{uniq}"
 
 
-# noinspection PyAbstractClass
 class CloudDataTransferServiceHook(GoogleBaseHook):
     """
     Hook for Google Storage Transfer Service.

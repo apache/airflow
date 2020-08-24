@@ -56,9 +56,9 @@ def provide_facebook_connection(
         )
     with open(key_file_path, 'r') as credentials:
         creds = json.load(credentials)
-    missings_keys = CONFIG_REQUIRED_FIELDS - creds.keys()
-    if missings_keys:
-        message = "{missings_keys} fields are missing".format(missings_keys=missings_keys)
+    missing_keys = CONFIG_REQUIRED_FIELDS - creds.keys()
+    if missing_keys:
+        message = "{missing_keys} fields are missing".format(missing_keys=missing_keys)
         raise AirflowException(message)
     conn = Connection(
         conn_id=FACEBOOK_CONNECTION_ID,

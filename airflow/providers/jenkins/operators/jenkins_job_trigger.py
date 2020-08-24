@@ -160,7 +160,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         :return: The build_number corresponding to the triggered job
         """
         try_count = 0
-        location = location + '/api/json'
+        location += '/api/json'
         # TODO Use get_queue_info instead
         # once it will be available in python-jenkins (v > 0.4.15)
         self.log.info('Polling jenkins queue at the url %s', location)

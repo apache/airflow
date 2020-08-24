@@ -52,7 +52,7 @@ class TestCloudDatastoreExportEntitiesOperator:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(CONN_ID, None)
+        mock_hook.assert_called_once_with(CONN_ID, None, impersonation_chain=None)
         mock_hook.return_value.export_to_storage_bucket.assert_called_once_with(
             project_id=PROJECT_ID,
             bucket=BUCKET,
@@ -85,7 +85,7 @@ class TestCloudDatastoreImportEntitiesOperator:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(CONN_ID, None)
+        mock_hook.assert_called_once_with(CONN_ID, None, impersonation_chain=None)
         mock_hook.return_value.import_from_storage_bucket.assert_called_once_with(
             project_id=PROJECT_ID,
             bucket=BUCKET,
@@ -112,7 +112,7 @@ class TestCloudDatastoreAllocateIds:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.allocate_ids.assert_called_once_with(
             project_id=PROJECT_ID, partial_keys=partial_keys
         )
@@ -129,7 +129,7 @@ class TestCloudDatastoreBeginTransaction:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.begin_transaction.assert_called_once_with(
             project_id=PROJECT_ID, transaction_options=BODY
         )
@@ -143,7 +143,7 @@ class TestCloudDatastoreCommit:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.commit.assert_called_once_with(
             project_id=PROJECT_ID, body=BODY
         )
@@ -157,7 +157,7 @@ class TestCloudDatastoreDeleteOperation:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.delete_operation.assert_called_once_with(
             name=TRANSACTION
         )
@@ -171,7 +171,7 @@ class TestCloudDatastoreGetOperation:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.get_operation.assert_called_once_with(name=TRANSACTION)
 
 
@@ -186,7 +186,7 @@ class TestCloudDatastoreRollback:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.rollback.assert_called_once_with(
             project_id=PROJECT_ID, transaction=TRANSACTION
         )
@@ -200,7 +200,7 @@ class TestCloudDatastoreRunQuery:
         )
         op.execute({})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.run_query.assert_called_once_with(
             project_id=PROJECT_ID, body=BODY
         )

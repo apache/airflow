@@ -44,9 +44,9 @@ class DatastoreHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         api_version: str = 'v1',
-        datastore_conn_id: Optional[str] = None
+        datastore_conn_id: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         if datastore_conn_id:
             warnings.warn(
