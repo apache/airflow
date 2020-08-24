@@ -106,7 +106,8 @@ Direct impersonation of a service account
 
 Google operators support `direct impersonation of a service account
 <https://cloud.google.com/iam/docs/understanding-service-accounts#directly_impersonating_a_service_account>`_
-via ``impersonation_chain`` argument.
+via ``impersonation_chain`` argument (``google_impersonation_chain`` in case of operators
+that also communicate with services of other cloud providers).
 
 For example:
 
@@ -132,9 +133,17 @@ In order for this example to work, the account ``impersonated_account`` must gra
 access token, which will allow to act on its behalf using its permissions. ``impersonated_account``
 does not even need to have a generated key.
 
-You can even impersonate accounts from projects other than the project of the originating account.
-In that case, the project id of the impersonated account will be used as the default project id in
-operators logic, unless you have explicitly specified the Project Id in Connection's configuration.
+.. warning::
+  :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`,
+  :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator` and
+  :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
+  do not support direct impersonation as of now.
+
+In case of operators that connect to multiple Google services, all hooks use the same value of
+``impersonation_chain`` (if applicable). You can also impersonate accounts from projects
+other than the project of the originating account. In that case, the project id of the impersonated
+account will be used as the default project id in operator's logic, unless you have explicitly
+specified the Project Id in Connection's configuration or in operator's arguments.
 
 Impersonation can also be used in chain: if the service account specified in Connection has
 ``Service Account Token Creator`` role granted on account A, and account A has this role on account
