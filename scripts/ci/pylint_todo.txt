@@ -3,4 +3,3 @@
 ./airflow/models/dagrun.py
 ./airflow/models/taskinstance.py
 ./airflow/www/utils.py
-./airflow/www/views.py
