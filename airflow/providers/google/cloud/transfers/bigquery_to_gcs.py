@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains Google BigQuery to Google CLoud Storage operator.
+This module contains Google BigQuery to Google Cloud Storage operator.
 """
 import warnings
 from typing import Dict, List, Optional, Sequence, Union
