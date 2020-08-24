@@ -70,7 +70,6 @@ class CloudSqlOperationStatus:
     UNKNOWN = "UNKNOWN"
 
 
-# noinspection PyAbstractClass
 class CloudSQLHook(GoogleBaseHook):
     """
     Hook for Google Cloud SQL APIs.
@@ -680,8 +679,7 @@ CONNECTION_URIS = {
 CLOUD_SQL_VALID_DATABASE_TYPES = ['postgres', 'mysql']
 
 
-# noinspection PyAbstractClass
-class CloudSQLDatabaseHook(BaseHook):
+class CloudSQLDatabaseHook(BaseHook):  # noqa
     # pylint: disable=too-many-instance-attributes
     """
     Serves DB connection configuration for Google Cloud SQL (Connections

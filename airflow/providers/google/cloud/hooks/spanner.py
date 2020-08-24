@@ -119,7 +119,6 @@ class SpannerHook(GoogleBaseHook):
         :param func: Method of the instance to be called.
         :type func: Callable[google.cloud.spanner_v1.instance.Instance]
         """
-        # noinspection PyUnresolvedReferences
         instance = self._get_client(project_id=project_id).instance(
             instance_id=instance_id, configuration_name=configuration_name,
             node_count=node_count, display_name=display_name)

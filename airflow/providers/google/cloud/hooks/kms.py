@@ -40,7 +40,6 @@ def _b64decode(s: str) -> bytes:
     return base64.b64decode(s.encode("utf-8"))
 
 
-# noinspection PyAbstractClass
 class CloudKMSHook(GoogleBaseHook):
     """
     Hook for Google Cloud Key Management service.

@@ -27,7 +27,6 @@ from airflow.version import version
 INTERNAL_CLIENT_MODULE = "airflow.providers.google.cloud._internal_client.secret_manager_client"
 
 
-# noinspection DuplicatedCode,PyUnresolvedReferences
 class TestSecretManagerClient(TestCase):
 
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")

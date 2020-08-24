@@ -90,7 +90,7 @@ class TestLivyHook(unittest.TestCase):
                 driver_cores=2,
                 driver_memory='1M',
                 executor_memory='1m',
-                executor_cores='1',
+                executor_cores='1',  # noqa
                 num_executors='10',
             )
 
@@ -150,11 +150,10 @@ class TestLivyHook(unittest.TestCase):
 
         with self.subTest('numeric'):
             with self.assertRaises(ValueError):
-                LivyHook._validate_size_format(1)
+                LivyHook._validate_size_format(1)  # noqa
 
         with self.subTest('None'):
-            # noinspection PyTypeChecker
-            self.assertTrue(LivyHook._validate_size_format(None))
+            self.assertTrue(LivyHook._validate_size_format(None))  # noqa
 
     def test_validate_list_of_stringables(self):
         with self.subTest('valid list'):
@@ -189,11 +188,11 @@ class TestLivyHook(unittest.TestCase):
 
         with self.subTest('None'):
             with self.assertRaises(ValueError):
-                LivyHook._validate_list_of_stringables(None)
+                LivyHook._validate_list_of_stringables(None)  # noqa
 
         with self.subTest('int'):
             with self.assertRaises(ValueError):
-                LivyHook._validate_list_of_stringables(1)
+                LivyHook._validate_list_of_stringables(1)  # noqa
 
         with self.subTest('string'):
             with self.assertRaises(ValueError):
@@ -214,20 +213,17 @@ class TestLivyHook(unittest.TestCase):
 
         with self.subTest('none'):
             try:
-                # noinspection PyTypeChecker
-                LivyHook._validate_extra_conf(None)
+                LivyHook._validate_extra_conf(None)  # noqa
             except ValueError:
                 self.fail("Exception raised")
 
         with self.subTest('not a dict 1'):
             with self.assertRaises(ValueError):
-                # noinspection PyTypeChecker
-                LivyHook._validate_extra_conf('k1=v1')
+                LivyHook._validate_extra_conf('k1=v1')  # noqa
 
         with self.subTest('not a dict 2'):
             with self.assertRaises(ValueError):
-                # noinspection PyTypeChecker
-                LivyHook._validate_extra_conf([('k1', 'v1'), ('k2', 0)])
+                LivyHook._validate_extra_conf([('k1', 'v1'), ('k2', 0)])  # noqa
 
         with self.subTest('nested dict'):
             with self.assertRaises(ValueError):
@@ -424,7 +420,6 @@ class TestLivyHook(unittest.TestCase):
         for val in [None, 'one', {'a': 'b'}]:
             with self.subTest('get_batch {}'.format(val)):
                 with self.assertRaises(TypeError):
-                    # noinspection PyTypeChecker
                     hook.get_batch(val)
 
     @requests_mock.mock()
@@ -442,7 +437,6 @@ class TestLivyHook(unittest.TestCase):
         for val in [None, 'one', {'a': 'b'}]:
             with self.subTest('get_batch {}'.format(val)):
                 with self.assertRaises(TypeError):
-                    # noinspection PyTypeChecker
                     hook.get_batch_state(val)
 
     @requests_mock.mock()
@@ -460,7 +454,6 @@ class TestLivyHook(unittest.TestCase):
         for val in [None, 'one', {'a': 'b'}]:
             with self.subTest('get_batch {}'.format(val)):
                 with self.assertRaises(TypeError):
-                    # noinspection PyTypeChecker
                     hook.delete_batch(val)
 
     def test_check_session_id(self):
@@ -478,7 +471,7 @@ class TestLivyHook(unittest.TestCase):
 
         with self.subTest('None'):
             with self.assertRaises(TypeError):
-                LivyHook._validate_session_id(None)
+                LivyHook._validate_session_id(None)  # noqa
 
         with self.subTest('random string'):
             with self.assertRaises(TypeError):

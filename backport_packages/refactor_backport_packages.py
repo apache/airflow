@@ -119,7 +119,6 @@ class RefactorBackportPackages:
 
         :param class_name: name to remove
         """
-        # noinspection PyUnusedLocal
         def _remover(node: LN, capture: Capture, filename: Filename) -> None:
             node.remove()
 
@@ -194,7 +193,6 @@ class RefactorBackportPackages:
                  )
 
         """
-        # noinspection PyUnusedLocal
         def add_provide_context_to_python_operator(node: LN, capture: Capture, filename: Filename) -> None:
             fn_args = capture['function_arguments'][0]
             if len(fn_args.children) > 0 and (not isinstance(fn_args.children[-1], Leaf)
@@ -273,7 +271,6 @@ class RefactorBackportPackages:
                      self.max_ingestion_time = max_ingestion_time
 
         """
-        # noinspection PyUnusedLocal
         def remove_super_init_call_modifier(node: LN, capture: Capture, filename: Filename) -> None:
             for ch in node.post_order():
                 if isinstance(ch, Leaf) and ch.value == "super":
@@ -309,7 +306,6 @@ class RefactorBackportPackages:
              ) as dag:
 
         """
-        # noinspection PyUnusedLocal
         def remove_tags_modifier(_: LN, capture: Capture, filename: Filename) -> None:
             for node in capture['function_arguments'][0].post_order():
                 if isinstance(node, Leaf) and node.value == "tags" and node.type == TOKEN.NAME:
@@ -373,7 +369,6 @@ class RefactorBackportPackages:
                 isinstance(node.children[0], Leaf) and node.children[0].value == '@' and \
                 isinstance(node.children[1], Leaf) and node.children[1].value == 'poke_mode_only'
 
-        # noinspection PyUnusedLocal
         def remove_poke_mode_only_modifier(node: LN, capture: Capture, filename: Filename) -> None:
             for child in capture['node'].parent.children:
                 if is_poke_mode_only_decorator(child):
@@ -405,7 +400,6 @@ class RefactorBackportPackages:
 
         """
 
-        # noinspection PyUnusedLocal
         def amazon_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             return filename.startswith("./airflow/providers/amazon/")
 
@@ -539,11 +533,9 @@ class RefactorBackportPackages:
              KEY_REGEX = re.compile(r'^[\\w.-]+$')
 
         """
-        # noinspection PyUnusedLocal
         def google_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             return filename.startswith("./airflow/providers/google/")
 
-        # noinspection PyUnusedLocal
         def pure_airflow_models_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             """Check if select is exactly [airflow, . , models]"""
             return len(list(node.children[1].leaves())) == 3
@@ -640,7 +632,6 @@ class RefactorBackportPackages:
 
 
         """
-        # noinspection PyUnusedLocal
         def odbc_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             return filename.startswith("./airflow/providers/odbc/")
 
@@ -659,7 +650,7 @@ class RefactorBackportPackages:
             rename("airflow.providers.odbc.utils.helpers")
         )
 
-    def do_refactor(self, in_process: bool = False) -> None:
+    def do_refactor(self, in_process: bool = False) -> None:  # noqa
         self.rename_deprecated_modules()
         self.refactor_amazon_package()
         self.refactor_google_package()

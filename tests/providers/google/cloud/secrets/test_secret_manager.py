@@ -41,7 +41,6 @@ MODULE_NAME = "airflow.providers.google.cloud.secrets.secret_manager"
 CLIENT_MODULE_NAME = "airflow.providers.google.cloud._internal_client.secret_manager_client"
 
 
-# noinspection DuplicatedCode
 class TestCloudSecretManagerBackend(TestCase):
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")

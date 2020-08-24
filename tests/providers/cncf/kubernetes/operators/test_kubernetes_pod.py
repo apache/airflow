@@ -27,10 +27,8 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.utils import timezone
 
 
-# noinspection PyUnusedLocal
 class TestKubernetesPodOperator(unittest.TestCase):
 
-    # noinspection DuplicatedCode
     @staticmethod
     def create_context(task):
         dag = DAG(dag_id="dag")

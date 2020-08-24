@@ -24,11 +24,10 @@ import unittest
 from unittest import mock
 
 # leave this it is used by the test worker
-# noinspection PyUnresolvedReferences
 import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=unused-import
 import pytest
 from celery import Celery
-from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
+from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend  # noqa
 from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop

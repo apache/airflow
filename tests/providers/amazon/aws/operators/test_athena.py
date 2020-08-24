@@ -46,7 +46,6 @@ result_configuration = {
 }
 
 
-# noinspection PyUnusedLocal
 # pylint: disable=unused-argument
 class TestAWSAthenaOperator(unittest.TestCase):
 

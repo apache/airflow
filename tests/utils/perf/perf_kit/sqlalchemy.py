@@ -32,7 +32,6 @@ def _pretty_format_sql(text: str):
     return text
 
 
-# noinspection PyUnusedLocal
 class TraceQueries:
     """
     Tracking SQL queries in a code block.
@@ -138,8 +137,7 @@ class TraceQueries:
         event.listen(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
         event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
 
-    # noinspection PyShadowingNames
-    def __exit__(self, type_, value, traceback):  # pylint: disable=redefined-outer-name
+    def __exit__(self, type_, value, traceback):  # noqa pylint: disable=redefined-outer-name
         import airflow.settings
         event.remove(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
         event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
@@ -176,8 +174,7 @@ class CountQueries:
         event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
         return self.result
 
-    # noinspection PyShadowingNames
-    def __exit__(self, type_, value, traceback):  # pylint: disable=redefined-outer-name
+    def __exit__(self, type_, value, traceback):  # noqa pylint: disable=redefined-outer-name
         import airflow.settings
 
         event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
@@ -209,7 +206,7 @@ if __name__ == "__main__":
 
     # Example:
     def case():
-        "Case of logging om/"
+        """Case of logging om/"""
         import logging
         from unittest import mock
 

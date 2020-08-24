@@ -147,8 +147,7 @@ class SerializedDagModel(Base):
         if isinstance(self.data, dict):
             dag = SerializedDAG.from_dict(self.data)  # type: Any
         else:
-            # noinspection PyTypeChecker
-            dag = SerializedDAG.from_json(self.data)
+            dag = SerializedDAG.from_json(self.data)  # noqa
         return dag
 
     @classmethod
