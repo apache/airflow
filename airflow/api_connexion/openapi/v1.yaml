@@ -46,7 +46,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of connection.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -143,7 +143,7 @@ paths:
       tags: [Connection]
       responses:
         '204':
-          description: No content.
+          description: Sucess.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -162,7 +162,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of DAGs.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -245,7 +245,7 @@ paths:
 
       responses:
         '200':
-          description: A list of cleared task references
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -335,7 +335,7 @@ paths:
               $ref: '#/components/schemas/ListDagRunsForm'
       responses:
         '200':
-          description: List of DAG runs.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -380,7 +380,7 @@ paths:
       tags: [DAGRun]
       responses:
         '204':
-          description: No content.
+          description: Sucess.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -401,7 +401,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of log entries.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -447,7 +447,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of import errors.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -592,7 +592,7 @@ paths:
       tags: [Pool]
       responses:
         '204':
-          description: No content.
+          description: Sucess.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -630,7 +630,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of task instances.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -687,7 +687,7 @@ paths:
 
       responses:
         '200':
-          description: List of task instances.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -713,7 +713,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of variables.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -812,7 +812,7 @@ paths:
       tags: [Variable]
       responses:
         '204':
-          description: No content.
+          description: Sucess.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -839,7 +839,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of XCom entries.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -922,7 +922,7 @@ paths:
       tags: [TaskInstance]
       responses:
         '200':
-          description: Content of logs.
+          description: Sucess.
           content:
             application/json:
               schema:
