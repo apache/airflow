@@ -977,7 +977,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
             if not self.db_hook:
                 raise ValueError("The db_hook should be set")
             if not isinstance(self.db_hook, PostgresHook):
-                raise ValueError(f"The db_hook should be PostrgresHook and is {type(self.db_hook)}")
+                raise ValueError(f"The db_hook should be PostgresHook and is {type(self.db_hook)}")
             conn = getattr(self.db_hook, 'conn')
             if conn and conn.notices:
                 for output in self.db_hook.conn.notices:
