@@ -87,11 +87,11 @@ Resources & links
 
 * `Issues on GitHub <https://github.com/apache/airflow/issues>`_
 * `Slack (chat) Channel <https://apache-airflow-slack.herokuapp.com/>`_
+* `Unofficial Airflow Forum from Astronomer <https://forum.astronomer.io/c/airflow/>`_
 * `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`_
-
 
 
 Roadmap
 -------
 
-Please refer to the Roadmap on `the wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`_
+Please refer to the Roadmap on `the wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`_.
