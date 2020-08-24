@@ -45,7 +45,7 @@ class SnowflakeHook(DbApiHook):
 
     def _get_conn_params(self):
         """
-        one method to fetch connection params as a dict
+        One method to fetch connection params as a dict
         used in get_uri() and get_connection()
         """
         conn = self.get_connection(self.snowflake_conn_id)  # pylint: disable=no-member
@@ -98,7 +98,7 @@ class SnowflakeHook(DbApiHook):
 
     def get_uri(self):
         """
-        override DbApiHook get_uri method for get_sqlalchemy_engine()
+        Override DbApiHook get_uri method for get_sqlalchemy_engine()
         """
         conn_config = self._get_conn_params()
         uri = 'snowflake://{user}:{password}@{account}/{database}/{schema}' \
@@ -115,7 +115,7 @@ class SnowflakeHook(DbApiHook):
 
     def _get_aws_credentials(self):
         """
-        returns aws_access_key_id, aws_secret_access_key
+        Returns aws_access_key_id, aws_secret_access_key
         from extra
 
         intended to be used by external import and export statements

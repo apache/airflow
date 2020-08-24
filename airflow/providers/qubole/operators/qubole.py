@@ -220,7 +220,7 @@ class QuboleOperator(BaseOperator):
         return self.get_hook().get_log(ti)
 
     def get_jobs_id(self, ti):
-        """get jobs_id from Qubole"""
+        """Get jobs_id from Qubole"""
         return self.get_hook().get_jobs_id(ti)
 
     def get_hook(self):

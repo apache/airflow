@@ -40,7 +40,7 @@ dag = DAG(
 
 def gen_build_time(**kwargs):
     """
-    gen build time and push to xcom
+    Gen build time and push to xcom
     :param kwargs:
     :return:
     """

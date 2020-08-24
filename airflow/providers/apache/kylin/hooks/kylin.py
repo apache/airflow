@@ -55,7 +55,8 @@ class KylinHook(BaseHook):
 
     def cube_run(self, datasource_name, op, **op_args):
         """
-        run CubeSource command which in CubeSource.support_invoke_command
+        Run CubeSource command which in CubeSource.support_invoke_command
+
         :param datasource_name:
         :param op: command
         :param op_args: command args
@@ -70,7 +71,8 @@ class KylinHook(BaseHook):
 
     def get_job_status(self, job_id):
         """
-        get job status
+        Get job status
+
         :param job_id: kylin job id
         :return: job status
         """
