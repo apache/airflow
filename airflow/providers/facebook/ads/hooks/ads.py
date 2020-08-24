@@ -72,7 +72,7 @@ class FacebookAdsReportingHook(BaseHook):
                                        "account_id"]
 
     def _get_service(self) -> FacebookAdsApi:
-        """ Returns Facebook Ads Client using a service account"""
+        """Returns Facebook Ads Client using a service account"""
         config = self.facebook_ads_config
         return FacebookAdsApi.init(app_id=config["app_id"],
                                    app_secret=config["app_secret"],

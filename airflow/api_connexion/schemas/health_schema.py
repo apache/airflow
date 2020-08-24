@@ -28,12 +28,12 @@ class MetaDatabaseInfoSchema(BaseInfoSchema):
 
 
 class SchedulerInfoSchema(BaseInfoSchema):
-    """ Schema for Metadatabase info"""
+    """Schema for Metadatabase info"""
     latest_scheduler_heartbeat = fields.String(dump_only=True)
 
 
 class HeathInfoSchema(Schema):
-    """ Schema for the Health endpoint """
+    """Schema for the Health endpoint"""
 
     metadatabase = fields.Nested(MetaDatabaseInfoSchema)
     scheduler = fields.Nested(SchedulerInfoSchema)

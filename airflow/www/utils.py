@@ -57,7 +57,7 @@ def get_sensitive_variables_fields():
 
 
 def should_hide_value_for_key(key_name):
-    """Returns True if hide_sensitive_variable_fields is True, else False """
+    """Returns True if hide_sensitive_variable_fields is True, else False"""
     # It is possible via importing variables from file that a key is empty.
     if key_name:
         config_set = conf.getboolean('admin', 'hide_sensitive_variable_fields')

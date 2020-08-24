@@ -491,7 +491,7 @@ class HiveCliHook(BaseHook):
 
 
 class HiveMetastoreHook(BaseHook):
-    """ Wrapper to interact with the Hive Metastore"""
+    """Wrapper to interact with the Hive Metastore"""
 
     # java short max val
     MAX_PART_COUNT = 32767

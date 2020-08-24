@@ -30,7 +30,7 @@ from airflow.utils.state import State
 
 
 class PoolStats(TypedDict):
-    """ Dictionary containing Pool Stats """
+    """Dictionary containing Pool Stats"""
     total: int
     running: int
     queued: int

@@ -734,7 +734,7 @@ class TestDagBag(unittest.TestCase):
             dag_file: (
                 f"""DAG policy violation (DAG ID: test_missing_owner, Path: {dag_file}):\n"""
                 """Notices:\n"""
-                """ * Task must have non-None non-default owner. Current value: airflow"""
+                """* Task must have non-None non-default owner. Current value: airflow"""
             )
         }
         self.assertEqual(expected_import_errors, dagbag.import_errors)

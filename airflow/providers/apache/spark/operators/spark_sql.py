@@ -109,7 +109,7 @@ class SparkSqlOperator(BaseOperator):
         self._hook.kill()
 
     def _get_hook(self) -> SparkSqlHook:
-        """ Get SparkSqlHook """
+        """Get SparkSqlHook"""
         return SparkSqlHook(sql=self._sql,
                             conf=self._conf,
                             conn_id=self._conn_id,
