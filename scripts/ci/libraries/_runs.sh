@@ -21,7 +21,7 @@ function run_docs() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/docs/build_docs.py" "${@}"
+            "--" "/opt/airflow/scripts/in_container/run_docs_build.sh" "${@}"
 }
 
 
