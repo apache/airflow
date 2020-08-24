@@ -77,7 +77,7 @@ jobs:
       TEST_TYPE: Quarantined
       NUM_RUNS: 20
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    if: |
+    if: >
       github.repository == 'apache/airflow' &&
       (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request')
     steps:
