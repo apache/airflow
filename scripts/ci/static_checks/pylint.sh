@@ -21,18 +21,10 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 function run_pylint() {
-    FILES=("$@")
-    if [[ "${#FILES[@]}" == "0" ]]; then
-       docker run "${EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/in_container/run_pylint.sh"
-    else
-        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init" \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/in_container/run_pylint.sh" "${FILES[@]}"
-    fi
+   docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/in_container/run_pylint.sh" "${@}"
 }
 
 get_environment_for_builds_on_ci
@@ -41,14 +33,4 @@ prepare_ci_build
 
 rebuild_ci_image_if_needed
 
-if [[ "${#@}" != "0" ]]; then
-    filter_out_files_from_pylint_todo_list "$@"
-
-    if [[ "${#FILTERED_FILES[@]}" == "0" ]]; then
-        echo "Filtered out all files. Skipping pylint."
-    else
-        run_pylint "${FILTERED_FILES[@]}"
-    fi
-else
-    run_pylint
-fi
+run_pylint "${@}"

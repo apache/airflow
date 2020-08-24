@@ -30,7 +30,7 @@ function run_docker_lint() {
             --rm \
             hadolint/hadolint:v1.17.5-12-gef29cb7-debian /bin/hadolint Dockerfile*
         echo
-        echo "Docker pylint completed with no errors"
+        echo "Docker lint completed with no errors"
         echo
     else
         echo
@@ -42,7 +42,7 @@ function run_docker_lint() {
             --rm \
             hadolint/hadolint /bin/hadolint "$@"
         echo
-        echo "Docker pylint completed with no errors"
+        echo "Docker lint completed with no errors"
         echo
     fi
 }

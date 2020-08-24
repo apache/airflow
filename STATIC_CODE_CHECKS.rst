@@ -212,31 +212,8 @@ You can always skip running the tests by providing ``--no-verify`` flag to the
 
 To check other usage types of the pre-commit framework, see `Pre-commit website <https://pre-commit.com/>`__.
 
-Pylint Static Code Checks
--------------------------
-
-We are in the process of fixing the code flagged with pylint checks for the whole Airflow project.
-This is a huge task so we implemented an incremental approach for the process.
-Currently most of the code is excluded from pylint checks via scripts/ci/pylint_todo.txt.
-We have an open JIRA issue AIRFLOW-4364 which has a number of sub-tasks for each of
-the modules that should be made compatible. Fixing problems identified with pylint is one of
-straightforward and easy tasks to do (but time-consuming), so if you are a first-time
-contributor to Airflow, you can choose one of the sub-tasks as your first issue to fix.
-
-To fix a pylint issue, do the following:
-
-1.  Remove module/modules from the
-    `scripts/ci/static_checks/pylint_todo.txt <scripts/ci/pylint_todo.txt>`__.
-
-2.  Run `<scripts/ci/static_checks/pylint.sh>`__.
-
-3.  Fix all the issues reported by pylint.
-
-4.  Re-run `<scripts/ci/static_checks/pylint.sh>`__.
-
-5.  If you see "success", submit a PR following
-    `Pull Request guidelines <#pull-request-guidelines>`__.
-
+Pylint Static Code Checks Fixing Guidelines
+-------------------------------------------
 
 These are guidelines for fixing errors reported by pylint:
 
