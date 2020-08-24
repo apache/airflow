@@ -36,6 +36,11 @@ PROJECT_ID = 'test_project_id'
 INSTANCE_ID = 'test-instance-id'
 CLUSTER_ID = 'test-cluster-id'
 CLUSTER_ZONE = 'us-central1-f'
+REPLICATE_CLUSTERS = [
+    {'id': 'replica-1', 'zone': 'us-west1-a'},
+    {'id': 'replica-2', 'zone': 'us-central1-f'},
+    {'id': 'replica-3', 'zone': 'us-east1-d'},
+]
 GCP_CONN_ID = 'test-gcp-conn-id'
 NODES = 5
 INSTANCE_DISPLAY_NAME = "test instance"
@@ -131,6 +136,66 @@ class TestBigtableInstanceCreate(unittest.TestCase):
             main_cluster_id=CLUSTER_ID,
             main_cluster_zone=CLUSTER_ZONE,
             project_id=PROJECT_ID,
+            replica_clusters=None,
+            replica_cluster_id=None,
+            replica_cluster_zone=None,
+            timeout=None
+        )
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
+    def test_create_instance_that_doesnt_exists(self, mock_hook):
+        mock_hook.return_value.get_instance.return_value = None
+        op = BigtableCreateInstanceOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            main_cluster_id=CLUSTER_ID,
+            main_cluster_zone=CLUSTER_ZONE,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
+        )
+        op.execute(None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.create_instance.assert_called_once_with(
+            cluster_nodes=None,
+            cluster_storage_type=None,
+            instance_display_name=None,
+            instance_id=INSTANCE_ID,
+            instance_labels=None,
+            instance_type=None,
+            main_cluster_id=CLUSTER_ID,
+            main_cluster_zone=CLUSTER_ZONE,
+            project_id=PROJECT_ID,
+            replica_clusters=None,
+            replica_cluster_id=None,
+            replica_cluster_zone=None,
+            timeout=None
+        )
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
+    def test_create_instance_with_replicas_that_doesnt_exists(self, mock_hook):
+        mock_hook.return_value.get_instance.return_value = None
+        op = BigtableCreateInstanceOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            main_cluster_id=CLUSTER_ID,
+            main_cluster_zone=CLUSTER_ZONE,
+            replica_clusters=REPLICATE_CLUSTERS,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
+        )
+        op.execute(None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.create_instance.assert_called_once_with(
+            cluster_nodes=None,
+            cluster_storage_type=None,
+            instance_display_name=None,
+            instance_id=INSTANCE_ID,
+            instance_labels=None,
+            instance_type=None,
+            main_cluster_id=CLUSTER_ID,
+            main_cluster_zone=CLUSTER_ZONE,
+            project_id=PROJECT_ID,
+            replica_clusters=REPLICATE_CLUSTERS,
             replica_cluster_id=None,
             replica_cluster_zone=None,
             timeout=None

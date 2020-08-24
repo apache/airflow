@@ -68,10 +68,15 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     :type project_id: str
     :param project_id: Optional, the ID of the GCP project.  If set to None or missing,
             the default project_id from the GCP connection is used.
+    :type replica_clusters: List[Dict[str, str]]
+    :param replica_clusters: (optional) A list of replica clusters for the new
+        instance. Each cluster dictionary contains an id and a zone.
+        Example: [{"id": "replica-1", "zone": "us-west1-a"}]
     :type replica_cluster_id: str
-    :param replica_cluster_id: (optional) The ID for replica cluster for the new instance.
+    :param replica_cluster_id: (deprecated) The ID for replica cluster for the new
+        instance.
     :type replica_cluster_zone: str
-    :param replica_cluster_zone: (optional)  The zone for replica cluster.
+    :param replica_cluster_zone: (deprecated)  The zone for replica cluster.
     :type instance_type: enum.IntEnum
     :param instance_type: (optional) The type of the instance.
     :type instance_display_name: str
@@ -100,6 +105,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
                  main_cluster_id: str,
                  main_cluster_zone: str,
                  project_id: Optional[str] = None,
+                 replica_clusters: Optional[List[Dict[str, str]]] = None,
                  replica_cluster_id: Optional[str] = None,
                  replica_cluster_zone: Optional[str] = None,
                  instance_display_name: Optional[str] = None,
@@ -114,6 +120,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.instance_id = instance_id
         self.main_cluster_id = main_cluster_id
         self.main_cluster_zone = main_cluster_zone
+        self.replica_clusters = replica_clusters
         self.replica_cluster_id = replica_cluster_id
         self.replica_cluster_zone = replica_cluster_zone
         self.instance_display_name = instance_display_name
@@ -145,6 +152,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
                 instance_id=self.instance_id,
                 main_cluster_id=self.main_cluster_id,
                 main_cluster_zone=self.main_cluster_zone,
+                replica_clusters=self.replica_clusters,
                 replica_cluster_id=self.replica_cluster_id,
                 replica_cluster_zone=self.replica_cluster_zone,
                 instance_display_name=self.instance_display_name,
