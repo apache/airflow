@@ -50,13 +50,13 @@ class MySqlHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.connection = kwargs.pop("connection", None)
 
-    def set_autocommit(self, conn: Connection, autocommit: bool) -> None:
+    def set_autocommit(self, conn: Connection, autocommit: bool) -> None:   # noqa: D403
         """
         MySql connection sets autocommit in a different way.
         """
         conn.autocommit(autocommit)
 
-    def get_autocommit(self, conn: Connection) -> bool:
+    def get_autocommit(self, conn: Connection) -> bool:   # noqa: D403
         """
         MySql connection gets autocommit in a different way.
 
@@ -183,8 +183,10 @@ class MySqlHook(DbApiHook):
         conn.commit()
 
     @staticmethod
-    def _serialize_cell(cell: object,
-                        conn: Optional[Connection] = None) -> object:  # pylint: disable=signature-differs
+    def _serialize_cell(
+        cell: object,
+        conn: Optional[Connection] = None
+    ) -> object:  # pylint: disable=signature-differs   # noqa: D403
         """
         MySQLdb converts an argument to a literal
         when passing those separately to execute. Hence, this method does nothing.

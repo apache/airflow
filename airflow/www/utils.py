@@ -186,7 +186,7 @@ def epoch(dttm):
 
 def json_response(obj):
     """
-    returns a json response from a json serializable python object
+    Returns a json response from a json serializable python object
     """
     return Response(
         response=json.dumps(

@@ -143,7 +143,7 @@ class HdfsRegexSensor(HdfsSensor):
 
     def poke(self, context: Dict[Any, Any]) -> bool:
         """
-        poke matching files in a directory with self.regex
+        Poke matching files in a directory with self.regex
 
         :return: Bool depending on the search criteria
         """
@@ -174,7 +174,7 @@ class HdfsFolderSensor(HdfsSensor):
 
     def poke(self, context: Dict[str, Any]) -> bool:
         """
-        poke for a non empty directory
+        Poke for a non empty directory
 
         :return: Bool depending on the search criteria
         """

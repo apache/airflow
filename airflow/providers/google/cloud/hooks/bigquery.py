@@ -2239,18 +2239,18 @@ class BigQueryConnection:
         self._args = args
         self._kwargs = kwargs
 
-    def close(self) -> None:
-        """ BigQueryConnection does not have anything to close. """
+    def close(self) -> None:   # noqa: D403
+        """BigQueryConnection does not have anything to close. """
 
-    def commit(self) -> None:
-        """ BigQueryConnection does not support transactions. """
+    def commit(self) -> None:   # noqa: D403
+        """BigQueryConnection does not support transactions. """
 
-    def cursor(self) -> "BigQueryCursor":
-        """ Return a new :py:class:`Cursor` object using the connection. """
+    def cursor(self) -> "BigQueryCursor":   # noqa: D403
+        """Return a new :py:class:`Cursor` object using the connection. """
         return BigQueryCursor(*self._args, **self._kwargs)
 
-    def rollback(self) -> NoReturn:
-        """ BigQueryConnection does not have transactions """
+    def rollback(self) -> NoReturn:   # noqa: D403
+        """BigQueryConnection does not have transactions """
         raise NotImplementedError(
             "BigQueryConnection does not have transactions")
 
