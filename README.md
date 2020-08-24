@@ -16,6 +16,7 @@
  specific language governing permissions and limitations
  under the License.
 -->
+
 # Apache Airflow
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
@@ -31,7 +32,7 @@
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
 
 [Apache Airflow](https://airflow.apache.org/docs/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor
- workflows.
+workflows.
 
 When workflows are defined as code, they become more maintainable,
 versionable, testable, and collaborative.
@@ -40,6 +41,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
 **Table of contents**
 
 - [Requirements](#requirements)
@@ -65,23 +67,23 @@ Apache Airflow is tested with:
 
 ### Master version (2.0.0dev)
 
-* Python versions: 3.6, 3.7, 3.8
-* Postgres DB: 9.6, 10
-* MySQL DB: 5.7
-* Sqlite - latest stable (it is used mainly for development purpose)
-* Kubernetes - 1.16.2, 1.17.0
+- Python versions: 3.6, 3.7, 3.8
+- Postgres DB: 9.6, 10
+- MySQL DB: 5.7
+- Sqlite - latest stable (it is used mainly for development purpose)
+- Kubernetes - 1.16.2, 1.17.0
 
 ### Stable version (1.10.11)
 
-* Python versions: 2.7, 3.5, 3.6, 3.7, 3.8
-* Postgres DB: 9.6, 10
-* MySQL DB: 5.6, 5.7
-* Sqlite - latest stable (it is used mainly for development purpose)
-* Kubernetes - 1.16.2, 1.17.0
+- Python versions: 2.7, 3.5, 3.6, 3.7, 3.8
+- Postgres DB: 9.6, 10
+- MySQL DB: 5.6, 5.7
+- Sqlite - latest stable (it is used mainly for development purpose)
+- Kubernetes - 1.16.2, 1.17.0
 
 ### Additional notes on Python version requirements
 
-* Stable version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3 when using Python 3
+- Stable version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3 when using Python 3
 
 ## Getting started
 
@@ -117,6 +119,7 @@ pip install apache-airflow==1.10.12 \
 ```
 
 2. Installing with extras (for example postgres,google)
+
 ```bash
 pip install apache-airflow[postgres,google]==1.10.11 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
@@ -125,22 +128,23 @@ pip install apache-airflow[postgres,google]==1.10.11 \
 ## Official Docker images
 
 In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images
-of Apache Airflow. The community provides two types of support for the production images:
+of Apache Airflow.The production image is a multi-segment image. The first segment "airflow-build-image" contains all the build essentials and related dependencies that allow to install airflow locally. By default the image is build from a released version of Airflow from Github, but by providing some extra arguments you can also build it from local sources. The community provides two types of support for the production images:
 
-* We provide pre-build released version of production image in PyPI build from released
+- We provide pre-build released version of production image in PyPI build from released
   sources of Apache Airflow - shortly after release. Those images are available in the DockerHub.
   You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the
   version number (for example 1.10.11). Additionally `docker pull apache/airflow` will pull latest
-  stable version of the image with default python version (currently 3.6)
+  stable version of the image with default python version (currently 3.6).You can change to root user(here we use root user) temporarily and install your own dependencies for example mx .Change back to airflow user and then you can install some pip packages you want. You can add your dags by copying them and then you can build your own airflow image.You can use this airflow image with own modification.
 
-* In `master` branch of Airflow and in `v1-10-stable` branch we provide Dockerfiles and accompanying
-  files that allow to build your own customized version of the Airflow Production image. The instructions
-  on how to build your own image with additional dependencies (if needed) are provided in the
-  [IMAGES.rst](IMAGES.rst#production-images) if you want to build it using `docker build` command or in
-  [BREEZE.rst](BREEZE.rst#building-production-images) to use Breeze tool which easier interface,
-  auto-complete, and accompanying screencast video. Note, that while it is possible to use master
+- In `master` branch of Airflow and in `v1-10-stable` branch we provide Dockerfiles and accompanying
+  files that allow to build your own customized version of the Airflow Production image. To build your own image or to customize it first clone the image and then checkout the right version if you are
+  conservative, masters and if you are adventurous then you can run `docker build`.You can add various arguments to customize it.More instructions on how to build your own image with additional dependencies (if needed) are provided in the [IMAGES.rst](IMAGES.rst#production-images) if you want to build it using `docker build` command or in [BREEZE.rst](BREEZE.rst#building-production-images) to use Breeze tool which easier interface,
+  auto-complete, and accompanying screencast video.Breeze is a development and text environment that is developed for airflow but it also supports building production image very easily so we specify the production image flag additional extras or python version or python dev.so most of the parameters you can specify here is in command line parameters which have auto completion option .
+  Note, that while it is possible to use master
   branch to build images for released Airflow versions, it might at times get broken so you should
   rather rely on building your own images from the v1-10-stable branch.
+
+Airflow Summit 2020's "Production Docker Image" talk where context, architecture and customization/extension methods are explained here https://youtu.be/wDr3Y7q2XoI .
 
 ## Beyond the Horizon
 
@@ -159,10 +163,10 @@ unit of work and continuity.
 
 ## Principles
 
-- **Dynamic**:  Airflow pipelines are configuration as code (Python), allowing for dynamic pipeline generation. This allows for writing code that instantiates pipelines dynamically.
-- **Extensible**:  Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
-- **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
-- **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
+- **Dynamic**: Airflow pipelines are configuration as code (Python), allowing for dynamic pipeline generation. This allows for writing code that instantiates pipelines dynamically.
+- **Extensible**: Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
+- **Elegant**: Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
+- **Scalable**: Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
 
 ## User Interface
 
@@ -186,17 +190,16 @@ unit of work and continuity.
 
   ![](/docs/img/gantt.png)
 
-- **Code View**:  Quick way to view source code of a DAG.
+- **Code View**: Quick way to view source code of a DAG.
 
   ![](/docs/img/code.png)
-
 
 ## Backport packages
 
 ### Context: Airflow 2.0 operators, hooks, and secrets
 
-Currently, stable Apache Airflow versions are from the 1.10.* series.
-We are working on the future, major version of Airflow from the 2.0.* series.
+Currently, stable Apache Airflow versions are from the 1.10._ series.
+We are working on the future, major version of Airflow from the 2.0._ series.
 It is going to be released in 2020. However, the exact time of release depends on many factors and is
 not yet confirmed.
 
@@ -213,14 +216,14 @@ those packages can only be used in python3.6+ environment.
 ### Installing Airflow 2.0 operators in Airflow 1.10
 
 We released backport packages that can be installed for older Airflow versions.
-Those backport packages are going to be released more frequently that main Airflow 1.10.* releases.
+Those backport packages are going to be released more frequently that main Airflow 1.10.\* releases.
 
 You will not have to upgrade your Airflow version to use those packages. You can find those packages in the
 [PyPI](https://pypi.org/search/?q=apache-airflow-backport-providers&o=) and install them separately for each
 provider.
 
-Those packages are available now and can be used in the latest Airflow 1.10.* version. Most of those
-packages are also installable and usable in most Airflow 1.10.* releases but there is no extensive testing
+Those packages are available now and can be used in the latest Airflow 1.10._ version. Most of those
+packages are also installable and usable in most Airflow 1.10._ releases but there is no extensive testing
 done beyond the latest released version, so you might expect more problems in earlier Airflow versions.
 
 ### An easier migration path to 2.0
@@ -236,7 +239,6 @@ early to the Airflow 2.0 operators while still running Airflow 1.10 will make yo
 
 More information about the status and releases of the back-ported packages are available
 at [Backported providers package page](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
-
 
 ### Installing backport packages
 
@@ -267,16 +269,14 @@ If that's the case, the provider packages will not be importable (the error in s
 `ModuleNotFoundError: No module named 'airflow.providers'`).
 
 If you experience the problem, you can easily fix it by creating symbolic link
-in your installed "airflow" folder to the  "providers" folder where you installed your backport packages.
+in your installed "airflow" folder to the "providers" folder where you installed your backport packages.
 If you installed it with `-e`, this link should be created in your airflow
-sources,  if you installed it with the `--user` flag it should be from the
+sources, if you installed it with the `--user` flag it should be from the
 `~/.local/lib/pythonX.Y/site-packages/airflow/` folder,
-
 
 ## Contributing
 
 Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst).
-
 
 ## Who uses Apache Airflow?
 
@@ -377,7 +377,7 @@ Currently **officially** using Airflow:
 1. [Crealytics](https://crealytics.com)
 1. [Credit Karma](https://www.creditkarma.com/) [[@preete-dixit-ck](https://github.com/preete-dixit-ck) & [@harish-gaggar-ck](https://github.com/harish-gaggar-ck) & [@greg-finley-ck](https://github.com/greg-finley-ck)]
 1. [Creditas](https://www.creditas.com.br) [[@dcassiano](https://github.com/dcassiano)]
-1. [CreditCards.com](https://www.creditcards.com/)[[@vmAggies](https://github.com/vmAggies) &  [@jay-wallaby](https://github.com/jay-wallaby)]
+1. [CreditCards.com](https://www.creditcards.com/)[[@vmAggies](https://github.com/vmAggies) & [@jay-wallaby](https://github.com/jay-wallaby)]
 1. [Cryptalizer.com](https://www.cryptalizer.com/)
 1. [Custom Ink](https://www.customink.com/) [[@david-dalisay](https://github.com/david-dalisay), [@dmartin11](https://github.com/dmartin11) & [@mpeteuil](https://github.com/mpeteuil)]
 1. [Cyscale](https://cyscale.com) [[@ocical](https://github.com/ocical)]
@@ -464,7 +464,7 @@ Currently **officially** using Airflow:
 1. [Jampp](https://github.com/jampp)
 1. [Jeitto](https://www.jeitto.com.br) [[@BrennerPablo](https://github.com/BrennerPablo) & [@ds-mauri](https://github.com/ds-mauri)]
 1. [Jetlore](http://www.jetlore.com/) [[@bderose](https://github.com/bderose)]
-1. [JobTeaser](https://www.jobteaser.com) [[@stefani75](https://github.com/stefani75) &  [@knil-sama](https://github.com/knil-sama)]
+1. [JobTeaser](https://www.jobteaser.com) [[@stefani75](https://github.com/stefani75) & [@knil-sama](https://github.com/knil-sama)]
 1. [JULO](https://www.julo.co.id/) [[@sepam](https://github.com/sepam) & [@tenapril](https://github.com/tenapril) & [@verzqy](https://github.com/verzqy)]
 1. [Kalibrr](https://www.kalibrr.com/) [[@charlesverdad](https://github.com/charlesverdad)]
 1. [Kargo](https://kargo.com) [[@chaithra-yenikapati](https://github.com/chaithra-yenikapati), [@akarsh3007](https://github.com/akarsh3007) & [@dineshanchan](https://github.com/dineshanchan)]
@@ -489,7 +489,7 @@ Currently **officially** using Airflow:
 1. [Lucid](http://luc.id) [[@jbrownlucid](https://github.com/jbrownlucid) & [@kkourtchikov](https://github.com/kkourtchikov)]
 1. [Lumos Labs](https://www.lumosity.com/) [[@rfroetscher](https://github.com/rfroetscher/) & [@zzztimbo](https://github.com/zzztimbo/)]
 1. [Lyft](https://www.lyft.com/) [[@feng-tao](https://github.com/feng-tao), [@milton0825](https://github.com/milton0825), [@astahlman](https://github.com/astahlman),
- [@youngyjd](https://github.com/youngyjd), [@ArgentFalcon](https://github.com/ArgentFalcon)]
+   [@youngyjd](https://github.com/youngyjd), [@ArgentFalcon](https://github.com/ArgentFalcon)]
 1. [M4U](https://www.m4u.com.br/) [[@msantino](https://github.com/msantino)]
 1. [Madrone](http://madroneco.com/) [[@mbreining](https://github.com/mbreining) & [@scotthb](https://github.com/scotthb)]
 1. [Markovian](https://markovian.com/) [[@al-xv](https://github.com/al-xv), [@skogsbaeck](https://github.com/skogsbaeck), [@waltherg](https://github.com/waltherg)]
