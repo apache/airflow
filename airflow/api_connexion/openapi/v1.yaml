@@ -37,7 +37,7 @@ paths:
   # Database entities
   /connections:
     get:
-      summary: Get all connection entries
+      summary: List connections
       x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
       operationId: get_connections
       tags: [Connection]
@@ -46,7 +46,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of connection entry.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -59,7 +59,7 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
 
     post:
-      summary: Create connection entry
+      summary: Create a connection
       x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
       operationId: post_connection
       tags: [Connection]
@@ -71,7 +71,7 @@ paths:
               $ref: '#/components/schemas/Connection'
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -88,13 +88,13 @@ paths:
       - $ref: '#/components/parameters/ConnectionID'
 
     get:
-      summary: Get a connection entry
+      summary: Get a connection
       x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
       operationId: get_connection
       tags: [Connection]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -107,7 +107,7 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     patch:
-      summary: Update a connection entry
+      summary: Update a connection
       x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
       operationId: patch_connection
       tags: [Connection]
@@ -122,7 +122,7 @@ paths:
 
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -137,13 +137,13 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
-      summary: Delete a connection entry
+      summary: Delete a connection
       x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
       operationId: delete_connection
       tags: [Connection]
       responses:
         '204':
-          description: No content.
+          description: Sucess.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -153,7 +153,7 @@ paths:
 
   /dags:
     get:
-      summary: Get all DAGs
+      summary: List DAGs
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dags
       tags: [DAG]
@@ -162,7 +162,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of DAGs.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -187,7 +187,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -212,7 +212,7 @@ paths:
               $ref: '#/components/schemas/DAG'
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -229,7 +229,9 @@ paths:
       - $ref: '#/components/parameters/DAGID'
 
     post:
-      summary: Clears a set of task instances associated with the DAG for a specified date range.
+      summary: Clear a task instances
+      description: >
+        Clears a set of task instances associated with the DAG for a specified date range.
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
       operationId: post_clear_task_instances
       tags: [DAG]
@@ -243,7 +245,7 @@ paths:
 
       responses:
         '200':
-          description: A list of cleared task references
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -260,9 +262,9 @@ paths:
       - $ref: '#/components/parameters/DAGID'
 
     get:
-      summary: Get all DAG Runs
+      summary: List DAG runs
       description: >
-        This endpoint allows specifying `~` as the dag_id to retrieve DAG Runs for all DAGs.
+        This endpoint allows specifying `~` as the dag_id to retrieve DAG runs for all DAGs.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: get_dag_runs
       tags: [DAGRun]
@@ -277,7 +279,7 @@ paths:
         - $ref: '#/components/parameters/FilterEndDateLTE'
       responses:
         '200':
-          description: List of DAG Runs.
+          description: List of DAG runs.
           content:
             application/json:
               schema:
@@ -288,7 +290,7 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
 
     post:
-      summary: Trigger a DAG Run
+      summary: Trigger a new DAG run
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: post_dag_run
       tags: [DAGRun]
@@ -300,7 +302,7 @@ paths:
               $ref: '#/components/schemas/DAGRun'
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -318,7 +320,7 @@ paths:
 
   /dags/~/dagRuns/list:
     post:
-      summary: Get all DAG Runs from all DAGs
+      summary: List DAG runs (batch)
       description: >
         This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
         would run in to maximum HTTP request URL length limit.
@@ -333,7 +335,7 @@ paths:
               $ref: '#/components/schemas/ListDagRunsForm'
       responses:
         '200':
-          description: List of DAG Runs.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -353,13 +355,13 @@ paths:
       - $ref: '#/components/parameters/DAGRunID'
 
     get:
-      summary: Get a DAG Run
+      summary: Get a DAG run
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: get_dag_run
       tags: [DAGRun]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -372,13 +374,13 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
-      summary: Delete a DAG Run
+      summary: Delete a DAG run
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: delete_dag_run
       tags: [DAGRun]
       responses:
         '204':
-          description: No content.
+          description: Sucess.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -388,7 +390,9 @@ paths:
 
   /eventLogs:
     get:
-      summary: Get all log entries from event log
+      summary: List log entries
+      description:
+        List log entries from event log.
       x-openapi-router-controller: airflow.api_connexion.endpoints.event_log_endpoint
       operationId: get_event_logs
       tags: [EventLog]
@@ -397,7 +401,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of log entries.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -420,7 +424,7 @@ paths:
       tags: [EventLog]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -434,7 +438,7 @@ paths:
 
   /importErrors:
     get:
-      summary: Get all import errors
+      summary: List import errors
       x-openapi-router-controller: airflow.api_connexion.endpoints.import_error_endpoint
       operationId: get_import_errors
       tags: [ImportError]
@@ -443,7 +447,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of import errors.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -466,7 +470,7 @@ paths:
       tags: [ImportError]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -480,7 +484,7 @@ paths:
 
   /pools:
     get:
-      summary: Get all pools
+      summary: List pools
       x-openapi-router-controller: airflow.api_connexion.endpoints.pool_endpoint
       operationId: get_pools
       tags: [Pool]
@@ -514,7 +518,7 @@ paths:
               $ref: '#/components/schemas/Pool'
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -537,7 +541,7 @@ paths:
       tags: [Pool]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -565,7 +569,7 @@ paths:
 
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -588,7 +592,7 @@ paths:
       tags: [Pool]
       responses:
         '204':
-          description: No content.
+          description: Sucess.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -614,10 +618,10 @@ paths:
       - $ref: '#/components/parameters/FilterPool'
       - $ref: '#/components/parameters/FilterQueue'
     get:
-      summary: Get a list of task instance of DAG
+      summary: List task instances
       description: >
-        This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve DAG Runs for all DAGs
-        and DAG Runs.
+        This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve DAG runs for all DAGs
+        and DAG runs.
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
       operationId: get_task_instances
       tags: [TaskInstance]
@@ -626,7 +630,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of task instances.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -651,7 +655,7 @@ paths:
       tags: [TaskInstance]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -665,8 +669,10 @@ paths:
 
   /dags/~/dagRuns/~/taskInstances/list:
     post:
-      summary: Get list of task instances from all DAGs and DAG Runs.
+      summary: List task instances (batch)
       description: >
+        List task instances from all DAGs and DAG runs.
+
         This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
         would run in to maximum HTTP request URL length limits.
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
@@ -681,7 +687,7 @@ paths:
 
       responses:
         '200':
-          description: List of task instances.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -697,7 +703,7 @@ paths:
 
   /variables:
     get:
-      summary: Get all variables
+      summary: List variables
       description: The collection does not contain data. To get data, you must get a single entity.
       x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
       operationId: get_variables
@@ -707,7 +713,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of variables.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -732,7 +738,7 @@ paths:
               $ref: '#/components/schemas/Variable'
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -749,13 +755,14 @@ paths:
       - $ref: '#/components/parameters/VariableKey'
 
     get:
-      summary: Get a variable by key
+      summary: Get a variable
+      description: Get a variable by key.
       x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
       operationId: get_variable
       tags: [Variable]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -768,7 +775,8 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     patch:
-      summary: Update a variable by key
+      summary: Update a variable
+      description: Update a variable by key.
       x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
       operationId: patch_variable
       tags: [Variable]
@@ -783,7 +791,7 @@ paths:
 
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -798,13 +806,13 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
-      summary: Delete variable
+      summary: Delete a variable
       x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
       operationId: delete_variable
       tags: [Variable]
       responses:
         '204':
-          description: No content.
+          description: Sucess.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -819,10 +827,10 @@ paths:
       - $ref: '#/components/parameters/TaskID'
 
     get:
-      summary: Get all XCom entries
+      summary: List XCom entries
       description:
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCOM entries for
-        for all DAGs, DAG Runs and task instances.
+        for all DAGs, DAG runs and task instances.
       x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
       operationId: get_xcom_entries
       tags: [XCom]
@@ -831,7 +839,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: List of XCom entries.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -857,7 +865,7 @@ paths:
       tags: [XCom]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -877,13 +885,15 @@ paths:
       - $ref: '#/components/parameters/TaskID'
 
     get:
-      summary: Get extra links for task instance
+      summary: List extra links
+      description: >
+        List extra links for task instance.
       x-openapi-router-controller: airflow.api_connexion.endpoints.extra_link_endpoint
       operationId: get_extra_links
       tags: [TaskInstance]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -905,14 +915,14 @@ paths:
       - $ref: '#/components/parameters/ContinuationToken'
 
     get:
-      summary: Get logs for a task instance
-      description: Get logs for a specific task instance and its try number
+      summary: Get logs
+      description: Get logs for a specific task instance and its try number.
       x-openapi-router-controller: airflow.api_connexion.endpoints.log_endpoint
       operationId: get_log
       tags: [TaskInstance]
       responses:
         '200':
-          description: Content of logs.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -948,7 +958,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -971,7 +981,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -995,7 +1005,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -1012,13 +1022,15 @@ paths:
       - $ref: '#/components/parameters/FileToken'
 
     get:
-      summary: Get source code using file token
+      summary: Get a source code
+      description: >
+        Get a source code using file token.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_source_endpoint
       operationId: get_dag_source
       tags: [DAG]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -1047,14 +1059,35 @@ paths:
       tags: [Config]
       responses:
         '200':
-          description: Return current configuration.
+          description: Sucess.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Config'
+              example:
+                sections:
+                  - name: core
+                    options:
+                      - key: dags_folder
+                        value: /home/user/my-dags-folder
+
+                  - name: smtp
+                    options:
+                      - key: smtp_host
+                        value: localhost
+                      - key: smtp_mail_from
+                        value: airflow@example.com
             text/plain:
               schema:
                 type: string
+              example: |
+                [core]
+                dags_folder = /home/user/my-dags-folder
+                [smtp]
+                smtp_host = localhost
+                smtp_mail_from =  airflow@example.com
+
+
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -1062,13 +1095,16 @@ paths:
 
   /health:
     get:
-      summary: Returns the status of Airflow's metadatabase and scheduler
+      summary: Get a instance status
+      description: |
+        Get the status of Airflow's metadatabase and scheduler. It incluse info about
+        metadatabase and last heart beat of scheduler.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
       tags: [Monitoring]
       responses:
         '200':
-          description: Returns info about metadatabase and last heart beat.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -1076,13 +1112,13 @@ paths:
 
   /version:
     get:
-      summary: Get version information
+      summary: Get a version information
       x-openapi-router-controller: airflow.api_connexion.endpoints.version_endpoint
       operationId: get_version
       tags: [Monitoring]
       responses:
         '200':
-          description: Return current configuration.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -1094,27 +1130,39 @@ components:
   schemas:
     # Database entities
     ConnectionCollectionItem:
+      description: >
+        Connection collection item.
+
+        The password and extra fields are only available when retrieving a single object due to the
+        sensitivity of this data.
       type: object
       properties:
         connection_id:
           type: string
+          description: The connection ID.
         conn_type:
           type: string
+          description: The connection type.
         host:
           type: string
           nullable: true
+          description: Host of the connection.
         login:
           type: string
           nullable: true
+          description: Login of the connection.
         schema:
           type: string
           nullable: true
+          description: Schema of the connection.
         port:
           type: integer
           nullable: true
+          description: Port of the connection.
 
     ConnectionCollection:
       type: object
+      description: Connections
       properties:
         connections:
           type: array
@@ -1122,6 +1170,7 @@ components:
             $ref: '#/components/schemas/ConnectionCollectionItem'
 
     Connection:
+      description: Full representation of the connection.
       allOf:
         - $ref: '#/components/schemas/ConnectionCollectionItem'
         - type: object
@@ -1130,27 +1179,35 @@ components:
               type: string
               format: password
               writeOnly: true
+              description: Paasword of the connection.
             extra:
               type: string
               nullable: true
+              description: Other values that cannot be put into another field, e.g. RSA keys.
 
     DAG:
       type: object
+      description: DAG
       properties:
         dag_id:
           type: string
           readOnly: true
+          description: The ID of the DAG.
         root_dag_id:
           type: string
           readOnly: true
           nullable: true
+          description: If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, nulll.
         is_paused:
           type: boolean
           nullable: true
+          description: Whether the DAG is paused.
         is_subdag:
+          description: Whether the DAG is SubDAG.
           type: boolean
           readOnly: true
         fileloc:
+          description: The absolute path to the file.
           type: string
           readOnly: true
         file_token:
@@ -1169,9 +1226,13 @@ components:
           type: string
           readOnly: true
           nullable: true
+          description: >
+            User-provided DAG description, which can consist of several sentences or paragraphs that
+            describe DAG contents.
         schedule_interval:
           $ref: '#/components/schemas/ScheduleInterval'
         tags:
+          description: List of tags.
           type: array
           nullable: true
           items:
@@ -1179,6 +1240,7 @@ components:
           readOnly: true
 
     DAGCollection:
+      description: Colllection of DAGs
       type: object
       properties:
         dags:
@@ -1191,7 +1253,8 @@ components:
       properties:
         dag_run_id:
           type: string
-          description: >
+          nullable: true
+          description: |
             Run ID.
 
             The value of this field can be set only when creating the object. If you try to modify the
@@ -1202,7 +1265,6 @@ components:
             If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
 
             This together with DAG_ID are a unique key.
-          nullable: true
         dag_id:
           type: string
           readOnly: true
@@ -1220,8 +1282,8 @@ components:
         start_date:
           type: string
           format: date-time
-          description: >
-            The start time. The time when DAG Run was actually created..
+          description: |
+            The start time. The time when DAG run was actually created.
           readOnly: true
         end_date:
           type: string
@@ -1237,7 +1299,7 @@ components:
           readOnly: true
         conf:
           type: object
-          description: >
+          description: |
             JSON object describing additional configuration parameters.
 
             The value of this field can be set only when creating the object. If you try to modify the
@@ -1247,6 +1309,7 @@ components:
 
     DAGRunCollection:
       type: object
+      description: Collection of DAG runs
       properties:
         dag_runs:
           type: array
@@ -1255,48 +1318,54 @@ components:
 
     EventLog:
       type: object
+      description: Log of user operations via CLI or Web UI.
       properties:
         event_log_id:
+          description: The evnet log ID
           type: integer
           readOnly: true
         when:
+          description: The time when these events happened.
+          format: date-time
           type: string
           readOnly: true
         dag_id:
+          description: The DAG ID
           type: string
           readOnly: true
         task_id:
+          description: The DAG ID
           type: string
           readOnly: true
         event:
+          description: A key describing the type of event.
           type: string
           readOnly: true
         execution_date:
+          description: |
+            When the event was dispatched for an object having execution_date, the value of this field.
+          format: date-time
           type: string
           readOnly: true
         owner:
+          description: Name of the user who triggered these events a.
           type: string
           readOnly: true
         extra:
+          description: |
+            Other information that was not included in the other fields, e.g. the complete CLI command.
           type: string
           readOnly: true
           nullable: true
 
     EventLogCollection:
       type: object
+      description: Collecttion of event log
       properties:
         event_logs:
           type: array
           items:
             $ref: '#/components/schemas/EventLog'
-
-    HealthInfo:
-      type: object
-      properties:
-        metadatabase:
-          $ref: '#/components/schemas/MetadatabaseStatus'
-        scheduler:
-          $ref: '#/components/schemas/SchedulerStatus'
 
     ImportError:
       type: object
@@ -1304,16 +1373,20 @@ components:
         import_error_id:
           type: integer
           readOnly: true
+          description: The import error ID.
         timestamp:
           type: string
           format: datetime
           readOnly: true
+          description: The time when this error was created.
         filename:
           type: string
           readOnly: true
+          description: The filename
         stack_trace:
           type: string
           readOnly: true
+          description: The full stackstrace..
 
     ImportErrorCollection:
       type: object
@@ -1323,52 +1396,73 @@ components:
           items:
             $ref: '#/components/schemas/ImportError'
 
+    HealthInfo:
+      type: object
+      description: Instance status information.
+      properties:
+        metadatabase:
+          $ref: '#/components/schemas/MetadatabaseStatus'
+        scheduler:
+          $ref: '#/components/schemas/SchedulerStatus'
+
     MetadatabaseStatus:
       type: object
-      description: Returns the status of the metadatabase
+      description: The status of the metadatabase.
       properties:
         status:
           $ref: '#/components/schemas/HealthStatus'
 
+    SchedulerStatus:
+      type: object
+      description: The status and the latest scheduler heartbeat.
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_scheduler_heartbeat:
+          description: The time the scheduler last do a heartbeat.
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
+
+
     Pool:
+      description: The pool
       type: object
       properties:
         name:
           type: string
+          description: The name of pool.
         slots:
           type: integer
+          description: |
+            The maximum number of slots that can be assigned to tasks. One job may occupy one or more slots.
         occupied_slots:
           type: integer
           readOnly: true
+          description: The number of slots used by running/queued tasks at the moment.
         used_slots:
           type: integer
           readOnly: true
+          description: The number of slots used by running tasks at the moment.
         queued_slots:
           type: integer
           readOnly: true
+          description: The number of slots used by queued tasks at the moment.
         open_slots:
           type: integer
           readOnly: true
+          description: The number of free slots at the moment.
 
     PoolCollection:
       type: object
+      description: Collection of pool.
       properties:
         pools:
           type: array
           items:
             $ref: '#/components/schemas/Pool'
 
-    SchedulerStatus:
-      type: object
-      description: Returns the status and the latest scheduler heartbeat
-      properties:
-        status:
-          $ref: '#/components/schemas/HealthStatus'
-        latest_scheduler_heartbeat:
-          type: string
-          format: datetime
-          readOnly: true
-          nullable: true
 
     SLAMiss:
       type: object
@@ -1376,8 +1470,10 @@ components:
         task_id:
           type: string
           readOnly: true
+          description: The task ID.
         dag_id:
           type: string
+          description: The DAG ID.
         execution_date:
           type: string
           format: datetime
@@ -1390,33 +1486,6 @@ components:
           type: string
         notification_sent:
           type: boolean
-
-    SLAMissCollection:
-      type: object
-      properties:
-        sla_misses:
-          type: array
-          items:
-            $ref: '#/components/schemas/SLAMiss'
-
-    TaskFail:
-      type: object
-      properties:
-        task_id:
-          type: string
-        dag_id:
-          type: string
-        execution_date:
-          type: string
-          format: datetime
-        start_date:
-          type: string
-          format: datetime
-        end_date:
-          type: string
-          format: datetime
-        duration:
-          type: integer
 
     TaskInstance:
       type: object
@@ -1479,9 +1548,11 @@ components:
         task_id:
           type: string
           readOnly: true
+          description: The task ID.
         dag_id:
           type: string
           readOnly: true
+          description: The DAG ID.
         execution_date:
           type: string
           format: datetime
@@ -1489,6 +1560,7 @@ components:
         dag_run_id:
           type: string
           readOnly: true
+          description: The DAG run ID.
 
     TaskInstanceReferenceCollection:
       type: object
@@ -1499,6 +1571,11 @@ components:
             $ref: '#/components/schemas/TaskInstanceReference'
 
     VariableCollectionItem:
+      description:
+        XCom entry collection item.
+
+        The value field are only available when retrieving a single object due to the sensitivity of this
+        data.
       # Divided into two schemas for sensitive data protection
       type: object
       properties:
@@ -1507,6 +1584,7 @@ components:
 
     VariableCollection:
       type: object
+      description: Collection of XCom entries
       properties:
         variables:
           type: array
@@ -1514,6 +1592,7 @@ components:
             $ref: '#/components/schemas/VariableCollectionItem'
 
     Variable:
+      description: Full representation of Variable
       allOf:
         - $ref: '#/components/schemas/VariableCollectionItem'
         - type: object
@@ -1524,6 +1603,10 @@ components:
     XComCollectionItem:
       # Divided into two schemas for sensitive data protection
       type: object
+      description: |
+        XCom entry collection item.
+
+        The value field is only available when reading a single object due to the size of the value.
       properties:
         key:
           type: string
@@ -1540,6 +1623,7 @@ components:
 
     XComCollection:
       type: object
+      description: Collection of XCom entries.
       properties:
         xcom_entries:
           type: array
@@ -1547,18 +1631,25 @@ components:
             $ref: '#/components/schemas/XComCollectionItem'
 
     XCom:
+      description: Full representaiton of XCom entry.
       allOf:
         - $ref: '#/components/schemas/XComCollectionItem'
         - type: object
           properties:
             value:
               type: string
+              description: The value
 
     # Python objects
     # Based on
     # airflow/serialization/schema.json
     # but simplified to make the easier to use and to make backward compatibility easier.
     DAGDetail:
+      description: |
+        DAG details.
+
+        For details see:
+        (airflow.models.DAG)[https://airflow.readthedocs.io/en/stable/_api/airflow/models/index.html#airflow.models.DAG]
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -1590,6 +1681,7 @@ components:
 
     ExtraLink:
       type: object
+      description: Additional links containing additional information about the task.
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -1602,6 +1694,7 @@ components:
 
     ExtraLinkCollection:
       type: object
+      description: The colelction of extra links.
       properties:
         extra_links:
           type: array
@@ -1610,6 +1703,9 @@ components:
 
     Task:
       type: object
+      description: |
+        For details see:
+        (airflow.models.BaseOperator)[https://airflow.readthedocs.io/en/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -1689,6 +1785,7 @@ components:
 
     TaskCollection:
       type: object
+      description: Collelction of tasks.
       properties:
         tasks:
           type: array
@@ -1698,6 +1795,7 @@ components:
     # Configuration
     ConfigOption:
       type: object
+      description: The option of configuration.
       properties:
         key:
           type: string
@@ -1708,6 +1806,7 @@ components:
 
     ConfigSection:
       type: object
+      description: The section of configuration.
       properties:
         name:
           type: string
@@ -1719,6 +1818,7 @@ components:
 
     Config:
       type: object
+      description: The configuration.
       properties:
         sections:
           type: array
@@ -1742,7 +1842,7 @@ components:
       type: object
       properties:
         dry_run:
-          description: >
+          description: |
             If set, don't actually run this operation. The response will contain a list of task instances
             planned to be cleaned, but not modified in any way.
           type: boolean
@@ -1777,7 +1877,7 @@ components:
           type: boolean
 
         reset_dag_runs:
-          description: Set state of DAG Runs to RUNNING.
+          description: Set state of DAG runs to RUNNING.
           type: boolean
 
     ListDagRunsForm:
@@ -1806,7 +1906,7 @@ components:
         execution_date_gte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects greater or equal to the specified date.
 
             This can be combined with execution_date_lte key to receive only the selected period.
@@ -1814,7 +1914,7 @@ components:
         execution_date_lte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects less than or equal to the specified date.
 
             This can be combined with execution_date_gte key to receive only the selected period.
@@ -1822,7 +1922,7 @@ components:
         start_date_gte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects greater or equal the specified date.
 
             This can be combined with start_date_lte key to receive only the selected period.
@@ -1830,7 +1930,7 @@ components:
         start_date_lte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects less or equal the specified date.
 
             This can be combined with start_date_gte parameter to receive only the selected period
@@ -1838,14 +1938,14 @@ components:
         end_date_gte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects greater or equal the specified date.
 
             This can be combined with end_date_lte parameter to receive only the selected period.
         end_date_lte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects less than or equal to the specified date.
 
             This can be combined with end_date_gte parameter to receive only the selected period.
@@ -1861,58 +1961,57 @@ components:
             Return objects with specific DAG IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
-
         execution_date_gte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects greater or equal to the specified date.
 
             This can be combined with execution_date_lte parameter to receive only the selected period.
         execution_date_lte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects less than or equal to the specified date.
 
             This can be combined with execution_date_gte parameter to receive only the selected period.
         start_date_gte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects greater or equal the specified date.
 
             This can be combined with start_date_lte parameter to receive only the selected period.
         start_date_lte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects less or equal the specified date.
 
             This can be combined with start_date_gte parameter to receive only the selected period.
         end_date_gte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects greater or equal the specified date.
 
             This can be combined with start_date_lte parameter to receive only the selected period.
         end_date_lte:
           type: string
           format: date-time
-          description: >
+          description: |
             Returns objects less than or equal to the specified date.
 
             This can be combined with start_date_gte parameter to receive only the selected period.
         duration_gte:
           type: number
-          description: >
+          description: |
             Returns objects greater than or equal to the specified values.
 
             This can be combined with duration_lte parameter to receive only the selected period.
         duration_lte:
           type: number
-          description: >
+          description: |
             Returns objects less than or equal to the specified values.
 
             This can be combined with duration_gte parameter to receive only the selected range.
@@ -1937,6 +2036,9 @@ components:
 
     # Common data type
     ScheduleInterval:
+      description: |
+        Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
+        execution_date to figure out the next schedule.
       readOnly: true
       oneOf:
         - $ref: '#/components/schemas/TimeDelta'
@@ -1946,6 +2048,7 @@ components:
         propertyName: __type
 
     TimeDelta:
+      description: Time delta
       type: object
       required:
         - __type
@@ -1959,6 +2062,7 @@ components:
         microseconds: {type: integer}
 
     RelativeDelta:
+      description: Relative delta
       # TODO: Why we need these fields?
       type: object
       required:
@@ -1997,6 +2101,7 @@ components:
         microsecond: {type: integer}
 
     CronExpression:
+      description: Cron expression
       type: object
       required:
         - __type
@@ -2009,6 +2114,7 @@ components:
       type: string
 
     Tag:
+      description: Tag
       # Object to maintain extensibility
       type: object
       properties:
@@ -2016,10 +2122,12 @@ components:
           type: string
 
     Color:
+      description: Color in hexadecimal notation.
       type: string
       pattern: ^#[a-fA-F0-9]{3,6}$
 
     ClassReference:
+      description: Class reference
       type: object
       properties:
         module_path:
@@ -2031,13 +2139,13 @@ components:
 
     # Generic
     Error:
-      description: >
-        [RFC7807](https://tools.ietf.org/html/rfc7807) compliant response
+      description: |
+        [RFC7807](https://tools.ietf.org/html/rfc7807) compliant response.
       type: object
       properties:
         type:
           type: string
-          description: >
+          description: |
             A URI reference [RFC3986] that identifies the problem type. This specification
             encourages that, when dereferenced, it provide human-readable documentation for
             the problem type.
@@ -2052,7 +2160,7 @@ components:
           description: A human-readable explanation specific to this occurrence of the problem.
         instance:
           type: string
-          description: >
+          description: |
             A URI reference that identifies the specific occurrence of the problem. It may or may
             not yield further information if dereferenced.
       required:
@@ -2061,6 +2169,7 @@ components:
         - status
 
     CollectionInfo:
+      description: Metadata about collection.
       type: object
       properties:
         total_entries:
@@ -2069,6 +2178,7 @@ components:
 
     # Enums
     TaskState:
+      description: Task state.
       type: string
       enum:
         - success
@@ -2083,6 +2193,7 @@ components:
         - scheduled
 
     DagState:
+      description: DAG State.
       type: string
       enum:
         - success
@@ -2090,6 +2201,7 @@ components:
         - failed
 
     TriggerRule:
+      description: Trigger rule.
       type: string
       enum:
         - all_success
@@ -2103,6 +2215,7 @@ components:
         - dummy
 
     WeightRule:
+      description: Weight rule.
       type: string
       enum:
         - downstream
@@ -2110,6 +2223,7 @@ components:
         - absolute
 
     HealthStatus:
+      description: Health status
       type: string
       enum:
         - healthy
@@ -2143,7 +2257,7 @@ components:
       schema:
         type: string
       required: true
-      description: The Connection ID.
+      description: The connection ID.
 
     DAGID:
       in: path
@@ -2159,7 +2273,7 @@ components:
       schema:
         type: string
       required: true
-      description: The Task ID.
+      description: The task ID.
 
     DAGRunID:
       in: path
@@ -2167,7 +2281,7 @@ components:
       schema:
         type: string
       required: true
-      description: The DAG Run ID.
+      description: The DAG run ID.
 
     TaskTryNumber:
       in: path
@@ -2175,7 +2289,7 @@ components:
       schema:
         type: integer
       required: true
-      description: The Task Try Number.
+      description: The task try number.
 
     EventLogID:
       in: path
@@ -2183,7 +2297,7 @@ components:
       schema:
         type: integer
       required: true
-      description: The Event Log ID.
+      description: The event log ID.
 
     ImportErrorID:
       in: path
@@ -2191,7 +2305,7 @@ components:
       schema:
         type: integer
       required: true
-      description: The Import Error ID.
+      description: The import error ID.
 
     PoolName:
       in: path
@@ -2199,7 +2313,7 @@ components:
       schema:
         type: string
       required: true
-      description: The Pool name.
+      description: The pool name.
 
     VariableKey:
       in: path
@@ -2207,7 +2321,7 @@ components:
       schema:
         type: string
       required: true
-      description: The Variable Key.
+      description: The variable Key.
 
     # Logs
     FullContent:
@@ -2216,7 +2330,7 @@ components:
       schema:
         type: boolean
       required: false
-      description: >
+      description: |
         A full content will be returned.
         By default, only the first fragment will be returned.
 
@@ -2226,7 +2340,7 @@ components:
       schema:
         type: string
       required: false
-      description: >
+      description: |
         A token that allows you to continue fetching logs.
         If passed, it will specify the location from which the download should be continued.
 
@@ -2236,7 +2350,7 @@ components:
       schema:
         type: string
       required: true
-      description: The XCom Key.
+      description: The XCom key.
     # Filter
     FilterExecutionDateGTE:
       in: query
@@ -2245,7 +2359,7 @@ components:
         type: string
         format: date-time
       required: false
-      description: >
+      description: |
         Returns objects greater or equal to the specified date.
 
         This can be combined with execution_date_lte parameter to receive only the selected period.
@@ -2256,7 +2370,7 @@ components:
         type: string
         format: date-time
       required: false
-      description: >
+      description: |
         Returns objects less than or equal to the specified date.
 
         This can be combined with execution_date_gte parameter to receive only the selected period.
@@ -2267,7 +2381,7 @@ components:
         type: string
         format: date-time
       required: false
-      description: >
+      description: |
         Returns objects greater or equal the specified date.
 
         This can be combined with start_date_lte parameter to receive only the selected period.
@@ -2278,7 +2392,7 @@ components:
         type: string
         format: date-time
       required: false
-      description: >
+      description: |
         Returns objects less or equal the specified date.
 
         This can be combined with start_date_gte parameter to receive only the selected period.
@@ -2289,7 +2403,7 @@ components:
         type: string
         format: date-time
       required: false
-      description: >
+      description: |
         Returns objects greater or equal the specified date.
 
         This can be combined with start_date_lte parameter to receive only the selected period.
@@ -2300,7 +2414,7 @@ components:
         type: string
         format: date-time
       required: false
-      description: >
+      description: |
         Returns objects less than or equal to the specified date.
 
         This can be combined with start_date_gte parameter to receive only the selected period.
@@ -2310,7 +2424,7 @@ components:
       schema:
         type: number
       required: false
-      description: >
+      description: |
         Returns objects greater than or equal to the specified values.
 
         This can be combined with duration_lte parameter to receive only the selected period.
@@ -2320,7 +2434,7 @@ components:
       schema:
         type: number
       required: false
-      description: >
+      description: |
         Returns objects less than or equal to the specified values.
 
         This can be combined with duration_gte parameter to receive only the selected range.
@@ -2361,7 +2475,7 @@ components:
       schema:
         type: string
       required: true
-      description: >
+      description: |
         The key containing the encrypted path to the file. Encryption and decryption take place only on
         the server. This prevents the client from reading an non-DAG file. This also ensures API
         extensibility, because the format of encrypted data may change.
@@ -2373,7 +2487,7 @@ components:
         type: array
         items:
           type: string
-      description: >
+      description: |
         The fields to update on the connection (connection, pool etc). If absent or empty, all
         modifiable fields are updated. A comma-separated list of fully qualified names of fields.
       style: form
