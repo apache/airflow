@@ -28,6 +28,7 @@ metastore_db
 .*sql
 .*svg
 .*csv
+.*md5
 CHANGELOG.txt
 .*zip
 .*lock

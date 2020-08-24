@@ -128,6 +128,15 @@ repos:
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all mermaid files
+        args:
+          - --comment-style
+          - "|%%|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+        files: \.mermaid$
   - repo: https://github.com/thlorenz/doctoc.git
     rev: v1.4.0
     hooks:
@@ -277,7 +286,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_integrations.sh
         language: system
         pass_filenames: false
-        files: ^airflow/scripts/ci/libraries/_initialization.sh$|^breeze-complete$
+        files: ^common/_common_values.sh$|^breeze-complete$
       - id: check-apache-license
         name: Check if licenses are OK for Apache
         entry: "./scripts/ci/pre_commit/pre_commit_check_license.sh"
