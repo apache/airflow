@@ -41,7 +41,6 @@ from airflow.exceptions import AirflowException
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.base import Operator
 from airflow.models.pool import Pool
-# noinspection PyPep8Naming
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -321,7 +320,6 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
     # Set to True before calling execute method
     _lock_for_execution = False
 
-    # noinspection PyUnusedLocal
     # pylint: disable=too-many-arguments,too-many-locals, too-many-statements
     @apply_defaults
     def __init__(
@@ -429,8 +427,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
             self.retry_delay = retry_delay
         else:
             self.log.debug("Retry_delay isn't timedelta object, assuming secs")
-            # noinspection PyTypeChecker
-            self.retry_delay = timedelta(seconds=retry_delay)
+            self.retry_delay = timedelta(seconds=retry_delay)  # noqa
         self.retry_exponential_backoff = retry_exponential_backoff
         self.max_retry_delay = max_retry_delay
         self.params = params or {}  # Available in templates!
@@ -705,7 +702,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         """
         from airflow.models.xcom_arg import XComArg
 
-        def apply_set_upstream(arg: Any):
+        def apply_set_upstream(arg: Any): # noqa
             if isinstance(arg, XComArg):
                 self.set_upstream(arg.operator)
             elif isinstance(arg, (tuple, set, list)):
@@ -823,14 +820,12 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         result = cls.__new__(cls)
         memo[id(self)] = result
 
-        # noinspection PyProtectedMember
         shallow_copy = cls.shallow_copy_attrs + \
             cls._base_operator_shallow_copy_attrs  # pylint: disable=protected-access
 
         for k, v in self.__dict__.items():
             if k not in shallow_copy:
-                # noinspection PyArgumentList
-                setattr(result, k, copy.deepcopy(v, memo))
+                setattr(result, k, copy.deepcopy(v, memo))  # noqa
             else:
                 setattr(result, k, copy.copy(v))
         return result
@@ -909,7 +904,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
             if type(content) is not tuple:  # pylint: disable=unidiomatic-typecheck
                 # Special case for named tuples
                 return content.__class__(
-                    *(self.render_template(element, context, jinja_env) for element in content)
+                    *(self.render_template(element, context, jinja_env) for element in content)  # noqa
                 )
             else:
                 return tuple(self.render_template(element, context, jinja_env) for element in content)
@@ -944,7 +939,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
 
     def get_template_env(self) -> jinja2.Environment:
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
-        return self.dag.get_template_env() if self.has_dag() else jinja2.Environment(cache_size=0)
+        return self.dag.get_template_env() if self.has_dag() else jinja2.Environment(cache_size=0)  # noqa
 
     def prepare_template(self) -> None:
         """
@@ -1181,7 +1176,6 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
 
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
-        # noinspection PyProtectedMember
         dags = {
             task._dag.dag_id: task._dag  # type: ignore  # pylint: disable=protected-access
             for task in [self] + task_list if task.has_dag()}

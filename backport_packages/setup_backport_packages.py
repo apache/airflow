@@ -53,7 +53,6 @@ from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
 
-# noinspection DuplicatedCode
 logger = logging.getLogger(__name__)  # noqa
 
 PY3 = sys.version_info[0] == 3
@@ -174,8 +173,7 @@ class CleanCommand(Command):
     def finalize_options(self):
         """Set final values for options."""
 
-    # noinspection PyMethodMayBeStatic
-    def run(self):
+    def run(self):  # noqa
         """Run command to remove temporary files and directories."""
         os.chdir(dirname(__file__))
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')

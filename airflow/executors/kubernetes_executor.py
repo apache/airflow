@@ -739,13 +739,12 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         )
 
         for task in queued_tasks:
-            # noinspection PyProtectedMember
             # pylint: disable=protected-access
             dict_string = (
                 "dag_id={},task_id={},execution_date={},airflow-worker={}".format(
                     pod_generator.make_safe_label_value(task.dag_id),
                     pod_generator.make_safe_label_value(task.task_id),
-                    AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
+                    AirflowKubernetesScheduler._datetime_to_label_safe_datestring(  # noqa
                         task.execution_date
                     ),
                     self.worker_uuid

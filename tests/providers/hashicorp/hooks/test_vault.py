@@ -25,7 +25,6 @@ from mock import PropertyMock, mock_open, patch
 from airflow.providers.hashicorp.hooks.vault import VaultHook
 
 
-# noinspection DuplicatedCode,PyUnresolvedReferences
 class TestVaultHook(TestCase):
 
     @staticmethod

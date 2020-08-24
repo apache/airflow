@@ -44,7 +44,6 @@ class PubSubException(Exception):
     """
 
 
-# noinspection PyAbstractClass
 class PubSubHook(GoogleBaseHook):
     """
     Hook for accessing Google Pub/Sub.

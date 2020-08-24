@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# noinspection LongLine
 """
 Example Airflow DAG that creates and performs following operations on Cloud Bigtable:
 - creates an Instance

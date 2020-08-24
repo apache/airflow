@@ -22,7 +22,6 @@ from airflow.providers.google.cloud._internal_client.secret_manager_client impor
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-# noinspection PyAbstractClass
 class SecretsManagerHook(GoogleBaseHook):
     """
     Hook for the Google Secret Manager API.

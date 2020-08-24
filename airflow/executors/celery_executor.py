@@ -237,7 +237,6 @@ class CeleryExecutor(BaseExecutor):
 
     def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
         """Updates state of a single task."""
-        # noinspection PyBroadException
         try:
             if self.last_state[key] != state:
                 if state == celery_states.SUCCESS:
@@ -246,16 +245,16 @@ class CeleryExecutor(BaseExecutor):
                     del self.last_state[key]
                 elif state == celery_states.FAILURE:
                     self.fail(key, info)
-                    del self.tasks[key]
+                    del self.tasks[key]  # noqa
                     del self.last_state[key]
                 elif state == celery_states.REVOKED:
                     self.fail(key, info)
-                    del self.tasks[key]
+                    del self.tasks[key]  # noqa
                     del self.last_state[key]
                 else:
                     self.log.info("Unexpected state: %s", state)
                     self.last_state[key] = state
-        except Exception:  # pylint: disable=broad-except
+        except Exception:  # noqa pylint: disable=broad-except
             self.log.exception("Error syncing the Celery executor, ignoring it.")
 
     def end(self, synchronous: bool = False) -> None:

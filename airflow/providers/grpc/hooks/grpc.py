@@ -120,7 +120,6 @@ class GrpcHook(BaseHook):
                 else:
                     yield from response
             except grpc.RpcError as ex:
-                # noinspection PyUnresolvedReferences
                 self.log.exception(
                     "Error occurred when calling the grpc service: %s, method: %s \
                     status code: %s, error details: %s",

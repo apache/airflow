@@ -44,7 +44,6 @@ from airflow.utils import timezone
 from airflow.version import version as airflow_version
 
 
-# noinspection DuplicatedCode
 def create_context(task):
     dag = DAG(dag_id="dag")
     tzinfo = pendulum.timezone("Europe/Amsterdam")
@@ -59,7 +58,6 @@ def create_context(task):
     }
 
 
-# noinspection DuplicatedCode,PyUnusedLocal
 class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     def get_current_task_name(self):

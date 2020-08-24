@@ -24,7 +24,6 @@ from googleapiclient.http import MediaFileUpload
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-# noinspection PyAbstractClass
 class GoogleDriveHook(GoogleBaseHook):
     """
     Hook for the Google Drive APIs.

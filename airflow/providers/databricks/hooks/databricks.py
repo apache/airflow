@@ -78,8 +78,7 @@ class RunState:
         return str(self.__dict__)
 
 
-# noinspection PyAbstractClass
-class DatabricksHook(BaseHook):
+class DatabricksHook(BaseHook):  # noqa
     """
     Interact with Databricks.
 
