@@ -559,7 +559,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
     mock_datasync == no_datasync, "moto datasync package missing"
 )  # pylint: disable=W0143
 class TestAWSDataSyncOperatorUpdate(AWSDataSyncTestCaseBase):
-    def __init(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.datasync = None
 
