@@ -177,7 +177,6 @@ class TestCliUsers(unittest.TestCase):
             matches = [u for u in retrieved_users if u['username'] == username]
             if not matches:
                 self.fail("Couldn't find user with username {}".format(username))
-                return None
             else:
                 matches[0].pop('id')  # this key not required for import
                 return matches[0]
