@@ -164,10 +164,14 @@ class TestBigtableInstanceCreate(unittest.TestCase):
             main_cluster_id=CLUSTER_ID,
             main_cluster_zone=CLUSTER_ZONE,
             task_id="id",
-            gcp_conn_id=GCP_CONN_ID
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_instance.assert_called_once_with(
             cluster_nodes=None,
             cluster_storage_type=None,
@@ -194,10 +198,14 @@ class TestBigtableInstanceCreate(unittest.TestCase):
             main_cluster_zone=CLUSTER_ZONE,
             replica_clusters=REPLICATE_CLUSTERS,
             task_id="id",
-            gcp_conn_id=GCP_CONN_ID
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_instance.assert_called_once_with(
             cluster_nodes=None,
             cluster_storage_type=None,
