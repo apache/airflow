@@ -1112,7 +1112,7 @@ paths:
 
   /version:
     get:
-      summary: Get Airflow version information
+      summary: Get version information
       x-openapi-router-controller: airflow.api_connexion.endpoints.version_endpoint
       operationId: get_version
       tags: [Monitoring]
