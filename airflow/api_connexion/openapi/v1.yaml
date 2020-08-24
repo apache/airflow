@@ -71,7 +71,7 @@ paths:
               $ref: '#/components/schemas/Connection'
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -94,7 +94,7 @@ paths:
       tags: [Connection]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -122,7 +122,7 @@ paths:
 
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -187,7 +187,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -212,7 +212,7 @@ paths:
               $ref: '#/components/schemas/DAG'
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -302,7 +302,7 @@ paths:
               $ref: '#/components/schemas/DAGRun'
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -361,7 +361,7 @@ paths:
       tags: [DAGRun]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -424,7 +424,7 @@ paths:
       tags: [EventLog]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -470,7 +470,7 @@ paths:
       tags: [ImportError]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -518,7 +518,7 @@ paths:
               $ref: '#/components/schemas/Pool'
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -541,7 +541,7 @@ paths:
       tags: [Pool]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -569,7 +569,7 @@ paths:
 
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -655,7 +655,7 @@ paths:
       tags: [TaskInstance]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -738,7 +738,7 @@ paths:
               $ref: '#/components/schemas/Variable'
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -762,7 +762,7 @@ paths:
       tags: [Variable]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -791,7 +791,7 @@ paths:
 
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -865,7 +865,7 @@ paths:
       tags: [XCom]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -893,7 +893,7 @@ paths:
       tags: [TaskInstance]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -958,7 +958,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -981,7 +981,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -1005,7 +1005,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -1030,7 +1030,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Successful response.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -1059,7 +1059,7 @@ paths:
       tags: [Config]
       responses:
         '200':
-          description: Return current configuration.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -1097,13 +1097,14 @@ paths:
     get:
       summary: Get a instance status
       description: |
-        Get the status of Airflow's metadatabase and scheduler.
+        Get the status of Airflow's metadatabase and scheduler. It incluse info about
+        metadatabase and last heart beat of scheduler.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
       tags: [Monitoring]
       responses:
         '200':
-          description: Returns info about metadatabase and last heart beat.
+          description: Sucess.
           content:
             application/json:
               schema:
@@ -1117,7 +1118,7 @@ paths:
       tags: [Monitoring]
       responses:
         '200':
-          description: Return current configuration.
+          description: Sucess.
           content:
             application/json:
               schema:
