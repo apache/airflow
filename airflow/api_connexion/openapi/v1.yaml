@@ -46,7 +46,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -71,7 +71,7 @@ paths:
               $ref: '#/components/schemas/Connection'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -94,7 +94,7 @@ paths:
       tags: [Connection]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -122,7 +122,7 @@ paths:
 
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -143,7 +143,7 @@ paths:
       tags: [Connection]
       responses:
         '204':
-          description: Sucess.
+          description: Success.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -162,7 +162,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -187,7 +187,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -212,7 +212,7 @@ paths:
               $ref: '#/components/schemas/DAG'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -245,7 +245,7 @@ paths:
 
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -302,7 +302,7 @@ paths:
               $ref: '#/components/schemas/DAGRun'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -335,7 +335,7 @@ paths:
               $ref: '#/components/schemas/ListDagRunsForm'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -361,7 +361,7 @@ paths:
       tags: [DAGRun]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -380,7 +380,7 @@ paths:
       tags: [DAGRun]
       responses:
         '204':
-          description: Sucess.
+          description: Success.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -401,7 +401,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -424,7 +424,7 @@ paths:
       tags: [EventLog]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -447,7 +447,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -470,7 +470,7 @@ paths:
       tags: [ImportError]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -518,7 +518,7 @@ paths:
               $ref: '#/components/schemas/Pool'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -541,7 +541,7 @@ paths:
       tags: [Pool]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -569,7 +569,7 @@ paths:
 
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -592,7 +592,7 @@ paths:
       tags: [Pool]
       responses:
         '204':
-          description: Sucess.
+          description: Success.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -630,7 +630,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -655,7 +655,7 @@ paths:
       tags: [TaskInstance]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -687,7 +687,7 @@ paths:
 
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -713,7 +713,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -738,7 +738,7 @@ paths:
               $ref: '#/components/schemas/Variable'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -762,7 +762,7 @@ paths:
       tags: [Variable]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -791,7 +791,7 @@ paths:
 
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -812,7 +812,7 @@ paths:
       tags: [Variable]
       responses:
         '204':
-          description: Sucess.
+          description: Success.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -839,7 +839,7 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -865,7 +865,7 @@ paths:
       tags: [XCom]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -893,7 +893,7 @@ paths:
       tags: [TaskInstance]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -922,7 +922,7 @@ paths:
       tags: [TaskInstance]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -958,7 +958,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -981,7 +981,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -1005,7 +1005,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -1030,7 +1030,7 @@ paths:
       tags: [DAG]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -1059,7 +1059,7 @@ paths:
       tags: [Config]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -1104,7 +1104,7 @@ paths:
       tags: [Monitoring]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
@@ -1118,7 +1118,7 @@ paths:
       tags: [Monitoring]
       responses:
         '200':
-          description: Sucess.
+          description: Success.
           content:
             application/json:
               schema:
