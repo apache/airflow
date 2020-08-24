@@ -22,6 +22,7 @@ from datetime import timedelta
 from time import sleep
 from typing import Any, Dict, Iterable
 
+from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSensorTimeout, AirflowSkipException,
 )
@@ -158,6 +159,16 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             return new_interval
         else:
             return self.poke_interval
+
+    def prepare_for_execution(self) -> BaseOperator:
+        task = super().prepare_for_execution()
+        # Sensors in `poke` mode can block execution of DAGs when running
+        # with single process executor, thus we change the mode to`reschedule`
+        # to allow parallel task being scheduled and executed
+        if conf.get('core', 'executor') == "DebugExecutor":
+            self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
+            task.mode = 'reschedule'
+        return task
 
     @property
     def reschedule(self):

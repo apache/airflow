@@ -36,6 +36,7 @@ XCOM_SKIPMIXIN_FOLLOWED = "followed"
 
 class SkipMixin(LoggingMixin):
     """ A Mixin to skip Tasks Instances """
+
     def _set_state_to_skipped(self, dag_run, execution_date, tasks, session):
         """
         Used internally to set state of task instances to skipped from the same dag run.
@@ -93,7 +94,7 @@ class SkipMixin(LoggingMixin):
 
         # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
         try:
-            task_id = self.task_id
+            task_id = self.task_id  # noqa
         except AttributeError:
             task_id = None
 
