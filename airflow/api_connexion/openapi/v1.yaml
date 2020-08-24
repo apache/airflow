@@ -203,6 +203,8 @@ paths:
       summary: Update a DAG
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: patch_dag
+      parameters:
+        - $ref: '#/components/parameters/UpdateMask'
       tags: [DAG]
       requestBody:
         required: true

@@ -72,7 +72,7 @@ def get_dags(session, limit, offset=0):
 
 @security.requires_authentication
 @provide_session
-def patch_dag(session, dag_id):
+def patch_dag(session, dag_id, update_mask=None):
     """
     Update the specific DAG
     """
@@ -83,7 +83,15 @@ def patch_dag(session, dag_id):
         patch_body = dag_schema.load(request.json, session=session)
     except ValidationError as err:
         raise BadRequest("Invalid Dag schema", detail=str(err.messages))
-    for key, value in patch_body.items():
-        setattr(dag, key, value)
+    if update_mask:
+        patch_body_ = {}
+        if len(update_mask) > 1:
+            raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
+        update_mask = update_mask[0]
+        if update_mask != 'is_paused':
+            raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
+        patch_body_[update_mask] = patch_body[update_mask]
+        patch_body = patch_body_
+    setattr(dag, 'is_paused', patch_body['is_paused'])
     session.commit()
     return dag_schema.dump(dag)
