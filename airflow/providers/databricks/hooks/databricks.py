@@ -177,7 +177,8 @@ class DatabricksHook(BaseHook):  # noqa
             try:
                 response = request_func(
                     url,
-                    json=json,
+                    json=json if method in ('POST', 'PATCH') else None,
+                    params=json if method == 'GET' else None,
                     auth=auth,
                     headers=USER_AGENT_HEADER,
                     timeout=self.timeout_seconds)
