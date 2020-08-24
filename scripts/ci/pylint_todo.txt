@@ -1,5 +1,4 @@
 ./airflow/configuration.py
 ./airflow/models/dag.py
 ./airflow/models/dagrun.py
-./airflow/models/taskinstance.py
 ./airflow/www/utils.py
