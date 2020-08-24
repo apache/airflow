@@ -27,7 +27,7 @@ on:
 
 env:
 
-  MOUNT_LOCAL_SOURCES: "true"
+  MOUNT_LOCAL_SOURCES: "false"
   MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
