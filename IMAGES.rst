@@ -276,8 +276,6 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``PIP_NO_CACHE_DIR``                     | ``true``                                 | if true, then no pip cache will be       |
 |                                          |                                          | stored                                   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``PIP_VERSION``                          | ``19.0.2``                               | version of PIP to use                    |
-+------------------------------------------+------------------------------------------+------------------------------------------+
 | ``HOME``                                 | ``/root``                                | Home directory of the root user (CI      |
 |                                          |                                          | image has root user as default)          |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -419,8 +417,6 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | OpenShift Guidelines compatibility       |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user       |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``PIP_VERSION``                          | ``19.0.2``                               | version of PIP to use                    |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``CASS_DRIVER_BUILD_CONCURRENCY``        | ``8``                                    | Number of processors to use for          |
 |                                          |                                          | cassandra PIP install (speeds up         |
