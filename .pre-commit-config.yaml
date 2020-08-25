@@ -191,7 +191,7 @@ repos:
         name: Run isort to sort imports
         types: [python]
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^.tox/.*$|^venv/.*$|.*api_connexion/.*\.py
+        exclude: ^build/.*$|^.tox/.*$|^venv/.*$|.*api_connexion/.*\.py|.*providers.*\.py
   - repo: https://github.com/pycqa/pydocstyle
     rev: 5.0.2
     hooks:
