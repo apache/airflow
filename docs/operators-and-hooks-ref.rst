@@ -120,7 +120,7 @@ Fundamentals
    * - :mod:`airflow.sensors.weekday_sensor`
      -
 
-**Hooks:*
+**Hooks:**
 
 .. list-table::
    :header-rows: 1
