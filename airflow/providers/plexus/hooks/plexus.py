@@ -6,6 +6,16 @@ from airflow.models import Variable
 from airflow.exceptions import AirflowException
 
 class PlexusHook(BaseHook):
+    """
+    Used for jwt token generation and storage to 
+    make Plexus API calls. Requires email and password
+    Airflow variables be created. 
+    Examples:
+
+        #create an email variable
+        export AIRFLOW_VAR_EMAIL = user@corescientific.com
+        export AIRFLOW_VAR_PASSWORD = ******* 
+    """
     def __init__(
         self
     ) -> None:

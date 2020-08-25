@@ -1,6 +1,7 @@
 import requests
 import time
 import logging
+from typing import Dict
 from airflow.providers.plexus.hooks.plexus import PlexusHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -9,12 +10,23 @@ from airflow.AirflowExceptions import AirflowAirflowException
 logger = logging.getLogger(__name__)
 
 class PlexusJobOperator(BaseOperator):
+    """
+    Submits a Plexus batch job.
 
+    :param job_params: parameters required to launch a job.
+        Required parameters are the following:
+            - "name": job name created by user
+            - "app": name of the application to run. found in Plexus UI.
+            - "queue": public cluster name. found in Plexus UI.
+            - "num_nodes": number of nodes 
+            - "num_cores":  number of cores per node
+    :type job_params: dict
+    """
     @apply_defaults
     def __init__(
             self,
-            job_params,
-            **kwargs):
+            job_params: Dict,
+            **kwargs) -> None:
         super().__init__(**kwargs)
 
         self.job_params = job_params
@@ -55,7 +67,7 @@ class PlexusJobOperator(BaseOperator):
             raise AirflowException("Could not start job. Status Code: [{}]. Reason: {} - {}".format(create_job.status_code, create_job.reason, create_job.text))
 
 
-    def _api_lookup(self, endpoint, token, key, mapping=None):
+    def _api_lookup(self, endpoint: str, token: str, key: str, mapping=None):
         headers = {"Authorization": "Bearer {}".format(token)}
         r = requests.get(endpoint, headers=headers, timeout=5)
         results = r.json()["results"]
