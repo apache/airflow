@@ -83,5 +83,5 @@ class SecretsManagerHook(GoogleBaseHook):
         :type project_id: str
         """
         return self.get_conn().get_secret(
-            secret_id=secret_id, secret_version=secret_version, project_id=project_id
-        )  # type: ignore
+            secret_id=secret_id, secret_version=secret_version, project_id=project_id  # type: ignore
+        )

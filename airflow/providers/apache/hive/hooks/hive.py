@@ -1028,9 +1028,9 @@ class HiveServer2Hook(DbApiHook):
         """
         return self.get_results(hql, schema=schema, hive_conf=hive_conf)['data']
 
-    def get_pandas_df(
+    def get_pandas_df(  # type: ignore
         self,
-        hql: Union[str, Text],  # type: ignore
+        hql: Union[str, Text],
         schema: str = 'default',
         hive_conf: Optional[Dict[Any, Any]] = None,
         **kwargs,
