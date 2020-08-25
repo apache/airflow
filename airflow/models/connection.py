@@ -19,14 +19,15 @@
 import json
 import warnings
 from json import JSONDecodeError
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
-from airflow.exceptions import AirflowException
+from airflow.configuration import ensure_secrets_loaded
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -380,3 +381,17 @@ class Connection(Base, LoggingMixin):
                 self.log.error("Failed parsing the json for conn_id %s", self.conn_id)
 
         return obj
+
+    @classmethod
+    def get_connections_from_secrets(cls, conn_id: str) -> List['Connection']:
+        """
+        Get all connections as an iterable.
+
+        :param conn_id: connection id
+        :return: array of connections
+        """
+        for secrets_backend in ensure_secrets_loaded():
+            conn_list = secrets_backend.get_connections(conn_id=conn_id)
+            if conn_list:
+                return list(conn_list)
+        raise AirflowNotFoundException("The conn_id `{0}` isn't defined".format(conn_id))
