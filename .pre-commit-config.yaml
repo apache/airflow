@@ -154,7 +154,6 @@ repos:
     hooks:
       - id: black
         files: api_connexion/.*\.py
-        args: [--config=./pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
     hooks:
