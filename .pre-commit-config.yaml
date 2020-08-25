@@ -153,7 +153,7 @@ repos:
     rev: stable
     hooks:
       - id: black
-        files: .*providers.*\.py
+        files: ^api_connexion/.*\.py
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
     hooks:
