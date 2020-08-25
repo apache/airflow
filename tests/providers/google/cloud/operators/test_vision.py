@@ -57,7 +57,10 @@ class TestCloudVisionProductSetCreate(unittest.TestCase):
             location=LOCATION_TEST, product_set=PRODUCTSET_TEST, task_id='id'
         )
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.create_product_set.assert_called_once_with(
             location=LOCATION_TEST,
             product_set=PRODUCTSET_TEST,
@@ -91,7 +94,10 @@ class TestCloudVisionProductSetUpdate(unittest.TestCase):
             location=LOCATION_TEST, product_set=PRODUCTSET_TEST, task_id='id'
         )
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.update_product_set.assert_called_once_with(
             location=LOCATION_TEST,
             product_set=PRODUCTSET_TEST,
@@ -112,7 +118,10 @@ class TestCloudVisionProductSetGet(unittest.TestCase):
             location=LOCATION_TEST, product_set_id=PRODUCTSET_ID_TEST, task_id='id'
         )
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.get_product_set.assert_called_once_with(
             location=LOCATION_TEST,
             product_set_id=PRODUCTSET_ID_TEST,
@@ -131,7 +140,10 @@ class TestCloudVisionProductSetDelete(unittest.TestCase):
             location=LOCATION_TEST, product_set_id=PRODUCTSET_ID_TEST, task_id='id'
         )
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.delete_product_set.assert_called_once_with(
             location=LOCATION_TEST,
             product_set_id=PRODUCTSET_ID_TEST,
@@ -148,7 +160,10 @@ class TestCloudVisionProductCreate(unittest.TestCase):
         mock_hook.return_value.create_product.return_value = {}
         op = CloudVisionCreateProductOperator(location=LOCATION_TEST, product=PRODUCT_TEST, task_id='id')
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.create_product.assert_called_once_with(
             location=LOCATION_TEST,
             product=PRODUCT_TEST,
@@ -180,7 +195,10 @@ class TestCloudVisionProductGet(unittest.TestCase):
         mock_hook.return_value.get_product.return_value = {}
         op = CloudVisionGetProductOperator(location=LOCATION_TEST, product_id=PRODUCT_ID_TEST, task_id='id')
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.get_product.assert_called_once_with(
             location=LOCATION_TEST,
             product_id=PRODUCT_ID_TEST,
@@ -197,7 +215,10 @@ class TestCloudVisionProductUpdate(unittest.TestCase):
         mock_hook.return_value.update_product.return_value = {}
         op = CloudVisionUpdateProductOperator(location=LOCATION_TEST, product=PRODUCT_TEST, task_id='id')
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.update_product.assert_called_once_with(
             location=LOCATION_TEST,
             product=PRODUCT_TEST,
@@ -218,7 +239,10 @@ class TestCloudVisionProductDelete(unittest.TestCase):
             location=LOCATION_TEST, product_id=PRODUCT_ID_TEST, task_id='id'
         )
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.delete_product.assert_called_once_with(
             location=LOCATION_TEST,
             product_id=PRODUCT_ID_TEST,
@@ -242,7 +266,10 @@ class TestCloudVisionReferenceImageCreate(unittest.TestCase):
             task_id='id',
         )
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.create_reference_image.assert_called_once_with(
             location=LOCATION_TEST,
             product_id=PRODUCT_ID_TEST,
@@ -267,7 +294,10 @@ class TestCloudVisionReferenceImageCreate(unittest.TestCase):
             task_id='id',
         )
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.create_reference_image.assert_called_once_with(
             location=LOCATION_TEST,
             product_id=PRODUCT_ID_TEST,
@@ -293,7 +323,10 @@ class TestCloudVisionReferenceImageDelete(unittest.TestCase):
             task_id='id',
         )
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.delete_reference_image.assert_called_once_with(
             location=LOCATION_TEST,
             product_id=PRODUCT_ID_TEST,
@@ -315,7 +348,10 @@ class TestCloudVisionAddProductToProductSetOperator(unittest.TestCase):
             task_id='id',
         )
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.add_product_to_product_set.assert_called_once_with(
             product_set_id=PRODUCTSET_ID_TEST,
             product_id=PRODUCT_ID_TEST,
@@ -337,7 +373,10 @@ class TestCloudVisionRemoveProductFromProductSetOperator(unittest.TestCase):
             task_id='id',
         )
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.remove_product_from_product_set.assert_called_once_with(
             product_set_id=PRODUCTSET_ID_TEST,
             product_id=PRODUCT_ID_TEST,
@@ -354,7 +393,10 @@ class TestCloudVisionAnnotateImageOperator(unittest.TestCase):
     def test_minimal_green_path_for_one_image(self, mock_hook):
         op = CloudVisionImageAnnotateOperator(request=ANNOTATE_REQUEST_TEST, task_id='id')
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.annotate_image.assert_called_once_with(
             request=ANNOTATE_REQUEST_TEST, retry=None, timeout=None
         )
@@ -363,7 +405,10 @@ class TestCloudVisionAnnotateImageOperator(unittest.TestCase):
     def test_minimal_green_path_for_batch(self, mock_hook):
         op = CloudVisionImageAnnotateOperator(request=ANNOTATE_REQUEST_BATCH_TEST, task_id='id')
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.batch_annotate_images.assert_called_once_with(
             requests=ANNOTATE_REQUEST_BATCH_TEST, retry=None, timeout=None
         )
@@ -374,7 +419,10 @@ class TestCloudVisionDetectTextOperator(unittest.TestCase):
     def test_minimal_green_path(self, mock_hook):
         op = CloudVisionDetectTextOperator(image=DETECT_TEST_IMAGE, task_id="id")
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.text_detection.assert_called_once_with(
             image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
         )
@@ -394,7 +442,10 @@ class TestCloudVisionDetectTextOperator(unittest.TestCase):
             }
         )
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.text_detection.assert_called_once_with(
             image=DETECT_TEST_IMAGE,
             max_results=None,
@@ -418,7 +469,10 @@ class TestCloudVisionDetectDocumentTextOperator(unittest.TestCase):
     def test_minimal_green_path(self, mock_hook):
         op = CloudVisionTextDetectOperator(image=DETECT_TEST_IMAGE, task_id="id")
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.document_text_detection.assert_called_once_with(
             image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
         )
@@ -429,7 +483,10 @@ class TestCloudVisionDetectImageLabelsOperator(unittest.TestCase):
     def test_minimal_green_path(self, mock_hook):
         op = CloudVisionDetectImageLabelsOperator(image=DETECT_TEST_IMAGE, task_id="id")
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.label_detection.assert_called_once_with(
             image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
         )
@@ -440,7 +497,10 @@ class TestCloudVisionDetectImageSafeSearchOperator(unittest.TestCase):
     def test_minimal_green_path(self, mock_hook):
         op = CloudVisionDetectImageSafeSearchOperator(image=DETECT_TEST_IMAGE, task_id="id")
         op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.safe_search_detection.assert_called_once_with(
             image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, additional_properties=None
         )

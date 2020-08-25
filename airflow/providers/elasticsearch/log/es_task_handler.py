@@ -281,7 +281,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
     @property
     def log_name(self) -> str:
-        """ The log name"""
+        """The log name"""
         return self.LOG_NAME
 
     def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:

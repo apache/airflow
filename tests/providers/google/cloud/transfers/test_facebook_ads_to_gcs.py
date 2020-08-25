@@ -21,6 +21,7 @@ from airflow.providers.google.cloud.transfers.facebook_ads_to_gcs import Faceboo
 GCS_BUCKET = "airflow_bucket_fb"
 GCS_OBJ_PATH = "Temp/this_is_my_report_json.json"
 GCS_CONN_ID = "google_cloud_default"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 FACEBOOK_ADS_CONN_ID = "facebook_default"
 API_VERSION = "v6.0"
 FIELDS = [
@@ -56,13 +57,17 @@ class TestFacebookAdsReportToGcsOperator:
                                             params=PARAMS,
                                             object_name=GCS_OBJ_PATH,
                                             bucket_name=GCS_BUCKET,
-                                            task_id="run_operator")
+                                            task_id="run_operator",
+                                            impersonation_chain=IMPERSONATION_CHAIN,)
         op.execute({})
         mock_ads_hook.assert_called_once_with(facebook_conn_id=FACEBOOK_ADS_CONN_ID,
                                               api_version=API_VERSION)
         mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(params=PARAMS,
                                                                                 fields=FIELDS)
-        mock_gcs_hook.assert_called_once_with(gcp_conn_id=GCS_CONN_ID)
+        mock_gcs_hook.assert_called_once_with(
+            gcp_conn_id=GCS_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_gcs_hook.return_value.upload.assert_called_once_with(bucket_name=GCS_BUCKET,
                                                                   object_name=GCS_OBJ_PATH,
                                                                   filename=mock.ANY,

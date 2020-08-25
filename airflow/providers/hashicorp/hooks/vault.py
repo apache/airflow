@@ -24,7 +24,6 @@ from hvac.exceptions import VaultError
 from requests import Response
 
 from airflow.hooks.base_hook import BaseHook
-# noinspection PyProtectedMember
 from airflow.providers.hashicorp._internal_client.vault_client import (  # noqa
     DEFAULT_KUBERNETES_JWT_PATH, DEFAULT_KV_ENGINE_VERSION, _VaultClient,
 )

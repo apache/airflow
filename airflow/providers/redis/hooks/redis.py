@@ -24,7 +24,6 @@ from redis import Redis
 from airflow.hooks.base_hook import BaseHook
 
 
-# noinspection PyAbstractClass
 class RedisHook(BaseHook):
     """
     Wrapper for connection to interact with Redis in-memory data structure store

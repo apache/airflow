@@ -20,7 +20,7 @@ Transfer data in Google Cloud Storage
 
 The `Google Cloud Storage <https://cloud.google.com/storage/>`__  (GCS) is used to store large data from various applications.
 Note that files are called objects in GCS terminology, so the use of the term "object" and "file" in this guide is
-interchangeable. There are several operators for whose purpose is to copy data as part of the Google CLoud Service.
+interchangeable. There are several operators for whose purpose is to copy data as part of the Google Cloud Service.
 This page shows how to use these operators.
 
 Overview

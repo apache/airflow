@@ -325,12 +325,11 @@ class DockerOperator(BaseOperator):
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
             # Ignore type error on SSL version here - it is deprecated and type annotation is wrong
             # it should be string
-            # noinspection PyTypeChecker
             tls_config = tls.TLSConfig(
                 ca_cert=self.tls_ca_cert,
                 client_cert=(self.tls_client_cert, self.tls_client_key),
                 verify=True,
-                ssl_version=self.tls_ssl_version,
+                ssl_version=self.tls_ssl_version,  # noqa
                 assert_hostname=self.tls_hostname
             )
             self.docker_url = self.docker_url.replace('tcp://', 'https://')

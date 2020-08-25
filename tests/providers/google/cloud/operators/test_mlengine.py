@@ -44,6 +44,7 @@ TEST_MODEL_NAME = "test-model-name"
 TEST_VERSION_NAME = "test-version"
 TEST_GCP_CONN_ID = "test-gcp-conn-id"
 TEST_DELEGATE_TO = "test-delegate-to"
+TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TEST_MODEL = {
     'name': TEST_MODEL_NAME,
 }
@@ -123,7 +124,8 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             task_id='test-prediction')
         prediction_output = prediction_task.execute(None)
 
-        mock_hook.assert_called_once_with('google_cloud_default', None)
+        mock_hook.assert_called_once_with('google_cloud_default', None,
+                                          impersonation_chain=None,)
         hook_instance.create_job.assert_called_once_with(
             project_id='test-project',
             job={
@@ -163,7 +165,8 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             task_id='test-prediction')
         prediction_output = prediction_task.execute(None)
 
-        mock_hook.assert_called_once_with('google_cloud_default', None)
+        mock_hook.assert_called_once_with('google_cloud_default', None,
+                                          impersonation_chain=None,)
         hook_instance.create_job.assert_called_once_with(
             project_id='test-project',
             job={
@@ -200,7 +203,8 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             task_id='test-prediction')
         prediction_output = prediction_task.execute(None)
 
-        mock_hook.assert_called_once_with('google_cloud_default', None)
+        mock_hook.assert_called_once_with('google_cloud_default', None,
+                                          impersonation_chain=None,)
         hook_instance.create_job.assert_called_once_with(
             project_id='test-project',
             job={
@@ -278,7 +282,8 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
                 task_id='test-prediction')
             prediction_task.execute(None)
 
-            mock_hook.assert_called_once_with('google_cloud_default', None)
+            mock_hook.assert_called_once_with('google_cloud_default', None,
+                                              impersonation_chain=None,)
             hook_instance.create_job.assert_called_once_with(
                 'test-project', {
                     'jobId': 'test_prediction',
@@ -343,7 +348,10 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None)
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
+        )
         # Make sure only 'create_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
         hook_instance.create_job.assert_called_once_with(
@@ -368,7 +376,11 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             **self.TRAINING_DEFAULT_ARGS)
         training_op.execute(MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id='google_cloud_default', delegate_to=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
+        )
         # Make sure only 'create_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
         hook_instance.create_job.assert_called_once_with(
@@ -390,7 +402,10 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None)
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
+        )
         # Make sure only 'create_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
         hook_instance.create_job.assert_called_once_with(
@@ -411,7 +426,10 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None)
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
+        )
         # Make sure only 'create_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
         hook_instance.create_job.assert_called_once_with(
@@ -505,7 +523,10 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
         cancel_training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None)
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
+        )
         # Make sure only 'cancel_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
         hook_instance.cancel_job.assert_called_once_with(
@@ -527,7 +548,10 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
             cancel_training_op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id='google_cloud_default', delegate_to=None)
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
+        )
         # Make sure only 'create_job' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
         hook_instance.cancel_job.assert_called_once_with(
@@ -545,12 +569,17 @@ class TestMLEngineModelOperator(unittest.TestCase):
             model=TEST_MODEL,
             operation="create",
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
         task.execute(None)
 
-        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            delegate_to=TEST_DELEGATE_TO,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_model.assert_called_once_with(
             project_id=TEST_PROJECT_ID, model=TEST_MODEL
         )
@@ -563,12 +592,17 @@ class TestMLEngineModelOperator(unittest.TestCase):
             model=TEST_MODEL,
             operation="get",
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
         result = task.execute(None)
 
-        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            delegate_to=TEST_DELEGATE_TO,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.get_model.assert_called_once_with(
             project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME
         )
@@ -597,12 +631,17 @@ class TestMLEngineCreateModelOperator(unittest.TestCase):
             project_id=TEST_PROJECT_ID,
             model=TEST_MODEL,
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
         task.execute(None)
 
-        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            delegate_to=TEST_DELEGATE_TO,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_model.assert_called_once_with(
             project_id=TEST_PROJECT_ID, model=TEST_MODEL
         )
@@ -617,12 +656,17 @@ class TestMLEngineGetModelOperator(unittest.TestCase):
             project_id=TEST_PROJECT_ID,
             model_name=TEST_MODEL_NAME,
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
         result = task.execute(None)
 
-        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            delegate_to=TEST_DELEGATE_TO,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.get_model.assert_called_once_with(
             project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME
         )
@@ -639,12 +683,17 @@ class TestMLEngineDeleteModelOperator(unittest.TestCase):
             model_name=TEST_MODEL_NAME,
             gcp_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
             delete_contents=True
         )
 
         task.execute(None)
 
-        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            delegate_to=TEST_DELEGATE_TO,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.delete_model.assert_called_once_with(
             project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME, delete_contents=True
         )
@@ -668,7 +717,11 @@ class TestMLEngineVersionOperator(unittest.TestCase):
             **self.VERSION_DEFAULT_ARGS)
         training_op.execute(None)
 
-        mock_hook.assert_called_once_with(gcp_conn_id='google_cloud_default', delegate_to=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
+        )
         # Make sure only 'create_version' is invoked on hook instance
         self.assertEqual(len(hook_instance.mock_calls), 1)
         hook_instance.create_version.assert_called_once_with(
@@ -686,11 +739,16 @@ class TestMLEngineCreateVersion(unittest.TestCase):
             version=TEST_VERSION,
             gcp_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
         task.execute(None)
 
-        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            delegate_to=TEST_DELEGATE_TO,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_version.assert_called_once_with(
             project_id=TEST_PROJECT_ID,
             model_name=TEST_MODEL_NAME,
@@ -731,11 +789,16 @@ class TestMLEngineSetDefaultVersion(unittest.TestCase):
             version_name=TEST_VERSION_NAME,
             gcp_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
         task.execute(None)
 
-        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            delegate_to=TEST_DELEGATE_TO,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.set_default_version.assert_called_once_with(
             project_id=TEST_PROJECT_ID,
             model_name=TEST_MODEL_NAME,
@@ -775,11 +838,16 @@ class TestMLEngineListVersions(unittest.TestCase):
             model_name=TEST_MODEL_NAME,
             gcp_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
         task.execute(None)
 
-        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            delegate_to=TEST_DELEGATE_TO,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.list_versions.assert_called_once_with(
             project_id=TEST_PROJECT_ID,
             model_name=TEST_MODEL_NAME,
@@ -807,11 +875,16 @@ class TestMLEngineDeleteVersion(unittest.TestCase):
             version_name=TEST_VERSION_NAME,
             gcp_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
         task.execute(None)
 
-        mock_hook.assert_called_once_with(delegate_to=TEST_DELEGATE_TO, gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            delegate_to=TEST_DELEGATE_TO,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.delete_version.assert_called_once_with(
             project_id=TEST_PROJECT_ID,
             model_name=TEST_MODEL_NAME,

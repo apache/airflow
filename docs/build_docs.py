@@ -484,14 +484,13 @@ def parse_sphinx_warnings(warning_text: str) -> List[DocBuildError]:
             continue
         warning_parts = sphinx_warning.split(":", 2)
         if len(warning_parts) == 3:
-            # noinspection PyBroadException
             try:
                 sphinx_build_errors.append(
                     DocBuildError(
                         file_path=warning_parts[0], line_no=int(warning_parts[1]), message=warning_parts[2]
                     )
                 )
-            except Exception:  # pylint: disable=broad-except
+            except Exception:  # noqa pylint: disable=broad-except
                 # If an exception occurred while parsing the warning message, display the raw warning message.
                 sphinx_build_errors.append(
                     DocBuildError(

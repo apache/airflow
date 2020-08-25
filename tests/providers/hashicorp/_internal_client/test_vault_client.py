@@ -25,7 +25,6 @@ from mock import mock_open, patch
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient  # noqa
 
 
-# noinspection DuplicatedCode,PyUnresolvedReferences
 class TestVaultClient(TestCase):
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")

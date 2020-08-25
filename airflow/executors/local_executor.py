@@ -154,7 +154,6 @@ class LocalExecutor(BaseExecutor):
             self.executor.workers_active = 0
 
         # pylint: disable=unused-argument # pragma: no cover
-        # noinspection PyUnusedLocal
         def execute_async(self,
                           key: TaskInstanceKey,
                           command: CommandType,
@@ -224,7 +223,6 @@ class LocalExecutor(BaseExecutor):
             for worker in self.executor.workers:
                 worker.start()
 
-        # noinspection PyUnusedLocal
         def execute_async(
             self,
             key: TaskInstanceKey,

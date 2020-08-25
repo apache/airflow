@@ -60,11 +60,20 @@ class CloudBuildCancelBuildOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
 
-    template_fields = ("project_id", "id_", "gcp_conn_id")
+    template_fields = ("project_id", "id_", "gcp_conn_id", "impersonation_chain")
 
     @apply_defaults
     def __init__(
@@ -75,6 +84,7 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -84,9 +94,10 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.cancel_build(
             id_=self.id_,
             project_id=self.project_id,
@@ -123,11 +134,20 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
 
-    template_fields = ("project_id", "build", "body", "gcp_conn_id")
+    template_fields = ("project_id", "build", "body", "gcp_conn_id", "impersonation_chain")
     template_ext = ['.yml', '.yaml', '.json']
 
     @apply_defaults
@@ -141,6 +161,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -154,6 +175,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def prepare_template(self) -> None:
         # if no file is specified, skip
@@ -166,7 +188,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
                 self.body = json.loads(file.read())
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         if self.body:
             warnings.warn(
                 "The body parameter has been deprecated. You should pass body using "
@@ -206,11 +228,20 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
 
-    template_fields = ("project_id", "trigger", "gcp_conn_id")
+    template_fields = ("project_id", "trigger", "gcp_conn_id", "impersonation_chain")
 
     @apply_defaults
     def __init__(
@@ -221,6 +252,7 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -230,9 +262,10 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.create_build_trigger(
             trigger=self.trigger,
             project_id=self.project_id,
@@ -262,9 +295,18 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("project_id", "trigger_id", "gcp_conn_id")
+    template_fields = ("project_id", "trigger_id", "gcp_conn_id", "impersonation_chain")
 
     @apply_defaults
     def __init__(
@@ -275,6 +317,7 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -284,9 +327,10 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         hook.delete_build_trigger(
             trigger_id=self.trigger_id,
             project_id=self.project_id,
@@ -315,11 +359,20 @@ class CloudBuildGetBuildOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
 
-    template_fields = ("project_id", "id_", "gcp_conn_id")
+    template_fields = ("project_id", "id_", "gcp_conn_id", "impersonation_chain")
 
     @apply_defaults
     def __init__(
@@ -330,6 +383,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -339,9 +393,10 @@ class CloudBuildGetBuildOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.get_build(
             id_=self.id_,
             project_id=self.project_id,
@@ -371,11 +426,20 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
 
-    template_fields = ("project_id", "trigger_id", "gcp_conn_id")
+    template_fields = ("project_id", "trigger_id", "gcp_conn_id", "impersonation_chain")
 
     @apply_defaults
     def __init__(
@@ -386,6 +450,7 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -395,9 +460,10 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.get_build_trigger(
             trigger_id=self.trigger_id,
             project_id=self.project_id,
@@ -429,11 +495,20 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
 
-    template_fields = ("project_id", "gcp_conn_id")
+    template_fields = ("project_id", "gcp_conn_id", "impersonation_chain")
 
     @apply_defaults
     def __init__(
@@ -445,6 +520,7 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -455,9 +531,10 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.list_build_triggers(
             project_id=self.project_id,
             page_size=self.page_size,
@@ -490,11 +567,20 @@ class CloudBuildListBuildsOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: List[dict]
     """
 
-    template_fields = ("project_id", "gcp_conn_id")
+    template_fields = ("project_id", "gcp_conn_id", "impersonation_chain")
 
     @apply_defaults
     def __init__(
@@ -506,6 +592,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -516,9 +603,10 @@ class CloudBuildListBuildsOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         results = hook.list_builds(
             project_id=self.project_id,
             page_size=self.page_size,
@@ -552,11 +640,20 @@ class CloudBuildRetryBuildOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
 
-    template_fields = ("project_id", "id_", "gcp_conn_id")
+    template_fields = ("project_id", "id_", "gcp_conn_id", "impersonation_chain")
 
     @apply_defaults
     def __init__(
@@ -568,6 +665,7 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -578,9 +676,10 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.retry_build(
             id_=self.id_,
             project_id=self.project_id,
@@ -616,11 +715,20 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
 
-    template_fields = ("project_id", "trigger_id", "source", "gcp_conn_id")
+    template_fields = ("project_id", "trigger_id", "source", "gcp_conn_id", "impersonation_chain")
 
     @apply_defaults
     def __init__(
@@ -633,6 +741,7 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -644,9 +753,10 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.run_build_trigger(
             trigger_id=self.trigger_id,
             source=self.source,
@@ -681,11 +791,20 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: Optional, the connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: Optional[str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: dict
     """
 
-    template_fields = ("project_id", "trigger_id", "trigger", "gcp_conn_id")
+    template_fields = ("project_id", "trigger_id", "trigger", "gcp_conn_id", "impersonation_chain")
 
     @apply_defaults
     def __init__(
@@ -697,6 +816,7 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -707,9 +827,10 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.update_build_trigger(
             trigger_id=self.trigger_id,
             trigger=self.trigger,

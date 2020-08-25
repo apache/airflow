@@ -41,9 +41,7 @@ class TestTaskEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
         create_user(cls.app, username="test", role="Admin")  # type: ignore
@@ -71,10 +69,7 @@ class TestTaskEndpoint(unittest.TestCase):
 class TestGetTask(TestTaskEndpoint):
     def test_should_response_200(self):
         expected = {
-            "class_ref": {
-                "class_name": "DummyOperator",
-                "module_path": "airflow.operators.dummy_operator",
-            },
+            "class_ref": {"class_name": "DummyOperator", "module_path": "airflow.operators.dummy_operator",},
             "depends_on_past": False,
             "downstream_task_ids": [],
             "end_date": None,
@@ -114,10 +109,7 @@ class TestGetTask(TestTaskEndpoint):
         SerializedDagModel.write_dag(self.dag)
 
         expected = {
-            "class_ref": {
-                "class_name": "DummyOperator",
-                "module_path": "airflow.operators.dummy_operator",
-            },
+            "class_ref": {"class_name": "DummyOperator", "module_path": "airflow.operators.dummy_operator",},
             "depends_on_past": False,
             "downstream_task_ids": [],
             "end_date": None,
@@ -201,9 +193,7 @@ class TestGetTasks(TestTaskEndpoint):
 
     def test_should_response_404(self):
         dag_id = "xxxx_not_existing"
-        response = self.client.get(
-            f"/api/v1/dags/{dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"}
-        )
+        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
 
     def test_should_raises_401_unauthenticated(self):

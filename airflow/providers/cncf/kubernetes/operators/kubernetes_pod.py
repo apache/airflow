@@ -217,7 +217,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
-        self.resources = self._set_resources(resources)
+        self.resources = self._set_resources(resources)  # noqa
         self.config_file = config_file
         self.image_pull_secrets = image_pull_secrets
         self.service_account_name = service_account_name
@@ -300,7 +300,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod_list):
         """
 
-        In cases where the Scheduler restarts while a KubernetsPodOperator task is running,
+        In cases where the Scheduler restarts while a KubernetesPodOperator task is running,
         this function will either continue to monitor the existing pod or launch a new pod
         based on the `reattach_on_restart` parameter.
 
@@ -393,7 +393,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             pod=self.full_pod_spec,
         ).gen_pod()
 
-        # noinspection PyTypeChecker
         pod = append_to_pod(
             pod,
             self.pod_runtime_info_envs +

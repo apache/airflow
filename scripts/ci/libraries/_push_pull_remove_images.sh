@@ -49,18 +49,12 @@ function pull_image_if_not_present_or_forced() {
 function pull_image_github_dockerhub() {
     local DOCKERHUB_IMAGE="${1}"
     local GITHUB_IMAGE="${2}"
-    local IMAGE_PULL_RETURN_VALUE=-1
 
     set +e
-    if [[ ${GITHUB_IMAGE:=} != ":latest" ]]; then
-        pull_image_if_not_present_or_forced "${GITHUB_IMAGE}"
-        IMAGE_PULL_RETURN_VALUE="$?"
-        if [[ ${IMAGE_PULL_RETURN_VALUE} == "0" ]]; then
-            # Tag the image to be the DockerHub one
-            docker tag "${GITHUB_IMAGE}" "${DOCKERHUB_IMAGE}"
-        fi
-    fi
-    if [[ ${IMAGE_PULL_RETURN_VALUE} != "0" ]]; then
+    if pull_image_if_not_present_or_forced "${GITHUB_IMAGE}"; then
+        # Tag the image to be the DockerHub one
+        docker tag "${GITHUB_IMAGE}" "${DOCKERHUB_IMAGE}"
+    else
         pull_image_if_not_present_or_forced "${DOCKERHUB_IMAGE}"
     fi
     set -e
@@ -81,7 +75,7 @@ function pull_ci_images_if_needed() {
 Docker pulling ${PYTHON_BASE_IMAGE}.
                     " > "${DETECTED_TERMINAL}"
             fi
-            if [[ ${USE_GITHUB_REGISTRY:="false"} == "true" ]]; then
+            if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
                 PYTHON_TAG_SUFFIX=""
                 if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
                     PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
@@ -92,7 +86,11 @@ Docker pulling ${PYTHON_BASE_IMAGE}.
             fi
             echo
         fi
-        pull_image_github_dockerhub "${AIRFLOW_CI_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+        if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
+            pull_image_github_dockerhub "${AIRFLOW_CI_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+        else
+            pull_image_if_not_present_or_forced "${AIRFLOW_CI_IMAGE}"
+        fi
     fi
 }
 
@@ -107,7 +105,7 @@ function pull_prod_images_if_needed() {
             echo
             echo "Force pull base image ${PYTHON_BASE_IMAGE}"
             echo
-            if [[ ${USE_GITHUB_REGISTRY:="false"} == "true" ]]; then
+            if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
                 PYTHON_TAG_SUFFIX=""
                 if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
                     PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
@@ -118,10 +116,15 @@ function pull_prod_images_if_needed() {
             fi
             echo
         fi
-        # "Build" segment of production image
-        pull_image_github_dockerhub "${AIRFLOW_PROD_BUILD_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-        # "Main" segment of production image
-        pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+        if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
+            # "Build" segment of production image
+            pull_image_github_dockerhub "${AIRFLOW_PROD_BUILD_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+            # "Main" segment of production image
+            pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+        else
+            pull_image_if_not_present_or_forced "${AIRFLOW_PROD_BUILD_IMAGE}"
+            pull_image_if_not_present_or_forced "${AIRFLOW_PROD_IMAGE}"
+        fi
     fi
 }
 
@@ -232,7 +235,7 @@ function remove_all_images() {
 
 # waits for an image to be available in the github registry
 function wait_for_github_registry_image() {
-    GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${GITHUB_REPOSITORY}"
+    GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${GITHUB_REPOSITORY_LOWERCASE}"
     IMAGE_NAME="${1}"
     IMAGE_TAG=${2}
     echo "Waiting for ${IMAGE_NAME}:${IMAGE_TAG} image"

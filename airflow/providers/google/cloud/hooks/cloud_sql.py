@@ -70,7 +70,6 @@ class CloudSqlOperationStatus:
     UNKNOWN = "UNKNOWN"
 
 
-# noinspection PyAbstractClass
 class CloudSQLHook(GoogleBaseHook):
     """
     Hook for Google Cloud SQL APIs.
@@ -680,8 +679,7 @@ CONNECTION_URIS = {
 CLOUD_SQL_VALID_DATABASE_TYPES = ['postgres', 'mysql']
 
 
-# noinspection PyAbstractClass
-class CloudSQLDatabaseHook(BaseHook):
+class CloudSQLDatabaseHook(BaseHook):  # noqa
     # pylint: disable=too-many-instance-attributes
     """
     Serves DB connection configuration for Google Cloud SQL (Connections
@@ -979,7 +977,7 @@ class CloudSQLDatabaseHook(BaseHook):
             if not self.db_hook:
                 raise ValueError("The db_hook should be set")
             if not isinstance(self.db_hook, PostgresHook):
-                raise ValueError(f"The db_hook should be PostrgresHook and is {type(self.db_hook)}")
+                raise ValueError(f"The db_hook should be PostgresHook and is {type(self.db_hook)}")
             conn = getattr(self.db_hook, 'conn')
             if conn and conn.notices:
                 for output in self.db_hook.conn.notices:

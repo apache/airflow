@@ -47,7 +47,6 @@ from socket import getfqdn
 from typing import Callable, Optional, Tuple, TypeVar, Union, cast
 
 import kerberos
-# noinspection PyProtectedMember
 from flask import Response, _request_ctx_stack as stack, g, make_response, request  # type: ignore
 from requests.auth import AuthBase
 from requests_kerberos import HTTPKerberosAuth
@@ -61,7 +60,7 @@ CLIENT_AUTH: Optional[Union[Tuple[str, str], AuthBase]] = HTTPKerberosAuth(servi
 
 
 class KerberosService:  # pylint: disable=too-few-public-methods
-    """Class to keep information about the Kerberos Service initialized """
+    """Class to keep information about the Kerberos Service initialized"""
     def __init__(self):
         self.service_name = None
 

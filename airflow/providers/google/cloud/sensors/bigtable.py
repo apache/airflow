@@ -18,7 +18,7 @@
 """
 This module contains Google Cloud Bigtable sensor.
 """
-from typing import Optional
+from typing import Optional, Sequence, Union
 
 import google.api_core.exceptions
 from google.cloud.bigtable.table import ClusterState
@@ -48,9 +48,18 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
     :param table_id: The ID of the table to check replication status.
     :type project_id: str
     :param project_id: Optional, the ID of the GCP project.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')
-    template_fields = ['project_id', 'instance_id', 'table_id']
+    template_fields = ['project_id', 'instance_id', 'table_id', 'impersonation_chain', ]
 
     @apply_defaults
     def __init__(
@@ -60,6 +69,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         table_id: str,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         self.project_id = project_id
@@ -67,10 +77,14 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         self.table_id = table_id
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def poke(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             self.log.info("Dependency: instance '%s' does not exist.", self.instance_id)

@@ -45,7 +45,6 @@ BounceX
 Boxel
 Bq
 Breguła
-CLoud
 CSRFProtect
 Cancelled
 Cassanda

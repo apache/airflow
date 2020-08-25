@@ -30,7 +30,6 @@ from google.cloud.language_v1.types import (
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-# noinspection PyAbstractClass
 class CloudNaturalLanguageHook(GoogleBaseHook):
     """
     Hook for Google Cloud Natural Language Service.

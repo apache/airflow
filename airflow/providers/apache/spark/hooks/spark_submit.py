@@ -509,7 +509,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _process_spark_status_log(self, itr: Iterator[Any]) -> None:
         """
-        parses the logs of the spark driver status query process
+        Parses the logs of the spark driver status query process
 
         :param itr: An iterator which iterates over the input of the subprocess
         """

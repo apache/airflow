@@ -28,7 +28,7 @@ from airflow.providers.slack.hooks.slack import SlackHook
 class TestSlackHook(unittest.TestCase):
 
     def test_get_token_with_token_only(self):
-        """ tests `__get_token` method when only token is provided """
+        """tests `__get_token` method when only token is provided """
         # Given
         test_token = 'test_token'
         test_conn_id = None
@@ -44,7 +44,7 @@ class TestSlackHook(unittest.TestCase):
     @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
     @mock.patch('airflow.providers.slack.hooks.slack.SlackHook.get_connection')
     def test_get_token_with_valid_slack_conn_id_only(self, get_connection_mock, mock_slack_client):
-        """ tests `__get_token` method when only connection is provided """
+        """tests `__get_token` method when only connection is provided """
         # Given
         test_token = None
         test_conn_id = 'x'
@@ -64,7 +64,7 @@ class TestSlackHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.slack.hooks.slack.SlackHook.get_connection')
     def test_get_token_with_no_password_slack_conn_id_only(self, get_connection_mock):
-        """ tests `__get_token` method when only connection is provided """
+        """tests `__get_token` method when only connection is provided """
 
         # Mock
         conn = mock.Mock()
@@ -76,7 +76,7 @@ class TestSlackHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.slack.hooks.slack.SlackHook.get_connection')
     def test_get_token_with_empty_password_slack_conn_id_only(self, get_connection_mock):
-        """ tests `__get_token` method when only connection is provided """
+        """tests `__get_token` method when only connection is provided """
 
         # Mock
         get_connection_mock.return_value = mock.Mock(password=None)
@@ -85,7 +85,7 @@ class TestSlackHook(unittest.TestCase):
         self.assertRaises(AirflowException, SlackHook, token=None, slack_conn_id='x')
 
     def test_get_token_with_token_and_slack_conn_id(self):
-        """ tests `__get_token` method when both arguments are provided """
+        """tests `__get_token` method when both arguments are provided """
         # Given
         test_token = 'test_token'
         test_conn_id = 'x'
@@ -99,7 +99,7 @@ class TestSlackHook(unittest.TestCase):
         self.assertEqual(output, expected)
 
     def test_get_token_with_out_token_nor_slack_conn_id(self):
-        """ tests `__get_token` method when no arguments are provided """
+        """tests `__get_token` method when no arguments are provided """
 
         self.assertRaises(AirflowException, SlackHook, token=None, slack_conn_id=None)
 

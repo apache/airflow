@@ -20,42 +20,9 @@
 import datetime
 import ftplib
 import os.path
-from typing import Generator, List, Optional, Union
+from typing import List, Optional
 
 from airflow.hooks.base_hook import BaseHook
-
-
-def mlsd(conn, path: str = "", facts: Optional[Union[str, List[str]]] = None) -> Generator:
-    """
-    BACKPORT FROM PYTHON3 FTPLIB.
-
-    List a directory in a standardized format by using MLSD
-    command (RFC-3659). If path is omitted the current directory
-    is assumed. "facts" is a list of strings representing the type
-    of information desired (e.g. ["type", "size", "perm"]).
-
-    Return a generator object yielding a tuple of two elements
-    for every file found in path.
-    First element is the file name, the second one is a dictionary
-    including a variable number of "facts" depending on the server
-    and whether "facts" argument has been provided.
-    """
-    facts = facts or []
-    if facts:
-        conn.sendcmd("OPTS MLST " + ";".join(facts) + ";")
-    if path:
-        cmd = "MLSD %s" % path
-    else:
-        cmd = "MLSD"
-    lines: List = []
-    conn.retrlines(cmd, lines.append)
-    for line in lines:
-        facts_found, _, name = line.rstrip(ftplib.CRLF).partition(' ')
-        entry = {}
-        for fact in facts_found[:-1].split(";"):
-            key, _, value = fact.partition("=")
-            entry[key.lower()] = value
-        yield (name, entry)
 
 
 class FTPHook(BaseHook):
@@ -110,11 +77,7 @@ class FTPHook(BaseHook):
         """
         conn = self.get_conn()
         conn.cwd(path)
-        try:
-            # only works in Python 3
-            files = dict(conn.mlsd())
-        except AttributeError:
-            files = dict(mlsd(conn))
+        files = dict(conn.mlsd())
         return files
 
     def list_directory(self, path: str) -> List[str]:

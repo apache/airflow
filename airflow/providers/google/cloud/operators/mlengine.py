@@ -21,7 +21,7 @@ This module contains GCP MLEngine operators.
 import logging
 import re
 import warnings
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -67,6 +67,7 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     return cleansed_job_id
 
 
+# pylint: disable=too-many-instance-attributes
 class MLEngineStartBatchPredictionJobOperator(BaseOperator):
     """
     Start a Google Cloud ML Engine prediction job.
@@ -147,12 +148,22 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
     :param gcp_conn_id: The connection ID used for connection to Google
         Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must
-        have domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param labels: a dictionary containing labels for the job; passed to BigQuery
     :type labels: Dict[str, str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :raises: ``ValueError``: if a unique model/version origin cannot be
         determined.
     """
@@ -166,6 +177,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         '_model_name',
         '_version_name',
         '_uri',
+        '_impersonation_chain',
     ]
 
     @apply_defaults
@@ -186,6 +198,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  labels: Optional[Dict[str, str]] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -204,6 +217,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
         self._labels = labels
+        self._impersonation_chain = impersonation_chain
 
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
@@ -265,7 +279,11 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
             prediction_request['predictionInput'][
                 'signatureName'] = self._signature_name
 
-        hook = MLEngineHook(self._gcp_conn_id, self._delegate_to)
+        hook = MLEngineHook(
+            self._gcp_conn_id,
+            self._delegate_to,
+            impersonation_chain=self._impersonation_chain
+        )
 
         # Helper method to check if the existing job's prediction input is the
         # same as the request we get here.
@@ -311,15 +329,25 @@ class MLEngineManageModelOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = [
         '_project_id',
         '_model',
+        '_impersonation_chain',
     ]
 
     @apply_defaults
@@ -330,6 +358,7 @@ class MLEngineManageModelOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -345,10 +374,14 @@ class MLEngineManageModelOperator(BaseOperator):
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._impersonation_chain = impersonation_chain
 
     def execute(self, context):
         hook = MLEngineHook(
-            gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to,
+            impersonation_chain=self._impersonation_chain,
+        )
         if self._operation == 'create':
             return hook.create_model(project_id=self._project_id, model=self._model)
         elif self._operation == 'get':
@@ -374,15 +407,25 @@ class MLEngineCreateModelOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = [
         '_project_id',
         '_model',
+        '_impersonation_chain',
     ]
 
     @apply_defaults
@@ -392,16 +435,21 @@ class MLEngineCreateModelOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self._project_id = project_id
         self._model = model
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._impersonation_chain = impersonation_chain
 
     def execute(self, context):
         hook = MLEngineHook(
-            gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to,
+            impersonation_chain=self._impersonation_chain,
+        )
         return hook.create_model(project_id=self._project_id, model=self._model)
 
 
@@ -422,15 +470,25 @@ class MLEngineGetModelOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = [
         '_project_id',
         '_model_name',
+        '_impersonation_chain',
     ]
 
     @apply_defaults
@@ -440,15 +498,21 @@ class MLEngineGetModelOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+        hook = MLEngineHook(
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to,
+            impersonation_chain=self._impersonation_chain,
+        )
         return hook.get_model(project_id=self._project_id, model_name=self._model_name)
 
 
@@ -473,15 +537,25 @@ class MLEngineDeleteModelOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = [
         '_project_id',
         '_model_name',
+        '_impersonation_chain',
     ]
 
     @apply_defaults
@@ -492,6 +566,7 @@ class MLEngineDeleteModelOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self._project_id = project_id
@@ -499,9 +574,14 @@ class MLEngineDeleteModelOperator(BaseOperator):
         self._delete_contents = delete_contents
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+        hook = MLEngineHook(
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to,
+            impersonation_chain=self._impersonation_chain
+        )
 
         return hook.delete_model(
             project_id=self._project_id, model_name=self._model_name, delete_contents=self._delete_contents
@@ -556,10 +636,19 @@ class MLEngineManageVersionOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = [
@@ -567,6 +656,7 @@ class MLEngineManageVersionOperator(BaseOperator):
         '_model_name',
         '_version_name',
         '_version',
+        '_impersonation_chain',
     ]
 
     @apply_defaults
@@ -579,6 +669,7 @@ class MLEngineManageVersionOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self._project_id = project_id
@@ -588,6 +679,7 @@ class MLEngineManageVersionOperator(BaseOperator):
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._impersonation_chain = impersonation_chain
 
         warnings.warn(
             "This operator is deprecated. Consider using operators for specific operations: "
@@ -601,7 +693,10 @@ class MLEngineManageVersionOperator(BaseOperator):
             self._version['name'] = self._version_name
 
         hook = MLEngineHook(
-            gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to,
+            impersonation_chain=self._impersonation_chain,
+        )
 
         if self._operation == 'create':
             if not self._version:
@@ -653,16 +748,26 @@ class MLEngineCreateVersionOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = [
         '_project_id',
         '_model_name',
         '_version',
+        '_impersonation_chain',
     ]
 
     @apply_defaults
@@ -673,6 +778,7 @@ class MLEngineCreateVersionOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
 
         super().__init__(**kwargs)
@@ -681,6 +787,7 @@ class MLEngineCreateVersionOperator(BaseOperator):
         self._version = version
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
     def _validate_inputs(self):
@@ -691,7 +798,11 @@ class MLEngineCreateVersionOperator(BaseOperator):
             raise AirflowException("The version parameter could not be empty.")
 
     def execute(self, context):
-        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+        hook = MLEngineHook(
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to,
+            impersonation_chain=self._impersonation_chain,
+        )
 
         return hook.create_version(
             project_id=self._project_id,
@@ -720,16 +831,26 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = [
         '_project_id',
         '_model_name',
         '_version_name',
+        '_impersonation_chain',
     ]
 
     @apply_defaults
@@ -740,6 +861,7 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
 
         super().__init__(**kwargs)
@@ -748,6 +870,7 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
         self._version_name = version_name
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
     def _validate_inputs(self):
@@ -758,7 +881,11 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
             raise AirflowException("The version_name parameter could not be empty.")
 
     def execute(self, context):
-        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+        hook = MLEngineHook(
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to,
+            impersonation_chain=self._impersonation_chain,
+        )
 
         return hook.set_default_version(
             project_id=self._project_id,
@@ -785,14 +912,24 @@ class MLEngineListVersionsOperator(BaseOperator):
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
         If set to None or missing, the default project_id from the GCP connection is used. (templated)
     :type project_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     template_fields = [
         '_project_id',
         '_model_name',
+        '_impersonation_chain',
     ]
 
     @apply_defaults
@@ -802,6 +939,7 @@ class MLEngineListVersionsOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
 
         super().__init__(**kwargs)
@@ -809,6 +947,7 @@ class MLEngineListVersionsOperator(BaseOperator):
         self._model_name = model_name
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
     def _validate_inputs(self):
@@ -816,7 +955,11 @@ class MLEngineListVersionsOperator(BaseOperator):
             raise AirflowException("The model_name parameter could not be empty.")
 
     def execute(self, context):
-        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+        hook = MLEngineHook(
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to,
+            impersonation_chain=self._impersonation_chain,
+        )
 
         return hook.list_versions(
             project_id=self._project_id,
@@ -845,15 +988,25 @@ class MLEngineDeleteVersionOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     template_fields = [
         '_project_id',
         '_model_name',
         '_version_name',
+        '_impersonation_chain',
     ]
 
     @apply_defaults
@@ -864,6 +1017,7 @@ class MLEngineDeleteVersionOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
 
         super().__init__(**kwargs)
@@ -872,6 +1026,7 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         self._version_name = version_name
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
     def _validate_inputs(self):
@@ -882,7 +1037,11 @@ class MLEngineDeleteVersionOperator(BaseOperator):
             raise AirflowException("The version_name parameter could not be empty.")
 
     def execute(self, context):
-        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+        hook = MLEngineHook(
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to,
+            impersonation_chain=self._impersonation_chain,
+        )
 
         return hook.delete_version(
             project_id=self._project_id,
@@ -908,6 +1067,7 @@ class AIPlatformConsoleLink(BaseOperatorLink):
         return console_link
 
 
+# pylint: disable=too-many-instance-attributes
 class MLEngineStartTrainingJobOperator(BaseOperator):
     """
     Operator for launching a MLEngine training job.
@@ -950,8 +1110,8 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
     :param mode: Can be one of 'DRY_RUN'/'CLOUD'. In 'DRY_RUN' mode, no real
@@ -961,6 +1121,15 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     :type mode: str
     :param labels: a dictionary containing labels for the job; passed to BigQuery
     :type labels: Dict[str, str]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = [
@@ -974,7 +1143,8 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         '_master_type',
         '_runtime_version',
         '_python_version',
-        '_job_dir'
+        '_job_dir',
+        '_impersonation_chain',
     ]
 
     operator_extra_links = (
@@ -999,6 +1169,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  mode: str = 'PRODUCTION',
                  labels: Optional[Dict[str, str]] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self._project_id = project_id
@@ -1016,6 +1187,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._mode = mode
         self._labels = labels
+        self._impersonation_chain = impersonation_chain
 
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
@@ -1070,7 +1242,10 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
             return
 
         hook = MLEngineHook(
-            gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to,
+            impersonation_chain=self._impersonation_chain,
+        )
 
         # Helper method to check if the existing job's training input is the
         # same as the request we get here.
@@ -1113,15 +1288,25 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = [
         '_project_id',
         '_job_id',
+        '_impersonation_chain',
     ]
 
     @apply_defaults
@@ -1131,12 +1316,14 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self._project_id = project_id
         self._job_id = job_id
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._impersonation_chain = impersonation_chain
 
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
@@ -1145,7 +1332,8 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
 
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to
+            delegate_to=self._delegate_to,
+            impersonation_chain=self._impersonation_chain,
         )
 
         hook.cancel_job(project_id=self._project_id, job_id=_normalize_mlengine_job_id(self._job_id))

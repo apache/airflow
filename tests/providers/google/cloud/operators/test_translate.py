@@ -23,6 +23,7 @@ import mock
 from airflow.providers.google.cloud.operators.translate import CloudTranslateTextOperator
 
 GCP_CONN_ID = 'google_cloud_default'
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestCloudTranslate(unittest.TestCase):
@@ -44,9 +45,13 @@ class TestCloudTranslate(unittest.TestCase):
             model='base',
             gcp_conn_id=GCP_CONN_ID,
             task_id='id',
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         return_value = op.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.translate.assert_called_once_with(
             values=['zażółć gęślą jaźń'],
             target_language='en',

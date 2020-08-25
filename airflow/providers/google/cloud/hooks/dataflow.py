@@ -416,8 +416,8 @@ class DataflowHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        poll_sleep: int = 10,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        poll_sleep: int = 10
     ) -> None:
         self.poll_sleep = poll_sleep
         super().__init__(

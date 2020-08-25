@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -45,9 +45,18 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
     :type gcp_conn_id: str
     :param api_version: API version used (for example v1 or v1beta1).
     :type api_version: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("body", "gcp_conn_id", "api_version")
+    template_fields = ("body", "gcp_conn_id", "api_version", "impersonation_chain",)
 
     @apply_defaults
     def __init__(
@@ -58,6 +67,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         project_id: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -67,11 +77,16 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
+        self.impersonation_chain = impersonation_chain
 
     def _validate_inputs(self):
         if not self.body:
             raise AirflowException("The required parameter 'body' is missing")
 
     def execute(self, context):
-        hook = CloudFirestoreHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = CloudFirestoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain
+        )
         return hook.export_documents(database_id=self.database_id, body=self.body, project_id=self.project_id)

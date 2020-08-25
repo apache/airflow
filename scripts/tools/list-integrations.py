@@ -95,8 +95,7 @@ If you want to count the operators/sensors in each providers package, you can us
         sort -n -r
 """
 
-# noinspection PyTypeChecker
-parser = argparse.ArgumentParser(
+parser = argparse.ArgumentParser(  # noqa
     description=HELP,
     formatter_class=argparse.RawTextHelpFormatter,
     epilog=EPILOG

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
+from typing import Optional, Sequence, Union
 
 from google.api_core.gapic_v1.method import DEFAULT
 
@@ -70,13 +70,22 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     :type gcp_conn_id: str
     :param project_id: The project to fetch alerts from.
     :type project_id: str
-    :param delegate_to: (Optional) The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('filter_',)
+    template_fields = ('filter_', 'impersonation_chain',)
     ui_color = "#e5ffcc"
 
     # pylint: disable=too-many-arguments
@@ -93,6 +102,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -106,13 +116,18 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.hook = None
 
     def execute(self, context):
         self.log.info('List Alert Policies: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %d',
                       self.project_id, self.format_, self.filter_, self.order_by, self.page_size)
         if self.hook is None:
-            self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+            self.hook = StackdriverHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
 
         return self.hook.list_alert_policies(
             project_id=self.project_id,
@@ -153,13 +168,22 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
     :type gcp_conn_id: str
     :param project_id: The project in which alert needs to be enabled.
     :type project_id: str
-    :param delegate_to: (Optional) The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     ui_color = "#e5ffcc"
-    template_fields = ('filter_',)
+    template_fields = ('filter_', 'impersonation_chain',)
 
     @apply_defaults
     def __init__(
@@ -171,6 +195,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -181,12 +206,17 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
+        self.impersonation_chain = impersonation_chain
         self.hook = None
 
     def execute(self, context):
         self.log.info('Enable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
         if self.hook is None:
-            self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+            self.hook = StackdriverHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
         self.hook.enable_alert_policies(
             filter_=self.filter_,
             project_id=self.project_id,
@@ -224,14 +254,23 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
     :type gcp_conn_id: str
     :param project_id: The project in which alert needs to be disabled.
     :type project_id: str
-    :param delegate_to: (Optional) The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     ui_color = "#e5ffcc"
-    template_fields = ('filter_',)
+    template_fields = ('filter_', 'impersonation_chain',)
 
     @apply_defaults
     def __init__(
@@ -243,6 +282,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -253,12 +293,17 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
+        self.impersonation_chain = impersonation_chain
         self.hook = None
 
     def execute(self, context):
         self.log.info('Disable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
         if self.hook is None:
-            self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+            self.hook = StackdriverHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
         self.hook.disable_alert_policies(
             filter_=self.filter_,
             project_id=self.project_id,
@@ -296,13 +341,22 @@ class StackdriverUpsertAlertOperator(BaseOperator):
     :type gcp_conn_id: str
     :param project_id: The project in which alert needs to be created/updated.
     :type project_id: str
-    :param delegate_to: (Optional) The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('alerts',)
+    template_fields = ('alerts', 'impersonation_chain',)
     template_ext = ('.json',)
 
     ui_color = "#e5ffcc"
@@ -317,6 +371,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -327,12 +382,17 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.hook = None
 
     def execute(self, context):
         self.log.info('Upsert Alert Policies: Alerts: %s Project id: %s', self.alerts, self.project_id)
         if self.hook is None:
-            self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+            self.hook = StackdriverHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
         self.hook.upsert_alert(
             alerts=self.alerts,
             project_id=self.project_id,
@@ -367,13 +427,22 @@ class StackdriverDeleteAlertOperator(BaseOperator):
     :type gcp_conn_id: str
     :param project_id: The project from which alert needs to be deleted.
     :type project_id: str
-    :param delegate_to: (Optional) The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('name',)
+    template_fields = ('name', 'impersonation_chain',)
 
     ui_color = "#e5ffcc"
 
@@ -387,6 +456,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -397,12 +467,17 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.hook = None
 
     def execute(self, context):
         self.log.info('Delete Alert Policy: Project id: %s Name: %s', self.project_id, self.name)
         if self.hook is None:
-            self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+            self.hook = StackdriverHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
         self.hook.delete_alert_policy(
             name=self.name,
             retry=self.retry,
@@ -456,13 +531,22 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
     :type gcp_conn_id: str
     :param project_id: The project to fetch notification channels from.
     :type project_id: str
-    :param delegate_to: (Optional) The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('filter_',)
+    template_fields = ('filter_', 'impersonation_chain',)
 
     ui_color = "#e5ffcc"
 
@@ -480,6 +564,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -493,6 +578,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.hook = None
 
     def execute(self, context):
@@ -501,7 +587,11 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
             self.project_id, self.format_, self.filter_, self.order_by, self.page_size
         )
         if self.hook is None:
-            self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+            self.hook = StackdriverHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
         return self.hook.list_notification_channels(
             format_=self.format_,
             project_id=self.project_id,
@@ -541,13 +631,22 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
     :type gcp_conn_id: str
     :param project_id: The location used for the operation.
     :type project_id: str
-    :param delegate_to: (Optional) The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('filter_',)
+    template_fields = ('filter_', 'impersonation_chain',)
 
     ui_color = "#e5ffcc"
 
@@ -561,6 +660,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -571,13 +671,18 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.hook = None
 
     def execute(self, context):
         self.log.info('Enable Notification Channels: Project id: %s Filter: %s',
                       self.project_id, self.filter_)
         if self.hook is None:
-            self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+            self.hook = StackdriverHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
         self.hook.enable_notification_channels(
             filter_=self.filter_,
             project_id=self.project_id,
@@ -614,13 +719,22 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
     :type gcp_conn_id: str
     :param project_id: The project in which notification channels needs to be enabled.
     :type project_id: str
-    :param delegate_to: (Optional) The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('filter_',)
+    template_fields = ('filter_', 'impersonation_chain',)
 
     ui_color = "#e5ffcc"
 
@@ -634,6 +748,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -644,13 +759,18 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.hook = None
 
     def execute(self, context):
         self.log.info('Disable Notification Channels: Project id: %s Filter: %s',
                       self.project_id, self.filter_)
         if self.hook is None:
-            self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+            self.hook = StackdriverHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
         self.hook.disable_notification_channels(
             filter_=self.filter_,
             project_id=self.project_id,
@@ -688,13 +808,22 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
     :type gcp_conn_id: str
     :param project_id: The project in which notification channels needs to be created/updated.
     :type project_id: str
-    :param delegate_to: (Optional) The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('channels',)
+    template_fields = ('channels', 'impersonation_chain',)
     template_ext = ('.json',)
 
     ui_color = "#e5ffcc"
@@ -709,6 +838,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -719,13 +849,18 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.hook = None
 
     def execute(self, context):
         self.log.info('Upsert Notification Channels: Channels: %s Project id: %s',
                       self.channels, self.project_id)
         if self.hook is None:
-            self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+            self.hook = StackdriverHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
         self.hook.upsert_channel(
             channels=self.channels,
             project_id=self.project_id,
@@ -760,13 +895,22 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
     :type gcp_conn_id: str
     :param project_id: The project from which notification channel needs to be deleted.
     :type project_id: str
-    :param delegate_to: (Optional) The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('name',)
+    template_fields = ('name', 'impersonation_chain',)
 
     ui_color = "#e5ffcc"
 
@@ -780,6 +924,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -790,12 +935,17 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.hook = None
 
     def execute(self, context):
         self.log.info('Delete Notification Channel: Project id: %s Name: %s', self.project_id, self.name)
         if self.hook is None:
-            self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+            self.hook = StackdriverHook(
+                gcp_conn_id=self.gcp_conn_id,
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
         self.hook.delete_notification_channel(
             name=self.name,
             retry=self.retry,

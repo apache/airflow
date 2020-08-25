@@ -52,15 +52,14 @@ def get_airflow_connection_with_port():
     )
 
 
-# noinspection PyMethodMayBeStatic,PyUnusedLocal
 class StubClass:
     def __init__(self, _):  # pylint: disable=unused-argument
         pass
 
-    def single_call(self, data):
+    def single_call(self, data):  # noqa
         return data
 
-    def stream_call(self, data):  # pylint: disable=unused-argument
+    def stream_call(self, data):  # noqa pylint: disable=unused-argument
         return ["streaming", "call"]
 
 
@@ -68,7 +67,6 @@ class TestGrpcHook(unittest.TestCase):
     def setUp(self):
         self.channel_mock = mock.patch('grpc.Channel').start()
 
-    # noinspection PyUnusedLocal
     def custom_conn_func(self, _):
         mocked_channel = self.channel_mock.return_value
         return mocked_channel

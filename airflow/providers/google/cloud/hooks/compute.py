@@ -40,7 +40,6 @@ class GceOperationStatus:
     DONE = "DONE"
 
 
-# noinspection PyAbstractClass
 class ComputeEngineHook(GoogleBaseHook):
     """
     Hook for Google Compute Engine APIs.
@@ -93,7 +92,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        response = self.get_conn().instances().start(  # pylint: disable=no-member
+        response = self.get_conn().instances().start(  # noqa pylint: disable=no-member
             project=project_id,
             zone=zone,
             instance=resource_id
@@ -124,7 +123,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        response = self.get_conn().instances().stop(  # pylint: disable=no-member
+        response = self.get_conn().instances().stop(  # noqa pylint: disable=no-member
             project=project_id,
             zone=zone,
             instance=resource_id
@@ -183,7 +182,7 @@ class ComputeEngineHook(GoogleBaseHook):
         body: Dict,
         project_id: str
     ) -> Dict:
-        return self.get_conn().instances().setMachineType(  # pylint: disable=no-member
+        return self.get_conn().instances().setMachineType(  # noqa pylint: disable=no-member
             project=project_id, zone=zone, instance=resource_id, body=body)\
             .execute(num_retries=self.num_retries)
 
@@ -203,7 +202,7 @@ class ComputeEngineHook(GoogleBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
         :rtype: dict
         """
-        response = self.get_conn().instanceTemplates().get(  # pylint: disable=no-member
+        response = self.get_conn().instanceTemplates().get(  # noqa pylint: disable=no-member
             project=project_id,
             instanceTemplate=resource_id
         ).execute(num_retries=self.num_retries)
@@ -234,7 +233,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        response = self.get_conn().instanceTemplates().insert(  # pylint: disable=no-member
+        response = self.get_conn().instanceTemplates().insert(  # noqa pylint: disable=no-member
             project=project_id,
             body=body,
             requestId=request_id
@@ -271,7 +270,7 @@ class ComputeEngineHook(GoogleBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers
         :rtype: dict
         """
-        response = self.get_conn().instanceGroupManagers().get(  # pylint: disable=no-member
+        response = self.get_conn().instanceGroupManagers().get(  # noqa pylint: disable=no-member
             project=project_id,
             zone=zone,
             instanceGroupManager=resource_id
@@ -310,7 +309,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        response = self.get_conn().instanceGroupManagers().patch(  # pylint: disable=no-member
+        response = self.get_conn().instanceGroupManagers().patch(  # noqa pylint: disable=no-member
             project=project_id,
             zone=zone,
             instanceGroupManager=resource_id,
@@ -345,7 +344,6 @@ class ComputeEngineHook(GoogleBaseHook):
         service = self.get_conn()
         while True:
             if zone is None:
-                # noinspection PyTypeChecker
                 operation_response = self._check_global_operation_status(
                     service=service,
                     operation_name=operation_name,
@@ -353,7 +351,6 @@ class ComputeEngineHook(GoogleBaseHook):
                     num_retries=self.num_retries
                 )
             else:
-                # noinspection PyTypeChecker
                 operation_response = self._check_zone_operation_status(
                     service, operation_name, project_id, zone, self.num_retries)
             if operation_response.get("status") == GceOperationStatus.DONE:

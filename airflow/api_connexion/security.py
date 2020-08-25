@@ -27,6 +27,7 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 def requires_authentication(function: T):
     """Decorator for functions that require authentication"""
+
     @wraps(function)
     def decorated(*args, **kwargs):
         response = current_app.api_auth.requires_authentication(Response)()

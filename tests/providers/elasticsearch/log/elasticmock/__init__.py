@@ -49,7 +49,6 @@ from .fake_elasticsearch import FakeElasticsearch
 ELASTIC_INSTANCES = {}  # type: Dict[str, FakeElasticsearch]
 
 
-# noinspection PyUnusedLocal
 def _get_elasticmock(hosts=None, *args, **kwargs):  # pylint: disable=unused-argument
     host = _normalize_hosts(hosts)[0]
     elastic_key = '{0}:{1}'.format(

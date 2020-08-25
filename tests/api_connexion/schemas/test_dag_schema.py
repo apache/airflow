@@ -20,7 +20,10 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.api_connexion.schemas.dag_schema import (
-    DAGCollection, DAGCollectionSchema, DAGDetailSchema, DAGSchema,
+    DAGCollection,
+    DAGCollectionSchema,
+    DAGDetailSchema,
+    DAGSchema,
 )
 from airflow.models import DagModel, DagTag
 
@@ -119,6 +122,6 @@ class TestDAGDetailSchema:
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'seconds': 0, 'microseconds': 0},
             'start_date': '2020-06-19T00:00:00+00:00',
             'tags': None,
-            'timezone': "Timezone('UTC')"
+            'timezone': "Timezone('UTC')",
         }
         assert schema.dump(dag) == expected

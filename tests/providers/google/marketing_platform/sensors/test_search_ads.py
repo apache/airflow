@@ -39,6 +39,9 @@ class TestSearchAdsReportSensor(TestCase):
         )
         op.poke(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.get.assert_called_once_with(report_id=report_id)

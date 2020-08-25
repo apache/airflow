@@ -292,8 +292,7 @@ class TestBaseOperatorMethods(unittest.TestCase):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
         [op1, op2] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 3)]
         with self.assertRaises(TypeError):
-            # noinspection PyTypeChecker
-            chain([op1, op2], 1)
+            chain([op1, op2], 1)  # noqa
 
     def test_chain_different_length_iterable(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
