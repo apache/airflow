@@ -78,7 +78,7 @@ class TestCloudBuildOperator(TestCase):
         mock_hook.return_value.cancel_build.return_value = mock.MagicMock()
         operator = CloudBuildCancelBuildOperator(id_=TRIGGER_ID, task_id="id")
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.cancel_build.assert_called_once_with(
             id_=TRIGGER_ID,
             project_id=None,
@@ -94,7 +94,7 @@ class TestCloudBuildOperator(TestCase):
         mock_hook.return_value.create_build.return_value = mock.MagicMock()
         operator = CloudBuildCreateBuildOperator(build=BUILD, task_id="id")
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         build = ParseDict(BUILD, Build())
         mock_hook.return_value.create_build.assert_called_once_with(
             build=build,
@@ -112,7 +112,7 @@ class TestCloudBuildOperator(TestCase):
         mock_hook.return_value.create_build.return_value = mock.MagicMock()
         operator = CloudBuildCreateBuildOperator(build=None, body=BUILD, task_id="id")
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         build = ParseDict(BUILD, Build())
         mock_hook.return_value.create_build.assert_called_once_with(
             build=build,
@@ -174,7 +174,7 @@ class TestCloudBuildOperator(TestCase):
             trigger=BUILD_TRIGGER, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.create_build_trigger.assert_called_once_with(
             trigger=BUILD_TRIGGER,
             project_id=None,
@@ -194,7 +194,7 @@ class TestCloudBuildOperator(TestCase):
             trigger_id=TRIGGER_ID, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.delete_build_trigger.assert_called_once_with(
             trigger_id=TRIGGER_ID,
             project_id=None,
@@ -210,7 +210,7 @@ class TestCloudBuildOperator(TestCase):
         mock_hook.return_value.get_build.return_value = mock.MagicMock()
         operator = CloudBuildGetBuildOperator(id_=BUILD_ID, task_id="id")
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.get_build.assert_called_once_with(
             id_=BUILD_ID,
             project_id=None,
@@ -230,7 +230,7 @@ class TestCloudBuildOperator(TestCase):
             trigger_id=TRIGGER_ID, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.get_build_trigger.assert_called_once_with(
             trigger_id=TRIGGER_ID,
             project_id=None,
@@ -248,7 +248,7 @@ class TestCloudBuildOperator(TestCase):
         )
         operator = CloudBuildListBuildTriggersOperator(task_id="id")
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.list_build_triggers.assert_called_once_with(
             project_id=None,
             page_size=None,
@@ -265,7 +265,7 @@ class TestCloudBuildOperator(TestCase):
         mock_hook.return_value.list_builds.return_value = mock.MagicMock()
         operator = CloudBuildListBuildsOperator(task_id="id")
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.list_builds.assert_called_once_with(
             project_id=None,
             page_size=None,
@@ -282,7 +282,7 @@ class TestCloudBuildOperator(TestCase):
         mock_hook.return_value.retry_build.return_value = mock.MagicMock()
         operator = CloudBuildRetryBuildOperator(id_=BUILD_ID, task_id="id")
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.retry_build.assert_called_once_with(
             id_=BUILD_ID,
             project_id=None,
@@ -303,7 +303,7 @@ class TestCloudBuildOperator(TestCase):
             trigger_id=TRIGGER_ID, source=REPO_SOURCE, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.run_build_trigger.assert_called_once_with(
             trigger_id=TRIGGER_ID,
             source=REPO_SOURCE,
@@ -325,7 +325,7 @@ class TestCloudBuildOperator(TestCase):
             trigger_id=TRIGGER_ID, trigger=BUILD_TRIGGER, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.update_build_trigger.assert_called_once_with(
             trigger_id=TRIGGER_ID,
             trigger=BUILD_TRIGGER,
