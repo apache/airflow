@@ -2243,7 +2243,7 @@ class BigQueryConnection:
         """BigQueryConnection does not have anything to close"""
 
     def commit(self) -> None:   # noqa: D403
-        """BigQueryConnection does not support transactions. """
+        """BigQueryConnection does not support transactions"""
 
     def cursor(self) -> "BigQueryCursor":   # noqa: D403
         """Return a new :py:class:`Cursor` object using the connection"""
