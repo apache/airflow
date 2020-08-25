@@ -32,9 +32,8 @@ class JiraHook(BaseHook):
     :param jira_conn_id: reference to a pre-defined Jira Connection
     :type jira_conn_id: str
     """
-    def __init__(self,
-                 jira_conn_id: str = 'jira_default',
-                 proxies: Optional[Any] = None) -> None:
+
+    def __init__(self, jira_conn_id: str = 'jira_default', proxies: Optional[Any] = None) -> None:
         super().__init__()
         self.jira_conn_id = jira_conn_id
         self.proxies = proxies
@@ -58,31 +57,28 @@ class JiraHook(BaseHook):
                 # more can be added ex: async, logging, max_retries
 
                 # verify
-                if 'verify' in extra_options \
-                        and extra_options['verify'].lower() == 'false':
+                if 'verify' in extra_options and extra_options['verify'].lower() == 'false':
                     extra_options['verify'] = False
 
                 # validate
-                if 'validate' in extra_options \
-                        and extra_options['validate'].lower() == 'false':
+                if 'validate' in extra_options and extra_options['validate'].lower() == 'false':
                     validate = False
 
-                if 'get_server_info' in extra_options \
-                        and extra_options['get_server_info'].lower() == 'false':
+                if 'get_server_info' in extra_options and extra_options['get_server_info'].lower() == 'false':
                     get_server_info = False
 
             try:
-                self.client = JIRA(conn.host,
-                                   options=extra_options,
-                                   basic_auth=(conn.login, conn.password),
-                                   get_server_info=get_server_info,
-                                   validate=validate,
-                                   proxies=self.proxies)
+                self.client = JIRA(
+                    conn.host,
+                    options=extra_options,
+                    basic_auth=(conn.login, conn.password),
+                    get_server_info=get_server_info,
+                    validate=validate,
+                    proxies=self.proxies,
+                )
             except JIRAError as jira_error:
-                raise AirflowException('Failed to create jira client, jira error: %s'
-                                       % str(jira_error))
+                raise AirflowException('Failed to create jira client, jira error: %s' % str(jira_error))
             except Exception as e:
-                raise AirflowException('Failed to create jira client, error: %s'
-                                       % str(e))
+                raise AirflowException('Failed to create jira client, error: %s' % str(e))
 
         return self.client

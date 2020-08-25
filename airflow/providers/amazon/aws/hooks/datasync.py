@@ -58,8 +58,7 @@ class AWSDataSyncHook(AwsBaseHook):
         self.tasks = []
         # wait_interval_seconds = 0 is used during unit tests
         if wait_interval_seconds < 0 or wait_interval_seconds > 15 * 60:
-            raise ValueError("Invalid wait_interval_seconds %s" %
-                             wait_interval_seconds)
+            raise ValueError("Invalid wait_interval_seconds %s" % wait_interval_seconds)
         self.wait_interval_seconds = wait_interval_seconds
 
     def create_location(self, location_uri, **create_location_kwargs):
@@ -85,9 +84,7 @@ class AWSDataSyncHook(AwsBaseHook):
         self._refresh_locations()
         return location["LocationArn"]
 
-    def get_location_arns(
-        self, location_uri, case_sensitive=False, ignore_trailing_slash=True
-    ):
+    def get_location_arns(self, location_uri, case_sensitive=False, ignore_trailing_slash=True):
         """
         Return all LocationArns which match a LocationUri.
 
@@ -133,9 +130,7 @@ class AWSDataSyncHook(AwsBaseHook):
                 break
             next_token = locations["NextToken"]
 
-    def create_task(
-        self, source_location_arn, destination_location_arn, **create_task_kwargs
-    ):
+    def create_task(self, source_location_arn, destination_location_arn, **create_task_kwargs):
         r"""Create a Task between the specified source and destination LocationArns.
 
         :param str source_location_arn: Source LocationArn. Must exist already.
@@ -147,7 +142,7 @@ class AWSDataSyncHook(AwsBaseHook):
         task = self.get_conn().create_task(
             SourceLocationArn=source_location_arn,
             DestinationLocationArn=destination_location_arn,
-            **create_task_kwargs
+            **create_task_kwargs,
         )
         self._refresh_tasks()
         return task["TaskArn"]
@@ -181,9 +176,7 @@ class AWSDataSyncHook(AwsBaseHook):
                 break
             next_token = tasks["NextToken"]
 
-    def get_task_arns_for_location_arns(
-        self, source_location_arns, destination_location_arns
-    ):
+    def get_task_arns_for_location_arns(self, source_location_arns, destination_location_arns):
         """
         Return list of TaskArns for which use any one of the specified
         source LocationArns and any one of the specified destination LocationArns.
@@ -224,9 +217,7 @@ class AWSDataSyncHook(AwsBaseHook):
         """
         if not task_arn:
             raise AirflowBadRequest("task_arn not specified")
-        task_execution = self.get_conn().start_task_execution(
-            TaskArn=task_arn, **kwargs
-        )
+        task_execution = self.get_conn().start_task_execution(TaskArn=task_arn, **kwargs)
         return task_execution["TaskExecutionArn"]
 
     def cancel_task_execution(self, task_execution_arn):
@@ -298,9 +289,7 @@ class AWSDataSyncHook(AwsBaseHook):
         status = None
         iterations = max_iterations
         while status is None or status in self.TASK_EXECUTION_INTERMEDIATE_STATES:
-            task_execution = self.get_conn().describe_task_execution(
-                TaskExecutionArn=task_execution_arn
-            )
+            task_execution = self.get_conn().describe_task_execution(TaskExecutionArn=task_execution_arn)
             status = task_execution["Status"]
             self.log.info("status=%s", status)
             iterations -= 1
@@ -318,5 +307,4 @@ class AWSDataSyncHook(AwsBaseHook):
             return False
         if iterations <= 0:
             raise AirflowTaskTimeout("Max iterations exceeded!")
-        raise AirflowException("Unknown status: %s" %
-                               status)  # Should never happen
+        raise AirflowException("Unknown status: %s" % status)  # Should never happen

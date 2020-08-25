@@ -57,8 +57,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook')
     @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
-    @mock.patch(
-        'airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook')
+    @mock.patch('airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook')
     def test_execute(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""
 
@@ -80,8 +79,9 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
             [
                 mock.call('gcs-bucket', 'data/TEST1.csv', mock.ANY, gzip=False),
                 mock.call('gcs-bucket', 'data/TEST3.csv', mock.ANY, gzip=False),
-                mock.call('gcs-bucket', 'data/TEST2.csv', mock.ANY, gzip=False)
-            ], any_order=True
+                mock.call('gcs-bucket', 'data/TEST2.csv', mock.ANY, gzip=False),
+            ],
+            any_order=True,
         )
 
         s3_one_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
@@ -97,8 +97,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook')
     @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
-    @mock.patch(
-        'airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook')
+    @mock.patch('airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook')
     def test_execute_with_gzip(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""
 
@@ -109,7 +108,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
             delimiter=S3_DELIMITER,
             dest_gcs_conn_id=GCS_CONN_ID,
             dest_gcs=GCS_PATH_PREFIX,
-            gzip=True
+            gzip=True,
         )
 
         s3_one_mock_hook.return_value.list_keys.return_value = MOCK_FILES
@@ -117,14 +116,13 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
 
         operator.execute(None)
         gcs_mock_hook.assert_called_once_with(
-            google_cloud_storage_conn_id=GCS_CONN_ID,
-            delegate_to=None,
-            impersonation_chain=None,
+            google_cloud_storage_conn_id=GCS_CONN_ID, delegate_to=None, impersonation_chain=None,
         )
         gcs_mock_hook.return_value.upload.assert_has_calls(
             [
                 mock.call('gcs-bucket', 'data/TEST2.csv', mock.ANY, gzip=True),
                 mock.call('gcs-bucket', 'data/TEST1.csv', mock.ANY, gzip=True),
-                mock.call('gcs-bucket', 'data/TEST3.csv', mock.ANY, gzip=True)
-            ], any_order=True
+                mock.call('gcs-bucket', 'data/TEST3.csv', mock.ANY, gzip=True),
+            ],
+            any_order=True,
         )

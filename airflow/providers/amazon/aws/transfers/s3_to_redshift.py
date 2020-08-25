@@ -64,17 +64,19 @@ class S3ToRedshiftOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, *,
-            schema: str,
-            table: str,
-            s3_bucket: str,
-            s3_key: str,
-            redshift_conn_id: str = 'redshift_default',
-            aws_conn_id: str = 'aws_default',
-            verify: Optional[Union[bool, str]] = None,
-            copy_options: Optional[List] = None,
-            autocommit: bool = False,
-            **kwargs) -> None:
+        self,
+        *,
+        schema: str,
+        table: str,
+        s3_bucket: str,
+        s3_key: str,
+        redshift_conn_id: str = 'redshift_default',
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[bool, str]] = None,
+        copy_options: Optional[List] = None,
+        autocommit: bool = False,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.schema = schema
         self.table = table
@@ -100,13 +102,15 @@ class S3ToRedshiftOperator(BaseOperator):
             with credentials
             'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
             {copy_options};
-        """.format(schema=self.schema,
-                   table=self.table,
-                   s3_bucket=self.s3_bucket,
-                   s3_key=self.s3_key,
-                   access_key=credentials.access_key,
-                   secret_key=credentials.secret_key,
-                   copy_options=copy_options)
+        """.format(
+            schema=self.schema,
+            table=self.table,
+            s3_bucket=self.s3_bucket,
+            s3_key=self.s3_key,
+            access_key=credentials.access_key,
+            secret_key=credentials.secret_key,
+            copy_options=copy_options,
+        )
 
         self.log.info('Executing COPY command...')
         self._postgres_hook.run(copy_query, self.autocommit)

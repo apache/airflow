@@ -90,7 +90,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         request_timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.run_id = run_id
@@ -99,9 +99,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         self.request_timeout = request_timeout
         self.metadata = metadata
         self.expected_statuses = (
-            {expected_statuses}
-            if isinstance(expected_statuses, str)
-            else expected_statuses
+            {expected_statuses} if isinstance(expected_statuses, str) else expected_statuses
         )
         self.project_id = project_id
         self.gcp_cloud_conn_id = gcp_conn_id
@@ -109,8 +107,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
 
     def poke(self, context):
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_cloud_conn_id,
-            impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_cloud_conn_id, impersonation_chain=self.impersonation_chain,
         )
         run = hook.get_transfer_run(
             run_id=self.run_id,

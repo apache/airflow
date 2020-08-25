@@ -37,45 +37,28 @@ class TestFileToWasbOperator(unittest.TestCase):
     }
 
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': datetime.datetime(2017, 1, 1)
-        }
+        args = {'owner': 'airflow', 'start_date': datetime.datetime(2017, 1, 1)}
         self.dag = DAG('test_dag_id', default_args=args)
 
     def test_init(self):
-        operator = FileToWasbOperator(
-            task_id='wasb_operator_1',
-            dag=self.dag,
-            **self._config
-        )
+        operator = FileToWasbOperator(task_id='wasb_operator_1', dag=self.dag, **self._config)
         self.assertEqual(operator.file_path, self._config['file_path'])
-        self.assertEqual(operator.container_name,
-                         self._config['container_name'])
+        self.assertEqual(operator.container_name, self._config['container_name'])
         self.assertEqual(operator.blob_name, self._config['blob_name'])
         self.assertEqual(operator.wasb_conn_id, self._config['wasb_conn_id'])
         self.assertEqual(operator.load_options, {})
         self.assertEqual(operator.retries, self._config['retries'])
 
         operator = FileToWasbOperator(
-            task_id='wasb_operator_2',
-            dag=self.dag,
-            load_options={'timeout': 2},
-            **self._config
+            task_id='wasb_operator_2', dag=self.dag, load_options={'timeout': 2}, **self._config
         )
         self.assertEqual(operator.load_options, {'timeout': 2})
 
-    @mock.patch('airflow.providers.microsoft.azure.transfers.file_to_wasb.WasbHook',
-                autospec=True)
+    @mock.patch('airflow.providers.microsoft.azure.transfers.file_to_wasb.WasbHook', autospec=True)
     def test_execute(self, mock_hook):
         mock_instance = mock_hook.return_value
         operator = FileToWasbOperator(
-            task_id='wasb_sensor',
-            dag=self.dag,
-            load_options={'timeout': 2},
-            **self._config
+            task_id='wasb_sensor', dag=self.dag, load_options={'timeout': 2}, **self._config
         )
         operator.execute(None)
-        mock_instance.load_file.assert_called_once_with(
-            'file', 'container', 'blob', timeout=2
-        )
+        mock_instance.load_file.assert_called_once_with('file', 'container', 'blob', timeout=2)

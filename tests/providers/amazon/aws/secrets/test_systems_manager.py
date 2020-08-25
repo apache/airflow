@@ -25,8 +25,10 @@ from tests.test_utils.config import conf_vars
 
 
 class TestSsmSecrets(TestCase):
-    @mock.patch("airflow.providers.amazon.aws.secrets.systems_manager."
-                "SystemsManagerParameterStoreBackend.get_conn_uri")
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend.get_conn_uri"
+    )
     def test_aws_ssm_get_connections(self, mock_get_uri):
         mock_get_uri.return_value = "scheme://user:pass@host:100"
         conn_list = SystemsManagerParameterStoreBackend().get_connections("fake_conn")
@@ -38,7 +40,7 @@ class TestSsmSecrets(TestCase):
         param = {
             'Name': '/airflow/connections/test_postgres',
             'Type': 'String',
-            'Value': 'postgresql://airflow:airflow@host:5432/airflow'
+            'Value': 'postgresql://airflow:airflow@host:5432/airflow',
         }
 
         ssm_backend = SystemsManagerParameterStoreBackend()
@@ -57,7 +59,7 @@ class TestSsmSecrets(TestCase):
         param = {
             'Name': '/airflow/connections/test_postgres',
             'Type': 'String',
-            'Value': 'postgresql://airflow:airflow@host:5432/airflow'
+            'Value': 'postgresql://airflow:airflow@host:5432/airflow',
         }
 
         ssm_backend = SystemsManagerParameterStoreBackend()
@@ -68,11 +70,7 @@ class TestSsmSecrets(TestCase):
 
     @mock_ssm
     def test_get_variable(self):
-        param = {
-            'Name': '/airflow/variables/hello',
-            'Type': 'String',
-            'Value': 'world'
-        }
+        param = {'Name': '/airflow/variables/hello', 'Type': 'String', 'Value': 'world'}
 
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
@@ -82,11 +80,7 @@ class TestSsmSecrets(TestCase):
 
     @mock_ssm
     def test_get_variable_secret_string(self):
-        param = {
-            'Name': '/airflow/variables/hello',
-            'Type': 'SecureString',
-            'Value': 'world'
-        }
+        param = {'Name': '/airflow/variables/hello', 'Type': 'SecureString', 'Value': 'world'}
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
         returned_uri = ssm_backend.get_variable('hello')
@@ -98,27 +92,26 @@ class TestSsmSecrets(TestCase):
         Test that if Variable key is not present in SSM,
         SystemsManagerParameterStoreBackend.get_variables should return None
         """
-        param = {
-            'Name': '/airflow/variables/hello',
-            'Type': 'String',
-            'Value': 'world'
-        }
+        param = {'Name': '/airflow/variables/hello', 'Type': 'String', 'Value': 'world'}
 
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
         self.assertIsNone(ssm_backend.get_variable("test_mysql"))
 
-    @conf_vars({
-        ('secrets', 'backend'): 'airflow.providers.amazon.aws.secrets.systems_manager.'
-                                'SystemsManagerParameterStoreBackend',
-        ('secrets', 'backend_kwargs'): '{"use_ssl": false}'
-    })
+    @conf_vars(
+        {
+            ('secrets', 'backend'): 'airflow.providers.amazon.aws.secrets.systems_manager.'
+            'SystemsManagerParameterStoreBackend',
+            ('secrets', 'backend_kwargs'): '{"use_ssl": false}',
+        }
+    )
     @mock.patch("airflow.providers.amazon.aws.secrets.systems_manager.boto3.Session.client")
     def test_passing_client_kwargs(self, mock_ssm_client):
         backends = initialize_secrets_backends()
         systems_manager = [
-            backend for backend in backends
+            backend
+            for backend in backends
             if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
         ][0]
 

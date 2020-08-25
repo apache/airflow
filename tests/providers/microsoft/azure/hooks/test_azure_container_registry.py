@@ -24,7 +24,6 @@ from airflow.utils import db
 
 
 class TestAzureContainerRegistryHook(unittest.TestCase):
-
     def test_get_conn(self):
         db.merge_conn(
             Connection(

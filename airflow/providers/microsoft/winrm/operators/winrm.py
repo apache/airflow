@@ -48,16 +48,13 @@ class WinRMOperator(BaseOperator):
     :param timeout: timeout for executing the command.
     :type timeout: int
     """
+
     template_fields = ('command',)
 
     @apply_defaults
-    def __init__(self, *,
-                 winrm_hook=None,
-                 ssh_conn_id=None,
-                 remote_host=None,
-                 command=None,
-                 timeout=10,
-                 **kwargs):
+    def __init__(
+        self, *, winrm_hook=None, ssh_conn_id=None, remote_host=None, command=None, timeout=10, **kwargs
+    ):
         super().__init__(**kwargs)
         self.winrm_hook = winrm_hook
         self.ssh_conn_id = ssh_conn_id
@@ -84,10 +81,7 @@ class WinRMOperator(BaseOperator):
         # pylint: disable=too-many-nested-blocks
         try:
             self.log.info("Running command: '%s'...", self.command)
-            command_id = self.winrm_hook.winrm_protocol.run_command(
-                winrm_client,
-                self.command
-            )
+            command_id = self.winrm_hook.winrm_protocol.run_command(winrm_client, self.command)
 
             # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
             stdout_buffer = []
@@ -96,11 +90,12 @@ class WinRMOperator(BaseOperator):
             while not command_done:
                 try:
                     # pylint: disable=protected-access
-                    stdout, stderr, return_code, command_done = \
-                        self.winrm_hook.winrm_protocol._raw_get_command_output(
-                            winrm_client,
-                            command_id
-                        )
+                    (
+                        stdout,
+                        stderr,
+                        return_code,
+                        command_done,
+                    ) = self.winrm_hook.winrm_protocol._raw_get_command_output(winrm_client, command_id)
 
                     # Only buffer stdout if we need to so that we minimize memory usage.
                     if self.do_xcom_push:
@@ -124,17 +119,13 @@ class WinRMOperator(BaseOperator):
 
         if return_code == 0:
             # returning output if do_xcom_push is set
-            enable_pickling = conf.getboolean(
-                'core', 'enable_xcom_pickling'
-            )
+            enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
             if enable_pickling:
                 return stdout_buffer
             else:
                 return b64encode(b''.join(stdout_buffer)).decode('utf-8')
         else:
             error_msg = "Error running cmd: {0}, return code: {1}, error: {2}".format(
-                self.command,
-                return_code,
-                b''.join(stderr_buffer).decode('utf-8')
+                self.command, return_code, b''.join(stderr_buffer).decode('utf-8')
             )
             raise AirflowException(error_msg)

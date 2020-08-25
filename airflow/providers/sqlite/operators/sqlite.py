@@ -41,12 +41,13 @@ class SqliteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            *,
-            sql: str,
-            sqlite_conn_id: str = 'sqlite_default',
-            parameters: Optional[Union[Mapping, Iterable]] = None,
-            **kwargs) -> None:
+        self,
+        *,
+        sql: str,
+        sqlite_conn_id: str = 'sqlite_default',
+        parameters: Optional[Union[Mapping, Iterable]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.sqlite_conn_id = sqlite_conn_id
         self.sql = sql

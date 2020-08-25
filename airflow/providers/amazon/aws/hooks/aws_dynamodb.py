@@ -58,7 +58,5 @@ class AwsDynamoDBHook(AwsBaseHook):
             return True
         except Exception as general_error:
             raise AirflowException(
-                'Failed to insert items in dynamodb, error: {error}'.format(
-                    error=str(general_error)
-                )
+                'Failed to insert items in dynamodb, error: {error}'.format(error=str(general_error))
             )

@@ -25,7 +25,9 @@ from requests import Response
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.providers.hashicorp._internal_client.vault_client import (  # noqa
-    DEFAULT_KUBERNETES_JWT_PATH, DEFAULT_KV_ENGINE_VERSION, _VaultClient,
+    DEFAULT_KUBERNETES_JWT_PATH,
+    DEFAULT_KV_ENGINE_VERSION,
+    _VaultClient,
 )
 
 
@@ -107,6 +109,7 @@ class VaultHook(BaseHook):
     :type radius_port: int
 
     """
+
     def __init__(  # pylint: disable=too-many-arguments
         self,
         vault_conn_id: str,
@@ -122,7 +125,7 @@ class VaultHook(BaseHook):
         azure_tenant_id: Optional[str] = None,
         azure_resource: Optional[str] = None,
         radius_host: Optional[str] = None,
-        radius_port: Optional[int] = None
+        radius_port: Optional[int] = None,
     ):
         super().__init__()
         self.connection = self.get_connection(vault_conn_id)
@@ -144,17 +147,26 @@ class VaultHook(BaseHook):
             if not role_id:
                 role_id = self.connection.extra_dejson.get('role_id')
 
-        azure_resource, azure_tenant_id = \
-            self._get_azure_parameters_from_connection(azure_resource, azure_tenant_id) \
-            if auth_type == 'azure' else (None, None)
-        gcp_key_path, gcp_keyfile_dict, gcp_scopes = \
-            self._get_gcp_parameters_from_connection(gcp_key_path, gcp_scopes) \
-            if auth_type == 'gcp' else (None, None, None)
-        kubernetes_jwt_path, kubernetes_role = \
-            self._get_kubernetes_parameters_from_connection(kubernetes_jwt_path, kubernetes_role) \
-            if auth_type == 'kubernetes' else (None, None)
-        radius_host, radius_port = self._get_radius_parameters_from_connection(radius_host, radius_port) \
-            if auth_type == 'radius' else (None, None)
+        azure_resource, azure_tenant_id = (
+            self._get_azure_parameters_from_connection(azure_resource, azure_tenant_id)
+            if auth_type == 'azure'
+            else (None, None)
+        )
+        gcp_key_path, gcp_keyfile_dict, gcp_scopes = (
+            self._get_gcp_parameters_from_connection(gcp_key_path, gcp_scopes)
+            if auth_type == 'gcp'
+            else (None, None, None)
+        )
+        kubernetes_jwt_path, kubernetes_role = (
+            self._get_kubernetes_parameters_from_connection(kubernetes_jwt_path, kubernetes_role)
+            if auth_type == 'kubernetes'
+            else (None, None)
+        )
+        radius_host, radius_port = (
+            self._get_radius_parameters_from_connection(radius_host, radius_port)
+            if auth_type == 'radius'
+            else (None, None)
+        )
 
         if self.connection.conn_type == 'vault':
             conn_protocol = 'http'
@@ -196,12 +208,12 @@ class VaultHook(BaseHook):
             azure_resource=azure_resource,
             radius_host=radius_host,
             radius_secret=self.connection.password,
-            radius_port=radius_port
+            radius_port=radius_port,
         )
 
     def _get_kubernetes_parameters_from_connection(
-        self, kubernetes_jwt_path: Optional[str], kubernetes_role: Optional[str]) \
-            -> Tuple[str, Optional[str]]:
+        self, kubernetes_jwt_path: Optional[str], kubernetes_role: Optional[str]
+    ) -> Tuple[str, Optional[str]]:
         if not kubernetes_jwt_path:
             kubernetes_jwt_path = self.connection.extra_dejson.get("kubernetes_jwt_path")
             if not kubernetes_jwt_path:
@@ -211,9 +223,7 @@ class VaultHook(BaseHook):
         return kubernetes_jwt_path, kubernetes_role
 
     def _get_gcp_parameters_from_connection(
-        self,
-        gcp_key_path: Optional[str],
-        gcp_scopes: Optional[str],
+        self, gcp_key_path: Optional[str], gcp_scopes: Optional[str],
     ) -> Tuple[Optional[str], Optional[dict], Optional[str]]:
         if not gcp_scopes:
             gcp_scopes = self.connection.extra_dejson.get("gcp_scopes")
@@ -224,8 +234,8 @@ class VaultHook(BaseHook):
         return gcp_key_path, gcp_keyfile_dict, gcp_scopes
 
     def _get_azure_parameters_from_connection(
-        self, azure_resource: Optional[str], azure_tenant_id: Optional[str]) \
-            -> Tuple[Optional[str], Optional[str]]:
+        self, azure_resource: Optional[str], azure_tenant_id: Optional[str]
+    ) -> Tuple[Optional[str], Optional[str]]:
         if not azure_tenant_id:
             azure_tenant_id = self.connection.extra_dejson.get("azure_tenant_id")
         if not azure_resource:
@@ -233,8 +243,8 @@ class VaultHook(BaseHook):
         return azure_resource, azure_tenant_id
 
     def _get_radius_parameters_from_connection(
-        self, radius_host: Optional[str], radius_port: Optional[int]) \
-            -> Tuple[Optional[str], Optional[int]]:
+        self, radius_host: Optional[str], radius_port: Optional[int]
+    ) -> Tuple[Optional[str], Optional[int]]:
         if not radius_port:
             radius_port_str = self.connection.extra_dejson.get("radius_port")
             if radius_port_str:
@@ -288,9 +298,9 @@ class VaultHook(BaseHook):
         """
         return self.vault_client.get_secret_metadata(secret_path=secret_path)
 
-    def get_secret_including_metadata(self,
-                                      secret_path: str,
-                                      secret_version: Optional[int] = None) -> Optional[dict]:
+    def get_secret_including_metadata(
+        self, secret_path: str, secret_version: Optional[int] = None
+    ) -> Optional[dict]:
         """
         Reads secret including metadata. It is only valid for KV version 2.
 
@@ -306,13 +316,12 @@ class VaultHook(BaseHook):
 
         """
         return self.vault_client.get_secret_including_metadata(
-            secret_path=secret_path, secret_version=secret_version)
+            secret_path=secret_path, secret_version=secret_version
+        )
 
-    def create_or_update_secret(self,
-                                secret_path: str,
-                                secret: dict,
-                                method: Optional[str] = None,
-                                cas: Optional[int] = None) -> Response:
+    def create_or_update_secret(
+        self, secret_path: str, secret: dict, method: Optional[str] = None, cas: Optional[int] = None
+    ) -> Response:
         """
         Creates or updates secret.
 
@@ -337,7 +346,5 @@ class VaultHook(BaseHook):
 
         """
         return self.vault_client.create_or_update_secret(
-            secret_path=secret_path,
-            secret=secret,
-            method=method,
-            cas=cas)
+            secret_path=secret_path, secret=secret, method=method, cas=cas
+        )

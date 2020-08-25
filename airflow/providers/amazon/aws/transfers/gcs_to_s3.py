@@ -83,30 +83,42 @@ class GCSToS3Operator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter', 'dest_s3_key',
-                                      'google_impersonation_chain',)
+
+    template_fields: Iterable[str] = (
+        'bucket',
+        'prefix',
+        'delimiter',
+        'dest_s3_key',
+        'google_impersonation_chain',
+    )
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, *,  # pylint: disable=too-many-arguments
-                 bucket,
-                 prefix=None,
-                 delimiter=None,
-                 gcp_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id=None,
-                 delegate_to=None,
-                 dest_aws_conn_id=None,
-                 dest_s3_key=None,
-                 dest_verify=None,
-                 replace=False,
-                 google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,  # pylint: disable=too-many-arguments
+        bucket,
+        prefix=None,
+        delimiter=None,
+        gcp_conn_id='google_cloud_default',
+        google_cloud_storage_conn_id=None,
+        delegate_to=None,
+        dest_aws_conn_id=None,
+        dest_s3_key=None,
+        dest_verify=None,
+        replace=False,
+        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.bucket = bucket
@@ -128,12 +140,14 @@ class GCSToS3Operator(BaseOperator):
             impersonation_chain=self.google_impersonation_chain,
         )
 
-        self.log.info('Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
-                      self.bucket, self.delimiter, self.prefix)
+        self.log.info(
+            'Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
+            self.bucket,
+            self.delimiter,
+            self.prefix,
+        )
 
-        files = hook.list(bucket_name=self.bucket,
-                          prefix=self.prefix,
-                          delimiter=self.delimiter)
+        files = hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
 
         s3_hook = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
 
@@ -159,9 +173,7 @@ class GCSToS3Operator(BaseOperator):
                 dest_key = self.dest_s3_key + file
                 self.log.info("Saving file to %s", dest_key)
 
-                s3_hook.load_bytes(file_bytes,
-                                   key=dest_key,
-                                   replace=self.replace)
+                s3_hook.load_bytes(file_bytes, key=dest_key, replace=self.replace)
 
             self.log.info("All done, uploaded %d files to S3", len(files))
         else:

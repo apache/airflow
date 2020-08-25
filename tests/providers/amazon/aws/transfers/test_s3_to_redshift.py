@@ -27,7 +27,6 @@ from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
 class TestS3ToRedshiftTransfer(unittest.TestCase):
-
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
     def test_execute(self, mock_run, mock_session):
@@ -50,7 +49,8 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             redshift_conn_id="redshift_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
-            dag=None)
+            dag=None,
+        )
         op.execute(None)
 
         copy_query = """
@@ -59,13 +59,15 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             with credentials
             'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
             {copy_options};
-        """.format(schema=schema,
-                   table=table,
-                   s3_bucket=s3_bucket,
-                   s3_key=s3_key,
-                   access_key=access_key,
-                   secret_key=secret_key,
-                   copy_options=copy_options)
+        """.format(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            access_key=access_key,
+            secret_key=secret_key,
+            copy_options=copy_options,
+        )
 
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)

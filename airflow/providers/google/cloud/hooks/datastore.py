@@ -51,12 +51,13 @@ class DatastoreHook(GoogleBaseHook):
         if datastore_conn_id:
             warnings.warn(
                 "The datastore_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             gcp_conn_id = datastore_conn_id
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self.connection = None
         self.api_version = api_version
@@ -70,8 +71,9 @@ class DatastoreHook(GoogleBaseHook):
         """
         if not self.connection:
             http_authorized = self._authorize()
-            self.connection = build('datastore', self.api_version, http=http_authorized,
-                                    cache_discovery=False)
+            self.connection = build(
+                'datastore', self.api_version, http=http_authorized, cache_discovery=False
+            )
 
         return self.connection
 
@@ -92,10 +94,11 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint: disable=no-member
-                .projects()
-                .allocateIds(projectId=project_id, body={'keys': partial_keys})
-                .execute(num_retries=self.num_retries))
+        resp = (
+            conn.projects()  # pylint: disable=no-member
+            .allocateIds(projectId=project_id, body={'keys': partial_keys})
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp['keys']
 
@@ -116,10 +119,11 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint: disable=no-member
-                .projects()
-                .beginTransaction(projectId=project_id, body={"transactionOptions": transaction_options})
-                .execute(num_retries=self.num_retries))
+        resp = (
+            conn.projects()  # pylint: disable=no-member
+            .beginTransaction(projectId=project_id, body={"transactionOptions": transaction_options})
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp['transaction']
 
@@ -140,10 +144,11 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint: disable=no-member
-                .projects()
-                .commit(projectId=project_id, body=body)
-                .execute(num_retries=self.num_retries))
+        resp = (
+            conn.projects()  # pylint: disable=no-member
+            .commit(projectId=project_id, body=body)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp
 
@@ -180,10 +185,11 @@ class DatastoreHook(GoogleBaseHook):
             body['readConsistency'] = read_consistency
         if transaction:
             body['transaction'] = transaction
-        resp = (conn  # pylint: disable=no-member
-                .projects()
-                .lookup(projectId=project_id, body=body)
-                .execute(num_retries=self.num_retries))
+        resp = (
+            conn.projects()  # pylint: disable=no-member
+            .lookup(projectId=project_id, body=body)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp
 
@@ -223,10 +229,11 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint: disable=no-member
-                .projects()
-                .runQuery(projectId=project_id, body=body)
-                .execute(num_retries=self.num_retries))
+        resp = (
+            conn.projects()  # pylint: disable=no-member
+            .runQuery(projectId=project_id, body=body)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp['batch']
 
@@ -244,11 +251,12 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint: disable=no-member
-                .projects()
-                .operations()
-                .get(name=name)
-                .execute(num_retries=self.num_retries))
+        resp = (
+            conn.projects()  # pylint: disable=no-member
+            .operations()
+            .get(name=name)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp
 
@@ -266,11 +274,12 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint: disable=no-member
-                .projects()
-                .operations()
-                .delete(name=name)
-                .execute(num_retries=self.num_retries))
+        resp = (
+            conn.projects()  # pylint: disable=no-member
+            .operations()
+            .delete(name=name)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp
 
@@ -299,12 +308,12 @@ class DatastoreHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def export_to_storage_bucket(
-            self,
-            bucket: str,
-            project_id: str,
-            namespace: Optional[str] = None,
-            entity_filter: Optional[Dict] = None,
-            labels: Optional[Dict[str, str]] = None,
+        self,
+        bucket: str,
+        project_id: str,
+        namespace: Optional[str] = None,
+        entity_filter: Optional[Dict] = None,
+        labels: Optional[Dict[str, str]] = None,
     ) -> Dict:
         """
         Export entities from Cloud Datastore to Cloud Storage for backup.
@@ -340,22 +349,23 @@ class DatastoreHook(GoogleBaseHook):
             'entityFilter': entity_filter,
             'labels': labels,
         }  # type: Dict
-        resp = (admin_conn  # pylint: disable=no-member
-                .projects()
-                .export(projectId=project_id, body=body)
-                .execute(num_retries=self.num_retries))
+        resp = (
+            admin_conn.projects()  # pylint: disable=no-member
+            .export(projectId=project_id, body=body)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp
 
     @GoogleBaseHook.fallback_to_default_project_id
     def import_from_storage_bucket(
-            self,
-            bucket: str,
-            file: str,
-            project_id: str,
-            namespace: Optional[str] = None,
-            entity_filter: Optional[Dict] = None,
-            labels: Optional[Union[Dict, str]] = None,
+        self,
+        bucket: str,
+        file: str,
+        project_id: str,
+        namespace: Optional[str] = None,
+        entity_filter: Optional[Dict] = None,
+        labels: Optional[Union[Dict, str]] = None,
     ) -> Dict:
         """
         Import a backup from Cloud Storage to Cloud Datastore.
@@ -393,9 +403,10 @@ class DatastoreHook(GoogleBaseHook):
             'entityFilter': entity_filter,
             'labels': labels,
         }  # type: Dict
-        resp = (admin_conn  # pylint: disable=no-member
-                .projects()
-                .import_(projectId=project_id, body=body)
-                .execute(num_retries=self.num_retries))
+        resp = (
+            admin_conn.projects()  # pylint: disable=no-member
+            .import_(projectId=project_id, body=body)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp

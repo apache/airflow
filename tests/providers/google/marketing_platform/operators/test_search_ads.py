@@ -20,7 +20,8 @@ from tempfile import NamedTemporaryFile
 from unittest import TestCase, mock
 
 from airflow.providers.google.marketing_platform.operators.search_ads import (
-    GoogleSearchAdsDownloadReportOperator, GoogleSearchAdsInsertReportOperator,
+    GoogleSearchAdsDownloadReportOperator,
+    GoogleSearchAdsInsertReportOperator,
 )
 
 API_VERSION = "api_version"
@@ -28,14 +29,8 @@ GCP_CONN_ID = "google_cloud_default"
 
 
 class TestGoogleSearchAdsInsertReportOperator(TestCase):
-    @mock.patch(
-        "airflow.providers.google.marketing_platform."
-        "operators.search_ads.GoogleSearchAdsHook"
-    )
-    @mock.patch(
-        "airflow.providers.google.marketing_platform."
-        "operators.search_ads.BaseOperator"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.GoogleSearchAdsHook")
+    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.BaseOperator")
     @mock.patch(
         "airflow.providers.google.marketing_platform."
         "operators.search_ads.GoogleSearchAdsInsertReportOperator.xcom_push"
@@ -44,15 +39,10 @@ class TestGoogleSearchAdsInsertReportOperator(TestCase):
         report = {"report": "test"}
         report_id = "TEST"
         hook_mock.return_value.insert_report.return_value = {"id": report_id}
-        op = GoogleSearchAdsInsertReportOperator(
-            report=report, api_version=API_VERSION, task_id="test_task"
-        )
+        op = GoogleSearchAdsInsertReportOperator(report=report, api_version=API_VERSION, task_id="test_task")
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
-            api_version=API_VERSION,
-            impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION, impersonation_chain=None,
         )
         hook_mock.return_value.insert_report.assert_called_once_with(report=report)
         xcom_mock.assert_called_once_with(None, key="report_id", value=report_id)
@@ -72,29 +62,15 @@ class TestGoogleSearchAdsInsertReportOperator(TestCase):
 
 
 class TestGoogleSearchAdsDownloadReportOperator(TestCase):
-    @mock.patch(
-        "airflow.providers.google.marketing_platform."
-        "operators.search_ads.NamedTemporaryFile"
-    )
-    @mock.patch(
-        "airflow.providers.google.marketing_platform."
-        "operators.search_ads.GCSHook"
-    )
-    @mock.patch(
-        "airflow.providers.google.marketing_platform."
-        "operators.search_ads.GoogleSearchAdsHook"
-    )
-    @mock.patch(
-        "airflow.providers.google.marketing_platform."
-        "operators.search_ads.BaseOperator"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.NamedTemporaryFile")
+    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.GCSHook")
+    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.GoogleSearchAdsHook")
+    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.BaseOperator")
     @mock.patch(
         "airflow.providers.google.marketing_platform."
         "operators.search_ads.GoogleSearchAdsDownloadReportOperator.xcom_push"
     )
-    def test_execute(
-        self, xcom_mock, mock_base_op, hook_mock, gcs_hook_mock, tempfile_mock
-    ):
+    def test_execute(self, xcom_mock, mock_base_op, hook_mock, gcs_hook_mock, tempfile_mock):
         report_id = "REPORT_ID"
         file_name = "TEST"
         temp_file_name = "TEMP"
@@ -114,23 +90,11 @@ class TestGoogleSearchAdsDownloadReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
-            api_version=API_VERSION,
-            impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION, impersonation_chain=None,
         )
-        hook_mock.return_value.get_file.assert_called_once_with(
-            report_fragment=0, report_id=report_id
-        )
-        tempfile_mock.return_value.__enter__.return_value.write.assert_called_once_with(
-            data
-        )
+        hook_mock.return_value.get_file.assert_called_once_with(report_fragment=0, report_id=report_id)
+        tempfile_mock.return_value.__enter__.return_value.write.assert_called_once_with(data)
         gcs_hook_mock.return_value.upload.assert_called_once_with(
-            bucket_name=bucket_name,
-            gzip=True,
-            object_name=file_name + ".csv.gz",
-            filename=temp_file_name,
+            bucket_name=bucket_name, gzip=True, object_name=file_name + ".csv.gz", filename=temp_file_name,
         )
-        xcom_mock.assert_called_once_with(
-            None, key="file_name", value=file_name + ".csv.gz"
-        )
+        xcom_mock.assert_called_once_with(None, key="file_name", value=file_name + ".csv.gz")

@@ -46,19 +46,25 @@ class S3ToMySqlOperator(BaseOperator):
     :type mysql_conn_id: str
     """
 
-    template_fields = ('s3_source_key', 'mysql_table',)
+    template_fields = (
+        's3_source_key',
+        'mysql_table',
+    )
     template_ext = ()
     ui_color = '#f4a460'
 
     @apply_defaults
-    def __init__(self, *,
-                 s3_source_key: str,
-                 mysql_table: str,
-                 mysql_duplicate_key_handling: str = 'IGNORE',
-                 mysql_extra_options: Optional[str] = None,
-                 aws_conn_id: str = 'aws_default',
-                 mysql_conn_id: str = 'mysql_default',
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        s3_source_key: str,
+        mysql_table: str,
+        mysql_duplicate_key_handling: str = 'IGNORE',
+        mysql_extra_options: Optional[str] = None,
+        aws_conn_id: str = 'aws_default',
+        mysql_conn_id: str = 'mysql_default',
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.s3_source_key = s3_source_key
         self.mysql_table = mysql_table
@@ -85,7 +91,7 @@ class S3ToMySqlOperator(BaseOperator):
                 table=self.mysql_table,
                 tmp_file=file,
                 duplicate_key_handling=self.mysql_duplicate_key_handling,
-                extra_options=self.mysql_extra_options
+                extra_options=self.mysql_extra_options,
             )
         finally:
             # Remove file downloaded from s3 to be idempotent.

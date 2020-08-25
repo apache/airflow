@@ -25,7 +25,12 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.retry import Retry
 from google.cloud.vision_v1.types import (
-    AnnotateImageRequest, FieldMask, Image, Product, ProductSet, ReferenceImage,
+    AnnotateImageRequest,
+    FieldMask,
+    Image,
+    Product,
+    ProductSet,
+    ReferenceImage,
 )
 
 from airflow.models import BaseOperator
@@ -78,14 +83,21 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_productset_create_template_fields]
-    template_fields = ("location", "project_id", "product_set_id", "gcp_conn_id",
-                       "impersonation_chain",)
+    template_fields = (
+        "location",
+        "project_id",
+        "product_set_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END vision_productset_create_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         product_set: Union[dict, ProductSet],
         location: str,
         project_id: Optional[str] = None,
@@ -95,7 +107,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -109,10 +121,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         try:
             return hook.create_product_set(
                 location=self.location,
@@ -168,14 +177,21 @@ class CloudVisionGetProductSetOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_productset_get_template_fields]
-    template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id',
-                       'impersonation_chain',)
+    template_fields = (
+        'location',
+        'project_id',
+        'product_set_id',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
     # [END vision_productset_get_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         product_set_id: str,
         project_id: Optional[str] = None,
@@ -184,7 +200,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -197,10 +213,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         return hook.get_product_set(
             location=self.location,
             product_set_id=self.product_set_id,
@@ -267,14 +280,21 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_productset_update_template_fields]
-    template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id',
-                       'impersonation_chain',)
+    template_fields = (
+        'location',
+        'project_id',
+        'product_set_id',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
     # [END vision_productset_update_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         product_set: Union[Dict, ProductSet],
         location: Optional[str] = None,
         product_set_id: Optional[str] = None,
@@ -285,7 +305,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.product_set = product_set
@@ -300,10 +320,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         return hook.update_product_set(
             location=self.location,
             product_set_id=self.product_set_id,
@@ -355,14 +372,21 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_productset_delete_template_fields]
-    template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id',
-                       'impersonation_chain',)
+    template_fields = (
+        'location',
+        'project_id',
+        'product_set_id',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
     # [END vision_productset_delete_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         product_set_id: str,
         project_id: Optional[str] = None,
@@ -371,7 +395,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -384,10 +408,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         hook.delete_product_set(
             location=self.location,
             product_set_id=self.product_set_id,
@@ -447,14 +468,21 @@ class CloudVisionCreateProductOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_product_create_template_fields]
-    template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id',
-                       'impersonation_chain',)
+    template_fields = (
+        'location',
+        'project_id',
+        'product_id',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
     # [END vision_product_create_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         product: str,
         project_id: Optional[str] = None,
@@ -464,7 +492,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -478,10 +506,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         try:
             return hook.create_product(
                 location=self.location,
@@ -540,14 +565,21 @@ class CloudVisionGetProductOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_product_get_template_fields]
-    template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id',
-                       'impersonation_chain',)
+    template_fields = (
+        'location',
+        'project_id',
+        'product_id',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
     # [END vision_product_get_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         product_id: str,
         project_id: Optional[str] = None,
@@ -556,7 +588,7 @@ class CloudVisionGetProductOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -569,10 +601,7 @@ class CloudVisionGetProductOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         return hook.get_product(
             location=self.location,
             product_id=self.product_id,
@@ -650,14 +679,21 @@ class CloudVisionUpdateProductOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_product_update_template_fields]
-    template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id',
-                       'impersonation_chain',)
+    template_fields = (
+        'location',
+        'project_id',
+        'product_id',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
     # [END vision_product_update_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         product: Union[Dict, Product],
         location: Optional[str] = None,
         product_id: Optional[str] = None,
@@ -668,7 +704,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.product = product
@@ -683,10 +719,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         return hook.update_product(
             product=self.product,
             location=self.location,
@@ -743,14 +776,21 @@ class CloudVisionDeleteProductOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_product_delete_template_fields]
-    template_fields = ('location', 'project_id', 'product_id', 'gcp_conn_id',
-                       'impersonation_chain',)
+    template_fields = (
+        'location',
+        'project_id',
+        'product_id',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
     # [END vision_product_delete_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         product_id: str,
         project_id: Optional[str] = None,
@@ -759,7 +799,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -772,10 +812,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         hook.delete_product(
             location=self.location,
             product_id=self.product_id,
@@ -818,19 +855,25 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_annotate_image_template_fields]
-    template_fields = ('request', 'gcp_conn_id', 'impersonation_chain',)
+    template_fields = (
+        'request',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
     # [END vision_annotate_image_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         request: Union[Dict, AnnotateImageRequest],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.request = request
@@ -840,18 +883,13 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
 
         if not isinstance(self.request, list):
             response = hook.annotate_image(request=self.request, retry=self.retry, timeout=self.timeout)
         else:
             response = hook.batch_annotate_images(
-                requests=self.request,
-                retry=self.retry,
-                timeout=self.timeout
+                requests=self.request, retry=self.retry, timeout=self.timeout
             )
 
         return response
@@ -904,6 +942,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_reference_image_create_template_fields]
     template_fields = (
         "location",
@@ -918,7 +957,8 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         reference_image: Union[Dict, ReferenceImage],
         product_id: str,
@@ -929,7 +969,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -946,8 +986,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
     def execute(self, context):
         try:
             hook = CloudVisionHook(
-                gcp_conn_id=self.gcp_conn_id,
-                impersonation_chain=self.impersonation_chain,
+                gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
             )
             return hook.create_reference_image(
                 location=self.location,
@@ -1009,6 +1048,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_reference_image_create_template_fields]
     template_fields = (
         "location",
@@ -1022,7 +1062,8 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         product_id: str,
         reference_image_id: str,
@@ -1032,7 +1073,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -1046,10 +1087,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         hook.delete_reference_image(
             location=self.location,
             product_id=self.product_id,
@@ -1106,14 +1144,22 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_add_product_to_product_set_template_fields]
-    template_fields = ("location", "product_set_id", "product_id", "project_id", "gcp_conn_id",
-                       "impersonation_chain",)
+    template_fields = (
+        "location",
+        "product_set_id",
+        "product_id",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END vision_add_product_to_product_set_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         product_set_id: str,
         product_id: str,
         location: str,
@@ -1123,7 +1169,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.product_set_id = product_set_id
@@ -1137,10 +1183,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         return hook.add_product_to_product_set(
             product_set_id=self.product_set_id,
             product_id=self.product_id,
@@ -1191,14 +1234,22 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_remove_product_from_product_set_template_fields]
-    template_fields = ("location", "product_set_id", "product_id", "project_id", "gcp_conn_id",
-                       "impersonation_chain",)
+    template_fields = (
+        "location",
+        "product_set_id",
+        "product_id",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END vision_remove_product_from_product_set_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         product_set_id: str,
         product_id: str,
         location: str,
@@ -1208,7 +1259,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.product_set_id = product_set_id
@@ -1222,10 +1273,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         return hook.remove_product_from_product_set(
             product_set_id=self.product_set_id,
             product_id=self.product_id,
@@ -1276,8 +1324,15 @@ class CloudVisionDetectTextOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_detect_text_set_template_fields]
-    template_fields = ("image", "max_results", "timeout", "gcp_conn_id", "impersonation_chain",)
+    template_fields = (
+        "image",
+        "max_results",
+        "timeout",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END vision_detect_text_set_template_fields]
 
     def __init__(
@@ -1291,7 +1346,7 @@ class CloudVisionDetectTextOperator(BaseOperator):
         additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.image = image
@@ -1308,10 +1363,7 @@ class CloudVisionDetectTextOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         return hook.text_detection(
             image=self.image,
             max_results=self.max_results,
@@ -1360,9 +1412,15 @@ class CloudVisionTextDetectOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_document_detect_text_set_template_fields]
-    template_fields = ("image", "max_results", "timeout", "gcp_conn_id",
-                       "impersonation_chain",)  # Iterable[str]
+    template_fields = (
+        "image",
+        "max_results",
+        "timeout",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )  # Iterable[str]
     # [END vision_document_detect_text_set_template_fields]
 
     def __init__(
@@ -1376,7 +1434,7 @@ class CloudVisionTextDetectOperator(BaseOperator):
         additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.image = image
@@ -1392,10 +1450,7 @@ class CloudVisionTextDetectOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         return hook.document_text_detection(
             image=self.image,
             max_results=self.max_results,
@@ -1438,8 +1493,15 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_detect_labels_template_fields]
-    template_fields = ("image", "max_results", "timeout", "gcp_conn_id", "impersonation_chain",)
+    template_fields = (
+        "image",
+        "max_results",
+        "timeout",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END vision_detect_labels_template_fields]
 
     def __init__(
@@ -1451,7 +1513,7 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
         additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.image = image
@@ -1463,10 +1525,7 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         return hook.label_detection(
             image=self.image,
             max_results=self.max_results,
@@ -1509,8 +1568,15 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START vision_detect_safe_search_template_fields]
-    template_fields = ("image", "max_results", "timeout", "gcp_conn_id", "impersonation_chain",)
+    template_fields = (
+        "image",
+        "max_results",
+        "timeout",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END vision_detect_safe_search_template_fields]
 
     def __init__(
@@ -1522,7 +1588,7 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
         additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.image = image
@@ -1534,10 +1600,7 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         return hook.safe_search_detection(
             image=self.image,
             max_results=self.max_results,
@@ -1548,9 +1611,7 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
 
 
 def prepare_additional_parameters(
-    additional_properties: Optional[Dict],
-    language_hints: Any,
-    web_detection_params: Any
+    additional_properties: Optional[Dict], language_hints: Any, web_detection_params: Any
 ) -> Optional[Dict]:
     """
     Creates additional_properties parameter based on language_hints, web_detection_params and

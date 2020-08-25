@@ -18,6 +18,7 @@
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+
 # pylint: disable=no-name-in-module
 from snowflake import connector
 
@@ -29,6 +30,7 @@ class SnowflakeHook(DbApiHook):
     Interact with Snowflake.
     get_sqlalchemy_engine() depends on snowflake-sqlalchemy
     """
+
     conn_name_attr = 'snowflake_conn_id'
     default_conn_name = 'snowflake_default'
     supports_autocommit = True
@@ -66,7 +68,7 @@ class SnowflakeHook(DbApiHook):
             "warehouse": self.warehouse or warehouse,
             "region": self.region or region,
             "role": self.role or role,
-            "authenticator": self.authenticator or authenticator
+            "authenticator": self.authenticator or authenticator,
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
@@ -82,14 +84,14 @@ class SnowflakeHook(DbApiHook):
                     passphrase = conn.password.strip().encode()
 
                 p_key = serialization.load_pem_private_key(
-                    key.read(),
-                    password=passphrase,
-                    backend=default_backend()
+                    key.read(), password=passphrase, backend=default_backend()
                 )
 
-            pkb = p_key.private_bytes(encoding=serialization.Encoding.DER,
-                                      format=serialization.PrivateFormat.PKCS8,
-                                      encryption_algorithm=serialization.NoEncryption())
+            pkb = p_key.private_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
 
             conn_config['private_key'] = pkb
             conn_config.pop('password', None)
@@ -101,8 +103,10 @@ class SnowflakeHook(DbApiHook):
         Override DbApiHook get_uri method for get_sqlalchemy_engine()
         """
         conn_config = self._get_conn_params()
-        uri = 'snowflake://{user}:{password}@{account}/{database}/{schema}' \
-              '?warehouse={warehouse}&role={role}&authenticator={authenticator}'
+        uri = (
+            'snowflake://{user}:{password}@{account}/{database}/{schema}'
+            '?warehouse={warehouse}&role={role}&authenticator={authenticator}'
+        )
         return uri.format(**conn_config)
 
     def get_conn(self):
@@ -123,10 +127,8 @@ class SnowflakeHook(DbApiHook):
         if self.snowflake_conn_id:  # pylint: disable=no-member
             connection_object = self.get_connection(self.snowflake_conn_id)  # pylint: disable=no-member
             if 'aws_secret_access_key' in connection_object.extra_dejson:
-                aws_access_key_id = connection_object.extra_dejson.get(
-                    'aws_access_key_id')
-                aws_secret_access_key = connection_object.extra_dejson.get(
-                    'aws_secret_access_key')
+                aws_access_key_id = connection_object.extra_dejson.get('aws_access_key_id')
+                aws_secret_access_key = connection_object.extra_dejson.get('aws_secret_access_key')
         return aws_access_key_id, aws_secret_access_key
 
     def set_autocommit(self, conn, autocommit):

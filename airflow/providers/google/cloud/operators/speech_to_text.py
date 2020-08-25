@@ -67,14 +67,22 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_speech_to_text_synthesize_template_fields]
-    template_fields = ("audio", "config", "project_id", "gcp_conn_id", "timeout",
-                       "impersonation_chain",)
+    template_fields = (
+        "audio",
+        "config",
+        "project_id",
+        "gcp_conn_id",
+        "timeout",
+        "impersonation_chain",
+    )
     # [END gcp_speech_to_text_synthesize_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         audio: RecognitionAudio,
         config: RecognitionConfig,
         project_id: Optional[str] = None,
@@ -82,7 +90,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.audio = audio
         self.config = config
@@ -102,8 +110,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudSpeechToTextHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
         )
         respones = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout

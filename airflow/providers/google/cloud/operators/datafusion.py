@@ -63,11 +63,15 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "impersonation_chain",)
+    template_fields = (
+        "instance_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
@@ -75,7 +79,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_name = instance_name
@@ -95,9 +99,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         )
         self.log.info("Restarting Data Fusion instance: %s", self.instance_name)
         operation = hook.restart_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         hook.wait_for_operation(operation)
         self.log.info("Instance %s restarted successfully", self.instance_name)
@@ -136,11 +138,15 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "impersonation_chain",)
+    template_fields = (
+        "instance_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
@@ -148,7 +154,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_name = instance_name
@@ -168,9 +174,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         )
         self.log.info("Deleting Data Fusion instance: %s", self.instance_name)
         operation = hook.delete_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         hook.wait_for_operation(operation)
         self.log.info("Instance %s deleted successfully", self.instance_name)
@@ -212,11 +216,16 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "instance", "impersonation_chain",)
+    template_fields = (
+        "instance_name",
+        "instance",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         instance: Dict[str, Any],
         location: str,
@@ -225,7 +234,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_name = instance_name
@@ -315,11 +324,16 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "instance", "impersonation_chain",)
+    template_fields = (
+        "instance_name",
+        "instance",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         instance: Dict[str, Any],
         update_mask: str,
@@ -329,7 +343,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.update_mask = update_mask
@@ -394,11 +408,15 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "impersonation_chain",)
+    template_fields = (
+        "instance_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
@@ -406,7 +424,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_name = instance_name
@@ -426,9 +444,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         )
         self.log.info("Retrieving Data Fusion instance: %s", self.instance_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         return instance
 
@@ -473,11 +489,16 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "pipeline_name", "impersonation_chain",)
+    template_fields = (
+        "instance_name",
+        "pipeline_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         pipeline_name: str,
         pipeline: Dict[str, Any],
         instance_name: str,
@@ -488,7 +509,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
@@ -511,9 +532,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         )
         self.log.info("Creating Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         hook.create_pipeline(
@@ -564,11 +583,17 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "version_id", "pipeline_name", "impersonation_chain",)
+    template_fields = (
+        "instance_name",
+        "version_id",
+        "pipeline_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         pipeline_name: str,
         instance_name: str,
         location: str,
@@ -579,7 +604,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
@@ -602,9 +627,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         )
         self.log.info("Deleting Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         hook.delete_pipeline(
@@ -656,11 +679,17 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "artifact_name", "artifact_version", "impersonation_chain",)
+    template_fields = (
+        "instance_name",
+        "artifact_name",
+        "artifact_version",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         location: str,
         artifact_name: Optional[str] = None,
@@ -671,7 +700,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.artifact_version = artifact_version
@@ -694,9 +723,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         )
         self.log.info("Listing Data Fusion pipelines")
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         pipelines = hook.list_pipelines(
@@ -754,11 +781,17 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "pipeline_name", "runtime_args", "impersonation_chain",)
+    template_fields = (
+        "instance_name",
+        "pipeline_name",
+        "runtime_args",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self, *,
+        self,
+        *,
         pipeline_name: str,
         instance_name: str,
         location: str,
@@ -771,7 +804,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
@@ -796,9 +829,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         )
         self.log.info("Starting Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         pipeline_id = hook.start_pipeline(
@@ -816,7 +847,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
                 pipeline_name=self.pipeline_name,
                 namespace=self.namespace,
                 instance_url=api_url,
-                timeout=self.pipeline_timeout
+                timeout=self.pipeline_timeout,
             )
 
 
@@ -857,11 +888,16 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "pipeline_name", "impersonation_chain",)
+    template_fields = (
+        "instance_name",
+        "pipeline_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         pipeline_name: str,
         instance_name: str,
         location: str,
@@ -871,7 +907,7 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
@@ -893,14 +929,10 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         )
         self.log.info("Starting Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         hook.stop_pipeline(
-            pipeline_name=self.pipeline_name,
-            instance_url=api_url,
-            namespace=self.namespace,
+            pipeline_name=self.pipeline_name, instance_url=api_url, namespace=self.namespace,
         )
         self.log.info("Pipeline started")

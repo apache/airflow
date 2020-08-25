@@ -44,16 +44,18 @@ class AzureDataExplorerQueryOperator(BaseOperator):
 
     ui_color = '#00a1f2'
     template_fields = ('query', 'database')
-    template_ext = ('.kql', )
+    template_ext = ('.kql',)
 
     @apply_defaults
     def __init__(
-            self, *,
-            query: str,
-            database: str,
-            options: Optional[Dict] = None,
-            azure_data_explorer_conn_id: str = 'azure_data_explorer_default',
-            **kwargs) -> None:
+        self,
+        *,
+        query: str,
+        database: str,
+        options: Optional[Dict] = None,
+        azure_data_explorer_conn_id: str = 'azure_data_explorer_default',
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.query = query
         self.database = database

@@ -42,13 +42,13 @@ class TestOpsgenieAlertHook(unittest.TestCase):
             {'id': 'aee8a0de-c80f-4515-a232-501c0bc9d715', 'type': 'escalation'},
             {'name': 'Nightwatch Escalation', 'type': 'escalation'},
             {'id': '80564037-1984-4f38-b98e-8a1f662df552', 'type': 'schedule'},
-            {'name': 'First Responders Schedule', 'type': 'schedule'}
+            {'name': 'First Responders Schedule', 'type': 'schedule'},
         ],
         'visibleTo': [
             {'id': '4513b7ea-3b91-438f-b7e4-e3e54af9147c', 'type': 'team'},
             {'name': 'rocket_team', 'type': 'team'},
             {'id': 'bb4d9938-c3c2-455d-aaab-727aa701c0d8', 'type': 'user'},
-            {'username': 'trinity@opsgenie.com', 'type': 'user'}
+            {'username': 'trinity@opsgenie.com', 'type': 'user'},
         ],
         'actions': ['Restart', 'AnExampleAction'],
         'tags': ['OverwriteQuietHours', 'Critical'],
@@ -57,12 +57,12 @@ class TestOpsgenieAlertHook(unittest.TestCase):
         'source': 'Airflow',
         'priority': 'P1',
         'user': 'Jesse',
-        'note': 'Write this down'
+        'note': 'Write this down',
     }
     _mock_success_response_body = {
         "result": "Request will be processed",
         "took": 0.302,
-        "requestId": "43a29c5c-3dbf-4fa4-9c26-f4f71023e120"
+        "requestId": "43a29c5c-3dbf-4fa4-9c26-f4f71023e120",
     }
 
     def setUp(self):
@@ -71,7 +71,7 @@ class TestOpsgenieAlertHook(unittest.TestCase):
                 conn_id=self.conn_id,
                 conn_type='http',
                 host='https://api.opsgenie.com/',
-                password='eb243592-faa2-4ba2-a551q-1afdf565c889'
+                password='eb243592-faa2-4ba2-a551q-1afdf565c889',
             )
         )
 
@@ -88,11 +88,7 @@ class TestOpsgenieAlertHook(unittest.TestCase):
     @requests_mock.mock()
     def test_call_with_success(self, m):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        m.post(
-            self.opsgenie_alert_endpoint,
-            status_code=202,
-            json=self._mock_success_response_body
-        )
+        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
         resp = hook.execute(payload=self._payload)
         self.assertEqual(resp.status_code, 202)
         self.assertEqual(resp.json(), self._mock_success_response_body)
@@ -100,33 +96,22 @@ class TestOpsgenieAlertHook(unittest.TestCase):
     @requests_mock.mock()
     def test_api_key_set(self, m):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        m.post(
-            self.opsgenie_alert_endpoint,
-            status_code=202,
-            json=self._mock_success_response_body
-        )
+        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
         resp = hook.execute(payload=self._payload)
-        self.assertEqual(resp.request.headers.get('Authorization'),
-                         'GenieKey eb243592-faa2-4ba2-a551q-1afdf565c889')
+        self.assertEqual(
+            resp.request.headers.get('Authorization'), 'GenieKey eb243592-faa2-4ba2-a551q-1afdf565c889'
+        )
 
     @requests_mock.mock()
     def test_api_key_not_set(self, m):
         hook = OpsgenieAlertHook()
-        m.post(
-            self.opsgenie_alert_endpoint,
-            status_code=202,
-            json=self._mock_success_response_body
-        )
+        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
         with self.assertRaises(AirflowException):
             hook.execute(payload=self._payload)
 
     @requests_mock.mock()
     def test_payload_set(self, m):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        m.post(
-            self.opsgenie_alert_endpoint,
-            status_code=202,
-            json=self._mock_success_response_body
-        )
+        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
         resp = hook.execute(payload=self._payload)
         self.assertEqual(json.loads(resp.request.body), self._payload)

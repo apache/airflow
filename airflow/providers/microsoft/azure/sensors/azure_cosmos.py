@@ -42,16 +42,19 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
     :param azure_cosmos_conn_id: Reference to the Azure CosmosDB connection.
     :type azure_cosmos_conn_id: str
     """
+
     template_fields = ('database_name', 'collection_name', 'document_id')
 
     @apply_defaults
     def __init__(
-            self, *,
-            database_name: str,
-            collection_name: str,
-            document_id: str,
-            azure_cosmos_conn_id: str = "azure_cosmos_default",
-            **kwargs) -> None:
+        self,
+        *,
+        database_name: str,
+        collection_name: str,
+        document_id: str,
+        azure_cosmos_conn_id: str = "azure_cosmos_default",
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.azure_cosmos_conn_id = azure_cosmos_conn_id
         self.database_name = database_name

@@ -21,7 +21,13 @@ from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 from google.cloud.datacatalog_v1beta1 import DataCatalogClient
 from google.cloud.datacatalog_v1beta1.types import (
-    Entry, EntryGroup, FieldMask, SearchCatalogRequest, Tag, TagTemplate, TagTemplateField,
+    Entry,
+    EntryGroup,
+    FieldMask,
+    SearchCatalogRequest,
+    Tag,
+    TagTemplate,
+    TagTemplateField,
 )
 from google.protobuf.json_format import MessageToDict
 
@@ -92,7 +98,8 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         entry_group: str,
         entry_id: str,
@@ -103,7 +110,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -119,8 +126,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         try:
             result = hook.create_entry(
@@ -210,7 +216,8 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         entry_group_id: str,
         entry_group: Union[Dict, EntryGroup],
@@ -220,7 +227,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -235,8 +242,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         try:
             result = hook.create_entry_group(
@@ -328,7 +334,8 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self, *,
+        self,
+        *,
         location: str,
         entry_group: str,
         entry: str,
@@ -340,7 +347,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -357,8 +364,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         try:
             tag = hook.create_tag(
@@ -459,7 +465,8 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         tag_template_id: str,
         tag_template: Union[Dict, TagTemplate],
@@ -469,7 +476,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -484,8 +491,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         try:
             result = hook.create_tag_template(
@@ -577,7 +583,8 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         tag_template: str,
         tag_template_field_id: str,
@@ -588,7 +595,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -604,8 +611,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         try:
             result = hook.create_tag_template_field(
@@ -688,7 +694,8 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         entry_group: str,
         entry: str,
@@ -698,7 +705,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -713,8 +720,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         try:
             hook.delete_entry(
@@ -769,12 +775,21 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("location", "entry_group", "project_id", "retry", "timeout", "metadata",
-                       "gcp_conn_id", "impersonation_chain",)
+    template_fields = (
+        "location",
+        "entry_group",
+        "project_id",
+        "retry",
+        "timeout",
+        "metadata",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         entry_group: str,
         project_id: Optional[str] = None,
@@ -783,7 +798,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -797,8 +812,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         try:
             hook.delete_entry_group(
@@ -869,7 +883,8 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         entry_group: str,
         entry: str,
@@ -880,7 +895,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -896,8 +911,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         try:
             hook.delete_tag(
@@ -969,7 +983,8 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         tag_template: str,
         force: bool,
@@ -979,7 +994,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -994,8 +1009,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         try:
             hook.delete_tag_template(
@@ -1067,7 +1081,8 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         tag_template: str,
         field: str,
@@ -1078,7 +1093,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -1094,8 +1109,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         try:
             hook.delete_tag_template_field(
@@ -1165,7 +1179,8 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         entry_group: str,
         entry: str,
@@ -1175,7 +1190,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -1190,8 +1205,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         result = hook.get_entry(
             location=self.location,
@@ -1261,7 +1275,8 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         entry_group: str,
         read_mask: Union[Dict, FieldMask],
@@ -1271,7 +1286,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -1286,8 +1301,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         result = hook.get_entry_group(
             location=self.location,
@@ -1351,7 +1365,8 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         tag_template: str,
         project_id: Optional[str] = None,
@@ -1360,7 +1375,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -1374,8 +1389,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         result = hook.get_tag_template(
             location=self.location,
@@ -1446,7 +1460,8 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         entry_group: str,
         entry: str,
@@ -1457,7 +1472,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -1473,8 +1488,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         result = hook.list_tags(
             location=self.location,
@@ -1541,7 +1555,8 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         linked_resource: Optional[str] = None,
         sql_resource: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -1550,7 +1565,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.linked_resource = linked_resource
@@ -1564,8 +1579,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         result = hook.lookup_entry(
             linked_resource=self.linked_resource,
@@ -1635,7 +1649,8 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         tag_template: str,
         field: str,
@@ -1646,7 +1661,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -1662,8 +1677,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         hook.rename_tag_template_field(
             location=self.location,
@@ -1757,7 +1771,8 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         scope: Union[Dict, SearchCatalogRequest.Scope],
         query: str,
         page_size: int = 100,
@@ -1767,7 +1782,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.scope = scope
@@ -1782,8 +1797,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         result = hook.search_catalog(
             scope=self.scope,
@@ -1863,7 +1877,8 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self, *,
+        self,
+        *,
         entry: Union[Dict, Entry],
         update_mask: Union[Dict, FieldMask],
         location: Optional[str] = None,
@@ -1875,7 +1890,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.entry = entry
@@ -1892,8 +1907,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         hook.update_entry(
             entry=self.entry,
@@ -1975,7 +1989,8 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self, *,
+        self,
+        *,
         tag: Union[Dict, Tag],
         update_mask: Union[Dict, FieldMask],
         location: Optional[str] = None,
@@ -1988,7 +2003,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.tag = tag
@@ -2006,8 +2021,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         hook.update_tag(
             tag=self.tag,
@@ -2091,7 +2105,8 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         tag_template: Union[Dict, TagTemplate],
         update_mask: Union[Dict, FieldMask],
         location: Optional[str] = None,
@@ -2102,7 +2117,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.tag_template = tag_template
@@ -2118,8 +2133,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         hook.update_tag_template(
             tag_template=self.tag_template,
@@ -2209,7 +2223,8 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self, *,
+        self,
+        *,
         tag_template_field: Union[Dict, TagTemplateField],
         update_mask: Union[Dict, FieldMask],
         tag_template_field_name: Optional[str] = None,
@@ -2222,7 +2237,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.tag_template_field_name = tag_template_field_name
@@ -2240,8 +2255,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudDataCatalogHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         hook.update_tag_template_field(
             tag_template_field=self.tag_template_field,

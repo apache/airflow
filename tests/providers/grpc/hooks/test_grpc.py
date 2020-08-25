@@ -26,20 +26,15 @@ from airflow.providers.grpc.hooks.grpc import GrpcHook
 
 
 def get_airflow_connection(auth_type="NO_AUTH", credential_pem_file=None, scopes=None):
-    extra = \
-        '{{"extra__grpc__auth_type": "{auth_type}",' \
-        '"extra__grpc__credential_pem_file": "{credential_pem_file}",' \
-        '"extra__grpc__scopes": "{scopes}"}}' \
-        .format(auth_type=auth_type,
-                credential_pem_file=credential_pem_file,
-                scopes=scopes)
-
-    return Connection(
-        conn_id='grpc_default',
-        conn_type='grpc',
-        host='test:8080',
-        extra=extra
+    extra = (
+        '{{"extra__grpc__auth_type": "{auth_type}",'
+        '"extra__grpc__credential_pem_file": "{credential_pem_file}",'
+        '"extra__grpc__scopes": "{scopes}"}}'.format(
+            auth_type=auth_type, credential_pem_file=credential_pem_file, scopes=scopes
+        )
     )
+
+    return Connection(conn_id='grpc_default', conn_type='grpc', host='test:8080', extra=extra)
 
 
 def get_airflow_connection_with_port():
@@ -48,7 +43,7 @@ def get_airflow_connection_with_port():
         conn_type='grpc',
         host='test.com',
         port=1234,
-        extra='{"extra__grpc__auth_type": "NO_AUTH"}'
+        extra='{"extra__grpc__auth_type": "NO_AUTH"}',
     )
 
 
@@ -105,15 +100,10 @@ class TestGrpcHook(unittest.TestCase):
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('grpc.ssl_channel_credentials')
     @mock.patch('grpc.secure_channel')
-    def test_connection_with_ssl(self,
-                                 mock_secure_channel,
-                                 mock_channel_credentials,
-                                 mock_get_connection,
-                                 mock_open):
-        conn = get_airflow_connection(
-            auth_type="SSL",
-            credential_pem_file="pem"
-        )
+    def test_connection_with_ssl(
+        self, mock_secure_channel, mock_channel_credentials, mock_get_connection, mock_open
+    ):
+        conn = get_airflow_connection(auth_type="SSL", credential_pem_file="pem")
         mock_get_connection.return_value = conn
         mock_open.return_value = StringIO('credential')
         hook = GrpcHook("grpc_default")
@@ -127,25 +117,17 @@ class TestGrpcHook(unittest.TestCase):
 
         mock_open.assert_called_once_with("pem")
         mock_channel_credentials.assert_called_once_with('credential')
-        mock_secure_channel.assert_called_once_with(
-            expected_url,
-            mock_credential_object
-        )
+        mock_secure_channel.assert_called_once_with(expected_url, mock_credential_object)
         self.assertEqual(channel, mocked_channel)
 
     @mock.patch('airflow.providers.grpc.hooks.grpc.open')
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('grpc.ssl_channel_credentials')
     @mock.patch('grpc.secure_channel')
-    def test_connection_with_tls(self,
-                                 mock_secure_channel,
-                                 mock_channel_credentials,
-                                 mock_get_connection,
-                                 mock_open):
-        conn = get_airflow_connection(
-            auth_type="TLS",
-            credential_pem_file="pem"
-        )
+    def test_connection_with_tls(
+        self, mock_secure_channel, mock_channel_credentials, mock_get_connection, mock_open
+    ):
+        conn = get_airflow_connection(auth_type="TLS", credential_pem_file="pem")
         mock_get_connection.return_value = conn
         mock_open.return_value = StringIO('credential')
         hook = GrpcHook("grpc_default")
@@ -159,24 +141,17 @@ class TestGrpcHook(unittest.TestCase):
 
         mock_open.assert_called_once_with("pem")
         mock_channel_credentials.assert_called_once_with('credential')
-        mock_secure_channel.assert_called_once_with(
-            expected_url,
-            mock_credential_object
-        )
+        mock_secure_channel.assert_called_once_with(expected_url, mock_credential_object)
         self.assertEqual(channel, mocked_channel)
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('google.auth.jwt.OnDemandCredentials.from_signing_credentials')
     @mock.patch('google.auth.default')
     @mock.patch('google.auth.transport.grpc.secure_authorized_channel')
-    def test_connection_with_jwt(self,
-                                 mock_secure_channel,
-                                 mock_google_default_auth,
-                                 mock_google_cred,
-                                 mock_get_connection):
-        conn = get_airflow_connection(
-            auth_type="JWT_GOOGLE"
-        )
+    def test_connection_with_jwt(
+        self, mock_secure_channel, mock_google_default_auth, mock_google_cred, mock_get_connection
+    ):
+        conn = get_airflow_connection(auth_type="JWT_GOOGLE")
         mock_get_connection.return_value = conn
         hook = GrpcHook("grpc_default")
         mocked_channel = self.channel_mock.return_value
@@ -189,26 +164,17 @@ class TestGrpcHook(unittest.TestCase):
         expected_url = "test:8080"
 
         mock_google_cred.assert_called_once_with(mock_credential_object)
-        mock_secure_channel.assert_called_once_with(
-            mock_credential_object,
-            None,
-            expected_url
-        )
+        mock_secure_channel.assert_called_once_with(mock_credential_object, None, expected_url)
         self.assertEqual(channel, mocked_channel)
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('google.auth.transport.requests.Request')
     @mock.patch('google.auth.default')
     @mock.patch('google.auth.transport.grpc.secure_authorized_channel')
-    def test_connection_with_google_oauth(self,
-                                          mock_secure_channel,
-                                          mock_google_default_auth,
-                                          mock_google_auth_request,
-                                          mock_get_connection):
-        conn = get_airflow_connection(
-            auth_type="OATH_GOOGLE",
-            scopes="grpc,gcs"
-        )
+    def test_connection_with_google_oauth(
+        self, mock_secure_channel, mock_google_default_auth, mock_google_auth_request, mock_get_connection
+    ):
+        conn = get_airflow_connection(auth_type="OATH_GOOGLE", scopes="grpc,gcs")
         mock_get_connection.return_value = conn
         hook = GrpcHook("grpc_default")
         mocked_channel = self.channel_mock.return_value
@@ -221,11 +187,7 @@ class TestGrpcHook(unittest.TestCase):
         expected_url = "test:8080"
 
         mock_google_default_auth.assert_called_once_with(scopes=["grpc", "gcs"])
-        mock_secure_channel.assert_called_once_with(
-            mock_credential_object,
-            "request",
-            expected_url
-        )
+        mock_secure_channel.assert_called_once_with(mock_credential_object, "request", expected_url)
         self.assertEqual(channel, mocked_channel)
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
@@ -260,10 +222,9 @@ class TestGrpcHook(unittest.TestCase):
     @mock.patch('grpc.intercept_channel')
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('grpc.insecure_channel')
-    def test_connection_with_interceptors(self,
-                                          mock_insecure_channel,
-                                          mock_get_connection,
-                                          mock_intercept_channel):
+    def test_connection_with_interceptors(
+        self, mock_insecure_channel, mock_get_connection, mock_intercept_channel
+    ):
         conn = get_airflow_connection()
         mock_get_connection.return_value = conn
         mocked_channel = self.channel_mock.return_value

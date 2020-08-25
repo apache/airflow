@@ -19,7 +19,13 @@ from unittest import mock
 
 from airflow.providers.google.ads.transfers.ads_to_gcs import GoogleAdsToGcsOperator
 from tests.providers.google.ads.operators.test_ads import (
-    BUCKET, CLIENT_IDS, FIELDS_TO_EXTRACT, GCS_OBJ_PATH, IMPERSONATION_CHAIN, QUERY, gcp_conn_id,
+    BUCKET,
+    CLIENT_IDS,
+    FIELDS_TO_EXTRACT,
+    GCS_OBJ_PATH,
+    IMPERSONATION_CHAIN,
+    QUERY,
+    gcp_conn_id,
     google_ads_conn_id,
 )
 
@@ -40,15 +46,12 @@ class TestGoogleAdsToGcsOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute({})
-        mock_ads_hook.assert_called_once_with(
-            gcp_conn_id=gcp_conn_id, google_ads_conn_id=google_ads_conn_id
-        )
+        mock_ads_hook.assert_called_once_with(gcp_conn_id=gcp_conn_id, google_ads_conn_id=google_ads_conn_id)
         mock_ads_hook.return_value.search.assert_called_once_with(
             client_ids=CLIENT_IDS, query=QUERY, page_size=10000
         )
         mock_gcs_hook.assert_called_once_with(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=gcp_conn_id, impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=BUCKET, object_name=GCS_OBJ_PATH, filename=mock.ANY, gzip=False

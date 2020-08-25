@@ -65,9 +65,7 @@ class CloudBuildHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
 
         self.api_version = api_version
@@ -137,7 +135,9 @@ class CloudBuildHook(GoogleBaseHook):
         while True:
             operation_response = (
                 # pylint: disable=no-member
-                service.operations().get(name=operation_name).execute(num_retries=self.num_retries)
+                service.operations()
+                .get(name=operation_name)
+                .execute(num_retries=self.num_retries)
             )
             if operation_response.get("done"):
                 response = operation_response.get("response")

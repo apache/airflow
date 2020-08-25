@@ -43,9 +43,7 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
     template_fields = ("job_id",)
 
     @apply_defaults
-    def __init__(
-        self, *, job_id: int, **kwargs
-    ) -> None:
+    def __init__(self, *, job_id: int, **kwargs) -> None:
         super().__init__(**kwargs)
         self.job_id = job_id
 

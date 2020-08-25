@@ -63,22 +63,27 @@ class MySQLToS3Operator(BaseOperator):
     :type header: bool
     """
 
-    template_fields = ('s3_key', 'query',)
+    template_fields = (
+        's3_key',
+        'query',
+    )
     template_ext = ('.sql',)
 
     @apply_defaults
     def __init__(
-            self, *,
-            query: str,
-            s3_bucket: str,
-            s3_key: str,
-            mysql_conn_id: str = 'mysql_default',
-            aws_conn_id: str = 'aws_default',
-            verify: Optional[Union[bool, str]] = None,
-            pd_csv_kwargs: Optional[dict] = None,
-            index: Optional[bool] = False,
-            header: Optional[bool] = False,
-            **kwargs) -> None:
+        self,
+        *,
+        query: str,
+        s3_bucket: str,
+        s3_key: str,
+        mysql_conn_id: str = 'mysql_default',
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[bool, str]] = None,
+        pd_csv_kwargs: Optional[dict] = None,
+        index: Optional[bool] = False,
+        header: Optional[bool] = False,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.query = query
         self.s3_bucket = s3_bucket
@@ -116,9 +121,7 @@ class MySQLToS3Operator(BaseOperator):
         self._fix_int_dtypes(data_df)
         with NamedTemporaryFile(mode='r+', suffix='.csv') as tmp_csv:
             data_df.to_csv(tmp_csv.name, **self.pd_csv_kwargs)
-            s3_conn.load_file(filename=tmp_csv.name,
-                              key=self.s3_key,
-                              bucket_name=self.s3_bucket)
+            s3_conn.load_file(filename=tmp_csv.name, key=self.s3_key, bucket_name=self.s3_bucket)
 
         if s3_conn.check_for_key(self.s3_key, bucket_name=self.s3_bucket):
             file_location = os.path.join(self.s3_bucket, self.s3_key)

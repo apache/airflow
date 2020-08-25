@@ -83,14 +83,23 @@ class CloudTranslateTextOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
 
     """
+
     # [START translate_template_fields]
-    template_fields = ('values', 'target_language', 'format_', 'source_language', 'model',
-                       'gcp_conn_id', 'impersonation_chain',)
+    template_fields = (
+        'values',
+        'target_language',
+        'format_',
+        'source_language',
+        'model',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
     # [END translate_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         values: Union[List[str], str],
         target_language: str,
         format_: str,
@@ -98,7 +107,7 @@ class CloudTranslateTextOperator(BaseOperator):
         model: str,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.values = values
@@ -110,10 +119,7 @@ class CloudTranslateTextOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTranslateHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTranslateHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         try:
             translation = hook.translate(
                 values=self.values,

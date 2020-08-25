@@ -27,7 +27,6 @@ from airflow.providers.http.operators.http import SimpleHttpOperator
 
 @mock.patch.dict('os.environ', AIRFLOW_CONN_HTTP_EXAMPLE='http://www.example.com')
 class TestSimpleHttpOp(unittest.TestCase):
-
     @requests_mock.mock()
     def test_response_in_logs(self, m):
         """
@@ -46,10 +45,7 @@ class TestSimpleHttpOp(unittest.TestCase):
 
         with mock.patch.object(operator.log, 'info') as mock_info:
             operator.execute(None)
-            calls = [
-                mock.call('Example.com fake response'),
-                mock.call('Example.com fake response')
-            ]
+            calls = [mock.call('Example.com fake response'), mock.call('Example.com fake response')]
             mock_info.has_calls(calls)
 
     @requests_mock.mock()
@@ -69,15 +65,12 @@ class TestSimpleHttpOp(unittest.TestCase):
             endpoint='/',
             http_conn_id='HTTP_EXAMPLE',
             log_response=True,
-            response_check=response_check
+            response_check=response_check,
         )
 
         with mock.patch.object(operator.log, 'info') as mock_info:
             self.assertRaises(AirflowException, operator.execute, None)
-            calls = [
-                mock.call('Calling HTTP method'),
-                mock.call('invalid response')
-            ]
+            calls = [mock.call('Calling HTTP method'), mock.call('invalid response')]
             mock_info.assert_has_calls(calls, any_order=True)
 
     @requests_mock.mock()
@@ -88,7 +81,7 @@ class TestSimpleHttpOp(unittest.TestCase):
             method='GET',
             endpoint='/',
             http_conn_id='HTTP_EXAMPLE',
-            response_filter=lambda response: response.json()
+            response_filter=lambda response: response.json(),
         )
         result = operator.execute(None)
         assert result == {'value': 5}

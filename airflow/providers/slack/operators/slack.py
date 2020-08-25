@@ -44,12 +44,15 @@ class SlackAPIOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self, *,
-                 slack_conn_id: Optional[str] = None,
-                 token: Optional[str] = None,
-                 method: Optional[str] = None,
-                 api_params: Optional[Dict] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        slack_conn_id: Optional[str] = None,
+        token: Optional[str] = None,
+        method: Optional[str] = None,
+        api_params: Optional[Dict] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
 
         self.token = token  # type: Optional[str]
@@ -73,7 +76,7 @@ class SlackAPIOperator(BaseOperator):
             "SlackAPIOperator should not be used directly. Chose one of the subclasses instead"
         )
 
-    def execute(self, **kwargs):   # noqa: D403
+    def execute(self, **kwargs):  # noqa: D403
         """
         SlackAPIOperator calls will not fail even if the call is not unsuccessful.
         It should not prevent a DAG from completing in success
@@ -120,17 +123,19 @@ class SlackAPIPostOperator(SlackAPIOperator):
     ui_color = '#FFBA40'
 
     @apply_defaults
-    def __init__(self,
-                 channel: str = '#general',
-                 username: str = 'Airflow',
-                 text: str = 'No message has been set.\n'
-                             'Here is a cat video instead\n'
-                             'https://www.youtube.com/watch?v=J---aiyznGQ',
-                 icon_url: str = 'https://raw.githubusercontent.com/apache/'
-                                 'airflow/master/airflow/www/static/pin_100.png',
-                 attachments: Optional[List] = None,
-                 blocks: Optional[List] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        channel: str = '#general',
+        username: str = 'Airflow',
+        text: str = 'No message has been set.\n'
+        'Here is a cat video instead\n'
+        'https://www.youtube.com/watch?v=J---aiyznGQ',
+        icon_url: str = 'https://raw.githubusercontent.com/apache/'
+        'airflow/master/airflow/www/static/pin_100.png',
+        attachments: Optional[List] = None,
+        blocks: Optional[List] = None,
+        **kwargs,
+    ):
         self.method = 'chat.postMessage'
         self.channel = channel
         self.username = username
@@ -186,13 +191,15 @@ class SlackAPIFileOperator(SlackAPIOperator):
     ui_color = '#44BEDF'
 
     @apply_defaults
-    def __init__(self,
-                 channel: str = '#general',
-                 initial_comment: str = 'No message has been set!',
-                 filename: str = 'default_name.csv',
-                 filetype: str = 'csv',
-                 content: str = 'default,content,csv,file',
-                 **kwargs):
+    def __init__(
+        self,
+        channel: str = '#general',
+        initial_comment: str = 'No message has been set!',
+        filename: str = 'default_name.csv',
+        filetype: str = 'csv',
+        content: str = 'default,content,csv,file',
+        **kwargs,
+    ):
         self.method = 'files.upload'
         self.channel = channel
         self.initial_comment = initial_comment
@@ -207,5 +214,5 @@ class SlackAPIFileOperator(SlackAPIOperator):
             'content': self.content,
             'filename': self.filename,
             'filetype': self.filetype,
-            'initial_comment': self.initial_comment
+            'initial_comment': self.initial_comment,
         }

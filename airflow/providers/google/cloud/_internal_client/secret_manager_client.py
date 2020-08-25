@@ -40,9 +40,9 @@ class _SecretManagerClient(LoggingMixin):
     :param credentials: Credentials used to authenticate to GCP
     :type credentials: google.auth.credentials.Credentials
     """
+
     def __init__(
-        self,
-        credentials: google.auth.credentials.Credentials,
+        self, credentials: google.auth.credentials.Credentials,
     ):
         super().__init__()
         self.credentials = credentials
@@ -63,15 +63,11 @@ class _SecretManagerClient(LoggingMixin):
         Create an authenticated KMS client
         """
         _client = SecretManagerServiceClient(
-            credentials=self.credentials,
-            client_info=ClientInfo(client_library_version='airflow_v' + version)
+            credentials=self.credentials, client_info=ClientInfo(client_library_version='airflow_v' + version)
         )
         return _client
 
-    def get_secret(self,
-                   secret_id: str,
-                   project_id: str,
-                   secret_version: str = 'latest') -> Optional[str]:
+    def get_secret(self, secret_id: str, project_id: str, secret_version: str = 'latest') -> Optional[str]:
         """
         Get secret value from the Secret Manager.
 
@@ -88,13 +84,12 @@ class _SecretManagerClient(LoggingMixin):
             value = response.payload.data.decode('UTF-8')
             return value
         except NotFound:
-            self.log.error(
-                "GCP API Call Error (NotFound): Secret ID %s not found.", secret_id
-            )
+            self.log.error("GCP API Call Error (NotFound): Secret ID %s not found.", secret_id)
             return None
         except PermissionDenied:
             self.log.error(
                 """GCP API Call Error (PermissionDenied): No access for Secret ID %s.
-                Did you add 'secretmanager.versions.access' permission?""", secret_id
+                Did you add 'secretmanager.versions.access' permission?""",
+                secret_id,
             )
             return None

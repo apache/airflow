@@ -107,14 +107,23 @@ class CloudTranslateSpeechOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
 
     """
+
     # [START translate_speech_template_fields]
-    template_fields = ('target_language', 'format_', 'source_language', 'model', 'project_id',
-                       'gcp_conn_id', 'impersonation_chain',)
+    template_fields = (
+        'target_language',
+        'format_',
+        'source_language',
+        'model',
+        'project_id',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
     # [END translate_speech_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         audio: RecognitionAudio,
         config: RecognitionConfig,
         target_language: str,
@@ -124,7 +133,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.audio = audio
@@ -139,17 +148,13 @@ class CloudTranslateSpeechOperator(BaseOperator):
 
     def execute(self, context):
         speech_to_text_hook = CloudSpeechToTextHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
         )
         translate_hook = CloudTranslateHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
         )
 
-        recognize_result = speech_to_text_hook.recognize_speech(
-            config=self.config, audio=self.audio
-        )
+        recognize_result = speech_to_text_hook.recognize_speech(config=self.config, audio=self.audio)
         recognize_dict = MessageToDict(recognize_result)
 
         self.log.info("Recognition operation finished")
@@ -162,8 +167,9 @@ class CloudTranslateSpeechOperator(BaseOperator):
         try:
             transcript = recognize_dict['results'][0]['alternatives'][0]['transcript']
         except KeyError as key:
-            raise AirflowException("Wrong response '{}' returned - it should contain {} field"
-                                   .format(recognize_dict, key))
+            raise AirflowException(
+                "Wrong response '{}' returned - it should contain {} field".format(recognize_dict, key)
+            )
 
         try:
             translation = translate_hook.translate(
@@ -171,7 +177,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
                 target_language=self.target_language,
                 format_=self.format_,
                 source_language=self.source_language,
-                model=self.model
+                model=self.model,
             )
             self.log.info('Translated output: %s', translation)
             return translation

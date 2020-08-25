@@ -85,22 +85,31 @@ class BigQueryToMySqlOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('dataset_id', 'table_id', 'mysql_table', 'impersonation_chain',)
+
+    template_fields = (
+        'dataset_id',
+        'table_id',
+        'mysql_table',
+        'impersonation_chain',
+    )
 
     @apply_defaults
-    def __init__(self, *,  # pylint: disable=too-many-arguments
-                 dataset_table: str,
-                 mysql_table: str,
-                 selected_fields: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 mysql_conn_id: str = 'mysql_default',
-                 database: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 replace: bool = False,
-                 batch_size: int = 1000,
-                 location: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,  # pylint: disable=too-many-arguments
+        dataset_table: str,
+        mysql_table: str,
+        selected_fields: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        mysql_conn_id: str = 'mysql_default',
+        database: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        replace: bool = False,
+        batch_size: int = 1000,
+        location: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
@@ -115,28 +124,30 @@ class BigQueryToMySqlOperator(BaseOperator):
         try:
             self.dataset_id, self.table_id = dataset_table.split('.')
         except ValueError:
-            raise ValueError('Could not parse {} as <dataset>.<table>'
-                             .format(dataset_table))
+            raise ValueError('Could not parse {} as <dataset>.<table>'.format(dataset_table))
 
     def _bq_get_data(self):
         self.log.info('Fetching Data from:')
-        self.log.info('Dataset: %s ; Table: %s',
-                      self.dataset_id, self.table_id)
+        self.log.info('Dataset: %s ; Table: %s', self.dataset_id, self.table_id)
 
-        hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to,
-                            location=self.location,
-                            impersonation_chain=self.impersonation_chain)
+        hook = BigQueryHook(
+            bigquery_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         conn = hook.get_conn()
         cursor = conn.cursor()
         i = 0
         while True:
-            response = cursor.get_tabledata(dataset_id=self.dataset_id,
-                                            table_id=self.table_id,
-                                            max_results=self.batch_size,
-                                            selected_fields=self.selected_fields,
-                                            start_index=i * self.batch_size)
+            response = cursor.get_tabledata(
+                dataset_id=self.dataset_id,
+                table_id=self.table_id,
+                max_results=self.batch_size,
+                selected_fields=self.selected_fields,
+                start_index=i * self.batch_size,
+            )
 
             if 'rows' in response:
                 rows = response['rows']

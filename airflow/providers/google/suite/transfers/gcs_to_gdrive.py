@@ -83,13 +83,18 @@ class GCSToGoogleDriveOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("source_bucket", "source_object", "destination_object",
-                       "impersonation_chain",)
+    template_fields = (
+        "source_bucket",
+        "source_object",
+        "destination_object",
+        "impersonation_chain",
+    )
     ui_color = "#f0eee4"
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         source_bucket: str,
         source_object: str,
         destination_object: Optional[str] = None,
@@ -97,7 +102,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
 

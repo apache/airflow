@@ -103,32 +103,39 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
                 gcp_conn_id='google_cloud_default'
             )
     """
-    template_fields: Sequence[str] = ('src_adls', 'dest_gcs', 'google_impersonation_chain',)
+
+    template_fields: Sequence[str] = (
+        'src_adls',
+        'dest_gcs',
+        'google_impersonation_chain',
+    )
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, *,
-                 src_adls: str,
-                 dest_gcs: str,
-                 azure_data_lake_conn_id: str,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 google_cloud_storage_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 replace: bool = False,
-                 gzip: bool = False,
-                 google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        src_adls: str,
+        dest_gcs: str,
+        azure_data_lake_conn_id: str,
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        replace: bool = False,
+        gzip: bool = False,
+        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
 
-        super().__init__(
-            path=src_adls,
-            azure_data_lake_conn_id=azure_data_lake_conn_id,
-            **kwargs
-        )
+        super().__init__(path=src_adls, azure_data_lake_conn_id=azure_data_lake_conn_id, **kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.src_adls = src_adls
@@ -157,9 +164,7 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
             files = set(files) - set(existing_files)
 
         if files:
-            hook = AzureDataLakeHook(
-                azure_data_lake_conn_id=self.azure_data_lake_conn_id
-            )
+            hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
 
             for obj in files:
                 with NamedTemporaryFile(mode='wb', delete=True) as f:
@@ -170,10 +175,7 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
                     self.log.info("Saving file to %s", dest_path)
 
                     g_hook.upload(
-                        bucket_name=dest_gcs_bucket,
-                        object_name=dest_path,
-                        filename=f.name,
-                        gzip=self.gzip
+                        bucket_name=dest_gcs_bucket, object_name=dest_path, filename=f.name, gzip=self.gzip
                     )
 
             self.log.info("All done, uploaded %d files to GCS", len(files))

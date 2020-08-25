@@ -113,11 +113,7 @@ class FTPHook(BaseHook):
         conn = self.get_conn()
         conn.rmd(path)
 
-    def retrieve_file(
-            self,
-            remote_full_path,
-            local_full_path_or_buffer,
-            callback=None):
+    def retrieve_file(self, remote_full_path, local_full_path_or_buffer, callback=None):
         """
         Transfers the remote file to a local location.
 
@@ -267,6 +263,7 @@ class FTPSHook(FTPHook):
     """
     Interact with FTPS.
     """
+
     def get_conn(self) -> ftplib.FTP:
         """
         Returns a FTPS connection object.
@@ -278,9 +275,7 @@ class FTPSHook(FTPHook):
             if params.port:
                 ftplib.FTP_TLS.port = params.port
 
-            self.conn = ftplib.FTP_TLS(
-                params.host, params.login, params.password
-            )
+            self.conn = ftplib.FTP_TLS(params.host, params.login, params.password)
             self.conn.set_pasv(pasv)
 
         return self.conn

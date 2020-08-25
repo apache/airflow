@@ -39,7 +39,11 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     """
 
     INTERMEDIATE_STATES = ('RUNNING',)
-    FAILURE_STATES = ('FAILED', 'TIMED_OUT', 'ABORTED',)
+    FAILURE_STATES = (
+        'FAILED',
+        'TIMED_OUT',
+        'ABORTED',
+    )
     SUCCESS_STATES = ('SUCCEEDED',)
 
     template_fields = ['execution_arn']
@@ -47,8 +51,7 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     ui_color = '#66c3ff'
 
     @apply_defaults
-    def __init__(self, *, execution_arn: str, aws_conn_id='aws_default', region_name=None,
-                 **kwargs):
+    def __init__(self, *, execution_arn: str, aws_conn_id='aws_default', region_name=None, **kwargs):
         super().__init__(**kwargs)
         self.execution_arn = execution_arn
         self.aws_conn_id = aws_conn_id

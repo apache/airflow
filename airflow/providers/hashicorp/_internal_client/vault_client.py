@@ -38,7 +38,7 @@ VALID_AUTH_TYPES: List[str] = [
     'ldap',
     'radius',
     'token',
-    'userpass'
+    'userpass',
 ]
 
 
@@ -104,6 +104,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
     :param radius_port: Port for radius (for ``radius`` auth_type).
     :type radius_port: int
     """
+
     def __init__(  # pylint: disable=too-many-arguments
         self,
         url: Optional[str] = None,
@@ -128,15 +129,18 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         radius_host: Optional[str] = None,
         radius_secret: Optional[str] = None,
         radius_port: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         if kv_engine_version and kv_engine_version not in VALID_KV_VERSIONS:
-            raise VaultError(f"The version is not supported: {kv_engine_version}. "
-                             f"It should be one of {VALID_KV_VERSIONS}")
+            raise VaultError(
+                f"The version is not supported: {kv_engine_version}. "
+                f"It should be one of {VALID_KV_VERSIONS}"
+            )
         if auth_type not in VALID_AUTH_TYPES:
-            raise VaultError(f"The auth_type is not supported: {auth_type}. "
-                             f"It should be one of {VALID_AUTH_TYPES}")
+            raise VaultError(
+                f"The auth_type is not supported: {auth_type}. " f"It should be one of {VALID_AUTH_TYPES}"
+            )
         if auth_type == "token" and not token and not token_path:
             raise VaultError("The 'token' authentication type requires 'token' or 'token_path'")
         if auth_type == "github" and not token and not token_path:
@@ -223,29 +227,32 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
 
     def _auth_userpass(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
-            _client.auth_userpass(username=self.username, password=self.password,
-                                  mount_point=self.auth_mount_point)
+            _client.auth_userpass(
+                username=self.username, password=self.password, mount_point=self.auth_mount_point
+            )
         else:
             _client.auth_userpass(username=self.username, password=self.password)
 
     def _auth_radius(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
-            _client.auth.radius.configure(host=self.radius_host,
-                                          secret=self.radius_secret,
-                                          port=self.radius_port,
-                                          mount_point=self.auth_mount_point)
+            _client.auth.radius.configure(
+                host=self.radius_host,
+                secret=self.radius_secret,
+                port=self.radius_port,
+                mount_point=self.auth_mount_point,
+            )
         else:
-            _client.auth.radius.configure(host=self.radius_host,
-                                          secret=self.radius_secret,
-                                          port=self.radius_port)
+            _client.auth.radius.configure(
+                host=self.radius_host, secret=self.radius_secret, port=self.radius_port
+            )
 
     def _auth_ldap(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
             _client.auth.ldap.login(
-                username=self.username, password=self.password, mount_point=self.auth_mount_point)
+                username=self.username, password=self.password, mount_point=self.auth_mount_point
+            )
         else:
-            _client.auth.ldap.login(
-                username=self.username, password=self.password)
+            _client.auth.ldap.login(username=self.username, password=self.password)
 
     def _auth_kubernetes(self, _client: hvac.Client) -> None:
         if not self.kubernetes_jwt_path:
@@ -253,8 +260,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         with open(self.kubernetes_jwt_path) as f:
             jwt = f.read()
             if self.auth_mount_point:
-                _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt,
-                                        mount_point=self.auth_mount_point)
+                _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt, mount_point=self.auth_mount_point)
             else:
                 _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt)
 
@@ -266,12 +272,14 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
 
     def _auth_gcp(self, _client: hvac.Client) -> None:
         from airflow.providers.google.cloud.utils.credentials_provider import (  # noqa
-            _get_scopes, get_credentials_and_project_id,
+            _get_scopes,
+            get_credentials_and_project_id,
         )
+
         scopes = _get_scopes(self.gcp_scopes)
-        credentials, _ = get_credentials_and_project_id(key_path=self.gcp_key_path,
-                                                        keyfile_dict=self.gcp_keyfile_dict,
-                                                        scopes=scopes)
+        credentials, _ = get_credentials_and_project_id(
+            key_path=self.gcp_key_path, keyfile_dict=self.gcp_keyfile_dict, scopes=scopes
+        )
         if self.auth_mount_point:
             _client.auth.gcp.configure(credentials=credentials, mount_point=self.auth_mount_point)
         else:
@@ -284,28 +292,32 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
                 resource=self.azure_resource,
                 client_id=self.key_id,
                 client_secret=self.secret_id,
-                mount_point=self.auth_mount_point
+                mount_point=self.auth_mount_point,
             )
         else:
             _client.auth.azure.configure(
                 tenant_id=self.azure_tenant_id,
                 resource=self.azure_resource,
                 client_id=self.key_id,
-                client_secret=self.secret_id
+                client_secret=self.secret_id,
             )
 
     def _auth_aws_iam(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
-            _client.auth_aws_iam(access_key=self.key_id, secret_key=self.secret_id,
-                                 role=self.role_id, mount_point=self.auth_mount_point)
+            _client.auth_aws_iam(
+                access_key=self.key_id,
+                secret_key=self.secret_id,
+                role=self.role_id,
+                mount_point=self.auth_mount_point,
+            )
         else:
-            _client.auth_aws_iam(access_key=self.key_id, secret_key=self.secret_id,
-                                 role=self.role_id)
+            _client.auth_aws_iam(access_key=self.key_id, secret_key=self.secret_id, role=self.role_id)
 
     def _auth_approle(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
-            _client.auth_approle(role_id=self.role_id, secret_id=self.secret_id,
-                                 mount_point=self.auth_mount_point)
+            _client.auth_approle(
+                role_id=self.role_id, secret_id=self.secret_id, mount_point=self.auth_mount_point
+            )
         else:
             _client.auth_approle(role_id=self.role_id, secret_id=self.secret_id)
 
@@ -336,10 +348,12 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
                 if secret_version:
                     raise VaultError("Secret version can only be used with version 2 of the KV engine")
                 response = self.client.secrets.kv.v1.read_secret(
-                    path=secret_path, mount_point=self.mount_point)
+                    path=secret_path, mount_point=self.mount_point
+                )
             else:
                 response = self.client.secrets.kv.v2.read_secret_version(
-                    path=secret_path, mount_point=self.mount_point, version=secret_version)
+                    path=secret_path, mount_point=self.mount_point, version=secret_version
+                )
         except InvalidPath:
             self.log.debug("Secret not found %s with mount point %s", secret_path, self.mount_point)
             return None
@@ -363,15 +377,15 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
             raise VaultError("Metadata might only be used with version 2 of the KV engine.")
         try:
             return self.client.secrets.kv.v2.read_secret_metadata(
-                path=secret_path,
-                mount_point=self.mount_point)
+                path=secret_path, mount_point=self.mount_point
+            )
         except InvalidPath:
             self.log.debug("Secret not found %s with mount point %s", secret_path, self.mount_point)
             return None
 
-    def get_secret_including_metadata(self,
-                                      secret_path: str,
-                                      secret_version: Optional[int] = None) -> Optional[dict]:
+    def get_secret_including_metadata(
+        self, secret_path: str, secret_version: Optional[int] = None
+    ) -> Optional[dict]:
         """
         Reads secret including metadata. It is only valid for KV version 2.
 
@@ -390,18 +404,20 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
             raise VaultError("Metadata might only be used with version 2 of the KV engine.")
         try:
             return self.client.secrets.kv.v2.read_secret_version(
-                path=secret_path, mount_point=self.mount_point,
-                version=secret_version)
+                path=secret_path, mount_point=self.mount_point, version=secret_version
+            )
         except InvalidPath:
-            self.log.debug("Secret not found %s with mount point %s and version %s",
-                           secret_path, self.mount_point, secret_version)
+            self.log.debug(
+                "Secret not found %s with mount point %s and version %s",
+                secret_path,
+                self.mount_point,
+                secret_version,
+            )
             return None
 
-    def create_or_update_secret(self,
-                                secret_path: str,
-                                secret: dict,
-                                method: Optional[str] = None,
-                                cas: Optional[int] = None) -> Response:
+    def create_or_update_secret(
+        self, secret_path: str, secret: dict, method: Optional[str] = None, cas: Optional[int] = None
+    ) -> Response:
         """
         Creates or updates secret.
 
@@ -431,8 +447,10 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
             raise VaultError("The cas parameter is only valid for version 2")
         if self.kv_engine_version == 1:
             response = self.client.secrets.kv.v1.create_or_update_secret(
-                secret_path=secret_path, secret=secret, mount_point=self.mount_point, method=method)
+                secret_path=secret_path, secret=secret, mount_point=self.mount_point, method=method
+            )
         else:
             response = self.client.secrets.kv.v2.create_or_update_secret(
-                secret_path=secret_path, secret=secret, mount_point=self.mount_point, cas=cas)
+                secret_path=secret_path, secret=secret, mount_point=self.mount_point, cas=cas
+            )
         return response

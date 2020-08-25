@@ -48,6 +48,7 @@ class RunState:
     """
     Utility class for the run state concept of Databricks runs.
     """
+
     def __init__(self, life_cycle_state, result_state, state_message):
         self.life_cycle_state = life_cycle_state
         self.result_state = result_state
@@ -58,10 +59,12 @@ class RunState:
         """True if the current state is a terminal state."""
         if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
             raise AirflowException(
-                ('Unexpected life cycle state: {}: If the state has '
-                 'been introduced recently, please check the Databricks user '
-                 'guide for troubleshooting information').format(
-                    self.life_cycle_state))
+                (
+                    'Unexpected life cycle state: {}: If the state has '
+                    'been introduced recently, please check the Databricks user '
+                    'guide for troubleshooting information'
+                ).format(self.life_cycle_state)
+            )
         return self.life_cycle_state in ('TERMINATED', 'SKIPPED', 'INTERNAL_ERROR')
 
     @property
@@ -70,9 +73,11 @@ class RunState:
         return self.result_state == 'SUCCESS'
 
     def __eq__(self, other):
-        return self.life_cycle_state == other.life_cycle_state and \
-            self.result_state == other.result_state and \
-            self.state_message == other.state_message
+        return (
+            self.life_cycle_state == other.life_cycle_state
+            and self.result_state == other.result_state
+            and self.state_message == other.state_message
+        )
 
     def __repr__(self):
         return str(self.__dict__)
@@ -94,8 +99,10 @@ class DatabricksHook(BaseHook):  # noqa
         might be a floating point number).
     :type retry_delay: float
     """
-    def __init__(self, databricks_conn_id='databricks_default', timeout_seconds=180, retry_limit=3,
-                 retry_delay=1.0):
+
+    def __init__(
+        self, databricks_conn_id='databricks_default', timeout_seconds=180, retry_limit=3, retry_delay=1.0
+    ):
         super().__init__()
         self.databricks_conn_id = databricks_conn_id
         self.databricks_conn = self.get_connection(databricks_conn_id)
@@ -156,9 +163,7 @@ class DatabricksHook(BaseHook):  # noqa
             auth = (self.databricks_conn.login, self.databricks_conn.password)
             host = self.databricks_conn.host
 
-        url = 'https://{host}/{endpoint}'.format(
-            host=self._parse_host(host),
-            endpoint=endpoint)
+        url = 'https://{host}/{endpoint}'.format(host=self._parse_host(host), endpoint=endpoint)
 
         if method == 'GET':
             request_func = requests.get
@@ -178,30 +183,30 @@ class DatabricksHook(BaseHook):  # noqa
                     params=json if method == 'GET' else None,
                     auth=auth,
                     headers=USER_AGENT_HEADER,
-                    timeout=self.timeout_seconds)
+                    timeout=self.timeout_seconds,
+                )
                 response.raise_for_status()
                 return response.json()
             except requests_exceptions.RequestException as e:
                 if not _retryable_error(e):
                     # In this case, the user probably made a mistake.
                     # Don't retry.
-                    raise AirflowException('Response: {0}, Status Code: {1}'.format(
-                        e.response.content, e.response.status_code))
+                    raise AirflowException(
+                        'Response: {0}, Status Code: {1}'.format(e.response.content, e.response.status_code)
+                    )
 
                 self._log_request_error(attempt_num, e)
 
             if attempt_num == self.retry_limit:
-                raise AirflowException(('API requests to Databricks failed {} times. ' +
-                                        'Giving up.').format(self.retry_limit))
+                raise AirflowException(
+                    ('API requests to Databricks failed {} times. ' + 'Giving up.').format(self.retry_limit)
+                )
 
             attempt_num += 1
             sleep(self.retry_delay)
 
     def _log_request_error(self, attempt_num, error):
-        self.log.error(
-            'Attempt %s API Request to Databricks failed with reason: %s',
-            attempt_num, error
-        )
+        self.log.error('Attempt %s API Request to Databricks failed with reason: %s', attempt_num, error)
 
     def run_now(self, json):
         """
@@ -301,18 +306,14 @@ class DatabricksHook(BaseHook):  # noqa
 
 
 def _retryable_error(exception):
-    return isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) \
-        or exception.response is not None and exception.response.status_code >= 500
+    return (
+        isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout))
+        or exception.response is not None
+        and exception.response.status_code >= 500
+    )
 
 
-RUN_LIFE_CYCLE_STATES = [
-    'PENDING',
-    'RUNNING',
-    'TERMINATING',
-    'TERMINATED',
-    'SKIPPED',
-    'INTERNAL_ERROR'
-]
+RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
 
 
 class _TokenAuth(AuthBase):
@@ -320,6 +321,7 @@ class _TokenAuth(AuthBase):
     Helper class for requests Auth field. AuthBase requires you to implement the __call__
     magic function.
     """
+
     def __init__(self, token):
         self.token = token
 

@@ -54,11 +54,12 @@ class AWSAthenaOperator(BaseOperator):
 
     ui_color = '#44b5e2'
     template_fields = ('query', 'database', 'output_location')
-    template_ext = ('.sql', )
+    template_ext = ('.sql',)
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self, *,
+        self,
+        *,
         query: str,
         database: str,
         output_location: str,
@@ -69,7 +70,7 @@ class AWSAthenaOperator(BaseOperator):
         result_configuration: Optional[Dict[str, Any]] = None,
         sleep_time: int = 30,
         max_tries: Optional[int] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.query = query
@@ -95,21 +96,29 @@ class AWSAthenaOperator(BaseOperator):
         """
         self.query_execution_context['Database'] = self.database
         self.result_configuration['OutputLocation'] = self.output_location
-        self.query_execution_id = self.hook.run_query(self.query, self.query_execution_context,
-                                                      self.result_configuration, self.client_request_token,
-                                                      self.workgroup)
+        self.query_execution_id = self.hook.run_query(
+            self.query,
+            self.query_execution_context,
+            self.result_configuration,
+            self.client_request_token,
+            self.workgroup,
+        )
         query_status = self.hook.poll_query_status(self.query_execution_id, self.max_tries)
 
         if query_status in AWSAthenaHook.FAILURE_STATES:
             error_message = self.hook.get_state_change_reason(self.query_execution_id)
             raise Exception(
-                'Final state of Athena job is {}, query_execution_id is {}. Error: {}'
-                .format(query_status, self.query_execution_id, error_message))
+                'Final state of Athena job is {}, query_execution_id is {}. Error: {}'.format(
+                    query_status, self.query_execution_id, error_message
+                )
+            )
         elif not query_status or query_status in AWSAthenaHook.INTERMEDIATE_STATES:
             raise Exception(
                 'Final state of Athena job is {}. '
-                'Max tries of poll status exceeded, query_execution_id is {}.'
-                .format(query_status, self.query_execution_id))
+                'Max tries of poll status exceeded, query_execution_id is {}.'.format(
+                    query_status, self.query_execution_id
+                )
+            )
 
         return self.query_execution_id
 
@@ -119,9 +128,7 @@ class AWSAthenaOperator(BaseOperator):
         """
         if self.query_execution_id:
             self.log.info('⚰️⚰️⚰️ Received a kill Signal. Time to Die')
-            self.log.info(
-                'Stopping Query with executionId - %s', self.query_execution_id
-            )
+            self.log.info('Stopping Query with executionId - %s', self.query_execution_id)
             response = self.hook.stop_query(self.query_execution_id)
             http_status_code = None
             try:

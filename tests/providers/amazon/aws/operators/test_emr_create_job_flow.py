@@ -32,16 +32,10 @@ from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
-RUN_JOB_FLOW_SUCCESS_RETURN = {
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200
-    },
-    'JobFlowId': 'j-8989898989'
-}
+RUN_JOB_FLOW_SUCCESS_RETURN = {'ResponseMetadata': {'HTTPStatusCode': 200}, 'JobFlowId': 'j-8989898989'}
 
 TEMPLATE_SEARCHPATH = os.path.join(
-    AIRFLOW_MAIN_FOLDER,
-    'tests', 'providers', 'amazon', 'aws', 'config_templates'
+    AIRFLOW_MAIN_FOLDER, 'tests', 'providers', 'amazon', 'aws', 'config_templates'
 )
 
 
@@ -50,25 +44,20 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
     _config = {
         'Name': 'test_job_flow',
         'ReleaseLabel': '5.11.0',
-        'Steps': [{
-            'Name': 'test_step',
-            'ActionOnFailure': 'CONTINUE',
-            'HadoopJarStep': {
-                'Jar': 'command-runner.jar',
-                'Args': [
-                    '/usr/lib/spark/bin/run-example',
-                    '{{ macros.ds_add(ds, -1) }}',
-                    '{{ ds }}'
-                ]
+        'Steps': [
+            {
+                'Name': 'test_step',
+                'ActionOnFailure': 'CONTINUE',
+                'HadoopJarStep': {
+                    'Jar': 'command-runner.jar',
+                    'Args': ['/usr/lib/spark/bin/run-example', '{{ macros.ds_add(ds, -1) }}', '{{ ds }}'],
+                },
             }
-        }]
+        ],
     }
 
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         # Mock out the emr_client (moto has incorrect response)
         self.emr_client_mock = MagicMock()
@@ -81,8 +70,8 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
                 'test_dag_id',
                 default_args=args,
                 template_searchpath=TEMPLATE_SEARCHPATH,
-                template_undefined=StrictUndefined
-            )
+                template_undefined=StrictUndefined,
+            ),
         )
 
     def test_init(self):
@@ -98,18 +87,20 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
         expected_args = {
             'Name': 'test_job_flow',
             'ReleaseLabel': '5.11.0',
-            'Steps': [{
-                'Name': 'test_step',
-                'ActionOnFailure': 'CONTINUE',
-                'HadoopJarStep': {
-                    'Jar': 'command-runner.jar',
-                    'Args': [
-                        '/usr/lib/spark/bin/run-example',
-                        (DEFAULT_DATE - timedelta(days=1)).strftime("%Y-%m-%d"),
-                        DEFAULT_DATE.strftime("%Y-%m-%d"),
-                    ]
+            'Steps': [
+                {
+                    'Name': 'test_step',
+                    'ActionOnFailure': 'CONTINUE',
+                    'HadoopJarStep': {
+                        'Jar': 'command-runner.jar',
+                        'Args': [
+                            '/usr/lib/spark/bin/run-example',
+                            (DEFAULT_DATE - timedelta(days=1)).strftime("%Y-%m-%d"),
+                            DEFAULT_DATE.strftime("%Y-%m-%d"),
+                        ],
+                    },
                 }
-            }]
+            ],
         }
 
         self.assertDictEqual(self.operator.job_flow_overrides, expected_args)
@@ -132,18 +123,16 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
         expected_args = {
             'Name': 'test_job_flow',
             'ReleaseLabel': '5.11.0',
-            'Steps': [{
-                'Name': 'test_step',
-                'ActionOnFailure': 'CONTINUE',
-                'HadoopJarStep': {
-                    'Jar': 'command-runner.jar',
-                    'Args': [
-                        '/usr/lib/spark/bin/run-example',
-                        '2016-12-31',
-                        '2017-01-01',
-                    ]
+            'Steps': [
+                {
+                    'Name': 'test_step',
+                    'ActionOnFailure': 'CONTINUE',
+                    'HadoopJarStep': {
+                        'Jar': 'command-runner.jar',
+                        'Args': ['/usr/lib/spark/bin/run-example', '2016-12-31', '2017-01-01',],
+                    },
                 }
-            }]
+            ],
         }
 
         self.assertDictEqual(self.operator.job_flow_overrides, expected_args)

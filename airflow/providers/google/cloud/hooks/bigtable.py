@@ -48,9 +48,7 @@ class BigtableHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -60,7 +58,7 @@ class BigtableHook(GoogleBaseHook):
                 project=project_id,
                 credentials=self._get_credentials(),
                 client_info=self.client_info,
-                admin=True
+                admin=True,
             )
         return self._client
 
@@ -100,8 +98,9 @@ class BigtableHook(GoogleBaseHook):
         if instance:
             instance.delete()
         else:
-            self.log.warning("The instance '%s' does not exist in project '%s'. Exiting",
-                             instance_id, project_id)
+            self.log.warning(
+                "The instance '%s' does not exist in project '%s'. Exiting", instance_id, project_id
+            )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
@@ -118,7 +117,7 @@ class BigtableHook(GoogleBaseHook):
         instance_labels: Optional[Dict] = None,
         cluster_nodes: Optional[int] = None,
         cluster_storage_type: enums.StorageType = enums.StorageType.STORAGE_TYPE_UNSPECIFIED,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
     ) -> Instance:
         """
         Creates new instance.
@@ -170,36 +169,31 @@ class BigtableHook(GoogleBaseHook):
             instance_labels,
         )
 
-        clusters = [
-            instance.cluster(
-                main_cluster_id,
-                main_cluster_zone,
-                cluster_nodes,
-                cluster_storage_type
-            )
-        ]
+        clusters = [instance.cluster(main_cluster_id, main_cluster_zone, cluster_nodes, cluster_storage_type)]
         if replica_cluster_id and replica_cluster_zone:
             warnings.warn(
                 "The replica_cluster_id and replica_cluster_zone parameter have been deprecated."
-                "You should pass the replica_clusters parameter.", DeprecationWarning, stacklevel=2)
-            clusters.append(instance.cluster(
-                replica_cluster_id,
-                replica_cluster_zone,
-                cluster_nodes,
-                cluster_storage_type
-            ))
+                "You should pass the replica_clusters parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            clusters.append(
+                instance.cluster(
+                    replica_cluster_id, replica_cluster_zone, cluster_nodes, cluster_storage_type
+                )
+            )
         if replica_clusters:
             for replica_cluster in replica_clusters:
                 if "id" in replica_cluster and "zone" in replica_cluster:
-                    clusters.append(instance.cluster(
-                        replica_cluster["id"],
-                        replica_cluster["zone"],
-                        cluster_nodes,
-                        cluster_storage_type
-                    ))
-        operation = instance.create(
-            clusters=clusters
-        )
+                    clusters.append(
+                        instance.cluster(
+                            replica_cluster["id"],
+                            replica_cluster["zone"],
+                            cluster_nodes,
+                            cluster_storage_type,
+                        )
+                    )
+        operation = instance.create(clusters=clusters)
         operation.result(timeout)
         return instance
 
@@ -211,7 +205,7 @@ class BigtableHook(GoogleBaseHook):
         instance_display_name: Optional[str] = None,
         instance_type: Optional[Union[enums.Instance.Type, enum.IntEnum]] = None,
         instance_labels: Optional[Dict] = None,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
     ) -> Instance:
         """
         Update an existing instance.
@@ -253,7 +247,7 @@ class BigtableHook(GoogleBaseHook):
         instance: Instance,
         table_id: str,
         initial_split_keys: Optional[List] = None,
-        column_families: Optional[Dict[str, GarbageCollectionRule]] = None
+        column_families: Optional[Dict[str, GarbageCollectionRule]] = None,
     ) -> None:
         """
         Creates the specified Cloud Bigtable table.

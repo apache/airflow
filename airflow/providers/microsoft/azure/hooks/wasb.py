@@ -51,8 +51,7 @@ class WasbHook(BaseHook):
         """Return the BlockBlobService object."""
         conn = self.get_connection(self.conn_id)
         service_options = conn.extra_dejson
-        return BlockBlobService(account_name=conn.login,
-                                account_key=conn.password, **service_options)
+        return BlockBlobService(account_name=conn.login, account_key=conn.password, **service_options)
 
     def check_for_blob(self, container_name, blob_name, **kwargs):
         """
@@ -84,8 +83,7 @@ class WasbHook(BaseHook):
         :return: True if blobs matching the prefix exist, False otherwise.
         :rtype: bool
         """
-        matches = self.connection.list_blobs(container_name, prefix,
-                                             num_results=1, **kwargs)
+        matches = self.connection.list_blobs(container_name, prefix, num_results=1, **kwargs)
         return len(list(matches)) > 0
 
     def get_blobs_list(self, container_name: str, prefix: str, **kwargs):
@@ -120,8 +118,7 @@ class WasbHook(BaseHook):
         :type kwargs: object
         """
         # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_file.
-        self.connection.create_blob_from_path(container_name, blob_name,
-                                              file_path, **kwargs)
+        self.connection.create_blob_from_path(container_name, blob_name, file_path, **kwargs)
 
     def load_string(self, string_data, container_name, blob_name, **kwargs):
         """
@@ -138,8 +135,7 @@ class WasbHook(BaseHook):
         :type kwargs: object
         """
         # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_string.
-        self.connection.create_blob_from_text(container_name, blob_name,
-                                              string_data, **kwargs)
+        self.connection.create_blob_from_text(container_name, blob_name, string_data, **kwargs)
 
     def get_file(self, file_path, container_name, blob_name, **kwargs):
         """
@@ -155,8 +151,7 @@ class WasbHook(BaseHook):
             `BlockBlobService.create_blob_from_path()` takes.
         :type kwargs: object
         """
-        return self.connection.get_blob_to_path(container_name, blob_name,
-                                                file_path, **kwargs)
+        return self.connection.get_blob_to_path(container_name, blob_name, file_path, **kwargs)
 
     def read_file(self, container_name, blob_name, **kwargs):
         """
@@ -170,12 +165,9 @@ class WasbHook(BaseHook):
             `BlockBlobService.create_blob_from_path()` takes.
         :type kwargs: object
         """
-        return self.connection.get_blob_to_text(container_name,
-                                                blob_name,
-                                                **kwargs).content
+        return self.connection.get_blob_to_text(container_name, blob_name, **kwargs).content
 
-    def delete_file(self, container_name, blob_name, is_prefix=False,
-                    ignore_if_missing=False, **kwargs):
+    def delete_file(self, container_name, blob_name, is_prefix=False, ignore_if_missing=False, **kwargs):
         """
         Delete a file from Azure Blob Storage.
 
@@ -195,9 +187,7 @@ class WasbHook(BaseHook):
 
         if is_prefix:
             blobs_to_delete = [
-                blob.name for blob in self.connection.list_blobs(
-                    container_name, prefix=blob_name, **kwargs
-                )
+                blob.name for blob in self.connection.list_blobs(container_name, prefix=blob_name, **kwargs)
             ]
         elif self.check_for_blob(container_name, blob_name):
             blobs_to_delete = [blob_name]
@@ -209,7 +199,4 @@ class WasbHook(BaseHook):
 
         for blob_uri in blobs_to_delete:
             self.log.info("Deleting blob: %s", blob_uri)
-            self.connection.delete_blob(container_name,
-                                        blob_uri,
-                                        delete_snapshots='include',
-                                        **kwargs)
+            self.connection.delete_blob(container_name, blob_uri, delete_snapshots='include', **kwargs)

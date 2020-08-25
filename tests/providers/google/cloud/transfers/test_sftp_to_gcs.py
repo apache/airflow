@@ -69,9 +69,7 @@ class TestSFTPToGCSOperator(unittest.TestCase):
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
@@ -104,9 +102,7 @@ class TestSFTPToGCSOperator(unittest.TestCase):
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
@@ -121,9 +117,7 @@ class TestSFTPToGCSOperator(unittest.TestCase):
             mime_type=DEFAULT_MIME_TYPE,
         )
 
-        sftp_hook.return_value.delete_file.assert_called_once_with(
-            SOURCE_OBJECT_NO_WILDCARD
-        )
+        sftp_hook.return_value.delete_file.assert_called_once_with(SOURCE_OBJECT_NO_WILDCARD)
 
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
@@ -197,10 +191,7 @@ class TestSFTPToGCSOperator(unittest.TestCase):
         task.execute(None)
 
         sftp_hook.return_value.delete_file.assert_has_calls(
-            [
-                mock.call("main_dir/test_object3.json"),
-                mock.call("main_dir/sub_dir/test_object3.json"),
-            ]
+            [mock.call("main_dir/test_object3.json"), mock.call("main_dir/sub_dir/test_object3.json"),]
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")

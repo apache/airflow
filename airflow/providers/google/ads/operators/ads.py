@@ -68,11 +68,16 @@ class GoogleAdsListAccountsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("bucket", "object_name", "impersonation_chain",)
+    template_fields = (
+        "bucket",
+        "object_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         bucket: str,
         object_name: str,
         gcp_conn_id: str = "google_cloud_default",
@@ -92,15 +97,9 @@ class GoogleAdsListAccountsOperator(BaseOperator):
     def execute(self, context: Dict):
         uri = f"gs://{self.bucket}/{self.object_name}"
 
-        ads_hook = GoogleAdsHook(
-            gcp_conn_id=self.gcp_conn_id,
-            google_ads_conn_id=self.google_ads_conn_id
-        )
+        ads_hook = GoogleAdsHook(gcp_conn_id=self.gcp_conn_id, google_ads_conn_id=self.google_ads_conn_id)
 
-        gcs_hook = GCSHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
-        )
+        gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         with NamedTemporaryFile("w+") as temp_file:
             # Download accounts
             accounts = ads_hook.list_accessible_customers()
@@ -110,10 +109,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
 
             # Upload to GCS
             gcs_hook.upload(
-                bucket_name=self.bucket,
-                object_name=self.object_name,
-                gzip=self.gzip,
-                filename=temp_file.name
+                bucket_name=self.bucket, object_name=self.object_name, gzip=self.gzip, filename=temp_file.name
             )
             self.log.info("Uploaded %s to %s", len(accounts), uri)
 

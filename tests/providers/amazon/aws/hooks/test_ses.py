@@ -31,24 +31,15 @@ def test_get_conn():
 
 
 @mock_ses
-@pytest.mark.parametrize('to',
-                         [
-                             'to@domain.com',
-                             ['to1@domain.com', 'to2@domain.com'],
-                             'to1@domain.com,to2@domain.com'
-                         ])
-@pytest.mark.parametrize('cc',
-                         [
-                             'cc@domain.com',
-                             ['cc1@domain.com', 'cc2@domain.com'],
-                             'cc1@domain.com,cc2@domain.com'
-                         ])
-@pytest.mark.parametrize('bcc',
-                         [
-                             'bcc@domain.com',
-                             ['bcc1@domain.com', 'bcc2@domain.com'],
-                             'bcc1@domain.com,bcc2@domain.com'
-                         ])
+@pytest.mark.parametrize(
+    'to', ['to@domain.com', ['to1@domain.com', 'to2@domain.com'], 'to1@domain.com,to2@domain.com']
+)
+@pytest.mark.parametrize(
+    'cc', ['cc@domain.com', ['cc1@domain.com', 'cc2@domain.com'], 'cc1@domain.com,cc2@domain.com']
+)
+@pytest.mark.parametrize(
+    'bcc', ['bcc@domain.com', ['bcc1@domain.com', 'bcc2@domain.com'], 'bcc1@domain.com,bcc2@domain.com']
+)
 def test_send_email(to, cc, bcc):
     # Given
     hook = SESHook()

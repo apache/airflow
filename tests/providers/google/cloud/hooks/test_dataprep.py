@@ -47,10 +47,7 @@ class TestGoogleDataprepHook:
         mock_hook.get_jobs_for_job_group(job_id=JOB_ID)
         mock_get_request.assert_called_once_with(
             f"{URL}/{JOB_ID}/jobs",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {TOKEN}",
-            },
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}",},
         )
 
     @patch(
@@ -72,13 +69,7 @@ class TestGoogleDataprepHook:
 
     @patch(
         "airflow.providers.google.cloud.hooks.dataprep.requests.get",
-        side_effect=[
-            HTTPError(),
-            HTTPError(),
-            HTTPError(),
-            HTTPError(),
-            mock.MagicMock(),
-        ],
+        side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), mock.MagicMock(),],
     )
     def test_should_retry_after_four_errors(self, mock_get_request, mock_hook):
         mock_hook.get_jobs_for_job_group.retry.sleep = mock.Mock()  # pylint: disable=no-member

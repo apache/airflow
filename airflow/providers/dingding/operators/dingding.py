@@ -42,17 +42,21 @@ class DingdingOperator(BaseOperator):
     :param at_all: Remind all people in group or not. If True, will overwrite ``at_mobiles``
     :type at_all: bool
     """
+
     template_fields = ('message',)
     ui_color = '#4ea4d4'  # Dingding icon color
 
     @apply_defaults
-    def __init__(self, *,
-                 dingding_conn_id='dingding_default',
-                 message_type='text',
-                 message=None,
-                 at_mobiles=None,
-                 at_all=False,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        dingding_conn_id='dingding_default',
+        message_type='text',
+        message=None,
+        at_mobiles=None,
+        at_all=False,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.dingding_conn_id = dingding_conn_id
         self.message_type = message_type
@@ -63,10 +67,6 @@ class DingdingOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Sending Dingding message.')
         hook = DingdingHook(
-            self.dingding_conn_id,
-            self.message_type,
-            self.message,
-            self.at_mobiles,
-            self.at_all
+            self.dingding_conn_id, self.message_type, self.message, self.at_mobiles, self.at_all
         )
         hook.send()

@@ -31,9 +31,7 @@ def upload_keys():
     s3_hook = S3Hook()
     for i in range(0, 3):
         s3_hook.load_string(
-            string_data="input",
-            key=f"path/data{i}",
-            bucket_name=BUCKET_NAME,
+            string_data="input", key=f"path/data{i}", bucket_name=BUCKET_NAME,
         )
 
 
@@ -46,20 +44,15 @@ with DAG(
 ) as dag:
 
     create_bucket = S3CreateBucketOperator(
-        task_id='s3_bucket_dag_create',
-        bucket_name=BUCKET_NAME,
-        region_name='us-east-1',
+        task_id='s3_bucket_dag_create', bucket_name=BUCKET_NAME, region_name='us-east-1',
     )
 
     add_keys_to_bucket = PythonOperator(
-        task_id="s3_bucket_dag_add_keys_to_bucket",
-        python_callable=upload_keys
+        task_id="s3_bucket_dag_add_keys_to_bucket", python_callable=upload_keys
     )
 
     delete_bucket = S3DeleteBucketOperator(
-        task_id='s3_bucket_dag_delete',
-        bucket_name=BUCKET_NAME,
-        force_delete=True,
+        task_id='s3_bucket_dag_delete', bucket_name=BUCKET_NAME, force_delete=True,
     )
 
     create_bucket >> add_keys_to_bucket >> delete_bucket
