@@ -22,7 +22,6 @@ from airflow import DAG
 from airflow.providers.apache.kafka.sensors.kafka_sensor import KafkaSensor
 from airflow.utils.timezone import datetime
 
-
 default_args = {
     'owner': '@Ferg_In',
     'depends_on_past': False,
