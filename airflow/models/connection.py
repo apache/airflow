@@ -308,7 +308,7 @@ class Connection(Base, LoggingMixin):
                        descriptor=property(cls.get_extra, cls.set_extra))
 
     def rotate_fernet_key(self):
-        """Encrypts data with a new key. See: :ref:`security/fernet`. """
+        """Encrypts data with a new key. See: :ref:`security/fernet`"""
         fernet = get_fernet()
         if self._password and self.is_encrypted:
             self._password = fernet.rotate(self._password.encode('utf-8')).decode()

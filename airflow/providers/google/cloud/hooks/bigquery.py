@@ -2240,17 +2240,17 @@ class BigQueryConnection:
         self._kwargs = kwargs
 
     def close(self) -> None:   # noqa: D403
-        """BigQueryConnection does not have anything to close. """
+        """BigQueryConnection does not have anything to close"""
 
     def commit(self) -> None:   # noqa: D403
-        """BigQueryConnection does not support transactions. """
+        """BigQueryConnection does not support transactions"""
 
     def cursor(self) -> "BigQueryCursor":   # noqa: D403
-        """Return a new :py:class:`Cursor` object using the connection. """
+        """Return a new :py:class:`Cursor` object using the connection"""
         return BigQueryCursor(*self._args, **self._kwargs)
 
     def rollback(self) -> NoReturn:   # noqa: D403
-        """BigQueryConnection does not have transactions """
+        """BigQueryConnection does not have transactions"""
         raise NotImplementedError(
             "BigQueryConnection does not have transactions")
 
@@ -2584,15 +2584,15 @@ class BigQueryCursor(BigQueryBaseCursor):
 
     @property
     def description(self) -> NoReturn:
-        """ The schema description method is not currently implemented. """
+        """The schema description method is not currently implemented"""
         raise NotImplementedError
 
     def close(self) -> None:
-        """ By default, do nothing """
+        """By default, do nothing"""
 
     @property
     def rowcount(self) -> int:
-        """ By default, return -1 to indicate that this is not supported. """
+        """By default, return -1 to indicate that this is not supported"""
         return -1
 
     def execute(self, operation: str, parameters: Optional[Dict] = None) -> None:
@@ -2623,14 +2623,14 @@ class BigQueryCursor(BigQueryBaseCursor):
             self.execute(operation, parameters)
 
     def flush_results(self) -> None:
-        """ Flush results related cursor attributes. """
+        """Flush results related cursor attributes"""
         self.page_token = None
         self.job_id = None
         self.all_pages_loaded = False
         self.buffer = []
 
     def fetchone(self) -> Union[List, None]:
-        """ Fetch the next row of a query result set. """
+        """Fetch the next row of a query result set"""
         # pylint: disable=not-callable
         return self.next()
 
@@ -2712,24 +2712,24 @@ class BigQueryCursor(BigQueryBaseCursor):
         return result
 
     def get_arraysize(self) -> int:
-        """ Specifies the number of rows to fetch at a time with .fetchmany() """
+        """Specifies the number of rows to fetch at a time with .fetchmany()"""
         return self.buffersize or 1
 
     def set_arraysize(self, arraysize: int) -> None:
-        """ Specifies the number of rows to fetch at a time with .fetchmany() """
+        """Specifies the number of rows to fetch at a time with .fetchmany()"""
         self.buffersize = arraysize
 
     arraysize = property(get_arraysize, set_arraysize)
 
     def setinputsizes(self, sizes: Any) -> None:
-        """ Does nothing by default """
+        """Does nothing by default"""
 
     def setoutputsize(self, size: Any, column: Any = None) -> None:
-        """ Does nothing by default """
+        """Does nothing by default"""
 
 
 def _bind_parameters(operation: str, parameters: Dict) -> str:
-    """ Helper method that binds parameters to a SQL query. """
+    """Helper method that binds parameters to a SQL query"""
     # inspired by MySQL Python Connector (conversion.py)
     string_parameters = {}  # type Dict[str, str]
     for (name, value) in parameters.items():
@@ -2743,7 +2743,7 @@ def _bind_parameters(operation: str, parameters: Dict) -> str:
 
 
 def _escape(s: str) -> str:
-    """ Helper method that escapes parameters to a SQL query. """
+    """Helper method that escapes parameters to a SQL query"""
     e = s
     e = e.replace('\\', '\\\\')
     e = e.replace('\n', '\\n')
@@ -2853,7 +2853,7 @@ def _cleanse_time_partitioning(
 
 
 def _validate_value(key: Any, value: Any, expected_type: Type) -> None:
-    """ Function to check expected type and raise error if type is not correct. """
+    """Function to check expected type and raise error if type is not correct"""
     if not isinstance(value, expected_type):
         raise TypeError("{} argument must have a type {} not {}".format(
             key, expected_type, type(value)))

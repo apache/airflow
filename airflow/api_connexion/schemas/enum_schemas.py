@@ -21,7 +21,7 @@ from airflow.utils.state import State
 
 
 class DagStateField(fields.String):
-    """ Schema for DagState Enum"""
+    """Schema for DagState Enum"""
     def __init__(self, **metadata):
         super().__init__(**metadata)
         self.validators = (

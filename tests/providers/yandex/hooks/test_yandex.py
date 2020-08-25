@@ -29,7 +29,7 @@ class TestYandexHook(unittest.TestCase):
     @mock.patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
     def test_client_created_without_exceptions(self, get_credentials_mock,
                                                get_connection_mock):
-        """ tests `init` method to validate client creation when all parameters are passed """
+        """tests `init` method to validate client creation when all parameters are passed """
 
         # Inputs to constructor
         default_folder_id = 'test_id'
@@ -49,7 +49,7 @@ class TestYandexHook(unittest.TestCase):
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     def test_get_credentials_raise_exception(self, get_connection_mock):
 
-        """ tests 'get_credentials' method raising exception if none of the required fields are passed."""
+        """tests 'get_credentials' method raising exception if none of the required fields are passed."""
 
         # Inputs to constructor
         default_folder_id = 'test_id'
