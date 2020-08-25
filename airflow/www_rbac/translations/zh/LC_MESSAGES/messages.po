@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2020-08-10 15:53+0800\n"
+"POT-Creation-Date: 2020-08-25 14:35+0800\n"
 "PO-Revision-Date: 2020-03-23 18:12+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh\n"
@@ -47,7 +47,7 @@ msgid "DAG Runs"
 msgstr "DAG运行"
 
 #: www_rbac/app.py:137 www_rbac/app.py:141 www_rbac/app.py:144
-#: www_rbac/app.py:147 www_rbac/app.py:150
+#: www_rbac/app.py:147 www_rbac/app.py:150 www_rbac/security.py:57
 msgid "Browse"
 msgstr "浏览"
 

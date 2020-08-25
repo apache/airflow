@@ -30,6 +30,7 @@ from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www_rbac.app import appbuilder
 from airflow.www_rbac.utils import CustomSQLAInterface
+from flask_babel import gettext
 
 
 EXISTING_ROLES = {
@@ -53,38 +54,38 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     VIEWER_VMS = {
         'Airflow',
         'DagModelView',
-        'Browse',
-        'DAG Runs',
+        '浏览',
+        'DAG运行',
         'DagRunModelView',
-        'Task Instances',
+        '任务实例',
         'TaskInstanceModelView',
         'SLA Misses',
         'SlaMissModelView',
-        'Jobs',
+        '工作',
         'JobModelView',
-        'Logs',
+        '日志',
         'LogModelView',
-        'Docs',
-        'Documentation',
+        '文档',
+        '文档',
         'Github',
-        'About',
-        'Version',
+        '关于',
+        '版本',
         'VersionView',
     }
 
     USER_VMS = VIEWER_VMS
 
     OP_VMS = {
-        'Admin',
-        'Configurations',
+        '管理',
+        '配置',
         'ConfigurationView',
-        'Connections',
+        '连接',
         'ConnectionModelView',
-        'Pools',
+        '池',
         'PoolModelView',
-        'Variables',
+        '变量',
         'VariableModelView',
-        'XComs',
+        '任务间消息',
         'XComModelView',
     }
 
@@ -157,6 +158,23 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     DAG_PERMS = WRITE_DAG_PERMS | READ_DAG_PERMS
 
+    GDZ_VMS = {
+        'Airflow',
+        'DagModelView',
+        '浏览',
+        'DAG运行',
+        'DagRunModelView',
+        '任务实例',
+        'TaskInstanceModelView',
+    }
+
+    GDZ_PERMS = {
+        'menu_access',
+        'can_index',
+        'can_list',
+        'can_show',
+    }
+
     ###########################################################################
     #                     DEFAULT ROLE CONFIGURATIONS
     ###########################################################################
@@ -174,6 +192,21 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         },
         {
             'role': 'Op',
+            'perms': VIEWER_PERMS | USER_PERMS | OP_PERMS | DAG_PERMS,
+            'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS,
+        },
+        {
+            'role': '工段长',
+            'perms': GDZ_PERMS,
+            'vms': GDZ_VMS | DAG_VMS,
+        },
+        {
+            'role': 'ME工程师',
+            'perms': VIEWER_PERMS | USER_PERMS | OP_PERMS | DAG_PERMS,
+            'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS,
+        },
+        {
+            'role': '运维人员',
             'perms': VIEWER_PERMS | USER_PERMS | OP_PERMS | DAG_PERMS,
             'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS,
         },
