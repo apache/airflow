@@ -31,6 +31,7 @@ from airflow.utils.session import provide_session
 
 
 @security.requires_authentication
+@security.requires_access([("can_delete", "Connection")])
 @provide_session
 def delete_connection(connection_id, session):
     """
@@ -44,6 +45,7 @@ def delete_connection(connection_id, session):
 
 
 @security.requires_authentication
+@security.requires_access([("can_read", "Connection")])
 @provide_session
 def get_connection(connection_id, session):
     """
@@ -59,6 +61,7 @@ def get_connection(connection_id, session):
 @format_parameters({
     'limit': check_limit
 })
+@security.requires_access([("can_read", "Connection")])
 @provide_session
 def get_connections(session, limit, offset=0):
     """
@@ -72,6 +75,7 @@ def get_connections(session, limit, offset=0):
 
 
 @security.requires_authentication
+@security.requires_access([("can_edit", "Connection")])
 @provide_session
 def patch_connection(connection_id, session, update_mask=None):
     """
@@ -105,6 +109,7 @@ def patch_connection(connection_id, session, update_mask=None):
 
 
 @security.requires_authentication
+@security.requires_access([("can_create", "Connection")])
 @provide_session
 def post_connection(session):
     """

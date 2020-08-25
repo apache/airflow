@@ -30,6 +30,7 @@ from airflow.utils.session import provide_session
 
 
 @security.requires_authentication
+@security.requires_access([("can_read", "Dag")])
 @provide_session
 def get_dag(dag_id, session):
     """
@@ -44,6 +45,7 @@ def get_dag(dag_id, session):
 
 
 @security.requires_authentication
+@security.requires_access([("can_read", "Dag")])
 def get_dag_details(dag_id):
     """
     Get details of DAG.
@@ -55,6 +57,7 @@ def get_dag_details(dag_id):
 
 
 @security.requires_authentication
+@security.requires_access([("can_read", "Dag")])
 @format_parameters({
     'limit': check_limit
 })
@@ -71,6 +74,7 @@ def get_dags(session, limit, offset=0):
 
 
 @security.requires_authentication
+@security.requires_access([("can_edit", "Dag")])
 @provide_session
 def patch_dag(session, dag_id):
     """

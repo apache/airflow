@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-def create_user(app, username, role):
+def create_user(app, username, role, permissions = []):
     appbuilder = app.appbuilder
     role_admin = appbuilder.sm.find_role(role)
+    for permission in permissions:
+        perm_object = appbuilder.sm.find_permission_view_menu(*permission)
+        appbuilder.sm.add_permission_role(role_admin, perm_object)
     tester = appbuilder.sm.find_user(username=username)
     if not tester:
         appbuilder.sm.add_user(

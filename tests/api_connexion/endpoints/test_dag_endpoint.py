@@ -49,7 +49,7 @@ class TestDagEndpoint(unittest.TestCase):
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_user(cls.app, username="test", role="Viewer", permissions=[("can_create", "Dag"), ("can_read", "Dag"), ("can_edit", "Dag"), ("can_delete", "Dag")])  # type: ignore
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
@@ -182,6 +182,7 @@ class TestGetDagDetails(TestDagEndpoint):
         response = client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
+
         assert response.status_code == 200
         assert response.json == expected
 

@@ -35,7 +35,7 @@ class TestConnectionEndpoint(unittest.TestCase):
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_user(cls.app, username="test", role="Viewer", permissions=[("can_create", "Connection"), ("can_read", "Connection"), ("can_edit", "Connection"), ("can_delete", "Connection")])  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
