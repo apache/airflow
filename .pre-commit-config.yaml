@@ -149,6 +149,11 @@ repos:
   - repo: meta
     hooks:
       - id: check-hooks-apply
+  - repo: https://github.com/psf/black
+    rev: stable
+    hooks:
+      - id: black
+        files: .*providers.*\.py
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
     hooks:

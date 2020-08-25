@@ -1,0 +1,26 @@
+[tool.black]
+line-length = 110
+target-version = ['py36', 'py37', 'py38']
+skip-string-normalization = true
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.build
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | logs
+)/
+'''
+
+[tool.isort]
+line_length = 110
+combine_as_imports = true
+profile = "black"
