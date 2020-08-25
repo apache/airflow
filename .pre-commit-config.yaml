@@ -386,6 +386,7 @@ repos:
         files: \.py$
         exclude: ^scripts/.*\.py$|^dev|^backport_packages
         pass_filenames: true
+        require_serial: true
       - id: flake8
         name: Run flake8
         language: system
