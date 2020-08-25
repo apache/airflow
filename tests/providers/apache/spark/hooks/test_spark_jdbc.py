@@ -141,7 +141,7 @@ class TestSparkJDBCHook(unittest.TestCase):
             '-saveFormat',
             'parquet',
             '-createTableColumnTypes',
-            'columnMcColumnFace INTEGER(100), name CHAR(64), comments VARCHAR(1024)',
+            'columnMcColumnFace INTEGER(100), name CHAR(64),comments VARCHAR(1024)',
         ]
         self.assertEqual(expected_jdbc_arguments, cmd)
 

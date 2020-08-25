@@ -72,7 +72,7 @@ class TestSparkJDBCScrip:
         '-upperBound',
         '20',
         '-createTableColumnTypes',
-        'columnMcColumnFace INTEGER(100), name CHAR(64), comments VARCHAR(1024)',
+        'columnMcColumnFace INTEGER(100), name CHAR(64),comments VARCHAR(1024)',
     ]
 
     default_arguments = {
