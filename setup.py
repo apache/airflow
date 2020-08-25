@@ -687,6 +687,7 @@ EXTRAS_REQUIREMENTS.update(
 INSTALL_REQUIREMENTS = [
     'alembic>=1.2, <2.0',
     'argcomplete~=1.10',
+    'arrow==0.16.0',
     'attrs~=19.3',
     'cached_property~=1.5',
     'cattrs~=1.0',
