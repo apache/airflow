@@ -1,0 +1,65 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+ARG ALPINE_VERSION="3.12"
+
+FROM alpine:${ALPINE_VERSION} AS builder
+
+ARG PGBOUNCER_VERSION
+ARG AIRFLOW_PGBOUNCER_VERSION
+
+ARG PGBOUNCER_SHA256="a0c13d10148f557e36ff7ed31793abb7a49e1f8b09aa2d4695d1c28fa101fee7"
+
+RUN apk --no-cache add make pkgconfig build-base libtool wget gcc g++ libevent-dev libressl-dev c-ares-dev ca-certificates
+RUN wget https://github.com/pgbouncer/pgbouncer/releases/download/pgbouncer_$(echo ${PGBOUNCER_VERSION} | sed s/\\./_/g)/pgbouncer-${PGBOUNCER_VERSION}.tar.gz
+RUN echo "${PGBOUNCER_SHA256}  pgbouncer-${PGBOUNCER_VERSION}.tar.gz" | sha256sum -c -
+RUN tar -xzvf pgbouncer-$PGBOUNCER_VERSION.tar.gz
+WORKDIR pgbouncer-$PGBOUNCER_VERSION
+RUN ./configure --prefix=/usr --disable-debug && make && make install
+RUN mkdir /etc/pgbouncer
+RUN cp ./etc/pgbouncer.ini /etc/pgbouncer/
+RUN touch /etc/pgbouncer/userlist.txt
+RUN sed -i -e "s|logfile = |#logfile = |"  \
+           -e "s|pidfile = |#pidfile = |"  \
+           -e "s|listen_addr = .*|listen_addr = 0.0.0.0|" \
+           -e "s|auth_type = .*|auth_type = md5|" \
+           /etc/pgbouncer/pgbouncer.ini
+
+FROM alpine:${ALPINE_VERSION}
+
+ARG PGBOUNCER_VERSION
+ARG AIRFLOW_PGBOUNCER_VERSION
+ARG COMMIT_SHA
+
+LABEL org.apache.airflow.component="pgbouncer"
+LABEL org.apache.airflow.pgbouncer.version="${PGBOUNCER_VERSION}"
+LABEL org.apache.airflow.airflow_pgbouncer.version="${AIRFLOW_PGBOUNCER_VERSION}"
+LABEL org.apache.airflow.commit_sha="${COMMIT_SHA}"
+
+MAINTAINER "Apache Airflow Community <dev@airflow.apache.org>"
+
+RUN apk --no-cache add libevent libressl c-ares
+
+COPY --from=builder /etc/pgbouncer /etc/pgbouncer
+COPY --from=builder /usr/bin/pgbouncer /usr/bin/pgbouncer
+
+# Healthcheck
+HEALTHCHECK --interval=10s --timeout=3s CMD stat /tmp/.s.PGSQL.*
+
+EXPOSE 6432
+
+# pgbouncer can't run as root, so let's drop to 'nobody'
+ENTRYPOINT ["/usr/bin/pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini" ]
