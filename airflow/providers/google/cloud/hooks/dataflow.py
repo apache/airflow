@@ -558,11 +558,12 @@ class DataflowHook(GoogleBaseHook):
         name = self._build_dataflow_job_name(job_name, append_job_name)
 
         service = self.get_conn()
+        # pylint: disable=no-member
         request = (
             service.projects()
             .locations()
             .templates()
-            .launch(  # pylint: disable=no-member
+            .launch(
                 projectId=project_id,
                 location=location,
                 gcsPath=dataflow_template,
