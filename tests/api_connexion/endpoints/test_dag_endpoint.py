@@ -44,9 +44,7 @@ class TestDagEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
         create_user(cls.app, username="test", role="Admin")  # type: ignore
@@ -74,9 +72,7 @@ class TestDagEndpoint(unittest.TestCase):
     def _create_dag_models(self, count, session=None):
         for num in range(1, count + 1):
             dag_model = DagModel(
-                dag_id=f"TEST_DAG_{num}",
-                fileloc=f"/tmp/dag_{num}.py",
-                schedule_interval="2 2 * * *",
+                dag_id=f"TEST_DAG_{num}", fileloc=f"/tmp/dag_{num}.py", schedule_interval="2 2 * * *",
             )
             session.add(dag_model)
 
@@ -135,12 +131,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": [],
-            "schedule_interval": {
-                "__type": "TimeDelta",
-                "days": 1,
-                "microseconds": 0,
-                "seconds": 0,
-            },
+            "schedule_interval": {"__type": "TimeDelta", "days": 1, "microseconds": 0, "seconds": 0,},
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": None,
             "timezone": "Timezone('UTC')",
@@ -169,12 +160,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": [],
-            "schedule_interval": {
-                "__type": "TimeDelta",
-                "days": 1,
-                "microseconds": 0,
-                "seconds": 0,
-            },
+            "schedule_interval": {"__type": "TimeDelta", "days": 1, "microseconds": 0, "seconds": 0,},
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": None,
             "timezone": "Timezone('UTC')",
@@ -202,15 +188,10 @@ class TestGetDagDetails(TestDagEndpoint):
             'is_subdag': False,
             'orientation': 'LR',
             'owners': [],
-            'schedule_interval': {
-                '__type': 'TimeDelta',
-                'days': 1,
-                'microseconds': 0,
-                'seconds': 0
-            },
+            'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'microseconds': 0, 'seconds': 0},
             'start_date': '2020-06-15T00:00:00+00:00',
             'tags': None,
-            'timezone': "Timezone('UTC')"
+            'timezone': "Timezone('UTC')",
         }
         assert response.json == expected
 
@@ -239,10 +220,7 @@ class TestGetDags(TestDagEndpoint):
                         "is_subdag": False,
                         "owners": [],
                         "root_dag_id": None,
-                        "schedule_interval": {
-                            "__type": "CronExpression",
-                            "value": "2 2 * * *",
-                        },
+                        "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *",},
                         "tags": [],
                     },
                     {
@@ -253,10 +231,7 @@ class TestGetDags(TestDagEndpoint):
                         "is_subdag": False,
                         "owners": [],
                         "root_dag_id": None,
-                        "schedule_interval": {
-                            "__type": "CronExpression",
-                            "value": "2 2 * * *",
-                        },
+                        "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *",},
                         "tags": [],
                     },
                 ],
@@ -269,10 +244,7 @@ class TestGetDags(TestDagEndpoint):
         [
             ("api/v1/dags?limit=1", ["TEST_DAG_1"]),
             ("api/v1/dags?limit=2", ["TEST_DAG_1", "TEST_DAG_10"]),
-            (
-                "api/v1/dags?offset=5",
-                ["TEST_DAG_5", "TEST_DAG_6", "TEST_DAG_7", "TEST_DAG_8", "TEST_DAG_9"],
-            ),
+            ("api/v1/dags?offset=5", ["TEST_DAG_5", "TEST_DAG_6", "TEST_DAG_7", "TEST_DAG_8", "TEST_DAG_9"],),
             (
                 "api/v1/dags?offset=0",
                 [
@@ -326,10 +298,8 @@ class TestPatchDag(TestDagEndpoint):
         dag_model = self._create_dag_model()
         response = self.client.patch(
             f"/api/v1/dags/{dag_model.dag_id}",
-            json={
-                "is_paused": False,
-            },
-            environ_overrides={'REMOTE_USER': "test"}
+            json={"is_paused": False,},
+            environ_overrides={'REMOTE_USER': "test"},
         )
         self.assertEqual(response.status_code, 200)
         expected_response = {
@@ -340,10 +310,7 @@ class TestPatchDag(TestDagEndpoint):
             "is_subdag": False,
             "owners": [],
             "root_dag_id": None,
-            "schedule_interval": {
-                "__type": "CronExpression",
-                "value": "2 2 * * *",
-            },
+            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *",},
             "tags": [],
         }
         self.assertEqual(response.json, expected_response)
@@ -351,20 +318,20 @@ class TestPatchDag(TestDagEndpoint):
     def test_should_response_400_on_invalid_request(self):
         patch_body = {
             "is_paused": True,
-            "schedule_interval": {
-                "__type": "CronExpression",
-                "value": "1 1 * * *",
-            },
+            "schedule_interval": {"__type": "CronExpression", "value": "1 1 * * *",},
         }
         dag_model = self._create_dag_model()
         response = self.client.patch(f"/api/v1/dags/{dag_model.dag_id}", json=patch_body)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json, {
-            'detail': "Property is read-only - 'schedule_interval'",
-            'status': 400,
-            'title': 'Bad Request',
-            'type': 'about:blank'
-        })
+        self.assertEqual(
+            response.json,
+            {
+                'detail': "Property is read-only - 'schedule_interval'",
+                'status': 400,
+                'title': 'Bad Request',
+                'type': 'about:blank',
+            },
+        )
 
     def test_should_response_404(self):
         response = self.client.get("/api/v1/dags/INVALID_DAG", environ_overrides={'REMOTE_USER': "test"})
@@ -373,22 +340,14 @@ class TestPatchDag(TestDagEndpoint):
     @provide_session
     def _create_dag_model(self, session=None):
         dag_model = DagModel(
-            dag_id="TEST_DAG_1",
-            fileloc="/tmp/dag_1.py",
-            schedule_interval="2 2 * * *",
-            is_paused=True
+            dag_id="TEST_DAG_1", fileloc="/tmp/dag_1.py", schedule_interval="2 2 * * *", is_paused=True
         )
         session.add(dag_model)
         return dag_model
 
     def test_should_raises_401_unauthenticated(self):
         dag_model = self._create_dag_model()
-        response = self.client.patch(
-            f"/api/v1/dags/{dag_model.dag_id}",
-            json={
-                "is_paused": False,
-            },
-        )
+        response = self.client.patch(f"/api/v1/dags/{dag_model.dag_id}", json={"is_paused": False,},)
 
         assert_401(response)
 

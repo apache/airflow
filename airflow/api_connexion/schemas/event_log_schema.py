@@ -28,6 +28,7 @@ class EventLogSchema(SQLAlchemySchema):
 
     class Meta:
         """Meta"""
+
         model = Log
 
     id = auto_field(data_key='event_log_id', dump_only=True)
@@ -42,6 +43,7 @@ class EventLogSchema(SQLAlchemySchema):
 
 class EventLogCollection(NamedTuple):
     """List of import errors with metadata"""
+
     event_logs: List[Log]
     total_entries: int
 

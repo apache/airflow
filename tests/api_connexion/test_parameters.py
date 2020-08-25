@@ -28,7 +28,6 @@ from tests.test_utils.config import conf_vars
 
 
 class TestDateTimeParser(unittest.TestCase):
-
     def setUp(self) -> None:
         self.default_time = '2020-06-13T22:44:00+00:00'
         self.default_time_2 = '2020-06-13T22:44:00Z'
@@ -52,7 +51,6 @@ class TestDateTimeParser(unittest.TestCase):
 
 
 class TestMaximumPagelimit(unittest.TestCase):
-
     @conf_vars({("api", "maximum_page_limit"): "320"})
     def test_maximum_limit_return_val(self):
         limit = check_limit(300)
@@ -80,7 +78,6 @@ class TestMaximumPagelimit(unittest.TestCase):
 
 
 class TestFormatParameters(unittest.TestCase):
-
     def test_should_works_with_datetime_formatter(self):
         decorator = format_parameters({"param_a": format_datetime})
         endpoint = mock.MagicMock()

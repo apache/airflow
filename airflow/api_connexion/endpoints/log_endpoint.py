@@ -29,8 +29,7 @@ from airflow.utils.session import provide_session
 
 @security.requires_authentication
 @provide_session
-def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
-            full_content=False, token=None):
+def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=False, token=None):
     """
     Get logs for specific task instance
     """
@@ -77,13 +76,8 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
         logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
         logs = logs[0] if task_try_number is not None else logs
         token = URLSafeSerializer(key).dumps(metadata)
-        return logs_schema.dump(LogResponseObject(continuation_token=token,
-                                                  content=logs)
-                                )
+        return logs_schema.dump(LogResponseObject(continuation_token=token, content=logs))
     # text/plain. Stream
     logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
 
-    return Response(
-        logs,
-        headers={"Content-Type": return_type}
-    )
+    return Response(logs, headers={"Content-Type": return_type})

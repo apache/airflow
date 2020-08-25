@@ -26,6 +26,7 @@ from airflow.models.dag import DagModel, DagTag
 
 class DagTagSchema(SQLAlchemySchema):
     """Dag Tag schema"""
+
     class Meta:
         """Meta"""
 
@@ -39,6 +40,7 @@ class DAGSchema(SQLAlchemySchema):
 
     class Meta:
         """Meta"""
+
         model = DagModel
 
     dag_id = auto_field(dump_only=True)

@@ -37,9 +37,7 @@ def format_datetime(value: str):
     try:
         return timezone.parse(value)
     except (ParserError, TypeError) as err:
-        raise BadRequest(
-            "Incorrect datetime argument", detail=str(err)
-        )
+        raise BadRequest("Incorrect datetime argument", detail=str(err))
 
 
 def check_limit(value: int):

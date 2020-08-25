@@ -30,6 +30,7 @@ from airflow.utils.weight_rule import WeightRule
 
 class CronExpression(typing.NamedTuple):
     """Cron expression schema"""
+
     value: str
 
 
@@ -102,6 +103,7 @@ class ScheduleIntervalSchema(OneOfSchema):
     * RelativeDelta
     * CronExpression
     """
+
     type_field = "__type"
     type_schemas = {
         "TimeDelta": TimeDeltaSchema,
@@ -129,20 +131,18 @@ class ScheduleIntervalSchema(OneOfSchema):
 
 class ColorField(fields.String):
     """Schema for color property"""
+
     def __init__(self, **metadata):
         super().__init__(**metadata)
-        self.validators = (
-            [validate.Regexp("^#[a-fA-F0-9]{3,6}$")] + list(self.validators)
-        )
+        self.validators = [validate.Regexp("^#[a-fA-F0-9]{3,6}$")] + list(self.validators)
 
 
 class WeightRuleField(fields.String):
     """Schema for WeightRule"""
+
     def __init__(self, **metadata):
         super().__init__(**metadata)
-        self.validators = (
-            [validate.OneOf(WeightRule.all_weight_rules())] + list(self.validators)
-        )
+        self.validators = [validate.OneOf(WeightRule.all_weight_rules())] + list(self.validators)
 
 
 class TimezoneField(fields.String):
@@ -153,6 +153,7 @@ class ClassReferenceSchema(Schema):
     """
     Class reference schema.
     """
+
     module_path = fields.Method("_get_module", required=True)
     class_name = fields.Method("_get_class_name", required=True)
 
