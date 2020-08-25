@@ -22,12 +22,12 @@ info:
   description: |
     # Overview
 
-    To enable facilitate management, the Apache Airflow supports a range of REST API endpoints across its
+    To facilitate management, the Apache Airflow supports a range of REST API endpoints across its
     objects.
     This section provides an overview of the API design, methods, and supported use cases.
 
     Most of the endpoints accept `JSON` as input and return `JSON` responses.
-    This means that you must usually add the following hearders to your request:
+    This means that you must usually add the following headers to your request:
     ```
     Content-type: application/json
     Accept: application/json
@@ -37,7 +37,7 @@ info:
 
     The term `resource` refers to a single type of object in the Airflow metadata. An API is broken up by its
     endpoint's corresponding resource.
-    The name of a resource is typically plural, and expressed in camelCase. Example: `dagRuns`.
+    The name of a resource is typically plural and expressed in camelCase. Example: `dagRuns`.
 
     Resource names are used as part of endpoint URLs, as well as in API parameters and responses.
 
@@ -123,9 +123,9 @@ info:
     [Postman](https://www.postman.com/) or the [Insomnia rest client](https://insomnia.rest/) to test
     the Apache Airflow API.
 
-    Note that you will need to pass an credentials data.
+    Note that you will need to passcredentials data.
 
-    For e.g., here is how to pause a DAG with [curl](https://curl.haxx.se/), when basic authroization is used:
+    For e.g., here is how to pause a DAG with [curl](https://curl.haxx.se/), when basic authorization is used:
     ```bash
     curl -X POST 'https://example.com/api/v1/dags/{dag_id}?update_mask=is_paused' \
     -H 'Content-Type: application/json' \
@@ -148,7 +148,7 @@ info:
     # Authentication
 
     To be able to meet the requirements of many organizations, Airflow supports many authentication methods,
-    and it is even possible to add your own by the most demanding users.
+    and it is even possible to add your own method.
 
     If you want to check which executor is currently set, you can use
     `airflow config get-value api auth_backend` command as in the example below.
