@@ -300,11 +300,13 @@ class ClusterGenerator:
 
     def _build_cluster_data(self):
         if self.zone:
-            master_type_uri = "https://www.googleapis.com/compute/v1/projects/{}/zones/{}/machineTypes/{}".format(
-                self.project_id, self.zone, self.master_machine_type
+            master_type_uri = (
+                "https://www.googleapis.com/compute/v1/projects"
+                f"/{self.project_id}/zones/{self.zone}/machineTypes/{self.master_machine_type}"
             )
-            worker_type_uri = "https://www.googleapis.com/compute/v1/projects/{}/zones/{}/machineTypes/{}".format(
-                self.project_id, self.zone, self.worker_machine_type
+            worker_type_uri = (
+                "https://www.googleapis.com/compute/v1/projects"
+                f"/{self.project_id}/zones/{self.zone}/machineTypes/{self.worker_machine_type}"
             )
         else:
             master_type_uri = self.master_machine_type

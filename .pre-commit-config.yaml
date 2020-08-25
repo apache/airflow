@@ -155,6 +155,7 @@ repos:
       - id: black
         files: api_connexion/.*\.py|.*providers.*\.py
         args: [--config=./pyproject.toml]
+        exclude: .*kubernetes_pod\.py
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
     hooks:

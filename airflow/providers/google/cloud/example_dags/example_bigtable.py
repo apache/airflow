@@ -191,7 +191,8 @@ with models.DAG(
     wait_for_table_replication_task2 >> delete_table_task
     wait_for_table_replication_task >> delete_table_task2
     wait_for_table_replication_task2 >> delete_table_task2
-    create_instance_task >> create_table_task >> cluster_update_task >> update_instance_task >> delete_table_task
+    create_instance_task >> create_table_task >> cluster_update_task
+    cluster_update_task >> update_instance_task >> delete_table_task
     create_instance_task2 >> create_table_task2 >> cluster_update_task2 >> delete_table_task2
 
     # Only delete instances after all tables are deleted
