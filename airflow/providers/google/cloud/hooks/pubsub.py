@@ -29,7 +29,12 @@ from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
 from google.cloud.pubsub_v1.types import (
-    DeadLetterPolicy, Duration, ExpirationPolicy, MessageStoragePolicy, PushConfig, ReceivedMessage,
+    DeadLetterPolicy,
+    Duration,
+    ExpirationPolicy,
+    MessageStoragePolicy,
+    PushConfig,
+    ReceivedMessage,
     RetryPolicy,
 )
 from googleapiclient.errors import HttpError
@@ -59,9 +64,7 @@ class PubSubHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -73,10 +76,7 @@ class PubSubHook(GoogleBaseHook):
         :rtype: google.cloud.pubsub_v1.PublisherClient
         """
         if not self._client:
-            self._client = PublisherClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
-            )
+            self._client = PublisherClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
     @cached_property
@@ -87,18 +87,10 @@ class PubSubHook(GoogleBaseHook):
         :return: Google Cloud Pub/Sub client object.
         :rtype: google.cloud.pubsub_v1.SubscriberClient
         """
-        return SubscriberClient(
-            credentials=self._get_credentials(),
-            client_info=self.client_info
-        )
+        return SubscriberClient(credentials=self._get_credentials(), client_info=self.client_info)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def publish(
-        self,
-        topic: str,
-        messages: List[Dict],
-        project_id: str,
-    ) -> None:
+    def publish(self, topic: str, messages: List[Dict], project_id: str,) -> None:
         """
         Publishes messages to a Pub/Sub topic.
 
@@ -122,9 +114,7 @@ class PubSubHook(GoogleBaseHook):
         try:
             for message in messages:
                 future = publisher.publish(
-                    topic=topic_path,
-                    data=message.get("data", b''),
-                    **message.get('attributes', {})
+                    topic=topic_path, data=message.get("data", b''), **message.get('attributes', {})
                 )
                 future.result()
         except GoogleAPICallError as e:
@@ -142,7 +132,9 @@ class PubSubHook(GoogleBaseHook):
                     b64decode(message["data"])
                     warnings.warn(
                         "The base 64 encoded string as 'data' field has been deprecated. "
-                        "You should pass bytestring (utf-8 encoded).", DeprecationWarning, stacklevel=4
+                        "You should pass bytestring (utf-8 encoded).",
+                        DeprecationWarning,
+                        stacklevel=4,
                     )
                 except ValueError:
                     pass
@@ -153,10 +145,12 @@ class PubSubHook(GoogleBaseHook):
                 raise PubSubException("Wrong message. Dictionary must contain 'data' or 'attributes'.")
             if "data" in message and not isinstance(message["data"], bytes):
                 raise PubSubException("Wrong message. 'data' must be send as a bytestring")
-            if ("data" not in message and "attributes" in message and not message["attributes"]) \
-                    or ("attributes" in message and not isinstance(message["attributes"], dict)):
+            if ("data" not in message and "attributes" in message and not message["attributes"]) or (
+                "attributes" in message and not isinstance(message["attributes"], dict)
+            ):
                 raise PubSubException(
-                    "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary.")
+                    "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary."
+                )
 
     # pylint: disable=too-many-arguments
     @GoogleBaseHook.fallback_to_default_project_id
@@ -275,10 +269,7 @@ class PubSubHook(GoogleBaseHook):
         try:
             # pylint: disable=no-member
             publisher.delete_topic(
-                topic=topic_path,
-                retry=retry,
-                timeout=timeout,
-                metadata=metadata,
+                topic=topic_path, retry=retry, timeout=timeout, metadata=metadata,
             )
         except NotFound:
             self.log.warning('Topic does not exist: %s', topic_path)
@@ -467,16 +458,14 @@ class PubSubHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]]
         """
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Deleting subscription (path) %s", subscription_path)
         try:
             # pylint: disable=no-member
             subscriber.delete_subscription(
-                subscription=subscription_path,
-                retry=retry,
-                timeout=timeout,
-                metadata=metadata
+                subscription=subscription_path, retry=retry, timeout=timeout, metadata=metadata
             )
 
         except NotFound:
@@ -530,7 +519,8 @@ class PubSubHook(GoogleBaseHook):
             https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#ReceivedMessage
         """
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member,line-too-long
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
         try:
@@ -588,15 +578,13 @@ class PubSubHook(GoogleBaseHook):
         if ack_ids is not None and messages is None:
             pass
         elif ack_ids is None and messages is not None:
-            ack_ids = [
-                message.ack_id
-                for message in messages
-            ]
+            ack_ids = [message.ack_id for message in messages]
         else:
             raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
 
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
         try:
@@ -610,7 +598,10 @@ class PubSubHook(GoogleBaseHook):
             )
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException(
-                'Error acknowledging {} messages pulled from subscription {}'
-                .format(len(ack_ids), subscription_path), e)
+                'Error acknowledging {} messages pulled from subscription {}'.format(
+                    len(ack_ids), subscription_path
+                ),
+                e,
+            )
 
         self.log.info("Acknowledged ack_ids from subscription (path) %s", subscription_path)

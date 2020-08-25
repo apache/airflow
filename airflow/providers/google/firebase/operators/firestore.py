@@ -56,7 +56,12 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("body", "gcp_conn_id", "api_version", "impersonation_chain",)
+    template_fields = (
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
@@ -68,7 +73,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.database_id = database_id
@@ -87,6 +92,6 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         hook = CloudFirestoreHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
-            impersonation_chain=self.impersonation_chain
+            impersonation_chain=self.impersonation_chain,
         )
         return hook.export_documents(database_id=self.database_id, body=self.body, project_id=self.project_id)

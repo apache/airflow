@@ -67,26 +67,38 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('src', 'dst', 'bucket', 'impersonation_chain',)
+
+    template_fields = (
+        'src',
+        'dst',
+        'bucket',
+        'impersonation_chain',
+    )
 
     @apply_defaults
-    def __init__(self, *,
-                 src,
-                 dst,
-                 bucket,
-                 gcp_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id=None,
-                 mime_type='application/octet-stream',
-                 delegate_to=None,
-                 gzip=False,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        src,
+        dst,
+        bucket,
+        gcp_conn_id='google_cloud_default',
+        google_cloud_storage_conn_id=None,
+        mime_type='application/octet-stream',
+        delegate_to=None,
+        gzip=False,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.src = src
@@ -111,13 +123,14 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         filepaths = self.src if isinstance(self.src, list) else glob(self.src)
         if os.path.basename(self.dst):  # path to a file
             if len(filepaths) > 1:  # multiple file upload
-                raise ValueError("'dst' parameter references filepath. Please specifiy "
-                                 "directory (with trailing backslash) to upload multiple "
-                                 "files. e.g. /path/to/directory/")
+                raise ValueError(
+                    "'dst' parameter references filepath. Please specifiy "
+                    "directory (with trailing backslash) to upload multiple "
+                    "files. e.g. /path/to/directory/"
+                )
             object_paths = [self.dst]
         else:  # directory is provided
-            object_paths = [os.path.join(self.dst, os.path.basename(filepath))
-                            for filepath in filepaths]
+            object_paths = [os.path.join(self.dst, os.path.basename(filepath)) for filepath in filepaths]
 
         for filepath, object_path in zip(filepaths, object_paths):
             hook.upload(

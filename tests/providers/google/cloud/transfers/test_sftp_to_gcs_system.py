@@ -21,7 +21,13 @@ import os
 import pytest
 
 from airflow.providers.google.cloud.example_dags.example_sftp_to_gcs import (
-    BUCKET_SRC, DIR, OBJECT_SRC_1, OBJECT_SRC_2, OBJECT_SRC_3, SUBDIR, TMP_PATH,
+    BUCKET_SRC,
+    DIR,
+    OBJECT_SRC_1,
+    OBJECT_SRC_2,
+    OBJECT_SRC_3,
+    SUBDIR,
+    TMP_PATH,
 )
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context

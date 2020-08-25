@@ -70,7 +70,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         config_prefix: str = 'airflow/config',
         profile_name: Optional[str] = None,
         sep: str = "/",
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         self.connections_prefix = connections_prefix.rstrip("/")
@@ -85,9 +85,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         """
         Create a Secrets Manager client
         """
-        session = boto3.session.Session(
-            profile_name=self.profile_name,
-        )
+        session = boto3.session.Session(profile_name=self.profile_name,)
         return session.client(service_name="secretsmanager", **self.kwargs)
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
@@ -128,14 +126,13 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         """
         secrets_path = self.build_path(path_prefix, secret_id, self.sep)
         try:
-            response = self.client.get_secret_value(
-                SecretId=secrets_path,
-            )
+            response = self.client.get_secret_value(SecretId=secrets_path,)
             return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
             self.log.debug(
                 "An error occurred (ResourceNotFoundException) when calling the "
                 "get_secret_value operation: "
-                "Secret %s not found.", secrets_path
+                "Secret %s not found.",
+                secrets_path,
             )
             return None

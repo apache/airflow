@@ -20,7 +20,9 @@ import unittest
 
 import mock
 from google.cloud.speech_v1.proto.cloud_speech_pb2 import (
-    RecognizeResponse, SpeechRecognitionAlternative, SpeechRecognitionResult,
+    RecognizeResponse,
+    SpeechRecognitionAlternative,
+    SpeechRecognitionResult,
 )
 
 from airflow.exceptions import AirflowException
@@ -35,11 +37,11 @@ class TestCloudTranslateSpeech(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook')
     def test_minimal_green_path(self, mock_translate_hook, mock_speech_hook):
         mock_speech_hook.return_value.recognize_speech.return_value = RecognizeResponse(
-            results=[SpeechRecognitionResult(
-                alternatives=[SpeechRecognitionAlternative(
-                    transcript='test speech recognition result'
-                )]
-            )]
+            results=[
+                SpeechRecognitionResult(
+                    alternatives=[SpeechRecognitionAlternative(transcript='test speech recognition result')]
+                )
+            ]
         )
         mock_translate_hook.return_value.translate.return_value = [
             {
@@ -64,17 +66,14 @@ class TestCloudTranslateSpeech(unittest.TestCase):
         return_value = op.execute(context=None)
 
         mock_speech_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_translate_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         mock_speech_hook.return_value.recognize_speech.assert_called_once_with(
-            audio={"uri": "gs://bucket/object"},
-            config={"encoding": "LINEAR16"},
+            audio={"uri": "gs://bucket/object"}, config={"encoding": "LINEAR16"},
         )
 
         mock_translate_hook.return_value.translate.assert_called_once_with(
@@ -118,17 +117,14 @@ class TestCloudTranslateSpeech(unittest.TestCase):
         self.assertIn("it should contain 'alternatives' field", str(err))
 
         mock_speech_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None,
         )
         mock_translate_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None,
         )
 
         mock_speech_hook.return_value.recognize_speech.assert_called_once_with(
-            audio={"uri": "gs://bucket/object"},
-            config={"encoding": "LINEAR16"},
+            audio={"uri": "gs://bucket/object"}, config={"encoding": "LINEAR16"},
         )
 
         mock_translate_hook.return_value.translate.assert_not_called()

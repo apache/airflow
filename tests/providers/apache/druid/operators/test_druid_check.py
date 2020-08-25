@@ -28,7 +28,6 @@ from airflow.providers.apache.druid.operators.druid_check import DruidCheckOpera
 
 
 class TestDruidCheckOperator(unittest.TestCase):
-
     def setUp(self):
         self.task_id = 'test_task'
         self.druid_broker_conn_id = 'default_conn'
@@ -38,10 +37,8 @@ class TestDruidCheckOperator(unittest.TestCase):
         dag = DAG('test_dag', start_date=datetime(2017, 1, 1))
 
         return DruidCheckOperator(
-            dag=dag,
-            task_id=self.task_id,
-            druid_broker_conn_id=self.druid_broker_conn_id,
-            sql=sql)
+            dag=dag, task_id=self.task_id, druid_broker_conn_id=self.druid_broker_conn_id, sql=sql
+        )
 
     @mock.patch.object(DruidCheckOperator, 'get_first')
     def test_execute_pass(self, mock_get_first):

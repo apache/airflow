@@ -61,12 +61,18 @@ class GoogleSheetsToGCSOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ["spreadsheet_id", "destination_bucket", "destination_path", "sheet_filter",
-                       "impersonation_chain", ]
+    template_fields = [
+        "spreadsheet_id",
+        "destination_bucket",
+        "destination_path",
+        "sheet_filter",
+        "impersonation_chain",
+    ]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         spreadsheet_id: str,
         destination_bucket: str,
         sheet_filter: Optional[List[str]] = None,
@@ -86,21 +92,13 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def _upload_data(
-        self,
-        gcs_hook: GCSHook,
-        hook: GSheetsHook,
-        sheet_range: str,
-        sheet_values: List[Any],
+        self, gcs_hook: GCSHook, hook: GSheetsHook, sheet_range: str, sheet_values: List[Any],
     ) -> str:
         # Construct destination file path
         sheet = hook.get_spreadsheet(self.spreadsheet_id)
-        file_name = f"{sheet['properties']['title']}_{sheet_range}.csv".replace(
-            " ", "_"
-        )
+        file_name = f"{sheet['properties']['title']}_{sheet_range}.csv".replace(" ", "_")
         dest_file_name = (
-            f"{self.destination_path.strip('/')}/{file_name}"
-            if self.destination_path
-            else file_name
+            f"{self.destination_path.strip('/')}/{file_name}" if self.destination_path else file_name
         )
 
         with NamedTemporaryFile("w+") as temp_file:
@@ -111,9 +109,7 @@ class GoogleSheetsToGCSOperator(BaseOperator):
 
             # Upload to GCS
             gcs_hook.upload(
-                bucket_name=self.destination_bucket,
-                object_name=dest_file_name,
-                filename=temp_file.name,
+                bucket_name=self.destination_bucket, object_name=dest_file_name, filename=temp_file.name,
             )
         return dest_file_name
 
@@ -135,12 +131,8 @@ class GoogleSheetsToGCSOperator(BaseOperator):
             spreadsheet_id=self.spreadsheet_id, sheet_filter=self.sheet_filter
         )
         for sheet_range in sheet_titles:
-            data = sheet_hook.get_values(
-                spreadsheet_id=self.spreadsheet_id, range_=sheet_range
-            )
-            gcs_path_to_file = self._upload_data(
-                gcs_hook, sheet_hook, sheet_range, data
-            )
+            data = sheet_hook.get_values(spreadsheet_id=self.spreadsheet_id, range_=sheet_range)
+            gcs_path_to_file = self._upload_data(gcs_hook, sheet_hook, sheet_range, data)
             destination_array.append(gcs_path_to_file)
 
         self.xcom_push(context, "destination_objects", destination_array)

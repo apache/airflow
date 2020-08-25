@@ -26,9 +26,15 @@ from urllib.parse import urlparse
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
-    BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator, BigQueryGetDatasetOperator,
-    BigQueryGetDatasetTablesOperator, BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator,
+    BigQueryDeleteTableOperator,
+    BigQueryGetDatasetOperator,
+    BigQueryGetDatasetTablesOperator,
+    BigQueryPatchDatasetOperator,
+    BigQueryUpdateDatasetOperator,
     BigQueryUpsertTableOperator,
 )
 from airflow.utils.dates import days_ago
@@ -39,8 +45,7 @@ BQ_LOCATION = "europe-north1"
 DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset_operations")
 LOCATION_DATASET_NAME = "{}_location".format(DATASET_NAME)
 DATA_SAMPLE_GCS_URL = os.environ.get(
-    "GCP_BIGQUERY_DATA_GCS_URL",
-    "gs://cloud-samples-data/bigquery/us-states/us-states.csv",
+    "GCP_BIGQUERY_DATA_GCS_URL", "gs://cloud-samples-data/bigquery/us-states/us-states.csv",
 )
 
 DATA_SAMPLE_GCS_URL_PARTS = urlparse(DATA_SAMPLE_GCS_URL)
@@ -68,8 +73,7 @@ with models.DAG(
 
     # [START howto_operator_bigquery_delete_table]
     delete_table = BigQueryDeleteTableOperator(
-        task_id="delete_table",
-        deletion_dataset_table=f"{PROJECT_ID}.{DATASET_NAME}.test_table",
+        task_id="delete_table", deletion_dataset_table=f"{PROJECT_ID}.{DATASET_NAME}.test_table",
     )
     # [END howto_operator_bigquery_delete_table]
 
@@ -78,10 +82,7 @@ with models.DAG(
         task_id="create_view",
         dataset_id=DATASET_NAME,
         table_id="test_view",
-        view={
-            "query": f"SELECT * FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
-            "useLegacySql": False,
-        },
+        view={"query": f"SELECT * FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`", "useLegacySql": False,},
     )
     # [END howto_operator_bigquery_create_view]
 
@@ -98,10 +99,7 @@ with models.DAG(
         source_objects=[DATA_SAMPLE_GCS_OBJECT_NAME],
         destination_project_dataset_table=f"{DATASET_NAME}.external_table",
         skip_leading_rows=1,
-        schema_fields=[
-            {"name": "name", "type": "STRING"},
-            {"name": "post_abbr", "type": "STRING"},
-        ],
+        schema_fields=[{"name": "name", "type": "STRING"}, {"name": "post_abbr", "type": "STRING"},],
     )
     # [END howto_operator_bigquery_create_external_table]
 
@@ -117,9 +115,7 @@ with models.DAG(
     # [END howto_operator_bigquery_upsert_table]
 
     # [START howto_operator_bigquery_create_dataset]
-    create_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create-dataset", dataset_id=DATASET_NAME
-    )
+    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
     # [END howto_operator_bigquery_create_dataset]
 
     # [START howto_operator_bigquery_get_dataset_tables]
@@ -129,9 +125,7 @@ with models.DAG(
     # [END howto_operator_bigquery_get_dataset_tables]
 
     # [START howto_operator_bigquery_get_dataset]
-    get_dataset = BigQueryGetDatasetOperator(
-        task_id="get-dataset", dataset_id=DATASET_NAME
-    )
+    get_dataset = BigQueryGetDatasetOperator(task_id="get-dataset", dataset_id=DATASET_NAME)
     # [END howto_operator_bigquery_get_dataset]
 
     get_dataset_result = BashOperator(
@@ -143,10 +137,7 @@ with models.DAG(
     patch_dataset = BigQueryPatchDatasetOperator(
         task_id="patch_dataset",
         dataset_id=DATASET_NAME,
-        dataset_resource={
-            "friendlyName": "Patched Dataset",
-            "description": "Patched dataset",
-        },
+        dataset_resource={"friendlyName": "Patched Dataset", "description": "Patched dataset",},
     )
     # [END howto_operator_bigquery_patch_dataset]
 
@@ -179,9 +170,7 @@ with models.DAG(
     tags=["example"],
 ):
     create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_dataset_with_location",
-        dataset_id=LOCATION_DATASET_NAME,
-        location=BQ_LOCATION,
+        task_id="create_dataset_with_location", dataset_id=LOCATION_DATASET_NAME, location=BQ_LOCATION,
     )
 
     create_table_with_location = BigQueryCreateEmptyTableOperator(
@@ -195,8 +184,6 @@ with models.DAG(
     )
 
     delete_dataset_with_location = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset_with_location",
-        dataset_id=LOCATION_DATASET_NAME,
-        delete_contents=True,
+        task_id="delete_dataset_with_location", dataset_id=LOCATION_DATASET_NAME, delete_contents=True,
     )
     create_dataset_with_location >> create_table_with_location >> delete_dataset_with_location

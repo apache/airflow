@@ -54,9 +54,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param container_group: the properties of the container group
         :type container_group: azure.mgmt.containerinstance.models.ContainerGroup
         """
-        self.connection.container_groups.create_or_update(resource_group,
-                                                          name,
-                                                          container_group)
+        self.connection.container_groups.create_or_update(resource_group, name, container_group)
 
     def get_state_exitcode_details(self, resource_group, name):
         """
@@ -73,7 +71,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         warnings.warn(
             "get_state_exitcode_details() is deprecated. Related method is get_state()",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         cg_state = self.get_state(resource_group, name)
         c_state = cg_state.containers[0].instance_view.current_state
@@ -91,9 +89,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :rtype: list[str]
         """
         warnings.warn(
-            "get_messages() is deprecated. Related method is get_state()",
-            DeprecationWarning,
-            stacklevel=2
+            "get_messages() is deprecated. Related method is get_state()", DeprecationWarning, stacklevel=2
         )
         cg_state = self.get_state(resource_group, name)
         instance_view = cg_state.containers[0].instance_view
@@ -110,9 +106,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :return: ContainerGroup
         :rtype: ~azure.mgmt.containerinstance.models.ContainerGroup
         """
-        return self.connection.container_groups.get(resource_group,
-                                                    name,
-                                                    raw=False)
+        return self.connection.container_groups.get(resource_group, name, raw=False)
 
     def get_logs(self, resource_group, name, tail=1000):
         """

@@ -1,5 +1,3 @@
-
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -27,7 +25,6 @@ from airflow.providers.amazon.aws.sensors.glue import AwsGlueJobSensor
 
 
 class TestAwsGlueJobSensor(unittest.TestCase):
-
     def setUp(self):
         configuration.load_test_config()
 
@@ -36,12 +33,14 @@ class TestAwsGlueJobSensor(unittest.TestCase):
     def test_poke(self, mock_get_job_state, mock_conn):
         mock_conn.return_value.get_job_run()
         mock_get_job_state.return_value = 'SUCCEEDED'
-        op = AwsGlueJobSensor(task_id='test_glue_job_sensor',
-                              job_name='aws_test_glue_job',
-                              run_id='5152fgsfsjhsh61661',
-                              poke_interval=1,
-                              timeout=5,
-                              aws_conn_id='aws_default')
+        op = AwsGlueJobSensor(
+            task_id='test_glue_job_sensor',
+            job_name='aws_test_glue_job',
+            run_id='5152fgsfsjhsh61661',
+            poke_interval=1,
+            timeout=5,
+            aws_conn_id='aws_default',
+        )
         self.assertTrue(op.poke(None))
 
     @mock.patch.object(AwsGlueJobHook, 'get_conn')
@@ -49,12 +48,14 @@ class TestAwsGlueJobSensor(unittest.TestCase):
     def test_poke_false(self, mock_get_job_state, mock_conn):
         mock_conn.return_value.get_job_run()
         mock_get_job_state.return_value = 'RUNNING'
-        op = AwsGlueJobSensor(task_id='test_glue_job_sensor',
-                              job_name='aws_test_glue_job',
-                              run_id='5152fgsfsjhsh61661',
-                              poke_interval=1,
-                              timeout=5,
-                              aws_conn_id='aws_default')
+        op = AwsGlueJobSensor(
+            task_id='test_glue_job_sensor',
+            job_name='aws_test_glue_job',
+            run_id='5152fgsfsjhsh61661',
+            poke_interval=1,
+            timeout=5,
+            aws_conn_id='aws_default',
+        )
         self.assertFalse(op.poke(None))
 
 

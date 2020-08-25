@@ -50,8 +50,7 @@ class PagerdutyHook(BaseHook):
             self.token = token
 
         if self.token is None:
-            raise AirflowException(
-                'Cannot get token: No valid api token nor pagerduty_conn_id supplied.')
+            raise AirflowException('Cannot get token: No valid api token nor pagerduty_conn_id supplied.')
 
     # pylint: disable=too-many-arguments
     def create_event(

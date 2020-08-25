@@ -18,7 +18,8 @@
 from unittest import TestCase, mock
 
 from airflow.providers.google.cloud.sensors.bigquery import (
-    BigQueryTableExistenceSensor, BigQueryTablePartitionExistenceSensor,
+    BigQueryTableExistenceSensor,
+    BigQueryTablePartitionExistenceSensor,
 )
 
 TEST_PROJECT_ID = "test_project"
@@ -53,9 +54,7 @@ class TestBigqueryTableExistenceSensor(TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.table_exists.assert_called_once_with(
-            project_id=TEST_PROJECT_ID,
-            dataset_id=TEST_DATASET_ID,
-            table_id=TEST_TABLE_ID
+            project_id=TEST_PROJECT_ID, dataset_id=TEST_DATASET_ID, table_id=TEST_TABLE_ID
         )
 
 
@@ -86,5 +85,5 @@ class TestBigqueryTablePartitionExistenceSensor(TestCase):
             project_id=TEST_PROJECT_ID,
             dataset_id=TEST_DATASET_ID,
             table_id=TEST_TABLE_ID,
-            partition_id=TEST_PARTITION_ID
+            partition_id=TEST_PARTITION_ID,
         )

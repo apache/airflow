@@ -27,7 +27,6 @@ from airflow.utils import db
 
 
 class TestGoogleApiToS3(unittest.TestCase):
-
     def setUp(self):
         load_test_config()
 
@@ -38,7 +37,7 @@ class TestGoogleApiToS3(unittest.TestCase):
                 conn_type="google_cloud_platform",
                 schema='refresh_token',
                 login='client_id',
-                password='client_secret'
+                password='client_secret',
             )
         )
         db.merge_conn(
@@ -47,7 +46,7 @@ class TestGoogleApiToS3(unittest.TestCase):
                 conn_type='s3',
                 schema='test',
                 extra='{"aws_access_key_id": "aws_access_key_id", "aws_secret_access_key":'
-                      ' "aws_secret_access_key"}'
+                ' "aws_secret_access_key"}',
             )
         )
 
@@ -63,7 +62,7 @@ class TestGoogleApiToS3(unittest.TestCase):
             's3_destination_key': 'test/google_api_to_s3_test.csv',
             's3_overwrite': True,
             'task_id': 'task_id',
-            'dag': None
+            'dag': None,
         }
 
     @patch('airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleDiscoveryApiHook.query')
@@ -78,13 +77,13 @@ class TestGoogleApiToS3(unittest.TestCase):
             endpoint=self.kwargs['google_api_endpoint_path'],
             data=self.kwargs['google_api_endpoint_params'],
             paginate=self.kwargs['google_api_pagination'],
-            num_retries=self.kwargs['google_api_num_retries']
+            num_retries=self.kwargs['google_api_num_retries'],
         )
         mock_json_dumps.assert_called_once_with(mock_google_api_hook_query.return_value)
         mock_s3_hook_load_string.assert_called_once_with(
             string_data=mock_json_dumps.return_value,
             key=self.kwargs['s3_destination_key'],
-            replace=self.kwargs['s3_overwrite']
+            replace=self.kwargs['s3_overwrite'],
         )
         context['task_instance'].xcom_pull.assert_not_called()
         context['task_instance'].xcom_push.assert_not_called()
@@ -107,36 +106,30 @@ class TestGoogleApiToS3(unittest.TestCase):
             endpoint=self.kwargs['google_api_endpoint_path'],
             data=self.kwargs['google_api_endpoint_params'],
             paginate=self.kwargs['google_api_pagination'],
-            num_retries=self.kwargs['google_api_num_retries']
+            num_retries=self.kwargs['google_api_num_retries'],
         )
         mock_json_dumps.assert_called_once_with(mock_google_api_hook_query.return_value)
         mock_s3_hook_load_string.assert_called_once_with(
             string_data=mock_json_dumps.return_value,
             key=self.kwargs['s3_destination_key'],
-            replace=self.kwargs['s3_overwrite']
+            replace=self.kwargs['s3_overwrite'],
         )
         context['task_instance'].xcom_pull.assert_called_once_with(
             task_ids=xcom_kwargs['google_api_endpoint_params_via_xcom_task_ids'],
-            key=xcom_kwargs['google_api_endpoint_params_via_xcom']
+            key=xcom_kwargs['google_api_endpoint_params_via_xcom'],
         )
         context['task_instance'].xcom_push.assert_called_once_with(
-            key=xcom_kwargs['google_api_response_via_xcom'],
-            value=mock_google_api_hook_query.return_value
+            key=xcom_kwargs['google_api_response_via_xcom'], value=mock_google_api_hook_query.return_value
         )
 
     @patch('airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleDiscoveryApiHook.query')
     @patch('airflow.providers.amazon.aws.transfers.google_api_to_s3.S3Hook.load_string')
     @patch('airflow.providers.amazon.aws.transfers.google_api_to_s3.json.dumps')
     @patch(
-        'airflow.providers.amazon.aws.transfers.google_api_to_s3.sys.getsizeof',
-        return_value=MAX_XCOM_SIZE
+        'airflow.providers.amazon.aws.transfers.google_api_to_s3.sys.getsizeof', return_value=MAX_XCOM_SIZE
     )
     def test_execute_with_xcom_exceeded_max_xcom_size(
-        self,
-        mock_sys_getsizeof,
-        mock_json_dumps,
-        mock_s3_hook_load_string,
-        mock_google_api_hook_query
+        self, mock_sys_getsizeof, mock_json_dumps, mock_s3_hook_load_string, mock_google_api_hook_query
     ):
         context = {'task_instance': Mock()}
         xcom_kwargs = {
@@ -146,24 +139,23 @@ class TestGoogleApiToS3(unittest.TestCase):
         }
         context['task_instance'].xcom_pull.return_value = {}
 
-        self.assertRaises(RuntimeError,
-                          GoogleApiToS3Operator(**self.kwargs, **xcom_kwargs).execute, context)
+        self.assertRaises(RuntimeError, GoogleApiToS3Operator(**self.kwargs, **xcom_kwargs).execute, context)
 
         mock_google_api_hook_query.assert_called_once_with(
             endpoint=self.kwargs['google_api_endpoint_path'],
             data=self.kwargs['google_api_endpoint_params'],
             paginate=self.kwargs['google_api_pagination'],
-            num_retries=self.kwargs['google_api_num_retries']
+            num_retries=self.kwargs['google_api_num_retries'],
         )
         mock_json_dumps.assert_called_once_with(mock_google_api_hook_query.return_value)
         mock_s3_hook_load_string.assert_called_once_with(
             string_data=mock_json_dumps.return_value,
             key=self.kwargs['s3_destination_key'],
-            replace=self.kwargs['s3_overwrite']
+            replace=self.kwargs['s3_overwrite'],
         )
         context['task_instance'].xcom_pull.assert_called_once_with(
             task_ids=xcom_kwargs['google_api_endpoint_params_via_xcom_task_ids'],
-            key=xcom_kwargs['google_api_endpoint_params_via_xcom']
+            key=xcom_kwargs['google_api_endpoint_params_via_xcom'],
         )
         context['task_instance'].xcom_push.assert_not_called()
         mock_sys_getsizeof.assert_called_once_with(mock_google_api_hook_query.return_value)

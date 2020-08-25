@@ -28,8 +28,8 @@ if not PY38:
     from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
     from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator
 
-ODBC_CONN = Connection(conn_id='test-odbc', conn_type='odbc', )
-PYMSSQL_CONN = Connection(conn_id='test-pymssql', conn_type='anything', )
+ODBC_CONN = Connection(conn_id='test-odbc', conn_type='odbc',)
+PYMSSQL_CONN = Connection(conn_id='test-pymssql', conn_type='anything',)
 
 
 class TestMsSqlOperator:

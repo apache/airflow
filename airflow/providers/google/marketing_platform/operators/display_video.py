@@ -67,12 +67,16 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("body", "impersonation_chain",)
+    template_fields = (
+        "body",
+        "impersonation_chain",
+    )
     template_ext = (".json",)
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         body: Dict[str, Any],
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
@@ -143,11 +147,15 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("report_id", "impersonation_chain",)
+    template_fields = (
+        "report_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         report_id: Optional[str] = None,
         report_name: Optional[str] = None,
         api_version: str = "v1",
@@ -168,9 +176,7 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
             raise AirflowException("Use only one value - `report_name` or `report_id`.")
 
         if not (report_name or report_id):
-            raise AirflowException(
-                "Provide one of the values: `report_name` or `report_id`."
-            )
+            raise AirflowException("Provide one of the values: `report_name` or `report_id`.")
 
     def execute(self, context: Dict):
         hook = GoogleDisplayVideo360Hook(
@@ -184,9 +190,7 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         else:
             reports = hook.list_queries()
             reports_ids_to_delete = [
-                report["queryId"]
-                for report in reports
-                if report["metadata"]["title"] == self.report_name
+                report["queryId"] for report in reports if report["metadata"]["title"] == self.report_name
             ]
 
         for report_id in reports_ids_to_delete:
@@ -236,11 +240,17 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("report_id", "bucket_name", "report_name", "impersonation_chain",)
+    template_fields = (
+        "report_id",
+        "bucket_name",
+        "report_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         report_id: str,
         bucket_name: str,
         report_name: Optional[str] = None,
@@ -312,10 +322,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
                 mime_type="text/csv",
             )
         self.log.info(
-            "Report %s was saved in bucket %s as %s.",
-            self.report_id,
-            self.bucket_name,
-            report_name,
+            "Report %s was saved in bucket %s as %s.", self.report_id, self.bucket_name, report_name,
         )
         self.xcom_push(context, key="report_name", value=report_name)
 
@@ -356,11 +363,16 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("report_id", "params", "impersonation_chain",)
+    template_fields = (
+        "report_id",
+        "params",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         report_id: str,
         params: Dict[str, Any],
         api_version: str = "v1",
@@ -385,9 +397,7 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info(
-            "Running report %s with the following params:\n %s",
-            self.report_id,
-            self.params,
+            "Running report %s with the following params:\n %s", self.report_id, self.params,
         )
         hook.run_query(query_id=self.report_id, params=self.params)
 
@@ -410,11 +420,17 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
     :type request_body: Dict[str, Any],
     """
 
-    template_fields = ("request_body", "bucket_name", "object_name", "impersonation_chain",)
+    template_fields = (
+        "request_body",
+        "bucket_name",
+        "object_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         request_body: Dict[str, Any],
         bucket_name: str,
         object_name: str,
@@ -423,7 +439,7 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.request_body = request_body
@@ -497,7 +513,8 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         bucket_name: str,
         object_name: str,
         api_version: str = "v1.1",
@@ -532,9 +549,7 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         # downloaded file from the GCS could be a 1GB size or even more
         with tempfile.NamedTemporaryFile("w+") as f:
             line_items = gcs_hook.download(
-                bucket_name=self.bucket_name,
-                object_name=self.object_name,
-                filename=f.name,
+                bucket_name=self.bucket_name, object_name=self.object_name, filename=f.name,
             )
             f.flush()
             hook.upload_line_items(line_items=line_items)
@@ -581,11 +596,15 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("body_request", "impersonation_chain",)
+    template_fields = (
+        "body_request",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         body_request: Dict[str, Any],
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
@@ -609,9 +628,7 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         )
 
         self.log.info("Creating operation for SDF download task...")
-        operation = hook.create_sdf_download_operation(
-            body_request=self.body_request
-        )
+        operation = hook.create_sdf_download_operation(body_request=self.body_request)
 
         return operation
 
@@ -657,11 +674,17 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("operation_name", "bucket_name", "object_name", "impersonation_chain",)
+    template_fields = (
+        "operation_name",
+        "bucket_name",
+        "object_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         operation_name: str,
         bucket_name: str,
         object_name: str,
@@ -703,9 +726,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
 
         self.log.info("Sending file to the Google Cloud Storage...")
         with tempfile.NamedTemporaryFile() as temp_file:
-            hook.download_content_from_request(
-                temp_file, media, chunk_size=1024 * 1024
-            )
+            hook.download_content_from_request(temp_file, media, chunk_size=1024 * 1024)
             temp_file.flush()
             gcs_hook.upload(
                 bucket_name=self.bucket_name,

@@ -38,17 +38,21 @@ class SQSPublishOperator(BaseOperator):
     :param aws_conn_id: AWS connection id (default: aws_default)
     :type aws_conn_id: str
     """
+
     template_fields = ('sqs_queue', 'message_content', 'delay_seconds')
     ui_color = '#6ad3fa'
 
     @apply_defaults
-    def __init__(self, *,
-                 sqs_queue,
-                 message_content,
-                 message_attributes=None,
-                 delay_seconds=0,
-                 aws_conn_id='aws_default',
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        sqs_queue,
+        message_content,
+        message_attributes=None,
+        delay_seconds=0,
+        aws_conn_id='aws_default',
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
@@ -69,10 +73,12 @@ class SQSPublishOperator(BaseOperator):
 
         hook = SQSHook(aws_conn_id=self.aws_conn_id)
 
-        result = hook.send_message(queue_url=self.sqs_queue,
-                                   message_body=self.message_content,
-                                   delay_seconds=self.delay_seconds,
-                                   message_attributes=self.message_attributes)
+        result = hook.send_message(
+            queue_url=self.sqs_queue,
+            message_body=self.message_content,
+            delay_seconds=self.delay_seconds,
+            message_attributes=self.message_attributes,
+        )
 
         self.log.info('result is send_message is %s', result)
 

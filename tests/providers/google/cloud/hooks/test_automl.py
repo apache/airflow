@@ -67,9 +67,7 @@ class TestAuoMLHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient")
     def test_get_conn(self, mock_automl_client, mock_client_info):
         self.hook.get_conn()
-        mock_automl_client.assert_called_once_with(
-            credentials=CREDENTIALS, client_info=CLIENT_INFO
-        )
+        mock_automl_client.assert_called_once_with(credentials=CREDENTIALS, client_info=CLIENT_INFO)
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.automl.GoogleBaseHook.client_info",
@@ -78,23 +76,17 @@ class TestAuoMLHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.automl.PredictionServiceClient")
     def test_prediction_client(self, mock_prediction_client, mock_client_info):
         client = self.hook.prediction_client  # pylint: disable=unused-variable  # noqa
-        mock_prediction_client.assert_called_once_with(
-            credentials=CREDENTIALS, client_info=CLIENT_INFO
-        )
+        mock_prediction_client.assert_called_once_with(credentials=CREDENTIALS, client_info=CLIENT_INFO)
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.create_model")
     def test_create_model(self, mock_create_model):
-        self.hook.create_model(
-            model=MODEL, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
-        )
+        self.hook.create_model(model=MODEL, location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
 
         mock_create_model.assert_called_once_with(
             parent=LOCATION_PATH, model=MODEL, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.automl.PredictionServiceClient.batch_predict"
-    )
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.PredictionServiceClient.batch_predict")
     def test_batch_predict(self, mock_batch_predict):
         self.hook.batch_predict(
             model_id=MODEL_ID,
@@ -117,33 +109,19 @@ class TestAuoMLHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.automl.PredictionServiceClient.predict")
     def test_predict(self, mock_predict):
         self.hook.predict(
-            model_id=MODEL_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            payload=PAYLOAD,
+            model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID, payload=PAYLOAD,
         )
 
         mock_predict.assert_called_once_with(
-            name=MODEL_PATH,
-            payload=PAYLOAD,
-            params=None,
-            retry=None,
-            timeout=None,
-            metadata=None,
+            name=MODEL_PATH, payload=PAYLOAD, params=None, retry=None, timeout=None, metadata=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.create_dataset")
     def test_create_dataset(self, mock_create_dataset):
-        self.hook.create_dataset(
-            dataset=DATASET, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
-        )
+        self.hook.create_dataset(dataset=DATASET, location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
 
         mock_create_dataset.assert_called_once_with(
-            parent=LOCATION_PATH,
-            dataset=DATASET,
-            retry=None,
-            timeout=None,
-            metadata=None,
+            parent=LOCATION_PATH, dataset=DATASET, retry=None, timeout=None, metadata=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.import_data")
@@ -156,11 +134,7 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
         mock_import_data.assert_called_once_with(
-            name=DATASET_PATH,
-            input_config=INPUT_CONFIG,
-            retry=None,
-            timeout=None,
-            metadata=None,
+            name=DATASET_PATH, input_config=INPUT_CONFIG, retry=None, timeout=None, metadata=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.list_column_specs")
@@ -179,9 +153,7 @@ class TestAuoMLHook(unittest.TestCase):
             page_size=page_size,
         )
 
-        parent = AutoMlClient.table_spec_path(
-            GCP_PROJECT_ID, GCP_LOCATION, DATASET_ID, table_spec
-        )
+        parent = AutoMlClient.table_spec_path(GCP_PROJECT_ID, GCP_LOCATION, DATASET_ID, table_spec)
         mock_list_column_specs.assert_called_once_with(
             parent=parent,
             field_mask=MASK,
@@ -194,23 +166,15 @@ class TestAuoMLHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.get_model")
     def test_get_model(self, mock_get_model):
-        self.hook.get_model(
-            model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
-        )
+        self.hook.get_model(model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
 
-        mock_get_model.assert_called_once_with(
-            name=MODEL_PATH, retry=None, timeout=None, metadata=None
-        )
+        mock_get_model.assert_called_once_with(name=MODEL_PATH, retry=None, timeout=None, metadata=None)
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.delete_model")
     def test_delete_model(self, mock_delete_model):
-        self.hook.delete_model(
-            model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
-        )
+        self.hook.delete_model(model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
 
-        mock_delete_model.assert_called_once_with(
-            name=MODEL_PATH, retry=None, timeout=None, metadata=None
-        )
+        mock_delete_model.assert_called_once_with(name=MODEL_PATH, retry=None, timeout=None, metadata=None)
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.update_dataset")
     def test_update_dataset(self, mock_update_dataset):
@@ -273,9 +237,7 @@ class TestAuoMLHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.delete_dataset")
     def test_delete_dataset(self, mock_delete_dataset):
-        self.hook.delete_dataset(
-            dataset_id=DATASET_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
-        )
+        self.hook.delete_dataset(dataset_id=DATASET_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
 
         mock_delete_dataset.assert_called_once_with(
             name=DATASET_PATH, retry=None, timeout=None, metadata=None

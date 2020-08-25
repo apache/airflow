@@ -23,7 +23,6 @@ from airflow.providers.hashicorp.secrets.vault import VaultBackend
 
 
 class TestVaultSecrets(TestCase):
-
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri(self, mock_hvac):
         mock_client = mock.MagicMock()
@@ -35,13 +34,16 @@ class TestVaultSecrets(TestCase):
             'lease_duration': 0,
             'data': {
                 'data': {'conn_uri': 'postgresql://airflow:airflow@host:5432/airflow'},
-                'metadata': {'created_time': '2020-03-16T21:01:43.331126Z',
-                             'deletion_time': '',
-                             'destroyed': False,
-                             'version': 1}},
+                'metadata': {
+                    'created_time': '2020-03-16T21:01:43.331126Z',
+                    'deletion_time': '',
+                    'destroyed': False,
+                    'version': 1,
+                },
+            },
             'wrap_info': None,
             'warnings': None,
-            'auth': None
+            'auth': None,
         }
 
         kwargs = {
@@ -49,7 +51,7 @@ class TestVaultSecrets(TestCase):
             "mount_point": "airflow",
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
         }
 
         test_client = VaultBackend(**kwargs)
@@ -68,7 +70,8 @@ class TestVaultSecrets(TestCase):
             'data': {'conn_uri': 'postgresql://airflow:airflow@host:5432/airflow'},
             'wrap_info': None,
             'warnings': None,
-            'auth': None}
+            'auth': None,
+        }
 
         kwargs = {
             "connections_path": "connections",
@@ -76,13 +79,14 @@ class TestVaultSecrets(TestCase):
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
             "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
-            "kv_engine_version": 1
+            "kv_engine_version": 1,
         }
 
         test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
-            mount_point='airflow', path='connections/test_postgres')
+            mount_point='airflow', path='connections/test_postgres'
+        )
         self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -97,7 +101,8 @@ class TestVaultSecrets(TestCase):
             'data': {'conn_uri': 'postgresql://airflow:airflow@host:5432/airflow'},
             'wrap_info': None,
             'warnings': None,
-            'auth': None}
+            'auth': None,
+        }
 
         kwargs = {
             "connections_path": "connections",
@@ -106,19 +111,18 @@ class TestVaultSecrets(TestCase):
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
             "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
-            "kv_engine_version": 1
+            "kv_engine_version": 1,
         }
 
         test_client = VaultBackend(**kwargs)
         self.assertEqual("custom", test_client.vault_client.auth_mount_point)
         returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
-            mount_point='airflow', path='connections/test_postgres')
+            mount_point='airflow', path='connections/test_postgres'
+        )
         self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
 
-    @mock.patch.dict('os.environ', {
-        'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
-    })
+    @mock.patch.dict('os.environ', {'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',})
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_non_existent_key(self, mock_hvac):
         """
@@ -135,13 +139,14 @@ class TestVaultSecrets(TestCase):
             "mount_point": "airflow",
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
         }
 
         test_client = VaultBackend(**kwargs)
         self.assertIsNone(test_client.get_conn_uri(conn_id="test_mysql"))
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point='airflow', path='connections/test_mysql', version=None)
+            mount_point='airflow', path='connections/test_mysql', version=None
+        )
         self.assertEqual([], test_client.get_connections(conn_id="test_mysql"))
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -153,14 +158,18 @@ class TestVaultSecrets(TestCase):
             'lease_id': '',
             'renewable': False,
             'lease_duration': 0,
-            'data': {'data': {'value': 'world'},
-                     'metadata': {'created_time': '2020-03-28T02:10:54.301784Z',
-                                  'deletion_time': '',
-                                  'destroyed': False,
-                                  'version': 1}},
+            'data': {
+                'data': {'value': 'world'},
+                'metadata': {
+                    'created_time': '2020-03-28T02:10:54.301784Z',
+                    'deletion_time': '',
+                    'destroyed': False,
+                    'version': 1,
+                },
+            },
             'wrap_info': None,
             'warnings': None,
-            'auth': None
+            'auth': None,
         }
 
         kwargs = {
@@ -168,7 +177,7 @@ class TestVaultSecrets(TestCase):
             "mount_point": "airflow",
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
         }
 
         test_client = VaultBackend(**kwargs)
@@ -187,7 +196,8 @@ class TestVaultSecrets(TestCase):
             'data': {'value': 'world'},
             'wrap_info': None,
             'warnings': None,
-            'auth': None}
+            'auth': None,
+        }
 
         kwargs = {
             "variables_path": "variables",
@@ -195,18 +205,17 @@ class TestVaultSecrets(TestCase):
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
             "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
-            "kv_engine_version": 1
+            "kv_engine_version": 1,
         }
 
         test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_variable("hello")
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
-            mount_point='airflow', path='variables/hello')
+            mount_point='airflow', path='variables/hello'
+        )
         self.assertEqual('world', returned_uri)
 
-    @mock.patch.dict('os.environ', {
-        'AIRFLOW_VAR_HELLO': 'world',
-    })
+    @mock.patch.dict('os.environ', {'AIRFLOW_VAR_HELLO': 'world',})
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value_non_existent_key(self, mock_hvac):
         """
@@ -223,13 +232,14 @@ class TestVaultSecrets(TestCase):
             "mount_point": "airflow",
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
         }
 
         test_client = VaultBackend(**kwargs)
         self.assertIsNone(test_client.get_variable("hello"))
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point='airflow', path='variables/hello', version=None)
+            mount_point='airflow', path='variables/hello', version=None
+        )
         self.assertIsNone(test_client.get_variable("hello"))
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -243,7 +253,7 @@ class TestVaultSecrets(TestCase):
             "mount_point": "airflow",
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
-            "token": "test_wrong_token"
+            "token": "test_wrong_token",
         }
 
         with self.assertRaisesRegex(VaultError, "Vault Authentication Error!"):
@@ -270,14 +280,18 @@ class TestVaultSecrets(TestCase):
             'lease_id': '',
             'renewable': False,
             'lease_duration': 0,
-            'data': {'data': {'value': 'sqlite:////Users/airflow/airflow/airflow.db'},
-                     'metadata': {'created_time': '2020-03-28T02:10:54.301784Z',
-                                  'deletion_time': '',
-                                  'destroyed': False,
-                                  'version': 1}},
+            'data': {
+                'data': {'value': 'sqlite:////Users/airflow/airflow/airflow.db'},
+                'metadata': {
+                    'created_time': '2020-03-28T02:10:54.301784Z',
+                    'deletion_time': '',
+                    'destroyed': False,
+                    'version': 1,
+                },
+            },
             'wrap_info': None,
             'warnings': None,
-            'auth': None
+            'auth': None,
         }
 
         kwargs = {
@@ -285,7 +299,7 @@ class TestVaultSecrets(TestCase):
             "mount_point": "secret",
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
-            "token": "s.FnL7qg0YnHZDpf4zKKuFy0UK"
+            "token": "s.FnL7qg0YnHZDpf4zKKuFy0UK",
         }
 
         test_client = VaultBackend(**kwargs)

@@ -76,7 +76,8 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         transfer_config: dict,
         project_id: Optional[str] = None,
         authorization_code: Optional[str] = None,
@@ -85,7 +86,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.transfer_config = transfer_config
@@ -99,8 +100,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
 
     def execute(self, context):
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         self.log.info("Creating DTS transfer config")
         response = hook.create_transfer_config(
@@ -152,11 +152,17 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("transfer_config_id", "project_id", "gcp_conn_id", "impersonation_chain",)
+    template_fields = (
+        "transfer_config_id",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         transfer_config_id: str,
         project_id: Optional[str] = None,
         retry: Retry = None,
@@ -164,7 +170,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.project_id = project_id
@@ -177,8 +183,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
 
     def execute(self, context):
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         hook.delete_transfer_config(
             transfer_config_id=self.transfer_config_id,
@@ -247,7 +252,8 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         transfer_config_id: str,
         project_id: Optional[str] = None,
         requested_time_range: Optional[dict] = None,
@@ -257,7 +263,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.project_id = project_id
@@ -272,8 +278,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
 
     def execute(self, context):
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         self.log.info('Submitting manual transfer for %s', self.transfer_config_id)
         response = hook.start_manual_transfer_runs(

@@ -31,6 +31,5 @@ class DataprocHook(YandexCloudBaseHook):
         super().__init__(*args, **kwargs)
         self.cluster_id = None
         self.client = self.sdk.wrappers.Dataproc(
-            default_folder_id=self.default_folder_id,
-            default_public_ssh_key=self.default_public_ssh_key,
+            default_folder_id=self.default_folder_id, default_public_ssh_key=self.default_public_ssh_key,
         )

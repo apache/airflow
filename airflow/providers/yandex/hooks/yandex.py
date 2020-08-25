@@ -31,11 +31,7 @@ class YandexCloudBaseHook(BaseHook):
     :type connection_id: str
     """
 
-    def __init__(self,
-                 connection_id=None,
-                 default_folder_id=None,
-                 default_public_ssh_key=None
-                 ):
+    def __init__(self, connection_id=None, default_folder_id=None, default_public_ssh_key=None):
         super().__init__()
         self.connection_id = connection_id or 'yandexcloud_default'
         self.connection = self.get_connection(self.connection_id)
@@ -52,8 +48,8 @@ class YandexCloudBaseHook(BaseHook):
         oauth_token = self._get_field('oauth', False)
         if not (service_account_json or oauth_token or service_account_json_path):
             raise AirflowException(
-                'No credentials are found in connection. Specify either service account ' +
-                'authentication JSON or user OAuth token in Yandex.Cloud connection'
+                'No credentials are found in connection. Specify either service account '
+                + 'authentication JSON or user OAuth token in Yandex.Cloud connection'
             )
         if service_account_json_path:
             with open(service_account_json_path) as infile:

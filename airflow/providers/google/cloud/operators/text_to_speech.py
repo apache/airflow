@@ -76,6 +76,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_text_to_speech_synthesize_template_fields]
     template_fields = (
         "input_data",
@@ -91,7 +92,8 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         input_data: Union[Dict, SynthesisInput],
         voice: Union[Dict, VoiceSelectionParams],
         audio_config: Union[Dict, AudioConfig],
@@ -102,7 +104,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.input_data = input_data
         self.voice = voice
@@ -130,8 +132,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudTextToSpeechHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
         )
         result = hook.synthesize_speech(
             input_data=self.input_data,
@@ -143,8 +144,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         with NamedTemporaryFile() as temp_file:
             temp_file.write(result.audio_content)
             cloud_storage_hook = GCSHook(
-                google_cloud_storage_conn_id=self.gcp_conn_id,
-                impersonation_chain=self.impersonation_chain,
+                google_cloud_storage_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
             )
             cloud_storage_hook.upload(
                 bucket_name=self.target_bucket_name, object_name=self.target_filename, filename=temp_file.name

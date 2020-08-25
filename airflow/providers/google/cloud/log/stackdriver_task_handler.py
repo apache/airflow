@@ -34,10 +34,9 @@ from airflow.providers.google.cloud.utils.credentials_provider import get_creden
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})
 
-_DEFAULT_SCOPESS = frozenset([
-    "https://www.googleapis.com/auth/logging.read",
-    "https://www.googleapis.com/auth/logging.write"
-])
+_DEFAULT_SCOPESS = frozenset(
+    ["https://www.googleapis.com/auth/logging.read", "https://www.googleapis.com/auth/logging.write"]
+)
 
 
 class StackdriverTaskHandler(logging.Handler):
@@ -107,14 +106,12 @@ class StackdriverTaskHandler(logging.Handler):
     def _client(self) -> gcp_logging.Client:
         """Google Cloud Library API client"""
         credentials, project = get_credentials_and_project_id(
-            key_path=self.gcp_key_path,
-            scopes=self.scopes,
-            disable_logging=True
+            key_path=self.gcp_key_path, scopes=self.scopes, disable_logging=True
         )
         client = gcp_logging.Client(
             credentials=credentials,
             project=project,
-            client_info=ClientInfo(client_library_version='airflow_v' + version.version)
+            client_info=ClientInfo(client_library_version='airflow_v' + version.version),
         )
         return client
 
@@ -207,6 +204,7 @@ class StackdriverTaskHandler(logging.Handler):
         :type: Dict[str, str]
         :return: logs filter
         """
+
         def escape_label_key(key: str) -> str:
             return f'"{key}"' if "." in key else key
 
@@ -216,7 +214,7 @@ class StackdriverTaskHandler(logging.Handler):
 
         log_filters = [
             f'resource.type={escale_label_value(self.resource.type)}',
-            f'logName="projects/{self._client.project}/logs/{self.name}"'
+            f'logName="projects/{self._client.project}/logs/{self.name}"',
         ]
 
         for key, value in self.resource.labels.items():
@@ -227,10 +225,7 @@ class StackdriverTaskHandler(logging.Handler):
         return "\n".join(log_filters)
 
     def _read_logs(
-        self,
-        log_filter: str,
-        next_page_token: Optional[str],
-        all_pages: bool
+        self, log_filter: str, next_page_token: Optional[str], all_pages: bool
     ) -> Tuple[str, bool, Optional[str]]:
         """
         Sends requests to the Stackdriver service and downloads logs.
@@ -249,15 +244,13 @@ class StackdriverTaskHandler(logging.Handler):
         """
         messages = []
         new_messages, next_page_token = self._read_single_logs_page(
-            log_filter=log_filter,
-            page_token=next_page_token,
+            log_filter=log_filter, page_token=next_page_token,
         )
         messages.append(new_messages)
         if all_pages:
             while next_page_token:
                 new_messages, next_page_token = self._read_single_logs_page(
-                    log_filter=log_filter,
-                    page_token=next_page_token
+                    log_filter=log_filter, page_token=next_page_token
                 )
                 messages.append(new_messages)
 

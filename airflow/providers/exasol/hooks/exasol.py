@@ -34,6 +34,7 @@ class ExasolHook(DbApiHook):
     <https://github.com/badoo/pyexasol/blob/master/docs/REFERENCE.md#connect>`_
     for more details.
     """
+
     conn_name_attr = 'exasol_conn_id'
     default_conn_name = 'exasol_default'
     supports_autocommit = True
@@ -49,7 +50,8 @@ class ExasolHook(DbApiHook):
             dsn='%s:%s' % (conn.host, conn.port),
             user=conn.login,
             password=conn.password,
-            schema=self.schema or conn.schema)
+            schema=self.schema or conn.schema,
+        )
         # check for parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name in ['compression', 'encryption', 'json_lib', 'client_name']:
@@ -143,9 +145,9 @@ class ExasolHook(DbApiHook):
         """
         if not self.supports_autocommit and autocommit:
             self.log.warning(
-                ("%s connection doesn't support "
-                 "autocommit but autocommit activated."),
-                getattr(self, self.conn_name_attr))
+                ("%s connection doesn't support " "autocommit but autocommit activated."),
+                getattr(self, self.conn_name_attr),
+            )
         conn.set_autocommit(autocommit)
 
     def get_autocommit(self, conn):

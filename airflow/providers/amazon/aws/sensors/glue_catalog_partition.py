@@ -47,19 +47,27 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         between each tries
     :type poke_interval: int
     """
-    template_fields = ('database_name', 'table_name', 'expression',)
+
+    template_fields = (
+        'database_name',
+        'table_name',
+        'expression',
+    )
     ui_color = '#C5CAE9'
 
     @apply_defaults
-    def __init__(self, *,
-                 table_name, expression="ds='{{ ds }}'",
-                 aws_conn_id='aws_default',
-                 region_name=None,
-                 database_name='default',
-                 poke_interval=60 * 3,
-                 **kwargs):
-        super().__init__(
-            poke_interval=poke_interval, **kwargs)
+    def __init__(
+        self,
+        *,
+        table_name,
+        expression="ds='{{ ds }}'",
+        aws_conn_id='aws_default',
+        region_name=None,
+        database_name='default',
+        poke_interval=60 * 3,
+        **kwargs,
+    ):
+        super().__init__(poke_interval=poke_interval, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.table_name = table_name
@@ -77,15 +85,12 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
             'Poking for table %s. %s, expression %s', self.database_name, self.table_name, self.expression
         )
 
-        return self.get_hook().check_for_partition(
-            self.database_name, self.table_name, self.expression)
+        return self.get_hook().check_for_partition(self.database_name, self.table_name, self.expression)
 
     def get_hook(self):
         """
         Gets the AwsGlueCatalogHook
         """
         if not self.hook:
-            self.hook = AwsGlueCatalogHook(
-                aws_conn_id=self.aws_conn_id,
-                region_name=self.region_name)
+            self.hook = AwsGlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         return self.hook

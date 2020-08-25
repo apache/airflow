@@ -28,7 +28,6 @@ from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook
 
 
 class TestDruidHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         session = requests.Session()
@@ -38,18 +37,18 @@ class TestDruidHook(unittest.TestCase):
         class TestDRuidhook(DruidHook):
             def get_conn_url(self):
                 return 'http://druid-overlord:8081/druid/indexer/v1/task'
+
         self.db_hook = TestDRuidhook()
 
     @requests_mock.mock()
     def test_submit_gone_wrong(self, m):
         task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
-            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = m.get(
-            'http://druid-overlord:8081/druid/indexer/v1/task/'
-            '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
-            text='{"status":{"status": "FAILED"}}'
+            'http://druid-overlord:8081/druid/indexer/v1/task/' '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            text='{"status":{"status": "FAILED"}}',
         )
 
         # The job failed for some reason
@@ -63,12 +62,11 @@ class TestDruidHook(unittest.TestCase):
     def test_submit_ok(self, m):
         task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
-            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = m.get(
-            'http://druid-overlord:8081/druid/indexer/v1/task/'
-            '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
-            text='{"status":{"status": "SUCCESS"}}'
+            'http://druid-overlord:8081/druid/indexer/v1/task/' '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            text='{"status":{"status": "SUCCESS"}}',
         )
 
         # Exists just as it should
@@ -81,12 +79,11 @@ class TestDruidHook(unittest.TestCase):
     def test_submit_correct_json_body(self, m):
         task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
-            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = m.get(
-            'http://druid-overlord:8081/druid/indexer/v1/task/'
-            '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
-            text='{"status":{"status": "SUCCESS"}}'
+            'http://druid-overlord:8081/druid/indexer/v1/task/' '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            text='{"status":{"status": "SUCCESS"}}',
         )
 
         json_ingestion_string = """
@@ -106,12 +103,11 @@ class TestDruidHook(unittest.TestCase):
     def test_submit_unknown_response(self, m):
         task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
-            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = m.get(
-            'http://druid-overlord:8081/druid/indexer/v1/task/'
-            '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
-            text='{"status":{"status": "UNKNOWN"}}'
+            'http://druid-overlord:8081/druid/indexer/v1/task/' '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            text='{"status":{"status": "UNKNOWN"}}',
         )
 
         # An unknown error code
@@ -127,17 +123,16 @@ class TestDruidHook(unittest.TestCase):
         self.db_hook.max_ingestion_time = 5
         task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
-            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = m.get(
-            'http://druid-overlord:8081/druid/indexer/v1/task/'
-            '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
-            text='{"status":{"status": "RUNNING"}}'
+            'http://druid-overlord:8081/druid/indexer/v1/task/' '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            text='{"status":{"status": "RUNNING"}}',
         )
         shutdown_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task/'
             '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown',
-            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
 
         # Because the jobs keeps running
@@ -194,7 +189,6 @@ class TestDruidHook(unittest.TestCase):
 
 
 class TestDruidDbApiHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self.cur = MagicMock()

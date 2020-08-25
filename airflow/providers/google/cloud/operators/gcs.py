@@ -104,29 +104,41 @@ class GCSCreateBucketOperator(BaseOperator):
         )
 
     """
-    template_fields = ('bucket_name', 'storage_class',
-                       'location', 'project_id', 'impersonation_chain',)
+
+    template_fields = (
+        'bucket_name',
+        'storage_class',
+        'location',
+        'project_id',
+        'impersonation_chain',
+    )
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, *,
-                 bucket_name: str,
-                 resource: Optional[Dict] = None,
-                 storage_class: str = 'MULTI_REGIONAL',
-                 location: str = 'US',
-                 project_id: Optional[str] = None,
-                 labels: Optional[Dict] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 google_cloud_storage_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        bucket_name: str,
+        resource: Optional[Dict] = None,
+        storage_class: str = 'MULTI_REGIONAL',
+        location: str = 'US',
+        project_id: Optional[str] = None,
+        labels: Optional[Dict] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.bucket_name = bucket_name
@@ -146,12 +158,14 @@ class GCSCreateBucketOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         try:
-            hook.create_bucket(bucket_name=self.bucket_name,
-                               resource=self.resource,
-                               storage_class=self.storage_class,
-                               location=self.location,
-                               project_id=self.project_id,
-                               labels=self.labels)
+            hook.create_bucket(
+                bucket_name=self.bucket_name,
+                resource=self.resource,
+                storage_class=self.storage_class,
+                location=self.location,
+                project_id=self.project_id,
+                labels=self.labels,
+            )
         except Conflict:  # HTTP 409
             self.log.warning("Bucket %s already exists", self.bucket_name)
 
@@ -203,26 +217,38 @@ class GCSListObjectsOperator(BaseOperator):
                 gcp_conn_id=google_cloud_conn_id
             )
     """
-    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter', 'impersonation_chain',)
+
+    template_fields: Iterable[str] = (
+        'bucket',
+        'prefix',
+        'delimiter',
+        'impersonation_chain',
+    )
 
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, *,
-                 bucket: str,
-                 prefix: Optional[str] = None,
-                 delimiter: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 google_cloud_storage_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        bucket: str,
+        prefix: Optional[str] = None,
+        delimiter: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.bucket = bucket
@@ -240,12 +266,14 @@ class GCSListObjectsOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        self.log.info('Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
-                      self.bucket, self.delimiter, self.prefix)
+        self.log.info(
+            'Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
+            self.bucket,
+            self.delimiter,
+            self.prefix,
+        )
 
-        return hook.list(bucket_name=self.bucket,
-                         prefix=self.prefix,
-                         delimiter=self.delimiter)
+        return hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
 
 
 class GCSDeleteObjectsOperator(BaseOperator):
@@ -281,23 +309,34 @@ class GCSDeleteObjectsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('bucket_name', 'prefix', 'objects', 'impersonation_chain',)
+    template_fields = (
+        'bucket_name',
+        'prefix',
+        'objects',
+        'impersonation_chain',
+    )
 
     @apply_defaults
-    def __init__(self, *,
-                 bucket_name: str,
-                 objects: Optional[Iterable[str]] = None,
-                 prefix: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 google_cloud_storage_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        bucket_name: str,
+        objects: Optional[Iterable[str]] = None,
+        prefix: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
 
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.bucket_name = bucket_name
@@ -322,14 +361,11 @@ class GCSDeleteObjectsOperator(BaseOperator):
         if self.objects:
             objects = self.objects
         else:
-            objects = hook.list(bucket_name=self.bucket_name,
-                                prefix=self.prefix)
+            objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
 
-        self.log.info("Deleting %s objects from %s",
-                      len(objects), self.bucket_name)
+        self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
         for object_name in objects:
-            hook.delete(bucket_name=self.bucket_name,
-                        object_name=object_name)
+            hook.delete(bucket_name=self.bucket_name, object_name=object_name)
 
 
 class GCSBucketCreateAclEntryOperator(BaseOperator):
@@ -367,13 +403,21 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcs_bucket_create_acl_template_fields]
-    template_fields = ('bucket', 'entity', 'role', 'user_project', 'impersonation_chain',)
+    template_fields = (
+        'bucket',
+        'entity',
+        'role',
+        'user_project',
+        'impersonation_chain',
+    )
     # [END gcs_bucket_create_acl_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         bucket: str,
         entity: str,
         role: str,
@@ -381,14 +425,17 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         google_cloud_storage_conn_id: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.bucket = bucket
@@ -400,11 +447,11 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
 
     def execute(self, context):
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+            google_cloud_storage_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
         )
-        hook.insert_bucket_acl(bucket_name=self.bucket, entity=self.entity, role=self.role,
-                               user_project=self.user_project)
+        hook.insert_bucket_acl(
+            bucket_name=self.bucket, entity=self.entity, role=self.role, user_project=self.user_project
+        )
 
 
 class GCSObjectCreateAclEntryOperator(BaseOperator):
@@ -448,29 +495,43 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcs_object_create_acl_template_fields]
-    template_fields = ('bucket', 'object_name', 'entity', 'generation', 'role', 'user_project',
-                       'impersonation_chain',)
+    template_fields = (
+        'bucket',
+        'object_name',
+        'entity',
+        'generation',
+        'role',
+        'user_project',
+        'impersonation_chain',
+    )
     # [END gcs_object_create_acl_template_fields]
 
     @apply_defaults
-    def __init__(self, *,
-                 bucket: str,
-                 object_name: str,
-                 entity: str,
-                 role: str,
-                 generation: Optional[int] = None,
-                 user_project: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 google_cloud_storage_conn_id: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        bucket: str,
+        object_name: str,
+        entity: str,
+        role: str,
+        generation: Optional[int] = None,
+        user_project: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.bucket = bucket
@@ -484,15 +545,16 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
 
     def execute(self, context):
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+            google_cloud_storage_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
         )
-        hook.insert_object_acl(bucket_name=self.bucket,
-                               object_name=self.object_name,
-                               entity=self.entity,
-                               role=self.role,
-                               generation=self.generation,
-                               user_project=self.user_project)
+        hook.insert_object_acl(
+            bucket_name=self.bucket,
+            object_name=self.object_name,
+            entity=self.entity,
+            role=self.role,
+            generation=self.generation,
+            user_project=self.user_project,
+        )
 
 
 class GCSFileTransformOperator(BaseOperator):
@@ -529,12 +591,17 @@ class GCSFileTransformOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('source_bucket', 'destination_bucket', 'transform_script',
-                       'impersonation_chain',)
+    template_fields = (
+        'source_bucket',
+        'destination_bucket',
+        'transform_script',
+        'impersonation_chain',
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         source_bucket: str,
         source_object: str,
         transform_script: Union[str, List[str]],
@@ -542,7 +609,7 @@ class GCSFileTransformOperator(BaseOperator):
         destination_object: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
@@ -561,19 +628,14 @@ class GCSFileTransformOperator(BaseOperator):
         with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
             self.log.info("Downloading file from %s", self.source_bucket)
             hook.download(
-                bucket_name=self.source_bucket,
-                object_name=self.source_object,
-                filename=source_file.name
+                bucket_name=self.source_bucket, object_name=self.source_object, filename=source_file.name
             )
 
             self.log.info("Starting the transformation")
             cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
             cmd += [source_file.name, destination_file.name]
             process = subprocess.Popen(
-                args=cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                close_fds=True
+                args=cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
             )
             self.log.info("Process output:")
             if process.stdout:
@@ -582,24 +644,15 @@ class GCSFileTransformOperator(BaseOperator):
 
             process.wait()
             if process.returncode:
-                raise AirflowException(
-                    "Transform script failed: {0}".format(process.returncode)
-                )
+                raise AirflowException("Transform script failed: {0}".format(process.returncode))
 
-            self.log.info(
-                "Transformation succeeded. Output temporarily located at %s",
-                destination_file.name
-            )
+            self.log.info("Transformation succeeded. Output temporarily located at %s", destination_file.name)
 
-            self.log.info(
-                "Uploading file to %s as %s",
-                self.destination_bucket,
-                self.destination_object
-            )
+            self.log.info("Uploading file to %s as %s", self.destination_bucket, self.destination_object)
             hook.upload(
                 bucket_name=self.destination_bucket,
                 object_name=self.destination_object,
-                filename=destination_file.name
+                filename=destination_file.name,
             )
 
 
@@ -629,15 +682,22 @@ class GCSDeleteBucketOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('bucket_name', "gcp_conn_id", "impersonation_chain",)
+    template_fields = (
+        'bucket_name',
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
-    def __init__(self, *,
-                 bucket_name: str,
-                 force: bool = True,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        bucket_name: str,
+        force: bool = True,
+        gcp_conn_id: str = 'google_cloud_default',
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
 
         self.bucket_name = bucket_name
@@ -717,7 +777,8 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         source_bucket: str,
         destination_bucket: str,
         source_object: Optional[str] = None,
@@ -728,7 +789,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
@@ -755,5 +816,5 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
             destination_object=self.destination_object,
             recursive=self.recursive,
             delete_extra_files=self.delete_extra_files,
-            allow_overwrite=self.allow_overwrite
+            allow_overwrite=self.allow_overwrite,
         )

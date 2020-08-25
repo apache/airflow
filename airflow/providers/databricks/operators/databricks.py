@@ -49,12 +49,10 @@ def _deep_string_coerce(content, json_path='json'):
     elif isinstance(content, (list, tuple)):
         return [coerce(e, '{0}[{1}]'.format(json_path, i)) for i, e in enumerate(content)]
     elif isinstance(content, dict):
-        return {k: coerce(v, '{0}[{1}]'.format(json_path, k))
-                for k, v in list(content.items())}
+        return {k: coerce(v, '{0}[{1}]'.format(json_path, k)) for k, v in list(content.items())}
     else:
         param_type = type(content)
-        msg = 'Type {0} used for parameter {1} is not a number or a string' \
-            .format(param_type, json_path)
+        msg = 'Type {0} used for parameter {1} is not a number or a string'.format(param_type, json_path)
         raise AirflowException(msg)
 
 
@@ -81,9 +79,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context):
                 log.info('View run status, Spark UI, and logs at %s', run_page_url)
                 return
             else:
-                error_message = '{t} failed with terminal state: {s}'.format(
-                    t=operator.task_id,
-                    s=run_state)
+                error_message = '{t} failed with terminal state: {s}'.format(t=operator.task_id, s=run_state)
                 raise AirflowException(error_message)
         else:
             log.info('%s in run state: %s', operator.task_id, run_state)
@@ -236,6 +232,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :type do_xcom_push: bool
     """
+
     # Used in airflow.models.BaseOperator
     template_fields = ('json',)
     # Databricks brand color (blue) under white text
@@ -245,23 +242,25 @@ class DatabricksSubmitRunOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-            self, *,
-            json=None,
-            spark_jar_task=None,
-            notebook_task=None,
-            spark_python_task=None,
-            spark_submit_task=None,
-            new_cluster=None,
-            existing_cluster_id=None,
-            libraries=None,
-            run_name=None,
-            timeout_seconds=None,
-            databricks_conn_id='databricks_default',
-            polling_period_seconds=30,
-            databricks_retry_limit=3,
-            databricks_retry_delay=1,
-            do_xcom_push=False,
-            **kwargs):
+        self,
+        *,
+        json=None,
+        spark_jar_task=None,
+        notebook_task=None,
+        spark_python_task=None,
+        spark_submit_task=None,
+        new_cluster=None,
+        existing_cluster_id=None,
+        libraries=None,
+        run_name=None,
+        timeout_seconds=None,
+        databricks_conn_id='databricks_default',
+        polling_period_seconds=30,
+        databricks_retry_limit=3,
+        databricks_retry_delay=1,
+        do_xcom_push=False,
+        **kwargs,
+    ):
         """
         Creates a new ``DatabricksSubmitRunOperator``.
         """
@@ -301,7 +300,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay)
+            retry_delay=self.databricks_retry_delay,
+        )
 
     def execute(self, context):
         hook = self._get_hook()
@@ -311,10 +311,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     def on_kill(self):
         hook = self._get_hook()
         hook.cancel_run(self.run_id)
-        self.log.info(
-            'Task: %s with run_id: %s was requested to be cancelled.',
-            self.task_id, self.run_id
-        )
+        self.log.info('Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id)
 
 
 class DatabricksRunNowOperator(BaseOperator):
@@ -448,6 +445,7 @@ class DatabricksRunNowOperator(BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :type do_xcom_push: bool
     """
+
     # Used in airflow.models.BaseOperator
     template_fields = ('json',)
     # Databricks brand color (blue) under white text
@@ -457,18 +455,20 @@ class DatabricksRunNowOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-            self, *,
-            job_id=None,
-            json=None,
-            notebook_params=None,
-            python_params=None,
-            spark_submit_params=None,
-            databricks_conn_id='databricks_default',
-            polling_period_seconds=30,
-            databricks_retry_limit=3,
-            databricks_retry_delay=1,
-            do_xcom_push=False,
-            **kwargs):
+        self,
+        *,
+        job_id=None,
+        json=None,
+        notebook_params=None,
+        python_params=None,
+        spark_submit_params=None,
+        databricks_conn_id='databricks_default',
+        polling_period_seconds=30,
+        databricks_retry_limit=3,
+        databricks_retry_delay=1,
+        do_xcom_push=False,
+        **kwargs,
+    ):
         """
         Creates a new ``DatabricksRunNowOperator``.
         """
@@ -497,7 +497,8 @@ class DatabricksRunNowOperator(BaseOperator):
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay)
+            retry_delay=self.databricks_retry_delay,
+        )
 
     def execute(self, context):
         hook = self._get_hook()
@@ -507,7 +508,4 @@ class DatabricksRunNowOperator(BaseOperator):
     def on_kill(self):
         hook = self._get_hook()
         hook.cancel_run(self.run_id)
-        self.log.info(
-            'Task: %s with run_id: %s was requested to be cancelled.',
-            self.task_id, self.run_id
-        )
+        self.log.info('Task: %s with run_id: %s was requested to be cancelled.', self.task_id, self.run_id)

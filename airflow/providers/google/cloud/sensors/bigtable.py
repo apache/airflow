@@ -58,8 +58,14 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')
-    template_fields = ['project_id', 'instance_id', 'table_id', 'impersonation_chain', ]
+    template_fields = [
+        'project_id',
+        'instance_id',
+        'table_id',
+        'impersonation_chain',
+    ]
 
     @apply_defaults
     def __init__(
@@ -70,7 +76,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
@@ -81,10 +87,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         super().__init__(**kwargs)
 
     def poke(self, context):
-        hook = BigtableHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             self.log.info("Dependency: instance '%s' does not exist.", self.instance_id)
@@ -94,8 +97,8 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
             cluster_states = hook.get_cluster_states_for_table(instance=instance, table_id=self.table_id)
         except google.api_core.exceptions.NotFound:
             self.log.info(
-                "Dependency: table '%s' does not exist in instance '%s'.",
-                self.table_id, self.instance_id)
+                "Dependency: table '%s' does not exist in instance '%s'.", self.table_id, self.instance_id
+            )
             return False
 
         ready_state = ClusterState(enums.Table.ClusterState.ReplicationState.READY)
@@ -103,8 +106,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         is_table_replicated = True
         for cluster_id in cluster_states.keys():
             if cluster_states[cluster_id] != ready_state:
-                self.log.info("Table '%s' is not yet replicated on cluster '%s'.",
-                              self.table_id, cluster_id)
+                self.log.info("Table '%s' is not yet replicated on cluster '%s'.", self.table_id, cluster_id)
                 is_table_replicated = False
 
         if not is_table_replicated:

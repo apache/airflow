@@ -73,9 +73,10 @@ class TestS3ToSFTPOperator(unittest.TestCase):
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_s3_to_sftp_operation(self):
         # Setting
-        test_remote_file_content = \
-            "This is remote file content \n which is also multiline " \
+        test_remote_file_content = (
+            "This is remote file content \n which is also multiline "
             "another line here \n this is last line. EOF"
+        )
 
         # Test for creation of s3 bucket
         conn = boto3.client('s3')
@@ -87,8 +88,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         self.s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
 
         # Check if object was created in s3
-        objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket,
-                                                   Prefix=self.s3_key)
+        objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
         # there should be object found, and there should only be one object found
         self.assertEqual(len(objects_in_dest_bucket['Contents']), 1)
 
@@ -103,7 +103,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
             sftp_conn_id=SFTP_CONN_ID,
             s3_conn_id=S3_CONN_ID,
             task_id=TASK_ID,
-            dag=self.dag
+            dag=self.dag,
         )
         self.assertIsNotNone(run_task)
 
@@ -115,14 +115,15 @@ class TestS3ToSFTPOperator(unittest.TestCase):
             ssh_hook=self.hook,
             command="cat {0}".format(self.sftp_path),
             do_xcom_push=True,
-            dag=self.dag
+            dag=self.dag,
         )
         self.assertIsNotNone(check_file_task)
         ti3 = TaskInstance(task=check_file_task, execution_date=timezone.utcnow())
         ti3.run()
         self.assertEqual(
             ti3.xcom_pull(task_ids='test_check_file', key='return_value').strip(),
-            test_remote_file_content.encode('utf-8'))
+            test_remote_file_content.encode('utf-8'),
+        )
 
         # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
@@ -136,7 +137,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
             ssh_hook=self.hook,
             command="rm {0}".format(self.sftp_path),
             do_xcom_push=True,
-            dag=self.dag
+            dag=self.dag,
         )
         self.assertIsNotNone(remove_file_task)
         ti3 = TaskInstance(task=remove_file_task, execution_date=timezone.utcnow())

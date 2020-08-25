@@ -42,10 +42,7 @@ class OpenFaasHook(BaseHook):
     DEPLOY_FUNCTION = "/system/functions"
     UPDATE_FUNCTION = "/system/functions"
 
-    def __init__(self,
-                 function_name=None,
-                 conn_id: str = 'open_faas_default',
-                 *args, **kwargs) -> None:
+    def __init__(self, function_name=None, conn_id: str = 'open_faas_default', *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.function_name = function_name
         self.conn_id = conn_id

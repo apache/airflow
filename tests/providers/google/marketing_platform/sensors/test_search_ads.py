@@ -24,24 +24,13 @@ GCP_CONN_ID = "google_cloud_default"
 
 
 class TestSearchAdsReportSensor(TestCase):
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.sensors."
-        "search_ads.GoogleSearchAdsHook"
-    )
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.sensors."
-        "search_ads.BaseSensorOperator"
-    )
+    @mock.patch("airflow.providers.google.marketing_platform.sensors." "search_ads.GoogleSearchAdsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.sensors." "search_ads.BaseSensorOperator")
     def test_poke(self, mock_base_op, hook_mock):
         report_id = "REPORT_ID"
-        op = GoogleSearchAdsReportSensor(
-            report_id=report_id, api_version=API_VERSION, task_id="test_task"
-        )
+        op = GoogleSearchAdsReportSensor(report_id=report_id, api_version=API_VERSION, task_id="test_task")
         op.poke(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
-            api_version=API_VERSION,
-            impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION, impersonation_chain=None,
         )
         hook_mock.return_value.get.assert_called_once_with(report_id=report_id)

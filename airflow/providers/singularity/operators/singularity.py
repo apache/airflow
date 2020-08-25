@@ -60,23 +60,32 @@ class SingularityOperator(BaseOperator):
         set on the container (equivalent to the -w switch the docker client)
     :type working_dir: str
     """
-    template_fields = ('command', 'environment',)
-    template_ext = ('.sh', '.bash',)
+
+    template_fields = (
+        'command',
+        'environment',
+    )
+    template_ext = (
+        '.sh',
+        '.bash',
+    )
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self, *,
-            image: str,
-            command: Union[str, List[str]],
-            start_command: Optional[Union[str, List[str]]] = None,
-            environment: Optional[Dict[str, Any]] = None,
-            pull_folder: Optional[str] = None,
-            working_dir: Optional[str] = None,
-            force_pull: Optional[bool] = False,
-            volumes: Optional[List[str]] = None,
-            options: Optional[List[str]] = None,
-            auto_remove: Optional[bool] = False,
-            **kwargs) -> None:
+        self,
+        *,
+        image: str,
+        command: Union[str, List[str]],
+        start_command: Optional[Union[str, List[str]]] = None,
+        environment: Optional[Dict[str, Any]] = None,
+        pull_folder: Optional[str] = None,
+        working_dir: Optional[str] = None,
+        force_pull: Optional[bool] = False,
+        volumes: Optional[List[str]] = None,
+        options: Optional[List[str]] = None,
+        auto_remove: Optional[bool] = False,
+        **kwargs,
+    ) -> None:
 
         super(SingularityOperator, self).__init__(**kwargs)
         self.auto_remove = auto_remove
@@ -132,10 +141,9 @@ class SingularityOperator(BaseOperator):
 
         # Create a container instance
         self.log.debug('Options include: %s', self.options)
-        self.instance = self.cli.instance(self.image,
-                                          options=self.options,
-                                          args=self.start_command,
-                                          start=False)
+        self.instance = self.cli.instance(
+            self.image, options=self.options, args=self.start_command, start=False
+        )
 
         self.instance.start()
         self.log.info(self.instance.cmd)
@@ -143,9 +151,7 @@ class SingularityOperator(BaseOperator):
 
         self.log.info('Running command %s', self._get_command())
         self.cli.quiet = True
-        result = self.cli.execute(self.instance,
-                                  self._get_command(),
-                                  return_result=True)
+        result = self.cli.execute(self.instance, self._get_command(), return_result=True)
 
         # Stop the instance
         self.log.info('Stopping instance %s', self.instance)

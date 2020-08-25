@@ -43,11 +43,14 @@ class SparkKubernetesOperator(BaseOperator):
     ui_color = '#f4a460'
 
     @apply_defaults
-    def __init__(self, *,
-                 application_file: str,
-                 namespace: Optional[str] = None,
-                 kubernetes_conn_id: str = 'kubernetes_default',
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        application_file: str,
+        namespace: Optional[str] = None,
+        kubernetes_conn_id: str = 'kubernetes_default',
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.application_file = application_file
         self.namespace = namespace
@@ -61,5 +64,6 @@ class SparkKubernetesOperator(BaseOperator):
             version="v1beta2",
             plural="sparkapplications",
             body=self.application_file,
-            namespace=self.namespace)
+            namespace=self.namespace,
+        )
         return response

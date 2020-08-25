@@ -36,93 +36,143 @@ SETTINGS_VERSION = 'settingsVersion'
 
 CLOUD_SQL_CREATE_VALIDATION = [
     dict(name="name", allow_empty=False),
-    dict(name="settings", type="dict", fields=[
-        dict(name="tier", allow_empty=False),
-        dict(name="backupConfiguration", type="dict", fields=[
-            dict(name="binaryLogEnabled", optional=True),
-            dict(name="enabled", optional=True),
-            dict(name="replicationLogArchivingEnabled", optional=True),
-            dict(name="startTime", allow_empty=False, optional=True)
-        ], optional=True),
-        dict(name="activationPolicy", allow_empty=False, optional=True),
-        dict(name="authorizedGaeApplications", type="list", optional=True),
-        dict(name="crashSafeReplicationEnabled", optional=True),
-        dict(name="dataDiskSizeGb", optional=True),
-        dict(name="dataDiskType", allow_empty=False, optional=True),
-        dict(name="databaseFlags", type="list", optional=True),
-        dict(name="ipConfiguration", type="dict", fields=[
-            dict(name="authorizedNetworks", type="list", fields=[
-                dict(name="expirationTime", optional=True),
-                dict(name="name", allow_empty=False, optional=True),
-                dict(name="value", allow_empty=False, optional=True)
-            ], optional=True),
-            dict(name="ipv4Enabled", optional=True),
-            dict(name="privateNetwork", allow_empty=False, optional=True),
-            dict(name="requireSsl", optional=True),
-        ], optional=True),
-        dict(name="locationPreference", type="dict", fields=[
-            dict(name="followGaeApplication", allow_empty=False, optional=True),
-            dict(name="zone", allow_empty=False, optional=True),
-        ], optional=True),
-        dict(name="maintenanceWindow", type="dict", fields=[
-            dict(name="hour", optional=True),
-            dict(name="day", optional=True),
-            dict(name="updateTrack", allow_empty=False, optional=True),
-        ], optional=True),
-        dict(name="pricingPlan", allow_empty=False, optional=True),
-        dict(name="replicationType", allow_empty=False, optional=True),
-        dict(name="storageAutoResize", optional=True),
-        dict(name="storageAutoResizeLimit", optional=True),
-        dict(name="userLabels", type="dict", optional=True),
-    ]),
+    dict(
+        name="settings",
+        type="dict",
+        fields=[
+            dict(name="tier", allow_empty=False),
+            dict(
+                name="backupConfiguration",
+                type="dict",
+                fields=[
+                    dict(name="binaryLogEnabled", optional=True),
+                    dict(name="enabled", optional=True),
+                    dict(name="replicationLogArchivingEnabled", optional=True),
+                    dict(name="startTime", allow_empty=False, optional=True),
+                ],
+                optional=True,
+            ),
+            dict(name="activationPolicy", allow_empty=False, optional=True),
+            dict(name="authorizedGaeApplications", type="list", optional=True),
+            dict(name="crashSafeReplicationEnabled", optional=True),
+            dict(name="dataDiskSizeGb", optional=True),
+            dict(name="dataDiskType", allow_empty=False, optional=True),
+            dict(name="databaseFlags", type="list", optional=True),
+            dict(
+                name="ipConfiguration",
+                type="dict",
+                fields=[
+                    dict(
+                        name="authorizedNetworks",
+                        type="list",
+                        fields=[
+                            dict(name="expirationTime", optional=True),
+                            dict(name="name", allow_empty=False, optional=True),
+                            dict(name="value", allow_empty=False, optional=True),
+                        ],
+                        optional=True,
+                    ),
+                    dict(name="ipv4Enabled", optional=True),
+                    dict(name="privateNetwork", allow_empty=False, optional=True),
+                    dict(name="requireSsl", optional=True),
+                ],
+                optional=True,
+            ),
+            dict(
+                name="locationPreference",
+                type="dict",
+                fields=[
+                    dict(name="followGaeApplication", allow_empty=False, optional=True),
+                    dict(name="zone", allow_empty=False, optional=True),
+                ],
+                optional=True,
+            ),
+            dict(
+                name="maintenanceWindow",
+                type="dict",
+                fields=[
+                    dict(name="hour", optional=True),
+                    dict(name="day", optional=True),
+                    dict(name="updateTrack", allow_empty=False, optional=True),
+                ],
+                optional=True,
+            ),
+            dict(name="pricingPlan", allow_empty=False, optional=True),
+            dict(name="replicationType", allow_empty=False, optional=True),
+            dict(name="storageAutoResize", optional=True),
+            dict(name="storageAutoResizeLimit", optional=True),
+            dict(name="userLabels", type="dict", optional=True),
+        ],
+    ),
     dict(name="databaseVersion", allow_empty=False, optional=True),
-    dict(name="failoverReplica", type="dict", fields=[
-        dict(name="name", allow_empty=False)
-    ], optional=True),
+    dict(name="failoverReplica", type="dict", fields=[dict(name="name", allow_empty=False)], optional=True),
     dict(name="masterInstanceName", allow_empty=False, optional=True),
     dict(name="onPremisesConfiguration", type="dict", optional=True),
     dict(name="region", allow_empty=False, optional=True),
-    dict(name="replicaConfiguration", type="dict", fields=[
-        dict(name="failoverTarget", optional=True),
-        dict(name="mysqlReplicaConfiguration", type="dict", fields=[
-            dict(name="caCertificate", allow_empty=False, optional=True),
-            dict(name="clientCertificate", allow_empty=False, optional=True),
-            dict(name="clientKey", allow_empty=False, optional=True),
-            dict(name="connectRetryInterval", optional=True),
-            dict(name="dumpFilePath", allow_empty=False, optional=True),
-            dict(name="masterHeartbeatPeriod", optional=True),
-            dict(name="password", allow_empty=False, optional=True),
-            dict(name="sslCipher", allow_empty=False, optional=True),
-            dict(name="username", allow_empty=False, optional=True),
-            dict(name="verifyServerCertificate", optional=True)
-        ], optional=True),
-    ], optional=True)
+    dict(
+        name="replicaConfiguration",
+        type="dict",
+        fields=[
+            dict(name="failoverTarget", optional=True),
+            dict(
+                name="mysqlReplicaConfiguration",
+                type="dict",
+                fields=[
+                    dict(name="caCertificate", allow_empty=False, optional=True),
+                    dict(name="clientCertificate", allow_empty=False, optional=True),
+                    dict(name="clientKey", allow_empty=False, optional=True),
+                    dict(name="connectRetryInterval", optional=True),
+                    dict(name="dumpFilePath", allow_empty=False, optional=True),
+                    dict(name="masterHeartbeatPeriod", optional=True),
+                    dict(name="password", allow_empty=False, optional=True),
+                    dict(name="sslCipher", allow_empty=False, optional=True),
+                    dict(name="username", allow_empty=False, optional=True),
+                    dict(name="verifyServerCertificate", optional=True),
+                ],
+                optional=True,
+            ),
+        ],
+        optional=True,
+    ),
 ]
 CLOUD_SQL_EXPORT_VALIDATION = [
-    dict(name="exportContext", type="dict", fields=[
-        dict(name="fileType", allow_empty=False),
-        dict(name="uri", allow_empty=False),
-        dict(name="databases", optional=True, type="list"),
-        dict(name="sqlExportOptions", type="dict", optional=True, fields=[
-            dict(name="tables", optional=True, type="list"),
-            dict(name="schemaOnly", optional=True)
-        ]),
-        dict(name="csvExportOptions", type="dict", optional=True, fields=[
-            dict(name="selectQuery")
-        ])
-    ])
+    dict(
+        name="exportContext",
+        type="dict",
+        fields=[
+            dict(name="fileType", allow_empty=False),
+            dict(name="uri", allow_empty=False),
+            dict(name="databases", optional=True, type="list"),
+            dict(
+                name="sqlExportOptions",
+                type="dict",
+                optional=True,
+                fields=[
+                    dict(name="tables", optional=True, type="list"),
+                    dict(name="schemaOnly", optional=True),
+                ],
+            ),
+            dict(name="csvExportOptions", type="dict", optional=True, fields=[dict(name="selectQuery")]),
+        ],
+    )
 ]
 CLOUD_SQL_IMPORT_VALIDATION = [
-    dict(name="importContext", type="dict", fields=[
-        dict(name="fileType", allow_empty=False),
-        dict(name="uri", allow_empty=False),
-        dict(name="database", optional=True, allow_empty=False),
-        dict(name="importUser", optional=True),
-        dict(name="csvImportOptions", type="dict", optional=True, fields=[
-            dict(name="table"),
-            dict(name="columns", type="list", optional=True)
-        ])
-    ])
+    dict(
+        name="importContext",
+        type="dict",
+        fields=[
+            dict(name="fileType", allow_empty=False),
+            dict(name="uri", allow_empty=False),
+            dict(name="database", optional=True, allow_empty=False),
+            dict(name="importUser", optional=True),
+            dict(
+                name="csvImportOptions",
+                type="dict",
+                optional=True,
+                fields=[dict(name="table"), dict(name="columns", type="list", optional=True)],
+            ),
+        ],
+    )
 ]
 CLOUD_SQL_DATABASE_CREATE_VALIDATION = [
     dict(name="instance", allow_empty=False),
@@ -162,14 +212,18 @@ class CloudSQLBaseOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     @apply_defaults
-    def __init__(self, *,
-                 instance: str,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 api_version: str = 'v1beta4',
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        instance: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1beta4',
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         self.project_id = project_id
         self.instance = instance
         self.gcp_conn_id = gcp_conn_id
@@ -186,10 +240,7 @@ class CloudSQLBaseOperator(BaseOperator):
 
     def _check_if_instance_exists(self, instance, hook: CloudSQLHook):
         try:
-            return hook.get_instance(
-                project_id=self.project_id,
-                instance=instance
-            )
+            return hook.get_instance(project_id=self.project_id, instance=instance)
         except HttpError as e:
             status = e.resp.status
             if status == 404:
@@ -198,10 +249,7 @@ class CloudSQLBaseOperator(BaseOperator):
 
     def _check_if_db_exists(self, db_name, hook: CloudSQLHook):
         try:
-            return hook.get_database(
-                project_id=self.project_id,
-                instance=self.instance,
-                database=db_name)
+            return hook.get_database(project_id=self.project_id, instance=self.instance, database=db_name)
         except HttpError as e:
             status = e.resp.status
             if status == 404:
@@ -251,26 +299,41 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_sql_create_template_fields]
-    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version',
-                       'impersonation_chain',)
+    template_fields = (
+        'project_id',
+        'instance',
+        'body',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
     # [END gcp_sql_create_template_fields]
 
     @apply_defaults
-    def __init__(self, *,
-                 body: dict,
-                 instance: str,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 api_version: str = 'v1beta4',
-                 validate_body: bool = True,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        body: dict,
+        instance: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1beta4',
+        validate_body: bool = True,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
-            project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
+            project_id=project_id,
+            instance=instance,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -279,8 +342,9 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
     def _validate_body_fields(self):
         if self.validate_body:
-            GcpBodyFieldValidator(CLOUD_SQL_CREATE_VALIDATION,
-                                  api_version=self.api_version).validate(self.body)
+            GcpBodyFieldValidator(CLOUD_SQL_CREATE_VALIDATION, api_version=self.api_version).validate(
+                self.body
+            )
 
     def execute(self, context):
         hook = CloudSQLHook(
@@ -290,18 +354,11 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         )
         self._validate_body_fields()
         if not self._check_if_instance_exists(self.instance, hook):
-            hook.create_instance(
-                project_id=self.project_id,
-                body=self.body
-            )
+            hook.create_instance(project_id=self.project_id, body=self.body)
         else:
-            self.log.info("Cloud SQL instance with ID %s already exists. "
-                          "Aborting create.", self.instance)
+            self.log.info("Cloud SQL instance with ID %s already exists. " "Aborting create.", self.instance)
 
-        instance_resource = hook.get_instance(
-            project_id=self.project_id,
-            instance=self.instance
-        )
+        instance_resource = hook.get_instance(project_id=self.project_id, instance=self.instance)
         service_account_email = instance_resource["serviceAccountEmailAddress"]
         task_instance = context['task_instance']
         task_instance.xcom_push(key="service_account_email", value=service_account_email)
@@ -344,24 +401,39 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_sql_patch_template_fields]
-    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version',
-                       'impersonation_chain',)
+    template_fields = (
+        'project_id',
+        'instance',
+        'body',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
     # [END gcp_sql_patch_template_fields]
 
     @apply_defaults
-    def __init__(self, *,
-                 body: dict,
-                 instance: str,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 api_version: str = 'v1beta4',
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        body: dict,
+        instance: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1beta4',
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         self.body = body
         super().__init__(
-            project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
+            project_id=project_id,
+            instance=instance,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -375,14 +447,12 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_instance_exists(self.instance, hook):
-            raise AirflowException('Cloud SQL instance with ID {} does not exist. '
-                                   'Please specify another instance to patch.'
-                                   .format(self.instance))
+            raise AirflowException(
+                'Cloud SQL instance with ID {} does not exist. '
+                'Please specify another instance to patch.'.format(self.instance)
+            )
         else:
-            return hook.patch_instance(
-                project_id=self.project_id,
-                body=self.body,
-                instance=self.instance)
+            return hook.patch_instance(project_id=self.project_id, body=self.body, instance=self.instance)
 
 
 class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
@@ -412,22 +482,36 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_sql_delete_template_fields]
-    template_fields = ('project_id', 'instance', 'gcp_conn_id', 'api_version',
-                       'impersonation_chain',)
+    template_fields = (
+        'project_id',
+        'instance',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
     # [END gcp_sql_delete_template_fields]
 
     @apply_defaults
-    def __init__(self, *,
-                 instance: str,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 api_version: str = 'v1beta4',
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        instance: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1beta4',
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(
-            project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
+            project_id=project_id,
+            instance=instance,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     def execute(self, context):
         hook = CloudSQLHook(
@@ -436,13 +520,10 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_instance_exists(self.instance, hook):
-            print("Cloud SQL instance with ID {} does not exist. Aborting delete."
-                  .format(self.instance))
+            print("Cloud SQL instance with ID {} does not exist. Aborting delete.".format(self.instance))
             return True
         else:
-            return hook.delete_instance(
-                project_id=self.project_id,
-                instance=self.instance)
+            return hook.delete_instance(project_id=self.project_id, instance=self.instance)
 
 
 class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
@@ -477,26 +558,41 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_sql_db_create_template_fields]
-    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version',
-                       'impersonation_chain',)
+    template_fields = (
+        'project_id',
+        'instance',
+        'body',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
     # [END gcp_sql_db_create_template_fields]
 
     @apply_defaults
-    def __init__(self, *,
-                 instance: str,
-                 body: dict,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 api_version: str = 'v1beta4',
-                 validate_body: bool = True,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        instance: str,
+        body: dict,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1beta4',
+        validate_body: bool = True,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
-            project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
+            project_id=project_id,
+            instance=instance,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -505,15 +601,19 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     def _validate_body_fields(self):
         if self.validate_body:
-            GcpBodyFieldValidator(CLOUD_SQL_DATABASE_CREATE_VALIDATION,
-                                  api_version=self.api_version).validate(self.body)
+            GcpBodyFieldValidator(
+                CLOUD_SQL_DATABASE_CREATE_VALIDATION, api_version=self.api_version
+            ).validate(self.body)
 
     def execute(self, context):
         self._validate_body_fields()
         database = self.body.get("name")
         if not database:
-            self.log.error("Body doesn't contain 'name'. Cannot check if the"
-                           " database already exists in the instance %s.", self.instance)
+            self.log.error(
+                "Body doesn't contain 'name'. Cannot check if the"
+                " database already exists in the instance %s.",
+                self.instance,
+            )
             return False
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -521,15 +621,14 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if self._check_if_db_exists(database, hook):
-            self.log.info("Cloud SQL instance with ID %s already contains database"
-                          " '%s'. Aborting database insert.", self.instance, database)
+            self.log.info(
+                "Cloud SQL instance with ID %s already contains database" " '%s'. Aborting database insert.",
+                self.instance,
+                database,
+            )
             return True
         else:
-            return hook.create_database(
-                project_id=self.project_id,
-                instance=self.instance,
-                body=self.body
-            )
+            return hook.create_database(project_id=self.project_id, instance=self.instance, body=self.body)
 
 
 class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
@@ -567,28 +666,44 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_sql_db_patch_template_fields]
-    template_fields = ('project_id', 'instance', 'body', 'database', 'gcp_conn_id',
-                       'api_version', 'impersonation_chain',)
+    template_fields = (
+        'project_id',
+        'instance',
+        'body',
+        'database',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
     # [END gcp_sql_db_patch_template_fields]
 
     @apply_defaults
-    def __init__(self, *,
-                 instance: str,
-                 database: str,
-                 body: dict,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 api_version: str = 'v1beta4',
-                 validate_body: bool = True,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        instance: str,
+        database: str,
+        body: dict,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1beta4',
+        validate_body: bool = True,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         self.database = database
         self.body = body
         self.validate_body = validate_body
         super().__init__(
-            project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
+            project_id=project_id,
+            instance=instance,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -599,8 +714,9 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     def _validate_body_fields(self):
         if self.validate_body:
-            GcpBodyFieldValidator(CLOUD_SQL_DATABASE_PATCH_VALIDATION,
-                                  api_version=self.api_version).validate(self.body)
+            GcpBodyFieldValidator(CLOUD_SQL_DATABASE_PATCH_VALIDATION, api_version=self.api_version).validate(
+                self.body
+            )
 
     def execute(self, context):
         self._validate_body_fields()
@@ -610,16 +726,17 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_db_exists(self.database, hook):
-            raise AirflowException("Cloud SQL instance with ID {instance} does not contain "
-                                   "database '{database}'. "
-                                   "Please specify another database to patch.".
-                                   format(instance=self.instance, database=self.database))
+            raise AirflowException(
+                "Cloud SQL instance with ID {instance} does not contain "
+                "database '{database}'. "
+                "Please specify another database to patch.".format(
+                    instance=self.instance, database=self.database
+                )
+            )
         else:
             return hook.patch_database(
-                project_id=self.project_id,
-                instance=self.instance,
-                database=self.database,
-                body=self.body)
+                project_id=self.project_id, instance=self.instance, database=self.database, body=self.body
+            )
 
 
 class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
@@ -651,24 +768,39 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_sql_db_delete_template_fields]
-    template_fields = ('project_id', 'instance', 'database', 'gcp_conn_id',
-                       'api_version', 'impersonation_chain',)
+    template_fields = (
+        'project_id',
+        'instance',
+        'database',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
     # [END gcp_sql_db_delete_template_fields]
 
     @apply_defaults
-    def __init__(self, *,
-                 instance: str,
-                 database: str,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 api_version: str = 'v1beta4',
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        instance: str,
+        database: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1beta4',
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         self.database = database
         super().__init__(
-            project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
+            project_id=project_id,
+            instance=instance,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -682,15 +814,15 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_db_exists(self.database, hook):
-            print("Cloud SQL instance with ID {} does not contain database '{}'. "
-                  "Aborting database delete."
-                  .format(self.instance, self.database))
+            print(
+                "Cloud SQL instance with ID {} does not contain database '{}'. "
+                "Aborting database delete.".format(self.instance, self.database)
+            )
             return True
         else:
             return hook.delete_database(
-                project_id=self.project_id,
-                instance=self.instance,
-                database=self.database)
+                project_id=self.project_id, instance=self.instance, database=self.database
+            )
 
 
 class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
@@ -729,26 +861,41 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_sql_export_template_fields]
-    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version',
-                       'impersonation_chain',)
+    template_fields = (
+        'project_id',
+        'instance',
+        'body',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
     # [END gcp_sql_export_template_fields]
 
     @apply_defaults
-    def __init__(self, *,
-                 instance: str,
-                 body: dict,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 api_version: str = 'v1beta4',
-                 validate_body: bool = True,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        instance: str,
+        body: dict,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1beta4',
+        validate_body: bool = True,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
-            project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
+            project_id=project_id,
+            instance=instance,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -757,8 +904,9 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
 
     def _validate_body_fields(self):
         if self.validate_body:
-            GcpBodyFieldValidator(CLOUD_SQL_EXPORT_VALIDATION,
-                                  api_version=self.api_version).validate(self.body)
+            GcpBodyFieldValidator(CLOUD_SQL_EXPORT_VALIDATION, api_version=self.api_version).validate(
+                self.body
+            )
 
     def execute(self, context):
         self._validate_body_fields()
@@ -767,10 +915,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        return hook.export_instance(
-            project_id=self.project_id,
-            instance=self.instance,
-            body=self.body)
+        return hook.export_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
 
 class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
@@ -821,26 +966,41 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_sql_import_template_fields]
-    template_fields = ('project_id', 'instance', 'body', 'gcp_conn_id', 'api_version',
-                       'impersonation_chain',)
+    template_fields = (
+        'project_id',
+        'instance',
+        'body',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
     # [END gcp_sql_import_template_fields]
 
     @apply_defaults
-    def __init__(self, *,
-                 instance: str,
-                 body: dict,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 api_version: str = 'v1beta4',
-                 validate_body: bool = True,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        instance: str,
+        body: dict,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1beta4',
+        validate_body: bool = True,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         self.body = body
         self.validate_body = validate_body
         super().__init__(
-            project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
-            api_version=api_version, impersonation_chain=impersonation_chain, **kwargs)
+            project_id=project_id,
+            instance=instance,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     def _validate_inputs(self):
         super()._validate_inputs()
@@ -849,8 +1009,9 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
     def _validate_body_fields(self):
         if self.validate_body:
-            GcpBodyFieldValidator(CLOUD_SQL_IMPORT_VALIDATION,
-                                  api_version=self.api_version).validate(self.body)
+            GcpBodyFieldValidator(CLOUD_SQL_IMPORT_VALIDATION, api_version=self.api_version).validate(
+                self.body
+            )
 
     def execute(self, context):
         self._validate_body_fields()
@@ -859,10 +1020,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        return hook.import_instance(
-            project_id=self.project_id,
-            instance=self.instance,
-            body=self.body)
+        return hook.import_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
 
 class CloudSQLExecuteQueryOperator(BaseOperator):
@@ -894,19 +1052,23 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
        details on how to define gcpcloudsql:// connection.
     :type gcp_cloudsql_conn_id: str
     """
+
     # [START gcp_sql_query_template_fields]
     template_fields = ('sql', 'gcp_cloudsql_conn_id', 'gcp_conn_id')
     template_ext = ('.sql',)
     # [END gcp_sql_query_template_fields]
 
     @apply_defaults
-    def __init__(self, *,
-                 sql: Union[List[str], str],
-                 autocommit: bool = False,
-                 parameters: Optional[Union[Dict, Iterable]] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 gcp_cloudsql_conn_id: str = 'google_cloud_sql_default',
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        sql: Union[List[str], str],
+        autocommit: bool = False,
+        parameters: Optional[Union[Dict, Iterable]] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        gcp_cloudsql_conn_id: str = 'google_cloud_sql_default',
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
         self.gcp_conn_id = gcp_conn_id
@@ -937,7 +1099,8 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
             gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
             gcp_conn_id=self.gcp_conn_id,
             default_gcp_project_id=self.gcp_connection.extra_dejson.get(
-                'extra__google_cloud_platform__project')
+                'extra__google_cloud_platform__project'
+            ),
         )
         hook.validate_ssl_certs()
         connection = hook.create_connection()

@@ -97,30 +97,38 @@ class PubSubPullSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ['project_id', 'subscription', 'impersonation_chain', ]
+
+    template_fields = [
+        'project_id',
+        'subscription',
+        'impersonation_chain',
+    ]
     ui_color = '#ff7f50'
 
     @apply_defaults
     def __init__(
-            self, *,
-            project_id: str,
-            subscription: str,
-            max_messages: int = 5,
-            return_immediately: bool = True,
-            ack_messages: bool = False,
-            gcp_conn_id: str = 'google_cloud_default',
-            messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
-            delegate_to: Optional[str] = None,
-            project: Optional[str] = None,
-            impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-            **kwargs
+        self,
+        *,
+        project_id: str,
+        subscription: str,
+        max_messages: int = 5,
+        return_immediately: bool = True,
+        ack_messages: bool = False,
+        gcp_conn_id: str = 'google_cloud_default',
+        messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
+        delegate_to: Optional[str] = None,
+        project: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if project:
             warnings.warn(
-                "The project parameter has been deprecated. You should pass "
-                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+                "The project parameter has been deprecated. You should pass " "the project_id parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             project_id = project
 
         if not return_immediately:
@@ -132,7 +140,7 @@ class PubSubPullSensor(BaseSensorOperator):
                 " If is here only because of backwards compatibility.\n"
                 " If may be removed in the future.\n",
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
 
         super().__init__(**kwargs)
@@ -173,17 +181,15 @@ class PubSubPullSensor(BaseSensorOperator):
 
         if pulled_messages and self.ack_messages:
             hook.acknowledge(
-                project_id=self.project_id,
-                subscription=self.subscription,
-                messages=pulled_messages,
+                project_id=self.project_id, subscription=self.subscription, messages=pulled_messages,
             )
 
         return bool(pulled_messages)
 
     def _default_message_callback(
-            self,
-            pulled_messages: List[ReceivedMessage],
-            context: Dict[str, Any],  # pylint: disable=unused-argument
+        self,
+        pulled_messages: List[ReceivedMessage],
+        context: Dict[str, Any],  # pylint: disable=unused-argument
     ):
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
@@ -195,9 +201,6 @@ class PubSubPullSensor(BaseSensorOperator):
         :return: value to be saved to XCom.
         """
 
-        messages_json = [
-            MessageToDict(m)
-            for m in pulled_messages
-        ]
+        messages_json = [MessageToDict(m) for m in pulled_messages]
 
         return messages_json

@@ -41,15 +41,32 @@ from datetime import datetime, timedelta
 
 from airflow import models
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
-    ALREADY_EXISTING_IN_SINK, AWS_S3_DATA_SOURCE, BUCKET_NAME, DESCRIPTION, FILTER_JOB_NAMES,
-    FILTER_PROJECT_ID, GCS_DATA_SINK, JOB_NAME, PROJECT_ID, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE,
-    START_TIME_OF_DAY, STATUS, TRANSFER_OPTIONS, TRANSFER_SPEC, GcpTransferJobsStatus,
+    ALREADY_EXISTING_IN_SINK,
+    AWS_S3_DATA_SOURCE,
+    BUCKET_NAME,
+    DESCRIPTION,
+    FILTER_JOB_NAMES,
+    FILTER_PROJECT_ID,
+    GCS_DATA_SINK,
+    JOB_NAME,
+    PROJECT_ID,
+    SCHEDULE,
+    SCHEDULE_END_DATE,
+    SCHEDULE_START_DATE,
+    START_TIME_OF_DAY,
+    STATUS,
+    TRANSFER_OPTIONS,
+    TRANSFER_SPEC,
+    GcpTransferJobsStatus,
     GcpTransferOperationStatus,
 )
 from airflow.providers.google.cloud.operators.cloud_storage_transfer_service import (
-    CloudDataTransferServiceCancelOperationOperator, CloudDataTransferServiceCreateJobOperator,
-    CloudDataTransferServiceDeleteJobOperator, CloudDataTransferServiceGetOperationOperator,
-    CloudDataTransferServiceListOperationsOperator, CloudDataTransferServicePauseOperationOperator,
+    CloudDataTransferServiceCancelOperationOperator,
+    CloudDataTransferServiceCreateJobOperator,
+    CloudDataTransferServiceDeleteJobOperator,
+    CloudDataTransferServiceGetOperationOperator,
+    CloudDataTransferServiceListOperationsOperator,
+    CloudDataTransferServicePauseOperationOperator,
     CloudDataTransferServiceResumeOperationOperator,
 )
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import (
@@ -67,9 +84,7 @@ GCP_TRANSFER_FIRST_TARGET_BUCKET = os.environ.get(
     'GCP_TRANSFER_FIRST_TARGET_BUCKET', 'gcp-transfer-first-target'
 )
 
-GCP_TRANSFER_JOB_NAME = os.environ.get(
-    'GCP_TRANSFER_JOB_NAME', 'transferJobs/sampleJob'
-)
+GCP_TRANSFER_JOB_NAME = os.environ.get('GCP_TRANSFER_JOB_NAME', 'transferJobs/sampleJob')
 
 # [START howto_operator_gcp_transfer_create_job_body_aws]
 aws_to_gcs_transfer_body = {
@@ -172,6 +187,8 @@ with models.DAG(
     )
     # [END howto_operator_gcp_transfer_delete_job]
 
-    create_transfer_job_from_aws >> wait_for_operation_to_start >> pause_operation >> \
-        list_operations >> get_operation >> resume_operation >> wait_for_operation_to_end >> \
-        cancel_operation >> delete_transfer_from_aws_job
+    # fmt: off
+    create_transfer_job_from_aws >> wait_for_operation_to_start >> pause_operation
+    pause_operation >> list_operations >> get_operation >> resume_operation
+    resume_operation >> wait_for_operation_to_end >> cancel_operation >> delete_transfer_from_aws_job
+    # fmt: on

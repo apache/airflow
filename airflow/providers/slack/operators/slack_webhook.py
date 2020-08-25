@@ -58,26 +58,35 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type proxy: str
     """
 
-    template_fields = ['webhook_token', 'message', 'attachments', 'blocks', 'channel',
-                       'username', 'proxy', ]
+    template_fields = [
+        'webhook_token',
+        'message',
+        'attachments',
+        'blocks',
+        'channel',
+        'username',
+        'proxy',
+    ]
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self, *,
-                 http_conn_id=None,
-                 webhook_token=None,
-                 message="",
-                 attachments=None,
-                 blocks=None,
-                 channel=None,
-                 username=None,
-                 icon_emoji=None,
-                 icon_url=None,
-                 link_names=False,
-                 proxy=None,
-                 **kwargs):
-        super().__init__(endpoint=webhook_token,
-                         **kwargs)
+    def __init__(
+        self,
+        *,
+        http_conn_id=None,
+        webhook_token=None,
+        message="",
+        attachments=None,
+        blocks=None,
+        channel=None,
+        username=None,
+        icon_emoji=None,
+        icon_url=None,
+        link_names=False,
+        proxy=None,
+        **kwargs,
+    ):
+        super().__init__(endpoint=webhook_token, **kwargs)
         self.http_conn_id = http_conn_id
         self.webhook_token = webhook_token
         self.message = message
@@ -106,6 +115,6 @@ class SlackWebhookOperator(SimpleHttpOperator):
             self.icon_emoji,
             self.icon_url,
             self.link_names,
-            self.proxy
+            self.proxy,
         )
         self.hook.execute()

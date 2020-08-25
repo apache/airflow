@@ -26,26 +26,14 @@ from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
-MODIFY_CLUSTER_SUCCESS_RETURN = {
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200
-    },
-    'StepConcurrencyLevel': 1
-}
+MODIFY_CLUSTER_SUCCESS_RETURN = {'ResponseMetadata': {'HTTPStatusCode': 200}, 'StepConcurrencyLevel': 1}
 
-MODIFY_CLUSTER_ERROR_RETURN = {
-    'ResponseMetadata': {
-        'HTTPStatusCode': 400
-    }
-}
+MODIFY_CLUSTER_ERROR_RETURN = {'ResponseMetadata': {'HTTPStatusCode': 400}}
 
 
 class TestEmrModifyClusterOperator(unittest.TestCase):
     def setUp(self):
-        self.args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         # Mock out the emr_client (moto has incorrect response)
         self.emr_client_mock = MagicMock()
@@ -62,7 +50,7 @@ class TestEmrModifyClusterOperator(unittest.TestCase):
             cluster_id='j-8989898989',
             step_concurrency_level=1,
             aws_conn_id='aws_default',
-            dag=DAG('test_dag_id', default_args=self.args)
+            dag=DAG('test_dag_id', default_args=self.args),
         )
 
     def test_init(self):

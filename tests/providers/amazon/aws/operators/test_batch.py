@@ -93,9 +93,7 @@ class TestAwsBatchOperator(unittest.TestCase):
         self.assertEqual(self.batch.hook.aws_conn_id, "airflow_test")
         self.assertEqual(self.batch.hook.client, self.client_mock)
 
-        self.get_client_type_mock.assert_called_once_with(
-            "batch", region_name="eu-west-1"
-        )
+        self.get_client_type_mock.assert_called_once_with("batch", region_name="eu-west-1")
 
     def test_template_fields_overrides(self):
         self.assertEqual(self.batch.template_fields, ("job_name", "overrides", "parameters",))
@@ -144,9 +142,7 @@ class TestAwsBatchOperator(unittest.TestCase):
         self.batch.waiters = mock_waiters
 
         self.client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
-        self.client_mock.describe_jobs.return_value = {
-            "jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]
-        }
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
         self.batch.execute(None)
 
         mock_waiters.wait_for_job.assert_called_once_with(JOB_ID)
@@ -155,6 +151,4 @@ class TestAwsBatchOperator(unittest.TestCase):
     def test_kill_job(self):
         self.client_mock.terminate_job.return_value = {}
         self.batch.on_kill()
-        self.client_mock.terminate_job.assert_called_once_with(
-            jobId=JOB_ID, reason="Task killed by the user"
-        )
+        self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")

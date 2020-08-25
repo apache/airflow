@@ -44,11 +44,14 @@ class SparkKubernetesSensor(BaseSensorOperator):
     SUCCESS_STATES = ('COMPLETED',)
 
     @apply_defaults
-    def __init__(self, *,
-                 application_name: str,
-                 namespace: Optional[str] = None,
-                 kubernetes_conn_id: str = 'kubernetes_default',
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        application_name: str,
+        namespace: Optional[str] = None,
+        kubernetes_conn_id: str = 'kubernetes_default',
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.application_name = application_name
         self.namespace = namespace
@@ -62,7 +65,8 @@ class SparkKubernetesSensor(BaseSensorOperator):
             version="v1beta2",
             plural="sparkapplications",
             name=self.application_name,
-            namespace=self.namespace)
+            namespace=self.namespace,
+        )
         try:
             application_state = response['status']['applicationState']['state']
         except KeyError:

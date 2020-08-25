@@ -32,7 +32,7 @@ DEFAULT_ARGS = {
     'depends_on_past': False,
     'email': ['airflow@example.com'],
     'email_on_failure': False,
-    'email_on_retry': False
+    'email_on_retry': False,
 }
 
 with DAG(

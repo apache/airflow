@@ -44,12 +44,15 @@ class EC2StopInstanceOperator(BaseOperator):
     ui_fgcolor = "#ffffff"
 
     @apply_defaults
-    def __init__(self, *,
-                 instance_id: str,
-                 aws_conn_id: str = "aws_default",
-                 region_name: Optional[str] = None,
-                 check_interval: float = 15,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        instance_id: str,
+        aws_conn_id: str = "aws_default",
+        region_name: Optional[str] = None,
+        check_interval: float = 15,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.instance_id = instance_id
         self.aws_conn_id = aws_conn_id
@@ -57,15 +60,10 @@ class EC2StopInstanceOperator(BaseOperator):
         self.check_interval = check_interval
 
     def execute(self, context):
-        ec2_hook = EC2Hook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name
-        )
+        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         self.log.info("Stopping EC2 instance %s", self.instance_id)
         instance = ec2_hook.get_instance(instance_id=self.instance_id)
         instance.stop()
         ec2_hook.wait_for_state(
-            instance_id=self.instance_id,
-            target_state="stopped",
-            check_interval=self.check_interval,
+            instance_id=self.instance_id, target_state="stopped", check_interval=self.check_interval,
         )

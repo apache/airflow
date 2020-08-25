@@ -32,14 +32,11 @@ class AwsGlueJobSensor(BaseSensorOperator):
     :param run_id: The AWS Glue current running job identifier
     :type run_id: str
     """
+
     template_fields = ('job_name', 'run_id')
 
     @apply_defaults
-    def __init__(self, *,
-                 job_name,
-                 run_id,
-                 aws_conn_id='aws_default',
-                 **kwargs):
+    def __init__(self, *, job_name, run_id, aws_conn_id='aws_default', **kwargs):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.run_id = run_id
@@ -49,9 +46,7 @@ class AwsGlueJobSensor(BaseSensorOperator):
 
     def poke(self, context):
         hook = AwsGlueJobHook(aws_conn_id=self.aws_conn_id)
-        self.log.info(
-            "Poking for job run status :"
-            "for Glue Job %s and ID %s", self.job_name, self.run_id)
+        self.log.info("Poking for job run status :" "for Glue Job %s and ID %s", self.job_name, self.run_id)
         job_state = hook.get_job_state(job_name=self.job_name, run_id=self.run_id)
         if job_state in self.success_states:
             self.log.info("Exiting Job %s Run State: %s", self.run_id, job_state)

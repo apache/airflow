@@ -46,18 +46,17 @@ class HDFSHook(BaseHook):
     :type autoconfig: bool
     """
 
-    def __init__(self,
-                 hdfs_conn_id: str = 'hdfs_default',
-                 proxy_user: Optional[str] = None,
-                 autoconfig: bool = False
-                 ):
+    def __init__(
+        self, hdfs_conn_id: str = 'hdfs_default', proxy_user: Optional[str] = None, autoconfig: bool = False
+    ):
         super().__init__()
         if not snakebite_loaded:
             raise ImportError(
                 'This HDFSHook implementation requires snakebite, but '
                 'snakebite is not compatible with Python 3 '
                 '(as of August 2015). Please use Python 2 if you require '
-                'this hook  -- or help by submitting a PR!')
+                'this hook  -- or help by submitting a PR!'
+            )
         self.hdfs_conn_id = hdfs_conn_id
         self.proxy_user = proxy_user
         self.autoconfig = autoconfig
@@ -78,29 +77,34 @@ class HDFSHook(BaseHook):
             if not effective_user:
                 effective_user = connections[0].login
             if not autoconfig:
-                autoconfig = connections[0].extra_dejson.get('autoconfig',
-                                                             False)
-            hdfs_namenode_principal = connections[0].extra_dejson.get(
-                'hdfs_namenode_principal')
+                autoconfig = connections[0].extra_dejson.get('autoconfig', False)
+            hdfs_namenode_principal = connections[0].extra_dejson.get('hdfs_namenode_principal')
         except AirflowException:
             if not autoconfig:
                 raise
 
         if autoconfig:
             # will read config info from $HADOOP_HOME conf files
-            client = AutoConfigClient(effective_user=effective_user,
-                                      use_sasl=use_sasl)
+            client = AutoConfigClient(effective_user=effective_user, use_sasl=use_sasl)
         elif len(connections) == 1:
-            client = Client(connections[0].host, connections[0].port,
-                            effective_user=effective_user, use_sasl=use_sasl,
-                            hdfs_namenode_principal=hdfs_namenode_principal)
+            client = Client(
+                connections[0].host,
+                connections[0].port,
+                effective_user=effective_user,
+                use_sasl=use_sasl,
+                hdfs_namenode_principal=hdfs_namenode_principal,
+            )
         elif len(connections) > 1:
             name_node = [Namenode(conn.host, conn.port) for conn in connections]
-            client = HAClient(name_node, effective_user=effective_user,
-                              use_sasl=use_sasl,
-                              hdfs_namenode_principal=hdfs_namenode_principal)
+            client = HAClient(
+                name_node,
+                effective_user=effective_user,
+                use_sasl=use_sasl,
+                hdfs_namenode_principal=hdfs_namenode_principal,
+            )
         else:
-            raise HDFSHookException("conn_id doesn't exist in the repository "
-                                    "and autoconfig is not specified")
+            raise HDFSHookException(
+                "conn_id doesn't exist in the repository " "and autoconfig is not specified"
+            )
 
         return client

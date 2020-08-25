@@ -21,9 +21,14 @@ import unittest
 import mock
 
 from airflow.providers.google.cloud.operators.gcs import (
-    GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteBucketOperator,
-    GCSDeleteObjectsOperator, GCSFileTransformOperator, GCSListObjectsOperator,
-    GCSObjectCreateAclEntryOperator, GCSSynchronizeBucketsOperator,
+    GCSBucketCreateAclEntryOperator,
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSDeleteObjectsOperator,
+    GCSFileTransformOperator,
+    GCSListObjectsOperator,
+    GCSObjectCreateAclEntryOperator,
+    GCSSynchronizeBucketsOperator,
 )
 
 TASK_ID = "test-gcs-operator"
@@ -43,11 +48,7 @@ class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
         operator = GCSCreateBucketOperator(
             task_id=TASK_ID,
             bucket_name=TEST_BUCKET,
-            resource={
-                "lifecycle": {
-                    "rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]
-                }
-            },
+            resource={"lifecycle": {"rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]}},
             storage_class="MULTI_REGIONAL",
             location="EU",
             labels={"env": "prod"},
@@ -61,11 +62,7 @@ class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
             location="EU",
             labels={"env": "prod"},
             project_id=TEST_PROJECT,
-            resource={
-                "lifecycle": {
-                    "rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]
-                }
-            },
+            resource={"lifecycle": {"rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]}},
         )
 
 
@@ -112,9 +109,7 @@ class TestGoogleCloudStorageAcl(unittest.TestCase):
 class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_objects(self, mock_hook):
-        operator = GCSDeleteObjectsOperator(
-            task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=MOCK_FILES[0:2]
-        )
+        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=MOCK_FILES[0:2])
 
         operator.execute(None)
         mock_hook.return_value.list.assert_not_called()
@@ -129,14 +124,10 @@ class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_prefix(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES[1:3]
-        operator = GCSDeleteObjectsOperator(
-            task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix=PREFIX
-        )
+        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix=PREFIX)
 
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(
-            bucket_name=TEST_BUCKET, prefix=PREFIX
-        )
+        mock_hook.return_value.list.assert_called_once_with(bucket_name=TEST_BUCKET, prefix=PREFIX)
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
                 mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
@@ -205,31 +196,24 @@ class TestGCSFileTransformOperator(unittest.TestCase):
         )
 
         mock_subprocess.Popen.assert_called_once_with(
-            args=[transform_script, source, destination],
-            stdout="pipe",
-            stderr="stdout",
-            close_fds=True,
+            args=[transform_script, source, destination], stdout="pipe", stderr="stdout", close_fds=True,
         )
 
         mock_hook.return_value.upload.assert_called_with(
-            bucket_name=destination_bucket,
-            object_name=destination_object,
-            filename=destination,
+            bucket_name=destination_bucket, object_name=destination_object, filename=destination,
         )
 
 
 class TestGCSDeleteBucketOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_bucket(self, mock_hook):
-        operator = GCSDeleteBucketOperator(
-            task_id=TASK_ID, bucket_name=TEST_BUCKET)
+        operator = GCSDeleteBucketOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET)
 
         operator.execute(None)
         mock_hook.return_value.delete_bucket.assert_called_once_with(bucket_name=TEST_BUCKET, force=True)
 
 
 class TestGoogleCloudStorageSync(unittest.TestCase):
-
     @mock.patch('airflow.providers.google.cloud.operators.gcs.GCSHook')
     def test_execute(self, mock_hook):
         task = GCSSynchronizeBucketsOperator(

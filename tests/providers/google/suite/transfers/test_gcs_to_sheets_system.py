@@ -31,7 +31,6 @@ SCOPES = [
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_GCS_KEY)
 class GoogleSheetsToGCSExampleDagsSystemTest(GoogleSystemTest):
-
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()

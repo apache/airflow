@@ -42,12 +42,15 @@ class TableauRefreshWorkbookOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self, *,
-                 workbook_name: str,
-                 site_id: Optional[str] = None,
-                 blocking: bool = True,
-                 tableau_conn_id: str = 'tableau_default',
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        workbook_name: str,
+        site_id: Optional[str] = None,
+        blocking: bool = True,
+        tableau_conn_id: str = 'tableau_default',
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.workbook_name = workbook_name
         self.site_id = site_id
@@ -69,12 +72,13 @@ class TableauRefreshWorkbookOperator(BaseOperator):
             job_id = self._refresh_workbook(tableau_hook, workbook.id)
             if self.blocking:
                 from airflow.providers.salesforce.sensors.tableau_job_status import TableauJobStatusSensor
+
                 TableauJobStatusSensor(
                     job_id=job_id,
                     site_id=self.site_id,
                     tableau_conn_id=self.tableau_conn_id,
                     task_id='wait_until_succeeded',
-                    dag=None
+                    dag=None,
                 ).execute(context={})
                 self.log.info('Workbook %s has been successfully refreshed.', self.workbook_name)
             return job_id

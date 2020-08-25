@@ -50,14 +50,10 @@ class TestGCSToGoogleSheets:
         op.execute(None)
 
         mock_sheet_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, delegate_to=None, impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, delegate_to=None, impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         mock_gcs_hook.return_value.download.assert_called_once_with(
@@ -67,7 +63,5 @@ class TestGCSToGoogleSheets:
         mock_reader.assert_called_once_with(file_handle)
 
         mock_sheet_hook.return_value.update_values.assert_called_once_with(
-            spreadsheet_id=SPREADSHEET_ID,
-            range_="Sheet1",
-            values=VALUES,
+            spreadsheet_id=SPREADSHEET_ID, range_="Sheet1", values=VALUES,
         )

@@ -60,21 +60,22 @@ class SlackWebhookHook(HttpHook):
     """
 
     # pylint: disable=too-many-arguments
-    def __init__(self,
-                 http_conn_id=None,
-                 webhook_token=None,
-                 message="",
-                 attachments=None,
-                 blocks=None,
-                 channel=None,
-                 username=None,
-                 icon_emoji=None,
-                 icon_url=None,
-                 link_names=False,
-                 proxy=None,
-                 *args,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        http_conn_id=None,
+        webhook_token=None,
+        message="",
+        attachments=None,
+        blocks=None,
+        channel=None,
+        username=None,
+        icon_emoji=None,
+        icon_url=None,
+        link_names=False,
+        proxy=None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(http_conn_id=http_conn_id, *args, **kwargs)
         self.webhook_token = self._get_token(webhook_token, http_conn_id)
         self.message = message
@@ -105,8 +106,7 @@ class SlackWebhookHook(HttpHook):
             extra = conn.extra_dejson
             return extra.get('webhook_token', '')
         else:
-            raise AirflowException('Cannot get token: No valid Slack '
-                                   'webhook token nor conn_id supplied')
+            raise AirflowException('Cannot get token: No valid Slack ' 'webhook token nor conn_id supplied')
 
     def _build_slack_message(self):
         """
@@ -146,7 +146,9 @@ class SlackWebhookHook(HttpHook):
             proxies = {'https': self.proxy}
 
         slack_message = self._build_slack_message()
-        self.run(endpoint=self.webhook_token,
-                 data=slack_message,
-                 headers={'Content-type': 'application/json'},
-                 extra_options={'proxies': proxies})
+        self.run(
+            endpoint=self.webhook_token,
+            data=slack_message,
+            headers={'Content-type': 'application/json'},
+            extra_options={'proxies': proxies},
+        )

@@ -35,13 +35,12 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class BigtableWaitForTableReplicationTest(unittest.TestCase):
-    @parameterized.expand([
-        ('instance_id', PROJECT_ID, '', TABLE_ID),
-        ('table_id', PROJECT_ID, INSTANCE_ID, ''),
-    ], testcase_func_name=lambda f, n, p: 'test_empty_attribute.empty_' + p.args[0])
+    @parameterized.expand(
+        [('instance_id', PROJECT_ID, '', TABLE_ID), ('table_id', PROJECT_ID, INSTANCE_ID, ''),],
+        testcase_func_name=lambda f, n, p: 'test_empty_attribute.empty_' + p.args[0],
+    )
     @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
-    def test_empty_attribute(self, missing_attribute, project_id, instance_id, table_id,
-                             mock_hook):
+    def test_empty_attribute(self, missing_attribute, project_id, instance_id, table_id, mock_hook):
         with self.assertRaises(AirflowException) as e:
             BigtableTableReplicationCompletedSensor(
                 project_id=project_id,
@@ -69,15 +68,15 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
         )
         self.assertFalse(op.poke(None))
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )
 
     @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
     def test_wait_no_table(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
         mock_hook.return_value.get_cluster_states_for_table.side_effect = mock.Mock(
-            side_effect=google.api_core.exceptions.NotFound("Table not found."))
+            side_effect=google.api_core.exceptions.NotFound("Table not found.")
+        )
 
         op = BigtableTableReplicationCompletedSensor(
             project_id=PROJECT_ID,
@@ -89,16 +88,13 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
         )
         self.assertFalse(op.poke(None))
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )
 
     @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
     def test_wait_not_ready(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
-        mock_hook.return_value.get_cluster_states_for_table.return_value = {
-            "cl-id": ClusterState(0)
-        }
+        mock_hook.return_value.get_cluster_states_for_table.return_value = {"cl-id": ClusterState(0)}
         op = BigtableTableReplicationCompletedSensor(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
@@ -109,16 +105,13 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
         )
         self.assertFalse(op.poke(None))
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )
 
     @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
     def test_wait_ready(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
-        mock_hook.return_value.get_cluster_states_for_table.return_value = {
-            "cl-id": ClusterState(4)
-        }
+        mock_hook.return_value.get_cluster_states_for_table.return_value = {"cl-id": ClusterState(4)}
         op = BigtableTableReplicationCompletedSensor(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
@@ -129,6 +122,5 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
         )
         self.assertTrue(op.poke(None))
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )

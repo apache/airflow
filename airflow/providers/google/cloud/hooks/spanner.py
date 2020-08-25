@@ -46,9 +46,7 @@ class SpannerHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -63,18 +61,12 @@ class SpannerHook(GoogleBaseHook):
         """
         if not self._client:
             self._client = Client(
-                project=project_id,
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                project=project_id, credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance(
-        self,
-        instance_id: str,
-        project_id: str,
-    ) -> Instance:
+    def get_instance(self, instance_id: str, project_id: str,) -> Instance:
         """
         Gets information about a particular instance.
 
@@ -92,12 +84,13 @@ class SpannerHook(GoogleBaseHook):
         return instance
 
     def _apply_to_instance(
-        self, project_id: str,
+        self,
+        project_id: str,
         instance_id: str,
         configuration_name: str,
         node_count: int,
         display_name: str,
-        func: Callable[[Instance], Operation]
+        func: Callable[[Instance], Operation],
     ) -> None:
         """
         Invokes a method on a given instance by applying a specified Callable.
@@ -120,8 +113,11 @@ class SpannerHook(GoogleBaseHook):
         :type func: Callable[google.cloud.spanner_v1.instance.Instance]
         """
         instance = self._get_client(project_id=project_id).instance(
-            instance_id=instance_id, configuration_name=configuration_name,
-            node_count=node_count, display_name=display_name)
+            instance_id=instance_id,
+            configuration_name=configuration_name,
+            node_count=node_count,
+            display_name=display_name,
+        )
         try:
             operation = func(instance)  # type: Operation
         except GoogleAPICallError as e:
@@ -134,12 +130,7 @@ class SpannerHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
-        self,
-        instance_id: str,
-        configuration_name: str,
-        node_count: int,
-        display_name: str,
-        project_id: str,
+        self, instance_id: str, configuration_name: str, node_count: int, display_name: str, project_id: str,
     ) -> None:
         """
         Creates a new Cloud Spanner instance.
@@ -162,17 +153,13 @@ class SpannerHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        self._apply_to_instance(project_id, instance_id, configuration_name,
-                                node_count, display_name, lambda x: x.create())
+        self._apply_to_instance(
+            project_id, instance_id, configuration_name, node_count, display_name, lambda x: x.create()
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_instance(
-        self,
-        instance_id: str,
-        configuration_name: str,
-        node_count: int,
-        display_name: str,
-        project_id: str,
+        self, instance_id: str, configuration_name: str, node_count: int, display_name: str, project_id: str,
     ) -> None:
         """
         Updates an existing Cloud Spanner instance.
@@ -195,8 +182,9 @@ class SpannerHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        self._apply_to_instance(project_id, instance_id, configuration_name,
-                                node_count, display_name, lambda x: x.update())
+        self._apply_to_instance(
+            project_id, instance_id, configuration_name, node_count, display_name, lambda x: x.update()
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(self, instance_id: str, project_id: str) -> None:
@@ -219,12 +207,7 @@ class SpannerHook(GoogleBaseHook):
             raise e
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_database(
-        self,
-        instance_id: str,
-        database_id: str,
-        project_id: str,
-    ) -> Optional[Database]:
+    def get_database(self, instance_id: str, database_id: str, project_id: str,) -> Optional[Database]:
         """
         Retrieves a database in Cloud Spanner. If the database does not exist
         in the specified instance, it returns None.
@@ -239,11 +222,11 @@ class SpannerHook(GoogleBaseHook):
         :return: Database object or None if database does not exist
         :rtype: google.cloud.spanner_v1.database.Database or None
         """
-        instance = self._get_client(project_id=project_id).instance(
-            instance_id=instance_id)
+        instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
-            raise AirflowException("The instance {} does not exist in project {} !".
-                                   format(instance_id, project_id))
+            raise AirflowException(
+                "The instance {} does not exist in project {} !".format(instance_id, project_id)
+            )
         database = instance.database(database_id=database_id)
         if not database.exists():
             return None
@@ -252,11 +235,7 @@ class SpannerHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_database(
-        self,
-        instance_id: str,
-        database_id: str,
-        ddl_statements: List[str],
-        project_id: str,
+        self, instance_id: str, database_id: str, ddl_statements: List[str], project_id: str,
     ) -> None:
         """
         Creates a new database in Cloud Spanner.
@@ -272,13 +251,12 @@ class SpannerHook(GoogleBaseHook):
             database. If set to None or missing, the default project_id from the GCP connection is used.
         :return: None
         """
-        instance = self._get_client(project_id=project_id).instance(
-            instance_id=instance_id)
+        instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
-            raise AirflowException("The instance {} does not exist in project {} !".
-                                   format(instance_id, project_id))
-        database = instance.database(database_id=database_id,
-                                     ddl_statements=ddl_statements)
+            raise AirflowException(
+                "The instance {} does not exist in project {} !".format(instance_id, project_id)
+            )
+        database = instance.database(database_id=database_id, ddl_statements=ddl_statements)
         try:
             operation = database.create()  # type: Operation
         except GoogleAPICallError as e:
@@ -296,7 +274,7 @@ class SpannerHook(GoogleBaseHook):
         database_id: str,
         ddl_statements: List[str],
         project_id: str,
-        operation_id: Optional[str] = None
+        operation_id: Optional[str] = None,
     ) -> None:
         """
         Updates DDL of a database in Cloud Spanner.
@@ -315,23 +293,24 @@ class SpannerHook(GoogleBaseHook):
         :type operation_id: str
         :return: None
         """
-        instance = self._get_client(project_id=project_id).instance(
-            instance_id=instance_id)
+        instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
-            raise AirflowException("The instance {} does not exist in project {} !".
-                                   format(instance_id, project_id))
+            raise AirflowException(
+                "The instance {} does not exist in project {} !".format(instance_id, project_id)
+            )
         database = instance.database(database_id=database_id)
         try:
-            operation = database.update_ddl(
-                ddl_statements=ddl_statements, operation_id=operation_id)
+            operation = database.update_ddl(ddl_statements=ddl_statements, operation_id=operation_id)
             if operation:
                 result = operation.result()
                 self.log.info(result)
             return
         except AlreadyExists as e:
             if e.code == 409 and operation_id in e.message:
-                self.log.info("Replayed update_ddl message - the operation id %s "
-                              "was already done before.", operation_id)
+                self.log.info(
+                    "Replayed update_ddl message - the operation id %s " "was already done before.",
+                    operation_id,
+                )
                 return
         except GoogleAPICallError as e:
             self.log.error('An error occurred: %s. Exiting.', e.message)
@@ -352,16 +331,15 @@ class SpannerHook(GoogleBaseHook):
         :return: True if everything succeeded
         :rtype: bool
         """
-        instance = self._get_client(project_id=project_id).\
-            instance(instance_id=instance_id)
+        instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
-            raise AirflowException("The instance {} does not exist in project {} !".
-                                   format(instance_id, project_id))
+            raise AirflowException(
+                "The instance {} does not exist in project {} !".format(instance_id, project_id)
+            )
         database = instance.database(database_id=database_id)
         if not database.exists():
             self.log.info(
-                "The database %s is already deleted from instance %s. Exiting.",
-                database_id, instance_id
+                "The database %s is already deleted from instance %s. Exiting.", database_id, instance_id
             )
             return False
         try:
@@ -373,13 +351,7 @@ class SpannerHook(GoogleBaseHook):
         return True
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def execute_dml(
-        self,
-        instance_id: str,
-        database_id: str,
-        queries: List[str],
-        project_id: str,
-    ) -> None:
+    def execute_dml(self, instance_id: str, database_id: str, queries: List[str], project_id: str,) -> None:
         """
         Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
 
@@ -393,9 +365,9 @@ class SpannerHook(GoogleBaseHook):
             database. If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
         """
-        self._get_client(project_id=project_id).instance(instance_id=instance_id).\
-            database(database_id=database_id).run_in_transaction(
-            lambda transaction: self._execute_sql_in_transaction(transaction, queries))
+        self._get_client(project_id=project_id).instance(instance_id=instance_id).database(
+            database_id=database_id
+        ).run_in_transaction(lambda transaction: self._execute_sql_in_transaction(transaction, queries))
 
     @staticmethod
     def _execute_sql_in_transaction(transaction: Transaction, queries: List[str]):

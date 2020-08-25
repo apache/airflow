@@ -50,19 +50,23 @@ class ImapAttachmentToS3Operator(BaseOperator):
     :param s3_conn_id: The reference to the s3 connection details.
     :type s3_conn_id: str
     """
+
     template_fields = ('imap_attachment_name', 's3_key', 'imap_mail_filter')
 
     @apply_defaults
-    def __init__(self, *,
-                 imap_attachment_name,
-                 s3_key,
-                 imap_check_regex=False,
-                 imap_mail_folder='INBOX',
-                 imap_mail_filter='All',
-                 s3_overwrite=False,
-                 imap_conn_id='imap_default',
-                 s3_conn_id='aws_default',
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        imap_attachment_name,
+        s3_key,
+        imap_check_regex=False,
+        imap_mail_folder='INBOX',
+        imap_mail_filter='All',
+        s3_overwrite=False,
+        imap_conn_id='imap_default',
+        s3_conn_id='aws_default',
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.imap_attachment_name = imap_attachment_name
         self.s3_key = s3_key
@@ -82,7 +86,8 @@ class ImapAttachmentToS3Operator(BaseOperator):
         """
         self.log.info(
             'Transferring mail attachment %s from mail server via imap to s3 key %s...',
-            self.imap_attachment_name, self.s3_key
+            self.imap_attachment_name,
+            self.s3_key,
         )
 
         with ImapHook(imap_conn_id=self.imap_conn_id) as imap_hook:
@@ -95,6 +100,4 @@ class ImapAttachmentToS3Operator(BaseOperator):
             )
 
         s3_hook = S3Hook(aws_conn_id=self.s3_conn_id)
-        s3_hook.load_bytes(bytes_data=imap_mail_attachments[0][1],
-                           key=self.s3_key,
-                           replace=self.s3_overwrite)
+        s3_hook.load_bytes(bytes_data=imap_mail_attachments[0][1], key=self.s3_key, replace=self.s3_overwrite)

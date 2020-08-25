@@ -76,13 +76,19 @@ class GCSToSFTPOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("source_bucket", "source_object", "destination_path", "impersonation_chain",)
+    template_fields = (
+        "source_bucket",
+        "source_object",
+        "destination_path",
+        "impersonation_chain",
+    )
     ui_color = "#f0eee4"
 
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         source_bucket: str,
         source_object: str,
         destination_path: str,
@@ -91,7 +97,7 @@ class GCSToSFTPOperator(BaseOperator):
         sftp_conn_id: str = "ssh_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
 
@@ -123,43 +129,26 @@ class GCSToSFTPOperator(BaseOperator):
                 )
 
             prefix, delimiter = self.source_object.split(WILDCARD, 1)
-            objects = gcs_hook.list(
-                self.source_bucket, prefix=prefix, delimiter=delimiter
-            )
+            objects = gcs_hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
 
             for source_object in objects:
                 destination_path = os.path.join(self.destination_path, source_object)
-                self._copy_single_object(
-                    gcs_hook, sftp_hook, source_object, destination_path
-                )
+                self._copy_single_object(gcs_hook, sftp_hook, source_object, destination_path)
 
-            self.log.info(
-                "Done. Uploaded '%d' files to %s", len(objects), self.destination_path
-            )
+            self.log.info("Done. Uploaded '%d' files to %s", len(objects), self.destination_path)
         else:
             destination_path = os.path.join(self.destination_path, self.source_object)
-            self._copy_single_object(
-                gcs_hook, sftp_hook, self.source_object, destination_path
-            )
-            self.log.info(
-                "Done. Uploaded '%s' file to %s", self.source_object, destination_path
-            )
+            self._copy_single_object(gcs_hook, sftp_hook, self.source_object, destination_path)
+            self.log.info("Done. Uploaded '%s' file to %s", self.source_object, destination_path)
 
     def _copy_single_object(
-        self,
-        gcs_hook: GCSHook,
-        sftp_hook: SFTPHook,
-        source_object: str,
-        destination_path: str,
+        self, gcs_hook: GCSHook, sftp_hook: SFTPHook, source_object: str, destination_path: str,
     ) -> None:
         """
         Helper function to copy single object.
         """
         self.log.info(
-            "Executing copy of gs://%s/%s to %s",
-            self.source_bucket,
-            source_object,
-            destination_path,
+            "Executing copy of gs://%s/%s to %s", self.source_bucket, source_object, destination_path,
         )
 
         dir_path = os.path.dirname(destination_path)
@@ -167,14 +156,10 @@ class GCSToSFTPOperator(BaseOperator):
 
         with NamedTemporaryFile("w") as tmp:
             gcs_hook.download(
-                bucket_name=self.source_bucket,
-                object_name=source_object,
-                filename=tmp.name,
+                bucket_name=self.source_bucket, object_name=source_object, filename=tmp.name,
             )
             sftp_hook.store_file(destination_path, tmp.name)
 
         if self.move_object:
-            self.log.info(
-                "Executing delete of gs://%s/%s", self.source_bucket, source_object
-            )
+            self.log.info("Executing delete of gs://%s/%s", self.source_bucket, source_object)
             gcs_hook.delete(self.source_bucket, source_object)

@@ -113,9 +113,7 @@ def logs_client(aws_region):
 
 @pytest.fixture(scope="module")
 def aws_clients(batch_client, ec2_client, ecs_client, iam_client, logs_client):
-    return AwsClients(
-        batch=batch_client, ec2=ec2_client, ecs=ecs_client, iam=iam_client, log=logs_client
-    )
+    return AwsClients(batch=batch_client, ec2=ec2_client, ecs=ecs_client, iam=iam_client, log=logs_client)
 
 
 #
@@ -164,17 +162,12 @@ def batch_infrastructure(
     )
     sg_id = resp["GroupId"]
 
-    resp = aws_clients.iam.create_role(
-        RoleName="MotoTestRole", AssumeRolePolicyDocument="moto_test_policy"
-    )
+    resp = aws_clients.iam.create_role(RoleName="MotoTestRole", AssumeRolePolicyDocument="moto_test_policy")
     iam_arn = resp["Role"]["Arn"]
 
     compute_env_name = "moto_test_compute_env"
     resp = aws_clients.batch.create_compute_environment(
-        computeEnvironmentName=compute_env_name,
-        type="UNMANAGED",
-        state="ENABLED",
-        serviceRole=iam_arn,
+        computeEnvironmentName=compute_env_name, type="UNMANAGED", state="ENABLED", serviceRole=iam_arn,
     )
     compute_env_arn = resp["computeEnvironmentArn"]
 
@@ -191,20 +184,13 @@ def batch_infrastructure(
     resp = aws_clients.batch.register_job_definition(
         jobDefinitionName=job_definition_name,
         type="container",
-        containerProperties={
-            "image": "busybox",
-            "vcpus": 1,
-            "memory": 64,
-            "command": ["sleep", "10"],
-        },
+        containerProperties={"image": "busybox", "vcpus": 1, "memory": 64, "command": ["sleep", "10"],},
     )
     assert resp["jobDefinitionName"] == job_definition_name
     assert resp["jobDefinitionArn"]
     job_definition_arn = resp["jobDefinitionArn"]
     assert resp["revision"]
-    assert resp["jobDefinitionArn"].endswith(
-        "{0}:{1}".format(resp["jobDefinitionName"], resp["revision"])
-    )
+    assert resp["jobDefinitionArn"].endswith("{0}:{1}".format(resp["jobDefinitionName"], resp["revision"]))
 
     infrastructure.vpc_id = vpc_id
     infrastructure.subnet_id = subnet_id
@@ -251,9 +237,7 @@ def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_defi
         - https://github.com/spulec/moto/blob/master/tests/test_batch/test_batch.py
     """
 
-    aws_resources = batch_infrastructure(
-        aws_clients, aws_region, job_queue_name, job_definition_name
-    )
+    aws_resources = batch_infrastructure(aws_clients, aws_region, job_queue_name, job_definition_name)
     batch_waiters = AwsBatchWaitersHook(region_name=aws_resources.aws_region)
 
     job_exists_waiter = batch_waiters.get_waiter("JobExists")
@@ -345,9 +329,7 @@ class TestAwsBatchWaiters(unittest.TestCase):
 
         # init the mock client
         self.client_mock = self.batch_waiters.client
-        get_client_type_mock.assert_called_once_with(
-            "batch", region_name=self.region_name
-        )
+        get_client_type_mock.assert_called_once_with("batch", region_name=self.region_name)
 
         # don't pause in these unit tests
         self.mock_delay = mock.Mock(return_value=None)

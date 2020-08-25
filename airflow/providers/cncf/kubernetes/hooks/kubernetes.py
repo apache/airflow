@@ -40,10 +40,7 @@ class KubernetesHook(BaseHook):
     :type conn_id: str
     """
 
-    def __init__(
-        self,
-        conn_id: str = "kubernetes_default"
-    ):
+    def __init__(self, conn_id: str = "kubernetes_default"):
         super().__init__()
         self.conn_id = conn_id
 
@@ -67,13 +64,9 @@ class KubernetesHook(BaseHook):
                 config.load_kube_config(temp_config.name)
         return client.ApiClient()
 
-    def create_custom_resource_definition(self,
-                                          group: str,
-                                          version: str,
-                                          plural: str,
-                                          body: Union[str, dict],
-                                          namespace: Optional[str] = None
-                                          ):
+    def create_custom_resource_definition(
+        self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
+    ):
         """
         Creates custom resource definition object in Kubernetes
 
@@ -95,23 +88,16 @@ class KubernetesHook(BaseHook):
             body = _load_body_to_dict(body)
         try:
             response = api.create_namespaced_custom_object(
-                group=group,
-                version=version,
-                namespace=namespace,
-                plural=plural,
-                body=body
+                group=group, version=version, namespace=namespace, plural=plural, body=body
             )
             self.log.debug("Response: %s", response)
             return response
         except client.rest.ApiException as e:
             raise AirflowException("Exception when calling -> create_custom_resource_definition: %s\n" % e)
 
-    def get_custom_resource_definition(self,
-                                       group: str,
-                                       version: str,
-                                       plural: str,
-                                       name: str,
-                                       namespace: Optional[str] = None):
+    def get_custom_resource_definition(
+        self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
+    ):
         """
         Get custom resource definition object from Kubernetes
 
@@ -131,11 +117,7 @@ class KubernetesHook(BaseHook):
             namespace = self.get_namespace()
         try:
             response = custom_resource_definition_api.get_namespaced_custom_object(
-                group=group,
-                version=version,
-                namespace=namespace,
-                plural=plural,
-                name=name
+                group=group, version=version, namespace=namespace, plural=plural, name=name
             )
             return response
         except client.rest.ApiException as e:

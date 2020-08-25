@@ -68,27 +68,19 @@ class TestAwsBatchClient(unittest.TestCase):
         self.assertEqual(self.batch_client.aws_conn_id, 'airflow_test')
         self.assertEqual(self.batch_client.client, self.client_mock)
 
-        self.get_client_type_mock.assert_called_once_with(
-            "batch", region_name=AWS_REGION
-        )
+        self.get_client_type_mock.assert_called_once_with("batch", region_name=AWS_REGION)
 
     def test_wait_for_job_with_success(self):
-        self.client_mock.describe_jobs.return_value = {
-            "jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]
-        }
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
 
         with mock.patch.object(
-            self.batch_client,
-            "poll_for_job_running",
-            wraps=self.batch_client.poll_for_job_running,
+            self.batch_client, "poll_for_job_running", wraps=self.batch_client.poll_for_job_running,
         ) as job_running:
             self.batch_client.wait_for_job(JOB_ID)
             job_running.assert_called_once_with(JOB_ID, None)
 
         with mock.patch.object(
-            self.batch_client,
-            "poll_for_job_complete",
-            wraps=self.batch_client.poll_for_job_complete,
+            self.batch_client, "poll_for_job_complete", wraps=self.batch_client.poll_for_job_complete,
         ) as job_complete:
             self.batch_client.wait_for_job(JOB_ID)
             job_complete.assert_called_once_with(JOB_ID, None)
@@ -96,22 +88,16 @@ class TestAwsBatchClient(unittest.TestCase):
         self.assertEqual(self.client_mock.describe_jobs.call_count, 4)
 
     def test_wait_for_job_with_failure(self):
-        self.client_mock.describe_jobs.return_value = {
-            "jobs": [{"jobId": JOB_ID, "status": "FAILED"}]
-        }
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "FAILED"}]}
 
         with mock.patch.object(
-            self.batch_client,
-            "poll_for_job_running",
-            wraps=self.batch_client.poll_for_job_running,
+            self.batch_client, "poll_for_job_running", wraps=self.batch_client.poll_for_job_running,
         ) as job_running:
             self.batch_client.wait_for_job(JOB_ID)
             job_running.assert_called_once_with(JOB_ID, None)
 
         with mock.patch.object(
-            self.batch_client,
-            "poll_for_job_complete",
-            wraps=self.batch_client.poll_for_job_complete,
+            self.batch_client, "poll_for_job_complete", wraps=self.batch_client.poll_for_job_complete,
         ) as job_complete:
             self.batch_client.wait_for_job(JOB_ID)
             job_complete.assert_called_once_with(JOB_ID, None)
@@ -119,23 +105,17 @@ class TestAwsBatchClient(unittest.TestCase):
         self.assertEqual(self.client_mock.describe_jobs.call_count, 4)
 
     def test_poll_job_running_for_status_running(self):
-        self.client_mock.describe_jobs.return_value = {
-            "jobs": [{"jobId": JOB_ID, "status": "RUNNING"}]
-        }
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "RUNNING"}]}
         self.batch_client.poll_for_job_running(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
 
     def test_poll_job_complete_for_status_success(self):
-        self.client_mock.describe_jobs.return_value = {
-            "jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]
-        }
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
         self.batch_client.poll_for_job_complete(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
 
     def test_poll_job_complete_raises_for_max_retries(self):
-        self.client_mock.describe_jobs.return_value = {
-            "jobs": [{"jobId": JOB_ID, "status": "RUNNING"}]
-        }
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "RUNNING"}]}
         with self.assertRaises(AirflowException) as e:
             self.batch_client.poll_for_job_complete(JOB_ID)
         msg = "AWS Batch job ({}) status checks exceed max_retries".format(JOB_ID)
@@ -158,8 +138,7 @@ class TestAwsBatchClient(unittest.TestCase):
 
     def test_poll_job_status_with_client_error(self):
         self.client_mock.describe_jobs.side_effect = botocore.exceptions.ClientError(
-            error_response={"Error": {"Code": "InvalidClientTokenId"}},
-            operation_name="get job description",
+            error_response={"Error": {"Code": "InvalidClientTokenId"}}, operation_name="get job description",
         )
         with self.assertRaises(AirflowException) as e:
             self.batch_client.poll_for_job_complete(JOB_ID)
@@ -169,9 +148,7 @@ class TestAwsBatchClient(unittest.TestCase):
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
 
     def test_check_job_success(self):
-        self.client_mock.describe_jobs.return_value = {
-            "jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]
-        }
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
         status = self.batch_client.check_job_success(JOB_ID)
         self.assertTrue(status)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
@@ -211,9 +188,7 @@ class TestAwsBatchClient(unittest.TestCase):
         self.assertIn(msg, str(e.exception))
 
     def test_check_job_success_raises_incomplete(self):
-        self.client_mock.describe_jobs.return_value = {
-            "jobs": [{"jobId": JOB_ID, "status": "RUNNABLE"}]
-        }
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "RUNNABLE"}]}
         with self.assertRaises(AirflowException) as e:
             self.batch_client.check_job_success(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
@@ -222,9 +197,7 @@ class TestAwsBatchClient(unittest.TestCase):
 
     def test_check_job_success_raises_unknown_status(self):
         status = "STRANGE"
-        self.client_mock.describe_jobs.return_value = {
-            "jobs": [{"jobId": JOB_ID, "status": status}]
-        }
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": status}]}
         with self.assertRaises(AirflowException) as e:
             self.batch_client.check_job_success(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
@@ -253,9 +226,7 @@ class TestAwsBatchClientDelays(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     def setUp(self):
-        self.batch_client = AwsBatchClientHook(
-            aws_conn_id='airflow_test',
-            region_name=AWS_REGION)
+        self.batch_client = AwsBatchClientHook(aws_conn_id='airflow_test', region_name=AWS_REGION)
 
     def test_init(self):
         self.assertEqual(self.batch_client.max_retries, self.batch_client.MAX_RETRIES)

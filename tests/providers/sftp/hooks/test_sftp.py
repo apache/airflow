@@ -37,12 +37,9 @@ SFTP_CONNECTION_USER = "root"
 
 
 class TestSFTPHook(unittest.TestCase):
-
     @provide_session
     def update_connection(self, login, session=None):
-        connection = (session.query(Connection).
-                      filter(Connection.conn_id == "sftp_default")
-                      .first())
+        connection = session.query(Connection).filter(Connection.conn_id == "sftp_default").first()
         old_login = connection.login
         connection.login = login
         session.commit()
@@ -73,75 +70,57 @@ class TestSFTPHook(unittest.TestCase):
         self.assertTrue(TMP_DIR_FOR_TESTS in output)
 
     def test_list_directory(self):
-        output = self.hook.list_directory(
-            path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         self.assertEqual(output, [SUB_DIR])
 
     def test_create_and_delete_directory(self):
         new_dir_name = 'new_dir'
-        self.hook.create_directory(os.path.join(
-            TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
-        output = self.hook.describe_directory(
-            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
+        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         self.assertTrue(new_dir_name in output)
-        self.hook.delete_directory(os.path.join(
-            TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
-        output = self.hook.describe_directory(
-            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.hook.delete_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
+        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         self.assertTrue(new_dir_name not in output)
 
     def test_create_and_delete_directories(self):
         base_dir = "base_dir"
         sub_dir = "sub_dir"
         new_dir_path = os.path.join(base_dir, sub_dir)
-        self.hook.create_directory(os.path.join(
-            TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
-        output = self.hook.describe_directory(
-            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
+        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         self.assertTrue(base_dir in output)
-        output = self.hook.describe_directory(
-            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
+        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
         self.assertTrue(sub_dir in output)
-        self.hook.delete_directory(os.path.join(
-            TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
-        self.hook.delete_directory(os.path.join(
-            TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
-        output = self.hook.describe_directory(
-            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.hook.delete_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
+        self.hook.delete_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
+        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         self.assertTrue(new_dir_path not in output)
         self.assertTrue(base_dir not in output)
 
     def test_store_retrieve_and_delete_file(self):
         self.hook.store_file(
-            remote_full_path=os.path.join(
-                TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
-            local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS)
+            remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS),
         )
-        output = self.hook.list_directory(
-            path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         self.assertEqual(output, [SUB_DIR, TMP_FILE_FOR_TESTS])
         retrieved_file_name = 'retrieved.txt'
         self.hook.retrieve_file(
-            remote_full_path=os.path.join(
-                TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
-            local_full_path=os.path.join(TMP_PATH, retrieved_file_name)
+            remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=os.path.join(TMP_PATH, retrieved_file_name),
         )
         self.assertTrue(retrieved_file_name in os.listdir(TMP_PATH))
         os.remove(os.path.join(TMP_PATH, retrieved_file_name))
-        self.hook.delete_file(path=os.path.join(
-            TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
-        output = self.hook.list_directory(
-            path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.hook.delete_file(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
+        output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         self.assertEqual(output, [SUB_DIR])
 
     def test_get_mod_time(self):
         self.hook.store_file(
-            remote_full_path=os.path.join(
-                TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
-            local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS)
+            remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS),
         )
-        output = self.hook.get_mod_time(path=os.path.join(
-            TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
+        output = self.hook.get_mod_time(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
         self.assertEqual(len(output), 14)
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
@@ -153,9 +132,7 @@ class TestSFTPHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_enabled(self, get_connection):
-        connection = Connection(
-            login='login', host='host',
-            extra='{"no_host_key_check": true}')
+        connection = Connection(login='login', host='host', extra='{"no_host_key_check": true}')
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -163,9 +140,7 @@ class TestSFTPHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_disabled(self, get_connection):
-        connection = Connection(
-            login='login', host='host',
-            extra='{"no_host_key_check": false}')
+        connection = Connection(login='login', host='host', extra='{"no_host_key_check": false}')
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -173,9 +148,7 @@ class TestSFTPHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_disabled_for_all_but_true(self, get_connection):
-        connection = Connection(
-            login='login', host='host',
-            extra='{"no_host_key_check": "foo"}')
+        connection = Connection(login='login', host='host', extra='{"no_host_key_check": "foo"}')
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -183,9 +156,7 @@ class TestSFTPHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_ignore(self, get_connection):
-        connection = Connection(
-            login='login', host='host',
-            extra='{"ignore_hostkey_verification": true}')
+        connection = Connection(login='login', host='host', extra='{"ignore_hostkey_verification": true}')
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -193,37 +164,39 @@ class TestSFTPHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_no_ignore(self, get_connection):
-        connection = Connection(
-            login='login', host='host',
-            extra='{"ignore_hostkey_verification": false}')
+        connection = Connection(login='login', host='host', extra='{"ignore_hostkey_verification": false}')
 
         get_connection.return_value = connection
         hook = SFTPHook()
         self.assertEqual(hook.no_host_key_check, False)
 
-    @parameterized.expand([
-        (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), True),
-        (os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), True),
-        (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS + "abc"), False),
-        (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, "abc"), False),
-    ])
+    @parameterized.expand(
+        [
+            (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), True),
+            (os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), True),
+            (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS + "abc"), False),
+            (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, "abc"), False),
+        ]
+    )
     def test_path_exists(self, path, exists):
         result = self.hook.path_exists(path)
         self.assertEqual(result, exists)
 
-    @parameterized.expand([
-        ("test/path/file.bin", None, None, True),
-        ("test/path/file.bin", "test", None, True),
-        ("test/path/file.bin", "test/", None, True),
-        ("test/path/file.bin", None, "bin", True),
-        ("test/path/file.bin", "test", "bin", True),
-        ("test/path/file.bin", "test/", "file.bin", True),
-        ("test/path/file.bin", None, "file.bin", True),
-        ("test/path/file.bin", "diff", None, False),
-        ("test/path/file.bin", "test//", None, False),
-        ("test/path/file.bin", None, ".txt", False),
-        ("test/path/file.bin", "diff", ".txt", False),
-    ])
+    @parameterized.expand(
+        [
+            ("test/path/file.bin", None, None, True),
+            ("test/path/file.bin", "test", None, True),
+            ("test/path/file.bin", "test/", None, True),
+            ("test/path/file.bin", None, "bin", True),
+            ("test/path/file.bin", "test", "bin", True),
+            ("test/path/file.bin", "test/", "file.bin", True),
+            ("test/path/file.bin", None, "file.bin", True),
+            ("test/path/file.bin", "diff", None, False),
+            ("test/path/file.bin", "test//", None, False),
+            ("test/path/file.bin", None, ".txt", False),
+            ("test/path/file.bin", "diff", ".txt", False),
+        ]
+    )
     def test_path_match(self, path, prefix, delimiter, match):
         result = self.hook._is_path_match(path=path, prefix=prefix, delimiter=delimiter)
         self.assertEqual(result, match)

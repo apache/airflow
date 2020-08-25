@@ -87,7 +87,8 @@ class CloudTasksQueueCreateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         task_queue: Queue,
         project_id: Optional[str] = None,
@@ -97,7 +98,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -111,10 +112,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         try:
             queue = hook.create_queue(
                 location=self.location,
@@ -195,7 +193,8 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         task_queue: Queue,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
@@ -206,7 +205,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.task_queue = task_queue
@@ -221,10 +220,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         queue = hook.update_queue(
             task_queue=self.task_queue,
             project_id=self.project_id,
@@ -273,12 +269,18 @@ class CloudTasksQueueGetOperator(BaseOperator):
     :rtype: google.cloud.tasks_v2.types.Queue
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
-                       "impersonation_chain",)
+    template_fields = (
+        "location",
+        "queue_name",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -287,7 +289,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -300,10 +302,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         queue = hook.get_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -353,12 +352,17 @@ class CloudTasksQueuesListOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = ("location", "project_id", "gcp_conn_id",
-                       "impersonation_chain",)
+    template_fields = (
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         project_id: Optional[str] = None,
         results_filter: Optional[str] = None,
@@ -368,7 +372,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -382,10 +386,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         queues = hook.list_queues(
             location=self.location,
             project_id=self.project_id,
@@ -431,12 +432,18 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
-                       "impersonation_chain",)
+    template_fields = (
+        "location",
+        "queue_name",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -445,7 +452,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -458,10 +465,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         hook.delete_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -507,12 +511,18 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
-                       "impersonation_chain",)
+    template_fields = (
+        "location",
+        "queue_name",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -521,7 +531,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -534,10 +544,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         queue = hook.purge_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -584,12 +591,18 @@ class CloudTasksQueuePauseOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
-                       "impersonation_chain",)
+    template_fields = (
+        "location",
+        "queue_name",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -598,7 +611,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -611,10 +624,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         queues = hook.pause_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -661,12 +671,18 @@ class CloudTasksQueueResumeOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
-                       "impersonation_chain",)
+    template_fields = (
+        "location",
+        "queue_name",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -675,7 +691,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -688,10 +704,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         queue = hook.resume_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -759,7 +772,8 @@ class CloudTasksTaskCreateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self, *,
+        self,
+        *,
         location: str,
         queue_name: str,
         task: Union[Dict, Task],
@@ -771,7 +785,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -787,10 +801,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         task = hook.create_task(
             location=self.location,
             queue_name=self.queue_name,
@@ -856,7 +867,8 @@ class CloudTasksTaskGetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         queue_name: str,
         task_name: str,
@@ -867,7 +879,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -882,10 +894,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         task = hook.get_task(
             location=self.location,
             queue_name=self.queue_name,
@@ -940,12 +949,18 @@ class CloudTasksTasksListOperator(BaseOperator):
     :rtype: list[google.cloud.tasks_v2.types.Task]
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
-                       "impersonation_chain",)
+    template_fields = (
+        "location",
+        "queue_name",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -956,7 +971,7 @@ class CloudTasksTasksListOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -971,10 +986,7 @@ class CloudTasksTasksListOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         tasks = hook.list_tasks(
             location=self.location,
             queue_name=self.queue_name,
@@ -1034,7 +1046,8 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         queue_name: str,
         task_name: str,
@@ -1044,7 +1057,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -1058,10 +1071,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         hook.delete_task(
             location=self.location,
             queue_name=self.queue_name,
@@ -1124,7 +1134,8 @@ class CloudTasksTaskRunOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         queue_name: str,
         task_name: str,
@@ -1135,7 +1146,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -1150,10 +1161,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
         task = hook.run_task(
             location=self.location,
             queue_name=self.queue_name,

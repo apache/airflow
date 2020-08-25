@@ -26,24 +26,22 @@ from airflow.providers.amazon.aws.operators.step_function_get_execution_output i
 )
 
 TASK_ID = 'step_function_get_execution_output'
-EXECUTION_ARN = 'arn:aws:states:us-east-1:123456789012:execution:'\
-                'pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934'
+EXECUTION_ARN = (
+    'arn:aws:states:us-east-1:123456789012:execution:'
+    'pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934'
+)
 AWS_CONN_ID = 'aws_non_default'
 REGION_NAME = 'us-west-2'
 
 
 class TestStepFunctionGetExecutionOutputOperator(unittest.TestCase):
-
     def setUp(self):
         self.mock_context = MagicMock()
 
     def test_init(self):
         # Given / When
         operator = StepFunctionGetExecutionOutputOperator(
-            task_id=TASK_ID,
-            execution_arn=EXECUTION_ARN,
-            aws_conn_id=AWS_CONN_ID,
-            region_name=REGION_NAME
+            task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
         )
 
         # Then
@@ -55,18 +53,13 @@ class TestStepFunctionGetExecutionOutputOperator(unittest.TestCase):
     @mock.patch('airflow.providers.amazon.aws.operators.step_function_get_execution_output.StepFunctionHook')
     def test_execute(self, mock_hook):
         # Given
-        hook_response = {
-            'output': '{}'
-        }
+        hook_response = {'output': '{}'}
 
         hook_instance = mock_hook.return_value
         hook_instance.describe_execution.return_value = hook_response
 
         operator = StepFunctionGetExecutionOutputOperator(
-            task_id=TASK_ID,
-            execution_arn=EXECUTION_ARN,
-            aws_conn_id=AWS_CONN_ID,
-            region_name=REGION_NAME
+            task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
         )
 
         # When

@@ -65,9 +65,7 @@ class CloudFirestoreHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
@@ -87,8 +85,7 @@ class CloudFirestoreHook(GoogleBaseHook):
             # At the same time, the Non-Authorized Client has no problems.
             non_authorized_conn = build("firestore", self.api_version, cache_discovery=False)
             self._conn = build_from_document(
-                non_authorized_conn._rootDesc,  # pylint: disable=protected-access
-                http=http_authorized
+                non_authorized_conn._rootDesc, http=http_authorized  # pylint: disable=protected-access
             )
         return self._conn
 
