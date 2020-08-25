@@ -90,14 +90,10 @@ class CloudFunctionsHook(GoogleBaseHook):
         :return: A Cloud Functions object representing the function.
         :rtype: dict
         """
-        return (
-            self.get_conn()
-            .projects()
-            .locations()
-            .functions()
-            .get(name=name)  # pylint: disable=no-member
-            .execute(num_retries=self.num_retries)
-        )
+        # fmt: off
+        return self.get_conn().projects().locations().functions().get(  # pylint: disable=no-member
+            name=name).execute(num_retries=self.num_retries)
+        # fmt: on
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_new_function(self, location: str, body: Dict, project_id: str) -> None:
@@ -113,16 +109,12 @@ class CloudFunctionsHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        response = (
-            self.get_conn()
-            .projects()
-            .locations()
-            .functions()
-            .create(  # pylint: disable=no-member
-                location=self._full_location(project_id, location), body=body
-            )
-            .execute(num_retries=self.num_retries)
-        )
+        # fmt: off
+        response = self.get_conn().projects().locations().functions().create(  # pylint: disable=no-member
+            location=self._full_location(project_id, location),
+            body=body
+        ).execute(num_retries=self.num_retries)
+        # fmt: on
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
@@ -138,14 +130,13 @@ class CloudFunctionsHook(GoogleBaseHook):
         :type update_mask: [str]
         :return: None
         """
-        response = (
-            self.get_conn()
-            .projects()
-            .locations()
-            .functions()
-            .patch(updateMask=",".join(update_mask), name=name, body=body)  # pylint: disable=no-member
-            .execute(num_retries=self.num_retries)
-        )
+        # fmt: off
+        response = self.get_conn().projects().locations().functions().patch(  # pylint: disable=no-member
+            updateMask=",".join(update_mask),
+            name=name,
+            body=body
+        ).execute(num_retries=self.num_retries)
+        # fmt: on
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
@@ -164,15 +155,13 @@ class CloudFunctionsHook(GoogleBaseHook):
         :return: The upload URL that was returned by generateUploadUrl method.
         :rtype: str
         """
+        # fmt: off
         # pylint: disable=no-member # noqa
-        response = (
-            self.get_conn()
-            .projects()
-            .locations()
-            .functions()
-            .generateUploadUrl(parent=self._full_location(project_id, location))
-            .execute(num_retries=self.num_retries)
-        )
+        response = \
+            self.get_conn().projects().locations().functions().generateUploadUrl(
+                parent=self._full_location(project_id, location)
+            ).execute(num_retries=self.num_retries)
+        # fmt: on
 
         upload_url = response.get('uploadUrl')
         with open(zip_path, 'rb') as file:
@@ -194,14 +183,10 @@ class CloudFunctionsHook(GoogleBaseHook):
         :type name: str
         :return: None
         """
-        response = (
-            self.get_conn()
-            .projects()
-            .locations()
-            .functions()
-            .delete(name=name)  # pylint: disable=no-member
-            .execute(num_retries=self.num_retries)
-        )
+        # fmt: off
+        response = self.get_conn().projects().locations().functions().delete(  # pylint: disable=no-member
+            name=name).execute(num_retries=self.num_retries)
+        # fmt: on
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
@@ -225,14 +210,12 @@ class CloudFunctionsHook(GoogleBaseHook):
         name = "projects/{project_id}/locations/{location}/functions/{function_id}".format(
             project_id=project_id, location=location, function_id=function_id
         )
-        response = (
-            self.get_conn()
-            .projects()
-            .locations()
-            .functions()
-            .call(name=name, body=input_data)  # pylint: disable=no-member
-            .execute(num_retries=self.num_retries)
-        )
+        # fmt: off
+        response = self.get_conn().projects().locations().functions().call(  # pylint: disable=no-member
+            name=name,
+            body=input_data
+        ).execute(num_retries=self.num_retries)
+        # fmt: on
         if 'error' in response:
             raise AirflowException(response['error'])
         return response
@@ -250,11 +233,11 @@ class CloudFunctionsHook(GoogleBaseHook):
         """
         service = self.get_conn()
         while True:
-            operation_response = (
-                service.operations()
-                .get(name=operation_name,)  # pylint: disable=no-member
-                .execute(num_retries=self.num_retries)
-            )
+            # fmt: off
+            operation_response = service.operations().get(  # pylint: disable=no-member
+                name=operation_name,
+            ).execute(num_retries=self.num_retries)
+            # fmt: on
             if operation_response.get("done"):
                 response = operation_response.get("response")
                 error = operation_response.get("error")
