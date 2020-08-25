@@ -166,13 +166,6 @@ ARG PIP_NO_CACHE_DIR="true"
 ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
 RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
 
-# PIP version used to install dependencies
-ARG PIP_VERSION="19.0.2"
-ENV PIP_VERSION=${PIP_VERSION}
-RUN echo "Pip version: ${PIP_VERSION}"
-
-RUN pip install --upgrade pip==${PIP_VERSION}
-
 ARG HOME=/root
 ENV HOME=${HOME}
 
