@@ -246,3 +246,18 @@ class TestDockerOperator(unittest.TestCase):
 
         self.assertEqual(xcom_push_result, b'container log')
         self.assertIs(no_xcom_push_result, None)
+
+    def test_extra_hosts(self):
+        hosts_obj = mock.Mock()
+        operator = DockerOperator(task_id='test', image='test', extra_hosts=hosts_obj)
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        self.assertIn(
+            'host_config', self.client_mock.create_container.call_args.kwargs,
+        )
+        self.assertIn(
+            'extra_hosts', self.client_mock.create_host_config.call_args.kwargs,
+        )
+        self.assertIs(
+            hosts_obj, self.client_mock.create_host_config.call_args.kwargs['extra_hosts'],
+        )
