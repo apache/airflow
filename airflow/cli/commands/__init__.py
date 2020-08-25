@@ -15,3 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.models.dag import DAG
+
+
+def dag_cli(dag: DAG):
+    """Exposes a CLI specific to this DAG"""
+    from airflow.cli import cli_parser
+    parser = cli_parser.get_parser(dag_parser=True)
+    args = parser.parse_args()
+    args.func(args, dag)

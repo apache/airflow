@@ -17,6 +17,7 @@
 # under the License.
 from datetime import timedelta
 
+from airflow.cli.commands import dag_cli
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -54,4 +55,4 @@ task = BashOperator(
 task.set_downstream(run_this_last)
 
 if __name__ == "__main__":
-    dag.cli()
+    dag_cli(dag)

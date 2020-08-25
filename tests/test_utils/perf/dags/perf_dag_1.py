@@ -20,6 +20,7 @@ This dag tests performance of simple bash commands executed with Airflow.
 """
 from datetime import timedelta
 
+from airflow.cli.commands import dag_cli
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils.dates import days_ago
@@ -49,4 +50,4 @@ for i in range(2, 5):
     task.set_upstream(task_1)
 
 if __name__ == "__main__":
-    dag.cli()
+    dag_cli(dag)

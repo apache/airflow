@@ -1414,9 +1414,7 @@ class DAG(BaseDag, LoggingMixin):
                          for t in regex_match + also_include}
 
         def filter_task_group(group, parent_group):
-            """
-            Exclude tasks not included in the subdag from the given TaskGroup.
-            """
+            """Exclude tasks not included in the subdag from the given TaskGroup."""
             copied = copy.copy(group)
             copied.used_group_ids = set(copied.used_group_ids)
             copied._parent_group = parent_group
@@ -1641,13 +1639,6 @@ class DAG(BaseDag, LoggingMixin):
             run_backwards=run_backwards,
         )
         job.run()
-
-    def cli(self):
-        """Exposes a CLI specific to this DAG"""
-        from airflow.cli import cli_parser
-        parser = cli_parser.get_parser(dag_parser=True)
-        args = parser.parse_args()
-        args.func(args, self)
 
     @provide_session
     def create_dagrun(

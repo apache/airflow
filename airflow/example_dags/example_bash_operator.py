@@ -21,6 +21,7 @@
 from datetime import timedelta
 
 from airflow import DAG
+from airflow.cli.commands import dag_cli
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
@@ -72,4 +73,4 @@ also_run_this = BashOperator(
 also_run_this >> run_this_last
 
 if __name__ == "__main__":
-    dag.cli()
+    dag_cli(dag)
