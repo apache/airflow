@@ -76,6 +76,7 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            libsasl2-dev \
            libsasl2-modules \
            libssl-dev \
+           libenchant-dev \
            locales  \
            netcat \
            nodejs \
@@ -164,13 +165,6 @@ RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_
 ARG PIP_NO_CACHE_DIR="true"
 ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
 RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
-
-# PIP version used to install dependencies
-ARG PIP_VERSION="20.2.3"
-ENV PIP_VERSION=${PIP_VERSION}
-RUN echo "Pip version: ${PIP_VERSION}"
-
-RUN pip install --upgrade pip==${PIP_VERSION}
 
 ARG HOME=/root
 ENV HOME=${HOME}
