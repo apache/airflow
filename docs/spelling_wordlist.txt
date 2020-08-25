@@ -234,6 +234,7 @@ Memorystore
 Mesos
 MessageAttributes
 Metastore
+Multinamespace
 Mixin
 Mongo
 Moto
@@ -279,6 +280,7 @@ Protobuf
 PublisherClient
 Pubsub
 Py
+Pyarrow
 PyPI
 Pylint
 Pyspark
@@ -772,6 +774,7 @@ hostname
 hostnames
 hotfix
 houqp
+howto
 hql
 html
 htmlcontent
@@ -921,6 +924,7 @@ moinmoin
 mongo
 mongoHook
 monospace
+mouseover
 msg
 mssql
 msumit

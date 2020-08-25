@@ -71,7 +71,7 @@ Apache Airflow is tested with:
 * Sqlite - latest stable (it is used mainly for development purpose)
 * Kubernetes - 1.16.2, 1.17.0
 
-### Stable version (1.10.11)
+### Stable version (1.10.12)
 
 * Python versions: 2.7, 3.5, 3.6, 3.7, 3.8
 * Postgres DB: 9.6, 10
@@ -118,7 +118,7 @@ pip install apache-airflow==1.10.12 \
 
 2. Installing with extras (for example postgres,google)
 ```bash
-pip install apache-airflow[postgres,google]==1.10.11 \
+pip install apache-airflow[postgres,google]==1.10.12 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 ```
 
@@ -130,7 +130,7 @@ of Apache Airflow. The community provides two types of support for the productio
 * We provide pre-build released version of production image in PyPI build from released
   sources of Apache Airflow - shortly after release. Those images are available in the DockerHub.
   You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the
-  version number (for example 1.10.11). Additionally `docker pull apache/airflow` will pull latest
+  version number (for example 1.10.12). Additionally `docker pull apache/airflow` will pull latest
   stable version of the image with default python version (currently 3.6)
 
 * In `master` branch of Airflow and in `v1-10-stable` branch we provide Dockerfiles and accompanying
