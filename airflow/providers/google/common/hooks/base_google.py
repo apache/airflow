@@ -440,10 +440,12 @@ class GoogleBaseHook(BaseHook):
         credentials_path = _cloud_sdk.get_application_default_credentials_path()
         project_id = self.project_id
 
-        with self.provide_gcp_credential_file_as_context(), tempfile.TemporaryDirectory() as gcloud_config_tmp, patch_environ(
-            {'CLOUDSDK_CONFIG': gcloud_config_tmp}
-        ):
+        # fmt: off
+        with self.provide_gcp_credential_file_as_context(), \
+                tempfile.TemporaryDirectory() as gcloud_config_tmp, \
+                patch_environ({'CLOUDSDK_CONFIG': gcloud_config_tmp}):
 
+            # fmt: on
             if project_id:
                 # Don't display stdout/stderr for security reason
                 check_output(["gcloud", "config", "set", "core/project", project_id])

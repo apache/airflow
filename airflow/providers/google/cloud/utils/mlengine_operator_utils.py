@@ -39,8 +39,8 @@ from airflow.providers.google.cloud.operators.mlengine import MLEngineStartBatch
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def create_evaluate_ops(
-    task_prefix: str,  # pylint: disable=too-many-arguments
+def create_evaluate_ops(  # pylint: disable=too-many-arguments
+    task_prefix: str,
     data_format: str,
     input_paths: List[str],
     prediction_path: str,

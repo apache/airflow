@@ -169,11 +169,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         """
         body = self._inject_project_id(body, BODY, PROJECT_ID)
         try:
+            # pylint: disable=no-member
             transfer_job = (
-                self.get_conn()
-                .transferJobs()
-                .create(body=body)
-                .execute(num_retries=self.num_retries)  # pylint: disable=no-member
+                self.get_conn().transferJobs().create(body=body).execute(num_retries=self.num_retries)
             )
         except HttpError as e:
             # If status code "Conflict"
@@ -254,9 +252,8 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             response = request.execute(num_retries=self.num_retries)
             jobs.extend(response[TRANSFER_JOBS])
 
-            request = conn.transferJobs().list_next(
-                previous_request=request, previous_response=response  # pylint: disable=no-member
-            )
+            # pylint: disable=no-member
+            request = conn.transferJobs().list_next(previous_request=request, previous_response=response)
 
         return jobs
 

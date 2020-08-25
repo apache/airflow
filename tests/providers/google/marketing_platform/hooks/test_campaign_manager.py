@@ -76,9 +76,10 @@ class TestGoogleCampaignManagerHook(TestCase):
         file_id = "FILE_ID"
 
         return_value = "TEST"
-        get_conn_mock.return_value.reports.return_value.files.return_value.get.return_value.execute.return_value = (
-            return_value
-        )
+        # fmt: off
+        get_conn_mock.return_value.reports.return_value.files.return_value. \
+            get.return_value.execute.return_value = return_value
+        # fmt: on
 
         result = self.hook.get_report(profile_id=PROFILE_ID, report_id=REPORT_ID, file_id=file_id)
 

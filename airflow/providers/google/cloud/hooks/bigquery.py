@@ -502,8 +502,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_external_table(
-        self,  # pylint: disable=too-many-locals,too-many-arguments
+    def create_external_table(  # pylint: disable=too-many-locals,too-many-arguments
+        self,
         external_project_dataset_table: str,
         schema_fields: List,
         source_uris: List,
@@ -717,8 +717,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return table_object.to_api_repr()
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def patch_table(
-        self,  # pylint: disable=too-many-arguments
+    def patch_table(  # pylint: disable=too-many-arguments
+        self,
         dataset_id: str,
         table_id: str,
         project_id: Optional[str] = None,
@@ -1494,8 +1494,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = job.job_id
         return job.job_id
 
-    def run_load(
-        self,  # pylint: disable=too-many-locals,too-many-arguments,invalid-name
+    def run_load(  # pylint: disable=too-many-locals,too-many-arguments,invalid-name
+        self,
         destination_project_dataset_table: str,
         source_uris: List,
         schema_fields: Optional[List] = None,
@@ -1742,8 +1742,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = job.job_id
         return job.job_id
 
-    def run_copy(
-        self,  # pylint: disable=invalid-name
+    def run_copy(  # pylint: disable=invalid-name
+        self,
         source_project_dataset_tables: Union[List, str],
         destination_project_dataset_table: str,
         write_disposition: str = 'WRITE_EMPTY',

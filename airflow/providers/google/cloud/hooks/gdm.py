@@ -70,9 +70,8 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         """
         deployments = []  # type: List[Dict]
         conn = self.get_conn()
-        request = conn.deployments().list(
-            project=project_id, filter=deployment_filter, orderBy=order_by  # pylint: disable=no-member
-        )
+        # pylint: disable=no-member
+        request = conn.deployments().list(project=project_id, filter=deployment_filter, orderBy=order_by)
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
@@ -100,8 +99,9 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         :rtype: None
         """
         conn = self.get_conn()
+        # pylint: disable=no-member
         request = conn.deployments().delete(
-            project=project_id, deployment=deployment, deletePolicy=delete_policy  # pylint: disable=no-member
+            project=project_id, deployment=deployment, deletePolicy=delete_policy
         )
         resp = request.execute()
         if 'error' in resp.keys():

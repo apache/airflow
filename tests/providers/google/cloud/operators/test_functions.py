@@ -180,7 +180,8 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             for network in [
                 "network-01",
                 "n-0-2-3-4",
-                "projects/PROJECT/global/networks/network-01" "projects/PRÓJECT/global/networks/netwórk-01",
+                "projects/PROJECT/global/networks/network-01",
+                "projects/PRÓJECT/global/networks/netwórk-01",
             ]
         ]
     )
@@ -316,7 +317,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             ),
             (
                 {'sourceUploadUrl': 'https://url', 'zip_path': '/path/to/file'},
-                "Only one of 'sourceUploadUrl' in body " "or 'zip_path' argument allowed. Found both.",
+                "Only one of 'sourceUploadUrl' in body or 'zip_path' argument allowed. Found both.",
             ),
             (
                 {'sourceUploadUrl': ''},
@@ -325,11 +326,11 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             ),
             (
                 {'sourceRepository': ''},
-                "The field 'source_code.sourceRepository' " "should be of dictionary type",
+                "The field 'source_code.sourceRepository' should be of dictionary type",
             ),
             (
                 {'sourceRepository': {}},
-                "The required body field " "'source_code.sourceRepository.url' is missing",
+                "The required body field 'source_code.sourceRepository.url' is missing",
             ),
             (
                 {'sourceRepository': {'url': ''}},
@@ -355,28 +356,18 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         err = cm.exception
         self.assertIn(message, str(err))
 
-    @parameterized.expand(
-        [
-            ({'sourceArchiveUrl': 'gs://url'}, 'test_project_id'),
-            ({'zip_path': '/path/to/file', 'sourceUploadUrl': None}, 'test_project_id'),
-            ({'zip_path': '/path/to/file', 'sourceUploadUrl': None}, None),
-            (
-                {
-                    'sourceUploadUrl': 'https://source.developers.google.com/projects/a/repos/b/revisions/c/paths/d'
-                },
-                'test_project_id',
-            ),
-            (
-                {
-                    'sourceRepository': {
-                        'url': 'https://source.developers.google.com/projects/a/'
-                        'repos/b/revisions/c/paths/d'
-                    }
-                },
-                'test_project_id',
-            ),
-        ]
-    )
+    # fmt: off
+    @parameterized.expand([
+        ({'sourceArchiveUrl': 'gs://url'}, 'test_project_id'),
+        ({'zip_path': '/path/to/file', 'sourceUploadUrl': None}, 'test_project_id'),
+        ({'zip_path': '/path/to/file', 'sourceUploadUrl': None}, None),
+        ({'sourceUploadUrl': 'https://source.developers.google.com/projects/a/repos/b/revisions/c/paths/d'},
+         'test_project_id'),
+        ({'sourceRepository': {
+            'url':
+                'https://source.developers.google.com/projects/a/repos/b/revisions/c/paths/d'
+        }}, 'test_project_id'),
+    ])
     @mock.patch('airflow.providers.google.cloud.operators.functions.CloudFunctionsHook')
     def test_valid_source_code_union_field(self, source_code, project_id, mock_hook):
         mock_hook.return_value.upload_function_zip.return_value = 'https://uploadUrl'
@@ -419,6 +410,8 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         )
         mock_hook.reset_mock()
 
+    # fmt: on
+
     @parameterized.expand(
         [
             ({'eventTrigger': {}}, "The required body field 'trigger.eventTrigger.eventType' is missing"),
@@ -449,7 +442,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
                         'failurePolicy': {'retry': ''},
                     }
                 },
-                "The field 'trigger.eventTrigger.failurePolicy.retry' " "should be of dictionary type",
+                "The field 'trigger.eventTrigger.failurePolicy.retry' should be of dictionary type",
             ),
         ]
     )
@@ -548,12 +541,12 @@ class TestGcfFunctionDeploy(unittest.TestCase):
 
 
 class TestGcfFunctionDelete(unittest.TestCase):
-    _FUNCTION_NAME = 'projects/project_name/locations/project_location/functions' '/function_name'
+    _FUNCTION_NAME = 'projects/project_name/locations/project_location/functions/function_name'
     _DELETE_FUNCTION_EXPECTED = {
         '@type': 'type.googleapis.com/google.cloud.functions.v1.CloudFunction',
         'name': _FUNCTION_NAME,
         'sourceArchiveUrl': 'gs://functions/hello.zip',
-        'httpsTrigger': {'url': 'https://project_location-project_name.cloudfunctions.net' '/function_name'},
+        'httpsTrigger': {'url': 'https://project_location-project_name.cloudfunctions.net/function_name'},
         'status': 'ACTIVE',
         'entryPoint': 'entry_point',
         'timeout': '60s',

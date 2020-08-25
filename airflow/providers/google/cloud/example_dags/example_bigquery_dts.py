@@ -80,7 +80,7 @@ with models.DAG(
     )
 
     transfer_config_id = (
-        "{{ task_instance.xcom_pull('gcp_bigquery_create_transfer', " "key='transfer_config_id') }}"
+        "{{ task_instance.xcom_pull('gcp_bigquery_create_transfer', key='transfer_config_id') }}"
     )
     # [END howto_bigquery_create_data_transfer]
 
