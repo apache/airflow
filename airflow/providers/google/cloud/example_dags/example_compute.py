@@ -96,4 +96,5 @@ with models.DAG(
     )
     # [END howto_operator_gce_set_machine_type_no_project_id]
 
-    gce_instance_start >> gce_instance_start2 >> gce_instance_stop >> gce_instance_stop2 >> gce_set_machine_type >> gce_set_machine_type2
+    gce_instance_start >> gce_instance_start2 >> gce_instance_stop >> gce_instance_stop2
+    gce_instance_stop2 >> gce_set_machine_type >> gce_set_machine_type2

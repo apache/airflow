@@ -187,4 +187,8 @@ with models.DAG(
     )
     # [END howto_operator_gcp_transfer_delete_job]
 
-    create_transfer_job_from_aws >> wait_for_operation_to_start >> pause_operation >> list_operations >> get_operation >> resume_operation >> wait_for_operation_to_end >> cancel_operation >> delete_transfer_from_aws_job
+    # fmt: off
+    create_transfer_job_from_aws >> wait_for_operation_to_start >> pause_operation
+    pause_operation >> list_operations >> get_operation >> resume_operation
+    resume_operation >> wait_for_operation_to_end >> cancel_operation >> delete_transfer_from_aws_job
+    # fmt: on

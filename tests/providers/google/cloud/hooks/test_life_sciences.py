@@ -76,20 +76,28 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn")
     def test_run_pipeline_immediately_complete(self, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
+        # fmt: off
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .pipelines.return_value \
+            .run.return_value \
+            .execute.return_value = TEST_OPERATION
 
-        service_mock.projects.return_value.locations.return_value.pipelines.return_value.run.return_value.execute.return_value = (
-            TEST_OPERATION
-        )
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .operations.return_value \
+            .get.return_value \
+            .execute.return_value = TEST_DONE_OPERATION
 
-        service_mock.projects.return_value.locations.return_value.operations.return_value.get.return_value.execute.return_value = (
-            TEST_DONE_OPERATION
-        )
-
-        result = self.hook.run_pipeline(body={}, location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
-        parent = self.hook._location_path(project_id=TEST_PROJECT_ID, location=TEST_LOCATION)
-        service_mock.projects.return_value.locations.return_value.pipelines.return_value.run.assert_called_once_with(
-            body={}, parent=parent
-        )
+        result = self.hook.run_pipeline(body={},  # pylint: disable=no-value-for-parameter
+                                        location=TEST_LOCATION)
+        parent = self.hook. \
+            _location_path(location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
+        service_mock.projects.return_value.locations.return_value \
+            .pipelines.return_value.run \
+            .assert_called_once_with(body={},
+                                     parent=parent)
+        # fmt: on
         self.assertEqual(result, TEST_OPERATION)
 
     @mock.patch(
@@ -101,16 +109,23 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.time.sleep")
     def test_waiting_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
+        # fmt: off
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .pipelines.return_value \
+            .run.return_value \
+            .execute.return_value = TEST_OPERATION
 
-        service_mock.projects.return_value.locations.return_value.pipelines.return_value.run.return_value.execute.return_value = (
-            TEST_OPERATION
+        execute_mock = mock.Mock(
+            **{"side_effect": [TEST_WAITING_OPERATION, TEST_DONE_OPERATION]}
         )
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .operations.return_value \
+            .get.return_value \
+            .execute = execute_mock
 
-        execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_DONE_OPERATION]})
-        service_mock.projects.return_value.locations.return_value.operations.return_value.get.return_value.execute = (
-            execute_mock
-        )
-
+        # fmt: on
         result = self.hook.run_pipeline(body={}, location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
         self.assertEqual(result, TEST_OPERATION)
 
@@ -123,16 +138,20 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.time.sleep")
     def test_error_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
-
-        service_mock.projects.return_value.locations.return_value.pipelines.return_value.run.return_value.execute.return_value = (
-            TEST_OPERATION
-        )
+        # fmt: off
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .pipelines.return_value \
+            .run.return_value \
+            .execute.return_value = TEST_OPERATION
 
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
-        service_mock.projects.return_value.locations.return_value.operations.return_value.get.return_value.execute = (
-            execute_mock
-        )
-
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .operations.return_value \
+            .get.return_value \
+            .execute = execute_mock
+        # fmt: on
         with self.assertRaisesRegex(AirflowException, "error"):
             self.hook.run_pipeline(body={}, location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
 
@@ -164,21 +183,26 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
     def test_run_pipeline_immediately_complete(self, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
 
-        service_mock.projects.return_value.locations.return_value.pipelines.return_value.run.return_value.execute.return_value = (
-            TEST_OPERATION
-        )
+        # fmt: off
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .pipelines.return_value \
+            .run.return_value \
+            .execute.return_value = TEST_OPERATION
 
-        service_mock.projects.return_value.locations.return_value.operations.return_value.get.return_value.execute.return_value = (
-            TEST_DONE_OPERATION
-        )
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .operations.return_value \
+            .get.return_value \
+            .execute.return_value = TEST_DONE_OPERATION
 
-        result = self.hook.run_pipeline(
-            body={}, location=TEST_LOCATION  # pylint: disable=no-value-for-parameter
-        )
-        parent = self.hook._location_path(location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
-        service_mock.projects.return_value.locations.return_value.pipelines.return_value.run.assert_called_once_with(
-            body={}, parent=parent
-        )
+        result = self.hook.run_pipeline(body={}, location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
+        parent = self.hook._location_path(project_id=TEST_PROJECT_ID, location=TEST_LOCATION)
+        service_mock.projects.return_value.locations.return_value \
+            .pipelines.return_value.run \
+            .assert_called_once_with(body={},
+                                     parent=parent)
+        # fmt: on
         self.assertEqual(result, TEST_OPERATION)
 
     @mock.patch(
