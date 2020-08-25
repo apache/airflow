@@ -229,7 +229,7 @@ paths:
       - $ref: '#/components/parameters/DAGID'
 
     post:
-      summary: Clear a task instances
+      summary: Clear a set of task instances
       description: >
         Clears a set of task instances associated with the DAG for a specified date range.
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
@@ -1098,7 +1098,7 @@ paths:
       summary: Get a instance status
       description: |
         Get the status of Airflow's metadatabase and scheduler. It incluse info about
-        metadatabase and last heart beat of scheduler.
+        metadatabase and last heartbeat of scheduler.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
       tags: [Monitoring]
@@ -1112,7 +1112,7 @@ paths:
 
   /version:
     get:
-      summary: Get a version information
+      summary: Get version information
       x-openapi-router-controller: airflow.api_connexion.endpoints.version_endpoint
       operationId: get_version
       tags: [Monitoring]
@@ -1240,7 +1240,7 @@ components:
           readOnly: true
 
     DAGCollection:
-      description: Colllection of DAGs
+      description: Collection of DAGs
       type: object
       properties:
         dags:
@@ -1360,7 +1360,7 @@ components:
 
     EventLogCollection:
       type: object
-      description: Collecttion of event log
+      description: Collection of event log
       properties:
         event_logs:
           type: array
@@ -1694,7 +1694,7 @@ components:
 
     ExtraLinkCollection:
       type: object
-      description: The colelction of extra links.
+      description: The collection of extra links.
       properties:
         extra_links:
           type: array
@@ -1785,7 +1785,7 @@ components:
 
     TaskCollection:
       type: object
-      description: Collelction of tasks.
+      description: Collection of tasks.
       properties:
         tasks:
           type: array
