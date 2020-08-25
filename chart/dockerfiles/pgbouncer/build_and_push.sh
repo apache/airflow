@@ -15,26 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 set -euo pipefail
+DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
+DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
+PGBOUNCER_VERSION="1.14.0"
+AIRFLOW_PGBOUNCER_VERSION="2020.07.10"
+COMMIT_SHA=$(git rev-parse HEAD)
 
-export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
-export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
-export KUBERNETES_MODE=${KUBERNETES_MODE:="image"}
+cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
 
-# adding trap to exiting trap
-HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
-# shellcheck disable=SC2064
-trap "${HANDLERS}${HANDLERS:+;}dump_kind_logs" EXIT
+TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:airflow-pgbouncer-${AIRFLOW_PGBOUNCER_VERSION}-${PGBOUNCER_VERSION}"
 
-get_environment_for_builds_on_ci
-initialize_kind_variables
-make_sure_kubernetes_tools_are_installed
-prepare_prod_build
-build_prod_images
-build_image_for_kubernetes_tests
-load_image_to_kind_cluster
-deploy_airflow_with_helm
-forward_port_to_kind_webserver
-deploy_test_kubernetes_resources
+docker build . \
+    --pull \
+    --build-arg "PGBOUNCER_VERSION=${PGBOUNCER_VERSION}" \
+    --build-arg "AIRFLOW_PGBOUNCER_VERSION=${AIRFLOW_PGBOUNCER_VERSION}"\
+    --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
+    --tag "${TAG}"
+
+docker push "${TAG}"
