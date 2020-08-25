@@ -391,3 +391,59 @@ class TestPatchDag(TestDagEndpoint):
         )
 
         assert_401(response)
+
+    def test_should_response_200_with_update_mask(self):
+        dag_model = self._create_dag_model()
+        payload = {
+            "is_paused": False,
+        }
+        response = self.client.patch(
+            f"/api/v1/dags/{dag_model.dag_id}?update_mask=is_paused",
+            json=payload,
+            environ_overrides={'REMOTE_USER': "test"}
+        )
+        self.assertEqual(response.status_code, 200)
+        expected_response = {
+            "dag_id": "TEST_DAG_1",
+            "description": None,
+            "fileloc": "/tmp/dag_1.py",
+            "is_paused": False,
+            "is_subdag": False,
+            "owners": [],
+            "root_dag_id": None,
+            "schedule_interval": {
+                "__type": "CronExpression",
+                "value": "2 2 * * *",
+            },
+            "tags": [],
+        }
+        self.assertEqual(response.json, expected_response)
+
+    @parameterized.expand([
+        (
+            {
+                "is_paused": True,
+            },
+            "update_mask=description",
+            "Only `is_paused` field can be updated through the REST API"
+        ),
+        (
+            {
+                "is_paused": True,
+            },
+            "update_mask=schedule_interval, description",
+            "Only `is_paused` field can be updated through the REST API"
+        )
+    ])
+    def test_should_response_400_for_invalid_fields_in_update_mask(
+        self, payload, update_mask, error_message
+    ):
+        dag_model = self._create_dag_model()
+
+        response = self.client.patch(
+            f"/api/v1/dags/{dag_model.dag_id}?{update_mask}",
+            json=payload,
+            environ_overrides={'REMOTE_USER': "test"}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json['detail'], error_message)
