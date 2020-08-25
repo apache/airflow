@@ -334,7 +334,7 @@
       description: |
         Fetching serialized DAG can not be faster than a minimum interval to reduce database
         read rate. This config controls when your DAGs are updated in the Webserver
-      version_added: ~
+      version_added: 1.10.12
       type: string
       example: ~
       default: "10"
@@ -370,7 +370,7 @@
     - name: xcom_backend
       description: |
         Path to custom XCom class that will be used to store and resolve operators results
-      version_added: 2.0.0
+      version_added: 1.10.12
       type: string
       example: "path.to.CustomXCom"
       default: "airflow.models.xcom.BaseXCom"
@@ -1891,6 +1891,7 @@
       description: |
         Allows users to launch pods in multiple namespaces.
         Will require creating a cluster-role for the scheduler
+      version_added: 1.10.12
       type: boolean
       example: ~
       default: "False"
@@ -2265,7 +2266,7 @@
         This should be an object and can contain any of the options listed in the ``v1DeleteOptions``
         class defined here:
         https://github.com/kubernetes-client/python/blob/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/models/v1_delete_options.py#L19
-      version_added: ~
+      version_added: 1.10.12
       type: string
       example: '{"grace_period_seconds": 10}'
       default: ""
