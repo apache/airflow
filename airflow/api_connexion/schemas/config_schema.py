@@ -22,35 +22,41 @@ from marshmallow import Schema, fields
 
 class ConfigOptionSchema(Schema):
     """Config Option Schema"""
+
     key = fields.String(required=True)
     value = fields.String(required=True)
 
 
 class ConfigOption(NamedTuple):
     """Config option"""
+
     key: str
     value: str
 
 
 class ConfigSectionSchema(Schema):
     """Config Section Schema"""
+
     name = fields.String(required=True)
     options = fields.List(fields.Nested(ConfigOptionSchema))
 
 
 class ConfigSection(NamedTuple):
     """List of config options within a section"""
+
     name: str
     options: List[ConfigOption]
 
 
 class ConfigSchema(Schema):
     """Config Schema"""
+
     sections = fields.List(fields.Nested(ConfigSectionSchema))
 
 
 class Config(NamedTuple):
     """List of config sections with their options"""
+
     sections: List[ConfigSection]
 
 

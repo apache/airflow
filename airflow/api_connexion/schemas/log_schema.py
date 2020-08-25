@@ -28,6 +28,7 @@ class LogsSchema(Schema):
 
 class LogResponseObject(NamedTuple):
     """Log Response Object"""
+
     content: str
     continuation_token: str
 

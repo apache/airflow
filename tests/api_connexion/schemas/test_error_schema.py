@@ -17,7 +17,9 @@
 import unittest
 
 from airflow.api_connexion.schemas.error_schema import (
-    ImportErrorCollection, import_error_collection_schema, import_error_schema,
+    ImportErrorCollection,
+    import_error_collection_schema,
+    import_error_schema,
 )
 from airflow.models.errors import ImportError  # pylint: disable=redefined-builtin
 from airflow.utils import timezone
