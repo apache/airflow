@@ -1,3 +1,87 @@
+Airflow 1.10.12, 2020-08-25
+----------------------------
+
+New Features
+""""""""""""
+
+- Add DateTimeSensor (#9697)
+- Add ClusterPolicyViolation support to airflow local settings (#10282)
+- Get Airflow configs with sensitive data from Secret Backends (#9645)
+- [AIRFLOW-4734] Upsert functionality for PostgresHook.insert_rows() (#8625)
+- Allow defining custom XCom class (#8560)
+
+Bug Fixes
+"""""""""
+
+- Add pre 1.10.11 Kubernetes Paths back with Deprecation Warning (#10067)
+- Fixes PodMutationHook for backwards compatibility (#9903)
+- Fix bug in executor_config when defining resources (#9935)
+- Respect DAG Serialization setting when running sync_perm (#10321)
+- Show correct duration on graph view for running task (#8311) (#8675)
+- Fix regression in SQLThresholdCheckOperator (#9312)
+- [AIRFLOW-6931] Fixed migrations to find all dependencies for MSSQL (#9891)
+- Avoid sharing session with RenderedTaskInstanceFields write and delete (#9993)
+- Fix clear future recursive when ExternalTaskMarker is used (#9515)
+- Handle IntegrityError while creating TIs (#10136)
+- Fix airflow-webserver startup errors when using Kerberos Auth (#10047)
+- Fixes treatment of open slots in scheduler (#9316) (#9505)
+- Fix KubernetesPodOperator reattachment (#10230)
+- Fix more PodMutationHook issues for backwards compatibility (#10084)
+- [AIRFLOW-5391] Do not re-run skipped tasks when they are cleared (#7276)
+- Fix task_instance_mutation_hook (#9910)
+- Fixes failing formatting of DAG file containing {} in docstring (#9779)
+- Fix is_terminal_support_colors function (#9734)
+- Fix PythonVirtualenvOperator when using ``provide_context=True`` (#8256)
+- Fix issue with mounting volumes from secrets (#10366)
+- BugFix: K8s Executor Multinamespace mode is evaluated to true by default (#10410)
+- Make KubernetesExecutor recognize kubernetes_labels (#10412)
+- Fix broken Kubernetes PodRuntimeInfoEnv (#10478)
+
+Improvements
+""""""""""""
+
+- Use Hash of Serialized DAG to determine DAG is changed or not (#10227)
+- Update Serialized DAGs in Webserver when DAGs are Updated (#9851)
+- Do not Update Serialized DAGs in DB if DAG did not change (#9850)
+- Add __repr__ to SerializedDagModel (#9862)
+- Update JS packages to latest versions (#9811) (#9921)
+- UI Graph View: Focus upstream / downstream task dependencies on mouseover (#9303)
+- Allow ``image`` in ``KubernetesPodOperator`` to be templated (#10068)
+- [AIRFLOW-6843] Add delete_option_kwargs to delete_namespaced_pod (#7523)
+- Improve process terminating in scheduler_job (#8064)
+- Replace deprecated base classes used in bigquery_check_operator (#10272)
+- [AIRFLOW-5897] Allow setting -1 as pool slots value in webserver (#6550)
+- Limit all google-cloud api to <2.0.0 (#10317)
+- [AIRFLOW-6706] Lazy load operator extra links (#7327) (#10318)
+- Add Snowflake support to SQL operator and sensor (#9843)
+- Makes multi-namespace mode optional (#9570)
+- Pin Pyarrow < 1.0
+- Pin pymongo version to <3.11.0
+- Pin google-cloud-container to <2 (#9901)
+- Dockerfile: Remove package.json and yarn.lock from the prod image (#9814)
+- Dockerfile: The group of embedded DAGs should be root to be OpenShift compatible (#9794)
+- Update upper limit of flask-swagger, gunicorn & jinja2 (#9684)
+- Webserver: Sanitize values passed to origin param (#10334)
+- Sort connection type list in add/edit page alphabetically (#8692)
+
+Doc only changes
+""""""""""""""""
+
+- Add new committers: Ry Walker & Leah Cole to project.rst (#9892)
+- Add Qingping Hou to committers list (#9725)
+- Updated link to official documentation (#9629)
+- Create a short-link for Airflow Slack Invites (#10034)
+- Fix docstrings in BigQueryGetDataOperator (#10042)
+- Set language on code-block on docs/howto/email-config.rst (#10238)
+- Remove duplicate line from 1.10.10 CHANGELOG (#10289)
+- Improve heading on Email Configuration page (#10175)
+- Fix link for the Jinja Project in docs/tutorial.rst (#10245)
+- Create separate section for Cron Presets (#10247)
+- Add Syntax Highlights to code-blocks in docs/best-practices.rst (#10258)
+- Fix docstrings in BigQueryGetDataOperator (#10042)
+- Fix typo in Task Lifecycle section (#9867)
+- Make Secret Backend docs clearer about Variable & Connection View (#8913)
+
 Airflow 1.10.11, 2020-07-10
 -----------------------------
 
