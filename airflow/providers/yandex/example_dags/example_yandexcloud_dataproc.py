@@ -133,4 +133,5 @@ with DAG(
 
     delete_cluster = DataprocDeleteClusterOperator(task_id='delete_cluster',)
 
-    create_cluster >> create_mapreduce_job >> create_hive_query >> create_hive_query_from_file >> create_spark_job >> create_pyspark_job >> delete_cluster
+    create_cluster >> create_mapreduce_job >> create_hive_query >> create_hive_query_from_file
+    create_hive_query_from_file >> create_spark_job >> create_pyspark_job >> delete_cluster

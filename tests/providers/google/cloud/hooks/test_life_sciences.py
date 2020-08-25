@@ -215,18 +215,23 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
     def test_waiting_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
 
-        service_mock.projects.return_value.locations.return_value.pipelines.return_value.run.return_value.execute.return_value = (
-            TEST_OPERATION
-        )
+        # fmt: off
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .pipelines.return_value \
+            .run.return_value \
+            .execute.return_value = TEST_OPERATION
 
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_DONE_OPERATION]})
-        service_mock.projects.return_value.locations.return_value.operations.return_value.get.return_value.execute = (
-            execute_mock
-        )
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .operations.return_value \
+            .get.return_value \
+            .execute = execute_mock
+        # fmt: on
 
-        result = self.hook.run_pipeline(
-            body={}, location=TEST_LOCATION  # pylint: disable=no-value-for-parameter
-        )
+        # pylint: disable=no-value-for-parameter
+        result = self.hook.run_pipeline(body={}, location=TEST_LOCATION)
         self.assertEqual(result, TEST_OPERATION)
 
     @mock.patch(
@@ -239,14 +244,20 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
     def test_error_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
 
-        service_mock.projects.return_value.locations.return_value.pipelines.return_value.run.return_value.execute.return_value = (
-            TEST_OPERATION
-        )
+        # fmt: off
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .pipelines.return_value \
+            .run.return_value \
+            .execute.return_value = TEST_OPERATION
 
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
-        service_mock.projects.return_value.locations.return_value.operations.return_value.get.return_value.execute = (
-            execute_mock
-        )
+        service_mock.projects.return_value \
+            .locations.return_value \
+            .operations.return_value \
+            .get.return_value \
+            .execute = execute_mock
+        # fmt: on
 
         with self.assertRaisesRegex(AirflowException, "error"):
             self.hook.run_pipeline(body={}, location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter

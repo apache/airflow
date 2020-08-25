@@ -184,9 +184,10 @@ class TestGoogleDisplayVideo360Hook(TestCase):
             "fileSpec": "file_spec",
         }
 
-        get_conn_mock.return_value.lineitems.return_value.downloadlineitems.return_value.execute.return_value = (
-            response
-        )
+        # fmt: off
+        get_conn_mock.return_value.lineitems.return_value \
+            .downloadlineitems.return_value.execute.return_value = response
+        # fmt: on
 
         result = self.hook.download_line_items(request_body)
         self.assertEqual(line_item, result)
@@ -226,9 +227,10 @@ class TestGoogleDisplayVideo360Hook(TestCase):
     def test_upload_line_items_should_return_equal_values(self, get_conn_mock):
         line_items = {"lineItems": "string", "format": "string", "dryRun": False}
         return_value = "TEST"
-        get_conn_mock.return_value.lineitems.return_value.uploadlineitems.return_value.execute.return_value = (
-            return_value
-        )
+        # fmt: off
+        get_conn_mock.return_value.lineitems.return_value \
+            .uploadlineitems.return_value.execute.return_value = return_value
+        # fmt: on
         result = self.hook.upload_line_items(line_items)
 
         self.assertEqual(return_value, result)
@@ -286,9 +288,12 @@ class TestGoogleDisplayVideo360Hook(TestCase):
             "inventorySourceFilter": "inventory_source_filter",
         }
 
-        get_conn_to_display_video.return_value.sdfdownloadtasks.return_value.create.return_value.execute.return_value = (
-            response
-        )
+        # fmt: off
+        get_conn_to_display_video.return_value. \
+            sdfdownloadtasks.return_value. \
+            create.return_value \
+            .execute.return_value = response
+        # fmt: on
 
         result = self.hook.create_sdf_download_operation(body_request=body_request)
         self.assertEqual(response, result)
@@ -300,9 +305,12 @@ class TestGoogleDisplayVideo360Hook(TestCase):
     def test_get_sdf_download_tasks_called_with_params(self, get_conn_to_display_video):
         operation_name = "operation_name"
         self.hook.get_sdf_download_operation(operation_name=operation_name)
-        get_conn_to_display_video.return_value.sdfdownloadtasks.return_value.operation.return_value.get.assert_called_once_with(
-            name=operation_name
-        )
+        # fmt: off
+        get_conn_to_display_video.return_value. \
+            sdfdownloadtasks.return_value. \
+            operation.return_value. \
+            get.assert_called_once_with(name=operation_name)
+        # fmt: on
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -311,7 +319,12 @@ class TestGoogleDisplayVideo360Hook(TestCase):
     def test_get_sdf_download_tasks_called_once(self, get_conn_to_display_video):
         operation_name = "name"
         self.hook.get_sdf_download_operation(operation_name=operation_name)
-        get_conn_to_display_video.return_value.sdfdownloadtasks.return_value.operation.return_value.get.assert_called_once()
+        # fmt: off
+        get_conn_to_display_video.return_value. \
+            sdfdownloadtasks.return_value. \
+            operation.return_value. \
+            get.assert_called_once()
+        # fmt: on
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
