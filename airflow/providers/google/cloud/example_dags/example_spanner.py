@@ -171,9 +171,15 @@ with models.DAG(
     # [END howto_operator_spanner_delete]
 
     (
-        spanner_instance_create_task >> spanner_instance_update_task >> spanner_database_deploy_task >>
-        spanner_database_update_idempotent1_task >> spanner_database_update_idempotent2_task >>
-        spanner_instance_query_task >> spanner_instance_query_task2 >>
-        spanner_database_delete_task >> spanner_database_delete_task2 >> spanner_instance_delete_task >>
-        spanner_instance_delete_task2
+        spanner_instance_create_task
+        >> spanner_instance_update_task
+        >> spanner_database_deploy_task
+        >> spanner_database_update_idempotent1_task
+        >> spanner_database_update_idempotent2_task
+        >> spanner_instance_query_task
+        >> spanner_instance_query_task2
+        >> spanner_database_delete_task
+        >> spanner_database_delete_task2
+        >> spanner_instance_delete_task
+        >> spanner_instance_delete_task2
     )
