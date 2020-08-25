@@ -91,7 +91,7 @@ info:
 
     ## Conventions
     - Resource names are plural and expressed in camelCase.
-    - Resource names are consistent between URL parameter and field name.
+    - Names are consistent between URL parameter name and field name.
 
     - Field names are in snake_case.
     ```json
