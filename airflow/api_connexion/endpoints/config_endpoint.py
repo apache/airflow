@@ -62,6 +62,7 @@ def _config_to_json(config: Config) -> str:
 
 
 @security.requires_authentication
+# @security.
 def get_config() -> Response:
     """
     Get current configuration.

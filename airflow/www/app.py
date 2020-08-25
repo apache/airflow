@@ -58,6 +58,7 @@ def sync_appbuilder_roles(flask_app):
     if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
         security_manager = flask_app.appbuilder.sm
         security_manager.sync_roles()
+        security_manager.sync_resource_permissions()
 
 
 def create_app(config=None, testing=False, app_name="Airflow"):

@@ -34,7 +34,8 @@ class TestBasePoolEndpoints(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_user(cls.app, username="test", role="Viewer",
+            permissions=[("can_create", "Pool"), ("can_read", "Pool"), ("can_edit", "Pool"), ("can_delete", "Pool")])  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:

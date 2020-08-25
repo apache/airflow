@@ -506,6 +506,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
+        # breakpoint()
         self.log.debug('Start syncing user roles.')
         # Create global all-dag VM
         self.create_perm_vm_for_all_dag()
@@ -521,6 +522,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # init existing roles, the rest role could be created through UI.
         self.update_admin_perm_view()
         self.clean_perms()
+
+    def sync_resource_permissions(self):
+        resources = ['Pool', 'Connection', 'Dag']
+        actions = ['can_create', 'can_read', 'can_edit', 'can_delete']
+        for resource in resources:
+            menu = self.add_view_menu(resource)
+            for action in actions:
+                self.add_permission_view_menu(action, resource)
 
     def sync_perm_for_dag(self, dag_id, access_control=None):
         """
