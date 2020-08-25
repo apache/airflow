@@ -91,10 +91,11 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
+        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instances()
-            .start(project=project_id, zone=zone, instance=resource_id)  # noqa pylint: disable=no-member
+            .start(project=project_id, zone=zone, instance=resource_id)
             .execute(num_retries=self.num_retries)
         )
         try:
@@ -121,10 +122,11 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
+        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instances()
-            .stop(project=project_id, zone=zone, instance=resource_id)  # noqa pylint: disable=no-member
+            .stop(project=project_id, zone=zone, instance=resource_id)
             .execute(num_retries=self.num_retries)
         )
         try:
@@ -165,12 +167,11 @@ class ComputeEngineHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     def _execute_set_machine_type(self, zone: str, resource_id: str, body: Dict, project_id: str) -> Dict:
+        # noqa pylint: disable=no-member
         return (
             self.get_conn()
             .instances()
-            .setMachineType(  # noqa pylint: disable=no-member
-                project=project_id, zone=zone, instance=resource_id, body=body
-            )
+            .setMachineType(project=project_id, zone=zone, instance=resource_id, body=body)
             .execute(num_retries=self.num_retries)
         )
 
@@ -190,10 +191,11 @@ class ComputeEngineHook(GoogleBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
         :rtype: dict
         """
+        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instanceTemplates()
-            .get(project=project_id, instanceTemplate=resource_id)  # noqa pylint: disable=no-member
+            .get(project=project_id, instanceTemplate=resource_id)
             .execute(num_retries=self.num_retries)
         )
         return response
@@ -220,10 +222,11 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
+        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instanceTemplates()
-            .insert(project=project_id, body=body, requestId=request_id)  # noqa pylint: disable=no-member
+            .insert(project=project_id, body=body, requestId=request_id)
             .execute(num_retries=self.num_retries)
         )
         try:
@@ -252,12 +255,11 @@ class ComputeEngineHook(GoogleBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers
         :rtype: dict
         """
+        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instanceGroupManagers()
-            .get(  # noqa pylint: disable=no-member
-                project=project_id, zone=zone, instanceGroupManager=resource_id
-            )
+            .get(project=project_id, zone=zone, instanceGroupManager=resource_id)
             .execute(num_retries=self.num_retries)
         )
         return response
@@ -289,10 +291,11 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
+        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instanceGroupManagers()
-            .patch(  # noqa pylint: disable=no-member
+            .patch(
                 project=project_id,
                 zone=zone,
                 instanceGroupManager=resource_id,

@@ -123,7 +123,7 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         )
 
         expected = (
-            '*** Reading remote log from Cloudwatch log_group: {} ' 'log_stream: {}.\nFirst\nSecond\nThird\n'
+            '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\nFirst\nSecond\nThird\n'
         )
         self.assertEqual(
             self.cloudwatch_task_handler.read(self.ti),
@@ -142,7 +142,7 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
             ],
         )
 
-        msg_template = '*** Reading remote log from Cloudwatch log_group: {} ' 'log_stream: {}.\n{}\n'
+        msg_template = '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n'
         error_msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
             self.remote_log_group, self.remote_log_stream
         )

@@ -175,10 +175,8 @@ class TestDatastoreHook(unittest.TestCase):
         transaction = 'transaction'
 
         with self.assertRaises(AirflowException) as err:
-            self.datastore_hook.lookup(
-                keys=keys,  # pylint: disable=no-value-for-parameter
-                read_consistency=read_consistency,
-                transaction=transaction,
+            self.datastore_hook.lookup(  # pylint: disable=no-value-for-parameter
+                keys=keys, read_consistency=read_consistency, transaction=transaction,
             )
         self.assertIn("project_id", str(err.exception))
 

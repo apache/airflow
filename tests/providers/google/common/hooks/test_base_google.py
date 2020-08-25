@@ -410,8 +410,8 @@ class TestGoogleBaseHook(unittest.TestCase):
         with self.assertRaisesRegex(
             AirflowException,
             re.escape(
-                "The `delegate_to` parameter cannot be used here as the current authentication method does not "
-                "support account impersonate. Please use service-account for authorization."
+                "The `delegate_to` parameter cannot be used here as the current authentication method "
+                "does not support account impersonate. Please use service-account for authorization."
             ),
         ):
             self.instance._get_credentials_and_project_id()

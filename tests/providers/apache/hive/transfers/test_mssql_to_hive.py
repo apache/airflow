@@ -40,25 +40,21 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
     def setUp(self):
         self.kwargs = dict(sql='sql', hive_table='table', task_id='test_mssql_to_hive', dag=None)
 
-    # pylint: disable=c-extension-no-member
     def test_type_map_binary(self):
-        mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(
-            pymssql.BINARY.value
-        )  # pylint: disable=c-extension-no-member
+        # pylint: disable=c-extension-no-member
+        mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.BINARY.value)
 
         self.assertEqual(mapped_type, 'INT')
 
     def test_type_map_decimal(self):
-        mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(
-            pymssql.DECIMAL.value
-        )  # pylint: disable=c-extension-no-member
+        # pylint: disable=c-extension-no-member
+        mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.DECIMAL.value)
 
         self.assertEqual(mapped_type, 'FLOAT')
 
     def test_type_map_number(self):
-        mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(
-            pymssql.NUMBER.value
-        )  # pylint: disable=c-extension-no-member
+        # pylint: disable=c-extension-no-member
+        mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.NUMBER.value)
 
         self.assertEqual(mapped_type, 'INT')
 

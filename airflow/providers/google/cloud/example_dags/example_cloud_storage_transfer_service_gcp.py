@@ -143,4 +143,5 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    create_transfer >> wait_for_transfer >> update_transfer >> list_operations >> get_operation >> delete_transfer
+    create_transfer >> wait_for_transfer >> update_transfer >> list_operations >> get_operation
+    get_operation >> delete_transfer

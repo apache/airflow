@@ -43,7 +43,7 @@ from airflow.utils.decorators import apply_defaults
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
 
 _DEPRECATION_MSG = (
-    "The bigquery_conn_id parameter has been deprecated. " "You should pass the gcp_conn_id parameter."
+    "The bigquery_conn_id parameter has been deprecated. You should pass the gcp_conn_id parameter."
 )
 
 

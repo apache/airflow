@@ -38,8 +38,8 @@ from google.protobuf.json_format import MessageToDict
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
-ERR_DIFF_NAMES = """The {label} name provided in the object ({explicit_name}) is different than the name created
-    from the input parameters ({constructed_name}). Please either:
+ERR_DIFF_NAMES = """The {label} name provided in the object ({explicit_name}) is different
+    than the name created from the input parameters ({constructed_name}). Please either:
     1) Remove the {label} name,
     2) Remove the location and {id_label} parameters,
     3) Unify the {label} name and input parameters.
@@ -439,12 +439,8 @@ class CloudVisionHook(GoogleBaseHook):
         name = ProductSearchClient.reference_image_path(
             project=project_id, location=location, product=product_id, reference_image=reference_image_id
         )
-        response = client.delete_reference_image(
-            name=name,  # pylint: disable=assignment-from-no-return
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
+        # pylint: disable=assignment-from-no-return
+        response = client.delete_reference_image(name=name, retry=retry, timeout=timeout, metadata=metadata,)
 
         self.log.info('ReferenceImage with the name [%s] deleted.', name)
         return MessageToDict(response)

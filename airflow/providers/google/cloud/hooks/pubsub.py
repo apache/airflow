@@ -458,9 +458,8 @@ class PubSubHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]]
         """
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(
-            project_id, subscription
-        )  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Deleting subscription (path) %s", subscription_path)
         try:
@@ -520,9 +519,8 @@ class PubSubHook(GoogleBaseHook):
             https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#ReceivedMessage
         """
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(
-            project_id, subscription
-        )  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member,line-too-long
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
         try:
@@ -585,9 +583,8 @@ class PubSubHook(GoogleBaseHook):
             raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
 
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(
-            project_id, subscription
-        )  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
         try:

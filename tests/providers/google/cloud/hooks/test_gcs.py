@@ -250,9 +250,10 @@ class TestGCSHook(unittest.TestCase):
         test_object = 'test_object'
 
         # Given
-        mock_service.return_value.bucket.return_value.get_blob.return_value.updated = timezone.utcnow() + timedelta(
-            days=2
-        )
+        # fmt: off
+        mock_service.return_value.bucket.return_value.get_blob \
+            .return_value.updated = timezone.utcnow() + timedelta(days=2)
+        # fmt: on
         # When
         response = self.gcs_hook.is_older_than(
             bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
@@ -809,7 +810,7 @@ class TestGCSHookUpload(unittest.TestCase):
             "specify a single parameter, either 'filename' for "
             "local file uploads or 'data' for file content uploads."
         )
-        no_params_excep = "'filename' and 'data' parameter missing. " "One is required to upload to gcs."
+        no_params_excep = "'filename' and 'data' parameter missing. One is required to upload to gcs."
 
         with self.assertRaises(ValueError) as cm:
             self.gcs_hook.upload(test_bucket, test_object)

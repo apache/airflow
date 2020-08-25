@@ -110,11 +110,8 @@ class MLEngineHook(GoogleBaseHook):
 
         self._append_label(job)
         self.log.info("Creating job.")
-        request = (
-            hook.projects()
-            .jobs()
-            .create(parent='projects/{}'.format(project_id), body=job)  # pylint: disable=no-member
-        )
+        # pylint: disable=no-member
+        request = hook.projects().jobs().create(parent='projects/{}'.format(project_id), body=job)
         job_id = job['jobId']
 
         try:
@@ -155,12 +152,8 @@ class MLEngineHook(GoogleBaseHook):
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
-
-        request = (
-            hook.projects()
-            .jobs()
-            .cancel(name=f'projects/{project_id}/jobs/{job_id}')  # pylint: disable=no-member
-        )
+        # pylint: disable=no-member
+        request = hook.projects().jobs().cancel(name=f'projects/{project_id}/jobs/{job_id}')
 
         try:
             return request.execute()
@@ -251,12 +244,8 @@ class MLEngineHook(GoogleBaseHook):
 
         self._append_label(version_spec)
 
-        create_request = (
-            hook.projects()
-            .models()
-            .versions()
-            .create(parent=parent_name, body=version_spec)  # pylint: disable=no-member
-        )
+        # pylint: disable=no-member
+        create_request = hook.projects().models().versions().create(parent=parent_name, body=version_spec)
         response = create_request.execute()
         get_request = hook.projects().operations().get(name=response['name'])  # pylint: disable=no-member
 
@@ -287,12 +276,8 @@ class MLEngineHook(GoogleBaseHook):
         """
         hook = self.get_conn()
         full_version_name = 'projects/{}/models/{}/versions/{}'.format(project_id, model_name, version_name)
-        request = (
-            hook.projects()
-            .models()
-            .versions()
-            .setDefault(name=full_version_name, body={})  # pylint: disable=no-member
-        )
+        # pylint: disable=no-member
+        request = hook.projects().models().versions().setDefault(name=full_version_name, body={})
 
         try:
             response = request.execute()
@@ -320,22 +305,18 @@ class MLEngineHook(GoogleBaseHook):
         hook = self.get_conn()
         result = []  # type: List[Dict]
         full_parent_name = 'projects/{}/models/{}'.format(project_id, model_name)
-        request = (
-            hook.projects()
-            .models()
-            .versions()
-            .list(parent=full_parent_name, pageSize=100)  # pylint: disable=no-member
-        )
+        # pylint: disable=no-member
+        request = hook.projects().models().versions().list(parent=full_parent_name, pageSize=100)
 
         while request is not None:
             response = request.execute()
             result.extend(response.get('versions', []))
-
+            # pylint: disable=no-member
             request = (
                 hook.projects()
                 .models()
                 .versions()
-                .list_next(previous_request=request, previous_response=response)  # pylint: disable=no-member
+                .list_next(previous_request=request, previous_response=response)
             )
             time.sleep(5)
         return result
