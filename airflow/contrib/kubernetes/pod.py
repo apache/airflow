@@ -32,11 +32,6 @@ from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.kubernetes.pod`.",
-    DeprecationWarning, stacklevel=2
-)
-
 
 class Pod(object):
     """
