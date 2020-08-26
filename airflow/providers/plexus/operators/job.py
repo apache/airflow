@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 class PlexusJobOperator(BaseOperator):
     """
-    Submits a Plexus batch job.
+    Submits a Plexus job.
 
     :param job_params: parameters required to launch a job.
         Required parameters are the following:
@@ -53,20 +53,33 @@ class PlexusJobOperator(BaseOperator):
             "queue": ("queues/", "id", "public_name"),
         }
         self.job_params.update({"billing_account_id": None})
+        self.is_service = None
 
     def execute(self, context):
         hook = PlexusHook()
         params = self.construct_job_params(hook)
+        if self.is_service is True:
+            if self.job_params.get("expected_runtime") is None:
+                end_state = "Running"
+            else:
+                end_state = "Finished"
+        elif self.is_service is False:
+            end_state = "Completed"
+        else:
+            raise AirflowException(
+                "Unable to determine if application "
+                "is running as a batch job or service. "
+                "Contact Core Scientific AI Team."
+            )
+        logger.info("creating job w/ following params: %s", params)
         jobs_endpoint = hook.host + "jobs/"
         headers = {"Authorization": "Bearer {}".format(hook.token)}
-
-        logger.info("creating job w/ following params: %s", params)
         create_job = requests.post(jobs_endpoint, headers=headers, data=params, timeout=10)
         if create_job.ok:
             job = create_job.json()
             jid = job["id"]
             state = job["last_state"]
-            while state != "Completed":
+            while state != end_state:
                 time.sleep(5)
                 jid_endpoint = jobs_endpoint + "{}/".format(jid)
                 get_job = requests.get(jid_endpoint, headers=headers)
@@ -76,10 +89,8 @@ class PlexusJobOperator(BaseOperator):
                         "Reason: {1} - {2}".format(get_job.status_code, get_job.reason, get_job.text)
                     )
                 new_state = get_job.json()["last_state"]
-                if new_state == "Cancelled":
-                    raise AirflowException("Job has been cancelled")
-                elif new_state == "Failed":
-                    raise AirflowException("Job Failed")
+                if new_state in ("Cancelled", "Failed"):
+                    raise AirflowException("Job {}".format(new_state))
                 elif new_state != state:
                     logger.info("job is %s", new_state)
                 state = new_state
@@ -89,8 +100,16 @@ class PlexusJobOperator(BaseOperator):
                 "Reason: {} - {}".format(create_job.status_code, create_job.reason, create_job.text)
             )
 
-    def _api_lookup(self, endpoint: str, token: str, key: str, mapping=None):
-        headers = {"Authorization": "Bearer {}".format(token)}
+    def _api_lookup(self, param: str, hook):
+        lookup = self.lookups[param]
+        key = lookup[1]
+        mapping = None if lookup[2] is None else (lookup[2], self.job_params[param])
+
+        if param == "billing_account_id":
+            endpoint = hook.host + lookup[0].format(hook.user_id)
+        else:
+            endpoint = hook.host + lookup[0]
+        headers = {"Authorization": "Bearer {}".format(hook.token)}
         response = requests.get(endpoint, headers=headers, timeout=5)
         results = response.json()["results"]
 
@@ -99,7 +118,10 @@ class PlexusJobOperator(BaseOperator):
             v = results[0][key]
         else:
             for dct in results:
-                if dct[mapping[0]] == mapping[1]:
+                if dct[mapping[0]] == mapping[1] and param == 'app':
+                    v = dct[key]
+                    self.is_service = dct['is_service']
+                elif dct[mapping[0]] == mapping[1] and param != 'app':
                     v = dct[key]
         if v is None:
             raise AirflowException(
@@ -111,7 +133,7 @@ class PlexusJobOperator(BaseOperator):
     def construct_job_params(self, hook):
         """
         Creates job_params dict for api call to
-        launch a Plexus batch job.
+        launch a Plexus job.
 
         Some parameters required to launch a job
         are not available to the user in the Plexus
@@ -132,13 +154,7 @@ class PlexusJobOperator(BaseOperator):
         params = {}
         for prm in self.job_params:
             if prm in self.lookups:
-                lookup = self.lookups[prm]
-                if prm == "billing_account_id":
-                    endpoint = hook.host + lookup[0].format(hook.user_id)
-                else:
-                    endpoint = hook.host + lookup[0]
-                mapping = None if lookup[2] is None else (lookup[2], self.job_params[prm])
-                v = self._api_lookup(endpoint=endpoint, token=hook.token, key=lookup[1], mapping=mapping)
+                v = self._api_lookup(param=prm, hook=hook)
                 params[prm] = v
             else:
                 params[prm] = self.job_params[prm]
