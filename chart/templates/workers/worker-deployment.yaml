@@ -101,6 +101,8 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
+          envFrom:
+          {{- include "custom_airflow_environment_from_refs" . | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
@@ -134,6 +136,8 @@ spec:
             - name: dags
               mountPath: {{ template "airflow_dags_mount_path" . }}
 {{- end }}
+          envFrom:
+          {{- include "custom_airflow_environment_from_refs" . | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}

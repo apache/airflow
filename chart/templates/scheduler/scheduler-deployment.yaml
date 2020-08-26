@@ -97,6 +97,8 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           # Support running against 1.10.x and 2.0.0dev/master
           args: ["bash", "-c", "airflow upgradedb || airflow db upgrade"]
+          envFrom:
+          {{- include "custom_airflow_environment_from_refs" . | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
@@ -106,6 +108,8 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args: ["scheduler"]
+          envFrom:
+          {{- include "custom_airflow_environment_from_refs" . | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
@@ -174,6 +178,8 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+          envFrom:
+          {{- include "custom_airflow_environment_from_refs" . | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}

@@ -155,6 +155,16 @@ secret: []
 #   secretName: ""
 #   secretKey: ""
 
+# ConfigMaps for all airflow containers (all keys/values will be mounted)
+envFromConfigMap: []
+# - <configMapName1>
+# - <configMapName2>
+
+# Secrets for all airflow containers (all keys/values will be mounted)
+envFromSecret: []
+# - <secretName1>
+# - <secretName2>
+
 # Airflow database config
 data:
   # If secret names are provided, use those secrets

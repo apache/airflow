@@ -90,7 +90,30 @@
   - name: AIRFLOW__KUBERNETES_SECRETS__{{ $config.envName }}
     value: {{ printf "%s=%s" $config.secretName $config.secretKey }}
     {{- end }}
+    {{- if .Values.envFromSecret }}
+  # Dynamically created kubernetes env_from airflow configuration
+  - name: AIRFLOW__KUBERNETES__ENV_FROM_SECRET_REF
+    value: {{ join "," .Values.envFromSecret }}
+    {{- end }}
+    {{- if .Values.envFromConfigMap }}
+  - name: AIRFLOW__KUBERNETES__ENV_FROM_CONFIGMAP_REF
+    value: {{ join "," .Values.envFromConfigMap }}
+    {{- end }}
   {{ end }}
+{{- end }}
+
+{{/* User defined Airflow environment variables from ConfigMaps or Secrets */}}
+{{- define "custom_airflow_environment_from_refs" }}
+  # Dynamically created environment variables from Secrets
+  {{- range $i, $secretName := .Values.envFromSecret }}
+  - secretRef:
+      name: {{ $secretName }}
+  {{- end }}
+  # Dynamically created environment variables from ConfigMaps
+  {{- range $i, $configMapName := .Values.envFromConfigMap }}
+  - configMapRef:
+      name: {{ $configMapName }}
+  {{- end }}
 {{- end }}
 
 {{/*  Git ssh key volume */}}
