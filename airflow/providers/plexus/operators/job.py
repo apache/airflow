@@ -1,11 +1,11 @@
-import requests
 import time
 import logging
 from typing import Dict
+import requests
 from airflow.providers.plexus.hooks.plexus import PlexusHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.AirflowExceptions import AirflowAirflowException
+from airflow.exceptions import AirflowException
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class PlexusJobOperator(BaseOperator):
         jobs_endpoint = hook.host + "jobs/"
         headers = {"Authorization": "Bearer {}".format(hook.token)}
 
-        logger.info("creating job w/ following params: {}".format(params))
+        logger.info("creating job w/ following params: %s", params)
         create_job = requests.post(jobs_endpoint, headers=headers, data=params, timeout=10)
         if create_job.ok:
             job = create_job.json()
@@ -53,7 +53,9 @@ class PlexusJobOperator(BaseOperator):
                 jid_endpoint = jobs_endpoint + "{}/".format(jid)
                 get_job = requests.get(jid_endpoint, headers=headers)
                 if not get_job.ok:
-                    raise AirflowException("Could not retrieve job status. Status Code: [{}]. Reason: {} - {}".format(get_job.status_code, get_job.reason, get_job.text))
+                    raise AirflowException("Could not retrieve job status. Status Code: [{0}]. " 
+                                            "Reason: {1} - {2}".format(get_job.status_code, get_job.reason, get_job.text)
+                                            )
                 else:
                     new_state = get_job.json()["last_state"]
                     if new_state == "Cancelled":
@@ -61,10 +63,12 @@ class PlexusJobOperator(BaseOperator):
                     elif new_state == "Failed":
                         raise AirflowException("Job Failed")
                     elif new_state != state:
-                        logger.info("job is {}".format(new_state))
+                        logger.info("job is %s", new_state)
                     state = new_state
         else:
-            raise AirflowException("Could not start job. Status Code: [{}]. Reason: {} - {}".format(create_job.status_code, create_job.reason, create_job.text))
+            raise AirflowException("Could not start job. Status Code: [{}]. "
+                                    "Reason: {} - {}".format(create_job.status_code, 
+                                    create_job.reason, create_job.text))
 
 
     def _api_lookup(self, endpoint: str, token: str, key: str, mapping=None):
@@ -103,11 +107,3 @@ class PlexusJobOperator(BaseOperator):
             else:
                 params[pm] = self.job_params[pm]
         return params
-
-
-            
-
-
-
-
-
