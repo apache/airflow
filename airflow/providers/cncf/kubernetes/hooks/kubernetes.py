@@ -65,16 +65,7 @@ class KubernetesHook(BaseHook):
         return client.ApiClient()
 
     def create_custom_resource_definition(
-<<<<<<< HEAD
-        self,
-        group: str,
-        version: str,
-        plural: str,
-        body: Union[str, dict],
-        namespace: Optional[str] = None,
-=======
         self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
->>>>>>> 855d495f1ebeb0506ff13043cebefd796d7ce5d4
     ):
         """
         Creates custom resource definition object in Kubernetes
@@ -97,29 +88,52 @@ class KubernetesHook(BaseHook):
             body = _load_body_to_dict(body)
         try:
             response = api.create_namespaced_custom_object(
-<<<<<<< HEAD
-                group=group,
-                version=version,
-                namespace=namespace,
-                plural=plural,
-                body=body,
-=======
                 group=group, version=version, namespace=namespace, plural=plural, body=body
->>>>>>> 855d495f1ebeb0506ff13043cebefd796d7ce5d4
             )
             self.log.debug("Response: %s", response)
             return response
         except client.rest.ApiException as e:
-<<<<<<< HEAD
-            raise AirflowException(
-                "Exception when calling -> create_custom_resource_definition: %s\n" % e
+            raise AirflowException("Exception when calling -> create_custom_resource_definition: %s\n" % e)
+
+    def get_custom_resource_definition(
+        self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
+    ):
+        """
+        Get custom resource definition object from Kubernetes
+
+        :param group: api group
+        :type group: str
+        :param version: api version
+        :type version: str
+        :param plural: api plural
+        :type plural: str
+        :param name: crd object name
+        :type name: str
+        :param namespace: kubernetes namespace
+        :type namespace: str
+        """
+        custom_resource_definition_api = client.CustomObjectsApi(self.get_conn())
+        if namespace is None:
+            namespace = self.get_namespace()
+        try:
+            response = custom_resource_definition_api.get_namespaced_custom_object(
+                group=group, version=version, namespace=namespace, plural=plural, name=name
             )
+            return response
+        except client.rest.ApiException as e:
+            raise AirflowException("Exception when calling -> get_custom_resource_definition: %s\n" % e)
+
+    def get_namespace(self):
+        """
+        Returns the namespace that defined in the connection
+        """
+        connection = self.get_connection(self.conn_id)
+        extras = connection.extra_dejson
+        namespace = extras.get("extra__kubernetes__namespace", "default")
+        return namespace
 
     def get_pod_log_stream(
-        self,
-        pod_name: str,
-        container: Optional[str] = "",
-        namespace: Optional[str] = None,
+        self, pod_name: str, container: Optional[str] = "", namespace: Optional[str] = None,
     ) -> Tuple[watch.Watch, Generator[str, None, None]]:
         """
         Retrieves a log stream for a container in a kubernetes pod.
@@ -145,10 +159,7 @@ class KubernetesHook(BaseHook):
         )
 
     def get_pod_logs(
-        self,
-        pod_name: str,
-        container: Optional[str] = "",
-        namespace: Optional[str] = None,
+        self, pod_name: str, container: Optional[str] = "", namespace: Optional[str] = None,
     ):
         """
         Retrieves a container's log from the specified pod.
@@ -167,61 +178,3 @@ class KubernetesHook(BaseHook):
             _preload_content=False,
             namespace=namespace if namespace else self.get_namespace(),
         )
-
-    def get_custom_resource_definition(
-        self,
-        group: str,
-        version: str,
-        plural: str,
-        name: str,
-        namespace: Optional[str] = None,
-=======
-            raise AirflowException("Exception when calling -> create_custom_resource_definition: %s\n" % e)
-
-    def get_custom_resource_definition(
-        self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
->>>>>>> 855d495f1ebeb0506ff13043cebefd796d7ce5d4
-    ):
-        """
-        Get custom resource definition object from Kubernetes
-
-        :param group: api group
-        :type group: str
-        :param version: api version
-        :type version: str
-        :param plural: api plural
-        :type plural: str
-        :param name: crd object name
-        :type name: str
-        :param namespace: kubernetes namespace
-        :type namespace: str
-        """
-        custom_resource_definition_api = client.CustomObjectsApi(self.get_conn())
-        if namespace is None:
-            namespace = self.get_namespace()
-        try:
-            response = custom_resource_definition_api.get_namespaced_custom_object(
-<<<<<<< HEAD
-                group=group,
-                version=version,
-                namespace=namespace,
-                plural=plural,
-                name=name,
-=======
-                group=group, version=version, namespace=namespace, plural=plural, name=name
->>>>>>> 855d495f1ebeb0506ff13043cebefd796d7ce5d4
-            )
-            return response
-        except client.rest.ApiException as e:
-            raise AirflowException(
-                "Exception when calling -> get_custom_resource_definition: %s\n" % e
-            )
-
-    def get_namespace(self):
-        """
-        Returns the namespace that defined in the connection
-        """
-        connection = self.get_connection(self.conn_id)
-        extras = connection.extra_dejson
-        namespace = extras.get("extra__kubernetes__namespace", "default")
-        return namespace
