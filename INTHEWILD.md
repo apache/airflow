@@ -203,6 +203,7 @@ Currently **officially** using Airflow:
 1. [Jampp](https://github.com/jampp)
 1. [Jeitto](https://www.jeitto.com.br) [[@BrennerPablo](https://github.com/BrennerPablo) & [@ds-mauri](https://github.com/ds-mauri)]
 1. [Jetlore](http://www.jetlore.com/) [[@bderose](https://github.com/bderose)]
+1. [Jobrapido](https://www.jobrapido.com/) [[@mattiagiupponi](https://github.com/mattiagiupponi)]
 1. [JobTeaser](https://www.jobteaser.com) [[@stefani75](https://github.com/stefani75) &  [@knil-sama](https://github.com/knil-sama)]
 1. [JULO](https://www.julo.co.id/) [[@sepam](https://github.com/sepam) & [@tenapril](https://github.com/tenapril) & [@verzqy](https://github.com/verzqy)]
 1. [Kalibrr](https://www.kalibrr.com/) [[@charlesverdad](https://github.com/charlesverdad)]
