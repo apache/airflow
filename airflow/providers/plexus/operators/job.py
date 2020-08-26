@@ -75,15 +75,14 @@ class PlexusJobOperator(BaseOperator):
                         "Could not retrieve job status. Status Code: [{0}]. "
                         "Reason: {1} - {2}".format(get_job.status_code, get_job.reason, get_job.text)
                     )
-                else:
-                    new_state = get_job.json()["last_state"]
-                    if new_state == "Cancelled":
-                        raise AirflowException("Job has been cancelled")
-                    elif new_state == "Failed":
-                        raise AirflowException("Job Failed")
-                    elif new_state != state:
-                        logger.info("job is %s", new_state)
-                    state = new_state
+                new_state = get_job.json()["last_state"]
+                if new_state == "Cancelled":
+                    raise AirflowException("Job has been cancelled")
+                elif new_state == "Failed":
+                    raise AirflowException("Job Failed")
+                elif new_state != state:
+                    logger.info("job is %s", new_state)
+                state = new_state
         else:
             raise AirflowException(
                 "Could not start job. Status Code: [{}]. "
@@ -92,16 +91,16 @@ class PlexusJobOperator(BaseOperator):
 
     def _api_lookup(self, endpoint: str, token: str, key: str, mapping=None):
         headers = {"Authorization": "Bearer {}".format(token)}
-        r = requests.get(endpoint, headers=headers, timeout=5)
-        results = r.json()["results"]
+        response = requests.get(endpoint, headers=headers, timeout=5)
+        results = response.json()["results"]
 
         v = None
         if mapping is None:
             v = results[0][key]
         else:
-            for d in results:
-                if d[mapping[0]] == mapping[1]:
-                    v = d[key]
+            for dct in results:
+                if dct[mapping[0]] == mapping[1]:
+                    v = dct[key]
         if v is None:
             raise AirflowException(
                 "Could not locate value for param:{} at endpoint: {}".format(key, endpoint)
@@ -110,22 +109,37 @@ class PlexusJobOperator(BaseOperator):
         return v
 
     def construct_job_params(self, hook):
+        """
+        Creates job_params dict for api call to
+        launch a Plexus batch job.
+
+        Some parameters required to launch a job
+        are not available to the user in the Plexus
+        UI. For example, an app id is required, but
+        only the app name is provided in the UI.
+        This function acts as a backend lookup
+        of the required param value using the
+        user-provided value.
+
+        :param hook: plexus hook object
+        :type hook: airflow hook
+        """
         missing_params = self.required_params - set(self.job_params)
         if len(missing_params) > 0:
             raise AirflowException(
                 "Missing the following required job_params: {}".format(", ".join(missing_params))
             )
         params = {}
-        for pm in self.job_params:
-            if pm in self.lookups:
-                lookup = self.lookups[pm]
-                if pm == "billing_account_id":
+        for prm in self.job_params:
+            if prm in self.lookups:
+                lookup = self.lookups[prm]
+                if prm == "billing_account_id":
                     endpoint = hook.host + lookup[0].format(hook.user_id)
                 else:
                     endpoint = hook.host + lookup[0]
-                mapping = None if lookup[2] is None else (lookup[2], self.job_params[pm])
+                mapping = None if lookup[2] is None else (lookup[2], self.job_params[prm])
                 v = self._api_lookup(endpoint=endpoint, token=hook.token, key=lookup[1], mapping=mapping)
-                params[pm] = v
+                params[prm] = v
             else:
-                params[pm] = self.job_params[pm]
+                params[prm] = self.job_params[prm]
         return params
