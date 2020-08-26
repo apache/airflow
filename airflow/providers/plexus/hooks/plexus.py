@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import jwt
 import arrow
 import requests
@@ -5,10 +22,20 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import Variable
 from airflow.exceptions import AirflowException
 
+
 class PlexusHook(BaseHook):
-    def __init__(
-        self
-    ) -> None:
+    """
+    Used for jwt token generation and storage to
+    make Plexus API calls. Requires email and password
+    Airflow variables be created.
+    Examples:
+
+        #create an email variable
+        export AIRFLOW_VAR_EMAIL = user@corescientific.com
+        export AIRFLOW_VAR_PASSWORD = *******
+    """
+
+    def __init__(self) -> None:
         super().__init__()
         self.__token = None
         self.__token_exp = None
@@ -23,12 +50,15 @@ class PlexusHook(BaseHook):
         token_endpoint = self.host + "sso/jwt-token/"
         response = requests.post(token_endpoint, data={"email": login, "password": pwd})
         if not response.ok:
-            raise AirflowException("Could not retrieve JWT Token. Status Code: [{}]. Reason: {} - {}".format(response.status_code, response.reason, response.text)) 
+            raise AirflowException(
+                "Could not retrieve JWT Token. Status Code: [{}]. "
+                "Reason: {} - {}".format(response.status_code, response.reason, response.text)
+            )
         token = response.json()["access"]
         payload = jwt.decode(token, verify=False)
         self.user_id = payload["user_id"]
-        self.token_exp = payload["exp"]
-        
+        self.__token_exp = payload["exp"]
+
         return token
 
     @property
@@ -42,5 +72,3 @@ class PlexusHook(BaseHook):
             return self.__token
 
         raise AirflowException("Could not retrieve valid Plexus token.")
-
-
