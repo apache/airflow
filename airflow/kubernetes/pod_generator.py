@@ -21,6 +21,7 @@ The advantage being that the full Kubernetes API
 is supported and no serialization need be written.
 """
 import copy
+import datetime
 import hashlib
 import inspect
 import os
@@ -30,6 +31,7 @@ from functools import reduce
 from typing import Dict, List, Optional, Union
 
 import yaml
+from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
@@ -86,6 +88,30 @@ def make_safe_label_value(string):
         safe_label = safe_label[:MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
 
     return safe_label
+
+
+def datetime_to_label_safe_datestring(datetime_obj: datetime.datetime) -> str:
+    """
+    Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but
+    not "_" let's
+    replace ":" with "_"
+
+    :param datetime_obj: datetime.datetime object
+    :return: ISO-like string representing the datetime
+    """
+    return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
+
+
+def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
+    """
+    Kubernetes doesn't permit ":" in labels. ISO datetime format uses ":" but not
+    "_", let's
+    replace ":" with "_"
+
+    :param string: str
+    :return: datetime.datetime object
+    """
+    return parser.parse(string.replace('_plus_', '+').replace("_", ":"))
 
 
 class PodGenerator:
@@ -448,7 +474,7 @@ class PodGenerator:
         task_id: str,
         pod_id: str,
         try_number: int,
-        date: str,
+        date: datetime.datetime,
         command: List[str],
         kube_executor_config: Optional[k8s.V1Pod],
         worker_config: k8s.V1Pod,
@@ -465,12 +491,18 @@ class PodGenerator:
             namespace=namespace,
             labels={
                 'airflow-worker': worker_uuid,
-                'dag_id': dag_id,
-                'task_id': task_id,
-                'execution_date': date,
+                'dag_id': make_safe_label_value(dag_id),
+                'task_id': make_safe_label_value(task_id),
+                'execution_date': datetime_to_label_safe_datestring(date),
                 'try_number': str(try_number),
                 'airflow_version': airflow_version.replace('+', '-'),
                 'kubernetes_executor': 'True',
+            },
+            annotations={
+                'dag_id': dag_id,
+                'task_id': task_id,
+                'execution_date': date.isoformat(),
+                'try_number': str(try_number),
             },
             cmds=command,
             name=pod_id
