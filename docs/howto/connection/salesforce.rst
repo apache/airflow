@@ -22,7 +22,7 @@ Salesforce Connection
 The HTTP connection type provides connection to Salesforce.
 
 Configuring the Connection
-==========================
+--------------------------
 Host (required)
     specify the host address to connect: ``https://your_host.lightning.force.com``
 
