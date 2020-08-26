@@ -731,7 +731,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Cloud Data Loss Prevention (DLP) <https://cloud.google.com/dlp/>`__
-     -
+     - :doc:`How to use <howto/operator/google/cloud/data_loss_prevention>`
      - :mod:`airflow.providers.google.cloud.hooks.dlp`
      - :mod:`airflow.providers.google.cloud.operators.dlp`
      -
