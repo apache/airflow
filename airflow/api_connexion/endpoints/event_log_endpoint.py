@@ -31,6 +31,7 @@ from airflow.utils.session import provide_session
 
 
 @security.requires_authentication
+@security.requires_access([('can_read', 'Log')])
 @provide_session
 def get_event_log(event_log_id, session):
     """
@@ -43,6 +44,7 @@ def get_event_log(event_log_id, session):
 
 
 @security.requires_authentication
+@security.requires_access([('can_read', 'Log')])
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_event_logs(session, limit, offset=None):

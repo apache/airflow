@@ -30,7 +30,8 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_role(cls.app, name="Test", permissions=[("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "TaskInstance")])
+        create_user(cls.app, username="test", role="Test")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:

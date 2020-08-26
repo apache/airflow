@@ -30,6 +30,7 @@ from airflow.utils.session import provide_session
 
 
 @security.requires_authentication
+@security.requires_access([('can_read', 'ImportError')])
 @provide_session
 def get_import_error(import_error_id, session):
     """
@@ -46,6 +47,7 @@ def get_import_error(import_error_id, session):
 
 
 @security.requires_authentication
+@security.requires_access([('can_read', 'ImportError')])
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_import_errors(session, limit, offset=None):

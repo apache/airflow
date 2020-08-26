@@ -27,7 +27,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.session import provide_session
 from airflow.www import app
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_role, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -48,7 +48,9 @@ class TestDagEndpoint(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Viewer", permissions=[("can_create", "Dag"), ("can_read", "Dag"), ("can_edit", "Dag"), ("can_delete", "Dag")])  # type: ignore
+        create_role(cls.app, name="Test",
+            permissions=[("can_create", "Dag"), ("can_read", "Dag"), ("can_edit", "Dag"), ("can_delete", "Dag")])
+        create_user(cls.app, username="test", role="Test")  # type: ignore
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
@@ -61,6 +63,7 @@ class TestDagEndpoint(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("Test")
 
     def setUp(self) -> None:
         self.clean_db()
@@ -149,6 +152,8 @@ class TestGetDagDetails(TestDagEndpoint):
     def test_should_response_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
         app_serialized = app.create_app(testing=True)
+        create_role(cls.app, name="Test",
+            permissions=[("can_create", "Dag"), ("can_read", "Dag"), ("can_edit", "Dag"), ("can_delete", "Dag")])
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         app_serialized.dag_bag = dag_bag
         client = app_serialized.test_client()

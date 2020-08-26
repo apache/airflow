@@ -24,6 +24,7 @@ from airflow.exceptions import TaskNotFound
 
 
 @security.requires_authentication
+@security.requires_access([("can_read", "Dag"), ("can_read", "Task")])
 def get_task(dag_id, task_id):
     """
     Get simplified representation of a task.
@@ -40,6 +41,7 @@ def get_task(dag_id, task_id):
 
 
 @security.requires_authentication
+@security.requires_access([("can_read", "Dag"), ("can_read", "Task")])
 def get_tasks(dag_id):
     """
     Get tasks for DAG
