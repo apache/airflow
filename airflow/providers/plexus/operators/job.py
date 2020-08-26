@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import time
 import logging
 from typing import Dict
@@ -9,6 +26,7 @@ from airflow.exceptions import AirflowException
 
 logger = logging.getLogger(__name__)
 
+
 class PlexusJobOperator(BaseOperator):
     """
     Submits a Plexus batch job.
@@ -18,22 +36,22 @@ class PlexusJobOperator(BaseOperator):
             - "name": job name created by user
             - "app": name of the application to run. found in Plexus UI.
             - "queue": public cluster name. found in Plexus UI.
-            - "num_nodes": number of nodes 
+            - "num_nodes": number of nodes
             - "num_cores":  number of cores per node
     :type job_params: dict
     """
+
     @apply_defaults
-    def __init__(
-            self,
-            job_params: Dict,
-            **kwargs) -> None:
+    def __init__(self, job_params: Dict, **kwargs) -> None:
         super().__init__(**kwargs)
 
         self.job_params = job_params
         self.required_params = set(["name", "app", "queue", "num_cores", "num_nodes"])
-        self.lookups = {"app": ("apps/", "id", "name"),
-                        "billing_account_id": ("users/{}/billingaccounts/", "id", None),  
-                        "queue": ("queues/", "id", "public_name")}
+        self.lookups = {
+            "app": ("apps/", "id", "name"),
+            "billing_account_id": ("users/{}/billingaccounts/", "id", None),
+            "queue": ("queues/", "id", "public_name"),
+        }
         self.job_params.update({"billing_account_id": None})
 
     def execute(self, context):
@@ -53,9 +71,10 @@ class PlexusJobOperator(BaseOperator):
                 jid_endpoint = jobs_endpoint + "{}/".format(jid)
                 get_job = requests.get(jid_endpoint, headers=headers)
                 if not get_job.ok:
-                    raise AirflowException("Could not retrieve job status. Status Code: [{0}]. " 
-                                            "Reason: {1} - {2}".format(get_job.status_code, get_job.reason, get_job.text)
-                                            )
+                    raise AirflowException(
+                        "Could not retrieve job status. Status Code: [{0}]. "
+                        "Reason: {1} - {2}".format(get_job.status_code, get_job.reason, get_job.text)
+                    )
                 else:
                     new_state = get_job.json()["last_state"]
                     if new_state == "Cancelled":
@@ -66,10 +85,10 @@ class PlexusJobOperator(BaseOperator):
                         logger.info("job is %s", new_state)
                     state = new_state
         else:
-            raise AirflowException("Could not start job. Status Code: [{}]. "
-                                    "Reason: {} - {}".format(create_job.status_code, 
-                                    create_job.reason, create_job.text))
-
+            raise AirflowException(
+                "Could not start job. Status Code: [{}]. "
+                "Reason: {} - {}".format(create_job.status_code, create_job.reason, create_job.text)
+            )
 
     def _api_lookup(self, endpoint: str, token: str, key: str, mapping=None):
         headers = {"Authorization": "Bearer {}".format(token)}
@@ -79,20 +98,23 @@ class PlexusJobOperator(BaseOperator):
         v = None
         if mapping is None:
             v = results[0][key]
-        else: 
+        else:
             for d in results:
                 if d[mapping[0]] == mapping[1]:
                     v = d[key]
         if v is None:
-            raise AirflowException("Could not locate value for param:{} at endpoint: {}".format(key, endpoint))
-        
-        return v
+            raise AirflowException(
+                "Could not locate value for param:{} at endpoint: {}".format(key, endpoint)
+            )
 
+        return v
 
     def construct_job_params(self, hook):
         missing_params = self.required_params - set(self.job_params)
         if len(missing_params) > 0:
-            raise AirflowException("Missing the following required job_params: {}".format(", ".join(missing_params)))
+            raise AirflowException(
+                "Missing the following required job_params: {}".format(", ".join(missing_params))
+            )
         params = {}
         for pm in self.job_params:
             if pm in self.lookups:
@@ -103,7 +125,7 @@ class PlexusJobOperator(BaseOperator):
                     endpoint = hook.host + lookup[0]
                 mapping = None if lookup[2] is None else (lookup[2], self.job_params[pm])
                 v = self._api_lookup(endpoint=endpoint, token=hook.token, key=lookup[1], mapping=mapping)
-                params[pm] = v 
+                params[pm] = v
             else:
                 params[pm] = self.job_params[pm]
         return params
