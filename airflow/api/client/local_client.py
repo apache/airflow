@@ -22,6 +22,7 @@ from airflow.api.client import api_client
 from airflow.api.common.experimental import pool
 from airflow.api.common.experimental import trigger_dag
 from airflow.api.common.experimental import delete_dag
+from airflow.api.common.experimental import cancel_dag_run
 
 
 class Client(api_client.Client):
@@ -52,3 +53,7 @@ class Client(api_client.Client):
     def delete_pool(self, name):
         the_pool = pool.delete_pool(name=name)
         return the_pool.pool, the_pool.slots, the_pool.description
+
+    def cancel_dag_run(dag_id, dagrun_run_id):
+        return cancel_dag_run.cancel_dagrun(dag_id, dagrun_run_id)
+
