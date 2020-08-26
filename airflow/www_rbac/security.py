@@ -30,8 +30,6 @@ from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www_rbac.app import appbuilder
 from airflow.www_rbac.utils import CustomSQLAInterface
-from flask_babel import gettext
-
 
 EXISTING_ROLES = {
     'Admin',
@@ -39,12 +37,14 @@ EXISTING_ROLES = {
     'User',
     'Op',
     'Public',
+    '工段长',
+    'ME工程师',
+    '运维人员'
 }
 
 
 class CustomAuthDBView(AuthDBView):
     login_template = "airflow/login.html"
-
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
@@ -158,21 +158,62 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     DAG_PERMS = WRITE_DAG_PERMS | READ_DAG_PERMS
 
-    GDZ_VMS = {
+    TIGHTENING_VMS = {
+        '管理',
+        '拧紧控制器',
+        '变量',
+        'CurvesView',
+        'ErrorTagModelView',
+        'VariableModelView',
+        'TighteningControllerView'
+    }
+
+    BASE_VMS = {
         'Airflow',
         'DagModelView',
         '浏览',
         'DAG运行',
         'DagRunModelView',
         '任务实例',
-        'TaskInstanceModelView',
+        'TaskInstanceModelView'
     }
 
-    GDZ_PERMS = {
+    BASE_PERMS = {
+        'can_index'
+        'can_last_dagruns',
+        'can_dag_stats',
+        'can_blocked',
+        'can_task_stats',
+    }
+
+    MAINTAIN_PERMS = {
         'menu_access',
-        'can_index',
         'can_list',
         'can_show',
+    }
+
+    MAINTAIN_VMS = {
+        '管理',
+        '拧紧控制器',
+        '变量',
+        'ErrorTagModelView',
+        'VariableModelView',
+        'TighteningControllerView',
+
+    }
+
+    TIGHTENING_PERMS = {
+        'menu_access',
+        'can_list',
+        'can_show',
+        'can_view_curve_page'
+    }
+
+    VERIFY_PERMS = {
+        'can_view_curves',
+        'can_view_curve_template',
+        'set_final_state_ok',
+        'set_final_state_nok'
     }
 
     ###########################################################################
@@ -197,18 +238,18 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         },
         {
             'role': '工段长',
-            'perms': GDZ_PERMS,
-            'vms': GDZ_VMS | DAG_VMS,
+            'perms': BASE_PERMS | TIGHTENING_PERMS | READ_DAG_PERMS,
+            'vms': BASE_VMS | DAG_VMS | TIGHTENING_VMS,
         },
         {
             'role': 'ME工程师',
-            'perms': VIEWER_PERMS | USER_PERMS | OP_PERMS | DAG_PERMS,
-            'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS,
+            'perms': BASE_PERMS | TIGHTENING_PERMS | READ_DAG_PERMS | VERIFY_PERMS,
+            'vms': BASE_VMS | DAG_VMS | TIGHTENING_VMS,
         },
         {
             'role': '运维人员',
-            'perms': VIEWER_PERMS | USER_PERMS | OP_PERMS | DAG_PERMS,
-            'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS,
+            'perms': BASE_PERMS | MAINTAIN_PERMS,
+            'vms': BASE_VMS
         },
     ]
 
@@ -370,7 +411,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         sesh = self.get_session
         pvms = (
             sesh.query(sqla_models.PermissionView)
-            .filter(or_(
+                .filter(or_(
                 sqla_models.PermissionView.permission == None,  # NOQA
                 sqla_models.PermissionView.view_menu == None,  # NOQA
             ))
@@ -436,7 +477,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 all_pvs.add((pv.permission.name, pv.view_menu.name))
 
         # Get all the active / paused dags and insert them into a set
-        all_dags_models = session.query(models.DagModel)\
+        all_dags_models = session.query(models.DagModel) \
             .filter(or_(models.DagModel.is_active, models.DagModel.is_paused)).all()
 
         # create can_dag_edit and can_dag_read permissions for every dag(vm)
@@ -458,17 +499,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         perm_view = self.permissionview_model
         view_menu = self.viewmenu_model
 
-        all_perm_view_by_user = session.query(ab_perm_view_role)\
+        all_perm_view_by_user = session.query(ab_perm_view_role) \
             .join(perm_view, perm_view.id == ab_perm_view_role
-                  .columns.permission_view_id)\
-            .filter(ab_perm_view_role.columns.role_id == user_role.id)\
-            .join(view_menu)\
+                  .columns.permission_view_id) \
+            .filter(ab_perm_view_role.columns.role_id == user_role.id) \
+            .join(view_menu) \
             .filter(perm_view.view_menu_id != dag_vm.id)
         all_perm_views = set([role.permission_view_id for role in all_perm_view_by_user])
 
         for role in dag_role:
             # Get all the perm-view of the role
-            existing_perm_view_by_user = self.get_session.query(ab_perm_view_role)\
+            existing_perm_view_by_user = self.get_session.query(ab_perm_view_role) \
                 .filter(ab_perm_view_role.columns.role_id == role.id)
 
             existing_perms_views = set([pv.permission_view_id
@@ -496,7 +537,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         pvms = self.get_session.query(sqla_models.PermissionView).filter(~and_(
             sqla_models.PermissionView.permission_id.in_(dag_perm_ids),
             sqla_models.PermissionView.view_menu_id != all_dag_view.id)
-        ).all()
+                                                                         ).all()
 
         pvms = [p for p in pvms if p.permission and p.view_menu]
 
@@ -560,6 +601,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             {'can_dag_read'}
         :type access_control: dict
         """
+
         def _get_or_create_dag_permission(perm_name):
             dag_perm = self.find_permission_view_menu(perm_name, dag_id)
             if not dag_perm:
