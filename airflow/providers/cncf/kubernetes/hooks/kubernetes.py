@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import tempfile
-from typing import Optional, Union
+from typing import Generator, Optional, Tuple, Union
 
 import yaml
-from kubernetes import client, config
+from kubernetes import client, config, watch
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -131,3 +131,50 @@ class KubernetesHook(BaseHook):
         extras = connection.extra_dejson
         namespace = extras.get("extra__kubernetes__namespace", "default")
         return namespace
+
+    def get_pod_log_stream(
+        self, pod_name: str, container: Optional[str] = "", namespace: Optional[str] = None,
+    ) -> Tuple[watch.Watch, Generator[str, None, None]]:
+        """
+        Retrieves a log stream for a container in a kubernetes pod.
+
+        :param pod_name: pod name
+        :type pod_name: str
+        :param container: container name
+        :type version: str
+        :param namespace: kubernetes namespace
+        :type namespace: str
+        """
+
+        api = client.CoreV1Api(self.get_conn())
+        watcher = watch.Watch()
+        return (
+            watcher,
+            watcher.stream(
+                api.read_namespaced_pod_log,
+                name=pod_name,
+                container=container,
+                namespace=namespace if namespace else self.get_namespace(),
+            ),
+        )
+
+    def get_pod_logs(
+        self, pod_name: str, container: Optional[str] = "", namespace: Optional[str] = None,
+    ):
+        """
+        Retrieves a container's log from the specified pod.
+
+        :param pod_name: pod name
+        :type pod_name: str
+        :param container: container name
+        :type version: str
+        :param namespace: kubernetes namespace
+        :type namespace: str
+        """
+        api = client.CoreV1Api(self.get_conn())
+        return api.read_namespaced_pod_log(
+            name=pod_name,
+            container=container,
+            _preload_content=False,
+            namespace=namespace if namespace else self.get_namespace(),
+        )
