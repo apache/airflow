@@ -51,6 +51,7 @@ all-but-pylint
 airflow-config-yaml
 base-operator
 bat-tests
+black
 build
 build-providers-dependencies
 check-apache-license
