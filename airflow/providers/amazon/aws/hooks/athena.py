@@ -37,7 +37,7 @@ class AWSAthenaHook(AwsBaseHook):
     .. seealso::
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
-    :param sleep_time: Time to wait between two consecutive call to check query status on athena
+    :param sleep_time: Time (in seconds) to wait between two consecutive calls to check query status on Athena
     :type sleep_time: int
     """
 
