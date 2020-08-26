@@ -46,7 +46,7 @@ class AWSAthenaOperator(BaseOperator):
     :type query_execution_context: dict
     :param result_configuration: Dict with path to store results in and config related to encryption
     :type result_configuration: dict
-    :param sleep_time: Time to wait between two consecutive call to check query status on athena
+    :param sleep_time: Time (in seconds) to wait between two consecutive calls to check query status on Athena
     :type sleep_time: int
     :param max_tries: Number of times to poll for query state before function exits
     :type max_tries: int
