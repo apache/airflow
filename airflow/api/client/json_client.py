@@ -101,4 +101,4 @@ class Client(api_client.Client):
                                    "run_id": dagrun_run_id
                                }
         )
-        return 'TODO WHAT DO I DO HERE'
+        return result['message']
