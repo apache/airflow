@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 class PlexusJobOperator(BaseOperator):
     """
-    Submits a Plexus batch job.
+    Submits a Plexus job.
 
     :param job_params: parameters required to launch a job.
         Required parameters are the following:
@@ -133,7 +133,7 @@ class PlexusJobOperator(BaseOperator):
     def construct_job_params(self, hook):
         """
         Creates job_params dict for api call to
-        launch a Plexus batch job.
+        launch a Plexus job.
 
         Some parameters required to launch a job
         are not available to the user in the Plexus
