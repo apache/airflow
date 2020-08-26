@@ -17,6 +17,7 @@
 # under the License.
 
 import copy
+import json
 import logging
 import multiprocessing
 import os
@@ -30,12 +31,14 @@ from base64 import b64encode
 from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
-from typing import Dict, Optional, Tuple, Union
+from json.decoder import JSONDecodeError
+from typing import Dict, List, Optional, Tuple, Union
 
 import yaml
 from cryptography.fernet import Fernet
 
 from airflow.exceptions import AirflowConfigException
+from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
@@ -87,8 +90,7 @@ def run_command(command):
 
 def _get_config_value_from_secret_backend(config_key):
     """Get Config option values from Secret Backend"""
-    from airflow import secrets
-    secrets_client = secrets.get_custom_secret_backend()
+    secrets_client = get_custom_secret_backend()
     if not secrets_client:
         return None
     return secrets_client.get_config(config_key)
@@ -951,3 +953,52 @@ def set(*args, **kwargs):  # noqa pylint: disable=redefined-builtin
         stacklevel=2
     )
     return conf.set(*args, **kwargs)
+
+
+def ensure_secrets_loaded() -> List[BaseSecretsBackend]:
+    """
+    Ensure that all secrets backends are loaded.
+    If the secrets_backend_list contains only 2 default backends, reload it.
+    """
+    # Check if the secrets_backend_list contains only 2 default backends
+    if len(secrets_backend_list) == 2:
+        return initialize_secrets_backends()
+    return secrets_backend_list
+
+
+def get_custom_secret_backend() -> Optional[BaseSecretsBackend]:
+    """Get Secret Backend if defined in airflow.cfg"""
+    secrets_backend_cls = conf.getimport(section='secrets', key='backend')
+
+    if secrets_backend_cls:
+        try:
+            alternative_secrets_config_dict = json.loads(
+                conf.get(section='secrets', key='backend_kwargs', fallback='{}')
+            )
+        except JSONDecodeError:
+            alternative_secrets_config_dict = {}
+
+        return secrets_backend_cls(**alternative_secrets_config_dict)
+    return None
+
+
+def initialize_secrets_backends() -> List[BaseSecretsBackend]:
+    """
+    * import secrets backend classes
+    * instantiate them and return them in a list
+    """
+    backend_list = []
+
+    custom_secret_backend = get_custom_secret_backend()
+
+    if custom_secret_backend is not None:
+        backend_list.append(custom_secret_backend)
+
+    for class_name in DEFAULT_SECRETS_SEARCH_PATH:
+        secrets_backend_cls = import_string(class_name)
+        backend_list.append(secrets_backend_cls())
+
+    return backend_list
+
+
+secrets_backend_list = initialize_secrets_backends()

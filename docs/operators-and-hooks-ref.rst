@@ -55,6 +55,9 @@ Fundamentals
    * - Operators
      - Guides
 
+   * - :mod:`airflow.operators.bash`
+     - :doc:`How to use <howto/operator/bash>`
+
    * - :mod:`airflow.operators.branch_operator`
      -
 
@@ -73,6 +76,9 @@ Fundamentals
    * - :mod:`airflow.operators.latest_only_operator`
      -
 
+   * - :mod:`airflow.operators.python`
+     - :doc:`How to use <howto/operator/python>`
+
    * - :mod:`airflow.operators.subdag_operator`
      -
 
@@ -87,11 +93,20 @@ Fundamentals
    * - Sensors
      - Guides
 
-   * - :mod:`airflow.sensors.weekday_sensor`
+   * - :mod:`airflow.sensors.bash`
+     -
+
+   * - :mod:`airflow.sensors.date_time_sensor`
      -
 
    * - :mod:`airflow.sensors.external_task_sensor`
      - :doc:`How to use <howto/operator/external_task_sensor>`
+
+   * - :mod:`airflow.sensors.filesystem`
+     -
+
+   * - :mod:`airflow.sensors.python`
+     -
 
    * - :mod:`airflow.sensors.sql_sensor`
      -
@@ -102,9 +117,19 @@ Fundamentals
    * - :mod:`airflow.sensors.time_sensor`
      -
 
-   * - :mod:`airflow.sensors.date_time_sensor`
+   * - :mod:`airflow.sensors.weekday_sensor`
      -
 
+**Hooks:**
+
+.. list-table::
+   :header-rows: 1
+
+   * - Hooks
+     - Guides
+
+   * - :mod:`airflow.hooks.filesystem`
+     -
 
 .. _Apache:
 
@@ -1365,12 +1390,6 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.providers.exasol.operators.exasol`
      -
 
-   * - `GNU Bash <https://www.gnu.org/software/bash/>`__
-     - :doc:`How to use <howto/operator/bash>`
-     -
-     - :mod:`airflow.operators.bash`
-     - :mod:`airflow.sensors.bash`
-
    * - `Hashicorp Vault <https://www.vaultproject.io/>`__
      -
      - :mod:`airflow.providers.hashicorp.hooks.vault`
@@ -1441,12 +1460,6 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.providers.presto.hooks.presto`
      -
      -
-
-   * - `Python <https://www.python.org>`__
-     -
-     - :doc:`How to use <howto/operator/python>`
-     - :mod:`airflow.operators.python`
-     - :mod:`airflow.sensors.python`
 
    * - `Redis <https://redis.io/>`__
      -
@@ -1582,12 +1595,6 @@ communication protocols or interface.
      - :mod:`airflow.providers.ftp.hooks.ftp`
      -
      - :mod:`airflow.providers.ftp.sensors.ftp`
-
-   * - Filesystem
-     -
-     - :mod:`airflow.hooks.filesystem`
-     -
-     - :mod:`airflow.sensors.filesystem`
 
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
      - :doc:`How to use <howto/operator/http>`

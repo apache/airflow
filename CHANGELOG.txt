@@ -5,7 +5,7 @@ New Features
 """"""""""""
 
 - Add DateTimeSensor (#9697)
-- Add ClusterPolicyViolation support to airflow local settings (#10282)
+- Add AirflowClusterPolicyViolation support to airflow local settings (#10282)
 - Get Airflow configs with sensitive data from Secret Backends (#9645)
 - [AIRFLOW-4734] Upsert functionality for PostgresHook.insert_rows() (#8625)
 - Allow defining custom XCom class (#8560)

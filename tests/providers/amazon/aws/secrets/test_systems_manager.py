@@ -19,8 +19,8 @@ from unittest import TestCase, mock
 
 from moto import mock_ssm
 
+from airflow.configuration import initialize_secrets_backends
 from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
-from airflow.secrets import initialize_secrets_backends
 from tests.test_utils.config import conf_vars
 
 
