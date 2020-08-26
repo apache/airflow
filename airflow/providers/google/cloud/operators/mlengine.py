@@ -1103,7 +1103,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         Must be set when scale_tier is CUSTOM. (templated)
     :type master_type: str
     :param master_config: Cloud ML Engine master config.
-    master_type must be set if master_config is provided. (templated)
+        master_type must be set if master_config is provided. (templated)
     :type master_type: dict
     :param runtime_version: The Google Cloud ML runtime version to use for
         training. (templated)
@@ -1244,6 +1244,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
         if self._scale_tier is not None and self._scale_tier.upper() == "CUSTOM":
             training_request['trainingInput']['masterType'] = self._master_type
+
             if self._master_config:
                 training_request['trainingInput']['masterConfig'] = self._master_config
 
