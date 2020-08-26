@@ -36,7 +36,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
     :param application_name: spark Application resource name
     :type application_name:  str
     :param namespace: the kubernetes namespace where the sparkApplication reside in
-    :type namespace: str 
+    :type namespace: str
     :param kubernetes_conn_id: the connection to Kubernetes cluster
     :type kubernetes_conn_id: str
     :param attach_log: determines whether logs for driver pod should be appended to the sensor log
