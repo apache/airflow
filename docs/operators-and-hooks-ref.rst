@@ -327,6 +327,9 @@ These integrations allow you to perform various operations within the Microsoft 
      - :mod:`airflow.providers.microsoft.azure.operators.wasb_delete_blob`
      - :mod:`airflow.providers.microsoft.azure.sensors.wasb`
 
+   * - `Azure Log Analytics Workspace <https://docs.microsoft.com/en-us/azure/azure-monitor/platform/design-logs-deployment/>`__
+     - :mod:`airflow.providers.microsoft.azure.hooks.laws`
+
    * - `Azure Container Instances <https://azure.microsoft.com/en-us/services/container-instances/>`__
      - :mod:`airflow.providers.microsoft.azure.hooks.azure_container_instance`,
        :mod:`airflow.providers.microsoft.azure.hooks.azure_container_registry`,

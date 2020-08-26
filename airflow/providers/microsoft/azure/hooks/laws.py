@@ -30,8 +30,8 @@ import requests
 
 from airflow.hooks.base_hook import BaseHook
 
+
 class LawsHook(BaseHook):
-    
     """
     Interacts with Azure LAWS through api.
 
@@ -53,14 +53,17 @@ class LawsHook(BaseHook):
         self.table_name = table_name
 
     def build_signature(self, date, content_length, method, content_type, resource):
+        """Builds signature for Azure HTTP Data Collector API"""
         x_headers = 'x-ms-date:' + date
-        string_to_hash = method + "\n" + str(content_length) + "\n" + content_type + "\n" + x_headers + "\n" + resource
+        string_to_hash = (
+            method + "\n" + str(content_length) + "\n" + content_type + "\n" + x_headers + "\n" + resource
+        )  # pylint: disable=line-too-long
         bytes_to_hash = bytes(string_to_hash, encoding="utf-8")
         decoded_key = base64.b64decode(self.access_key)
         encoded_hash = base64.b64encode(
-            hmac.new(decoded_key,
-            bytes_to_hash,
-            digestmod=hashlib.sha256).digest()
+            hmac.new(
+                decoded_key, bytes_to_hash, digestmod=hashlib.sha256
+            ).digest()  # pylint: disable=line-too-long
         ).decode()
         authorization = "SharedKey {}:{}".format(self.account_id, encoded_hash)
         return authorization
@@ -70,7 +73,7 @@ class LawsHook(BaseHook):
         """
         Clean up an execution date so that it is safe to query in log analytics
         by formatting it correctly
-        
+
         :param execution_date: execution date of the dag run.
         """
         return execution_date.strftime("%Y-%m-%d %H:%M:%S")
@@ -80,13 +83,14 @@ class LawsHook(BaseHook):
         Post data to Azure Log Analytics
         """
         execution_date = self._clean_execution_date(ti.execution_date)
-        body = {"dag_id": ti.dag_id,
-                "task_id": ti.task_id,
-                "execution_date": execution_date,
-                "try_number": ti.try_number,
-                "part": 1,
-                "raw_data": log
-                }
+        body = {
+            "dag_id": ti.dag_id,
+            "task_id": ti.task_id,
+            "execution_date": execution_date,
+            "try_number": ti.try_number,
+            "part": 1,
+            "raw_data": log,
+        }
         # TODO: Break content into said size like 20M.
         custom_table_name = self.table_name
         method = 'POST'
@@ -94,18 +98,16 @@ class LawsHook(BaseHook):
         resource = '/api/logs'
         rfc1123date = datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
         content_length = len(body)
-        signature = self.build_signature(rfc1123date,
-                                        content_length,
-                                        method,
-                                        content_type,
-                                        resource)
-        uri = 'https://' + self.account_id + '.ods.opinsights.azure.com' + resource + '?api-version=2016-04-01'
+        signature = self.build_signature(rfc1123date, content_length, method, content_type, resource)
+        uri = (
+            'https://' + self.account_id + '.ods.opinsights.azure.com' + resource + '?api-version=2016-04-01'
+        )
 
         headers = {
             'content-type': content_type,
             'Authorization': signature,
             'Log-Type': custom_table_name,
-            'x-ms-date': rfc1123date
+            'x-ms-date': rfc1123date,
         }
         # TODO: Option to print to console instead API.
         try:

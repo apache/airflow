@@ -32,14 +32,16 @@ class LawsTaskHandler(FileTaskHandler, LoggingMixin):
     uploads to LAWS.
     """
 
-    def __init__(self, account_id, access_key, table_name, base_log_folder,
-                 filename_template):
+    def __init__(self, account_id, access_key, table_name, base_log_folder, filename_template):
         super().__init__(base_log_folder, filename_template)
         self.log_relative_path = ''
         self._ti = None
         self._hook = None
         self.closed = False
         self.upload_on_close = True
+        self.account_id = account_id
+        self.access_key = access_key
+        self.table_name = table_name
 
     @cached_property
     def hook(self):
@@ -47,17 +49,16 @@ class LawsTaskHandler(FileTaskHandler, LoggingMixin):
         Returns LawsHook.
         """
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
-        account_id = conf.get('azlaws', 'ACCOUNT_ID')
-        access_key = conf.get('azlaws', 'ACCESS_KEY')
-        table_name = conf.get('azlaws', 'TABLE_NAME')
         try:
             from airflow.providers.microsoft.azure.hooks.laws import LawsHook
-            return LawsHook(remote_conn_id, account_id, access_key, table_name)
+
+            return LawsHook(remote_conn_id, self.account_id, self.access_key, self.table_name)
         except AzureHttpError:
             self.log.error(
                 'Could not create an LawsHook with connection id "%s". '
                 'Please make sure that airflow[azure] is installed and '
-                'the Laws connection exists.', remote_conn_id
+                'the Laws connection exists.',
+                remote_conn_id,
             )
 
     def set_context(self, ti):
