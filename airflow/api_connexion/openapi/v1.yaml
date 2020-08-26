@@ -104,7 +104,19 @@ info:
         "open_slots": 0
     }
     ```
+    ### Update Mask
+    Update mask is available as a query parameter in patch endpoints. It is used to notify the
+    API which fields you want to update. Using `update_mask` makes it easier to update objects
+    by helping the server know which fields to update in an object instead of updating all fields.
+    The update request ignores any fields that aren't specified in the field mask, leaving them with
+    their current values.
 
+    Example:
+    ```
+      resource = request.get('/resource/my-id').json()
+      resource['my_field'] = 'new-value'
+      request.patch('/resource/my-id?update_mask=my_field', data=json.dumps(resource))
+    ```
 
     ## Versioning and Endpoint Lifecycle
 
@@ -160,6 +172,8 @@ info:
 
     For details on configuring the authentication, see
     [API Authorization](https://airflow.readthedocs.io/en/latest/security/api.html).
+
+
   version: '1.0.0'
   license:
     name: Apache 2.0
