@@ -52,7 +52,7 @@ When a DAG submits a task, the KubernetesExecutor requests a worker pod from the
 
 In contrast to the Celery Executor, the Kubernetes Executor does not require additional components such as Redis and Flower, but does require the Kubernetes infrastructure.
 
-One example of an Airflow deployment running on a distributed set of five nodes in a Kubernetes cluster is shown below. 
+One example of an Airflow deployment running on a distributed set of five nodes in a Kubernetes cluster is shown below.
 
 .. image:: ../img/arch-diag-kubernetes2.png
 
