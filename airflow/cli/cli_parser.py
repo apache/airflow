@@ -28,6 +28,7 @@ from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Un
 from tabulate import tabulate_formats
 
 from airflow import settings
+from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -65,6 +66,8 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if value == 'celery' and executor != ExecutorLoader.CELERY_EXECUTOR:
             message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
             raise ArgumentError(action, message)
+        if action.choices is not None and value not in action.choices:
+            check_legacy_command(action, value)
 
         super()._check_value(action, value)
 
@@ -579,7 +582,7 @@ ARG_ENV_VARS = Arg(
 # connections
 ARG_CONN_ID = Arg(
     ('conn_id',),
-    help='Connection id, required to add/delete a connection',
+    help='Connection id, required to get/add/delete a connection',
     type=str)
 ARG_CONN_ID_FILTER = Arg(
     ('--conn-id',),
@@ -617,15 +620,15 @@ ARG_CONN_EXTRA = Arg(
     ('--conn-extra',),
     help='Connection `Extra` field, optional when adding a connection',
     type=str)
-ARG_INCLUDE_SECRETS = Arg(
-    ('--include-secrets',),
-    help=(
-        "If passed, the connection in the secret backend will also be displayed."
-        "To use this option you must pass `--conn_id` option."
-        ""
-    ),
-    action="store_true",
-    default=False)
+ARG_CONN_EXPORT = Arg(
+    ('file',),
+    help='Output file path for exporting the connections',
+    type=argparse.FileType('w', encoding='UTF-8'))
+ARG_CONN_EXPORT_FORMAT = Arg(
+    ('--format',),
+    help='Format of the connections data in file',
+    type=str,
+    choices=['json', 'yaml', 'env'])
 # users
 ARG_USERNAME = Arg(
     ('-u', '--username'),
@@ -1087,10 +1090,16 @@ DB_COMMANDS = (
 )
 CONNECTIONS_COMMANDS = (
     ActionCommand(
+        name='get',
+        help='Get a connection',
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_get'),
+        args=(ARG_CONN_ID, ARG_COLOR),
+    ),
+    ActionCommand(
         name='list',
         help='List connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
-        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER, ARG_INCLUDE_SECRETS),
+        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER),
     ),
     ActionCommand(
         name='add',
@@ -1103,6 +1112,22 @@ CONNECTIONS_COMMANDS = (
         help='Delete a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
         args=(ARG_CONN_ID,),
+    ),
+    ActionCommand(
+        name='export',
+        help='Export all connections',
+        description=("All connections can be exported in STDOUT using the following command:\n"
+                     "airflow connections export -\n"
+                     "The file format can be determined by the provided file extension. eg, The following "
+                     "command will export the connections in JSON format:\n"
+                     "airflow connections export /tmp/connections.json\n"
+                     "The --format parameter can be used to mention the connections format. eg, "
+                     "the default format is JSON in STDOUT mode, which can be overridden using: \n"
+                     "airflow connections export - --format yaml\n"
+                     "The --format parameter can also be used for the files, for example:\n"
+                     "airflow connections export /tmp/connections --format json\n"),
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_export'),
+        args=(ARG_CONN_EXPORT, ARG_CONN_EXPORT_FORMAT,),
     ),
 )
 USERS_COMMANDS = (

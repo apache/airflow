@@ -71,11 +71,13 @@ class AwsLogsHook(AwsBaseHook):
             else:
                 token_arg = {}
 
-            response = self.get_conn().get_log_events(logGroupName=log_group,
-                                                      logStreamName=log_stream_name,
-                                                      startTime=start_time,
-                                                      startFromHead=start_from_head,
-                                                      **token_arg)
+            response = self.get_conn().get_log_events(
+                logGroupName=log_group,
+                logStreamName=log_stream_name,
+                startTime=start_time,
+                startFromHead=start_from_head,
+                **token_arg,
+            )
 
             events = response['events']
             event_count = len(events)
@@ -84,7 +86,7 @@ class AwsLogsHook(AwsBaseHook):
                 events = events[skip:]
                 skip = 0
             else:
-                skip = skip - event_count
+                skip -= event_count
                 events = []
 
             yield from events

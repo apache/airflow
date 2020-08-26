@@ -29,7 +29,6 @@ except ImportError:
 
 
 class TestDynamoDBHook(unittest.TestCase):
-
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
     def test_get_conn_returns_a_boto3_connection(self):
@@ -40,37 +39,23 @@ class TestDynamoDBHook(unittest.TestCase):
     @mock_dynamodb2
     def test_insert_batch_items_dynamodb_table(self):
 
-        hook = AwsDynamoDBHook(aws_conn_id='aws_default',
-                               table_name='test_airflow', table_keys=['id'], region_name='us-east-1')
+        hook = AwsDynamoDBHook(
+            aws_conn_id='aws_default', table_name='test_airflow', table_keys=['id'], region_name='us-east-1'
+        )
 
         # this table needs to be created in production
         table = hook.get_conn().create_table(
             TableName='test_airflow',
-            KeySchema=[
-                {
-                    'AttributeName': 'id',
-                    'KeyType': 'HASH'
-                },
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'id',
-                    'AttributeType': 'S'
-                }
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 10,
-                'WriteCapacityUnits': 10
-            }
+            KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'},],
+            AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
+            ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
         )
 
         table = hook.get_conn().Table('test_airflow')
 
-        items = [{'id': str(uuid.uuid4()), 'name': 'airflow'}
-                 for _ in range(10)]
+        items = [{'id': str(uuid.uuid4()), 'name': 'airflow'} for _ in range(10)]
 
         hook.write_batch_data(items)
 
-        table.meta.client.get_waiter(
-            'table_exists').wait(TableName='test_airflow')
+        table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
         self.assertEqual(table.item_count, 10)

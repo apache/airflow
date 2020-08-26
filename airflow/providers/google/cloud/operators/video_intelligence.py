@@ -18,7 +18,7 @@
 """
 This module contains Google Cloud Vision operators.
 """
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Sequence, Union
 
 from google.api_core.retry import Retry
 from google.cloud.videointelligence_v1 import enums
@@ -27,6 +27,7 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
+from airflow.utils.decorators import apply_defaults
 
 
 class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
@@ -63,13 +64,30 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to ``google_cloud_default``.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_video_intelligence_detect_labels_template_fields]
-    template_fields = ("input_uri", "output_uri", "gcp_conn_id")
+    template_fields = (
+        "input_uri",
+        "output_uri",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END gcp_video_intelligence_detect_labels_template_fields]
 
+    @apply_defaults
     def __init__(
         self,
+        *,
         input_uri: str,
         input_content: Optional[bytes] = None,
         output_uri: Optional[str] = None,
@@ -78,10 +96,10 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.input_uri = input_uri
         self.input_content = input_content
         self.output_uri = output_uri
@@ -90,9 +108,12 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
         self.timeout = timeout
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVideoIntelligenceHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudVideoIntelligenceHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+        )
         operation = hook.annotate_video(
             input_uri=self.input_uri,
             input_content=self.input_content,
@@ -100,7 +121,7 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
             location=self.location,
             retry=self.retry,
             features=[enums.Feature.LABEL_DETECTION],
-            timeout=self.timeout
+            timeout=self.timeout,
         )
         self.log.info("Processing video for label annotations")
         result = MessageToDict(operation.result())
@@ -142,13 +163,30 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to ``google_cloud_default``.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_video_intelligence_detect_explicit_content_template_fields]
-    template_fields = ("input_uri", "output_uri", "gcp_conn_id")
+    template_fields = (
+        "input_uri",
+        "output_uri",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END gcp_video_intelligence_detect_explicit_content_template_fields]
 
+    @apply_defaults
     def __init__(
         self,
+        *,
         input_uri: str,
         output_uri: Optional[str] = None,
         input_content: Optional[bytes] = None,
@@ -157,10 +195,10 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.input_uri = input_uri
         self.output_uri = output_uri
         self.input_content = input_content
@@ -169,9 +207,12 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
         self.timeout = timeout
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVideoIntelligenceHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudVideoIntelligenceHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+        )
         operation = hook.annotate_video(
             input_uri=self.input_uri,
             input_content=self.input_content,
@@ -179,7 +220,7 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
             location=self.location,
             retry=self.retry,
             features=[enums.Feature.EXPLICIT_CONTENT_DETECTION],
-            timeout=self.timeout
+            timeout=self.timeout,
         )
         self.log.info("Processing video for explicit content annotations")
         result = MessageToDict(operation.result())
@@ -221,13 +262,30 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to ``google_cloud_default``.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_video_intelligence_detect_video_shots_template_fields]
-    template_fields = ("input_uri", "output_uri", "gcp_conn_id")
+    template_fields = (
+        "input_uri",
+        "output_uri",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     # [END gcp_video_intelligence_detect_video_shots_template_fields]
 
+    @apply_defaults
     def __init__(
         self,
+        *,
         input_uri: str,
         output_uri: Optional[str] = None,
         input_content: Optional[bytes] = None,
@@ -236,10 +294,10 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.input_uri = input_uri
         self.output_uri = output_uri
         self.input_content = input_content
@@ -248,9 +306,12 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
         self.timeout = timeout
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVideoIntelligenceHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudVideoIntelligenceHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+        )
         operation = hook.annotate_video(
             input_uri=self.input_uri,
             input_content=self.input_content,
@@ -258,7 +319,7 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
             location=self.location,
             retry=self.retry,
             features=[enums.Feature.SHOT_CHANGE_DETECTION],
-            timeout=self.timeout
+            timeout=self.timeout,
         )
         self.log.info("Processing video for video shots annotations")
         result = MessageToDict(operation.result())

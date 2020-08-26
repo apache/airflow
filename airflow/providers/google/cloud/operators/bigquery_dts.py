@@ -18,7 +18,7 @@
 """
 This module contains Google BigQuery Data Transfer Service operators.
 """
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.protobuf.json_format import MessageToDict
@@ -55,6 +55,15 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -62,11 +71,13 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         "project_id",
         "authorization_code",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         transfer_config: dict,
         project_id: Optional[str] = None,
         authorization_code: Optional[str] = None,
@@ -74,10 +85,10 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.transfer_config = transfer_config
         self.authorization_code = authorization_code
         self.project_id = project_id
@@ -85,9 +96,12 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = BiqQueryDataTransferServiceHook(gcp_conn_id=self.gcp_conn_id)
+        hook = BiqQueryDataTransferServiceHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         self.log.info("Creating DTS transfer config")
         response = hook.create_transfer_config(
             project_id=self.project_id,
@@ -127,32 +141,50 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("transfer_config_id", "project_id", "gcp_conn_id")
+    template_fields = (
+        "transfer_config_id",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         transfer_config_id: str,
         project_id: Optional[str] = None,
         retry: Retry = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.transfer_config_id = transfer_config_id
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = BiqQueryDataTransferServiceHook(gcp_conn_id=self.gcp_conn_id)
+        hook = BiqQueryDataTransferServiceHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         hook.delete_transfer_config(
             transfer_config_id=self.transfer_config_id,
             project_id=self.project_id,
@@ -198,6 +230,15 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -206,11 +247,13 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         "requested_time_range",
         "requested_run_time",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         transfer_config_id: str,
         project_id: Optional[str] = None,
         requested_time_range: Optional[dict] = None,
@@ -219,10 +262,10 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.transfer_config_id = transfer_config_id
         self.requested_time_range = requested_time_range
@@ -231,9 +274,12 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = BiqQueryDataTransferServiceHook(gcp_conn_id=self.gcp_conn_id)
+        hook = BiqQueryDataTransferServiceHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         self.log.info('Submitting manual transfer for %s', self.transfer_config_id)
         response = hook.start_manual_transfer_runs(
             transfer_config_id=self.transfer_config_id,

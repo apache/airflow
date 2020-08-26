@@ -23,13 +23,8 @@ from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 
 
 class TestJdbcOperator(unittest.TestCase):
-
     def setUp(self):
-        self.kwargs = dict(
-            sql='sql',
-            task_id='test_jdbc_operator',
-            dag=None
-        )
+        self.kwargs = dict(sql='sql', task_id='test_jdbc_operator', dag=None)
 
     @patch('airflow.providers.jdbc.operators.jdbc.JdbcHook')
     def test_execute(self, mock_jdbc_hook):
@@ -38,4 +33,5 @@ class TestJdbcOperator(unittest.TestCase):
 
         mock_jdbc_hook.assert_called_once_with(jdbc_conn_id=jdbc_operator.jdbc_conn_id)
         mock_jdbc_hook.return_value.run.assert_called_once_with(
-            jdbc_operator.sql, jdbc_operator.autocommit, parameters=jdbc_operator.parameters)
+            jdbc_operator.sql, jdbc_operator.autocommit, parameters=jdbc_operator.parameters
+        )

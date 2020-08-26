@@ -81,9 +81,9 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
     ui_fgcolor = '#000'
 
     @apply_defaults
-    def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
+    def __init__(self, *, qubole_conn_id="qubole_default", **kwargs):
         sql = get_sql_from_qbol_cmd(kwargs)
-        super().__init__(qubole_conn_id=qubole_conn_id, sql=sql, *args, **kwargs)
+        super().__init__(qubole_conn_id=qubole_conn_id, sql=sql, **kwargs)
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry
         self.on_retry_callback = QuboleCheckHook.handle_failure_retry
 
@@ -101,7 +101,7 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
         if hasattr(self, 'hook') and (self.hook is not None):
             return self.hook
         else:
-            return QuboleCheckHook(context=context, *self.args, **self.kwargs)
+            return QuboleCheckHook(context=context, **self.kwargs)
 
     def __getattribute__(self, name):
         if name in QuboleCheckOperator.template_fields:
@@ -162,14 +162,20 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
     ui_fgcolor = '#000'
 
     @apply_defaults
-    def __init__(self, pass_value, tolerance=None, results_parser_callable=None,
-                 qubole_conn_id="qubole_default", *args, **kwargs):
+    def __init__(
+        self,
+        *,
+        pass_value,
+        tolerance=None,
+        results_parser_callable=None,
+        qubole_conn_id="qubole_default",
+        **kwargs,
+    ):
 
         sql = get_sql_from_qbol_cmd(kwargs)
         super().__init__(
-            qubole_conn_id=qubole_conn_id,
-            sql=sql, pass_value=pass_value, tolerance=tolerance,
-            *args, **kwargs)
+            qubole_conn_id=qubole_conn_id, sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs
+        )
 
         self.results_parser_callable = results_parser_callable
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry
@@ -190,10 +196,7 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
             return self.hook
         else:
             return QuboleCheckHook(
-                context=context,
-                *self.args,
-                results_parser_callable=self.results_parser_callable,
-                **self.kwargs
+                context=context, results_parser_callable=self.results_parser_callable, **self.kwargs
             )
 
     def __getattribute__(self, name):
@@ -233,11 +236,12 @@ def handle_airflow_exception(airflow_exception, hook):
         if cmd.is_success(cmd.status):
             qubole_command_results = hook.get_query_results()
             qubole_command_id = cmd.id
-            exception_message = \
-                '\nQubole Command Id: {qubole_command_id}' \
-                '\nQubole Command Results:' \
+            exception_message = (
+                '\nQubole Command Id: {qubole_command_id}'
+                '\nQubole Command Results:'
                 '\n{qubole_command_results}'.format(
-                    qubole_command_id=qubole_command_id,
-                    qubole_command_results=qubole_command_results)
+                    qubole_command_id=qubole_command_id, qubole_command_results=qubole_command_results
+                )
+            )
             raise AirflowException(str(airflow_exception) + exception_message)
     raise AirflowException(str(airflow_exception))

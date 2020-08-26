@@ -20,7 +20,7 @@ This module contains Google Ad to GCS operators.
 """
 import csv
 from tempfile import NamedTemporaryFile
-from typing import Dict
+from typing import Dict, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
@@ -57,38 +57,49 @@ class GoogleAdsListAccountsOperator(BaseOperator):
     :type page_size: int
     :param gzip: Option to compress local file or file data for upload
     :type gzip: bool
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("bucket", "object_name")
+    template_fields = (
+        "bucket",
+        "object_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         bucket: str,
         object_name: str,
         gcp_conn_id: str = "google_cloud_default",
         google_ads_conn_id: str = "google_ads_default",
         gzip: bool = False,
-        *args,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket = bucket
         self.object_name = object_name
         self.gcp_conn_id = gcp_conn_id
         self.google_ads_conn_id = google_ads_conn_id
         self.gzip = gzip
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         uri = f"gs://{self.bucket}/{self.object_name}"
 
-        ads_hook = GoogleAdsHook(
-            gcp_conn_id=self.gcp_conn_id,
-            google_ads_conn_id=self.google_ads_conn_id
-        )
+        ads_hook = GoogleAdsHook(gcp_conn_id=self.gcp_conn_id, google_ads_conn_id=self.google_ads_conn_id)
 
-        gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
-
+        gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         with NamedTemporaryFile("w+") as temp_file:
             # Download accounts
             accounts = ads_hook.list_accessible_customers()
@@ -98,10 +109,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
 
             # Upload to GCS
             gcs_hook.upload(
-                bucket_name=self.bucket,
-                object_name=self.object_name,
-                gzip=self.gzip,
-                filename=temp_file.name
+                bucket_name=self.bucket, object_name=self.object_name, gzip=self.gzip, filename=temp_file.name
             )
             self.log.info("Uploaded %s to %s", len(accounts), uri)
 

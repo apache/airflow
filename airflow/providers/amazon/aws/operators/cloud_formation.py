@@ -39,18 +39,14 @@ class CloudFormationCreateStackOperator(BaseOperator):
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     """
+
     template_fields: List[str] = ['stack_name']
     template_ext = ()
     ui_color = '#6b9659'
 
     @apply_defaults
-    def __init__(
-            self,
-            stack_name,
-            params,
-            aws_conn_id='aws_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, stack_name, params, aws_conn_id='aws_default', **kwargs):
+        super().__init__(**kwargs)
         self.stack_name = stack_name
         self.params = params
         self.aws_conn_id = aws_conn_id
@@ -76,19 +72,15 @@ class CloudFormationDeleteStackOperator(BaseOperator):
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     """
+
     template_fields: List[str] = ['stack_name']
     template_ext = ()
     ui_color = '#1d472b'
     ui_fgcolor = '#FFF'
 
     @apply_defaults
-    def __init__(
-            self,
-            stack_name,
-            params=None,
-            aws_conn_id='aws_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, stack_name, params=None, aws_conn_id='aws_default', **kwargs):
+        super().__init__(**kwargs)
         self.params = params or {}
         self.stack_name = stack_name
         self.params = params

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import sys
 import unittest
 from unittest.mock import ANY
 
@@ -398,6 +399,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             'dag_id': 'test_dag_id',
             'execution_date': '2019-11-21 11:08:22.920875',
             'kubernetes_executor': 'True',
+            'my_label': 'label_id',
             'task_id': 'test_task_id',
             'try_number': '1'
         }
@@ -879,7 +881,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         ], configmaps)
 
     def test_pod_template_file(self):
-        fixture = 'tests/kubernetes/pod.yaml'
+        fixture = sys.path[0] + '/tests/kubernetes/pod.yaml'
         self.kube_config.pod_template_file = fixture
         worker_config = WorkerConfiguration(self.kube_config)
         result = worker_config.as_pod()

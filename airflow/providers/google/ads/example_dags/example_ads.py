@@ -82,8 +82,6 @@ with models.DAG(
 
     # [START howto_ads_list_accounts_operator]
     list_accounts = GoogleAdsListAccountsOperator(
-        task_id="list_accounts",
-        bucket=BUCKET,
-        object_name=GCS_ACCOUNTS_CSV
+        task_id="list_accounts", bucket=BUCKET, object_name=GCS_ACCOUNTS_CSV
     )
     # [END howto_ads_list_accounts_operator]

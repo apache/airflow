@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
 from docker import APIClient
 from docker.errors import APIError
@@ -32,12 +33,14 @@ class DockerHook(BaseHook, LoggingMixin):
         credentials and extra configuration are stored
     :type docker_conn_id: str
     """
-    def __init__(self,
-                 docker_conn_id='docker_default',
-                 base_url=None,
-                 version=None,
-                 tls=None
-                 ):
+
+    def __init__(
+        self,
+        docker_conn_id='docker_default',
+        base_url: Optional[str] = None,
+        version: Optional[str] = None,
+        tls: Optional[str] = None,
+    ) -> None:
         super().__init__()
         if not base_url:
             raise AirflowException('No Docker base URL provided')
@@ -63,16 +66,12 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__email = extra_options.get('email')
         self.__reauth = extra_options.get('reauth') != 'no'
 
-    def get_conn(self):
-        client = APIClient(
-            base_url=self.__base_url,
-            version=self.__version,
-            tls=self.__tls
-        )
+    def get_conn(self) -> APIClient:
+        client = APIClient(base_url=self.__base_url, version=self.__version, tls=self.__tls)
         self.__login(client)
         return client
 
-    def __login(self, client):
+    def __login(self, client) -> None:
         self.log.debug('Logging into Docker registry')
         try:
             client.login(
@@ -80,7 +79,7 @@ class DockerHook(BaseHook, LoggingMixin):
                 password=self.__password,
                 registry=self.__registry,
                 email=self.__email,
-                reauth=self.__reauth
+                reauth=self.__reauth,
             )
             self.log.debug('Login successful')
         except APIError as docker_error:

@@ -1089,6 +1089,35 @@ class TestDag(unittest.TestCase):
         dag.clear()
         self._clean_up(dag_id)
 
+    @patch('airflow.models.dag.Stats')
+    def test_dag_handle_callback_crash(self, mock_stats):
+        """
+        Tests avoid crashes from calling dag callbacks exceptions
+        """
+        dag_id = "test_dag_callback_crash"
+        mock_callback_with_exception = mock.MagicMock()
+        mock_callback_with_exception.side_effect = Exception
+        dag = DAG(
+            dag_id=dag_id,
+            # callback with invalid signature should not cause crashes
+            on_success_callback=lambda: 1,
+            on_failure_callback=mock_callback_with_exception)
+        dag.add_task(BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime_tz(2015, 1, 2, 0, 0)))
+
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_run = dag_file_processor.create_dag_run(dag)
+        # should not rause any exception
+        dag.handle_callback(dag_run, success=False)
+        dag.handle_callback(dag_run, success=True)
+
+        mock_stats.incr.assert_called_with("dag.callback_exceptions")
+
+        dag.clear()
+        self._clean_up(dag_id)
+
     def test_schedule_dag_fake_scheduled_previous(self):
         """
         Test scheduling a dag where there is a prior DagRun

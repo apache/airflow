@@ -33,8 +33,6 @@ with models.DAG(
 ) as dag:
     # [START upload_sheet_to_gcs]
     upload_sheet_to_gcs = GoogleSheetsToGCSOperator(
-        task_id="upload_sheet_to_gcs",
-        destination_bucket=BUCKET,
-        spreadsheet_id=SPREADSHEET_ID,
+        task_id="upload_sheet_to_gcs", destination_bucket=BUCKET, spreadsheet_id=SPREADSHEET_ID,
     )
     # [END upload_sheet_to_gcs]

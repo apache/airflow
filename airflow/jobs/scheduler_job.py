@@ -566,7 +566,7 @@ class DagFileProcessor(LoggingMixin):
         # return if already reached maximum active runs and no timeout setting
         if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
             return None
-        timeouted_runs = 0
+        timed_out_runs = 0
         for dr in active_runs:
             if (
                 dr.start_date and dag.dagrun_timeout and
@@ -576,9 +576,9 @@ class DagFileProcessor(LoggingMixin):
                 dr.end_date = timezone.utcnow()
                 dag.handle_callback(dr, success=False, reason='dagrun_timeout',
                                     session=session)
-                timeouted_runs += 1
+                timed_out_runs += 1
         session.commit()
-        if len(active_runs) - timeouted_runs >= dag.max_active_runs:
+        if len(active_runs) - timed_out_runs >= dag.max_active_runs:
             return None
 
         # this query should be replaced by find dagrun
@@ -982,7 +982,7 @@ class DagFileProcessor(LoggingMixin):
         return simple_dags
 
 
-class SchedulerJob(BaseJob):
+class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     """
     This SchedulerJob runs for a specific time interval and schedules the jobs
     that are ready to run. It figures out the latest runs for each
@@ -1131,11 +1131,11 @@ class SchedulerJob(BaseJob):
             subq = query.subquery()
             tis_changed = session \
                 .query(models.TaskInstance) \
-                .filter(and_(
+                .filter(
                     models.TaskInstance.dag_id == subq.c.dag_id,
                     models.TaskInstance.task_id == subq.c.task_id,
                     models.TaskInstance.execution_date ==
-                    subq.c.execution_date)) \
+                    subq.c.execution_date) \
                 .update({models.TaskInstance.state: new_state}, synchronize_session=False)
             session.commit()
 

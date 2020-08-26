@@ -71,14 +71,14 @@ app = Celery(
 @app.task
 def execute_command(command_to_exec: CommandType) -> None:
     """Executes command."""
-    if command_to_exec[0:3] != ["airflow", "tasks", "run"]:
-        raise ValueError('The command must start with ["airflow", "tasks", "run"].')
-
+    BaseExecutor.validate_command(command_to_exec)
     log.info("Executing command in Celery: %s", command_to_exec)
     env = os.environ.copy()
     try:
-        subprocess.check_call(command_to_exec, stderr=subprocess.STDOUT,
-                              close_fds=True, env=env)
+        # pylint: disable=unexpected-keyword-arg
+        subprocess.check_output(command_to_exec, stderr=subprocess.STDOUT,
+                                close_fds=True, env=env)
+        # pylint: disable=unexpected-keyword-arg
     except subprocess.CalledProcessError as e:
         log.exception('execute_command encountered a CalledProcessError')
         log.error(e.output)
@@ -237,7 +237,6 @@ class CeleryExecutor(BaseExecutor):
 
     def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
         """Updates state of a single task."""
-        # noinspection PyBroadException
         try:
             if self.last_state[key] != state:
                 if state == celery_states.SUCCESS:
@@ -246,16 +245,16 @@ class CeleryExecutor(BaseExecutor):
                     del self.last_state[key]
                 elif state == celery_states.FAILURE:
                     self.fail(key, info)
-                    del self.tasks[key]
+                    del self.tasks[key]  # noqa
                     del self.last_state[key]
                 elif state == celery_states.REVOKED:
                     self.fail(key, info)
-                    del self.tasks[key]
+                    del self.tasks[key]  # noqa
                     del self.last_state[key]
                 else:
                     self.log.info("Unexpected state: %s", state)
                     self.last_state[key] = state
-        except Exception:  # pylint: disable=broad-except
+        except Exception:  # noqa pylint: disable=broad-except
             self.log.exception("Error syncing the Celery executor, ignoring it.")
 
     def end(self, synchronous: bool = False) -> None:

@@ -177,7 +177,7 @@ class Variable(Base, LoggingMixin):
         return session.query(cls).filter(cls.key == key).delete()
 
     def rotate_fernet_key(self):
-        """ Rotate Fernet Key """
+        """Rotate Fernet Key"""
         fernet = get_fernet()
         if self._val and self.is_encrypted:
             self._val = fernet.rotate(self._val.encode('utf-8')).decode()

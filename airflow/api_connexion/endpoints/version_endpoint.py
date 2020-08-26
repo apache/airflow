@@ -27,6 +27,7 @@ log = logging.getLogger(__name__)
 
 class VersionInfo(NamedTuple):
     """Version information"""
+
     version: str
     git_version: Optional[str]
 

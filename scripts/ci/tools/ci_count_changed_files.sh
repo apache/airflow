@@ -39,10 +39,10 @@ git remote add target "https://github.com/${CI_TARGET_REPO}"
 git fetch target "${CI_TARGET_BRANCH}:${CI_TARGET_BRANCH}" --depth=1
 
 echo
-echo "Retrieve changed files from ${GITHUB_SHA} comparing to ${CI_TARGET_BRANCH}"
+echo "Retrieve changed files from ${COMMIT_SHA} comparing to ${CI_TARGET_BRANCH}"
 echo
 
-CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${GITHUB_SHA}" "${CI_TARGET_BRANCH}" || true)
+CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${COMMIT_SHA}" "${CI_TARGET_BRANCH}" || true)
 
 echo
 echo "Changed files:"
@@ -59,7 +59,7 @@ echo
 echo
 echo "Count changed files matching the ${1} pattern"
 echo
-COUNT_CHANGED_FILES=$(echo "${CHANGED_FILES}" | grep -c -E "${2}" || true)
+COUNT_CHANGED_FILES=$(echo "${CHANGED_FILES}" | grep -c -E "${1}" || true)
 echo "${COUNT_CHANGED_FILES}"
 echo
 

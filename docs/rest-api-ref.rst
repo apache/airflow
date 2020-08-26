@@ -23,8 +23,8 @@ available at ``/api/experimental/``.
 
 .. warning::
 
-  This REST API is deprecated since version 2.0. Please consider using :doc:`the stable REST API <stable-rest-api/redoc>`.
-  For more information on migration, see: :doc:`stable-rest-api/migration`.
+  This REST API is deprecated since version 2.0. Please consider using :doc:`the stable REST API <stable-rest-api-ref>`.
+  For more information on migration, see `UPDATING.md <https://github.com/apache/airflow/blob/master/UPDATING.md>`_
 
 Endpoints
 ---------

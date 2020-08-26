@@ -47,7 +47,8 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
@@ -63,6 +64,8 @@ log = logging.getLogger(__name__)
 ScheduleInterval = Union[str, timedelta, relativedelta]
 DEFAULT_VIEW_PRESETS = ['tree', 'graph', 'duration', 'gantt', 'landing_times']
 ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
+
+DagStateChangeCallback = Callable[[Context], None]
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
@@ -226,8 +229,8 @@ class DAG(BaseDag, LoggingMixin):
         default_view: str = conf.get('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
-        on_success_callback: Optional[Callable] = None,
-        on_failure_callback: Optional[Callable] = None,
+        on_success_callback: Optional[DagStateChangeCallback] = None,
+        on_failure_callback: Optional[DagStateChangeCallback] = None,
         doc_md: Optional[str] = None,
         params: Optional[Dict] = None,
         access_control: Optional[Dict] = None,
@@ -680,13 +683,17 @@ class DAG(BaseDag, LoggingMixin):
         """
         callback = self.on_success_callback if success else self.on_failure_callback
         if callback:
-            self.log.info('Executing dag callback function: {}'.format(callback))
+            self.log.info('Executing dag callback function: %s', callback)
             tis = dagrun.get_task_instances()
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
             context.update({'reason': reason})
-            callback(context)
+            try:
+                callback(context)
+            except Exception:
+                self.log.exception("failed to invoke dag state update callback")
+                Stats.incr("dag.callback_exceptions")
 
     def get_active_runs(self):
         """
@@ -922,7 +929,7 @@ class DAG(BaseDag, LoggingMixin):
             # graph as we move through it. We also keep a flag for
             # checking that that graph is acyclic, which is true if any
             # nodes are resolved during each pass through the graph. If
-            # not, we need to bail out as the graph therefore can't be
+            # not, we need to exit as the graph therefore can't be
             # sorted.
             acyclic = False
             for node in list(graph_unsorted.values()):
@@ -980,7 +987,7 @@ class DAG(BaseDag, LoggingMixin):
 
         :param start_date: The minimum execution_date to clear
         :type start_date: datetime.datetime or None
-        :param end_date: The maximum exeuction_date to clear
+        :param end_date: The maximum execution_date to clear
         :type end_date: datetime.datetime or None
         :param only_failed: Only clear failed tasks
         :type only_failed: bool
@@ -998,11 +1005,11 @@ class DAG(BaseDag, LoggingMixin):
         :type dry_run: bool
         :param session: The sqlalchemy session to use
         :type session: sqlalchemy.orm.session.Session
-        :param get_tis: Return the sqlachemy query for finding the TaskInstance without clearing the tasks
+        :param get_tis: Return the sqlalchemy query for finding the TaskInstance without clearing the tasks
         :type get_tis: bool
         :param recursion_depth: The recursion depth of nested calls to DAG.clear().
         :type recursion_depth: int
-        :param max_recursion_depth: The maximum recusion depth allowed. This is determined by the
+        :param max_recursion_depth: The maximum recursion depth allowed. This is determined by the
             first encountered ExternalTaskMarker. Default is None indicating no ExternalTaskMarker
             has been encountered.
         :type max_recursion_depth: int
@@ -1063,7 +1070,7 @@ class DAG(BaseDag, LoggingMixin):
             instances = tis.all()
             for ti in instances:
                 if ti.operator == ExternalTaskMarker.__name__:
-                    task: ExternalTaskMarker = cast(ExternalTaskMarker, self.get_task(ti.task_id))
+                    task: ExternalTaskMarker = cast(ExternalTaskMarker, copy.copy(self.get_task(ti.task_id)))
                     ti.task = task
 
                     if recursion_depth == 0:
@@ -1147,7 +1154,7 @@ class DAG(BaseDag, LoggingMixin):
             )
         else:
             count = 0
-            print("Bail. Nothing was cleared.")
+            print("Cancelled, nothing was cleared.")
 
         session.commit()
         return count
@@ -1208,7 +1215,7 @@ class DAG(BaseDag, LoggingMixin):
                           )
         else:
             count = 0
-            print("Bail. Nothing was cleared.")
+            print("Cancelled, nothing was cleared.")
         return count
 
     def __deepcopy__(self, memo):

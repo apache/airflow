@@ -126,6 +126,9 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `labels`                                              | Common labels to add to all objects defined in this chart                                                    | `{}`                                              |
 | `privateRegistry.enabled`                             | Enable usage of a private registry for Airflow base image                                                    | `false`                                           |
 | `privateRegistry.repository`                          | Repository where base image lives (eg: quay.io)                                                              | `~`                                               |
+| `ingress.enabled`                                     | Enable Kubernetes Ingress support                                                                            | `false`                                           |
+| `ingress.web.*`                                       | Configs for the Ingress of the web Service                                                                   | Please refer to `values.yaml`                     |
+| `ingress.flower.*`                                    | Configs for the Ingress of the flower Service                                                                | Please refer to `values.yaml`                     |
 | `networkPolicies.enabled`                             | Enable Network Policies to restrict traffic                                                                  | `true`                                            |
 | `airflowHome`                                         | Location of airflow home directory                                                                           | `/opt/airflow`                                    |
 | `rbacEnabled`                                         | Deploy pods with Kubernets RBAC enabled                                                                      | `true`                                            |
@@ -213,7 +216,7 @@ helm install --name my-release \
 KEDA stands for Kubernetes Event Driven Autoscaling. [KEDA](https://github.com/kedacore/keda) is a custom controller that allows users to create custom bindings
 to the Kubernetes [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/).
 We've built an experimental scaler that allows users to create scalers based on postgreSQL queries. For the moment this exists
-on a seperate branch, but will be merged upstream soon. To install our custom version of KEDA on your cluster, please run
+on a separate branch, but will be merged upstream soon. To install our custom version of KEDA on your cluster, please run
 
 ```bash
 helm repo add kedacore https://kedacore.github.io/charts

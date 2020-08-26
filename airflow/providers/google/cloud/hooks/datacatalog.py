@@ -20,7 +20,13 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 from google.api_core.retry import Retry
 from google.cloud.datacatalog_v1beta1 import DataCatalogClient
 from google.cloud.datacatalog_v1beta1.types import (
-    Entry, EntryGroup, FieldMask, SearchCatalogRequest, Tag, TagTemplate, TagTemplateField,
+    Entry,
+    EntryGroup,
+    FieldMask,
+    SearchCatalogRequest,
+    Tag,
+    TagTemplate,
+    TagTemplateField,
 )
 
 from airflow import AirflowException
@@ -55,9 +61,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._client: Optional[DataCatalogClient] = None
 
@@ -67,8 +71,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         """
         if not self._client:
             self._client = DataCatalogClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._client
 
@@ -889,7 +892,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         Searches Data Catalog for multiple resources like entries, tags that match a query.
 
         This does not return the complete resource, only the resource identifier and high level fields.
-        Clients can subsequentally call ``Get`` methods.
+        Clients can subsequently call ``Get`` methods.
 
         Note that searches do not have full recall. There may be results that match your query but are not
         returned, even in subsequent pages of results. These missing results may vary across repeated calls to
@@ -937,7 +940,10 @@ class CloudDataCatalogHook(GoogleBaseHook):
 
         self.log.info(
             "Searching catalog: scope=%s, query=%s, page_size=%s, order_by=%s",
-            scope, query, page_size, order_by
+            scope,
+            query,
+            page_size,
+            order_by,
         )
         result = client.search_catalog(
             scope=scope,

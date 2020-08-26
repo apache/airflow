@@ -51,6 +51,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         account from the list granting this role to the originating account.
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     _conn = None  # type: Optional[Resource]
 
     def __init__(
@@ -62,9 +63,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self.api_service_name = api_service_name
         self.api_version = api_version
@@ -84,7 +83,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
                 serviceName=self.api_service_name,
                 version=self.api_version,
                 http=http_authorized,
-                cache_discovery=False
+                cache_discovery=False,
             )
         return self._conn
 
@@ -117,9 +116,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         api_endpoint_parts = endpoint.split('.')
 
         google_api_endpoint_instance = self._build_api_request(
-            google_api_conn_client,
-            api_sub_functions=api_endpoint_parts[1:],
-            api_endpoint_params=data
+            google_api_conn_client, api_sub_functions=api_endpoint_parts[1:], api_endpoint_params=data
         )
 
         if paginate:

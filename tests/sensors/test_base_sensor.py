@@ -139,7 +139,10 @@ class TestBaseSensor(unittest.TestCase):
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 2)
         for ti in tis:
-            self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == SENSOR_OP:
+                self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == DUMMY_OP:
+                self.assertEqual(ti.state, State.NONE)
 
     def test_soft_fail_with_retries(self):
         sensor = self._make_sensor(
@@ -166,7 +169,10 @@ class TestBaseSensor(unittest.TestCase):
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 2)
         for ti in tis:
-            self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == SENSOR_OP:
+                self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == DUMMY_OP:
+                self.assertEqual(ti.state, State.NONE)
 
     def test_ok_with_reschedule(self):
         sensor = self._make_sensor(
@@ -294,7 +300,10 @@ class TestBaseSensor(unittest.TestCase):
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 2)
         for ti in tis:
-            self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == SENSOR_OP:
+                self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == DUMMY_OP:
+                self.assertEqual(ti.state, State.NONE)
 
     def test_ok_with_reschedule_and_retry(self):
         sensor = self._make_sensor(

@@ -28,7 +28,15 @@ from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
-from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig, ReceivedMessage
+from google.cloud.pubsub_v1.types import (
+    DeadLetterPolicy,
+    Duration,
+    ExpirationPolicy,
+    MessageStoragePolicy,
+    PushConfig,
+    ReceivedMessage,
+    RetryPolicy,
+)
 from googleapiclient.errors import HttpError
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -41,7 +49,6 @@ class PubSubException(Exception):
     """
 
 
-# noinspection PyAbstractClass
 class PubSubHook(GoogleBaseHook):
     """
     Hook for accessing Google Pub/Sub.
@@ -57,9 +64,7 @@ class PubSubHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -71,10 +76,7 @@ class PubSubHook(GoogleBaseHook):
         :rtype: google.cloud.pubsub_v1.PublisherClient
         """
         if not self._client:
-            self._client = PublisherClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
-            )
+            self._client = PublisherClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
     @cached_property
@@ -85,18 +87,10 @@ class PubSubHook(GoogleBaseHook):
         :return: Google Cloud Pub/Sub client object.
         :rtype: google.cloud.pubsub_v1.SubscriberClient
         """
-        return SubscriberClient(
-            credentials=self._get_credentials(),
-            client_info=self.client_info
-        )
+        return SubscriberClient(credentials=self._get_credentials(), client_info=self.client_info)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def publish(
-        self,
-        topic: str,
-        messages: List[Dict],
-        project_id: str,
-    ) -> None:
+    def publish(self, topic: str, messages: List[Dict], project_id: str,) -> None:
         """
         Publishes messages to a Pub/Sub topic.
 
@@ -120,9 +114,7 @@ class PubSubHook(GoogleBaseHook):
         try:
             for message in messages:
                 future = publisher.publish(
-                    topic=topic_path,
-                    data=message.get("data", b''),
-                    **message.get('attributes', {})
+                    topic=topic_path, data=message.get("data", b''), **message.get('attributes', {})
                 )
                 future.result()
         except GoogleAPICallError as e:
@@ -140,7 +132,9 @@ class PubSubHook(GoogleBaseHook):
                     b64decode(message["data"])
                     warnings.warn(
                         "The base 64 encoded string as 'data' field has been deprecated. "
-                        "You should pass bytestring (utf-8 encoded).", DeprecationWarning, stacklevel=4
+                        "You should pass bytestring (utf-8 encoded).",
+                        DeprecationWarning,
+                        stacklevel=4,
                     )
                 except ValueError:
                     pass
@@ -151,10 +145,12 @@ class PubSubHook(GoogleBaseHook):
                 raise PubSubException("Wrong message. Dictionary must contain 'data' or 'attributes'.")
             if "data" in message and not isinstance(message["data"], bytes):
                 raise PubSubException("Wrong message. 'data' must be send as a bytestring")
-            if ("data" not in message and "attributes" in message and not message["attributes"]) \
-                    or ("attributes" in message and not isinstance(message["attributes"], dict)):
+            if ("data" not in message and "attributes" in message and not message["attributes"]) or (
+                "attributes" in message and not isinstance(message["attributes"], dict)
+            ):
                 raise PubSubException(
-                    "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary.")
+                    "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary."
+                )
 
     # pylint: disable=too-many-arguments
     @GoogleBaseHook.fallback_to_default_project_id
@@ -273,10 +269,7 @@ class PubSubHook(GoogleBaseHook):
         try:
             # pylint: disable=no-member
             publisher.delete_topic(
-                topic=topic_path,
-                retry=retry,
-                timeout=timeout,
-                metadata=metadata,
+                topic=topic_path, retry=retry, timeout=timeout, metadata=metadata,
             )
         except NotFound:
             self.log.warning('Topic does not exist: %s', topic_path)
@@ -300,6 +293,11 @@ class PubSubHook(GoogleBaseHook):
         retain_acked_messages: Optional[bool] = None,
         message_retention_duration: Optional[Union[Dict, Duration]] = None,
         labels: Optional[Dict[str, str]] = None,
+        enable_message_ordering: bool = False,
+        expiration_policy: Optional[Union[Dict, ExpirationPolicy]] = None,
+        filter_: Optional[str] = None,
+        dead_letter_policy: Optional[Union[Dict, DeadLetterPolicy]] = None,
+        retry_policy: Optional[Union[Dict, RetryPolicy]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -345,6 +343,32 @@ class PubSubHook(GoogleBaseHook):
         :param labels: Client-assigned labels; see
             https://cloud.google.com/pubsub/docs/labels
         :type labels: Dict[str, str]
+        :param enable_message_ordering: If true, messages published with the same
+            ordering_key in PubsubMessage will be delivered to the subscribers in the order
+            in which they are received by the Pub/Sub system. Otherwise, they may be
+            delivered in any order.
+        :type enable_message_ordering: bool
+        :param expiration_policy: A policy that specifies the conditions for this
+            subscription’s expiration. A subscription is considered active as long as any
+            connected subscriber is successfully consuming messages from the subscription or
+            is issuing operations on the subscription. If expiration_policy is not set,
+            a default policy with ttl of 31 days will be used. The minimum allowed value for
+            expiration_policy.ttl is 1 day.
+        :type expiration_policy: Union[Dict, google.cloud.pubsub_v1.types.ExpirationPolicy`]
+        :param filter_: An expression written in the Cloud Pub/Sub filter language. If
+            non-empty, then only PubsubMessages whose attributes field matches the filter are
+            delivered on this subscription. If empty, then no messages are filtered out.
+        :type filter_: str
+        :param dead_letter_policy: A policy that specifies the conditions for dead lettering
+            messages in this subscription. If dead_letter_policy is not set, dead lettering is
+            disabled.
+        :type dead_letter_policy: Union[Dict, google.cloud.pubsub_v1.types.DeadLetterPolicy]
+        :param retry_policy: A policy that specifies how Pub/Sub retries message delivery
+            for this subscription. If not set, the default retry policy is applied. This
+            generally implies that messages will be retried as soon as possible for healthy
+            subscribers. RetryPolicy will be triggered on NACKs or acknowledgement deadline
+            exceeded events for a given message.
+        :type retry_policy: Union[Dict, google.cloud.pubsub_v1.types.RetryPolicy]
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -383,6 +407,11 @@ class PubSubHook(GoogleBaseHook):
                 retain_acked_messages=retain_acked_messages,
                 message_retention_duration=message_retention_duration,
                 labels=labels,
+                enable_message_ordering=enable_message_ordering,
+                expiration_policy=expiration_policy,
+                filter_=filter_,
+                dead_letter_policy=dead_letter_policy,
+                retry_policy=retry_policy,
                 retry=retry,
                 timeout=timeout,
                 metadata=metadata,
@@ -429,16 +458,14 @@ class PubSubHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]]
         """
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Deleting subscription (path) %s", subscription_path)
         try:
             # pylint: disable=no-member
             subscriber.delete_subscription(
-                subscription=subscription_path,
-                retry=retry,
-                timeout=timeout,
-                metadata=metadata
+                subscription=subscription_path, retry=retry, timeout=timeout, metadata=metadata
             )
 
         except NotFound:
@@ -492,7 +519,8 @@ class PubSubHook(GoogleBaseHook):
             https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#ReceivedMessage
         """
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member,line-too-long
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
         try:
@@ -550,15 +578,13 @@ class PubSubHook(GoogleBaseHook):
         if ack_ids is not None and messages is None:
             pass
         elif ack_ids is None and messages is not None:
-            ack_ids = [
-                message.ack_id
-                for message in messages
-            ]
+            ack_ids = [message.ack_id for message in messages]
         else:
             raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
 
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
         try:
@@ -572,7 +598,10 @@ class PubSubHook(GoogleBaseHook):
             )
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException(
-                'Error acknowledging {} messages pulled from subscription {}'
-                .format(len(ack_ids), subscription_path), e)
+                'Error acknowledging {} messages pulled from subscription {}'.format(
+                    len(ack_ids), subscription_path
+                ),
+                e,
+            )
 
         self.log.info("Acknowledged ack_ids from subscription (path) %s", subscription_path)

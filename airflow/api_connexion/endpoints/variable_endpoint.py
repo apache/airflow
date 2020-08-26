@@ -20,6 +20,7 @@ from flask import Response, request
 from marshmallow import ValidationError
 from sqlalchemy import func
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
@@ -27,6 +28,7 @@ from airflow.models import Variable
 from airflow.utils.session import provide_session
 
 
+@security.requires_authentication
 def delete_variable(variable_key: str) -> Response:
     """
     Delete variable
@@ -36,6 +38,7 @@ def delete_variable(variable_key: str) -> Response:
     return Response(status=204)
 
 
+@security.requires_authentication
 def get_variable(variable_key: str) -> Response:
     """
     Get a variables by key
@@ -47,9 +50,8 @@ def get_variable(variable_key: str) -> Response:
     return variable_schema.dump({"key": variable_key, "val": var})
 
 
-@format_parameters({
-    'limit': check_limit
-})
+@security.requires_authentication
+@format_parameters({'limit': check_limit})
 @provide_session
 def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -> Response:
     """
@@ -62,12 +64,10 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
     if limit:
         query = query.limit(limit)
     variables = query.all()
-    return variable_collection_schema.dump({
-        "variables": variables,
-        "total_entries": total_entries,
-    })
+    return variable_collection_schema.dump({"variables": variables, "total_entries": total_entries,})
 
 
+@security.requires_authentication
 def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -> Response:
     """
     Update a variable by key
@@ -90,6 +90,7 @@ def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -
     return Response(status=204)
 
 
+@security.requires_authentication
 def post_variables() -> Response:
     """
     Create a variable

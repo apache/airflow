@@ -41,9 +41,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
@@ -54,10 +52,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
-                "doubleclickbidmanager",
-                self.api_version,
-                http=http_authorized,
-                cache_discovery=False,
+                "doubleclickbidmanager", self.api_version, http=http_authorized, cache_discovery=False,
             )
         return self._conn
 
@@ -67,12 +62,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build(
-                "displayvideo",
-                self.api_version,
-                http=http_authorized,
-                cache_discovery=False,
-            )
+            self._conn = build("displayvideo", self.api_version, http=http_authorized, cache_discovery=False,)
         return self._conn
 
     @staticmethod
@@ -141,7 +131,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         )
         return response
 
-    def list_queries(self, ) -> List[Dict]:
+    def list_queries(self,) -> List[Dict]:
         """
         Retrieves stored queries.
 

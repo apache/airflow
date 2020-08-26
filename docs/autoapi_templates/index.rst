@@ -114,8 +114,6 @@ All operators are in the following packages:
 
   airflow/providers/docker/operators/index
 
-  airflow/providers/email/operators/index
-
   airflow/providers/exasol/operators/index
 
   airflow/providers/ftp/sensors/index

@@ -33,7 +33,8 @@ import os
 
 from airflow import models
 from airflow.providers.google.cloud.operators.compute import (
-    ComputeEngineSetMachineTypeOperator, ComputeEngineStartInstanceOperator,
+    ComputeEngineSetMachineTypeOperator,
+    ComputeEngineStartInstanceOperator,
     ComputeEngineStopInstanceOperator,
 )
 from airflow.utils.dates import days_ago
@@ -56,34 +57,24 @@ with models.DAG(
 ) as dag:
     # [START howto_operator_gce_start]
     gce_instance_start = ComputeEngineStartInstanceOperator(
-        project_id=GCP_PROJECT_ID,
-        zone=GCE_ZONE,
-        resource_id=GCE_INSTANCE,
-        task_id='gcp_compute_start_task'
+        project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id='gcp_compute_start_task'
     )
     # [END howto_operator_gce_start]
     # Duplicate start for idempotence testing
     # [START howto_operator_gce_start_no_project_id]
     gce_instance_start2 = ComputeEngineStartInstanceOperator(
-        zone=GCE_ZONE,
-        resource_id=GCE_INSTANCE,
-        task_id='gcp_compute_start_task2'
+        zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id='gcp_compute_start_task2'
     )
     # [END howto_operator_gce_start_no_project_id]
     # [START howto_operator_gce_stop]
     gce_instance_stop = ComputeEngineStopInstanceOperator(
-        project_id=GCP_PROJECT_ID,
-        zone=GCE_ZONE,
-        resource_id=GCE_INSTANCE,
-        task_id='gcp_compute_stop_task'
+        project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id='gcp_compute_stop_task'
     )
     # [END howto_operator_gce_stop]
     # Duplicate stop for idempotence testing
     # [START howto_operator_gce_stop_no_project_id]
     gce_instance_stop2 = ComputeEngineStopInstanceOperator(
-        zone=GCE_ZONE,
-        resource_id=GCE_INSTANCE,
-        task_id='gcp_compute_stop_task2'
+        zone=GCE_ZONE, resource_id=GCE_INSTANCE, task_id='gcp_compute_stop_task2'
     )
     # [END howto_operator_gce_stop_no_project_id]
     # [START howto_operator_gce_set_machine_type]
@@ -91,10 +82,8 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
-        body={
-            'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)
-        },
-        task_id='gcp_compute_set_machine_type'
+        body={'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)},
+        task_id='gcp_compute_set_machine_type',
     )
     # [END howto_operator_gce_set_machine_type]
     # Duplicate set machine type for idempotence testing
@@ -102,12 +91,10 @@ with models.DAG(
     gce_set_machine_type2 = ComputeEngineSetMachineTypeOperator(
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
-        body={
-            'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)
-        },
-        task_id='gcp_compute_set_machine_type2'
+        body={'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)},
+        task_id='gcp_compute_set_machine_type2',
     )
     # [END howto_operator_gce_set_machine_type_no_project_id]
 
-    gce_instance_start >> gce_instance_start2 >> gce_instance_stop >> \
-        gce_instance_stop2 >> gce_set_machine_type >> gce_set_machine_type2
+    gce_instance_start >> gce_instance_start2 >> gce_instance_stop >> gce_instance_stop2
+    gce_instance_stop2 >> gce_set_machine_type >> gce_set_machine_type2

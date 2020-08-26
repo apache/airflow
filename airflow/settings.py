@@ -139,7 +139,7 @@ def pod_mutation_hook(pod):  # pylint: disable=unused-argument
 
 # pylint: disable=global-statement
 def configure_vars():
-    """ Configure Global Variables from airflow.cfg"""
+    """Configure Global Variables from airflow.cfg"""
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
@@ -154,7 +154,7 @@ def configure_vars():
 
 
 def configure_orm(disable_connection_pool=False):
-    """ Configure ORM using SQLAlchemy"""
+    """Configure ORM using SQLAlchemy"""
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
@@ -222,7 +222,7 @@ def configure_orm(disable_connection_pool=False):
 
 
 def dispose_orm():
-    """ Properly close pooled database connections """
+    """Properly close pooled database connections"""
     log.debug("Disposing DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
@@ -236,7 +236,7 @@ def dispose_orm():
 
 
 def configure_adapters():
-    """ Register Adapters and DB Converters """
+    """Register Adapters and DB Converters"""
     from pendulum import DateTime as Pendulum
     try:
         from sqlite3 import register_adapter
@@ -256,7 +256,7 @@ def configure_adapters():
 
 
 def validate_session():
-    """ Validate ORM Session """
+    """Validate ORM Session"""
     worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
@@ -300,7 +300,7 @@ def prepare_syspath():
 
 
 def import_local_settings():
-    """ Import airflow_local_settings.py files to allow overriding any configs in settings.py file """
+    """Import airflow_local_settings.py files to allow overriding any configs in settings.py file"""
     try:  # pylint: disable=too-many-nested-blocks
         import airflow_local_settings
 
@@ -318,7 +318,7 @@ def import_local_settings():
 
 
 def initialize():
-    """ Initialize Airflow with all the settings from this file """
+    """Initialize Airflow with all the settings from this file"""
     configure_vars()
     prepare_syspath()
     import_local_settings()

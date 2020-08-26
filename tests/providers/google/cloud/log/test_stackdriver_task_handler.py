@@ -36,17 +36,13 @@ def _create_list_response(messages, token):
 
 
 class TestStackdriverLoggingHandlerStandalone(unittest.TestCase):
-
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client')
     def test_should_pass_message_to_client(self, mock_client, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
 
         transport_type = mock.MagicMock()
-        stackdriver_task_handler = StackdriverTaskHandler(
-            transport=transport_type,
-            labels={"key": 'value'}
-        )
+        stackdriver_task_handler = StackdriverTaskHandler(transport=transport_type, labels={"key": 'value'})
         logger = logging.getLogger("logger")
         logger.addHandler(stackdriver_task_handler)
 
@@ -57,19 +53,13 @@ class TestStackdriverLoggingHandlerStandalone(unittest.TestCase):
         transport_type.return_value.send.assert_called_once_with(
             mock.ANY, 'test-message', labels={"key": 'value'}, resource=Resource(type='global', labels={})
         )
-        mock_client.assert_called_once_with(
-            credentials='creds',
-            client_info=mock.ANY,
-            project="project_id"
-        )
+        mock_client.assert_called_once_with(credentials='creds', client_info=mock.ANY, project="project_id")
 
 
 class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     def setUp(self) -> None:
         self.transport_mock = mock.MagicMock()
-        self.stackdriver_task_handler = StackdriverTaskHandler(
-            transport=self.transport_mock
-        )
+        self.stackdriver_task_handler = StackdriverTaskHandler(transport=self.transport_mock)
         self.logger = logging.getLogger("logger")
 
         date = datetime(2016, 1, 1)
@@ -95,7 +85,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             'task_id': 'task_for_testing_file_log_handler',
             'dag_id': 'dag_for_testing_file_task_handler',
             'execution_date': '2016-01-01T00:00:00+00:00',
-            'try_number': '1'
+            'try_number': '1',
         }
         resource = Resource(type='global', labels={})
         self.transport_mock.return_value.send.assert_called_once_with(
@@ -107,8 +97,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     def test_should_append_labels(self, mock_client, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
         self.stackdriver_task_handler = StackdriverTaskHandler(
-            transport=self.transport_mock,
-            labels={"product.googleapis.com/task_id": "test-value"}
+            transport=self.transport_mock, labels={"product.googleapis.com/task_id": "test-value"}
         )
         self.stackdriver_task_handler.set_context(self.ti)
         self.logger.addHandler(self.stackdriver_task_handler)
@@ -121,7 +110,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             'dag_id': 'dag_for_testing_file_task_handler',
             'execution_date': '2016-01-01T00:00:00+00:00',
             'try_number': '1',
-            'product.googleapis.com/task_id': 'test-value'
+            'product.googleapis.com/task_id': 'test-value',
         }
         resource = Resource(type='global', labels={})
         self.transport_mock.return_value.send.assert_called_once_with(
@@ -131,7 +120,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch(
         'airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client',
-        **{'return_value.project': 'asf-project'}  # type: ignore
+        **{'return_value.project': 'asf-project'},  # type: ignore
     )
     def test_should_read_logs_for_all_try(self, mock_client, mock_get_creds_and_project_id):
         mock_client.return_value.list_entries.return_value = _create_list_response(["MSG1", "MSG2"], None)
@@ -140,11 +129,11 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         logs, metadata = self.stackdriver_task_handler.read(self.ti)
         mock_client.return_value.list_entries.assert_called_once_with(
             filter_='resource.type="global"\n'
-                    'logName="projects/asf-project/logs/airflow"\n'
-                    'labels.task_id="task_for_testing_file_log_handler"\n'
-                    'labels.dag_id="dag_for_testing_file_task_handler"\n'
-                    'labels.execution_date="2016-01-01T00:00:00+00:00"',
-            page_token=None
+            'logName="projects/asf-project/logs/airflow"\n'
+            'labels.task_id="task_for_testing_file_log_handler"\n'
+            'labels.dag_id="dag_for_testing_file_task_handler"\n'
+            'labels.execution_date="2016-01-01T00:00:00+00:00"',
+            page_token=None,
         )
         self.assertEqual(['MSG1\nMSG2'], logs)
         self.assertEqual([{'end_of_log': True}], metadata)
@@ -152,7 +141,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch(
         'airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client',
-        **{'return_value.project': 'asf-project'}  # type: ignore
+        **{'return_value.project': 'asf-project'},  # type: ignore
     )
     def test_should_read_logs_for_task_with_quote(self, mock_client, mock_get_creds_and_project_id):
         mock_client.return_value.list_entries.return_value = _create_list_response(["MSG1", "MSG2"], None)
@@ -161,11 +150,11 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         logs, metadata = self.stackdriver_task_handler.read(self.ti)
         mock_client.return_value.list_entries.assert_called_once_with(
             filter_='resource.type="global"\n'
-                    'logName="projects/asf-project/logs/airflow"\n'
-                    'labels.task_id="K\\"OT"\n'
-                    'labels.dag_id="dag_for_testing_file_task_handler"\n'
-                    'labels.execution_date="2016-01-01T00:00:00+00:00"',
-            page_token=None
+            'logName="projects/asf-project/logs/airflow"\n'
+            'labels.task_id="K\\"OT"\n'
+            'labels.dag_id="dag_for_testing_file_task_handler"\n'
+            'labels.execution_date="2016-01-01T00:00:00+00:00"',
+            page_token=None,
         )
         self.assertEqual(['MSG1\nMSG2'], logs)
         self.assertEqual([{'end_of_log': True}], metadata)
@@ -173,7 +162,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch(
         'airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client',
-        **{'return_value.project': 'asf-project'}  # type: ignore
+        **{'return_value.project': 'asf-project'},  # type: ignore
     )
     def test_should_read_logs_for_single_try(self, mock_client, mock_get_creds_and_project_id):
         mock_client.return_value.list_entries.return_value = _create_list_response(["MSG1", "MSG2"], None)
@@ -182,12 +171,12 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         logs, metadata = self.stackdriver_task_handler.read(self.ti, 3)
         mock_client.return_value.list_entries.assert_called_once_with(
             filter_='resource.type="global"\n'
-                    'logName="projects/asf-project/logs/airflow"\n'
-                    'labels.task_id="task_for_testing_file_log_handler"\n'
-                    'labels.dag_id="dag_for_testing_file_task_handler"\n'
-                    'labels.execution_date="2016-01-01T00:00:00+00:00"\n'
-                    'labels.try_number="3"',
-            page_token=None
+            'logName="projects/asf-project/logs/airflow"\n'
+            'labels.task_id="task_for_testing_file_log_handler"\n'
+            'labels.dag_id="dag_for_testing_file_task_handler"\n'
+            'labels.execution_date="2016-01-01T00:00:00+00:00"\n'
+            'labels.try_number="3"',
+            page_token=None,
         )
         self.assertEqual(['MSG1\nMSG2'], logs)
         self.assertEqual([{'end_of_log': True}], metadata)
@@ -201,17 +190,13 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         ]
         mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
         logs, metadata1 = self.stackdriver_task_handler.read(self.ti, 3)
-        mock_client.return_value.list_entries.assert_called_once_with(
-            filter_=mock.ANY, page_token=None
-        )
+        mock_client.return_value.list_entries.assert_called_once_with(filter_=mock.ANY, page_token=None)
         self.assertEqual(['MSG1\nMSG2'], logs)
         self.assertEqual([{'end_of_log': False, 'next_page_token': 'TOKEN1'}], metadata1)
 
         mock_client.return_value.list_entries.return_value.next_page_token = None
         logs, metadata2 = self.stackdriver_task_handler.read(self.ti, 3, metadata1[0])
-        mock_client.return_value.list_entries.assert_called_with(
-            filter_=mock.ANY, page_token="TOKEN1"
-        )
+        mock_client.return_value.list_entries.assert_called_with(filter_=mock.ANY, page_token="TOKEN1")
         self.assertEqual(['MSG3\nMSG4'], logs)
         self.assertEqual([{'end_of_log': True}], metadata2)
 
@@ -232,7 +217,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch(
         'airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client',
-        **{'return_value.project': 'asf-project'}  # type: ignore
+        **{'return_value.project': 'asf-project'},  # type: ignore
     )
     def test_should_read_logs_with_custom_resources(self, mock_client, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
@@ -245,8 +230,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             },
         )
         self.stackdriver_task_handler = StackdriverTaskHandler(
-            transport=self.transport_mock,
-            resource=resource
+            transport=self.transport_mock, resource=resource
         )
 
         entry = mock.MagicMock(payload={"message": "TEXT"})
@@ -257,14 +241,14 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         logs, metadata = self.stackdriver_task_handler.read(self.ti)
         mock_client.return_value.list_entries.assert_called_once_with(
             filter_='resource.type="cloud_composer_environment"\n'
-                    'logName="projects/asf-project/logs/airflow"\n'
-                    'resource.labels."environment.name"="test-instancce"\n'
-                    'resource.labels.location="europpe-west-3"\n'
-                    'resource.labels.project_id="asf-project"\n'
-                    'labels.task_id="task_for_testing_file_log_handler"\n'
-                    'labels.dag_id="dag_for_testing_file_task_handler"\n'
-                    'labels.execution_date="2016-01-01T00:00:00+00:00"',
-            page_token=None
+            'logName="projects/asf-project/logs/airflow"\n'
+            'resource.labels."environment.name"="test-instancce"\n'
+            'resource.labels.location="europpe-west-3"\n'
+            'resource.labels.project_id="asf-project"\n'
+            'labels.task_id="task_for_testing_file_log_handler"\n'
+            'labels.dag_id="dag_for_testing_file_task_handler"\n'
+            'labels.execution_date="2016-01-01T00:00:00+00:00"',
+            page_token=None,
         )
         self.assertEqual(['TEXT\nTEXT'], logs)
         self.assertEqual([{'end_of_log': True}], metadata)
@@ -274,9 +258,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     def test_should_use_credentials(self, mock_client, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
 
-        stackdriver_task_handler = StackdriverTaskHandler(
-            gcp_key_path="KEY_PATH",
-        )
+        stackdriver_task_handler = StackdriverTaskHandler(gcp_key_path="KEY_PATH",)
 
         client = stackdriver_task_handler._client
 
@@ -286,15 +268,11 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             scopes=frozenset(
                 {
                     'https://www.googleapis.com/auth/logging.write',
-                    'https://www.googleapis.com/auth/logging.read'
+                    'https://www.googleapis.com/auth/logging.read',
                 }
-            )
+            ),
         )
-        mock_client.assert_called_once_with(
-            credentials='creds',
-            client_info=mock.ANY,
-            project="project_id"
-        )
+        mock_client.assert_called_once_with(credentials='creds', client_info=mock.ANY, project="project_id")
         self.assertEqual(mock_client.return_value, client)
 
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
@@ -303,9 +281,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
         mock_client.return_value.project = 'project_id'
 
-        stackdriver_task_handler = StackdriverTaskHandler(
-            gcp_key_path="KEY_PATH",
-        )
+        stackdriver_task_handler = StackdriverTaskHandler(gcp_key_path="KEY_PATH",)
 
         url = stackdriver_task_handler.get_external_log_url(self.ti, self.ti.try_number)
 
@@ -318,10 +294,12 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         self.assertIn('global', parsed_qs['resource'])
 
         filter_params = parsed_qs['advancedFilter'][0].split('\n')
-        expected_filter = ['resource.type="global"',
-                           'logName="projects/project_id/logs/airflow"',
-                           f'labels.task_id="{self.ti.task_id}"',
-                           f'labels.dag_id="{self.dag.dag_id}"',
-                           f'labels.execution_date="{self.ti.execution_date.isoformat()}"',
-                           f'labels.try_number="{self.ti.try_number}"']
+        expected_filter = [
+            'resource.type="global"',
+            'logName="projects/project_id/logs/airflow"',
+            f'labels.task_id="{self.ti.task_id}"',
+            f'labels.dag_id="{self.dag.dag_id}"',
+            f'labels.execution_date="{self.ti.execution_date.isoformat()}"',
+            f'labels.try_number="{self.ti.try_number}"',
+        ]
         self.assertCountEqual(expected_filter, filter_params)

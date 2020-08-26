@@ -40,20 +40,18 @@ def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
         try:
             response = request.execute()
             if is_error_func(response):
-                raise ValueError(
-                    'The response contained an error: {}'.format(response)
-                )
+                raise ValueError('The response contained an error: {}'.format(response))
             if is_done_func(response):
                 log.info('Operation is done: %s', response)
                 return response
 
-            time.sleep((2**i) + (random.randint(0, 1000) / 1000))
+            time.sleep((2 ** i) + (random.randint(0, 1000) / 1000))
         except HttpError as e:
             if e.resp.status != 429:
                 log.info('Something went wrong. Not retrying: %s', format(e))
                 raise
             else:
-                time.sleep((2**i) + (random.randint(0, 1000) / 1000))
+                time.sleep((2 ** i) + (random.randint(0, 1000) / 1000))
 
     raise ValueError('Connection could not be established after {} retries.'.format(max_n))
 
@@ -65,6 +63,7 @@ class MLEngineHook(GoogleBaseHook):
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """
+
     def get_conn(self):
         """
         Retrieves the connection to MLEngine.
@@ -75,12 +74,7 @@ class MLEngineHook(GoogleBaseHook):
         return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_job(
-        self,
-        job: Dict,
-        project_id: str,
-        use_existing_job_fn: Optional[Callable] = None
-    ) -> Dict:
+    def create_job(self, job: Dict, project_id: str, use_existing_job_fn: Optional[Callable] = None) -> Dict:
         """
         Launches a MLEngine job and wait for it to reach a terminal state.
 
@@ -116,9 +110,8 @@ class MLEngineHook(GoogleBaseHook):
 
         self._append_label(job)
         self.log.info("Creating job.")
-        request = hook.projects().jobs().create(  # pylint: disable=no-member
-            parent='projects/{}'.format(project_id),
-            body=job)
+        # pylint: disable=no-member
+        request = hook.projects().jobs().create(parent='projects/{}'.format(project_id), body=job)
         job_id = job['jobId']
 
         try:
@@ -130,15 +123,12 @@ class MLEngineHook(GoogleBaseHook):
                     existing_job = self._get_job(project_id, job_id)
                     if not use_existing_job_fn(existing_job):
                         self.log.error(
-                            'Job with job_id %s already exist, but it does '
-                            'not match our expectation: %s',
-                            job_id, existing_job
+                            'Job with job_id %s already exist, but it does ' 'not match our expectation: %s',
+                            job_id,
+                            existing_job,
                         )
                         raise
-                self.log.info(
-                    'Job with job_id %s already exist. Will waiting for it to finish',
-                    job_id
-                )
+                self.log.info('Job with job_id %s already exist. Will waiting for it to finish', job_id)
             else:
                 self.log.error('Failed to create MLEngine job: %s', e)
                 raise
@@ -146,11 +136,7 @@ class MLEngineHook(GoogleBaseHook):
         return self._wait_for_job_done(project_id, job_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def cancel_job(
-        self,
-        job_id: str,
-        project_id: str,
-    ) -> Dict:
+    def cancel_job(self, job_id: str, project_id: str,) -> Dict:
         """
         Cancels a MLEngine job.
 
@@ -166,9 +152,8 @@ class MLEngineHook(GoogleBaseHook):
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
-
-        request = hook.projects().jobs().cancel(  # pylint: disable=no-member
-            name=f'projects/{project_id}/jobs/{job_id}')
+        # pylint: disable=no-member
+        request = hook.projects().jobs().cancel(name=f'projects/{project_id}/jobs/{job_id}')
 
         try:
             return request.execute()
@@ -177,9 +162,7 @@ class MLEngineHook(GoogleBaseHook):
                 self.log.error('Job with job_id %s does not exist. ', job_id)
                 raise
             elif e.resp.status == 400:
-                self.log.info(
-                    'Job with job_id %s is already complete, cancellation aborted.',
-                    job_id)
+                self.log.info('Job with job_id %s is already complete, cancellation aborted.', job_id)
                 return {}
             else:
                 self.log.error('Failed to cancel MLEngine job: %s', e)
@@ -239,12 +222,7 @@ class MLEngineHook(GoogleBaseHook):
             time.sleep(interval)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_version(
-        self,
-        model_name: str,
-        version_spec: Dict,
-        project_id: str,
-    ) -> Dict:
+    def create_version(self, model_name: str, version_spec: Dict, project_id: str,) -> Dict:
         """
         Creates the Version on Google Cloud ML Engine.
 
@@ -266,25 +244,20 @@ class MLEngineHook(GoogleBaseHook):
 
         self._append_label(version_spec)
 
-        create_request = hook.projects().models().versions().create(  # pylint: disable=no-member
-            parent=parent_name, body=version_spec)
+        # pylint: disable=no-member
+        create_request = hook.projects().models().versions().create(parent=parent_name, body=version_spec)
         response = create_request.execute()
-        get_request = hook.projects().operations().get(  # pylint: disable=no-member
-            name=response['name'])
+        get_request = hook.projects().operations().get(name=response['name'])  # pylint: disable=no-member
 
         return _poll_with_exponential_delay(
             request=get_request,
             max_n=9,
             is_done_func=lambda resp: resp.get('done', False),
-            is_error_func=lambda resp: resp.get('error', None) is not None)
+            is_error_func=lambda resp: resp.get('error', None) is not None,
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def set_default_version(
-        self,
-        model_name: str,
-        version_name: str,
-        project_id: str,
-    ) -> Dict:
+    def set_default_version(self, model_name: str, version_name: str, project_id: str,) -> Dict:
         """
         Sets a version to be the default. Blocks until finished.
 
@@ -302,10 +275,9 @@ class MLEngineHook(GoogleBaseHook):
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
-        full_version_name = 'projects/{}/models/{}/versions/{}'.format(
-            project_id, model_name, version_name)
-        request = hook.projects().models().versions().setDefault(  # pylint: disable=no-member
-            name=full_version_name, body={})
+        full_version_name = 'projects/{}/models/{}/versions/{}'.format(project_id, model_name, version_name)
+        # pylint: disable=no-member
+        request = hook.projects().models().versions().setDefault(name=full_version_name, body={})
 
         try:
             response = request.execute()
@@ -316,11 +288,7 @@ class MLEngineHook(GoogleBaseHook):
             raise
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def list_versions(
-        self,
-        model_name: str,
-        project_id: str,
-    ) -> List[Dict]:
+    def list_versions(self, model_name: str, project_id: str,) -> List[Dict]:
         """
         Lists all available versions of a model. Blocks until finished.
 
@@ -336,28 +304,25 @@ class MLEngineHook(GoogleBaseHook):
         """
         hook = self.get_conn()
         result = []  # type: List[Dict]
-        full_parent_name = 'projects/{}/models/{}'.format(
-            project_id, model_name)
-        request = hook.projects().models().versions().list(  # pylint: disable=no-member
-            parent=full_parent_name, pageSize=100)
+        full_parent_name = 'projects/{}/models/{}'.format(project_id, model_name)
+        # pylint: disable=no-member
+        request = hook.projects().models().versions().list(parent=full_parent_name, pageSize=100)
 
         while request is not None:
             response = request.execute()
             result.extend(response.get('versions', []))
-
-            request = hook.projects().models().versions().list_next(  # pylint: disable=no-member
-                previous_request=request,
-                previous_response=response)
+            # pylint: disable=no-member
+            request = (
+                hook.projects()
+                .models()
+                .versions()
+                .list_next(previous_request=request, previous_response=response)
+            )
             time.sleep(5)
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_version(
-        self,
-        model_name: str,
-        version_name: str,
-        project_id: str,
-    ) -> Dict:
+    def delete_version(self, model_name: str, version_name: str, project_id: str,) -> Dict:
         """
         Deletes the given version of a model. Blocks until finished.
 
@@ -372,26 +337,22 @@ class MLEngineHook(GoogleBaseHook):
         :rtype: Dict
         """
         hook = self.get_conn()
-        full_name = 'projects/{}/models/{}/versions/{}'.format(
-            project_id, model_name, version_name)
-        delete_request = hook.projects().models().versions().delete(  # pylint: disable=no-member
-            name=full_name)
+        full_name = 'projects/{}/models/{}/versions/{}'.format(project_id, model_name, version_name)
+        delete_request = (
+            hook.projects().models().versions().delete(name=full_name)  # pylint: disable=no-member
+        )
         response = delete_request.execute()
-        get_request = hook.projects().operations().get(  # pylint: disable=no-member
-            name=response['name'])
+        get_request = hook.projects().operations().get(name=response['name'])  # pylint: disable=no-member
 
         return _poll_with_exponential_delay(
             request=get_request,
             max_n=9,
             is_done_func=lambda resp: resp.get('done', False),
-            is_error_func=lambda resp: resp.get('error', None) is not None)
+            is_error_func=lambda resp: resp.get('error', None) is not None,
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_model(
-        self,
-        model: Dict,
-        project_id: str,
-    ) -> Dict:
+    def create_model(self, model: Dict, project_id: str,) -> Dict:
         """
         Create a Model. Blocks until finished.
 
@@ -407,14 +368,12 @@ class MLEngineHook(GoogleBaseHook):
         """
         hook = self.get_conn()
         if 'name' not in model or not model['name']:
-            raise ValueError("Model name must be provided and "
-                             "could not be an empty string")
+            raise ValueError("Model name must be provided and " "could not be an empty string")
         project = 'projects/{}'.format(project_id)
 
         self._append_label(model)
         try:
-            request = hook.projects().models().create(  # pylint: disable=no-member
-                parent=project, body=model)
+            request = hook.projects().models().create(parent=project, body=model)  # pylint: disable=no-member
             respone = request.execute()
         except HttpError as e:
             if e.resp.status != 409:
@@ -432,23 +391,16 @@ class MLEngineHook(GoogleBaseHook):
 
             field_violation = error_detail['fieldViolations'][0]
             if (
-                field_violation["field"] != "model.name" or
-                field_violation["description"] != "A model with the same name already exists."
+                field_violation["field"] != "model.name"
+                or field_violation["description"] != "A model with the same name already exists."
             ):
                 raise e
-            respone = self.get_model(
-                model_name=model['name'],
-                project_id=project_id
-            )
+            respone = self.get_model(model_name=model['name'], project_id=project_id)
 
         return respone
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_model(
-        self,
-        model_name: str,
-        project_id: str,
-    ) -> Optional[Dict]:
+    def get_model(self, model_name: str, project_id: str,) -> Optional[Dict]:
         """
         Gets a Model. Blocks until finished.
 
@@ -464,10 +416,8 @@ class MLEngineHook(GoogleBaseHook):
         """
         hook = self.get_conn()
         if not model_name:
-            raise ValueError("Model name must be provided and "
-                             "it could not be an empty string")
-        full_model_name = 'projects/{}/models/{}'.format(
-            project_id, model_name)
+            raise ValueError("Model name must be provided and " "it could not be an empty string")
+        full_model_name = 'projects/{}/models/{}'.format(project_id, model_name)
         request = hook.projects().models().get(name=full_model_name)  # pylint: disable=no-member
         try:
             return request.execute()
@@ -478,12 +428,7 @@ class MLEngineHook(GoogleBaseHook):
             raise
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_model(
-        self,
-        model_name: str,
-        project_id: str,
-        delete_contents: bool = False,
-    ) -> None:
+    def delete_model(self, model_name: str, project_id: str, delete_contents: bool = False,) -> None:
         """
         Delete a Model. Blocks until finished.
 

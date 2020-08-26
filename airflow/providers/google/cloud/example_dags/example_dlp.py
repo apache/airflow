@@ -30,7 +30,8 @@ from google.cloud.dlp_v2.types import ContentItem, InspectConfig, InspectTemplat
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dlp import (
-    CloudDLPCreateInspectTemplateOperator, CloudDLPDeleteInspectTemplateOperator,
+    CloudDLPCreateInspectTemplateOperator,
+    CloudDLPDeleteInspectTemplateOperator,
     CloudDLPInspectContentOperator,
 )
 from airflow.utils.dates import days_ago
@@ -43,9 +44,7 @@ ITEM = ContentItem(
         "rows": [{"values": [{"string_value": "My phone number is (206) 555-0123"}]}],
     }
 )
-INSPECT_CONFIG = InspectConfig(
-    info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}]
-)
+INSPECT_CONFIG = InspectConfig(info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}])
 INSPECT_TEMPLATE = InspectTemplate(inspect_config=INSPECT_CONFIG)
 
 
@@ -73,10 +72,7 @@ with models.DAG(
     )
 
     delete_template = CloudDLPDeleteInspectTemplateOperator(
-        task_id="delete_template",
-        template_id=TEMPLATE_ID,
-        project_id=GCP_PROJECT,
-        dag=dag,
+        task_id="delete_template", template_id=TEMPLATE_ID, project_id=GCP_PROJECT, dag=dag,
     )
 
     create_template >> inspect_content >> delete_template

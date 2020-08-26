@@ -34,11 +34,9 @@ class TestSqoopHook(unittest.TestCase):
         'conn_id': 'sqoop_test',
         'num_mappers': 22,
         'verbose': True,
-        'properties': {
-            'mapred.map.max.attempts': '1'
-        },
+        'properties': {'mapred.map.max.attempts': '1'},
         'hcatalog_database': 'hive_database',
-        'hcatalog_table': 'hive_table'
+        'hcatalog_table': 'hive_table',
     }
     _config_export = {
         'table': 'domino.export_data_to',
@@ -54,11 +52,9 @@ class TestSqoopHook(unittest.TestCase):
         'input_optionally_enclosed_by': '"',
         'batch': True,
         'relaxed_isolation': True,
-        'extra_export_options': collections.OrderedDict([
-            ('update-key', 'id'),
-            ('update-mode', 'allowinsert'),
-            ('fetch-size', 1)
-        ])
+        'extra_export_options': collections.OrderedDict(
+            [('update-key', 'id'), ('update-mode', 'allowinsert'), ('fetch-size', 1)]
+        ),
     }
     _config_import = {
         'target_dir': '/hdfs/data/target/location',
@@ -70,8 +66,8 @@ class TestSqoopHook(unittest.TestCase):
         'extra_import_options': {
             'hcatalog-storage-stanza': "\"stored as orcfile\"",
             'show': '',
-            'fetch-size': 1
-        }
+            'fetch-size': 1,
+        },
     }
 
     _config_json = {
@@ -79,14 +75,18 @@ class TestSqoopHook(unittest.TestCase):
         'job_tracker': 'http://0.0.0.0:50030/',
         'libjars': '/path/to/jars',
         'files': '/path/to/files',
-        'archives': '/path/to/archives'
+        'archives': '/path/to/archives',
     }
 
     def setUp(self):
         db.merge_conn(
             Connection(
-                conn_id='sqoop_test', conn_type='sqoop', schema='schema',
-                host='rmdbs', port=5050, extra=json.dumps(self._config_json)
+                conn_id='sqoop_test',
+                conn_type='sqoop',
+                schema='schema',
+                host='rmdbs',
+                port=5050,
+                extra=json.dumps(self._config_json),
             )
         )
 
@@ -96,39 +96,68 @@ class TestSqoopHook(unittest.TestCase):
         mock_popen.return_value.stdout = StringIO('stdout')
         mock_popen.return_value.stderr = StringIO('stderr')
         mock_popen.return_value.returncode = 0
-        mock_popen.return_value.communicate.return_value = \
-            [StringIO('stdout\nstdout'), StringIO('stderr\nstderr')]
+        mock_popen.return_value.communicate.return_value = [
+            StringIO('stdout\nstdout'),
+            StringIO('stderr\nstderr'),
+        ]
 
         # When
         hook = SqoopHook(conn_id='sqoop_test')
         hook.export_table(**self._config_export)
 
         # Then
-        self.assertEqual(mock_popen.mock_calls[0], call(
-            ['sqoop',
-             'export',
-             '-fs', self._config_json['namenode'],
-             '-jt', self._config_json['job_tracker'],
-             '-libjars', self._config_json['libjars'],
-             '-files', self._config_json['files'],
-             '-archives', self._config_json['archives'],
-             '--connect', 'rmdbs:5050/schema',
-             '--input-null-string', self._config_export['input_null_string'],
-             '--input-null-non-string', self._config_export['input_null_non_string'],
-             '--staging-table', self._config_export['staging_table'],
-             '--clear-staging-table',
-             '--enclosed-by', self._config_export['enclosed_by'],
-             '--escaped-by', self._config_export['escaped_by'],
-             '--input-fields-terminated-by', self._config_export['input_fields_terminated_by'],
-             '--input-lines-terminated-by', self._config_export['input_lines_terminated_by'],
-             '--input-optionally-enclosed-by', self._config_export['input_optionally_enclosed_by'],
-             '--batch',
-             '--relaxed-isolation',
-             '--export-dir', self._config_export['export_dir'],
-             '--update-key', 'id',
-             '--update-mode', 'allowinsert',
-             '--fetch-size', str(self._config_export['extra_export_options'].get('fetch-size')),
-             '--table', self._config_export['table']], stderr=-2, stdout=-1))
+        self.assertEqual(
+            mock_popen.mock_calls[0],
+            call(
+                [
+                    'sqoop',
+                    'export',
+                    '-fs',
+                    self._config_json['namenode'],
+                    '-jt',
+                    self._config_json['job_tracker'],
+                    '-libjars',
+                    self._config_json['libjars'],
+                    '-files',
+                    self._config_json['files'],
+                    '-archives',
+                    self._config_json['archives'],
+                    '--connect',
+                    'rmdbs:5050/schema',
+                    '--input-null-string',
+                    self._config_export['input_null_string'],
+                    '--input-null-non-string',
+                    self._config_export['input_null_non_string'],
+                    '--staging-table',
+                    self._config_export['staging_table'],
+                    '--clear-staging-table',
+                    '--enclosed-by',
+                    self._config_export['enclosed_by'],
+                    '--escaped-by',
+                    self._config_export['escaped_by'],
+                    '--input-fields-terminated-by',
+                    self._config_export['input_fields_terminated_by'],
+                    '--input-lines-terminated-by',
+                    self._config_export['input_lines_terminated_by'],
+                    '--input-optionally-enclosed-by',
+                    self._config_export['input_optionally_enclosed_by'],
+                    '--batch',
+                    '--relaxed-isolation',
+                    '--export-dir',
+                    self._config_export['export_dir'],
+                    '--update-key',
+                    'id',
+                    '--update-mode',
+                    'allowinsert',
+                    '--fetch-size',
+                    str(self._config_export['extra_export_options'].get('fetch-size')),
+                    '--table',
+                    self._config_export['table'],
+                ],
+                stderr=-2,
+                stdout=-1,
+            ),
+        )
 
     def test_submit_none_mappers(self):
         """
@@ -201,40 +230,35 @@ class TestSqoopHook(unittest.TestCase):
                 self._config_export['table'],
                 self._config_export['export_dir'],
                 input_null_string=self._config_export['input_null_string'],
-                input_null_non_string=self._config_export[
-                    'input_null_non_string'],
+                input_null_non_string=self._config_export['input_null_non_string'],
                 staging_table=self._config_export['staging_table'],
                 clear_staging_table=self._config_export['clear_staging_table'],
                 enclosed_by=self._config_export['enclosed_by'],
                 escaped_by=self._config_export['escaped_by'],
-                input_fields_terminated_by=self._config_export[
-                    'input_fields_terminated_by'],
-                input_lines_terminated_by=self._config_export[
-                    'input_lines_terminated_by'],
-                input_optionally_enclosed_by=self._config_export[
-                    'input_optionally_enclosed_by'],
+                input_fields_terminated_by=self._config_export['input_fields_terminated_by'],
+                input_lines_terminated_by=self._config_export['input_lines_terminated_by'],
+                input_optionally_enclosed_by=self._config_export['input_optionally_enclosed_by'],
                 batch=self._config_export['batch'],
                 relaxed_isolation=self._config_export['relaxed_isolation'],
-                extra_export_options=self._config_export['extra_export_options']
+                extra_export_options=self._config_export['extra_export_options'],
             )
         )
 
-        self.assertIn("--input-null-string {}".format(
-            self._config_export['input_null_string']), cmd)
-        self.assertIn("--input-null-non-string {}".format(
-            self._config_export['input_null_non_string']), cmd)
-        self.assertIn("--staging-table {}".format(
-            self._config_export['staging_table']), cmd)
-        self.assertIn("--enclosed-by {}".format(
-            self._config_export['enclosed_by']), cmd)
-        self.assertIn("--escaped-by {}".format(
-            self._config_export['escaped_by']), cmd)
-        self.assertIn("--input-fields-terminated-by {}".format(
-            self._config_export['input_fields_terminated_by']), cmd)
-        self.assertIn("--input-lines-terminated-by {}".format(
-            self._config_export['input_lines_terminated_by']), cmd)
-        self.assertIn("--input-optionally-enclosed-by {}".format(
-            self._config_export['input_optionally_enclosed_by']), cmd)
+        self.assertIn("--input-null-string {}".format(self._config_export['input_null_string']), cmd)
+        self.assertIn("--input-null-non-string {}".format(self._config_export['input_null_non_string']), cmd)
+        self.assertIn("--staging-table {}".format(self._config_export['staging_table']), cmd)
+        self.assertIn("--enclosed-by {}".format(self._config_export['enclosed_by']), cmd)
+        self.assertIn("--escaped-by {}".format(self._config_export['escaped_by']), cmd)
+        self.assertIn(
+            "--input-fields-terminated-by {}".format(self._config_export['input_fields_terminated_by']), cmd
+        )
+        self.assertIn(
+            "--input-lines-terminated-by {}".format(self._config_export['input_lines_terminated_by']), cmd
+        )
+        self.assertIn(
+            "--input-optionally-enclosed-by {}".format(self._config_export['input_optionally_enclosed_by']),
+            cmd,
+        )
         # these options are from the extra export options
         self.assertIn("--update-key id", cmd)
         self.assertIn("--update-mode allowinsert", cmd)
@@ -268,7 +292,7 @@ class TestSqoopHook(unittest.TestCase):
                 split_by=self._config_import['split_by'],
                 direct=self._config_import['direct'],
                 driver=self._config_import['driver'],
-                extra_import_options=None
+                extra_import_options=None,
             )
         )
 
@@ -278,8 +302,7 @@ class TestSqoopHook(unittest.TestCase):
         if self._config_import['direct']:
             self.assertIn('--direct', cmd)
 
-        self.assertIn('--target-dir {}'.format(
-            self._config_import['target_dir']), cmd)
+        self.assertIn('--target-dir {}'.format(self._config_import['target_dir']), cmd)
 
         self.assertIn('--driver {}'.format(self._config_import['driver']), cmd)
         self.assertIn('--split-by {}'.format(self._config_import['split_by']), cmd)
@@ -295,7 +318,7 @@ class TestSqoopHook(unittest.TestCase):
                 split_by=self._config_import['split_by'],
                 direct=self._config_import['direct'],
                 driver=self._config_import['driver'],
-                extra_import_options=self._config_import['extra_import_options']
+                extra_import_options=self._config_import['extra_import_options'],
             )
         )
 
@@ -311,14 +334,10 @@ class TestSqoopHook(unittest.TestCase):
         correct Sqoop command with correct format type.
         """
         hook = SqoopHook()
-        self.assertIn("--as-avrodatafile",
-                      hook._get_export_format_argument('avro'))
-        self.assertIn("--as-parquetfile",
-                      hook._get_export_format_argument('parquet'))
-        self.assertIn("--as-sequencefile",
-                      hook._get_export_format_argument('sequence'))
-        self.assertIn("--as-textfile",
-                      hook._get_export_format_argument('text'))
+        self.assertIn("--as-avrodatafile", hook._get_export_format_argument('avro'))
+        self.assertIn("--as-parquetfile", hook._get_export_format_argument('parquet'))
+        self.assertIn("--as-sequencefile", hook._get_export_format_argument('sequence'))
+        self.assertIn("--as-textfile", hook._get_export_format_argument('text'))
         with self.assertRaises(AirflowException):
             hook._get_export_format_argument('unknown')
 
@@ -327,13 +346,7 @@ class TestSqoopHook(unittest.TestCase):
         Tests to verify the hook masking function will correctly mask a user password in Sqoop command.
         """
         hook = SqoopHook()
-        self.assertEqual(
-            hook.cmd_mask_password(['--password', 'supersecret']),
-            ['--password', 'MASKED']
-        )
+        self.assertEqual(hook.cmd_mask_password(['--password', 'supersecret']), ['--password', 'MASKED'])
 
         cmd = ['--target', 'targettable']
-        self.assertEqual(
-            hook.cmd_mask_password(cmd),
-            cmd
-        )
+        self.assertEqual(hook.cmd_mask_password(cmd), cmd)

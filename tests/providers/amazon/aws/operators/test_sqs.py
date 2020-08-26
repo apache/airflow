@@ -31,12 +31,8 @@ DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
 
 class TestSQSPublishOperator(unittest.TestCase):
-
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         self.dag = DAG('test_dag_id', default_args=args)
         self.operator = SQSPublishOperator(
@@ -44,7 +40,7 @@ class TestSQSPublishOperator(unittest.TestCase):
             dag=self.dag,
             sqs_queue='test',
             message_content='hello',
-            aws_conn_id='aws_default'
+            aws_conn_id='aws_default',
         )
 
         self.mock_context = MagicMock()

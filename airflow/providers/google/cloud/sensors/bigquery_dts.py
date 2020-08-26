@@ -56,6 +56,16 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
     :type request_timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
     """
 
@@ -64,11 +74,13 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         "transfer_config_id",
         "expected_statuses",
         "project_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         run_id: str,
         transfer_config_id: str,
         expected_statuses: Union[Set[str], str] = 'SUCCEEDED',
@@ -77,25 +89,26 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         retry: Optional[Retry] = None,
         request_timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.run_id = run_id
         self.transfer_config_id = transfer_config_id
         self.retry = retry
         self.request_timeout = request_timeout
         self.metadata = metadata
         self.expected_statuses = (
-            {expected_statuses}
-            if isinstance(expected_statuses, str)
-            else expected_statuses
+            {expected_statuses} if isinstance(expected_statuses, str) else expected_statuses
         )
         self.project_id = project_id
         self.gcp_cloud_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def poke(self, context):
-        hook = BiqQueryDataTransferServiceHook(gcp_conn_id=self.gcp_cloud_conn_id)
+        hook = BiqQueryDataTransferServiceHook(
+            gcp_conn_id=self.gcp_cloud_conn_id, impersonation_chain=self.impersonation_chain,
+        )
         run = hook.get_transfer_run(
             run_id=self.run_id,
             transfer_config_id=self.transfer_config_id,

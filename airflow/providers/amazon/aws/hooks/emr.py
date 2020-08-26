@@ -47,9 +47,7 @@ class EmrHook(AwsBaseHook):
         :return: id of the EMR cluster
         """
 
-        response = self.get_conn().list_clusters(
-            ClusterStates=cluster_states
-        )
+        response = self.get_conn().list_clusters(ClusterStates=cluster_states)
 
         matching_clusters = list(
             filter(lambda cluster: cluster['Name'] == emr_cluster_name, response['Clusters'])

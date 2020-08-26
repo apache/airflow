@@ -27,17 +27,13 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.utils import timezone
 
 
-# noinspection PyUnusedLocal
 class TestKubernetesPodOperator(unittest.TestCase):
-
-    # noinspection DuplicatedCode
     @staticmethod
     def create_context(task):
         dag = DAG(dag_id="dag")
         tzinfo = pendulum.timezone("Europe/Amsterdam")
         execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
-        task_instance = TaskInstance(task=task,
-                                     execution_date=execution_date)
+        task_instance = TaskInstance(task=task, execution_date=execution_date)
         return {
             "dag": dag,
             "ts": execution_date.isoformat(),
@@ -70,9 +66,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
         context = self.create_context(k)
         k.execute(context=context)
         client_mock.assert_called_once_with(
-            in_cluster=False,
-            cluster_context='default',
-            config_file=file_path,
+            in_cluster=False, cluster_context='default', config_file=file_path,
         )
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
@@ -100,7 +94,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
         k.execute(context=context)
         self.assertEqual(
             start_mock.call_args[0][0].spec.image_pull_secrets,
-            [k8s.V1LocalObjectReference(name=fake_pull_secrets)]
+            [k8s.V1LocalObjectReference(name=fake_pull_secrets)],
         )
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
@@ -108,11 +102,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.delete_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_pod_delete_even_on_launcher_error(
-            self,
-            mock_client,
-            delete_pod_mock,
-            monitor_pod_mock,
-            start_pod_mock):
+        self, mock_client, delete_pod_mock, monitor_pod_mock, start_pod_mock
+    ):
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
@@ -131,3 +122,16 @@ class TestKubernetesPodOperator(unittest.TestCase):
             context = self.create_context(k)
             k.execute(context=context)
         assert delete_pod_mock.called
+
+    def test_jinja_templated_fields(self):
+        task = KubernetesPodOperator(
+            namespace='default',
+            image="{{ image_jinja }}:16.04",
+            cmds=["bash", "-cx"],
+            name="test_pod",
+            task_id="task",
+        )
+
+        self.assertEqual(task.image, "{{ image_jinja }}:16.04")
+        task.render_template_fields(context={"image_jinja": "ubuntu"})
+        self.assertEqual(task.image, "ubuntu:16.04")

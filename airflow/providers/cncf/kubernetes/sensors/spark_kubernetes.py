@@ -50,29 +50,25 @@ class SparkKubernetesSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         application_name: str,
+        attach_log: Optional[bool] = False,
         namespace: Optional[str] = None,
         kubernetes_conn_id: str = "kubernetes_default",
-        attach_log: Optional[bool] = False,
-        *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.application_name = application_name
+        self.attach_log = attach_log
         self.namespace = namespace
         self.kubernetes_conn_id = kubernetes_conn_id
         self.hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
-        self.attach_log = attach_log
 
     def _log_driver(self, application_state: str):
         if not self.attach_log:
             return
         driver_pod_name = f"{self.application_name}-driver"
-        log_method = (
-            self.log.error
-            if application_state in self.FAILURE_STATES
-            else self.log.info
-        )
+        log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
         try:
             log = ""
             for line in self.hook.get_pod_logs(driver_pod_name):
@@ -100,15 +96,10 @@ class SparkKubernetesSensor(BaseSensorOperator):
             application_state = response["status"]["applicationState"]["state"]
         except KeyError:
             return False
-        if (
-            self.attach_log
-            and application_state in self.FAILURE_STATES + self.SUCCESS_STATES
-        ):
+        if self.attach_log and application_state in self.FAILURE_STATES + self.SUCCESS_STATES:
             self._log_driver(application_state)
         if application_state in self.FAILURE_STATES:
-            raise AirflowException(
-                "Spark application failed with state: %s" % application_state
-            )
+            raise AirflowException("Spark application failed with state: %s" % application_state)
         elif application_state in self.SUCCESS_STATES:
             self.log.info("Spark application ended successfully")
             return True

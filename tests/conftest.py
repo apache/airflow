@@ -33,12 +33,7 @@ os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = (os.environ.get("AWS_DEFAULT_REGION") or "us-east-1")
 os.environ["CREDENTIALS_DIR"] = (os.environ.get('CREDENTIALS_DIR') or "/files/airflow-breeze-config/keys")
 
-perf_directory = os.path.abspath(os.path.join(tests_directory, os.pardir, 'scripts', 'perf'))
-if perf_directory not in sys.path:
-    sys.path.append(perf_directory)
-
-
-from perf_kit.sqlalchemy import (  # noqa: E402 isort:skip # pylint: disable=wrong-import-position
+from tests.utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip # pylint: disable=wrong-import-position
     count_queries, trace_queries
 )
 

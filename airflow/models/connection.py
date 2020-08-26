@@ -50,6 +50,7 @@ CONN_TYPE_TO_HOOK = {
     ),
     "cassandra": ("airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook", "cassandra_conn_id"),
     "cloudant": ("airflow.providers.cloudant.hooks.cloudant.CloudantHook", "cloudant_conn_id"),
+    "dataprep": ("airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook", "dataprep_conn_id"),
     "docker": ("airflow.providers.docker.hooks.docker.DockerHook", "docker_conn_id"),
     "elasticsearch": (
         "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
@@ -146,7 +147,7 @@ class Connection(Base, LoggingMixin):
     __tablename__ = "connection"
 
     id = Column(Integer(), primary_key=True)
-    conn_id = Column(String(ID_LEN))
+    conn_id = Column(String(ID_LEN), unique=True, nullable=False)
     conn_type = Column(String(500), nullable=False)
     host = Column(String(500))
     schema = Column(String(500))
@@ -307,7 +308,7 @@ class Connection(Base, LoggingMixin):
                        descriptor=property(cls.get_extra, cls.set_extra))
 
     def rotate_fernet_key(self):
-        """Encrypts data with a new key. See: :ref:`security/fernet`. """
+        """Encrypts data with a new key. See: :ref:`security/fernet`"""
         fernet = get_fernet()
         if self._password and self.is_encrypted:
             self._password = fernet.rotate(self._password.encode('utf-8')).decode()

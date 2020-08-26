@@ -33,25 +33,21 @@ MOCK_DATA = {
     'task_id': 'test_azure_data_explorer_query_operator',
     'query': 'Logs | schema',
     'database': 'Database',
-    'options': {
-        'option1': 'option_value'
-    }
+    'options': {'option1': 'option_value'},
 }
 
 MOCK_RESULT = {
     'name': 'getschema',
     'kind': 'PrimaryResult',
-    'data': [{
-        'ColumnName': 'Source',
-        'ColumnOrdinal': 0,
-        'DataType': 'System.String',
-        'ColumnType': 'string'
-    }, {
-        'ColumnName': 'Timestamp',
-        'ColumnOrdinal': 1,
-        'DataType': 'System.DateTime',
-        'ColumnType': 'datetime'
-    }]
+    'data': [
+        {'ColumnName': 'Source', 'ColumnOrdinal': 0, 'DataType': 'System.String', 'ColumnType': 'string'},
+        {
+            'ColumnName': 'Timestamp',
+            'ColumnOrdinal': 1,
+            'DataType': 'System.DateTime',
+            'ColumnType': 'datetime',
+        },
+    ],
 }
 
 
@@ -61,17 +57,10 @@ class MockResponse:
 
 class TestAzureDataExplorerQueryOperator(unittest.TestCase):
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE,
-            'provide_context': True
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE, 'provide_context': True}
 
-        self.dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once',
-                       default_args=args,
-                       schedule_interval='@once')
-        self.operator = AzureDataExplorerQueryOperator(dag=self.dag,
-                                                       **MOCK_DATA)
+        self.dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args, schedule_interval='@once')
+        self.operator = AzureDataExplorerQueryOperator(dag=self.dag, **MOCK_DATA)
 
     def test_init(self):
         self.assertEqual(self.operator.task_id, MOCK_DATA['task_id'])
@@ -83,9 +72,9 @@ class TestAzureDataExplorerQueryOperator(unittest.TestCase):
     @mock.patch.object(AzureDataExplorerHook, 'get_conn')
     def test_run_query(self, mock_conn, mock_run_query):
         self.operator.execute(None)
-        mock_run_query.assert_called_once_with(MOCK_DATA['query'],
-                                               MOCK_DATA['database'],
-                                               MOCK_DATA['options'])
+        mock_run_query.assert_called_once_with(
+            MOCK_DATA['query'], MOCK_DATA['database'], MOCK_DATA['options']
+        )
 
     @mock.patch.object(AzureDataExplorerHook, 'run_query', return_value=MockResponse())
     @mock.patch.object(AzureDataExplorerHook, 'get_conn')
@@ -93,5 +82,4 @@ class TestAzureDataExplorerQueryOperator(unittest.TestCase):
         ti = TaskInstance(task=self.operator, execution_date=timezone.utcnow())
         ti.run()
 
-        self.assertEqual(ti.xcom_pull(task_ids=MOCK_DATA['task_id']),
-                         MOCK_RESULT)
+        self.assertEqual(ti.xcom_pull(task_ids=MOCK_DATA['task_id']), MOCK_RESULT)

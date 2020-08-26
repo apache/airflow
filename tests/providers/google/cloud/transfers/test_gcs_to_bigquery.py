@@ -30,41 +30,40 @@ TEST_SOURCE_OBJECTS = ['test/objects/*']
 
 
 class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
-
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
     def test_execute_explicit_project_legacy(self, bq_hook):
-        operator = GCSToBigQueryOperator(task_id=TASK_ID,
-                                         bucket=TEST_BUCKET,
-                                         source_objects=TEST_SOURCE_OBJECTS,
-                                         destination_project_dataset_table=TEST_EXPLICIT_DEST,
-                                         max_id_key=MAX_ID_KEY)
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            max_id_key=MAX_ID_KEY,
+        )
 
         # using legacy SQL
         bq_hook.return_value.get_conn.return_value.cursor.return_value.use_legacy_sql = True
 
         operator.execute(None)
 
-        bq_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
-            .execute \
-            .assert_called_once_with("SELECT MAX(id) FROM [test-project.dataset.table]")
+        bq_hook.return_value.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(
+            "SELECT MAX(id) FROM [test-project.dataset.table]"
+        )
 
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
     def test_execute_explicit_project(self, bq_hook):
-        operator = GCSToBigQueryOperator(task_id=TASK_ID,
-                                         bucket=TEST_BUCKET,
-                                         source_objects=TEST_SOURCE_OBJECTS,
-                                         destination_project_dataset_table=TEST_EXPLICIT_DEST,
-                                         max_id_key=MAX_ID_KEY)
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            max_id_key=MAX_ID_KEY,
+        )
 
         # using non-legacy SQL
         bq_hook.return_value.get_conn.return_value.cursor.return_value.use_legacy_sql = False
 
         operator.execute(None)
 
-        bq_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
-            .execute \
-            .assert_called_once_with("SELECT MAX(id) FROM `test-project.dataset.table`")
+        bq_hook.return_value.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(
+            "SELECT MAX(id) FROM `test-project.dataset.table`"
+        )

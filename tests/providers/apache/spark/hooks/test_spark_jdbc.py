@@ -40,7 +40,7 @@ class TestSparkJDBCHook(unittest.TestCase):
         'lower_bound': '10',
         'upper_bound': '20',
         'create_table_column_types': 'columnMcColumnFace INTEGER(100), name CHAR(64),'
-                                     'comments VARCHAR(1024)'
+        'comments VARCHAR(1024)',
     }
 
     # this config is invalid because if one of [partitionColumn, lowerBound, upperBound]
@@ -59,22 +59,28 @@ class TestSparkJDBCHook(unittest.TestCase):
         'partition_column': 'columnMcColumnFace',
         'upper_bound': '20',
         'create_table_column_types': 'columnMcColumnFace INTEGER(100), name CHAR(64),'
-                                     'comments VARCHAR(1024)'
+        'comments VARCHAR(1024)',
     }
 
     def setUp(self):
         db.merge_conn(
             Connection(
-                conn_id='spark-default', conn_type='spark',
+                conn_id='spark-default',
+                conn_type='spark',
                 host='yarn://yarn-master',
-                extra='{"queue": "root.etl", "deploy-mode": "cluster"}')
+                extra='{"queue": "root.etl", "deploy-mode": "cluster"}',
+            )
         )
         db.merge_conn(
             Connection(
-                conn_id='jdbc-default', conn_type='postgres',
-                host='localhost', schema='default', port=5432,
-                login='user', password='supersecret',
-                extra='{"conn_prefix":"jdbc:postgresql://"}'
+                conn_id='jdbc-default',
+                conn_type='postgres',
+                host='localhost',
+                schema='default',
+                port=5432,
+                login='user',
+                password='supersecret',
+                extra='{"conn_prefix":"jdbc:postgresql://"}',
             )
         )
 
@@ -86,7 +92,7 @@ class TestSparkJDBCHook(unittest.TestCase):
             'schema': 'default',
             'conn_prefix': 'jdbc:postgresql://',
             'user': 'user',
-            'password': 'supersecret'
+            'password': 'supersecret',
         }
 
         # When
@@ -104,23 +110,38 @@ class TestSparkJDBCHook(unittest.TestCase):
 
         # Then
         expected_jdbc_arguments = [
-            '-cmdType', 'spark_to_jdbc',
-            '-url', 'jdbc:postgresql://localhost:5432/default',
-            '-user', 'user',
-            '-password', 'supersecret',
-            '-metastoreTable', 'hiveMcHiveFace',
-            '-jdbcTable', 'tableMcTableFace',
-            '-jdbcDriver', 'org.postgresql.Driver',
-            '-batchsize', '100',
-            '-fetchsize', '200',
-            '-numPartitions', '10',
-            '-partitionColumn', 'columnMcColumnFace',
-            '-lowerBound', '10',
-            '-upperBound', '20',
-            '-saveMode', 'append',
-            '-saveFormat', 'parquet',
-            '-createTableColumnTypes', 'columnMcColumnFace INTEGER(100), name CHAR(64),'
-                                       'comments VARCHAR(1024)'
+            '-cmdType',
+            'spark_to_jdbc',
+            '-url',
+            'jdbc:postgresql://localhost:5432/default',
+            '-user',
+            'user',
+            '-password',
+            'supersecret',
+            '-metastoreTable',
+            'hiveMcHiveFace',
+            '-jdbcTable',
+            'tableMcTableFace',
+            '-jdbcDriver',
+            'org.postgresql.Driver',
+            '-batchsize',
+            '100',
+            '-fetchsize',
+            '200',
+            '-numPartitions',
+            '10',
+            '-partitionColumn',
+            'columnMcColumnFace',
+            '-lowerBound',
+            '10',
+            '-upperBound',
+            '20',
+            '-saveMode',
+            'append',
+            '-saveFormat',
+            'parquet',
+            '-createTableColumnTypes',
+            'columnMcColumnFace INTEGER(100), name CHAR(64),comments VARCHAR(1024)',
         ]
         self.assertEqual(expected_jdbc_arguments, cmd)
 

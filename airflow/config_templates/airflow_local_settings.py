@@ -18,12 +18,12 @@
 """Airflow logging settings"""
 
 import os
+from pathlib import Path
 from typing import Any, Dict, Union
 from urllib.parse import urlparse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.utils.file import mkdirs
 
 # TODO: Logging format and level should be configured
 # in this file instead of from airflow.cfg. Currently
@@ -151,7 +151,7 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
     processor_manager_handler_config: Dict[str, Any] = \
         DEFAULT_DAG_PARSING_LOGGING_CONFIG['handlers']['processor_manager']
     directory: str = os.path.dirname(processor_manager_handler_config['filename'])
-    mkdirs(directory, 0o755)
+    Path(directory).mkdir(parents=True, exist_ok=True, mode=0o755)
 
 ##################
 # Remote logging #
@@ -196,13 +196,15 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(CLOUDWATCH_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
+        key_path = conf.get('logging', 'GOOGLE_KEY_PATH', fallback=None)
         GCS_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {
-                'class': 'airflow.utils.log.gcs_task_handler.GCSTaskHandler',
+                'class': 'airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler',
                 'formatter': 'airflow',
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 'gcs_log_folder': REMOTE_BASE_LOG_FOLDER,
                 'filename_template': FILENAME_TEMPLATE,
+                'gcp_key_path': key_path
             },
         }
 
@@ -222,7 +224,7 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(WASB_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('stackdriver://'):
-        key_path = conf.get('logging', 'STACKDRIVER_KEY_PATH', fallback=None)
+        key_path = conf.get('logging', 'GOOGLE_KEY_PATH', fallback=None)
         # stackdriver:///airflow-tasks => airflow-tasks
         log_name = urlparse(REMOTE_BASE_LOG_FOLDER).path[1:]
         STACKDRIVER_REMOTE_HANDLERS = {

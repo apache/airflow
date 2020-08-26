@@ -430,6 +430,7 @@ class WorkerConfiguration(LoggingMixin):
             volumes=self._get_volumes(),
             volume_mounts=self._get_volume_mounts(),
             init_containers=self._get_init_containers(),
+            labels=self.kube_config.kube_labels,
             annotations=self.kube_config.kube_annotations,
             affinity=self.kube_config.kube_affinity,
             tolerations=self.kube_config.kube_tolerations,

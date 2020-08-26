@@ -27,7 +27,8 @@ from mock import PropertyMock
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
-    GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
+    GCP_PROJECT_ID_HOOK_UNIT_TEST,
+    mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
 )
 
@@ -70,19 +71,15 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
     def test_build_immediately_complete(self, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
-        service_mock.projects.return_value\
-            .builds.return_value\
-            .create.return_value\
-            .execute.return_value = TEST_BUILD
+        service_mock.projects.return_value.builds.return_value.create.return_value.execute.return_value = (
+            TEST_BUILD
+        )
 
-        service_mock.projects.return_value.\
-            builds.return_value.\
-            get.return_value.\
-            execute.return_value = TEST_BUILD
+        service_mock.projects.return_value.builds.return_value.get.return_value.execute.return_value = (
+            TEST_BUILD
+        )
 
-        service_mock.operations.return_value.\
-            get.return_value.\
-            execute.return_value = TEST_DONE_OPERATION
+        service_mock.operations.return_value.get.return_value.execute.return_value = TEST_DONE_OPERATION
 
         result = self.hook.create_build(body={}, project_id=TEST_PROJECT_ID)
 
@@ -117,7 +114,7 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.time.sleep")
@@ -157,7 +154,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_build_immediately_complete(self, get_conn_mock, mock_project_id):
@@ -184,7 +181,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.time.sleep")
@@ -211,7 +208,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.time.sleep")
@@ -251,7 +248,7 @@ class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_create_build(self, mock_get_conn, mock_project_id):

@@ -87,6 +87,10 @@ class AirflowDagCycleException(AirflowException):
     """Raise when there is a cycle in Dag definition"""
 
 
+class AirflowClusterPolicyViolation(AirflowException):
+    """Raise when there is a violation of a Cluster Policy in Dag definition"""
+
+
 class DagNotFound(AirflowNotFoundException):
     """Raise when a DAG is not available in the system"""
 
@@ -182,3 +186,7 @@ class AirflowFileParseException(AirflowException):
                     result += "\n" + prepare_code_snippet(self.file_path, parse_error.line_no) + "\n"
 
         return result
+
+
+class ConnectionNotUnique(AirflowException):
+    """Raise when multiple values are found for the same conn_id"""

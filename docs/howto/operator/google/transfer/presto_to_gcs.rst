@@ -129,7 +129,7 @@ Using this operator looks like this:
     :start-after: [START howto_operator_create_external_table_multiple_types]
     :end-before: [END howto_operator_create_external_table_multiple_types]
 
-For more inforamtion about the Airflow and BigQuery integration, please look at
+For more information about the Airflow and BigQuery integration, please look at
 the Python API Reference - :class:`~airflow.providers.google.cloud.operators.bigquery`.
 
 Reference
