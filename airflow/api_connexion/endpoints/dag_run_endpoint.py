@@ -31,6 +31,7 @@ from airflow.utils.types import DagRunType
 
 
 @security.requires_authentication
+@security.requires_access([("can_delete", "DagRun")])
 @provide_session
 def delete_dag_run(dag_id, dag_run_id, session):
     """
@@ -46,6 +47,7 @@ def delete_dag_run(dag_id, dag_run_id, session):
 
 
 @security.requires_authentication
+@security.requires_access([("can_read", "DagRun")])
 @provide_session
 def get_dag_run(dag_id, dag_run_id, session):
     """
@@ -59,6 +61,7 @@ def get_dag_run(dag_id, dag_run_id, session):
 
 
 @security.requires_authentication
+@security.requires_access([("can_read", "DagRun")])
 @format_parameters({
     'start_date_gte': format_datetime,
     'start_date_lte': format_datetime,
@@ -131,6 +134,7 @@ def _apply_date_filters_to_query(query, end_date_gte, end_date_lte, execution_da
 
 
 @security.requires_authentication
+@security.requires_access([("can_read", "DagRun")])
 @provide_session
 def get_dag_runs_batch(session):
     """
@@ -157,6 +161,7 @@ def get_dag_runs_batch(session):
 
 
 @security.requires_authentication
+@security.requires_access([("can_create", "DagRun")])
 @provide_session
 def post_dag_run(dag_id, session):
     """

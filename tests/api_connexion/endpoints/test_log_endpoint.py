@@ -34,7 +34,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_role, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 
@@ -52,12 +52,15 @@ class TestGetLog(unittest.TestCase):
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
         ):
             cls.app = app.create_app(testing=True)
+
         # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")
+        create_role(cls.app, name="Test", permissions=[('can_read', 'Dag'), ('can_read', 'DagRun'), ('can_read', 'Task')])
+        create_user(cls.app, username="test", role="Test")
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")
+        cls.app.appbuilder.sm.delete_role("Test")
 
     def setUp(self) -> None:
         self.default_time = "2020-06-10T20:00:00+00:00"

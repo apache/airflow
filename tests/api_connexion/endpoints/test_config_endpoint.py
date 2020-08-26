@@ -20,7 +20,7 @@ import textwrap
 from mock import patch
 
 from airflow.www import app
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_role, create_user, delete_user
 from tests.test_utils.config import conf_vars
 
 MOCK_CONF = {
@@ -46,13 +46,15 @@ class TestGetConfig:
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_role(cls.app, name="Test")
+        create_user(cls.app, username="test", role="Test")  # type: ignore
 
         cls.client = None
 
     @classmethod
     def teardown_class(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("Test")
 
     def setup_method(self) -> None:
         self.client = self.app.test_client()  # type:ignore
