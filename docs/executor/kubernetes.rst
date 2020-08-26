@@ -52,6 +52,10 @@ When a DAG submits a task, the KubernetesExecutor requests a worker pod from the
 
 In contrast to the Celery Executor, the Kubernetes Executor does not require additional components such as Redis and Flower, but does require the Kubernetes infrastructure.
 
+One example of an Airflow deployment running on a distributed set of five nodes in a Kubernetes cluster is shown below. 
+
+.. image:: ../img/arch-diag-kubernetes2.png
+
 The Kubernetes Executor has an advantage over the Celery Executor in that Pods are only spun up when required for task execution compared to the Celery Executor where the workers are statically configured and ran running all the time, regardless of workloads. However, this could be a disadvantage depending on the latency needs, since a task takes longer to start using the Kubernetes Executor, since it now includes the Pod startup time.
 
 Consistent with the regular Airflow architecture, the Workers need access to the DAG files to execute the tasks within those DAGs and interact with the Metadata repository. Also, configuration information specific to the Kubernetes Executor, such as the worker namespace and image information, needs to be specified in the Airflow Configuration file.
