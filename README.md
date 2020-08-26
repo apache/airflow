@@ -123,24 +123,16 @@ pip install apache-airflow[postgres,google]==1.10.12 \
 ```
 
 ## Official Docker images
+In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images of Apache Airflow. The production image is a multi-segment image. The first segment "airflow-build-image" contains all the build essentials and related dependencies that allow to install airflow locally. By default the image is build from a released version of Airflow from Github, but by providing some extra arguments you can also build it from local sources.
+ This is particularly useful in CI environment where we are using the image to run Kubernetes tests(Helm Chart integration). We will also use released images in the Helm Chart(backward compatibility). You can see DockerHub images at https://hub.docker.com/repository/docker/apache/airflow. In DockerHub there is just a convenience binary and that image can (and often should) be built from the officially released sources. More Details [TODO](#).
 
-In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images
-of Apache Airflow. The community provides two types of support for the production images:
+The community provides two types of support for the production images:
+- We provide pre-build released version of production image in PyPI build from released sources of Apache Airflow - shortly after release. Those images are available in the DockerHub. You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the version number (for example 1.10.11). Additionally `docker pull apache/airflow` will pull latest stable version of the image with default python version (currently 3.6). Now change to root user(here we use root user) temporarily and install your own dependencies, for example mx. Change back to airflow user and then you can install some pip packages you want. You can add your dags by copying them and then build your own airflow image. You can use this airflow image with your own modifications.
 
-* We provide pre-build released version of production image in PyPI build from released
-  sources of Apache Airflow - shortly after release. Those images are available in the DockerHub.
-  You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the
-  version number (for example 1.10.12). Additionally `docker pull apache/airflow` will pull latest
-  stable version of the image with default python version (currently 3.6)
+- In `master` branch of Airflow and in `v1-10-stable` branch we provide Dockerfiles and accompanying
+  files that allow to build your own customized version of the Airflow Production image. To build your own image or to customize it; first clone the image and then checkout the right version which are conservative, masters and if you are adventurous then you can run `docker build`.You can add various arguments to customize it.More instructions on how to build your own image with additional dependencies (if needed) are provided in the [IMAGES.rst](IMAGES.rst#production-images) if you want to build it using `docker build` command or in [BREEZE.rst](BREEZE.rst#building-production-images) to use Breeze tool which easier interface, auto-complete, and accompanying screencast video. Breeze is a development and text environment that is developed for airflow but it also supports building production image very easily so we specify the production image flag additional extras or python version or python dev. so most of the parameters you can specify here is in command line parameters which have auto completion option. Note, that while it is possible to use master branch to build images for released Airflow versions, it might at times get broken so you should rather rely on building your own images from the v1-10-stable branch.
 
-* In `master` branch of Airflow and in `v1-10-stable` branch we provide Dockerfiles and accompanying
-  files that allow to build your own customized version of the Airflow Production image. The instructions
-  on how to build your own image with additional dependencies (if needed) are provided in the
-  [IMAGES.rst](IMAGES.rst#production-images) if you want to build it using `docker build` command or in
-  [BREEZE.rst](BREEZE.rst#building-production-images) to use Breeze tool which easier interface,
-  auto-complete, and accompanying screencast video. Note, that while it is possible to use master
-  branch to build images for released Airflow versions, it might at times get broken so you should
-  rather rely on building your own images from the v1-10-stable branch.
+Airflow Summit 2020's "Production Docker Image" talk where context, architecture and customization/extension methods are [explained](https://youtu.be/wDr3Y7q2XoI).
 
 ## Beyond the Horizon
 
