@@ -122,6 +122,9 @@ class PodGenerator:
     Any configuration that is container specific gets applied to
     the first container in the list of containers.
 
+    :param docker_repository: Docker repository used to prefix image if set. Defaults to None,
+        but if set, image will be fully qualified, this is also used to qualify side car image if needed.
+    :type docker_repository: str
     :param image: The docker image
     :type image: Optional[str]
     :param name: name in the metadata section (not the container name)
@@ -187,6 +190,7 @@ class PodGenerator:
     """
     def __init__(  # pylint: disable=too-many-arguments,too-many-locals
         self,
+        docker_repository: Optional[str] = None,
         image: Optional[str] = None,
         name: Optional[str] = None,
         namespace: Optional[str] = None,
@@ -224,6 +228,8 @@ class PodGenerator:
         else:
             self.ud_pod = pod
 
+        self.docker_repository = docker_repository
+
         self.pod = k8s.V1Pod()
         self.pod.api_version = 'v1'
         self.pod.kind = 'Pod'
@@ -237,7 +243,8 @@ class PodGenerator:
 
         # Pod Container
         self.container = k8s.V1Container(name='base')
-        self.container.image = image
+        self.container.image = self.qualify_image_url(image)
+
         self.container.env = []
 
         if envs:
@@ -292,6 +299,15 @@ class PodGenerator:
         # Attach sidecar
         self.extract_xcom = extract_xcom
 
+    def qualify_image_url(self, image: str) -> str:
+        if not self.docker_repository:
+            return image
+
+        if image.startswith(self.docker_repository):
+            return image
+
+        return self.docker_repository + '/' + image
+
     def gen_pod(self) -> k8s.V1Pod:
         """Generates pod"""
         result = self.ud_pod
@@ -305,19 +321,22 @@ class PodGenerator:
         result.metadata.name = self.make_unique_pod_id(result.metadata.name)
 
         if self.extract_xcom:
-            result = self.add_sidecar(result)
+            image = self.qualify_image_url(PodDefaults.SIDECAR_CONTAINER.image)
+            result = self.add_sidecar(result, image)
 
         return result
 
     @staticmethod
-    def add_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
+    def add_sidecar(pod: k8s.V1Pod, image: str) -> k8s.V1Pod:
         """Adds sidecar"""
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
         pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
         pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
+
         pod_cp.spec.containers.append(PodDefaults.SIDECAR_CONTAINER)
+        pod_cp.spec.containers[-1].image = image
 
         return pod_cp
 

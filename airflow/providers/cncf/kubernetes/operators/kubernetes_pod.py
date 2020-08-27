@@ -52,6 +52,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     :param namespace: the namespace to run within kubernetes.
     :type namespace: str
+    :param docker_repository: Docker repository used to prefix image if set. Defaults to None,
+        but if set, image will be fully qualified, this is also used to qualify side car image if needed.
+    :type docker_repository: str
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
         but fully qualified URLS will point to custom repositories.
     :type image: str
@@ -154,6 +157,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
                  *,
                  namespace: Optional[str] = None,
+                 docker_repository: Optional[str] = None,
                  image: Optional[str] = None,
                  name: Optional[str] = None,
                  cmds: Optional[List[str]] = None,
@@ -198,6 +202,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
         self.pod = None
         self.do_xcom_push = do_xcom_push
+        self.docker_repository = docker_repository
         self.image = image
         self.namespace = namespace
         self.cmds = cmds or []
@@ -366,6 +371,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             )
             self.labels.update(labels)
         pod = pod_generator.PodGenerator(
+            docker_repository=self.docker_repository,
             image=self.image,
             namespace=self.namespace,
             cmds=self.cmds,
