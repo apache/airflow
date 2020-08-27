@@ -35,6 +35,7 @@ from qds_sdk.commands import (
     ShellCommand,
     SparkCommand,
     SqlCommand,
+    JupyterNotebookCommand
 )
 from qds_sdk.qubole import Qubole
 
@@ -56,6 +57,7 @@ COMMAND_CLASSES = {
     "dbexportcmd": DbExportCommand,
     "dbimportcmd": DbImportCommand,
     "sqlcmd": SqlCommand,
+    "jupytercmd": JupyterNotebookCommand
 }
 
 POSITIONAL_ARGS = {'hadoopcmd': ['sub_command'], 'shellcmd': ['parameters'], 'pigcmd': ['parameters']}
@@ -239,11 +241,11 @@ class QuboleHook(BaseHook):
                     inplace_args = value
                 elif key == 'tags':
                     self._add_tags(tags, value)
+                elif key == 'notify':
+                    if value is True:
+                        args.append("--notify")
                 else:
                     args.append("--{0}={1}".format(key, value))
-
-            if key == 'notify' and value is True:
-                args.append("--notify")
 
         args.append("--tags={0}".format(','.join(filter(None, tags))))
 

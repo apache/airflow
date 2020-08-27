@@ -106,13 +106,15 @@ class QuboleOperator(BaseOperator):
                 script_location is supplied
         sparkcmd:
             :program: the complete Spark Program in Scala, R, or Python
-            :cmdline: spark-submit command line, all required information must be specify
+            :cmdline: spark-submit command line, all required arguments must be specify
                 in cmdline itself.
             :sql: inline sql query
             :script_location: s3 location containing query statement
             :language: language of the program, Scala, R, or Python
             :app_id: ID of an Spark job server app
-            :arguments: spark-submit command line arguments
+            :arguments: spark-submit command line arguments.
+                If `cmdline` is selected, this should not be used because all
+                required arguments and configurations are to be passed in the `cmdline` itself.
             :user_program_arguments: arguments that the user program takes in
             :macros: macro values which were used in query
             :note_id: Id of the Notebook to run
