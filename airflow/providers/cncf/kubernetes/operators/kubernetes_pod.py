@@ -141,10 +141,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param retry_only_on_pod_launching_failure: retry logic is only effective if pod launching fails. This
         prevents retries when image failures occurs. Useful for non-idempotent tasks.
     :type retry_only_on_pod_launching_failure: bool
-    :param log_container_statuses_on_failure: Log the pod's containers statuses if a failure occurs.
-        This is particularly useful if the container runs out of memory. The pod will fail silently
-        if we do not log container statuses to surface OOMKilled status of the container.
-    :type log_container_statuses_on_failure: bool
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
@@ -196,7 +192,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  init_containers: Optional[List[k8s.V1Container]] = None,
                  log_events_on_failure: bool = False,
                  retry_only_on_pod_launching_failure: bool = False,
-                 log_container_statuses_on_failure: bool = False,
                  do_xcom_push: bool = False,
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
@@ -242,7 +237,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.init_containers = init_containers or []
         self.log_events_on_failure = log_events_on_failure
         self.retry_only_on_pod_launching_failure = retry_only_on_pod_launching_failure
-        self.log_container_statuses_on_failure = log_container_statuses_on_failure
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
         self.name = self._set_name(name)
@@ -368,13 +362,12 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 self.log.error("Pod Event: %s - %s", event.reason, event.message)
 
     def _log_pod_status_on_failure(self, pod, launcher):
-        if self.log_container_statuses_on_failure:
-            try:
-                pod_status = launcher.read_pod_status(pod)
-                self.log.error('Pod not succeeded, look for OOMKilled in containers statuses.')
-                self.log.error(pod_status.status.container_statuses)
-            except AirflowException as ex:
-                self.log.exception('Failed to get container statuses: %s', ex)
+        try:
+            pod_status = launcher.read_pod_status(pod)
+            self.log.error('Pod not succeeded, look for OOMKilled in containers statuses.')
+            self.log.error(pod_status.status.container_statuses)
+        except AirflowException as ex:
+            self.log.exception('Failed to get container statuses: %s', ex)
 
     def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:
         """
