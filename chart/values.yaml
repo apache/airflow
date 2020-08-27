@@ -79,8 +79,8 @@ images:
     tag: 0.11.0
     pullPolicy: IfNotPresent
   redis:
-    repository: redis
-    tag: 6-buster
+    repository: bitnami/redis
+    tag: 6.0.6
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: astronomerinc/ap-pgbouncer
