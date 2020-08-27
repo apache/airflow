@@ -163,25 +163,22 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def remove_stale_dags(cls, expiration_date, session: Session = None):
-        """
-        Deletes Serialized DAGs that were last touched by the scheduler before
-        the expiration date. These DAGs were likely deleted.
+    def remove_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
+        """Deletes DAGs not included in alive_dag_filelocs.
 
-        :param expiration_date: set inactive DAGs that were touched before this
-            time
-        :type expiration_date: datetime
+        :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
-        :type session: Session
-        :return: None
         """
-        log.debug("Deleting Serialized DAGs that haven't been touched by the "
-                  "scheduler since %s from %s table ", expiration_date, cls.__tablename__)
+        alive_fileloc_hashes = [
+            DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
-        session.execute(
-            # pylint: disable=no-member
-            cls.__table__.delete().where(cls.last_updated < expiration_date)
-        )
+        log.debug("Deleting Serialized DAGs (for which DAG files are deleted) "
+                  "from %s table ", cls.__tablename__)
+
+        # pylint: disable=no-member
+        session.execute(cls.__table__.delete().where(
+            and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
+                 cls.fileloc.notin_(alive_dag_filelocs))))
 
     @classmethod
     @provide_session
