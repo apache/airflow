@@ -707,6 +707,7 @@ fetchmany
 fetchone
 filehandle
 fileloc
+filelocs
 filepath
 filesize
 filesystem
