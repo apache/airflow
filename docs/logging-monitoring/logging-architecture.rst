@@ -17,8 +17,8 @@
 
 
 
-Logging architecture
-====================
+Logging and Monitoring architecture
+===================================
 
 Airflow supports a variety of logging and monitoring mechanisms as shown below.
 
