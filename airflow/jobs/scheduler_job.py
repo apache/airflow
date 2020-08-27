@@ -99,7 +99,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         # The process that was launched to process the given .
         self._process: Optional[multiprocessing.process.BaseProcess] = None
         # The result of Scheduler.process_file(file_path).
-        self._result: Optional[Tuple[List[dict], int]] = None
+        self._result: Optional[Tuple[List[SerializedDAG], int]] = None
         # Whether the process is done running.
         self._done = False
         # When the process started.
@@ -166,7 +166,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
 
                 log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
                 dag_file_processor = DagFileProcessor(dag_ids=dag_ids, log=log)
-                result: Tuple[List[dict], int] = dag_file_processor.process_file(
+                result: Tuple[List[SerializedDAG], int] = dag_file_processor.process_file(
                     file_path=file_path,
                     pickle_dags=pickle_dags,
                     failure_callback_requests=failure_callback_requests,
@@ -303,10 +303,10 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         return False
 
     @property
-    def result(self) -> Optional[Tuple[List[dict], int]]:
+    def result(self) -> Optional[Tuple[List[SerializedDAG], int]]:
         """
         :return: result of running SchedulerJob.process_file()
-        :rtype: Optional[Tuple[List[dict], int]]
+        :rtype: Optional[Tuple[List[SerializedDAG], int]]
         """
         if not self.done:
             raise AirflowException("Tried to get the result before it's done!")
@@ -828,7 +828,7 @@ class DagFileProcessor(LoggingMixin):
         file_path: str,
         failure_callback_requests: List[FailureCallbackRequest],
         pickle_dags: bool = False, session: Session = None
-    ) -> Tuple[List[dict], int]:
+    ) -> Tuple[List[SerializedDAG], int]:
         """
         Process a Python file containing Airflow DAGs.
 
@@ -962,8 +962,8 @@ class DagFileProcessor(LoggingMixin):
         # commit batch
         session.commit()
 
-    @provide_session
-    def _prepare_simple_dags(self, dags: List[DAG]) -> List[dict]:
+    @classmethod
+    def _prepare_simple_dags(cls, dags: List[DAG]) -> List[SerializedDAG]:
         """
         Convert DAGS to  SimpleDags. If necessary, it also Pickle the DAGs
 
@@ -971,10 +971,10 @@ class DagFileProcessor(LoggingMixin):
         :return: List of SimpleDag
         :rtype: List[airflow.utils.dag_processing.SimpleDag]
         """
-        simple_dags: List[dict] = []
+        simple_dags: List[SerializedDAG] = []
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag in dags:
-            simple_dags.append(SerializedDAG.to_dict(dag))
+            simple_dags.append(SerializedDAG.from_dict(SerializedDAG.to_dict(dag)))
         return simple_dags
 
 

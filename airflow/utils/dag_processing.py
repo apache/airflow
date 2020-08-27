@@ -58,7 +58,7 @@ class SimpleDagBag(BaseDagBag):
     A collection of SimpleDag objects with some convenience methods.
     """
 
-    def __init__(self, simple_dags: List[dict]):
+    def __init__(self, simple_dags: List[SerializedDAG]):
         """
         Constructor.
 
@@ -69,8 +69,7 @@ class SimpleDagBag(BaseDagBag):
         self.dag_id_to_simple_dag: Dict[str, SerializedDAG] = {}
 
         for simple_dag in simple_dags:
-            serialized_dag = SerializedDAG.from_dict(simple_dag)
-            self.dag_id_to_simple_dag[serialized_dag.dag_id] = serialized_dag
+            self.dag_id_to_simple_dag[simple_dag.dag_id] = simple_dag
 
     @property
     def dag_ids(self) -> KeysView[str]:
@@ -413,7 +412,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
         processor_manager.start()
 
-    def harvest_simple_dags(self) -> List[dict]:
+    def harvest_simple_dags(self) -> List[SerializedDAG]:
         """
         Harvest DAG parsing results from result queue and sync metadata from stat queue.
 
