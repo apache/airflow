@@ -20,6 +20,7 @@ AutoMlClient
 Autoscale
 Avro
 Azkaban
+Azlaws
 Azri
 Backend
 Backends
@@ -462,6 +463,7 @@ autoscaling
 avro
 aws
 awsbatch
+azlaws
 backend
 backends
 backfill
