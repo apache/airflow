@@ -80,7 +80,7 @@ Google OpenID authentication
 
 You can also configure
 `Google OpenID <https://developers.google.com/identity/protocols/oauth2/openid-connect>`__
-for authentiation. To enable it, set the following option in the configuration:
+for authentication. To enable it, set the following option in the configuration:
 
 .. code-block:: ini
 
