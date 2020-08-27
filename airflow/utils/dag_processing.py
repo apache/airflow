@@ -63,7 +63,7 @@ class SimpleDagBag(BaseDagBag):
         Constructor.
 
         :param simple_dags: SimpleDag objects that should be in this
-        :type simple_dags: list[airflow.models.dag.DAG]
+        :type simple_dags: list[SerializedDAG]
         """
         self.simple_dags = simple_dags
         self.dag_id_to_simple_dag: Dict[str, SerializedDAG] = {}
