@@ -28,8 +28,7 @@ from pygments.lexers.data import YamlLexer
 from sqlalchemy.orm import exc
 from tabulate import tabulate
 
-from airflow.exceptions import AirflowNotFoundException
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
 from airflow.secrets.local_filesystem import load_connections
@@ -50,7 +49,6 @@ def prep_msg(msg, conn):
                                          port=conn.conn_port or ''),
                                  conn.conn_schema or '', '', '', '')))
     return msg
-
 
 
 def _tabulate_connection(conns: List[Connection], tablefmt: str):

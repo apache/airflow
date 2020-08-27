@@ -20,8 +20,6 @@ import re
 import unittest
 import io
 from contextlib import contextmanager
-from io import TextIOWrapper as _TextIOWrapper
-from io import StringIO
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
@@ -31,12 +29,15 @@ from airflow.exceptions import AirflowException, AirflowFileParseException, Conn
 from airflow.secrets import local_filesystem
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 
-class TextIOWrapper(_TextIOWrapper):
+
+class TextIOWrapper(io.TextIOWrapper):
     name = ''
+    
     def __init__(self, buffer, name=None, **kwargs):
         self.name = name
         print()
         super().__init__(buffer, **kwargs)
+
 
 @contextmanager
 def mock_local_file(content):
@@ -80,7 +81,8 @@ class TestLoadVariables(unittest.TestCase):
         )
     )
     def test_env_file_should_load_variables(self, file_content, expected_variables):
-        variables = local_filesystem.load_variables(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.env"))
+        variables = local_filesystem.load_variables(
+            TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.env"))
         self.assertEqual(expected_variables, variables)
 
     @parameterized.expand((("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),))
@@ -97,7 +99,8 @@ class TestLoadVariables(unittest.TestCase):
         )
     )
     def test_json_file_should_load_variables(self, file_content, expected_variables):
-        variables = local_filesystem.load_variables(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.json"))
+        variables = local_filesystem.load_variables(
+            TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.json"))
         self.assertEqual(expected_variables, variables)
 
     @parameterized.expand(
@@ -110,7 +113,8 @@ class TestLoadVariables(unittest.TestCase):
         )
     )
     def test_yaml_file_should_load_variables(self, file_content, expected_variables):
-        variables = local_filesystem.load_variables(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name='a.yaml'))
+        variables = local_filesystem.load_variables(
+            TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name='a.yaml'))
         self.assertEqual(expected_variables, variables)
 
 
@@ -133,7 +137,8 @@ class TestLoadConnection(unittest.TestCase):
         )
     )
     def test_env_file_should_load_connection(self, file_content, expected_connection_uris):
-        connections_by_conn_id = local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.env"))
+        connections_by_conn_id = local_filesystem.load_connections(
+            TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.env"))
         connection_uris_by_conn_id = {
             conn_id: [connection.get_uri() for connection in connections]
             for conn_id, connections in connections_by_conn_id.items()
@@ -160,7 +165,8 @@ class TestLoadConnection(unittest.TestCase):
         )
     )
     def test_json_file_should_load_connection(self, file_content, expected_connection_uris):
-        connections_by_conn_id = local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.json"))
+        connections_by_conn_id = local_filesystem.load_connections(
+            TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.json"))
         connection_uris_by_conn_id = {
             conn_id: [connection.get_uri() for connection in connections]
             for conn_id, connections in connections_by_conn_id.items()
@@ -180,7 +186,8 @@ class TestLoadConnection(unittest.TestCase):
     )
     def test_env_file_invalid_input(self, file_content, expected_connection_uris):
         with self.assertRaisesRegex(AirflowException, re.escape(expected_connection_uris)):
-            local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.json"))
+            local_filesystem.load_connections(
+                TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.json"))
 
     @parameterized.expand(
         (
@@ -206,7 +213,8 @@ class TestLoadConnection(unittest.TestCase):
     )
     def test_yaml_file_should_load_connection(self, file_content, expected_connection_uris):
         # with mock_local_file(file_content):
-        connections_by_conn_id = local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.yaml"))
+        connections_by_conn_id = local_filesystem.load_connections(
+            TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.yaml"))
         connection_uris_by_conn_id = {
             conn_id: [connection.get_uri() for connection in connections]
             for conn_id, connections in connections_by_conn_id.items()
@@ -253,7 +261,8 @@ class TestLoadConnection(unittest.TestCase):
         )
     )
     def test_yaml_file_should_load_connection_extras(self, file_content, expected_extras):
-        connections_by_conn_id = local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.yaml"))
+        connections_by_conn_id = local_filesystem.load_connections(
+            TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.yaml"))
         connection_uris_by_conn_id = {
             conn_id: [connection.extra_dejson for connection in connections]
             for conn_id, connections in connections_by_conn_id.items()
@@ -279,7 +288,8 @@ class TestLoadConnection(unittest.TestCase):
     )
     def test_yaml_invalid_extra(self, file_content, expected_message):
         with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
-            local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.yaml"))
+            local_filesystem.load_connections(
+                TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.yaml"))
 
     @parameterized.expand(
         (

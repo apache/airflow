@@ -19,7 +19,7 @@ import io
 import json
 import re
 import unittest
-from contextlib import redirect_stdout, contextmanager
+from contextlib import contextmanager, redirect_stdout
 from unittest import mock
 
 from parameterized import parameterized
@@ -56,6 +56,7 @@ class TestCliGetConnection(unittest.TestCase):
             connection_command.connections_get(self.parser.parse_args(
                 ["connections", "get", "INVALID"]
             ))
+
 
 @contextmanager
 def mock_local_file(content):
