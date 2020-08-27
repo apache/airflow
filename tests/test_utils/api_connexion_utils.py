@@ -17,12 +17,9 @@
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 
 
-def create_user(app, username, role, permissions = []):
+def create_user(app, username, role):
     appbuilder = app.appbuilder
     role_admin = appbuilder.sm.find_role(role)
-    for permission in permissions:
-        perm_object = appbuilder.sm.find_permission_view_menu(*permission)
-        appbuilder.sm.add_permission_role(role_admin, perm_object)
     tester = appbuilder.sm.find_user(username=username)
     if not tester:
         appbuilder.sm.add_user(
@@ -34,15 +31,19 @@ def create_user(app, username, role, permissions = []):
             password=username,
         )
 
-def create_role(app, name, permissions = []):
+
+def create_role(app, name, permissions=None):
     appbuilder = app.appbuilder
     role = appbuilder.sm.find_role(name)
     if not role:
         role = appbuilder.sm.add_role(name)
+    if not permissions:
+        permissions = []
     for permission in permissions:
         perm_object = appbuilder.sm.find_permission_view_menu(*permission)
         appbuilder.sm.add_permission_role(role, perm_object)
     return role
+
 
 def delete_user(app, username):
     appbuilder = app.appbuilder
