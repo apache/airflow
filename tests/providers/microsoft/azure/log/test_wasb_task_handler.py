@@ -30,7 +30,6 @@ from tests.test_utils.config import conf_vars
 
 
 class TestWasbTaskHandler(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self.wasb_log_folder = 'wasb://container/remote/log/location'
@@ -43,7 +42,7 @@ class TestWasbTaskHandler(unittest.TestCase):
             wasb_log_folder=self.wasb_log_folder,
             wasb_container=self.container_name,
             filename_template=self.filename_template,
-            delete_local_copy=True
+            delete_local_copy=True,
         )
 
         date = datetime(2020, 8, 10)
@@ -62,11 +61,7 @@ class TestWasbTaskHandler(unittest.TestCase):
     @conf_vars({('logging', 'remote_log_conn_id'): 'wasb_default'})
     def test_hook_raises(self):
         handler = WasbTaskHandler(
-            self.local_log_location,
-            self.wasb_log_folder,
-            self.container_name,
-            self.filename_template,
-            True
+            self.local_log_location, self.wasb_log_folder, self.container_name, self.filename_template, True
         )
         with mock.patch.object(handler.log, 'error') as mock_error:
             with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook") as mock_hook:
@@ -77,7 +72,8 @@ class TestWasbTaskHandler(unittest.TestCase):
             mock_error.assert_called_once_with(
                 'Could not create an WasbHook with connection id "%s". '
                 'Please make sure that airflow[azure] is installed and '
-                'the Wasb connection exists.', "wasb_default"
+                'the Wasb connection exists.',
+                "wasb_default",
             )
 
     def test_set_context_raw(self):
@@ -95,30 +91,24 @@ class TestWasbTaskHandler(unittest.TestCase):
         instance.check_for_blob.return_value = True
         self.wasb_task_handler.wasb_log_exists(self.remote_log_location)
         mock_hook.return_value.check_for_blob.assert_called_once_with(
-            self.container_name,
-            self.remote_log_location
+            self.container_name, self.remote_log_location
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_read(self, mock_hook):
         mock_hook.return_value.read_file.return_value = 'Log line'
-        self.assertEqual(
-            self.wasb_task_handler.wasb_read(self.remote_log_location),
-            "Log line"
-        )
+        self.assertEqual(self.wasb_task_handler.wasb_read(self.remote_log_location), "Log line")
         self.assertEqual(
             self.wasb_task_handler.read(self.ti),
-            (['*** Reading remote log from wasb://container/remote/log/location/1.log.\n'
-              'Log line\n'], [{'end_of_log': True}])
+            (
+                ['*** Reading remote log from wasb://container/remote/log/location/1.log.\nLog line\n'],
+                [{'end_of_log': True}],
+            ),
         )
 
     def test_wasb_read_raises(self):
         handler = WasbTaskHandler(
-            self.local_log_location,
-            self.wasb_log_folder,
-            self.container_name,
-            self.filename_template,
-            True
+            self.local_log_location, self.wasb_log_folder, self.container_name, self.filename_template, True
         )
         with mock.patch.object(handler.log, 'error') as mock_error:
             with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook") as mock_hook:
@@ -138,9 +128,7 @@ class TestWasbTaskHandler(unittest.TestCase):
         mock_wasb_read.return_value = ""
         self.wasb_task_handler.wasb_write('text', self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
-            "text",
-            self.container_name,
-            self.remote_log_location
+            "text", self.container_name, self.remote_log_location
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
@@ -151,27 +139,19 @@ class TestWasbTaskHandler(unittest.TestCase):
         mock_wasb_read.return_value = "old log"
         self.wasb_task_handler.wasb_write('text', self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
-            "old log\ntext",
-            self.container_name,
-            self.remote_log_location
+            "old log\ntext", self.container_name, self.remote_log_location
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_write_when_append_is_false(self, mock_hook):
         self.wasb_task_handler.wasb_write('text', self.remote_log_location, False)
         mock_hook.return_value.load_string.assert_called_once_with(
-            "text",
-            self.container_name,
-            self.remote_log_location
+            "text", self.container_name, self.remote_log_location
         )
 
     def test_write_raises(self):
         handler = WasbTaskHandler(
-            self.local_log_location,
-            self.wasb_log_folder,
-            self.container_name,
-            self.filename_template,
-            True
+            self.local_log_location, self.wasb_log_folder, self.container_name, self.filename_template, True
         )
         with mock.patch.object(handler.log, 'error') as mock_error:
             with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook") as mock_hook:

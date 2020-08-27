@@ -119,7 +119,7 @@ function check_if_docker_build_is_needed() {
     print_info "Checking if image build is needed for ${THE_IMAGE_TYPE} image."
     print_info
     if [[ ${FORCE_BUILD_IMAGES:=""} == "true" ]]; then
-        echo "Docker image build is forced for ${THE_IMAGE_TYPE} image"
+        print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
         calculate_md5sum_for_all_files
         export NEEDS_DOCKER_BUILD="true"
     else
@@ -128,7 +128,7 @@ function check_if_docker_build_is_needed() {
             export NEEDS_DOCKER_BUILD="true"
         fi
         if [[ ${NEEDS_DOCKER_BUILD} == "true" ]]; then
-            echo "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
+            print_info "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
         else
             print_info "Docker image build is not needed for ${THE_IMAGE_TYPE} image!"
         fi

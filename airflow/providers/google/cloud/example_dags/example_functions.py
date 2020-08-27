@@ -44,51 +44,45 @@ import os
 
 from airflow import models
 from airflow.providers.google.cloud.operators.functions import (
-    CloudFunctionDeleteFunctionOperator, CloudFunctionDeployFunctionOperator,
+    CloudFunctionDeleteFunctionOperator,
+    CloudFunctionDeployFunctionOperator,
     CloudFunctionInvokeFunctionOperator,
 )
 from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')
-GCF_SHORT_FUNCTION_NAME = os.environ.get('GCF_SHORT_FUNCTION_NAME', 'hello').\
-    replace("-", "_")  # make sure there are no dashes in function name (!)
-FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(GCP_PROJECT_ID,
-                                                               GCP_LOCATION,
-                                                               GCF_SHORT_FUNCTION_NAME)
+GCF_SHORT_FUNCTION_NAME = os.environ.get('GCF_SHORT_FUNCTION_NAME', 'hello').replace(
+    "-", "_"
+)  # make sure there are no dashes in function name (!)
+FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(
+    GCP_PROJECT_ID, GCP_LOCATION, GCF_SHORT_FUNCTION_NAME
+)
 GCF_SOURCE_ARCHIVE_URL = os.environ.get('GCF_SOURCE_ARCHIVE_URL', '')
 GCF_SOURCE_UPLOAD_URL = os.environ.get('GCF_SOURCE_UPLOAD_URL', '')
 GCF_SOURCE_REPOSITORY = os.environ.get(
     'GCF_SOURCE_REPOSITORY',
     'https://source.developers.google.com/'
-    'projects/{}/repos/hello-world/moveable-aliases/master'.format(GCP_PROJECT_ID))
+    'projects/{}/repos/hello-world/moveable-aliases/master'.format(GCP_PROJECT_ID),
+)
 GCF_ZIP_PATH = os.environ.get('GCF_ZIP_PATH', '')
 GCF_ENTRYPOINT = os.environ.get('GCF_ENTRYPOINT', 'helloWorld')
 GCF_RUNTIME = 'nodejs6'
 GCP_VALIDATE_BODY = os.environ.get('GCP_VALIDATE_BODY', "True") == "True"
 
 # [START howto_operator_gcf_deploy_body]
-body = {
-    "name": FUNCTION_NAME,
-    "entryPoint": GCF_ENTRYPOINT,
-    "runtime": GCF_RUNTIME,
-    "httpsTrigger": {}
-}
+body = {"name": FUNCTION_NAME, "entryPoint": GCF_ENTRYPOINT, "runtime": GCF_RUNTIME, "httpsTrigger": {}}
 # [END howto_operator_gcf_deploy_body]
 
 # [START howto_operator_gcf_default_args]
-default_args = {
-    'owner': 'airflow'
-}
+default_args = {'owner': 'airflow'}
 # [END howto_operator_gcf_default_args]
 
 # [START howto_operator_gcf_deploy_variants]
 if GCF_SOURCE_ARCHIVE_URL:
     body['sourceArchiveUrl'] = GCF_SOURCE_ARCHIVE_URL
 elif GCF_SOURCE_REPOSITORY:
-    body['sourceRepository'] = {
-        'url': GCF_SOURCE_REPOSITORY
-    }
+    body['sourceRepository'] = {'url': GCF_SOURCE_REPOSITORY}
 elif GCF_ZIP_PATH:
     body['sourceUploadUrl'] = ''
     default_args['zip_path'] = GCF_ZIP_PATH
@@ -111,15 +105,12 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         body=body,
-        validate_body=GCP_VALIDATE_BODY
+        validate_body=GCP_VALIDATE_BODY,
     )
     # [END howto_operator_gcf_deploy]
     # [START howto_operator_gcf_deploy_no_project_id]
     deploy2_task = CloudFunctionDeployFunctionOperator(
-        task_id="gcf_deploy2_task",
-        location=GCP_LOCATION,
-        body=body,
-        validate_body=GCP_VALIDATE_BODY
+        task_id="gcf_deploy2_task", location=GCP_LOCATION, body=body, validate_body=GCP_VALIDATE_BODY
     )
     # [END howto_operator_gcf_deploy_no_project_id]
     # [START howto_operator_gcf_invoke_function]
@@ -128,13 +119,10 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         input_data={},
-        function_id=GCF_SHORT_FUNCTION_NAME
+        function_id=GCF_SHORT_FUNCTION_NAME,
     )
     # [END howto_operator_gcf_invoke_function]
     # [START howto_operator_gcf_delete]
-    delete_task = CloudFunctionDeleteFunctionOperator(
-        task_id="gcf_delete_task",
-        name=FUNCTION_NAME
-    )
+    delete_task = CloudFunctionDeleteFunctionOperator(task_id="gcf_delete_task", name=FUNCTION_NAME)
     # [END howto_operator_gcf_delete]
     deploy_task >> deploy2_task >> invoke_task >> delete_task

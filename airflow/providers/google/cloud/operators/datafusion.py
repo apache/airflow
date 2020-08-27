@@ -19,7 +19,7 @@
 This module contains Google DataFusion operators.
 """
 from time import sleep
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
@@ -48,23 +48,38 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name",)
+    template_fields = (
+        "instance_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_name = instance_name
@@ -73,18 +88,18 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Restarting Data Fusion instance: %s", self.instance_name)
         operation = hook.restart_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         hook.wait_for_operation(operation)
         self.log.info("Instance %s restarted successfully", self.instance_name)
@@ -108,23 +123,38 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name",)
+    template_fields = (
+        "instance_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_name = instance_name
@@ -133,18 +163,18 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Deleting Data Fusion instance: %s", self.instance_name)
         operation = hook.delete_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         hook.wait_for_operation(operation)
         self.log.info("Instance %s deleted successfully", self.instance_name)
@@ -171,16 +201,31 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "instance")
+    template_fields = (
+        "instance_name",
+        "instance",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         instance: Dict[str, Any],
         location: str,
@@ -188,7 +233,8 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_name = instance_name
@@ -198,12 +244,14 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Creating Data Fusion instance: %s", self.instance_name)
         try:
@@ -261,16 +309,31 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "instance")
+    template_fields = (
+        "instance_name",
+        "instance",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         instance: Dict[str, Any],
         update_mask: str,
@@ -279,7 +342,8 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.update_mask = update_mask
@@ -290,12 +354,14 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Updating Data Fusion instance: %s", self.instance_name)
         operation = hook.patch_instance(
@@ -327,23 +393,38 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name",)
+    template_fields = (
+        "instance_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_name = instance_name
@@ -352,18 +433,18 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Retrieving Data Fusion instance: %s", self.instance_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         return instance
 
@@ -393,16 +474,31 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "pipeline_name")
+    template_fields = (
+        "instance_name",
+        "pipeline_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         pipeline_name: str,
         pipeline: Dict[str, Any],
         instance_name: str,
@@ -412,7 +508,8 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
@@ -424,18 +521,18 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Creating Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         hook.create_pipeline(
@@ -471,16 +568,32 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "version_id", "pipeline_name")
+    template_fields = (
+        "instance_name",
+        "version_id",
+        "pipeline_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         pipeline_name: str,
         instance_name: str,
         location: str,
@@ -490,7 +603,8 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
@@ -502,18 +616,18 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Deleting Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         hook.delete_pipeline(
@@ -550,16 +664,32 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "artifact_name", "artifact_version")
+    template_fields = (
+        "instance_name",
+        "artifact_name",
+        "artifact_version",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         instance_name: str,
         location: str,
         artifact_name: Optional[str] = None,
@@ -569,7 +699,8 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.artifact_version = artifact_version
@@ -581,18 +712,18 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Listing Data Fusion pipelines")
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         pipelines = hook.list_pipelines(
@@ -635,16 +766,32 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "pipeline_name", "runtime_args")
+    template_fields = (
+        "instance_name",
+        "pipeline_name",
+        "runtime_args",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self, *,
+        self,
+        *,
         pipeline_name: str,
         instance_name: str,
         location: str,
@@ -656,7 +803,8 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
@@ -670,18 +818,18 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Starting Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         pipeline_id = hook.start_pipeline(
@@ -699,7 +847,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
                 pipeline_name=self.pipeline_name,
                 namespace=self.namespace,
                 instance_url=api_url,
-                timeout=self.pipeline_timeout
+                timeout=self.pipeline_timeout,
             )
 
 
@@ -725,16 +873,31 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("instance_name", "pipeline_name")
+    template_fields = (
+        "instance_name",
+        "pipeline_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         pipeline_name: str,
         instance_name: str,
         location: str,
@@ -743,7 +906,8 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
@@ -754,23 +918,21 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Starting Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
+            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         hook.stop_pipeline(
-            pipeline_name=self.pipeline_name,
-            instance_url=api_url,
-            namespace=self.namespace,
+            pipeline_name=self.pipeline_name, instance_url=api_url, namespace=self.namespace,
         )
         self.log.info("Pipeline started")

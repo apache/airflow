@@ -55,26 +55,12 @@ class TestAwsBaseHook(unittest.TestCase):
         # this table needs to be created in production
         table = resource_from_hook.create_table(  # pylint: disable=no-member
             TableName='test_airflow',
-            KeySchema=[
-                {
-                    'AttributeName': 'id',
-                    'KeyType': 'HASH'
-                },
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'id',
-                    'AttributeType': 'S'
-                }
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 10,
-                'WriteCapacityUnits': 10
-            }
+            KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'},],
+            AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
+            ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
         )
 
-        table.meta.client.get_waiter(
-            'table_exists').wait(TableName='test_airflow')
+        table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
 
         self.assertEqual(table.item_count, 0)
 
@@ -86,35 +72,22 @@ class TestAwsBaseHook(unittest.TestCase):
         resource_from_session = session_from_hook.resource('dynamodb')
         table = resource_from_session.create_table(  # pylint: disable=no-member
             TableName='test_airflow',
-            KeySchema=[
-                {
-                    'AttributeName': 'id',
-                    'KeyType': 'HASH'
-                },
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'id',
-                    'AttributeType': 'S'
-                }
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 10,
-                'WriteCapacityUnits': 10
-            }
+            KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'},],
+            AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
+            ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
         )
 
-        table.meta.client.get_waiter(
-            'table_exists').wait(TableName='test_airflow')
+        table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
 
         self.assertEqual(table.item_count, 0)
 
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_login_with_token(self, mock_get_connection):
-        mock_connection = Connection(login='aws_access_key_id',
-                                     password='aws_secret_access_key',
-                                     extra='{"aws_session_token": "test_token"}'
-                                     )
+        mock_connection = Connection(
+            login='aws_access_key_id',
+            password='aws_secret_access_key',
+            extra='{"aws_session_token": "test_token"}',
+        )
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
@@ -124,9 +97,7 @@ class TestAwsBaseHook(unittest.TestCase):
 
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_login_without_token(self, mock_get_connection):
-        mock_connection = Connection(login='aws_access_key_id',
-                                     password='aws_secret_access_key',
-                                     )
+        mock_connection = Connection(login='aws_access_key_id', password='aws_secret_access_key',)
 
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='spam')
@@ -139,8 +110,8 @@ class TestAwsBaseHook(unittest.TestCase):
     def test_get_credentials_from_extra_with_token(self, mock_get_connection):
         mock_connection = Connection(
             extra='{"aws_access_key_id": "aws_access_key_id",'
-                  '"aws_secret_access_key": "aws_secret_access_key",'
-                  ' "aws_session_token": "session_token"}'
+            '"aws_secret_access_key": "aws_secret_access_key",'
+            ' "aws_session_token": "session_token"}'
         )
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
@@ -153,7 +124,7 @@ class TestAwsBaseHook(unittest.TestCase):
     def test_get_credentials_from_extra_without_token(self, mock_get_connection):
         mock_connection = Connection(
             extra='{"aws_access_key_id": "aws_access_key_id",'
-                  '"aws_secret_access_key": "aws_secret_access_key"}'
+            '"aws_secret_access_key": "aws_secret_access_key"}'
         )
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
@@ -162,32 +133,30 @@ class TestAwsBaseHook(unittest.TestCase):
         self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
         self.assertIsNone(credentials_from_hook.token)
 
-    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws._parse_s3_config',
-                return_value=('aws_access_key_id', 'aws_secret_access_key'))
+    @mock.patch(
+        'airflow.providers.amazon.aws.hooks.base_aws._parse_s3_config',
+        return_value=('aws_access_key_id', 'aws_secret_access_key'),
+    )
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_extra_with_s3_config_and_profile(
         self, mock_get_connection, mock_parse_s3_config
     ):
         mock_connection = Connection(
             extra='{"s3_config_format": "aws", '
-                  '"profile": "test", '
-                  '"s3_config_file": "aws-credentials", '
-                  '"region_name": "us-east-1"}')
+            '"profile": "test", '
+            '"s3_config_file": "aws-credentials", '
+            '"region_name": "us-east-1"}'
+        )
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         hook._get_credentials(region_name=None)
-        mock_parse_s3_config.assert_called_once_with(
-            'aws-credentials',
-            'aws',
-            'test'
-        )
+        mock_parse_s3_config.assert_called_once_with('aws-credentials', 'aws', 'test')
 
     @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
     @mock.patch.object(AwsBaseHook, 'get_connection')
     @mock_sts
     def test_get_credentials_from_role_arn(self, mock_get_connection):
-        mock_connection = Connection(
-            extra='{"role_arn":"arn:aws:iam::123456:role/role_arn"}')
+        mock_connection = Connection(extra='{"role_arn":"arn:aws:iam::123456:role/role_arn"}')
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()

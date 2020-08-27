@@ -217,7 +217,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
-        self.resources = self._set_resources(resources)
+        self.resources = self._set_resources(resources)  # noqa
         self.config_file = config_file
         self.image_pull_secrets = image_pull_secrets
         self.service_account_name = service_account_name
@@ -300,7 +300,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod_list):
         """
 
-        In cases where the Scheduler restarts while a KubernetsPodOperator task is running,
+        In cases where the Scheduler restarts while a KubernetesPodOperator task is running,
         this function will either continue to monitor the existing pod or launch a new pod
         based on the `reattach_on_restart` parameter.
 
@@ -317,11 +317,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             log_line = "found a running pod with labels {} but a different try_number.".format(labels)
 
         if self.reattach_on_restart:
-            log_line = log_line + " Will attach to this pod and monitor instead of starting new one"
+            log_line += " Will attach to this pod and monitor instead of starting new one"
             self.log.info(log_line)
             final_state, result = self.monitor_launched_pod(launcher, pod_list.items[0])
         else:
-            log_line = log_line + "creating pod with labels {} and launcher {}".format(labels, launcher)
+            log_line += "creating pod with labels {} and launcher {}".format(labels, launcher)
             self.log.info(log_line)
             final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
         return final_state, result
@@ -393,7 +393,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             pod=self.full_pod_spec,
         ).gen_pod()
 
-        # noinspection PyTypeChecker
         pod = append_to_pod(
             pod,
             self.pod_runtime_info_envs +

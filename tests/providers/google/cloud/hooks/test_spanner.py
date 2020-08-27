@@ -23,7 +23,8 @@ from mock import PropertyMock
 
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
-    GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
+    GCP_PROJECT_ID_HOOK_UNIT_TEST,
+    mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
 )
 
@@ -33,15 +34,15 @@ SPANNER_DATABASE = 'database-name'
 
 
 class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
-
     def setUp(self):
-        with mock.patch('airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
-                        new=mock_base_gcp_hook_default_project_id):
+        with mock.patch(
+            'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
+            new=mock_base_gcp_hook_default_project_id,
+        ):
             self.spanner_hook_default_project_id = SpannerHook(gcp_conn_id='test')
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.spanner.SpannerHook.client_info",
-        new_callable=mock.PropertyMock
+        "airflow.providers.google.cloud.hooks.spanner.SpannerHook.client_info", new_callable=mock.PropertyMock
     )
     @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.spanner.Client")
@@ -50,7 +51,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         mock_client.assert_called_once_with(
             project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             credentials=mock_get_creds.return_value,
-            client_info=mock_client_info.return_value
+            client_info=mock_client_info.return_value,
         )
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.spanner_hook_default_project_id._client, result)
@@ -60,8 +61,9 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
-        res = self.spanner_hook_default_project_id.get_instance(instance_id=SPANNER_INSTANCE,
-                                                                project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
+        res = self.spanner_hook_default_project_id.get_instance(
+            instance_id=SPANNER_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(instance_id='instance')
         self.assertIsNotNone(res)
@@ -71,8 +73,9 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
-        res = self.spanner_hook_default_project_id.get_instance(instance_id=SPANNER_INSTANCE,
-                                                                project_id='new-project')
+        res = self.spanner_hook_default_project_id.get_instance(
+            instance_id=SPANNER_INSTANCE, project_id='new-project'
+        )
         get_client.assert_called_once_with(project_id='new-project')
         instance_method.assert_called_once_with(instance_id='instance')
         self.assertIsNotNone(res)
@@ -80,7 +83,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch('airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client')
     def test_create_instance(self, get_client, mock_project_id):
@@ -99,7 +102,8 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
             instance_id='instance',
             configuration_name='configuration',
             display_name='database-name',
-            node_count=1)
+            node_count=1,
+        )
         self.assertIsNone(res)
 
     @mock.patch('airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client')
@@ -112,19 +116,21 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
             instance_id=SPANNER_INSTANCE,
             configuration_name=SPANNER_CONFIGURATION,
             node_count=1,
-            display_name=SPANNER_DATABASE)
+            display_name=SPANNER_DATABASE,
+        )
         get_client.assert_called_once_with(project_id='new-project')
         instance_method.assert_called_once_with(
             instance_id='instance',
             configuration_name='configuration',
             display_name='database-name',
-            node_count=1)
+            node_count=1,
+        )
         self.assertIsNone(res)
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch('airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client')
     def test_update_instance(self, get_client, mock_project_id):
@@ -142,8 +148,11 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(
-            instance_id='instance', configuration_name='configuration', display_name='database-name',
-            node_count=2)
+            instance_id='instance',
+            configuration_name='configuration',
+            display_name='database-name',
+            node_count=2,
+        )
         update_method.assert_called_once_with()
         self.assertIsNone(res)
 
@@ -159,18 +168,22 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
             instance_id=SPANNER_INSTANCE,
             configuration_name=SPANNER_CONFIGURATION,
             node_count=2,
-            display_name=SPANNER_DATABASE)
+            display_name=SPANNER_DATABASE,
+        )
         get_client.assert_called_once_with(project_id='new-project')
         instance_method.assert_called_once_with(
-            instance_id='instance', configuration_name='configuration', display_name='database-name',
-            node_count=2)
+            instance_id='instance',
+            configuration_name='configuration',
+            display_name='database-name',
+            node_count=2,
+        )
         update_method.assert_called_once_with()
         self.assertIsNone(res)
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch('airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client')
     def test_delete_instance(self, get_client, mock_project_id):
@@ -180,12 +193,10 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         delete_method = instance_method.return_value.delete
         delete_method.return_value = False
         res = self.spanner_hook_default_project_id.delete_instance(
-            instance_id=SPANNER_INSTANCE,
-            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            instance_id=SPANNER_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         get_client.assert_called_once_with(project_id='example-project')
-        instance_method.assert_called_once_with(
-            'instance')
+        instance_method.assert_called_once_with('instance')
         delete_method.assert_called_once_with()
         self.assertIsNone(res)
 
@@ -197,18 +208,17 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         delete_method = instance_method.return_value.delete
         delete_method.return_value = False
         res = self.spanner_hook_default_project_id.delete_instance(
-            project_id='new-project',
-            instance_id=SPANNER_INSTANCE)
+            project_id='new-project', instance_id=SPANNER_INSTANCE
+        )
         get_client.assert_called_once_with(project_id='new-project')
-        instance_method.assert_called_once_with(
-            'instance')
+        instance_method.assert_called_once_with('instance')
         delete_method.assert_called_once_with()
         self.assertIsNone(res)
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch('airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client')
     def test_get_database(self, get_client, mock_project_id):
@@ -238,9 +248,8 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_exists_method = instance_method.return_value.exists
         database_exists_method.return_value = True
         res = self.spanner_hook_default_project_id.get_database(
-            project_id='new-project',
-            instance_id=SPANNER_INSTANCE,
-            database_id=SPANNER_DATABASE)
+            project_id='new-project', instance_id=SPANNER_INSTANCE, database_id=SPANNER_DATABASE
+        )
         get_client.assert_called_once_with(project_id='new-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name')
@@ -250,7 +259,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch('airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client')
     def test_create_database(self, get_client, mock_project_id):
@@ -282,7 +291,8 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
             project_id='new-project',
             instance_id=SPANNER_INSTANCE,
             database_id=SPANNER_DATABASE,
-            ddl_statements=[])
+            ddl_statements=[],
+        )
         get_client.assert_called_once_with(project_id='new-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name', ddl_statements=[])
@@ -292,7 +302,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch('airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client')
     def test_update_database(self, get_client, mock_project_id):
@@ -324,7 +334,8 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
             project_id='new-project',
             instance_id=SPANNER_INSTANCE,
             database_id=SPANNER_DATABASE,
-            ddl_statements=[])
+            ddl_statements=[],
+        )
         get_client.assert_called_once_with(project_id='new-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name')
@@ -334,7 +345,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch('airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client')
     def test_delete_database(self, get_client, mock_project_id):
@@ -367,9 +378,8 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_exists_method = database_method.return_value.exists
         database_exists_method.return_value = True
         res = self.spanner_hook_default_project_id.delete_database(
-            project_id='new-project',
-            instance_id=SPANNER_INSTANCE,
-            database_id=SPANNER_DATABASE)
+            project_id='new-project', instance_id=SPANNER_INSTANCE, database_id=SPANNER_DATABASE
+        )
         get_client.assert_called_once_with(project_id='new-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name')
@@ -380,7 +390,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch('airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client')
     def test_execute_dml(self, get_client, mock_project_id):
@@ -409,10 +419,8 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_method = instance_method.return_value.database
         run_in_transaction_method = database_method.return_value.run_in_transaction
         res = self.spanner_hook_default_project_id.execute_dml(
-            project_id='new-project',
-            instance_id=SPANNER_INSTANCE,
-            database_id=SPANNER_DATABASE,
-            queries='')
+            project_id='new-project', instance_id=SPANNER_INSTANCE, database_id=SPANNER_DATABASE, queries=''
+        )
         get_client.assert_called_once_with(project_id='new-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name')
@@ -421,19 +429,19 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
 
 
 class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
-
     def setUp(self):
-        with mock.patch('airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
-                        new=mock_base_gcp_hook_no_default_project_id):
+        with mock.patch(
+            'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
+            new=mock_base_gcp_hook_no_default_project_id,
+        ):
             self.spanner_hook_no_default_project_id = SpannerHook(gcp_conn_id='test')
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.spanner.SpannerHook.client_info",
-        new_callable=mock.PropertyMock
+        "airflow.providers.google.cloud.hooks.spanner.SpannerHook.client_info", new_callable=mock.PropertyMock
     )
     @mock.patch(
         "airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_credentials",
-        return_value="CREDENTIALS"
+        return_value="CREDENTIALS",
     )
     @mock.patch("airflow.providers.google.cloud.hooks.spanner.Client")
     def test_spanner_client_creation(self, mock_client, mock_get_creds, mock_client_info):
@@ -441,7 +449,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         mock_client.assert_called_once_with(
             project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             credentials=mock_get_creds.return_value,
-            client_info=mock_client_info.return_value
+            client_info=mock_client_info.return_value,
         )
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.spanner_hook_no_default_project_id._client, result)
@@ -451,8 +459,9 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
-        res = self.spanner_hook_no_default_project_id.get_instance(instance_id=SPANNER_INSTANCE,
-                                                                   project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
+        res = self.spanner_hook_no_default_project_id.get_instance(
+            instance_id=SPANNER_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(instance_id='instance')
         self.assertIsNotNone(res)
@@ -462,8 +471,9 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = False
-        res = self.spanner_hook_no_default_project_id.get_instance(instance_id=SPANNER_INSTANCE,
-                                                                   project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
+        res = self.spanner_hook_no_default_project_id.get_instance(
+            instance_id=SPANNER_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(instance_id='instance')
         self.assertIsNone(res)
@@ -478,13 +488,15 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
             instance_id=SPANNER_INSTANCE,
             configuration_name=SPANNER_CONFIGURATION,
             node_count=1,
-            display_name=SPANNER_DATABASE)
+            display_name=SPANNER_DATABASE,
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(
             instance_id='instance',
             configuration_name='configuration',
             display_name='database-name',
-            node_count=1)
+            node_count=1,
+        )
         self.assertIsNone(res)
 
     @mock.patch('airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client')
@@ -499,11 +511,15 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
             instance_id=SPANNER_INSTANCE,
             configuration_name=SPANNER_CONFIGURATION,
             node_count=2,
-            display_name=SPANNER_DATABASE)
+            display_name=SPANNER_DATABASE,
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(
-            instance_id='instance', configuration_name='configuration', display_name='database-name',
-            node_count=2)
+            instance_id='instance',
+            configuration_name='configuration',
+            display_name='database-name',
+            node_count=2,
+        )
         update_method.assert_called_once_with()
         self.assertIsNone(res)
 
@@ -515,11 +531,10 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         delete_method = instance_method.return_value.delete
         delete_method.return_value = False
         res = self.spanner_hook_no_default_project_id.delete_instance(
-            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
-            instance_id=SPANNER_INSTANCE)
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST, instance_id=SPANNER_INSTANCE
+        )
         get_client.assert_called_once_with(project_id='example-project')
-        instance_method.assert_called_once_with(
-            'instance')
+        instance_method.assert_called_once_with('instance')
         delete_method.assert_called_once_with()
         self.assertIsNone(res)
 
@@ -534,7 +549,8 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         res = self.spanner_hook_no_default_project_id.get_database(
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             instance_id=SPANNER_INSTANCE,
-            database_id=SPANNER_DATABASE)
+            database_id=SPANNER_DATABASE,
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name')
@@ -552,7 +568,8 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             instance_id=SPANNER_INSTANCE,
             database_id=SPANNER_DATABASE,
-            ddl_statements=[])
+            ddl_statements=[],
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name', ddl_statements=[])
@@ -570,7 +587,8 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             instance_id=SPANNER_INSTANCE,
             database_id=SPANNER_DATABASE,
-            ddl_statements=[])
+            ddl_statements=[],
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name')
@@ -589,7 +607,8 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
             instance_id=SPANNER_INSTANCE,
             database_id=SPANNER_DATABASE,
             operation_id="operation",
-            ddl_statements=[])
+            ddl_statements=[],
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name')
@@ -608,7 +627,8 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         res = self.spanner_hook_no_default_project_id.delete_database(
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             instance_id=SPANNER_INSTANCE,
-            database_id=SPANNER_DATABASE)
+            database_id=SPANNER_DATABASE,
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name')
@@ -628,7 +648,8 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         self.spanner_hook_no_default_project_id.delete_database(
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             instance_id=SPANNER_INSTANCE,
-            database_id=SPANNER_DATABASE)
+            database_id=SPANNER_DATABASE,
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name')
@@ -646,7 +667,8 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             instance_id=SPANNER_INSTANCE,
             database_id=SPANNER_DATABASE,
-            queries='')
+            queries='',
+        )
         get_client.assert_called_once_with(project_id='example-project')
         instance_method.assert_called_once_with(instance_id='instance')
         database_method.assert_called_once_with(database_id='database-name')

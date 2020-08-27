@@ -156,16 +156,13 @@ class GoogleAdsHook(BaseHook):
         """
         service = self._get_service
         iterators = (
-            service.search(client_id, query=query, page_size=page_size, **kwargs)
-            for client_id in client_ids
+            service.search(client_id, query=query, page_size=page_size, **kwargs) for client_id in client_ids
         )
         self.log.info("Fetched Google Ads Iterators")
 
         return self._extract_rows(iterators)
 
-    def _extract_rows(
-        self, iterators: Generator[GRPCIterator, None, None]
-    ) -> List[GoogleAdsRow]:
+    def _extract_rows(self, iterators: Generator[GRPCIterator, None, None]) -> List[GoogleAdsRow]:
         """
         Convert Google Page Iterator (GRPCIterator) objects to Google Ads Rows
 
@@ -188,9 +185,7 @@ class GoogleAdsHook(BaseHook):
                 self.log.error("\tError with message: %s.", error.message)
                 if error.location:
                     for field_path_element in error.location.field_path_elements:
-                        self.log.error(
-                            "\t\tOn field: %s", field_path_element.field_name
-                        )
+                        self.log.error("\t\tOn field: %s", field_path_element.field_name)
             raise
 
     def list_accessible_customers(self) -> List[str]:

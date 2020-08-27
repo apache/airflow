@@ -42,9 +42,15 @@ class AwsLambdaHook(AwsBaseHook):
     :type invocation_type: str
     """
 
-    def __init__(self, function_name,
-                 log_type='None', qualifier='$LATEST',
-                 invocation_type='RequestResponse', *args, **kwargs):
+    def __init__(
+        self,
+        function_name,
+        log_type='None',
+        qualifier='$LATEST',
+        invocation_type='RequestResponse',
+        *args,
+        **kwargs,
+    ):
         self.function_name = function_name
         self.log_type = log_type
         self.invocation_type = invocation_type
@@ -61,7 +67,7 @@ class AwsLambdaHook(AwsBaseHook):
             InvocationType=self.invocation_type,
             LogType=self.log_type,
             Payload=payload,
-            Qualifier=self.qualifier
+            Qualifier=self.qualifier,
         )
 
         return response

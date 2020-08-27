@@ -30,11 +30,7 @@ def _conf_dict_to_config(conf_dict: dict) -> Config:
     config = Config(
         sections=[
             ConfigSection(
-                name=section,
-                options=[
-                    ConfigOption(key=key, value=value)
-                    for key, value in options.items()
-                ]
+                name=section, options=[ConfigOption(key=key, value=value) for key, value in options.items()]
             )
             for section, options in conf_dict.items()
         ]
@@ -49,8 +45,10 @@ def _option_to_text(config_option: ConfigOption) -> str:
 
 def _section_to_text(config_section: ConfigSection) -> str:
     """Convert a single config section to text"""
-    return (f'[{config_section.name}]{LINE_SEP}'
-            f'{LINE_SEP.join(_option_to_text(option) for option in config_section.options)}{LINE_SEP}')
+    return (
+        f'[{config_section.name}]{LINE_SEP}'
+        f'{LINE_SEP.join(_option_to_text(option) for option in config_section.options)}{LINE_SEP}'
+    )
 
 
 def _config_to_text(config: Config) -> str:

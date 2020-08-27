@@ -41,18 +41,12 @@ class TestSlackAPIPostOperator(unittest.TestCase):
                 "title": "Slack API Documentation",
                 "title_link": "https://api.slack.com/",
                 "text": "Optional text that appears within the attachment",
-                "fields": [
-                    {
-                        "title": "Priority",
-                        "value": "High",
-                        "short": 'false'
-                    }
-                ],
+                "fields": [{"title": "Priority", "value": "High", "short": 'false'}],
                 "image_url": "http://my-website.com/path/to/image.jpg",
                 "thumb_url": "http://example.com/path/to/thumb.png",
                 "footer": "Slack API",
                 "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png",
-                "ts": 123456789
+                "ts": 123456789,
             }
         ]
         self.test_blocks = [
@@ -60,19 +54,12 @@ class TestSlackAPIPostOperator(unittest.TestCase):
                 "type": "section",
                 "text": {
                     "text": "A message *with some bold text* and _some italicized text_.",
-                    "type": "mrkdwn"
+                    "type": "mrkdwn",
                 },
                 "fields": [
-                    {
-                        "type": "mrkdwn",
-                        "text": "High"
-                    },
-                    {
-                        "type": "plain_text",
-                        "emoji": True,
-                        "text": "String"
-                    }
-                ]
+                    {"type": "mrkdwn", "text": "High"},
+                    {"type": "plain_text", "emoji": True, "text": "String"},
+                ],
             }
         ]
         self.test_attachments_in_json = json.dumps(self.test_attachments)
@@ -128,9 +115,7 @@ class TestSlackAPIPostOperator(unittest.TestCase):
         test_slack_conn_id = 'test_slack_conn_id'
 
         slack_api_post_operator = SlackAPIPostOperator(
-            task_id='slack',
-            username=self.test_username,
-            slack_conn_id=test_slack_conn_id,
+            task_id='slack', username=self.test_username, slack_conn_id=test_slack_conn_id,
         )
 
         slack_api_post_operator.execute()
@@ -139,10 +124,10 @@ class TestSlackAPIPostOperator(unittest.TestCase):
             'channel': "#general",
             'username': self.test_username,
             'text': 'No message has been set.\n'
-                    'Here is a cat video instead\n'
-                    'https://www.youtube.com/watch?v=J---aiyznGQ',
+            'Here is a cat video instead\n'
+            'https://www.youtube.com/watch?v=J---aiyznGQ',
             'icon_url': "https://raw.githubusercontent.com/apache/"
-                        "airflow/master/airflow/www/static/pin_100.png",
+            "airflow/master/airflow/www/static/pin_100.png",
             'attachments': '[]',
             'blocks': '[]',
         }
@@ -205,10 +190,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
     def test_api_call_params_with_default_args(self, mock_hook):
         test_slack_conn_id = 'test_slack_conn_id'
 
-        slack_api_post_operator = SlackAPIFileOperator(
-            task_id='slack',
-            slack_conn_id=test_slack_conn_id,
-        )
+        slack_api_post_operator = SlackAPIFileOperator(task_id='slack', slack_conn_id=test_slack_conn_id,)
 
         slack_api_post_operator.execute()
 
@@ -217,7 +199,6 @@ class TestSlackAPIFileOperator(unittest.TestCase):
             'initial_comment': 'No message has been set!',
             'filename': 'default_name.csv',
             'filetype': 'csv',
-            'content': 'default,content,csv,file'
-
+            'content': 'default,content,csv,file',
         }
         self.assertEqual(expected_api_params, slack_api_post_operator.api_params)

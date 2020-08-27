@@ -57,21 +57,22 @@ class SparkSqlHook(BaseHook):
     """
 
     # pylint: disable=too-many-arguments
-    def __init__(self,
-                 sql: str,
-                 conf: Optional[str] = None,
-                 conn_id: str = 'spark_sql_default',
-                 total_executor_cores: Optional[int] = None,
-                 executor_cores: Optional[int] = None,
-                 executor_memory: Optional[str] = None,
-                 keytab: Optional[str] = None,
-                 principal: Optional[str] = None,
-                 master: str = 'yarn',
-                 name: str = 'default-name',
-                 num_executors: Optional[int] = None,
-                 verbose: bool = True,
-                 yarn_queue: str = 'default'
-                 ) -> None:
+    def __init__(
+        self,
+        sql: str,
+        conf: Optional[str] = None,
+        conn_id: str = 'spark_sql_default',
+        total_executor_cores: Optional[int] = None,
+        executor_cores: Optional[int] = None,
+        executor_memory: Optional[str] = None,
+        keytab: Optional[str] = None,
+        principal: Optional[str] = None,
+        master: str = 'yarn',
+        name: str = 'default-name',
+        num_executors: Optional[int] = None,
+        verbose: bool = True,
+        yarn_queue: str = 'default',
+    ) -> None:
         super().__init__()
         self._sql = sql
         self._conf = conf
@@ -152,10 +153,7 @@ class SparkSqlHook(BaseHook):
         :type kwargs: dict
         """
         spark_sql_cmd = self._prepare_command(cmd)
-        self._sp = subprocess.Popen(spark_sql_cmd,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT,
-                                    **kwargs)
+        self._sp = subprocess.Popen(spark_sql_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs)
 
         for line in iter(self._sp.stdout):  # type: ignore
             self.log.info(line)

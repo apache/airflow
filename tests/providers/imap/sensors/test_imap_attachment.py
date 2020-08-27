@@ -25,7 +25,6 @@ from airflow.providers.imap.sensors.imap_attachment import ImapAttachmentSensor
 
 
 class TestImapAttachmentSensor(unittest.TestCase):
-
     def setUp(self):
         self.kwargs = dict(
             attachment_name='test_file',
@@ -33,7 +32,7 @@ class TestImapAttachmentSensor(unittest.TestCase):
             mail_folder='INBOX',
             mail_filter='All',
             task_id='test_task',
-            dag=None
+            dag=None,
         )
 
     @parameterized.expand([(True,), (False,)])
@@ -49,5 +48,5 @@ class TestImapAttachmentSensor(unittest.TestCase):
             name=self.kwargs['attachment_name'],
             check_regex=self.kwargs['check_regex'],
             mail_folder=self.kwargs['mail_folder'],
-            mail_filter=self.kwargs['mail_filter']
+            mail_filter=self.kwargs['mail_filter'],
         )

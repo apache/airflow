@@ -18,15 +18,18 @@ import logging
 
 from airflow.configuration import conf
 
-PROVIDERS_GOOGLE_VERBOSE_LOGGING: bool = conf.getboolean('providers_google',
-                                                         'VERBOSE_LOGGING', fallback=False)
+PROVIDERS_GOOGLE_VERBOSE_LOGGING: bool = conf.getboolean(
+    'providers_google', 'VERBOSE_LOGGING', fallback=False
+)
 if PROVIDERS_GOOGLE_VERBOSE_LOGGING:
     for logger_name in ["google_auth_httplib2", "httplib2", "googleapiclient"]:
         logger = logging.getLogger(logger_name)
-        logger.handlers += [handler for handler in
-                            logging.getLogger().handlers if handler.name in ["task", "console"]]
+        logger.handlers += [
+            handler for handler in logging.getLogger().handlers if handler.name in ["task", "console"]
+        ]
         logger.level = logging.DEBUG
         logger.propagate = False
 
     import httplib2
+
     httplib2.debuglevel = 4

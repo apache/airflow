@@ -45,7 +45,6 @@ BounceX
 Boxel
 Bq
 Breguła
-CLoud
 CSRFProtect
 Cancelled
 Cassanda
@@ -235,6 +234,7 @@ Memorystore
 Mesos
 MessageAttributes
 Metastore
+Multinamespace
 Mixin
 Mongo
 Moto
@@ -280,6 +280,7 @@ Protobuf
 PublisherClient
 Pubsub
 Py
+Pyarrow
 PyPI
 Pylint
 Pyspark
@@ -773,6 +774,7 @@ hostname
 hostnames
 hotfix
 houqp
+howto
 hql
 html
 htmlcontent
@@ -861,7 +863,6 @@ kube
 kubeclient
 kubeconfig
 kubernetes
-kubernetesOperator
 kv
 kwarg
 kwargs
@@ -923,6 +924,7 @@ moinmoin
 mongo
 mongoHook
 monospace
+mouseover
 msg
 mssql
 msumit
@@ -1115,6 +1117,7 @@ setMachineType
 setdefault
 setted
 sftp
+sharded
 shellcheck
 shellcmd
 shm
@@ -1219,7 +1222,6 @@ tez
 theService
 timedelta
 timeframe
-timeouted
 timezones
 tis
 tls
@@ -1287,7 +1289,6 @@ videointelligence
 virtualenv
 vm
 volumeMounts
-waitfordone
 wasb
 webProperty
 webhdfs

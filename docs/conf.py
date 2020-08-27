@@ -549,7 +549,7 @@ OPENAPI_FILE = os.path.join(
 redoc = [
     {
         'name': 'Airflow REST API',
-        'page': 'stable-rest-api/redoc',
+        'page': 'stable-rest-api-ref',
         'spec': OPENAPI_FILE,
         'opts': {
             'hide-hostname': True,

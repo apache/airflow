@@ -46,12 +46,14 @@ class OracleOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, *,
-            sql: str,
-            oracle_conn_id: str = 'oracle_default',
-            parameters: Optional[Union[Mapping, Iterable]] = None,
-            autocommit: bool = False,
-            **kwargs) -> None:
+        self,
+        *,
+        sql: str,
+        oracle_conn_id: str = 'oracle_default',
+        parameters: Optional[Union[Mapping, Iterable]] = None,
+        autocommit: bool = False,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.oracle_conn_id = oracle_conn_id
         self.sql = sql
@@ -61,7 +63,4 @@ class OracleOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Executing: %s', self.sql)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        hook.run(
-            self.sql,
-            autocommit=self.autocommit,
-            parameters=self.parameters)
+        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

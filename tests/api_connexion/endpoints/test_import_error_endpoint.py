@@ -31,9 +31,7 @@ class TestBaseImportError(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
         create_user(cls.app, username="test", role="Admin")  # type: ignore
@@ -89,12 +87,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         response = self.client.get("/api/v1/importErrors/2", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         self.assertEqual(
-            {
-                "detail": None,
-                "status": 404,
-                "title": "Import error not found",
-                "type": "about:blank",
-            },
+            {"detail": None, "status": 404, "title": "Import error not found", "type": "about:blank",},
             response.json,
         )
 
@@ -108,9 +101,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         session.add(import_error)
         session.commit()
 
-        response = self.client.get(
-            f"/api/v1/importErrors/{import_error.id}"
-        )
+        response = self.client.get(f"/api/v1/importErrors/{import_error.id}")
 
         assert_401(response)
 
@@ -202,9 +193,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
-        import_ids = [
-            pool["filename"] for pool in response.json["import_errors"]
-        ]
+        import_ids = [pool["filename"] for pool in response.json["import_errors"]]
         self.assertEqual(import_ids, expected_import_error_ids)
 
     @provide_session

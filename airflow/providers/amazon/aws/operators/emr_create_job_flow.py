@@ -37,18 +37,21 @@ class EmrCreateJobFlowOperator(BaseOperator):
         (must be '.json') to override emr_connection extra. (templated)
     :type job_flow_overrides: dict|str
     """
+
     template_fields = ['job_flow_overrides']
     template_ext = ('.json',)
     ui_color = '#f9c915'
 
     @apply_defaults
     def __init__(
-            self, *,
-            aws_conn_id='aws_default',
-            emr_conn_id='emr_default',
-            job_flow_overrides=None,
-            region_name=None,
-            **kwargs):
+        self,
+        *,
+        aws_conn_id='aws_default',
+        emr_conn_id='emr_default',
+        job_flow_overrides=None,
+        region_name=None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
@@ -58,13 +61,12 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.region_name = region_name
 
     def execute(self, context):
-        emr = EmrHook(aws_conn_id=self.aws_conn_id,
-                      emr_conn_id=self.emr_conn_id,
-                      region_name=self.region_name)
+        emr = EmrHook(
+            aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id, region_name=self.region_name
+        )
 
         self.log.info(
-            'Creating JobFlow using aws-conn-id: %s, emr-conn-id: %s',
-            self.aws_conn_id, self.emr_conn_id
+            'Creating JobFlow using aws-conn-id: %s, emr-conn-id: %s', self.aws_conn_id, self.emr_conn_id
         )
 
         if isinstance(self.job_flow_overrides, str):

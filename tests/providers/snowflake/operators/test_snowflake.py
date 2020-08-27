@@ -33,7 +33,6 @@ LONG_MOCK_PATH += 'SnowflakeOperator.get_hook'
 
 
 class TestSnowflakeOperator(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -47,9 +46,5 @@ class TestSnowflakeOperator(unittest.TestCase):
             dummy VARCHAR(50)
         );
         """
-        operator = SnowflakeOperator(
-            task_id='basic_snowflake',
-            sql=sql,
-            dag=self.dag)
-        operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                     ignore_ti_state=True)
+        operator = SnowflakeOperator(task_id='basic_snowflake', sql=sql, dag=self.dag)
+        operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

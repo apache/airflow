@@ -40,7 +40,6 @@ except ImportError:
 
 
 class TestS3ToHiveTransfer(unittest.TestCase):
-
     def setUp(self):
         self.file_names = {}
         self.task_id = 'S3ToHiveTransferTest'
@@ -55,28 +54,27 @@ class TestS3ToHiveTransfer(unittest.TestCase):
         self.check_headers = True
         self.wildcard_match = False
         self.input_compressed = False
-        self.kwargs = {'task_id': self.task_id,
-                       's3_key': self.s3_key,
-                       'field_dict': self.field_dict,
-                       'hive_table': self.hive_table,
-                       'delimiter': self.delimiter,
-                       'create': self.create,
-                       'recreate': self.recreate,
-                       'partition': self.partition,
-                       'headers': self.headers,
-                       'check_headers': self.check_headers,
-                       'wildcard_match': self.wildcard_match,
-                       'input_compressed': self.input_compressed
-                       }
+        self.kwargs = {
+            'task_id': self.task_id,
+            's3_key': self.s3_key,
+            'field_dict': self.field_dict,
+            'hive_table': self.hive_table,
+            'delimiter': self.delimiter,
+            'create': self.create,
+            'recreate': self.recreate,
+            'partition': self.partition,
+            'headers': self.headers,
+            'check_headers': self.check_headers,
+            'wildcard_match': self.wildcard_match,
+            'input_compressed': self.input_compressed,
+        }
         try:
             header = b"Sno\tSome,Text \n"
             line1 = b"1\tAirflow Test\n"
             line2 = b"2\tS32HiveTransfer\n"
             self.tmp_dir = mkdtemp(prefix='test_tmps32hive_')
             # create sample txt, gz and bz2 with and without headers
-            with NamedTemporaryFile(mode='wb+',
-                                    dir=self.tmp_dir,
-                                    delete=False) as f_txt_h:
+            with NamedTemporaryFile(mode='wb+', dir=self.tmp_dir, delete=False) as f_txt_h:
                 self._set_fn(f_txt_h.name, '.txt', True)
                 f_txt_h.writelines([header, line1, line2])
             fn_gz = self._get_fn('.txt', True) + ".gz"
@@ -156,55 +154,54 @@ class TestS3ToHiveTransfer(unittest.TestCase):
     def test_bad_parameters(self):
         self.kwargs['check_headers'] = True
         self.kwargs['headers'] = False
-        self.assertRaisesRegex(AirflowException, "To check_headers.*",
-                               S3ToHiveOperator, **self.kwargs)
+        self.assertRaisesRegex(AirflowException, "To check_headers.*", S3ToHiveOperator, **self.kwargs)
 
     def test__get_top_row_as_list(self):
         self.kwargs['delimiter'] = '\t'
         fn_txt = self._get_fn('.txt', True)
-        header_list = S3ToHiveOperator(**self.kwargs). \
-            _get_top_row_as_list(fn_txt)
-        self.assertEqual(header_list, ['Sno', 'Some,Text'],
-                         msg="Top row from file doesnt matched expected value")
+        header_list = S3ToHiveOperator(**self.kwargs)._get_top_row_as_list(fn_txt)
+        self.assertEqual(
+            header_list, ['Sno', 'Some,Text'], msg="Top row from file doesnt matched expected value"
+        )
 
         self.kwargs['delimiter'] = ','
-        header_list = S3ToHiveOperator(**self.kwargs). \
-            _get_top_row_as_list(fn_txt)
-        self.assertEqual(header_list, ['Sno\tSome', 'Text'],
-                         msg="Top row from file doesnt matched expected value")
+        header_list = S3ToHiveOperator(**self.kwargs)._get_top_row_as_list(fn_txt)
+        self.assertEqual(
+            header_list, ['Sno\tSome', 'Text'], msg="Top row from file doesnt matched expected value"
+        )
 
     def test__match_headers(self):
-        self.kwargs['field_dict'] = OrderedDict([('Sno', 'BIGINT'),
-                                                 ('Some,Text', 'STRING')])
-        self.assertTrue(S3ToHiveOperator(**self.kwargs).
-                        _match_headers(['Sno', 'Some,Text']),
-                        msg="Header row doesnt match expected value")
+        self.kwargs['field_dict'] = OrderedDict([('Sno', 'BIGINT'), ('Some,Text', 'STRING')])
+        self.assertTrue(
+            S3ToHiveOperator(**self.kwargs)._match_headers(['Sno', 'Some,Text']),
+            msg="Header row doesnt match expected value",
+        )
         # Testing with different column order
-        self.assertFalse(S3ToHiveOperator(**self.kwargs).
-                         _match_headers(['Some,Text', 'Sno']),
-                         msg="Header row doesnt match expected value")
+        self.assertFalse(
+            S3ToHiveOperator(**self.kwargs)._match_headers(['Some,Text', 'Sno']),
+            msg="Header row doesnt match expected value",
+        )
         # Testing with extra column in header
-        self.assertFalse(S3ToHiveOperator(**self.kwargs).
-                         _match_headers(['Sno', 'Some,Text', 'ExtraColumn']),
-                         msg="Header row doesnt match expected value")
+        self.assertFalse(
+            S3ToHiveOperator(**self.kwargs)._match_headers(['Sno', 'Some,Text', 'ExtraColumn']),
+            msg="Header row doesnt match expected value",
+        )
 
     def test__delete_top_row_and_compress(self):
         s32hive = S3ToHiveOperator(**self.kwargs)
         # Testing gz file type
         fn_txt = self._get_fn('.txt', True)
-        gz_txt_nh = s32hive._delete_top_row_and_compress(fn_txt,
-                                                         '.gz',
-                                                         self.tmp_dir)
+        gz_txt_nh = s32hive._delete_top_row_and_compress(fn_txt, '.gz', self.tmp_dir)
         fn_gz = self._get_fn('.gz', False)
-        self.assertTrue(self._check_file_equality(gz_txt_nh, fn_gz, '.gz'),
-                        msg="gz Compressed file not as expected")
+        self.assertTrue(
+            self._check_file_equality(gz_txt_nh, fn_gz, '.gz'), msg="gz Compressed file not as expected"
+        )
         # Testing bz2 file type
-        bz2_txt_nh = s32hive._delete_top_row_and_compress(fn_txt,
-                                                          '.bz2',
-                                                          self.tmp_dir)
+        bz2_txt_nh = s32hive._delete_top_row_and_compress(fn_txt, '.bz2', self.tmp_dir)
         fn_bz2 = self._get_fn('.bz2', False)
-        self.assertTrue(self._check_file_equality(bz2_txt_nh, fn_bz2, '.bz2'),
-                        msg="bz2 Compressed file not as expected")
+        self.assertTrue(
+            self._check_file_equality(bz2_txt_nh, fn_bz2, '.bz2'), msg="bz2 Compressed file not as expected"
+        )
 
     @unittest.skipIf(mock is None, 'mock package not present')
     @unittest.skipIf(mock_s3 is None, 'moto package not present')
@@ -229,10 +226,10 @@ class TestS3ToHiveTransfer(unittest.TestCase):
 
             # file parameter to HiveCliHook.load_file is compared
             # against expected file output
-            mock_hiveclihook().load_file.side_effect = \
-                lambda *args, **kwargs: self.assertTrue(
-                    self._check_file_equality(args[0], op_fn, ext),
-                    msg='{0} output file not as expected'.format(ext))
+            mock_hiveclihook().load_file.side_effect = lambda *args, **kwargs: self.assertTrue(
+                self._check_file_equality(args[0], op_fn, ext),
+                msg='{0} output file not as expected'.format(ext),
+            )
             # Execute S3ToHiveTransfer
             s32hive = S3ToHiveOperator(**self.kwargs)
             s32hive.execute(None)
@@ -266,23 +263,23 @@ class TestS3ToHiveTransfer(unittest.TestCase):
             # Upload the file into the Mocked S3 bucket
             conn.upload_file(ip_fn, bucket, key)
 
-            input_serialization = {
-                'CSV': {'FieldDelimiter': self.delimiter}
-            }
+            input_serialization = {'CSV': {'FieldDelimiter': self.delimiter}}
             if input_compressed:
                 input_serialization['CompressionType'] = 'GZIP'
             if has_header:
                 input_serialization['CSV']['FileHeaderInfo'] = 'USE'
 
             # Confirm that select_key was called with the right params
-            with mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key',
-                            return_value="") as mock_select_key:
+            with mock.patch(
+                'airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key', return_value=""
+            ) as mock_select_key:
                 # Execute S3ToHiveTransfer
                 s32hive = S3ToHiveOperator(**self.kwargs)
                 s32hive.execute(None)
 
                 mock_select_key.assert_called_once_with(
-                    bucket_name=bucket, key=key,
+                    bucket_name=bucket,
+                    key=key,
                     expression=select_expression,
-                    input_serialization=input_serialization
+                    input_serialization=input_serialization,
                 )

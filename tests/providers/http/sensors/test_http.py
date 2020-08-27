@@ -35,10 +35,7 @@ TEST_DAG_ID = 'unit_test_dag'
 
 class TestHttpSensor(unittest.TestCase):
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
@@ -60,7 +57,8 @@ class TestHttpSensor(unittest.TestCase):
             request_params={},
             response_check=resp_check,
             timeout=5,
-            poke_interval=1)
+            poke_interval=1,
+        )
         with self.assertRaisesRegex(AirflowException, 'AirflowException raised here!'):
             task.execute(context={})
 
@@ -78,17 +76,15 @@ class TestHttpSensor(unittest.TestCase):
             method='HEAD',
             response_check=resp_check,
             timeout=5,
-            poke_interval=1)
+            poke_interval=1,
+        )
 
         task.execute(context={})
 
         args, kwargs = mock_session_send.call_args
         received_request = args[0]
 
-        prep_request = requests.Request(
-            'HEAD',
-            'https://www.httpbin.org',
-            {}).prepare()
+        prep_request = requests.Request('HEAD', 'https://www.httpbin.org', {}).prepare()
 
         self.assertEqual(prep_request.url, received_request.url)
         self.assertTrue(prep_request.method, received_request.method)
@@ -112,16 +108,14 @@ class TestHttpSensor(unittest.TestCase):
             response_check=resp_check,
             timeout=5,
             poke_interval=1,
-            dag=self.dag)
+            dag=self.dag,
+        )
 
         task_instance = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         task.execute(task_instance.get_template_context())
 
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
-    def test_logging_head_error_request(
-        self,
-        mock_session_send
-    ):
+    def test_logging_head_error_request(self, mock_session_send):
         def resp_check(_):
             return True
 
@@ -140,7 +134,7 @@ class TestHttpSensor(unittest.TestCase):
             method='HEAD',
             response_check=resp_check,
             timeout=5,
-            poke_interval=1
+            poke_interval=1,
         )
 
         with mock.patch.object(task.hook.log, 'error') as mock_errors:
@@ -176,9 +170,7 @@ class FakeSession:
 
     def prepare_request(self, request):
         if 'date' in request.params:
-            self.response._content += (
-                '/' + request.params['date']
-            ).encode('ascii', 'ignore')
+            self.response._content += ('/' + request.params['date']).encode('ascii', 'ignore')
         return self.response
 
 
@@ -196,7 +188,8 @@ class TestHttpOpSensor(unittest.TestCase):
             endpoint='/search',
             data={"client": "ubuntu", "q": "airflow"},
             headers={},
-            dag=self.dag)
+            dag=self.dag,
+        )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @mock.patch('requests.Session', FakeSession)
@@ -208,7 +201,8 @@ class TestHttpOpSensor(unittest.TestCase):
             data={"client": "ubuntu", "q": "airflow"},
             response_check=lambda response: ("apache/airflow" in response.text),
             headers={},
-            dag=self.dag)
+            dag=self.dag,
+        )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @mock.patch('requests.Session', FakeSession)
@@ -220,9 +214,10 @@ class TestHttpOpSensor(unittest.TestCase):
             request_params={"client": "ubuntu", "q": "airflow", 'date': '{{ds}}'},
             headers={},
             response_check=lambda response: (
-                "apache/airflow/" + DEFAULT_DATE.strftime('%Y-%m-%d')
-                in response.text),
+                "apache/airflow/" + DEFAULT_DATE.strftime('%Y-%m-%d') in response.text
+            ),
             poke_interval=5,
             timeout=15,
-            dag=self.dag)
+            dag=self.dag,
+        )
         sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

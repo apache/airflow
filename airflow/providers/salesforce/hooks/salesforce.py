@@ -71,7 +71,7 @@ class SalesforceHook(BaseHook):
                 password=connection.password,
                 security_token=extras['security_token'],
                 instance_url=connection.host,
-                domain=extras.get('domain', None)
+                domain=extras.get('domain', None),
             )
         return self.conn
 
@@ -94,8 +94,9 @@ class SalesforceHook(BaseHook):
         query_params = query_params or {}
         query_results = conn.query_all(query, include_deleted=include_deleted, **query_params)
 
-        self.log.info("Received results: Total size: %s; Done: %s",
-                      query_results['totalSize'], query_results['done'])
+        self.log.info(
+            "Received results: Total size: %s; Done: %s", query_results['totalSize'], query_results['done']
+        )
 
         return query_results
 
@@ -146,8 +147,10 @@ class SalesforceHook(BaseHook):
         """
         query = "SELECT {} FROM {}".format(",".join(fields), obj)
 
-        self.log.info("Making query to Salesforce: %s",
-                      query if len(query) < 30 else " ... ".join([query[:15], query[-15:]]))
+        self.log.info(
+            "Making query to Salesforce: %s",
+            query if len(query) < 30 else " ... ".join([query[:15], query[-15:]]),
+        )
 
         return self.make_query(query)
 
@@ -189,12 +192,9 @@ class SalesforceHook(BaseHook):
 
         return pd.Series(converted, index=column.index)
 
-    def write_object_to_file(self,
-                             query_results,
-                             filename,
-                             fmt="csv",
-                             coerce_to_timestamp=False,
-                             record_time_added=False):
+    def write_object_to_file(
+        self, query_results, filename, fmt="csv", coerce_to_timestamp=False, record_time_added=False
+    ):
         """
         Write query results to file.
 
@@ -236,8 +236,11 @@ class SalesforceHook(BaseHook):
         if fmt not in ['csv', 'json', 'ndjson']:
             raise ValueError("Format value is not recognized: {}".format(fmt))
 
-        df = self.object_to_df(query_results=query_results, coerce_to_timestamp=coerce_to_timestamp,
-                               record_time_added=record_time_added)
+        df = self.object_to_df(
+            query_results=query_results,
+            coerce_to_timestamp=coerce_to_timestamp,
+            record_time_added=record_time_added,
+        )
 
         # write the CSV or JSON file depending on the option
         # NOTE:
@@ -253,8 +256,10 @@ class SalesforceHook(BaseHook):
             # we remove these newlines so that the output is a valid CSV format
             self.log.info("Cleaning data and writing to CSV")
             possible_strings = df.columns[df.dtypes == "object"]
-            df[possible_strings] = df[possible_strings].astype(str).apply(
-                lambda x: x.str.replace("\r\n", "").str.replace("\n", "")
+            df[possible_strings] = (
+                df[possible_strings]
+                .astype(str)
+                .apply(lambda x: x.str.replace("\r\n", "").str.replace("\n", ""))
             )
             # write the dataframe
             df.to_csv(filename, index=False)
@@ -265,8 +270,7 @@ class SalesforceHook(BaseHook):
 
         return df
 
-    def object_to_df(self, query_results, coerce_to_timestamp=False,
-                     record_time_added=False):
+    def object_to_df(self, query_results, coerce_to_timestamp=False, record_time_added=False):
         """
         Export query results to dataframe.
 

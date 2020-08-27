@@ -37,7 +37,8 @@ class GcsSystemTestHelper(LoggingCommandExecutor):
 
         # Create script for transform operator
         with open(PATH_TO_TRANSFORM_SCRIPT, "w+") as file:
-            file.write("""import sys
+            file.write(
+                """import sys
 source = sys.argv[1]
 destination = sys.argv[2]
 
@@ -46,7 +47,8 @@ with open(source, "r") as src, open(destination, "w+") as dest:
     lines = [l.upper() for l in src.readlines()]
     print(lines)
     dest.writelines(lines)
-    """)
+    """
+            )
 
     @staticmethod
     def remove_test_files():

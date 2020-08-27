@@ -47,13 +47,13 @@ By default the Web UI will show times in UTC. It is possible to change the timez
 
 .. image:: img/ui-timezone-chooser.png
 
-"Local" is detected from the browser's timezone. The "Server" value comes from the ``default_timezone`` setting under the ``core`` section.
+"Local" is detected from the browser's timezone. The "Server" value comes from the ``default_timezone`` setting in the ``[core]`` section.
 
 The users' selected timezone is stored in LocalStorage so is a pre-browser setting.
 
 .. note::
 
-  If you have configured your Airflow install to use a different default timezone and want the UI to use this same timezone, set ``default_ui_timezone`` under the ``webserver`` section to either an empty string, or the same value.
+  If you have configured your Airflow install to use a different default timezone and want the UI to use this same timezone, set ``default_ui_timezone`` in the ``[webserver]`` section to either an empty string, or the same value.
 
   (It currently defaults to UTC to keep behaviour of the UI consistent by default between point-releases.)
 

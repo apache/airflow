@@ -48,18 +48,11 @@ class TestPubSubPullSensor(unittest.TestCase):
         ]
 
     def _generate_dicts(self, count):
-        return [
-            MessageToDict(m)
-            for m in self._generate_messages(count)
-        ]
+        return [MessageToDict(m) for m in self._generate_messages(count)]
 
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
     def test_poke_no_messages(self, mock_hook):
-        operator = PubSubPullSensor(
-            task_id=TASK_ID,
-            project_id=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION,
-        )
+        operator = PubSubPullSensor(task_id=TASK_ID, project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION,)
 
         mock_hook.return_value.pull.return_value = []
         self.assertEqual(False, operator.poke({}))
@@ -67,10 +60,7 @@ class TestPubSubPullSensor(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
     def test_poke_with_ack_messages(self, mock_hook):
         operator = PubSubPullSensor(
-            task_id=TASK_ID,
-            project_id=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION,
-            ack_messages=True,
+            task_id=TASK_ID, project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, ack_messages=True,
         )
 
         generated_messages = self._generate_messages(5)
@@ -79,18 +69,13 @@ class TestPubSubPullSensor(unittest.TestCase):
 
         self.assertEqual(True, operator.poke({}))
         mock_hook.return_value.acknowledge.assert_called_once_with(
-            project_id=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION,
-            messages=generated_messages,
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, messages=generated_messages,
         )
 
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
         operator = PubSubPullSensor(
-            task_id=TASK_ID,
-            project_id=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION,
-            poke_interval=0,
+            task_id=TASK_ID, project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, poke_interval=0,
         )
 
         generated_messages = self._generate_messages(5)
@@ -99,10 +84,7 @@ class TestPubSubPullSensor(unittest.TestCase):
 
         response = operator.execute({})
         mock_hook.return_value.pull.assert_called_once_with(
-            project_id=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION,
-            max_messages=5,
-            return_immediately=True
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
         )
         self.assertEqual(generated_dicts, response)
 
@@ -124,7 +106,7 @@ class TestPubSubPullSensor(unittest.TestCase):
                 project_id=TEST_PROJECT,
                 subscription=TEST_SUBSCRIPTION,
                 max_messages=5,
-                return_immediately=False
+                return_immediately=False,
             )
 
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
@@ -133,8 +115,7 @@ class TestPubSubPullSensor(unittest.TestCase):
         messages_callback_return_value = 'asdfg'
 
         def messages_callback(
-            pulled_messages: List[ReceivedMessage],
-            context: Dict[str, Any],
+            pulled_messages: List[ReceivedMessage], context: Dict[str, Any],
         ):
             assert pulled_messages == generated_messages
 
@@ -158,10 +139,7 @@ class TestPubSubPullSensor(unittest.TestCase):
 
         response = operator.execute({})
         mock_hook.return_value.pull.assert_called_once_with(
-            project_id=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION,
-            max_messages=5,
-            return_immediately=True
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
         )
 
         messages_callback.assert_called_once()

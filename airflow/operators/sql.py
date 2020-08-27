@@ -66,10 +66,6 @@ class SQLCheckOperator(BaseOperator):
     publishing dubious data, or on the side and receive email alerts
     without stopping the progress of the DAG.
 
-    Note that this is an abstract class and get_db_hook
-    needs to be defined. Whereas a get_db_hook is hook that gets a
-    single record from an external source.
-
     :param sql: the sql to be executed. (templated)
     :type sql: str
     """

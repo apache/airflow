@@ -42,10 +42,12 @@ class JdbcHook(DbApiHook):
         jdbc_driver_loc = conn.extra_dejson.get('extra__jdbc__drv_path')
         jdbc_driver_name = conn.extra_dejson.get('extra__jdbc__drv_clsname')
 
-        conn = jaydebeapi.connect(jclassname=jdbc_driver_name,
-                                  url=str(host),
-                                  driver_args=[str(login), str(psw)],
-                                  jars=jdbc_driver_loc.split(","))
+        conn = jaydebeapi.connect(
+            jclassname=jdbc_driver_name,
+            url=str(host),
+            driver_args=[str(login), str(psw)],
+            jars=jdbc_driver_loc.split(","),
+        )
         return conn
 
     def set_autocommit(self, conn, autocommit):

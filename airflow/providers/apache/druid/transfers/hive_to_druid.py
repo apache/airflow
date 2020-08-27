@@ -84,7 +84,8 @@ class HiveToDruidOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self, *,
+        self,
+        *,
         sql: str,
         druid_datasource: str,
         ts_dim: str,
@@ -100,7 +101,7 @@ class HiveToDruidOperator(BaseOperator):
         segment_granularity: str = "DAY",
         hive_tblproperties: Optional[Dict[Any, Any]] = None,
         job_properties: Optional[Dict[Any, Any]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
@@ -111,9 +112,7 @@ class HiveToDruidOperator(BaseOperator):
         self.target_partition_size = target_partition_size
         self.query_granularity = query_granularity
         self.segment_granularity = segment_granularity
-        self.metric_spec = metric_spec or [{
-            "name": "count",
-            "type": "count"}]
+        self.metric_spec = metric_spec or [{"name": "count", "type": "count"}]
         self.hive_cli_conn_id = hive_cli_conn_id
         self.hadoop_dependency_coordinates = hadoop_dependency_coordinates
         self.druid_ingest_conn_id = druid_ingest_conn_id
@@ -126,9 +125,7 @@ class HiveToDruidOperator(BaseOperator):
         self.log.info("Extracting data from Hive")
         hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
         sql = self.sql.strip().strip(';')
-        tblproperties = ''.join([", '{}' = '{}'"
-                                .format(k, v)
-                                 for k, v in self.hive_tblproperties.items()])
+        tblproperties = ''.join([", '{}' = '{}'".format(k, v) for k, v in self.hive_tblproperties.items()])
         hql = f"""\
         SET mapred.output.compress=false;
         SET hive.exec.compress.output=false;
@@ -155,10 +152,7 @@ class HiveToDruidOperator(BaseOperator):
         druid = DruidHook(druid_ingest_conn_id=self.druid_ingest_conn_id)
 
         try:
-            index_spec = self.construct_ingest_query(
-                static_path=static_path,
-                columns=columns,
-            )
+            index_spec = self.construct_ingest_query(static_path=static_path, columns=columns,)
 
             self.log.info("Inserting rows into Druid, hdfs path: %s", static_path)
 
@@ -166,15 +160,11 @@ class HiveToDruidOperator(BaseOperator):
 
             self.log.info("Load seems to have succeeded!")
         finally:
-            self.log.info(
-                "Cleaning up by dropping the temp Hive table %s",
-                hive_table
-            )
+            self.log.info("Cleaning up by dropping the temp Hive table %s", hive_table)
             hql = "DROP TABLE IF EXISTS {}".format(hive_table)
             hive.run_cli(hql)
 
-    def construct_ingest_query(self, static_path: str,
-                               columns: List[str]) -> Dict[str, Any]:
+    def construct_ingest_query(self, static_path: str, columns: List[str]) -> Dict[str, Any]:
         """
         Builds an ingest query for an HDFS TSV load.
 
@@ -219,16 +209,13 @@ class HiveToDruidOperator(BaseOperator):
                             "dimensionsSpec": {
                                 "dimensionExclusions": [],
                                 "dimensions": dimensions,  # list of names
-                                "spatialDimensions": []
+                                "spatialDimensions": [],
                             },
-                            "timestampSpec": {
-                                "column": self.ts_dim,
-                                "format": "auto"
-                            },
-                            "format": "tsv"
-                        }
+                            "timestampSpec": {"column": self.ts_dim, "format": "auto"},
+                            "format": "tsv",
+                        },
                     },
-                    "dataSource": self.druid_datasource
+                    "dataSource": self.druid_datasource,
                 },
                 "tuningConfig": {
                     "type": "hadoop",
@@ -243,22 +230,14 @@ class HiveToDruidOperator(BaseOperator):
                         "numShards": num_shards,
                     },
                 },
-                "ioConfig": {
-                    "inputSpec": {
-                        "paths": static_path,
-                        "type": "static"
-                    },
-                    "type": "hadoop"
-                }
-            }
+                "ioConfig": {"inputSpec": {"paths": static_path, "type": "static"}, "type": "hadoop"},
+            },
         }
 
         if self.job_properties:
-            ingest_query_dict['spec']['tuningConfig']['jobProperties'] \
-                .update(self.job_properties)
+            ingest_query_dict['spec']['tuningConfig']['jobProperties'].update(self.job_properties)
 
         if self.hadoop_dependency_coordinates:
-            ingest_query_dict['hadoopDependencyCoordinates'] \
-                = self.hadoop_dependency_coordinates
+            ingest_query_dict['hadoopDependencyCoordinates'] = self.hadoop_dependency_coordinates
 
         return ingest_query_dict

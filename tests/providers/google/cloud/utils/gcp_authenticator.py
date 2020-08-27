@@ -23,6 +23,7 @@ from typing import Optional  # noqa: W0611
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+
 # Please keep these variables in alphabetical order.
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.utils.logging_command_executor import LoggingCommandExecutor

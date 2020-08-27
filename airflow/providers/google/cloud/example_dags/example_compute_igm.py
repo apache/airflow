@@ -42,7 +42,8 @@ import os
 
 from airflow import models
 from airflow.providers.google.cloud.operators.compute import (
-    ComputeEngineCopyInstanceTemplateOperator, ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
+    ComputeEngineCopyInstanceTemplateOperator,
+    ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
 )
 from airflow.utils.dates import days_ago
 
@@ -51,39 +52,38 @@ GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
 
 # [START howto_operator_compute_template_copy_args]
 GCE_TEMPLATE_NAME = os.environ.get('GCE_TEMPLATE_NAME', 'instance-template-test')
-GCE_NEW_TEMPLATE_NAME = os.environ.get('GCE_NEW_TEMPLATE_NAME',
-                                       'instance-template-test-new')
+GCE_NEW_TEMPLATE_NAME = os.environ.get('GCE_NEW_TEMPLATE_NAME', 'instance-template-test-new')
 GCE_NEW_DESCRIPTION = os.environ.get('GCE_NEW_DESCRIPTION', 'Test new description')
 GCE_INSTANCE_TEMPLATE_BODY_UPDATE = {
     "name": GCE_NEW_TEMPLATE_NAME,
     "description": GCE_NEW_DESCRIPTION,
-    "properties": {
-        "machineType": "n1-standard-2"
-    }
+    "properties": {"machineType": "n1-standard-2"},
 }
 # [END howto_operator_compute_template_copy_args]
 
 # [START howto_operator_compute_igm_update_template_args]
-GCE_INSTANCE_GROUP_MANAGER_NAME = os.environ.get('GCE_INSTANCE_GROUP_MANAGER_NAME',
-                                                 'instance-group-test')
+GCE_INSTANCE_GROUP_MANAGER_NAME = os.environ.get('GCE_INSTANCE_GROUP_MANAGER_NAME', 'instance-group-test')
 
 SOURCE_TEMPLATE_URL = os.environ.get(
     'SOURCE_TEMPLATE_URL',
-    "https://www.googleapis.com/compute/beta/projects/" + GCP_PROJECT_ID +
-    "/global/instanceTemplates/instance-template-test")
+    "https://www.googleapis.com/compute/beta/projects/"
+    + GCP_PROJECT_ID
+    + "/global/instanceTemplates/instance-template-test",
+)
 
 DESTINATION_TEMPLATE_URL = os.environ.get(
     'DESTINATION_TEMPLATE_URL',
-    "https://www.googleapis.com/compute/beta/projects/" + GCP_PROJECT_ID +
-    "/global/instanceTemplates/" + GCE_NEW_TEMPLATE_NAME)
+    "https://www.googleapis.com/compute/beta/projects/"
+    + GCP_PROJECT_ID
+    + "/global/instanceTemplates/"
+    + GCE_NEW_TEMPLATE_NAME,
+)
 
 UPDATE_POLICY = {
     "type": "OPPORTUNISTIC",
     "minimalAction": "RESTART",
-    "maxSurge": {
-        "fixed": 1
-    },
-    "minReadySec": 1800
+    "maxSurge": {"fixed": 1},
+    "minReadySec": 1800,
 }
 
 # [END howto_operator_compute_igm_update_template_args]
@@ -100,7 +100,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         resource_id=GCE_TEMPLATE_NAME,
         body_patch=GCE_INSTANCE_TEMPLATE_BODY_UPDATE,
-        task_id='gcp_compute_igm_copy_template_task'
+        task_id='gcp_compute_igm_copy_template_task',
     )
     # [END howto_operator_gce_igm_copy_template]
     # Added to check for idempotence
@@ -108,33 +108,30 @@ with models.DAG(
     gce_instance_template_copy2 = ComputeEngineCopyInstanceTemplateOperator(
         resource_id=GCE_TEMPLATE_NAME,
         body_patch=GCE_INSTANCE_TEMPLATE_BODY_UPDATE,
-        task_id='gcp_compute_igm_copy_template_task_2'
+        task_id='gcp_compute_igm_copy_template_task_2',
     )
     # [END howto_operator_gce_igm_copy_template_no_project_id]
     # [START howto_operator_gce_igm_update_template]
-    gce_instance_group_manager_update_template = \
-        ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
-            project_id=GCP_PROJECT_ID,
-            resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-            zone=GCE_ZONE,
-            source_template=SOURCE_TEMPLATE_URL,
-            destination_template=DESTINATION_TEMPLATE_URL,
-            update_policy=UPDATE_POLICY,
-            task_id='gcp_compute_igm_group_manager_update_template'
-        )
+    gce_instance_group_manager_update_template = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
+        project_id=GCP_PROJECT_ID,
+        resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
+        zone=GCE_ZONE,
+        source_template=SOURCE_TEMPLATE_URL,
+        destination_template=DESTINATION_TEMPLATE_URL,
+        update_policy=UPDATE_POLICY,
+        task_id='gcp_compute_igm_group_manager_update_template',
+    )
     # [END howto_operator_gce_igm_update_template]
     # Added to check for idempotence (and without UPDATE_POLICY)
     # [START howto_operator_gce_igm_update_template_no_project_id]
-    gce_instance_group_manager_update_template2 = \
-        ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
-            resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-            zone=GCE_ZONE,
-            source_template=SOURCE_TEMPLATE_URL,
-            destination_template=DESTINATION_TEMPLATE_URL,
-            task_id='gcp_compute_igm_group_manager_update_template_2'
-        )
+    gce_instance_group_manager_update_template2 = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
+        resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
+        zone=GCE_ZONE,
+        source_template=SOURCE_TEMPLATE_URL,
+        destination_template=DESTINATION_TEMPLATE_URL,
+        task_id='gcp_compute_igm_group_manager_update_template_2',
+    )
     # [END howto_operator_gce_igm_update_template_no_project_id]
 
-    gce_instance_template_copy >> gce_instance_template_copy2 >> \
-        gce_instance_group_manager_update_template >> \
-        gce_instance_group_manager_update_template2
+    gce_instance_template_copy >> gce_instance_template_copy2 >> gce_instance_group_manager_update_template
+    gce_instance_group_manager_update_template >> gce_instance_group_manager_update_template2

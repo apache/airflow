@@ -33,20 +33,28 @@ class TestKubernetesHook(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(
-                conn_id='kubernetes_in_cluster', conn_type='kubernetes',
-                extra=json.dumps({'extra__kubernetes__in_cluster': True})))
+                conn_id='kubernetes_in_cluster',
+                conn_type='kubernetes',
+                extra=json.dumps({'extra__kubernetes__in_cluster': True}),
+            )
+        )
         db.merge_conn(
             Connection(
-                conn_id='kubernetes_kube_config', conn_type='kubernetes',
-                extra=json.dumps({'extra__kubernetes__kube_config': '{"test": "kube"}'})))
+                conn_id='kubernetes_kube_config',
+                conn_type='kubernetes',
+                extra=json.dumps({'extra__kubernetes__kube_config': '{"test": "kube"}'}),
+            )
+        )
+        db.merge_conn(
+            Connection(conn_id='kubernetes_default_kube_config', conn_type='kubernetes', extra=json.dumps({}))
+        )
         db.merge_conn(
             Connection(
-                conn_id='kubernetes_default_kube_config', conn_type='kubernetes',
-                extra=json.dumps({})))
-        db.merge_conn(
-            Connection(
-                conn_id='kubernetes_with_namespace', conn_type='kubernetes',
-                extra=json.dumps({'extra__kubernetes__namespace': 'mock_namespace'})))
+                conn_id='kubernetes_with_namespace',
+                conn_type='kubernetes',
+                extra=json.dumps({'extra__kubernetes__namespace': 'mock_namespace'}),
+            )
+        )
 
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader")
     def test_in_cluster_connection(self, mock_kube_config_loader):
@@ -58,10 +66,7 @@ class TestKubernetesHook(unittest.TestCase):
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch.object(tempfile, 'NamedTemporaryFile')
-    def test_kube_config_connection(self,
-                                    mock_kube_config_loader,
-                                    mock_kube_config_merger,
-                                    mock_tempfile):
+    def test_kube_config_connection(self, mock_kube_config_loader, mock_kube_config_merger, mock_tempfile):
         kubernetes_hook = KubernetesHook(conn_id='kubernetes_kube_config')
         api_conn = kubernetes_hook.get_conn()
         mock_tempfile.is_called_once()
@@ -72,10 +77,9 @@ class TestKubernetesHook(unittest.TestCase):
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch("kubernetes.config.kube_config.KUBE_CONFIG_DEFAULT_LOCATION", "/mock/config")
-    def test_default_kube_config_connection(self,
-                                            mock_kube_config_loader,
-                                            mock_kube_config_merger,
-                                            ):
+    def test_default_kube_config_connection(
+        self, mock_kube_config_loader, mock_kube_config_merger,
+    ):
         kubernetes_hook = KubernetesHook(conn_id='kubernetes_default_kube_config')
         api_conn = kubernetes_hook.get_conn()
         mock_kube_config_loader.assert_called_once_with("/mock/config")

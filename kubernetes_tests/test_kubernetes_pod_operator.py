@@ -34,6 +34,7 @@ from airflow.kubernetes import kube_client
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
@@ -43,7 +44,6 @@ from airflow.utils import timezone
 from airflow.version import version as airflow_version
 
 
-# noinspection DuplicatedCode
 def create_context(task):
     dag = DAG(dag_id="dag")
     tzinfo = pendulum.timezone("Europe/Amsterdam")
@@ -58,7 +58,6 @@ def create_context(task):
     }
 
 
-# noinspection DuplicatedCode,PyUnusedLocal
 class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     def get_current_task_name(self):
@@ -540,7 +539,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     def test_pod_failure(self):
         """
-            Tests that the task fails when a pod reports a failure
+        Tests that the task fails when a pod reports a failure
         """
         bad_internal_command = ["foobar 10 "]
         k = KubernetesPodOperator(
@@ -650,6 +649,41 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 name=secret_ref
             ))]
         )
+
+    def test_env_vars(self):
+        # WHEN
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            env_vars={"ENV1": "val1", "ENV2": "val2", },
+            pod_runtime_info_envs=[PodRuntimeInfoEnv("ENV3", "status.podIP")],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+
+        context = create_context(k)
+        k.execute(context)
+
+        # THEN
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['containers'][0]['env'] = [
+            {'name': 'ENV1', 'value': 'val1'},
+            {'name': 'ENV2', 'value': 'val2'},
+            {
+                'name': 'ENV3',
+                'valueFrom': {
+                    'fieldRef': {
+                        'fieldPath': 'status.podIP'
+                    }
+                }
+            }
+        ]
+        self.assertEqual(self.expected_pod, actual_pod)
 
     def test_init_container(self):
         # GIVEN

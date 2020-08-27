@@ -43,9 +43,7 @@ except ImportError:
 
 
 @mock_datasync
-@unittest.skipIf(
-    mock_datasync == no_datasync, "moto datasync package missing"
-)  # pylint: disable=W0143
+@unittest.skipIf(mock_datasync == no_datasync, "moto datasync package missing")  # pylint: disable=W0143
 class TestAwsDataSyncHook(unittest.TestCase):
     def test_get_conn(self):
         hook = AWSDataSyncHook(aws_conn_id="aws_default")
@@ -67,9 +65,7 @@ class TestAwsDataSyncHook(unittest.TestCase):
 
 @mock_datasync
 @mock.patch.object(AWSDataSyncHook, "get_conn")
-@unittest.skipIf(
-    mock_datasync == no_datasync, "moto datasync package missing"
-)  # pylint: disable=W0143
+@unittest.skipIf(mock_datasync == no_datasync, "moto datasync package missing")  # pylint: disable=W0143
 class TestAWSDataSyncHookMocked(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -102,8 +98,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
             S3Config={"BucketAccessRoleArn": "role"},
         )["LocationArn"]
         self.task_arn = self.client.create_task(
-            SourceLocationArn=self.source_location_arn,
-            DestinationLocationArn=self.destination_location_arn,
+            SourceLocationArn=self.source_location_arn, DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
     def tearDown(self):
@@ -226,7 +221,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         task_arn = self.hook.create_task(
             source_location_arn=self.source_location_arn,
             destination_location_arn=self.destination_location_arn,
-            **create_task_kwargs
+            **create_task_kwargs,
         )
 
         task = self.client.describe_task(TaskArn=task_arn)
@@ -272,9 +267,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         # Get true location_arn from boto/moto self.client
-        location_uri = "smb://{0}/{1}".format(
-            self.source_server_hostname, self.source_subdirectory
-        )
+        location_uri = "smb://{0}/{1}".format(self.source_server_hostname, self.source_subdirectory)
         locations = self.client.list_locations()
         for location in locations["Locations"]:
             if location["LocationUri"] == location_uri:
@@ -292,9 +285,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         # Get true location_arn from boto/moto self.client
-        location_uri = "smb://{0}/{1}".format(
-            self.source_server_hostname.upper(), self.source_subdirectory
-        )
+        location_uri = "smb://{0}/{1}".format(self.source_server_hostname.upper(), self.source_subdirectory)
         locations = self.client.list_locations()
         for location in locations["Locations"]:
             if location["LocationUri"] == location_uri.lower():
@@ -313,22 +304,16 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         # Get true location_arn from boto/moto self.client
-        location_uri = "smb://{0}/{1}/".format(
-            self.source_server_hostname, self.source_subdirectory
-        )
+        location_uri = "smb://{0}/{1}/".format(self.source_server_hostname, self.source_subdirectory)
         locations = self.client.list_locations()
         for location in locations["Locations"]:
             if location["LocationUri"] == location_uri[:-1]:
                 location_arn = location["LocationArn"]
 
         # Verify our self.hook manages trailing / correctly
-        location_arns = self.hook.get_location_arns(
-            location_uri, ignore_trailing_slash=False
-        )
+        location_arns = self.hook.get_location_arns(location_uri, ignore_trailing_slash=False)
         self.assertEqual(len(location_arns), 0)
-        location_arns = self.hook.get_location_arns(
-            location_uri, ignore_trailing_slash=True
-        )
+        location_arns = self.hook.get_location_arns(location_uri, ignore_trailing_slash=True)
         self.assertEqual(len(location_arns), 1)
         self.assertEqual(location_arns[0], location_arn)
 
@@ -361,9 +346,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         self.assertIn("CurrentTaskExecutionArn", task)
         self.assertEqual(task["CurrentTaskExecutionArn"], task_execution_arn)
 
-        task_execution = self.client.describe_task_execution(
-            TaskExecutionArn=task_execution_arn
-        )
+        task_execution = self.client.describe_task_execution(TaskExecutionArn=task_execution_arn)
         self.assertIn("Status", task_execution)
 
     def test_cancel_task_execution(self, mock_get_conn):
@@ -407,9 +390,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         task_execution_arn = self.hook.start_task_execution(self.task_arn)
-        result = self.hook.wait_for_task_execution(
-            task_execution_arn, max_iterations=20
-        )
+        result = self.hook.wait_for_task_execution(task_execution_arn, max_iterations=20)
 
         self.assertIsNotNone(result)
 
@@ -420,7 +401,5 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
 
         task_execution_arn = self.hook.start_task_execution(self.task_arn)
         with self.assertRaises(AirflowTaskTimeout):
-            result = self.hook.wait_for_task_execution(
-                task_execution_arn, max_iterations=1
-            )
+            result = self.hook.wait_for_task_execution(task_execution_arn, max_iterations=1)
             self.assertIsNone(result)

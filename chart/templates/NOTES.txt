@@ -20,10 +20,18 @@ under the License.
 
 Your release is named {{ .Release.Name }}.
 
+{{- if .Values.ingress.enabled }}
+You can now access your dashboard(s) by following defined Ingress urls:
+
+Airflow dashboard:     http{{ if .Values.ingress.web.tls.enabled }}s{{ end }}://{{ .Values.ingress.web.host }}{{ .Values.ingress.web.path }}/
+{{- if eq .Values.executor "CeleryExecutor" }}
+Flower dashboard:      http{{ if .Values.ingress.flower.tls.enabled }}s{{ end }}://{{ .Values.ingress.flower.host }}{{ .Values.ingress.flower.path }}/
+{{- end }}
+{{- else }}
 You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:
 
 Airflow dashboard:        kubectl port-forward svc/{{ .Release.Name }}-webserver {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
 {{- if eq .Values.executor "CeleryExecutor"}}
 Flower dashboard:         kubectl port-forward svc/{{ .Release.Name }}-flower {{ .Values.ports.flowerUI }}:{{ .Values.ports.flowerUI }} --namespace {{ .Release.Namespace }}
-
+{{- end }}
 {{- end }}

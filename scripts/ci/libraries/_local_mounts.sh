@@ -37,7 +37,6 @@ function generate_local_mounts_list {
         "$prefix"NOTICE:/opt/airflow/NOTICE:cached
         "$prefix"airflow:/opt/airflow/airflow:cached
         "$prefix"backport_packages:/opt/airflow/backport_packages:cached
-        "$prefix"common:/opt/airflow/common:cached
         "$prefix"dags:/opt/airflow/dags:cached
         "$prefix"dev:/opt/airflow/dev:cached
         "$prefix"docs:/opt/airflow/docs:cached
@@ -47,7 +46,7 @@ function generate_local_mounts_list {
         "$prefix"pylintrc:/opt/airflow/pylintrc:cached
         "$prefix"pytest.ini:/opt/airflow/pytest.ini:cached
         "$prefix"scripts:/opt/airflow/scripts:cached
-        "$prefix"scripts/ci/in_container/entrypoint_ci.sh:/entrypoint:cached
+        "$prefix"scripts/in_container/entrypoint_ci.sh:/entrypoint:cached
         "$prefix"setup.cfg:/opt/airflow/setup.cfg:cached
         "$prefix"setup.py:/opt/airflow/setup.py:cached
         "$prefix"tests:/opt/airflow/tests:cached

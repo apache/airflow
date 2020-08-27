@@ -50,6 +50,10 @@ class BigQueryExampleDagsSystemTest(GoogleSystemTest):
         self.run_dag('example_bigquery_queries', CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
+    def test_run_example_dag_sensors(self):
+        self.run_dag('example_bigquery_sensors', CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_BIGQUERY_KEY)
     def test_run_example_dag_queries_location(self):
         self.run_dag('example_bigquery_queries_location', CLOUD_DAG_FOLDER)
 

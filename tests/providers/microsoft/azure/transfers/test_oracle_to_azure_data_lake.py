@@ -45,7 +45,7 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
         encoding = 'utf-8'
         cursor_description = [
             ('id', "<class 'cx_Oracle.NUMBER'>", 39, None, 38, 0, 0),
-            ('description', "<class 'cx_Oracle.STRING'>", 60, 240, None, None, 1)
+            ('description', "<class 'cx_Oracle.STRING'>", 60, 240, None, None, 1),
         ]
         cursor_rows = [[1, 'description 1'], [2, 'description 2']]
         mock_cursor = MagicMock()
@@ -61,7 +61,8 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
             azure_data_lake_conn_id=azure_data_lake_conn_id,
             azure_data_lake_path=azure_data_lake_path,
             delimiter=delimiter,
-            encoding=encoding)
+            encoding=encoding,
+        )
 
         with TemporaryDirectory(prefix='airflow_oracle_to_azure_op_') as temp:
             op._write_temp_file(mock_cursor, os.path.join(temp, filename))
@@ -81,10 +82,8 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
                         self.assertEqual(row[1], cursor_rows[rownum - 1][1])
                     rownum = rownum + 1
 
-    @mock.patch(mock_module_path + '.OracleHook',
-                autospec=True)
-    @mock.patch(mock_module_path + '.AzureDataLakeHook',
-                autospec=True)
+    @mock.patch(mock_module_path + '.OracleHook', autospec=True)
+    @mock.patch(mock_module_path + '.AzureDataLakeHook', autospec=True)
     def test_execute(self, mock_data_lake_hook, mock_oracle_hook):
         task_id = "some_test_id"
         sql = "some_sql"
@@ -97,7 +96,7 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
         encoding = 'latin-1'
         cursor_description = [
             ('id', "<class 'cx_Oracle.NUMBER'>", 39, None, 38, 0, 0),
-            ('description', "<class 'cx_Oracle.STRING'>", 60, 240, None, None, 1)
+            ('description', "<class 'cx_Oracle.STRING'>", 60, 240, None, None, 1),
         ]
         cursor_rows = [[1, 'description 1'], [2, 'description 2']]
         cursor_mock = MagicMock()
@@ -116,10 +115,10 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
             azure_data_lake_conn_id=azure_data_lake_conn_id,
             azure_data_lake_path=azure_data_lake_path,
             delimiter=delimiter,
-            encoding=encoding)
+            encoding=encoding,
+        )
 
         op.execute(None)
 
         mock_oracle_hook.assert_called_once_with(oracle_conn_id=oracle_conn_id)
-        mock_data_lake_hook.assert_called_once_with(
-            azure_data_lake_conn_id=azure_data_lake_conn_id)
+        mock_data_lake_hook.assert_called_once_with(azure_data_lake_conn_id=azure_data_lake_conn_id)

@@ -55,16 +55,20 @@ class S3KeySensor(BaseSensorOperator):
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
     """
+
     template_fields = ('bucket_key', 'bucket_name')
 
     @apply_defaults
-    def __init__(self, *,
-                 bucket_key,
-                 bucket_name=None,
-                 wildcard_match=False,
-                 aws_conn_id='aws_default',
-                 verify=None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        bucket_key,
+        bucket_name=None,
+        wildcard_match=False,
+        aws_conn_id='aws_default',
+        verify=None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         # Parse
         if bucket_name is None:
@@ -77,9 +81,11 @@ class S3KeySensor(BaseSensorOperator):
         else:
             parsed_url = urlparse(bucket_key)
             if parsed_url.scheme != '' or parsed_url.netloc != '':
-                raise AirflowException('If bucket_name is provided, bucket_key' +
-                                       ' should be relative path from root' +
-                                       ' level, rather than a full s3:// url')
+                raise AirflowException(
+                    'If bucket_name is provided, bucket_key'
+                    + ' should be relative path from root'
+                    + ' level, rather than a full s3:// url'
+                )
         self.bucket_name = bucket_name
         self.bucket_key = bucket_key
         self.wildcard_match = wildcard_match
@@ -90,9 +96,7 @@ class S3KeySensor(BaseSensorOperator):
     def poke(self, context):
         self.log.info('Poking for key : s3://%s/%s', self.bucket_name, self.bucket_key)
         if self.wildcard_match:
-            return self.get_hook().check_for_wildcard_key(
-                self.bucket_key,
-                self.bucket_name)
+            return self.get_hook().check_for_wildcard_key(self.bucket_key, self.bucket_name)
         return self.get_hook().check_for_key(self.bucket_key, self.bucket_name)
 
     def get_hook(self):

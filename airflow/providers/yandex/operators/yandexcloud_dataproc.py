@@ -82,31 +82,33 @@ class DataprocCreateClusterOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     # pylint: disable=too-many-locals
     @apply_defaults
-    def __init__(self,
-                 *,
-                 folder_id: Optional[str] = None,
-                 cluster_name: Optional[str] = None,
-                 cluster_description: str = '',
-                 cluster_image_version: str = '1.1',
-                 ssh_public_keys: Optional[Union[str, Iterable[str]]] = None,
-                 subnet_id: Optional[str] = None,
-                 services: Iterable[str] = ('HDFS', 'YARN', 'MAPREDUCE', 'HIVE', 'SPARK'),
-                 s3_bucket: Optional[str] = None,
-                 zone: str = 'ru-central1-b',
-                 service_account_id: Optional[str] = None,
-                 masternode_resource_preset: str = 's2.small',
-                 masternode_disk_size: int = 15,
-                 masternode_disk_type: str = 'network-ssd',
-                 datanode_resource_preset: str = 's2.small',
-                 datanode_disk_size: int = 15,
-                 datanode_disk_type: str = 'network-ssd',
-                 datanode_count: int = 2,
-                 computenode_resource_preset: str = 's2.small',
-                 computenode_disk_size: int = 15,
-                 computenode_disk_type: str = 'network-ssd',
-                 computenode_count: int = 0,
-                 connection_id: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        folder_id: Optional[str] = None,
+        cluster_name: Optional[str] = None,
+        cluster_description: str = '',
+        cluster_image_version: str = '1.1',
+        ssh_public_keys: Optional[Union[str, Iterable[str]]] = None,
+        subnet_id: Optional[str] = None,
+        services: Iterable[str] = ('HDFS', 'YARN', 'MAPREDUCE', 'HIVE', 'SPARK'),
+        s3_bucket: Optional[str] = None,
+        zone: str = 'ru-central1-b',
+        service_account_id: Optional[str] = None,
+        masternode_resource_preset: str = 's2.small',
+        masternode_disk_size: int = 15,
+        masternode_disk_type: str = 'network-ssd',
+        datanode_resource_preset: str = 's2.small',
+        datanode_disk_size: int = 15,
+        datanode_disk_type: str = 'network-ssd',
+        datanode_count: int = 2,
+        computenode_resource_preset: str = 's2.small',
+        computenode_disk_size: int = 15,
+        computenode_disk_type: str = 'network-ssd',
+        computenode_count: int = 0,
+        connection_id: Optional[str] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.folder_id = folder_id
         self.connection_id = connection_id
@@ -133,9 +135,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.hook = None
 
     def execute(self, context):
-        self.hook = DataprocHook(
-            connection_id=self.connection_id,
-        )
+        self.hook = DataprocHook(connection_id=self.connection_id,)
         operation_result = self.hook.client.create_cluster(
             folder_id=self.folder_id,
             cluster_name=self.cluster_name,
@@ -175,10 +175,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     @apply_defaults
-    def __init__(self, *,
-                 connection_id: Optional[str] = None,
-                 cluster_id: Optional[str] = None,
-                 **kwargs):
+    def __init__(self, *, connection_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
         self.connection_id = connection_id
         self.cluster_id = cluster_id
@@ -189,9 +186,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
-        self.hook = DataprocHook(
-            connection_id=connection_id,
-        )
+        self.hook = DataprocHook(connection_id=connection_id,)
         self.hook.client.delete_cluster(cluster_id)
 
 
@@ -221,16 +216,19 @@ class DataprocCreateHiveJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self, *,
-                 query: Optional[str] = None,
-                 query_file_uri: Optional[str] = None,
-                 script_variables: Optional[Dict[str, str]] = None,
-                 continue_on_failure: bool = False,
-                 properties: Optional[Dict[str, str]] = None,
-                 name: str = 'Hive job',
-                 cluster_id: Optional[str] = None,
-                 connection_id: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        query: Optional[str] = None,
+        query_file_uri: Optional[str] = None,
+        script_variables: Optional[Dict[str, str]] = None,
+        continue_on_failure: bool = False,
+        properties: Optional[Dict[str, str]] = None,
+        name: str = 'Hive job',
+        cluster_id: Optional[str] = None,
+        connection_id: Optional[str] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.query = query
         self.query_file_uri = query_file_uri
@@ -247,9 +245,7 @@ class DataprocCreateHiveJobOperator(BaseOperator):
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
-        self.hook = DataprocHook(
-            connection_id=connection_id,
-        )
+        self.hook = DataprocHook(connection_id=connection_id,)
         self.hook.client.create_hive_job(
             query=self.query,
             query_file_uri=self.query_file_uri,
@@ -292,18 +288,21 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self, *,
-                 main_class: Optional[str] = None,
-                 main_jar_file_uri: Optional[str] = None,
-                 jar_file_uris: Optional[Iterable[str]] = None,
-                 archive_uris: Optional[Iterable[str]] = None,
-                 file_uris: Optional[Iterable[str]] = None,
-                 args: Optional[Iterable[str]] = None,
-                 properties: Optional[Dict[str, str]] = None,
-                 name: str = 'Mapreduce job',
-                 cluster_id: Optional[str] = None,
-                 connection_id: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        main_class: Optional[str] = None,
+        main_jar_file_uri: Optional[str] = None,
+        jar_file_uris: Optional[Iterable[str]] = None,
+        archive_uris: Optional[Iterable[str]] = None,
+        file_uris: Optional[Iterable[str]] = None,
+        args: Optional[Iterable[str]] = None,
+        properties: Optional[Dict[str, str]] = None,
+        name: str = 'Mapreduce job',
+        cluster_id: Optional[str] = None,
+        connection_id: Optional[str] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
@@ -322,9 +321,7 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
-        self.hook = DataprocHook(
-            connection_id=connection_id,
-        )
+        self.hook = DataprocHook(connection_id=connection_id,)
         self.hook.client.create_mapreduce_job(
             main_class=self.main_class,
             main_jar_file_uri=self.main_jar_file_uri,
@@ -368,18 +365,21 @@ class DataprocCreateSparkJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self, *,
-                 main_class: Optional[str] = None,
-                 main_jar_file_uri: Optional[str] = None,
-                 jar_file_uris: Optional[Iterable[str]] = None,
-                 archive_uris: Optional[Iterable[str]] = None,
-                 file_uris: Optional[Iterable[str]] = None,
-                 args: Optional[Iterable[str]] = None,
-                 properties: Optional[Dict[str, str]] = None,
-                 name: str = 'Spark job',
-                 cluster_id: Optional[str] = None,
-                 connection_id: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        main_class: Optional[str] = None,
+        main_jar_file_uri: Optional[str] = None,
+        jar_file_uris: Optional[Iterable[str]] = None,
+        archive_uris: Optional[Iterable[str]] = None,
+        file_uris: Optional[Iterable[str]] = None,
+        args: Optional[Iterable[str]] = None,
+        properties: Optional[Dict[str, str]] = None,
+        name: str = 'Spark job',
+        cluster_id: Optional[str] = None,
+        connection_id: Optional[str] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
@@ -398,9 +398,7 @@ class DataprocCreateSparkJobOperator(BaseOperator):
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
-        self.hook = DataprocHook(
-            connection_id=connection_id,
-        )
+        self.hook = DataprocHook(connection_id=connection_id,)
         self.hook.client.create_spark_job(
             main_class=self.main_class,
             main_jar_file_uri=self.main_jar_file_uri,
@@ -444,18 +442,21 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self, *,
-                 main_python_file_uri: Optional[str] = None,
-                 python_file_uris: Optional[Iterable[str]] = None,
-                 jar_file_uris: Optional[Iterable[str]] = None,
-                 archive_uris: Optional[Iterable[str]] = None,
-                 file_uris: Optional[Iterable[str]] = None,
-                 args: Optional[Iterable[str]] = None,
-                 properties: Optional[Dict[str, str]] = None,
-                 name: str = 'Pyspark job',
-                 cluster_id: Optional[str] = None,
-                 connection_id: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        main_python_file_uri: Optional[str] = None,
+        python_file_uris: Optional[Iterable[str]] = None,
+        jar_file_uris: Optional[Iterable[str]] = None,
+        archive_uris: Optional[Iterable[str]] = None,
+        file_uris: Optional[Iterable[str]] = None,
+        args: Optional[Iterable[str]] = None,
+        properties: Optional[Dict[str, str]] = None,
+        name: str = 'Pyspark job',
+        cluster_id: Optional[str] = None,
+        connection_id: Optional[str] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.main_python_file_uri = main_python_file_uri
         self.python_file_uris = python_file_uris
@@ -474,9 +475,7 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
-        self.hook = DataprocHook(
-            connection_id=connection_id,
-        )
+        self.hook = DataprocHook(connection_id=connection_id,)
         self.hook.client.create_pyspark_job(
             main_python_file_uri=self.main_python_file_uri,
             python_file_uris=self.python_file_uris,

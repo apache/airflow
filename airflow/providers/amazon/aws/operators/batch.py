@@ -99,7 +99,8 @@ class AwsBatchOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         job_name,
         job_definition,
         job_queue,
@@ -141,9 +142,7 @@ class AwsBatchOperator(BaseOperator):
         self.monitor_job(context)
 
     def on_kill(self):
-        response = self.hook.client.terminate_job(
-            jobId=self.job_id, reason="Task killed by the user"
-        )
+        response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
     def submit_job(self, context: Dict):  # pylint: disable=unused-argument
@@ -153,9 +152,7 @@ class AwsBatchOperator(BaseOperator):
         :raises: AirflowException
         """
         self.log.info(
-            "Running AWS Batch job - job definition: %s - on queue %s",
-            self.job_definition,
-            self.job_queue,
+            "Running AWS Batch job - job definition: %s - on queue %s", self.job_definition, self.job_queue,
         )
         self.log.info("AWS Batch job - container overrides: %s", self.overrides)
 

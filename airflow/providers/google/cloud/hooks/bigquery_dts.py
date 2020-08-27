@@ -25,7 +25,9 @@ from typing import Optional, Sequence, Tuple, Union
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import (
-    StartManualTransferRunsResponse, TransferConfig, TransferRun,
+    StartManualTransferRunsResponse,
+    TransferConfig,
+    TransferRun,
 )
 from google.protobuf.json_format import MessageToDict, ParseDict
 from googleapiclient.discovery import Resource
@@ -57,9 +59,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
 
     @staticmethod
@@ -77,9 +77,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         new_config = copy(config)
         schedule_options = new_config.get("schedule_options")
         if schedule_options:
-            disable_auto_scheduling = schedule_options.get(
-                "disable_auto_scheduling", None
-            )
+            disable_auto_scheduling = schedule_options.get("disable_auto_scheduling", None)
             if disable_auto_scheduling is None:
                 schedule_options["disable_auto_scheduling"] = True
         else:
@@ -171,12 +169,8 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         :return: None
         """
         client = self.get_conn()
-        name = client.project_transfer_config_path(
-            project=project_id, transfer_config=transfer_config_id
-        )
-        return client.delete_transfer_config(
-            name=name, retry=retry, timeout=timeout, metadata=metadata
-        )
+        name = client.project_transfer_config_path(project=project_id, transfer_config=transfer_config_id)
+        return client.delete_transfer_config(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def start_manual_transfer_runs(
@@ -221,9 +215,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.StartManualTransferRunsResponse`` instance.
         """
         client = self.get_conn()
-        parent = client.project_transfer_config_path(
-            project=project_id, transfer_config=transfer_config_id
-        )
+        parent = client.project_transfer_config_path(project=project_id, transfer_config=transfer_config_id)
         return client.start_manual_transfer_runs(
             parent=parent,
             requested_time_range=requested_time_range,
@@ -265,9 +257,5 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
         """
         client = self.get_conn()
-        name = client.project_run_path(
-            project=project_id, transfer_config=transfer_config_id, run=run_id
-        )
-        return client.get_transfer_run(
-            name=name, retry=retry, timeout=timeout, metadata=metadata
-        )
+        name = client.project_run_path(project=project_id, transfer_config=transfer_config_id, run=run_id)
+        return client.get_transfer_run(name=name, retry=retry, timeout=timeout, metadata=metadata)

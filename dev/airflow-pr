@@ -460,7 +460,7 @@ def fix_version_from_branch(branch, versions):
 
 
 def register(username, password):
-    """ Use this function to register a JIRA account in your OS' keyring """
+    """Use this function to register a JIRA account in your OS' keyring """
     keyring.set_password('airflow-pr', 'username', username)
     keyring.set_password('airflow-pr', 'password', password)
 

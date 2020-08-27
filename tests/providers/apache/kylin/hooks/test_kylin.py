@@ -27,7 +27,6 @@ from airflow.providers.apache.kylin.hooks.kylin import KylinHook
 
 
 class TestKylinHook(unittest.TestCase):
-
     def setUp(self) -> None:
         self.hook = KylinHook(kylin_conn_id='kylin_default', project='learn_kylin')
 
@@ -40,12 +39,23 @@ class TestKylinHook(unittest.TestCase):
 
     @patch("kylinpy.Kylin.get_datasource")
     def test_cube_run(self, cube_source):
-
         class MockCubeSource:
             def invoke_command(self, command, **kwargs):
-                invoke_command_list = ['fullbuild', 'build', 'merge', 'refresh',
-                                       'delete', 'build_streaming', 'merge_streaming', 'refresh_streaming',
-                                       'disable', 'enable', 'purge', 'clone', 'drop']
+                invoke_command_list = [
+                    'fullbuild',
+                    'build',
+                    'merge',
+                    'refresh',
+                    'delete',
+                    'build_streaming',
+                    'merge_streaming',
+                    'refresh_streaming',
+                    'disable',
+                    'enable',
+                    'purge',
+                    'clone',
+                    'drop',
+                ]
                 if command in invoke_command_list:
                     return {"code": "000", "data": {}}
                 else:
@@ -57,4 +67,6 @@ class TestKylinHook(unittest.TestCase):
         self.assertDictEqual(self.hook.cube_run('kylin_sales_cube', 'refresh'), response_data)
         self.assertDictEqual(self.hook.cube_run('kylin_sales_cube', 'merge'), response_data)
         self.assertDictEqual(self.hook.cube_run('kylin_sales_cube', 'build_streaming'), response_data)
-        self.assertRaises(AirflowException, self.hook.cube_run, 'kylin_sales_cube', 'build123',)
+        self.assertRaises(
+            AirflowException, self.hook.cube_run, 'kylin_sales_cube', 'build123',
+        )

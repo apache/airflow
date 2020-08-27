@@ -44,7 +44,7 @@ class ImportErrorCollection(NamedTuple):
 
 
 class ImportErrorCollectionSchema(Schema):
-    """ Import error collection schema """
+    """Import error collection schema"""
 
     import_errors = fields.List(fields.Nested(ImportErrorSchema))
     total_entries = fields.Int()

@@ -38,7 +38,8 @@ class SambaHook(BaseHook):
             share=self.conn.schema,
             username=self.conn.login,
             ip=self.conn.host,
-            password=self.conn.password)
+            password=self.conn.password,
+        )
         return samba
 
     def push_from_local(self, destination_filepath, local_filepath):

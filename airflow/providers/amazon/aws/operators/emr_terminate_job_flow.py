@@ -30,16 +30,13 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     """
+
     template_fields = ['job_flow_id']
     template_ext = ()
     ui_color = '#f9c915'
 
     @apply_defaults
-    def __init__(
-            self, *,
-            job_flow_id,
-            aws_conn_id='aws_default',
-            **kwargs):
+    def __init__(self, *, job_flow_id, aws_conn_id='aws_default', **kwargs):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id

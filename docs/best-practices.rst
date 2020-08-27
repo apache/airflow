@@ -265,7 +265,7 @@ Once that is done, you can run -
 
  airflow db upgrade
 
-``upgrade`` keeps track of migrations already applies, so it's safe to run as often as you need.
+``upgrade`` keeps track of migrations already applied, so it's safe to run as often as you need.
 
 .. note::
 
@@ -291,7 +291,7 @@ Logging
 
 If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system (DFS) such as ``S3`` and ``GCS``, or external services such as
 Stackdriver Logging, Elasticsearch or Amazon CloudWatch.
-This way, the logs are available even after the node goes down or gets replaced. See :doc:`howto/write-logs` for configurations.
+This way, the logs are available even after the node goes down or gets replaced. See :doc:`logging-monitoring/logging-tasks` for configurations.
 
 .. note::
 

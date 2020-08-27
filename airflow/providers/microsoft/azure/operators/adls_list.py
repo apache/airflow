@@ -46,24 +46,21 @@ class AzureDataLakeStorageListOperator(BaseOperator):
                 azure_data_lake_conn_id='azure_data_lake_default'
             )
     """
+
     template_fields: Sequence[str] = ('path',)
     ui_color = '#901dd2'
 
     @apply_defaults
-    def __init__(self, *,
-                 path: str,
-                 azure_data_lake_conn_id: str = 'azure_data_lake_default',
-                 **kwargs) -> None:
+    def __init__(
+        self, *, path: str, azure_data_lake_conn_id: str = 'azure_data_lake_default', **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         self.path = path
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 
-    def execute(self,
-                context: Dict[Any, Any]) -> List:
+    def execute(self, context: Dict[Any, Any]) -> List:
 
-        hook = AzureDataLakeHook(
-            azure_data_lake_conn_id=self.azure_data_lake_conn_id
-        )
+        hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
 
         self.log.info('Getting list of ADLS files in path: %s', self.path)
 

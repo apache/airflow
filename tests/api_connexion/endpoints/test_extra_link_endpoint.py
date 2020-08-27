@@ -129,7 +129,7 @@ class TestGetExtraLinks(unittest.TestCase):
         )
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
 
         self.assertEqual(200, response.status_code, response.data)
@@ -141,7 +141,7 @@ class TestGetExtraLinks(unittest.TestCase):
     def test_should_response_200_missing_xcom(self):
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
 
         self.assertEqual(200, response.status_code, response.data)
@@ -160,7 +160,7 @@ class TestGetExtraLinks(unittest.TestCase):
         )
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
 
         self.assertEqual(200, response.status_code, response.data)
@@ -176,7 +176,7 @@ class TestGetExtraLinks(unittest.TestCase):
     def test_should_response_200_multiple_links_missing_xcom(self):
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
 
         self.assertEqual(200, response.status_code, response.data)
@@ -214,7 +214,7 @@ class TestGetExtraLinks(unittest.TestCase):
         with mock_plugin_manager(plugins=[AirflowTestPlugin]):
             response = self.client.get(
                 "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-                environ_overrides={'REMOTE_USER': "test"}
+                environ_overrides={'REMOTE_USER': "test"},
             )
 
             self.assertEqual(200, response.status_code, response.data)

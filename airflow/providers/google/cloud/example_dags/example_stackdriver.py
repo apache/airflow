@@ -24,93 +24,76 @@ import json
 
 from airflow import models
 from airflow.providers.google.cloud.operators.stackdriver import (
-    StackdriverDeleteAlertOperator, StackdriverDeleteNotificationChannelOperator,
-    StackdriverDisableAlertPoliciesOperator, StackdriverDisableNotificationChannelsOperator,
-    StackdriverEnableAlertPoliciesOperator, StackdriverEnableNotificationChannelsOperator,
-    StackdriverListAlertPoliciesOperator, StackdriverListNotificationChannelsOperator,
-    StackdriverUpsertAlertOperator, StackdriverUpsertNotificationChannelOperator,
+    StackdriverDeleteAlertOperator,
+    StackdriverDeleteNotificationChannelOperator,
+    StackdriverDisableAlertPoliciesOperator,
+    StackdriverDisableNotificationChannelsOperator,
+    StackdriverEnableAlertPoliciesOperator,
+    StackdriverEnableNotificationChannelsOperator,
+    StackdriverListAlertPoliciesOperator,
+    StackdriverListNotificationChannelsOperator,
+    StackdriverUpsertAlertOperator,
+    StackdriverUpsertNotificationChannelOperator,
 )
 from airflow.utils.dates import days_ago
 
 TEST_ALERT_POLICY_1 = {
     "combiner": "OR",
     "name": "projects/sd-project/alertPolicies/12345",
-    "creationRecord": {
-        "mutatedBy": "user123",
-        "mutateTime": "2020-01-01T00:00:00.000000Z"
-    },
+    "creationRecord": {"mutatedBy": "user123", "mutateTime": "2020-01-01T00:00:00.000000Z"},
     "enabled": True,
     "displayName": "test alert 1",
     "conditions": [
         {
             "conditionThreshold": {
                 "comparison": "COMPARISON_GT",
-                "aggregations": [
-                    {
-                        "alignmentPeriod": "60s",
-                        "perSeriesAligner": "ALIGN_RATE"
-                    }
-                ]
+                "aggregations": [{"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE"}],
             },
             "displayName": "Condition display",
-            "name": "projects/sd-project/alertPolicies/123/conditions/456"
+            "name": "projects/sd-project/alertPolicies/123/conditions/456",
         }
-    ]
+    ],
 }
 
 TEST_ALERT_POLICY_2 = {
     "combiner": "OR",
     "name": "projects/sd-project/alertPolicies/6789",
-    "creationRecord": {
-        "mutatedBy": "user123",
-        "mutateTime": "2020-01-01T00:00:00.000000Z"
-    },
+    "creationRecord": {"mutatedBy": "user123", "mutateTime": "2020-01-01T00:00:00.000000Z"},
     "enabled": False,
     "displayName": "test alert 2",
     "conditions": [
         {
             "conditionThreshold": {
                 "comparison": "COMPARISON_GT",
-                "aggregations": [
-                    {
-                        "alignmentPeriod": "60s",
-                        "perSeriesAligner": "ALIGN_RATE"
-                    }
-                ]
+                "aggregations": [{"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE"}],
             },
             "displayName": "Condition display",
-            "name": "projects/sd-project/alertPolicies/456/conditions/789"
+            "name": "projects/sd-project/alertPolicies/456/conditions/789",
         }
-    ]
+    ],
 }
 
 TEST_NOTIFICATION_CHANNEL_1 = {
     "displayName": "channel1",
     "enabled": True,
-    "labels": {
-        "auth_token": "top-secret",
-        "channel_name": "#channel"
-    },
+    "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
     "name": "projects/sd-project/notificationChannels/12345",
-    "type": "slack"
+    "type": "slack",
 }
 
 TEST_NOTIFICATION_CHANNEL_2 = {
     "displayName": "channel2",
     "enabled": False,
-    "labels": {
-        "auth_token": "top-secret",
-        "channel_name": "#channel"
-    },
+    "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
     "name": "projects/sd-project/notificationChannels/6789",
-    "type": "slack"
+    "type": "slack",
 }
 
 with models.DAG(
     'example_stackdriver',
     schedule_interval=None,  # Override to match your needs
     start_date=days_ago(1),
-    tags=['example']
+    tags=['example'],
 ) as dag:
     # [START howto_operator_gcp_stackdriver_upsert_notification_channel]
     create_notification_channel = StackdriverUpsertNotificationChannelOperator(
@@ -121,22 +104,19 @@ with models.DAG(
 
     # [START howto_operator_gcp_stackdriver_enable_notification_channel]
     enable_notification_channel = StackdriverEnableNotificationChannelsOperator(
-        task_id='enable-notification-channel',
-        filter_='type="slack"'
+        task_id='enable-notification-channel', filter_='type="slack"'
     )
     # [END howto_operator_gcp_stackdriver_enable_notification_channel]
 
     # [START howto_operator_gcp_stackdriver_disable_notification_channel]
     disable_notification_channel = StackdriverDisableNotificationChannelsOperator(
-        task_id='disable-notification-channel',
-        filter_='displayName="channel1"'
+        task_id='disable-notification-channel', filter_='displayName="channel1"'
     )
     # [END howto_operator_gcp_stackdriver_disable_notification_channel]
 
     # [START howto_operator_gcp_stackdriver_list_notification_channel]
     list_notification_channel = StackdriverListNotificationChannelsOperator(
-        task_id='list-notification-channel',
-        filter_='type="slack"'
+        task_id='list-notification-channel', filter_='type="slack"'
     )
     # [END howto_operator_gcp_stackdriver_list_notification_channel]
 
@@ -149,38 +129,31 @@ with models.DAG(
 
     # [START howto_operator_gcp_stackdriver_enable_alert_policy]
     enable_alert_policy = StackdriverEnableAlertPoliciesOperator(
-        task_id='enable-alert-policies',
-        filter_='(displayName="test alert 1" OR displayName="test alert 2")',
+        task_id='enable-alert-policies', filter_='(displayName="test alert 1" OR displayName="test alert 2")',
     )
     # [END howto_operator_gcp_stackdriver_enable_alert_policy]
 
     # [START howto_operator_gcp_stackdriver_disable_alert_policy]
     disable_alert_policy = StackdriverDisableAlertPoliciesOperator(
-        task_id='disable-alert-policies',
-        filter_='displayName="test alert 1"',
+        task_id='disable-alert-policies', filter_='displayName="test alert 1"',
     )
     # [END howto_operator_gcp_stackdriver_disable_alert_policy]
 
     # [START howto_operator_gcp_stackdriver_list_alert_policy]
-    list_alert_policies = StackdriverListAlertPoliciesOperator(
-        task_id='list-alert-policies',
-    )
+    list_alert_policies = StackdriverListAlertPoliciesOperator(task_id='list-alert-policies',)
     # [END howto_operator_gcp_stackdriver_list_alert_policy]
 
     # [START howto_operator_gcp_stackdriver_delete_notification_channel]
     delete_notification_channel = StackdriverDeleteNotificationChannelOperator(
-        task_id='delete-notification-channel',
-        name='test-channel',
+        task_id='delete-notification-channel', name='test-channel',
     )
     # [END howto_operator_gcp_stackdriver_delete_notification_channel]
 
     # [START howto_operator_gcp_stackdriver_delete_alert_policy]
-    delete_alert_policy = StackdriverDeleteAlertOperator(
-        task_id='delete-alert-polciy',
-        name='test-alert',
-    )
+    delete_alert_policy = StackdriverDeleteAlertOperator(task_id='delete-alert-polciy', name='test-alert',)
     # [END howto_operator_gcp_stackdriver_delete_alert_policy]
 
-    create_notification_channel >> enable_notification_channel >> disable_notification_channel \
-        >> list_notification_channel >> create_alert_policy >> enable_alert_policy >> disable_alert_policy \
-        >> list_alert_policies >> delete_notification_channel >> delete_alert_policy
+    create_notification_channel >> enable_notification_channel >> disable_notification_channel
+    disable_notification_channel >> list_notification_channel >> create_alert_policy
+    create_alert_policy >> enable_alert_policy >> disable_alert_policy >> list_alert_policies
+    list_alert_policies >> delete_notification_channel >> delete_alert_policy
