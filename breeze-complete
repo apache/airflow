@@ -69,7 +69,6 @@ airflow-config-yaml
 base-operator
 bats-tests
 bats-in-container-tests
-black
 build
 check-apache-license
 check-builtin-literals
