@@ -38,16 +38,12 @@ DEFAULT_DATE = datetime(2017, 1, 1)
 
 class TestQuboleOperator(unittest.TestCase):
     def setUp(self):
-        db.merge_conn(
-            Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
-        db.merge_conn(
-            Connection(conn_id=TEST_CONN, conn_type='HTTP',
-                       host='http://localhost/api'))
+        db.merge_conn(Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
+        db.merge_conn(Connection(conn_id=TEST_CONN, conn_type='HTTP', host='http://localhost/api'))
 
     def tearDown(self):
         session = settings.Session()
-        session.query(Connection).filter(
-            Connection.conn_id == TEST_CONN).delete()
+        session.query(Connection).filter(Connection.conn_id == TEST_CONN).delete()
         session.commit()
         session.close()
 
@@ -70,9 +66,7 @@ class TestQuboleOperator(unittest.TestCase):
             task_id=TASK_ID,
             dag=dag,
             cluster_label='{{ params.cluster_label }}',
-            params={
-                'cluster_label': 'default'
-            }
+            params={'cluster_label': 'default'},
         )
 
         ti = TaskInstance(task, DEFAULT_DATE)
@@ -101,8 +95,9 @@ class TestQuboleOperator(unittest.TestCase):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
 
         with dag:
-            task = QuboleOperator(task_id=TASK_ID, command_type='pigcmd',
-                                  parameters="key1=value1 key2=value2", dag=dag)
+            task = QuboleOperator(
+                task_id=TASK_ID, command_type='pigcmd', parameters="key1=value1 key2=value2", dag=dag
+            )
 
         self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[1], "key1=value1")
         self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[2], "key2=value2")
@@ -110,26 +105,27 @@ class TestQuboleOperator(unittest.TestCase):
         cmd = "s3distcp --src s3n://airflow/source_hadoopcmd --dest s3n://airflow/destination_hadoopcmd"
         task = QuboleOperator(task_id=TASK_ID + "_1", command_type='hadoopcmd', dag=dag, sub_command=cmd)
 
-        self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[1],
-                         "s3distcp")
-        self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[2],
-                         "--src")
-        self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[3],
-                         "s3n://airflow/source_hadoopcmd")
-        self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[4],
-                         "--dest")
-        self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[5],
-                         "s3n://airflow/destination_hadoopcmd")
+        self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[1], "s3distcp")
+        self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[2], "--src")
+        self.assertEqual(
+            task.get_hook().create_cmd_args({'run_id': 'dummy'})[3], "s3n://airflow/source_hadoopcmd"
+        )
+        self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[4], "--dest")
+        self.assertEqual(
+            task.get_hook().create_cmd_args({'run_id': 'dummy'})[5], "s3n://airflow/destination_hadoopcmd"
+        )
 
     def test_get_redirect_url(self):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
 
         with dag:
-            task = QuboleOperator(task_id=TASK_ID,
-                                  qubole_conn_id=TEST_CONN,
-                                  command_type='shellcmd',
-                                  parameters="param1 param2",
-                                  dag=dag)
+            task = QuboleOperator(
+                task_id=TASK_ID,
+                qubole_conn_id=TEST_CONN,
+                command_type='shellcmd',
+                parameters="param1 param2",
+                dag=dag,
+            )
 
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.xcom_push('qbol_cmd_id', 12345)
@@ -146,9 +142,7 @@ class TestQuboleOperator(unittest.TestCase):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
         with dag:
             QuboleOperator(
-                task_id=TASK_ID,
-                command_type='shellcmd',
-                qubole_conn_id=TEST_CONN,
+                task_id=TASK_ID, command_type='shellcmd', qubole_conn_id=TEST_CONN,
             )
 
         serialized_dag = SerializedDAG.to_dict(dag)

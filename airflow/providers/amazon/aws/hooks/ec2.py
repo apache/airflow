@@ -33,9 +33,7 @@ class EC2Hook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self,
-                 *args,
-                 **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(resource_type="ec2", *args, **kwargs)
 
     def get_instance(self, instance_id: str):
@@ -60,10 +58,7 @@ class EC2Hook(AwsBaseHook):
         """
         return self.get_instance(instance_id=instance_id).state["Name"]
 
-    def wait_for_state(self,
-                       instance_id: str,
-                       target_state: str,
-                       check_interval: float) -> None:
+    def wait_for_state(self, instance_id: str, target_state: str, check_interval: float) -> None:
         """
         Wait EC2 instance until its state is equal to the target_state.
 
@@ -77,12 +72,8 @@ class EC2Hook(AwsBaseHook):
         :return: None
         :rtype: None
         """
-        instance_state = self.get_instance_state(
-            instance_id=instance_id
-        )
+        instance_state = self.get_instance_state(instance_id=instance_id)
         while instance_state != target_state:
             self.log.info("instance state: %s", instance_state)
             time.sleep(check_interval)
-            instance_state = self.get_instance_state(
-                instance_id=instance_id
-            )
+            instance_state = self.get_instance_state(instance_id=instance_id)

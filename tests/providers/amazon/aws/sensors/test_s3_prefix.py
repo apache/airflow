@@ -23,20 +23,15 @@ from airflow.providers.amazon.aws.sensors.s3_prefix import S3PrefixSensor
 
 
 class TestS3PrefixSensor(unittest.TestCase):
-
     @mock.patch('airflow.providers.amazon.aws.sensors.s3_prefix.S3Hook')
     def test_poke(self, mock_hook):
-        op = S3PrefixSensor(
-            task_id='s3_prefix',
-            bucket_name='bucket',
-            prefix='prefix')
+        op = S3PrefixSensor(task_id='s3_prefix', bucket_name='bucket', prefix='prefix')
 
         mock_hook.return_value.check_for_prefix.return_value = False
         self.assertFalse(op.poke(None))
         mock_hook.return_value.check_for_prefix.assert_called_once_with(
-            prefix='prefix',
-            delimiter='/',
-            bucket_name='bucket')
+            prefix='prefix', delimiter='/', bucket_name='bucket'
+        )
 
         mock_hook.return_value.check_for_prefix.return_value = True
         self.assertTrue(op.poke(None))

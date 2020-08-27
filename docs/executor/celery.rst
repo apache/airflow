@@ -72,7 +72,7 @@ to start a Flower web server:
 
     airflow celery flower
 
-Please note that you must have the ``flower`` python library already installed on your system. The recommend way is to install the airflow celery bundle.
+Please note that you must have the ``flower`` python library already installed on your system. The recommended way is to install the airflow celery bundle.
 
 .. code-block:: bash
 
@@ -159,7 +159,7 @@ The components communicate with each other in many places
 * [11] **Scheduler** --> **Celery's broker** - Put the commands to be executed
 
 Queues
-======
+------
 
 When using the CeleryExecutor, the Celery queues that tasks are sent to
 can be specified. ``queue`` is an attribute of BaseOperator, so any

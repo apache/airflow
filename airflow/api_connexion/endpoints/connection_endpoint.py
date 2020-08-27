@@ -24,7 +24,10 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.connection_schema import (
-    ConnectionCollection, connection_collection_item_schema, connection_collection_schema, connection_schema,
+    ConnectionCollection,
+    connection_collection_item_schema,
+    connection_collection_schema,
+    connection_schema,
 )
 from airflow.models import Connection
 from airflow.utils.session import provide_session
@@ -56,9 +59,7 @@ def get_connection(connection_id, session):
 
 
 @security.requires_authentication
-@format_parameters({
-    'limit': check_limit
-})
+@format_parameters({'limit': check_limit})
 @provide_session
 def get_connections(session, limit, offset=0):
     """
@@ -67,8 +68,9 @@ def get_connections(session, limit, offset=0):
     total_entries = session.query(func.count(Connection.id)).scalar()
     query = session.query(Connection)
     connections = query.order_by(Connection.id).offset(offset).limit(limit).all()
-    return connection_collection_schema.dump(ConnectionCollection(connections=connections,
-                                                                  total_entries=total_entries))
+    return connection_collection_schema.dump(
+        ConnectionCollection(connections=connections, total_entries=total_entries)
+    )
 
 
 @security.requires_authentication

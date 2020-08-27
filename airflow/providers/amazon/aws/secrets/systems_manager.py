@@ -57,7 +57,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         connections_prefix: str = '/airflow/connections',
         variables_prefix: str = '/airflow/variables',
         profile_name: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         self.connections_prefix = connections_prefix.rstrip("/")
@@ -102,14 +102,13 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         """
         ssm_path = self.build_path(path_prefix, secret_id)
         try:
-            response = self.client.get_parameter(
-                Name=ssm_path, WithDecryption=True
-            )
+            response = self.client.get_parameter(Name=ssm_path, WithDecryption=True)
             value = response["Parameter"]["Value"]
             return value
         except self.client.exceptions.ParameterNotFound:
             self.log.info(
                 "An error occurred (ParameterNotFound) when calling the GetParameter operation: "
-                "Parameter %s not found.", ssm_path
+                "Parameter %s not found.",
+                ssm_path,
             )
             return None

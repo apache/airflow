@@ -26,7 +26,6 @@ from airflow.providers.amazon.aws.operators.ec2_stop_instance import EC2StopInst
 
 
 class TestEC2Operator(unittest.TestCase):
-
     def test_init(self):
         ec2_operator = EC2StopInstanceOperator(
             task_id="task_test",
@@ -45,20 +44,11 @@ class TestEC2Operator(unittest.TestCase):
     def test_stop_instance(self):
         # create instance
         ec2_hook = EC2Hook()
-        instances = ec2_hook.conn.create_instances(
-            MaxCount=1,
-            MinCount=1,
-        )
+        instances = ec2_hook.conn.create_instances(MaxCount=1, MinCount=1,)
         instance_id = instances[0].instance_id
 
         # stop instance
-        stop_test = EC2StopInstanceOperator(
-            task_id="stop_test",
-            instance_id=instance_id,
-        )
+        stop_test = EC2StopInstanceOperator(task_id="stop_test", instance_id=instance_id,)
         stop_test.execute(None)
         # assert instance state is running
-        self.assertEqual(
-            ec2_hook.get_instance_state(instance_id=instance_id),
-            "stopped"
-        )
+        self.assertEqual(ec2_hook.get_instance_state(instance_id=instance_id), "stopped")

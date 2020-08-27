@@ -19,51 +19,18 @@ import unittest
 
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
 
-config = {
-    'key1': '1',
-    'key2': {
-        'key3': '3',
-        'key4': '4'
-    },
-    'key5': [
-        {
-            'key6': '6'
-        },
-        {
-            'key6': '7'
-        }
-    ]
-}
+config = {'key1': '1', 'key2': {'key3': '3', 'key4': '4'}, 'key5': [{'key6': '6'}, {'key6': '7'}]}
 
-parsed_config = {
-    'key1': 1,
-    'key2': {
-        'key3': 3,
-        'key4': 4
-    },
-    'key5': [
-        {
-            'key6': 6
-        },
-        {
-            'key6': 7
-        }
-    ]
-}
+parsed_config = {'key1': 1, 'key2': {'key3': 3, 'key4': 4}, 'key5': [{'key6': 6}, {'key6': 7}]}
 
 
 class TestSageMakerBaseOperator(unittest.TestCase):
-
     def setUp(self):
         self.sagemaker = SageMakerBaseOperator(
-            task_id='test_sagemaker_operator',
-            aws_conn_id='sagemaker_test_id',
-            config=config
+            task_id='test_sagemaker_operator', aws_conn_id='sagemaker_test_id', config=config
         )
 
     def test_parse_integer(self):
-        self.sagemaker.integer_fields = [
-            ['key1'], ['key2', 'key3'], ['key2', 'key4'], ['key5', 'key6']
-        ]
+        self.sagemaker.integer_fields = [['key1'], ['key2', 'key3'], ['key2', 'key4'], ['key5', 'key6']]
         self.sagemaker.parse_config_integers()
         self.assertEqual(self.sagemaker.config, parsed_config)

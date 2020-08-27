@@ -18,7 +18,9 @@
 import unittest
 
 from airflow.providers.google.cloud.utils.field_validator import (
-    GcpBodyFieldValidator, GcpFieldValidationException, GcpValidationSpecificationException,
+    GcpBodyFieldValidator,
+    GcpFieldValidationException,
+    GcpValidationSpecificationException,
 )
 
 
@@ -179,9 +181,12 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
     def test_validate_should_fail_if_union_field_is_not_found(self):
         specification = [
-            dict(name="an_union", type="union", optional=False, fields=[
-                dict(name="variant_1", regexp=r'^.+$', optional=False, allow_empty=False),
-            ])
+            dict(
+                name="an_union",
+                type="union",
+                optional=False,
+                fields=[dict(name="variant_1", regexp=r'^.+$', optional=False, allow_empty=False),],
+            )
         ]
         body = {}
 
@@ -189,9 +194,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
         self.assertIsNone(validator.validate(body))
 
     def test_validate_should_fail_if_there_is_no_nested_field_for_union(self):
-        specification = [
-            dict(name="an_union", type="union", optional=False, fields=[])
-        ]
+        specification = [dict(name="an_union", type="union", optional=False, fields=[])]
         body = {}
 
         validator = GcpBodyFieldValidator(specification, 'v1')
@@ -201,9 +204,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
     def test_validate_should_interpret_union_with_one_field(self):
         specification = [
-            dict(name="an_union", type="union", fields=[
-                dict(name="variant_1", regexp=r'^.+$'),
-            ])
+            dict(name="an_union", type="union", fields=[dict(name="variant_1", regexp=r'^.+$'),])
         ]
         body = {"variant_1": "abc", "variant_2": "def"}
 
@@ -212,10 +213,11 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
     def test_validate_should_fail_if_both_field_of_union_is_present(self):
         specification = [
-            dict(name="an_union", type="union", fields=[
-                dict(name="variant_1", regexp=r'^.+$'),
-                dict(name="variant_2", regexp=r'^.+$'),
-            ])
+            dict(
+                name="an_union",
+                type="union",
+                fields=[dict(name="variant_1", regexp=r'^.+$'), dict(name="variant_2", regexp=r'^.+$'),],
+            )
         ]
         body = {"variant_1": "abc", "variant_2": "def"}
 
@@ -225,9 +227,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
     def test_validate_should_validate_when_value_matches_regex(self):
         specification = [
-            dict(name="an_union", type="union", fields=[
-                dict(name="variant_1", regexp=r'[^a-z]'),
-            ])
+            dict(name="an_union", type="union", fields=[dict(name="variant_1", regexp=r'[^a-z]'),])
         ]
         body = {"variant_1": "12"}
 
@@ -236,9 +236,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
     def test_validate_should_fail_when_value_does_not_match_regex(self):
         specification = [
-            dict(name="an_union", type="union", fields=[
-                dict(name="variant_1", regexp=r'[^a-z]'),
-            ])
+            dict(name="an_union", type="union", fields=[dict(name="variant_1", regexp=r'[^a-z]'),])
         ]
         body = {"variant_1": "abc"}
 
@@ -251,9 +249,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
             if int(value) != 0:
                 raise GcpFieldValidationException("The available memory has to be equal to 0")
 
-        specification = [
-            dict(name="availableMemoryMb", custom_validation=_int_equal_to_zero)
-        ]
+        specification = [dict(name="availableMemoryMb", custom_validation=_int_equal_to_zero)]
         body = {"availableMemoryMb": 1}
 
         validator = GcpBodyFieldValidator(specification, 'v1')
@@ -265,9 +261,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
             if int(value) != 0:
                 raise GcpFieldValidationException("The available memory has to be equal to 0")
 
-        specification = [
-            dict(name="availableMemoryMb", custom_validation=_int_equal_to_zero)
-        ]
+        specification = [dict(name="availableMemoryMb", custom_validation=_int_equal_to_zero)]
         body = {"availableMemoryMb": 0}
 
         validator = GcpBodyFieldValidator(specification, 'v1')
@@ -278,14 +272,16 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
             dict(name="name", allow_empty=False),
             dict(name="description", allow_empty=False, optional=True),
             dict(name="labels", optional=True, type="dict"),
-            dict(name="an_union", type="union", fields=[
-                dict(name="variant_1", regexp=r'^.+$'),
-                dict(name="variant_2", regexp=r'^.+$', api_version='v1beta2'),
-                dict(name="variant_3", type="dict", fields=[
-                    dict(name="url", regexp=r'^.+$')
-                ]),
-                dict(name="variant_4")
-            ]),
+            dict(
+                name="an_union",
+                type="union",
+                fields=[
+                    dict(name="variant_1", regexp=r'^.+$'),
+                    dict(name="variant_2", regexp=r'^.+$', api_version='v1beta2'),
+                    dict(name="variant_3", type="dict", fields=[dict(name="url", regexp=r'^.+$')]),
+                    dict(name="variant_4"),
+                ],
+            ),
         ]
         body = {"variant_1": "abc", "name": "bigquery"}
 

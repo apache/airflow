@@ -26,28 +26,20 @@ from airflow.providers.amazon.aws.sensors.sagemaker_transform import SageMakerTr
 
 DESCRIBE_TRANSFORM_INPROGRESS_RESPONSE = {
     'TransformJobStatus': 'InProgress',
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
-    }
+    'ResponseMetadata': {'HTTPStatusCode': 200,},
 }
 DESCRIBE_TRANSFORM_COMPLETED_RESPONSE = {
     'TransformJobStatus': 'Completed',
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
-    }
+    'ResponseMetadata': {'HTTPStatusCode': 200,},
 }
 DESCRIBE_TRANSFORM_FAILED_RESPONSE = {
     'TransformJobStatus': 'Failed',
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
-    },
-    'FailureReason': 'Unknown'
+    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'FailureReason': 'Unknown',
 }
 DESCRIBE_TRANSFORM_STOPPING_RESPONSE = {
     'TransformJobStatus': 'Stopping',
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
-    }
+    'ResponseMetadata': {'HTTPStatusCode': 200,},
 }
 
 
@@ -57,10 +49,7 @@ class TestSageMakerTransformSensor(unittest.TestCase):
     def test_sensor_with_failure(self, mock_describe_job, mock_client):
         mock_describe_job.side_effect = [DESCRIBE_TRANSFORM_FAILED_RESPONSE]
         sensor = SageMakerTransformSensor(
-            task_id='test_task',
-            poke_interval=2,
-            aws_conn_id='aws_test',
-            job_name='test_job_name'
+            task_id='test_task', poke_interval=2, aws_conn_id='aws_test', job_name='test_job_name'
         )
         self.assertRaises(AirflowException, sensor.execute, None)
         mock_describe_job.assert_called_once_with('test_job_name')
@@ -74,13 +63,10 @@ class TestSageMakerTransformSensor(unittest.TestCase):
         mock_describe_job.side_effect = [
             DESCRIBE_TRANSFORM_INPROGRESS_RESPONSE,
             DESCRIBE_TRANSFORM_STOPPING_RESPONSE,
-            DESCRIBE_TRANSFORM_COMPLETED_RESPONSE
+            DESCRIBE_TRANSFORM_COMPLETED_RESPONSE,
         ]
         sensor = SageMakerTransformSensor(
-            task_id='test_task',
-            poke_interval=2,
-            aws_conn_id='aws_test',
-            job_name='test_job_name'
+            task_id='test_task', poke_interval=2, aws_conn_id='aws_test', job_name='test_job_name'
         )
 
         sensor.execute(None)
@@ -89,7 +75,5 @@ class TestSageMakerTransformSensor(unittest.TestCase):
         self.assertEqual(mock_describe_job.call_count, 3)
 
         # make sure the hook was initialized with the specific params
-        calls = [
-            mock.call(aws_conn_id='aws_test')
-        ]
+        calls = [mock.call(aws_conn_id='aws_test')]
         hook_init.assert_has_calls(calls)

@@ -63,9 +63,19 @@ class SnowflakeOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, *, sql, snowflake_conn_id='snowflake_default', parameters=None,
-            autocommit=True, warehouse=None, database=None, role=None,
-            schema=None, authenticator=None, **kwargs):
+        self,
+        *,
+        sql,
+        snowflake_conn_id='snowflake_default',
+        parameters=None,
+        autocommit=True,
+        warehouse=None,
+        database=None,
+        role=None,
+        schema=None,
+        authenticator=None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
@@ -83,9 +93,14 @@ class SnowflakeOperator(BaseOperator):
         :return: a SnowflakeHook instance.
         :rtype: SnowflakeHook
         """
-        return SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id,
-                             warehouse=self.warehouse, database=self.database,
-                             role=self.role, schema=self.schema, authenticator=self.authenticator)
+        return SnowflakeHook(
+            snowflake_conn_id=self.snowflake_conn_id,
+            warehouse=self.warehouse,
+            database=self.database,
+            role=self.role,
+            schema=self.schema,
+            authenticator=self.authenticator,
+        )
 
     def execute(self, context):
         """
@@ -93,7 +108,4 @@ class SnowflakeOperator(BaseOperator):
         """
         self.log.info('Executing: %s', self.sql)
         hook = self.get_hook()
-        hook.run(
-            self.sql,
-            autocommit=self.autocommit,
-            parameters=self.parameters)
+        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

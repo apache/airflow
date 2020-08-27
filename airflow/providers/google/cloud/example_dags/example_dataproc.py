@@ -24,7 +24,9 @@ import os
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
-    DataprocCreateClusterOperator, DataprocDeleteClusterOperator, DataprocSubmitJobOperator,
+    DataprocCreateClusterOperator,
+    DataprocDeleteClusterOperator,
+    DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,
 )
 from airflow.utils.dates import days_ago
@@ -66,16 +68,10 @@ CLUSTER = {
 # Update options
 # [START how_to_cloud_dataproc_updatemask_cluster_operator]
 CLUSTER_UPDATE = {
-    "config": {
-        "worker_config": {"num_instances": 3},
-        "secondary_worker_config": {"num_instances": 3},
-    }
+    "config": {"worker_config": {"num_instances": 3}, "secondary_worker_config": {"num_instances": 3},}
 }
 UPDATE_MASK = {
-    "paths": [
-        "config.worker_config.num_instances",
-        "config.secondary_worker_config.num_instances",
-    ]
+    "paths": ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances",]
 }
 # [END how_to_cloud_dataproc_updatemask_cluster_operator]
 
@@ -144,11 +140,7 @@ HADOOP_JOB = {
 }
 # [END how_to_cloud_dataproc_hadoop_config]
 
-with models.DAG(
-    "example_gcp_dataproc",
-    start_date=days_ago(1),
-    schedule_interval=None,
-) as dag:
+with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interval=None,) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster", project_id=PROJECT_ID, cluster=CLUSTER, region=REGION
@@ -171,10 +163,7 @@ with models.DAG(
         task_id="pig_task", job=PIG_JOB, location=REGION, project_id=PROJECT_ID
     )
     spark_sql_task = DataprocSubmitJobOperator(
-        task_id="spark_sql_task",
-        job=SPARK_SQL_JOB,
-        location=REGION,
-        project_id=PROJECT_ID,
+        task_id="spark_sql_task", job=SPARK_SQL_JOB, location=REGION, project_id=PROJECT_ID,
     )
 
     spark_task = DataprocSubmitJobOperator(
@@ -201,10 +190,7 @@ with models.DAG(
 
     # [START how_to_cloud_dataproc_delete_cluster_operator]
     delete_cluster = DataprocDeleteClusterOperator(
-        task_id="delete_cluster",
-        project_id=PROJECT_ID,
-        cluster_name=CLUSTER_NAME,
-        region=REGION,
+        task_id="delete_cluster", project_id=PROJECT_ID, cluster_name=CLUSTER_NAME, region=REGION,
     )
     # [END how_to_cloud_dataproc_delete_cluster_operator]
 

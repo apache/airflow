@@ -48,6 +48,7 @@ class PostgresHook(DbApiHook):
     the host field, so is optional. It can however be overridden in the extra field.
     extras example: ``{"iam":true, "redshift":true, "cluster-identifier": "my_cluster_id"}``
     """
+
     conn_name_attr = 'postgres_conn_id'
     default_conn_name = 'postgres_default'
     supports_autocommit = True
@@ -82,15 +83,22 @@ class PostgresHook(DbApiHook):
             user=conn.login,
             password=conn.password,
             dbname=self.schema or conn.schema,
-            port=conn.port)
+            port=conn.port,
+        )
         raw_cursor = conn.extra_dejson.get('cursor', False)
         if raw_cursor:
             conn_args['cursor_factory'] = self._get_cursor(raw_cursor)
         # check for ssl parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
-            if arg_name in ['sslmode', 'sslcert', 'sslkey',
-                            'sslrootcert', 'sslcrl', 'application_name',
-                            'keepalives_idle']:
+            if arg_name in [
+                'sslmode',
+                'sslcert',
+                'sslkey',
+                'sslrootcert',
+                'sslcrl',
+                'application_name',
+                'keepalives_idle',
+            ]:
                 conn_args[arg_name] = arg_val
 
         self.conn = psycopg2.connect(**conn_args)
@@ -174,7 +182,8 @@ class PostgresHook(DbApiHook):
                 DbUser=conn.login,
                 DbName=self.schema or conn.schema,
                 ClusterIdentifier=cluster_identifier,
-                AutoCreate=False)
+                AutoCreate=False,
+            )
             token = cluster_creds['DbPassword']
             login = cluster_creds['DbUser']
         else:
@@ -201,7 +210,7 @@ class PostgresHook(DbApiHook):
         :return: The generated INSERT or REPLACE SQL statement
         :rtype: str
         """
-        placeholders = ["%s", ] * len(values)
+        placeholders = ["%s",] * len(values)
         replace_index = kwargs.get("replace_index", None)
 
         if target_fields:
@@ -210,10 +219,7 @@ class PostgresHook(DbApiHook):
         else:
             target_fields_fragment = ''
 
-        sql = "INSERT INTO {0} {1} VALUES ({2})".format(
-            table,
-            target_fields_fragment,
-            ",".join(placeholders))
+        sql = "INSERT INTO {0} {1} VALUES ({2})".format(table, target_fields_fragment, ",".join(placeholders))
 
         if replace:
             if target_fields is None:
@@ -225,12 +231,9 @@ class PostgresHook(DbApiHook):
             replace_index_set = set(replace_index)
 
             replace_target = [
-                "{0} = excluded.{0}".format(col)
-                for col in target_fields
-                if col not in replace_index_set
+                "{0} = excluded.{0}".format(col) for col in target_fields if col not in replace_index_set
             ]
             sql += " ON CONFLICT ({0}) DO UPDATE SET {1}".format(
-                ", ".join(replace_index),
-                ", ".join(replace_target),
+                ", ".join(replace_index), ", ".join(replace_target),
             )
         return sql

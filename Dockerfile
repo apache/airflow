@@ -42,7 +42,6 @@ ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_GID="50000"
 
-ARG PIP_VERSION="19.0.2"
 ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
@@ -53,12 +52,6 @@ ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 ##############################################################################################
 FROM ${PYTHON_BASE_IMAGE} as airflow-build-image
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
-
-LABEL org.apache.airflow.distro="debian"
-LABEL org.apache.airflow.distro.version="buster"
-LABEL org.apache.airflow.module="airflow"
-LABEL org.apache.airflow.component="airflow"
-LABEL org.apache.airflow.image="airflow-build-image"
 
 ARG PYTHON_BASE_IMAGE
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
@@ -152,11 +145,6 @@ RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
     && apt-get autoremove -yqq --purge \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ARG PIP_VERSION
-ENV PIP_VERSION=${PIP_VERSION}
-
-RUN pip install --upgrade pip==${PIP_VERSION}
-
 ARG AIRFLOW_REPO=apache/airflow
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}
 
@@ -170,6 +158,9 @@ ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_
 ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
 ARG AIRFLOW_CONSTRAINTS_URL="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 ENV AIRFLOW_CONSTRAINTS_URL=${AIRFLOW_CONSTRAINTS_URL}
+
+ENV PATH=${PATH}:/root/.local/bin
+RUN mkdir -p /root/.local/bin
 
 # In case of Production build image segment we want to pre-install master version of airflow
 # dependencies from github so that we do not have to always reinstall it from the scratch.
@@ -202,8 +193,6 @@ ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 
 WORKDIR /opt/airflow
 
-ENV PATH=${PATH}:/root/.local/bin
-
 RUN pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
     --constraint "${AIRFLOW_CONSTRAINTS_URL}" && \
     if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then pip install --user ${ADDITIONAL_PYTHON_DEPS} \
@@ -227,6 +216,20 @@ RUN AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/s
 # make sure that all directories and files in .local are also group accessible
 RUN find /root/.local -executable -print0 | xargs --null chmod g+x && \
     find /root/.local -print0 | xargs --null chmod g+rw
+
+LABEL org.apache.airflow.distro="debian"
+LABEL org.apache.airflow.distro.version="buster"
+LABEL org.apache.airflow.module="airflow"
+LABEL org.apache.airflow.component="airflow"
+LABEL org.apache.airflow.image="airflow-build-image"
+
+ARG BUILD_ID
+ENV BUILD_ID=${BUILD_ID}
+ARG COMMIT_SHA
+ENV COMMIT_SHA=${COMMIT_SHA}
+
+LABEL org.apache.airflow.buildImage.buildId=${BUILD_ID}
+LABEL org.apache.airflow.buildImage.commitSha=${COMMIT_SHA}
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
@@ -319,10 +322,6 @@ RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
     && apt-get autoremove -yqq --purge \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ARG PIP_VERSION
-ENV PIP_VERSION=${PIP_VERSION}
-RUN pip install --upgrade pip==${PIP_VERSION}
-
 ENV AIRFLOW_UID=${AIRFLOW_UID}
 ENV AIRFLOW_GID=${AIRFLOW_GID}
 
@@ -350,13 +349,8 @@ RUN mkdir -pv "${AIRFLOW_HOME}"; \
 
 COPY --chown=airflow:root --from=airflow-build-image /root/.local "${AIRFLOW_USER_HOME_DIR}/.local"
 
-COPY scripts/prod/entrypoint_prod.sh /entrypoint
-COPY scripts/prod/clean-logs.sh /clean-logs
-
-ARG EMBEDDED_DAGS="empty"
-
-COPY --chown=airflow:root ${EMBEDDED_DAGS}/ ${AIRFLOW_HOME}/dags/
-
+COPY scripts/in_container/prod/entrypoint_prod.sh /entrypoint
+COPY scripts/in_container/prod/clean-logs.sh /clean-logs
 RUN chmod a+x /entrypoint /clean-logs
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
@@ -371,6 +365,21 @@ WORKDIR ${AIRFLOW_HOME}
 EXPOSE 8080
 
 USER ${AIRFLOW_UID}
+
+ARG BUILD_ID
+ENV BUILD_ID=${BUILD_ID}
+ARG COMMIT_SHA
+ENV COMMIT_SHA=${COMMIT_SHA}
+
+LABEL org.apache.airflow.distro="debian"
+LABEL org.apache.airflow.distro.version="buster"
+LABEL org.apache.airflow.module="airflow"
+LABEL org.apache.airflow.component="airflow"
+LABEL org.apache.airflow.image="airflow"
+LABEL org.apache.airflow.uid="${AIRFLOW_UID}"
+LABEL org.apache.airflow.gid="${AIRFLOW_GID}"
+LABEL org.apache.airflow.mainImage.buildId=${BUILD_ID}
+LABEL org.apache.airflow.mainImage.commitSha=${COMMIT_SHA}
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD ["--help"]

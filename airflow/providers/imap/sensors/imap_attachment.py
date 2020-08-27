@@ -41,16 +41,20 @@ class ImapAttachmentSensor(BaseSensorOperator):
     :param conn_id: The connection to run the sensor against.
     :type conn_id: str
     """
+
     template_fields = ('attachment_name', 'mail_filter')
 
     @apply_defaults
-    def __init__(self, *,
-                 attachment_name,
-                 check_regex=False,
-                 mail_folder='INBOX',
-                 mail_filter='All',
-                 conn_id='imap_default',
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        attachment_name,
+        check_regex=False,
+        mail_folder='INBOX',
+        mail_filter='All',
+        conn_id='imap_default',
+        **kwargs,
+    ):
         super().__init__(**kwargs)
 
         self.attachment_name = attachment_name
@@ -75,5 +79,5 @@ class ImapAttachmentSensor(BaseSensorOperator):
                 name=self.attachment_name,
                 check_regex=self.check_regex,
                 mail_folder=self.mail_folder,
-                mail_filter=self.mail_filter
+                mail_filter=self.mail_filter,
             )

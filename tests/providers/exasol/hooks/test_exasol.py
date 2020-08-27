@@ -27,16 +27,11 @@ from airflow.providers.exasol.hooks.exasol import ExasolHook
 
 
 class TestExasolHookConn(unittest.TestCase):
-
     def setUp(self):
         super(TestExasolHookConn, self).setUp()
 
         self.connection = models.Connection(
-            login='login',
-            password='password',
-            host='host',
-            port=1234,
-            schema='schema',
+            login='login', password='password', host='host', port=1234, schema='schema',
         )
 
         self.db_hook = ExasolHook()
@@ -67,7 +62,6 @@ class TestExasolHookConn(unittest.TestCase):
 
 
 class TestExasolHook(unittest.TestCase):
-
     def setUp(self):
         super(TestExasolHook, self).setUp()
 

@@ -28,7 +28,6 @@ WRITE_KEY = 'foo'
 
 
 class TestSegmentHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -38,7 +37,6 @@ class TestSegmentHook(unittest.TestCase):
         self.conn.extra_dejson = {'write_key': self.expected_write_key}
 
         class UnitTestSegmentHook(SegmentHook):
-
             def get_conn(self):
                 return conn
 
@@ -59,7 +57,6 @@ class TestSegmentHook(unittest.TestCase):
 
 
 class TestSegmentTrackEventOperator(unittest.TestCase):
-
     @mock.patch('airflow.providers.segment.operators.segment_track_event.SegmentHook')
     def test_execute(self, mock_hook):
         # Given
@@ -68,10 +65,7 @@ class TestSegmentTrackEventOperator(unittest.TestCase):
         properties = {}
 
         operator = SegmentTrackEventOperator(
-            task_id='segment-track',
-            user_id=user_id,
-            event=event,
-            properties=properties,
+            task_id='segment-track', user_id=user_id, event=event, properties=properties,
         )
 
         # When
@@ -79,7 +73,5 @@ class TestSegmentTrackEventOperator(unittest.TestCase):
 
         # Then
         mock_hook.return_value.track.assert_called_once_with(
-            user_id=user_id,
-            event=event,
-            properties=properties,
+            user_id=user_id, event=event, properties=properties,
         )

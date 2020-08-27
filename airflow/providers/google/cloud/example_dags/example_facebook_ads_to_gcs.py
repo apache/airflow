@@ -24,7 +24,9 @@ from facebook_business.adobjects.adsinsights import AdsInsights
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryDeleteDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryDeleteDatasetOperator,
     BigQueryExecuteQueryOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -49,28 +51,20 @@ FIELDS = [
     AdsInsights.Field.clicks,
     AdsInsights.Field.impressions,
 ]
-PARAMS = {
-    'level': 'ad',
-    'date_preset': 'yesterday'
-}
+PARAMS = {'level': 'ad', 'date_preset': 'yesterday'}
 # [END howto_FB_ADS_variables]
 
 with models.DAG(
     "example_facebook_ads_to_gcs",
     schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1)
+    start_date=days_ago(1),
 ) as dag:
 
     create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket",
-        bucket_name=GCS_BUCKET,
-        project_id=GCP_PROJECT_ID,
+        task_id="create_bucket", bucket_name=GCS_BUCKET, project_id=GCP_PROJECT_ID,
     )
 
-    create_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_dataset",
-        dataset_id=DATASET_NAME,
-    )
+    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME,)
 
     create_table = BigQueryCreateEmptyTableOperator(
         task_id="create_table",
@@ -103,7 +97,7 @@ with models.DAG(
         bucket=GCS_BUCKET,
         source_objects=[GCS_OBJ_PATH],
         destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
-        write_disposition='WRITE_TRUNCATE'
+        write_disposition='WRITE_TRUNCATE',
     )
 
     read_data_from_gcs_many_chunks = BigQueryExecuteQueryOperator(
@@ -112,16 +106,10 @@ with models.DAG(
         use_legacy_sql=False,
     )
 
-    delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket",
-        bucket_name=GCS_BUCKET,
-    )
+    delete_bucket = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=GCS_BUCKET,)
 
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset",
-        project_id=GCP_PROJECT_ID,
-        dataset_id=DATASET_NAME,
-        delete_contents=True,
+        task_id="delete_dataset", project_id=GCP_PROJECT_ID, dataset_id=DATASET_NAME, delete_contents=True,
     )
 
     create_bucket >> create_dataset >> create_table >> run_operator >> load_csv

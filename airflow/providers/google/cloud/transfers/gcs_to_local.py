@@ -17,7 +17,7 @@
 
 import sys
 import warnings
-from typing import Optional
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -58,24 +58,44 @@ class GCSToLocalFilesystemOperator(BaseOperator):
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
         Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('bucket', 'object', 'filename', 'store_to_xcom_key',)
+
+    template_fields = (
+        'bucket',
+        'object',
+        'filename',
+        'store_to_xcom_key',
+        'impersonation_chain',
+    )
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, *,
-                 bucket: str,
-                 object_name: Optional[str] = None,
-                 filename: Optional[str] = None,
-                 store_to_xcom_key: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 google_cloud_storage_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        bucket: str,
+        object_name: Optional[str] = None,
+        filename: Optional[str] = None,
+        store_to_xcom_key: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         # To preserve backward compatibility
         # TODO: Remove one day
         if object_name is None:
@@ -91,35 +111,34 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         super().__init__(**kwargs)
         self.bucket = bucket
         self.object = object_name
         self.filename = filename  # noqa
-        self.store_to_xcom_key = store_to_xcom_key # noqa
+        self.store_to_xcom_key = store_to_xcom_key  # noqa
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        self.log.info('Executing download: %s, %s, %s', self.bucket,
-                      self.object, self.filename)
+        self.log.info('Executing download: %s, %s, %s', self.bucket, self.object, self.filename)
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         if self.store_to_xcom_key:
-            file_bytes = hook.download(bucket_name=self.bucket,
-                                       object_name=self.object)
+            file_bytes = hook.download(bucket_name=self.bucket, object_name=self.object)
             if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
             else:
-                raise AirflowException(
-                    'The size of the downloaded file is too large to push to XCom!'
-                )
+                raise AirflowException('The size of the downloaded file is too large to push to XCom!')
         else:
-            hook.download(bucket_name=self.bucket,
-                          object_name=self.object,
-                          filename=self.filename)
+            hook.download(bucket_name=self.bucket, object_name=self.object, filename=self.filename)

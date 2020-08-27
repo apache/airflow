@@ -67,16 +67,19 @@ class HiveToMySqlOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self, *,
-                 sql: str,
-                 mysql_table: str,
-                 hiveserver2_conn_id: str = 'hiveserver2_default',
-                 mysql_conn_id: str = 'mysql_default',
-                 mysql_preoperator: Optional[str] = None,
-                 mysql_postoperator: Optional[str] = None,
-                 bulk_load: bool = False,
-                 hive_conf: Optional[Dict] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        sql: str,
+        mysql_table: str,
+        hiveserver2_conn_id: str = 'hiveserver2_default',
+        mysql_conn_id: str = 'mysql_default',
+        mysql_preoperator: Optional[str] = None,
+        mysql_postoperator: Optional[str] = None,
+        bulk_load: bool = False,
+        hive_conf: Optional[Dict] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
         self.mysql_table = mysql_table
@@ -96,12 +99,14 @@ class HiveToMySqlOperator(BaseOperator):
             hive_conf.update(self.hive_conf)
         if self.bulk_load:
             tmp_file = NamedTemporaryFile()
-            hive.to_csv(self.sql,
-                        tmp_file.name,
-                        delimiter='\t',
-                        lineterminator='\n',
-                        output_header=False,
-                        hive_conf=hive_conf)
+            hive.to_csv(
+                self.sql,
+                tmp_file.name,
+                delimiter='\t',
+                lineterminator='\n',
+                output_header=False,
+                hive_conf=hive_conf,
+            )
         else:
             hive_results = hive.get_records(self.sql, hive_conf=hive_conf)
 

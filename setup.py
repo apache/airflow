@@ -33,9 +33,7 @@ from setuptools import Command, find_packages, setup
 logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
-# noinspection PyUnresolvedReferences
-spec = util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
-# noinspection PyUnresolvedReferences
+spec = util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))  # noqa
 mod = util.module_from_spec(spec)
 spec.loader.exec_module(mod)  # type: ignore
 version = mod.version  # type: ignore
@@ -45,7 +43,6 @@ PY38 = PY3 and sys.version_info[1] >= 8
 
 my_dir = dirname(__file__)
 
-# noinspection PyUnboundLocalVariable
 try:
     with io.open(os.path.join(my_dir, 'README.md'), encoding='utf-8') as f:
         long_description = f.read()
@@ -75,8 +72,7 @@ class CleanCommand(Command):
     def finalize_options(self):
         """Set final values for options."""
 
-    # noinspection PyMethodMayBeStatic
-    def run(self):
+    def run(self):  # noqa
         """Run command to remove temporary files and directories."""
         os.chdir(my_dir)
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
@@ -97,8 +93,7 @@ class CompileAssets(Command):
     def finalize_options(self):
         """Set final values for options."""
 
-    # noinspection PyMethodMayBeStatic
-    def run(self):
+    def run(self):  # noqa
         """Run a command to compile and build assets."""
         subprocess.check_call('./airflow/www/compile_assets.sh')
 
@@ -118,8 +113,7 @@ class ListExtras(Command):
     def finalize_options(self):
         """Set final values for options."""
 
-    # noinspection PyMethodMayBeStatic
-    def run(self):
+    def run(self):  # noqa
         """List extras."""
         print("\n".join(wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)))
 
@@ -260,31 +254,31 @@ flask_oauth = [
 google = [
     'PyOpenSSL',
     'google-ads>=4.0.0',
-    'google-api-python-client>=1.6.0, <2.0.0dev',
-    'google-auth>=1.0.0, <2.0.0dev',
+    'google-api-python-client>=1.6.0,<2.0.0',
+    'google-auth>=1.0.0,<2.0.0',
     'google-auth-httplib2>=0.0.1',
-    'google-cloud-automl>=0.4.0',
-    'google-cloud-bigquery-datatransfer>=0.4.0',
-    'google-cloud-bigtable>=1.0.0',
-    'google-cloud-container>=0.1.1,<2.0',
-    'google-cloud-datacatalog>=0.5.0,<0.8',
+    'google-cloud-automl>=0.4.0,<2.0.0',
+    'google-cloud-bigquery-datatransfer>=0.4.0,<2.0.0',
+    'google-cloud-bigtable>=1.0.0,<2.0.0',
+    'google-cloud-container>=0.1.1,<2.0.0',
+    'google-cloud-datacatalog>=0.5.0, <0.8',  # TODO: we should migrate to 1.0 likely and add <2.0.0 then
     'google-cloud-dataproc>=1.0.1,<2.0.0',
-    'google-cloud-dlp>=0.11.0',
+    'google-cloud-dlp>=0.11.0,<2.0.0',
     'google-cloud-kms>=1.2.1,<2.0.0',
-    'google-cloud-language>=1.1.1',
-    'google-cloud-logging>=1.14.0',
-    'google-cloud-monitoring>=0.34.0',
-    'google-cloud-pubsub>=1.0.0',
-    'google-cloud-redis>=0.3.0',
-    'google-cloud-secret-manager>=0.2.0',
-    'google-cloud-spanner>=1.10.0',
-    'google-cloud-speech>=0.36.3',
-    'google-cloud-storage>=1.16',
-    'google-cloud-tasks>=1.2.1',
-    'google-cloud-texttospeech>=0.4.0,<2',
-    'google-cloud-translate>=1.5.0',
-    'google-cloud-videointelligence>=1.7.0',
-    'google-cloud-vision>=0.35.2',
+    'google-cloud-language>=1.1.1,<2.0.0',
+    'google-cloud-logging>=1.14.0,<2.0.0',
+    'google-cloud-monitoring>=0.34.0,<2.0.0',
+    'google-cloud-pubsub>=1.0.0,<2.0.0',
+    'google-cloud-redis>=0.3.0,<2.0.0',
+    'google-cloud-secret-manager>=0.2.0,<2.0.0',
+    'google-cloud-spanner>=1.10.0,<2.0.0',
+    'google-cloud-speech>=0.36.3,<2.0.0',
+    'google-cloud-storage>=1.16,<2.0.0',
+    'google-cloud-tasks>=1.2.1,<2.0.0',
+    'google-cloud-texttospeech>=0.4.0,<2.0.0',
+    'google-cloud-translate>=1.5.0,<2.0.0',
+    'google-cloud-videointelligence>=1.7.0,<2.0.0',
+    'google-cloud-vision>=0.35.2,<2.0.0',
     'grpcio-gcp>=0.2.2',
     'pandas-gbq',
 ]
@@ -464,7 +458,7 @@ devel = [
     'pre-commit',
     'pylint==2.5.3',
     'pysftp',
-    'pytest<6.0.0',  # FIXME: pylint complaining for pytest.mark.* on v6.0
+    'pytest',
     'pytest-cov',
     'pytest-instafail',
     'pytest-rerunfailures',

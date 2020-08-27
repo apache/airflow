@@ -15,11 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-SCRIPTS_CI_DIR=$(dirname "${BASH_SOURCE[0]}")
-
-# shellcheck source=scripts/ci/libraries/_initialization.sh
-. "${SCRIPTS_CI_DIR}"/../libraries/_initialization.sh
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 get_environment_for_builds_on_ci
 
 set -e

@@ -867,11 +867,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             self.log.info("There are %s files in %s", len(self._file_paths), self._dag_directory)
             self.set_file_paths(self._file_paths)
 
-            # noinspection PyBroadException
             try:
                 self.log.debug("Removing old import errors")
                 self.clear_nonexistent_import_errors()  # pylint: disable=no-value-for-parameter
-            except Exception:  # pylint: disable=broad-except
+            except Exception:  # noqa pylint: disable=broad-except
                 self.log.exception("Error removing old import errors")
 
     def _print_stat(self):

@@ -25,9 +25,7 @@ from airflow.utils import dates
 JOB_ID = 6269792
 
 with models.DAG(
-    "example_dataprep",
-    schedule_interval=None,  # Override to match your needs
-    start_date=dates.days_ago(1)
+    "example_dataprep", schedule_interval=None, start_date=dates.days_ago(1)  # Override to match your needs
 ) as dag:
 
     # [START how_to_dataprep_get_jobs_for_job_group_operator]

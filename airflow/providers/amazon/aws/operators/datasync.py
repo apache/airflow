@@ -101,13 +101,14 @@ class AWSDataSyncOperator(BaseOperator):
         "create_source_location_kwargs",
         "create_destination_location_kwargs",
         "update_task_kwargs",
-        "task_execution_kwargs"
+        "task_execution_kwargs",
     )
     ui_color = "#44b5e2"
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         aws_conn_id="aws_default",
         wait_interval_seconds=5,
         task_arn=None,
@@ -121,7 +122,7 @@ class AWSDataSyncOperator(BaseOperator):
         update_task_kwargs=None,
         task_execution_kwargs=None,
         delete_task_after_execution=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
 
@@ -181,8 +182,7 @@ class AWSDataSyncOperator(BaseOperator):
         """
         if not self.hook:
             self.hook = AWSDataSyncHook(
-                aws_conn_id=self.aws_conn_id,
-                wait_interval_seconds=self.wait_interval_seconds,
+                aws_conn_id=self.aws_conn_id, wait_interval_seconds=self.wait_interval_seconds,
             )
         return self.hook
 
@@ -194,16 +194,14 @@ class AWSDataSyncOperator(BaseOperator):
 
         # If some were found, identify which one to run
         if self.candidate_task_arns:
-            self.task_arn = self.choose_task(
-                self.candidate_task_arns)
+            self.task_arn = self.choose_task(self.candidate_task_arns)
 
         # If we couldnt find one then try create one
         if not self.task_arn and self.create_task_kwargs:
             self._create_datasync_task()
 
         if not self.task_arn:
-            raise AirflowException(
-                "DataSync TaskArn could not be identified or created.")
+            raise AirflowException("DataSync TaskArn could not be identified or created.")
 
         self.log.info("Using DataSync TaskArn %s", self.task_arn)
 
@@ -227,13 +225,9 @@ class AWSDataSyncOperator(BaseOperator):
         """Find existing DataSync Task based on source and dest Locations."""
         hook = self.get_hook()
 
-        self.candidate_source_location_arns = self._get_location_arns(
-            self.source_location_uri
-        )
+        self.candidate_source_location_arns = self._get_location_arns(self.source_location_uri)
 
-        self.candidate_destination_location_arns = self._get_location_arns(
-            self.destination_location_uri
-        )
+        self.candidate_destination_location_arns = self._get_location_arns(self.destination_location_uri)
 
         if not self.candidate_source_location_arns:
             self.log.info("No matching source Locations")
@@ -245,11 +239,9 @@ class AWSDataSyncOperator(BaseOperator):
 
         self.log.info("Finding DataSync TaskArns that have these LocationArns")
         self.candidate_task_arns = hook.get_task_arns_for_location_arns(
-            self.candidate_source_location_arns,
-            self.candidate_destination_location_arns,
+            self.candidate_source_location_arns, self.candidate_destination_location_arns,
         )
-        self.log.info("Found candidate DataSync TaskArns %s",
-                      self.candidate_task_arns)
+        self.log.info("Found candidate DataSync TaskArns %s", self.candidate_task_arns)
 
     def choose_task(self, task_arn_list):
         """Select 1 DataSync TaskArn from a list"""
@@ -263,8 +255,7 @@ class AWSDataSyncOperator(BaseOperator):
             # from AWS and might lead to confusion. Rather explicitly
             # choose a random one
             return random.choice(task_arn_list)
-        raise AirflowException(
-            "Unable to choose a Task from {}".format(task_arn_list))
+        raise AirflowException("Unable to choose a Task from {}".format(task_arn_list))
 
     def choose_location(self, location_arn_list):
         """Select 1 DataSync LocationArn from a list"""
@@ -278,16 +269,13 @@ class AWSDataSyncOperator(BaseOperator):
             # from AWS and might lead to confusion. Rather explicitly
             # choose a random one
             return random.choice(location_arn_list)
-        raise AirflowException(
-            "Unable to choose a Location from {}".format(location_arn_list))
+        raise AirflowException("Unable to choose a Location from {}".format(location_arn_list))
 
     def _create_datasync_task(self):
         """Create a AWS DataSyncTask."""
         hook = self.get_hook()
 
-        self.source_location_arn = self.choose_location(
-            self.candidate_source_location_arns
-        )
+        self.source_location_arn = self.choose_location(self.candidate_source_location_arns)
         if not self.source_location_arn and self.create_source_location_kwargs:
             self.log.info('Attempting to create source Location')
             self.source_location_arn = hook.create_location(
@@ -295,12 +283,10 @@ class AWSDataSyncOperator(BaseOperator):
             )
         if not self.source_location_arn:
             raise AirflowException(
-                "Unable to determine source LocationArn."
-                " Does a suitable DataSync Location exist?")
+                "Unable to determine source LocationArn." " Does a suitable DataSync Location exist?"
+            )
 
-        self.destination_location_arn = self.choose_location(
-            self.candidate_destination_location_arns
-        )
+        self.destination_location_arn = self.choose_location(self.candidate_destination_location_arns)
         if not self.destination_location_arn and self.create_destination_location_kwargs:
             self.log.info('Attempting to create destination Location')
             self.destination_location_arn = hook.create_location(
@@ -308,14 +294,12 @@ class AWSDataSyncOperator(BaseOperator):
             )
         if not self.destination_location_arn:
             raise AirflowException(
-                "Unable to determine destination LocationArn."
-                " Does a suitable DataSync Location exist?")
+                "Unable to determine destination LocationArn." " Does a suitable DataSync Location exist?"
+            )
 
         self.log.info("Creating a Task.")
         self.task_arn = hook.create_task(
-            self.source_location_arn,
-            self.destination_location_arn,
-            **self.create_task_kwargs
+            self.source_location_arn, self.destination_location_arn, **self.create_task_kwargs
         )
         if not self.task_arn:
             raise AirflowException("Task could not be created")
@@ -336,20 +320,15 @@ class AWSDataSyncOperator(BaseOperator):
 
         # Create a task execution:
         self.log.info("Starting execution for TaskArn %s", self.task_arn)
-        self.task_execution_arn = hook.start_task_execution(
-            self.task_arn, **self.task_execution_kwargs)
+        self.task_execution_arn = hook.start_task_execution(self.task_arn, **self.task_execution_kwargs)
         self.log.info("Started TaskExecutionArn %s", self.task_execution_arn)
 
         # Wait for task execution to complete
-        self.log.info("Waiting for TaskExecutionArn %s",
-                      self.task_execution_arn)
+        self.log.info("Waiting for TaskExecutionArn %s", self.task_execution_arn)
         result = hook.wait_for_task_execution(self.task_execution_arn)
         self.log.info("Completed TaskExecutionArn %s", self.task_execution_arn)
-        task_execution_description = hook.describe_task_execution(
-            task_execution_arn=self.task_execution_arn
-        )
-        self.log.info("task_execution_description=%s",
-                      task_execution_description)
+        task_execution_description = hook.describe_task_execution(task_execution_arn=self.task_execution_arn)
+        self.log.info("task_execution_description=%s", task_execution_description)
 
         # Log some meaningful statuses
         level = logging.ERROR if not result else logging.INFO
@@ -359,21 +338,16 @@ class AWSDataSyncOperator(BaseOperator):
                 self.log.log(level, '%s=%s', k, v)
 
         if not result:
-            raise AirflowException(
-                "Failed TaskExecutionArn %s" % self.task_execution_arn
-            )
+            raise AirflowException("Failed TaskExecutionArn %s" % self.task_execution_arn)
         return self.task_execution_arn
 
     def on_kill(self):
         """Cancel the submitted DataSync task."""
         hook = self.get_hook()
         if self.task_execution_arn:
-            self.log.info("Cancelling TaskExecutionArn %s",
-                          self.task_execution_arn)
-            hook.cancel_task_execution(
-                task_execution_arn=self.task_execution_arn)
-            self.log.info("Cancelled TaskExecutionArn %s",
-                          self.task_execution_arn)
+            self.log.info("Cancelling TaskExecutionArn %s", self.task_execution_arn)
+            hook.cancel_task_execution(task_execution_arn=self.task_execution_arn)
+            self.log.info("Cancelled TaskExecutionArn %s", self.task_execution_arn)
 
     def _delete_datasync_task(self):
         """Deletes an AWS DataSync Task."""
@@ -385,10 +359,6 @@ class AWSDataSyncOperator(BaseOperator):
         return self.task_arn
 
     def _get_location_arns(self, location_uri):
-        location_arns = self.get_hook().get_location_arns(
-            location_uri
-        )
-        self.log.info(
-            "Found LocationArns %s for LocationUri %s", location_arns, location_uri
-        )
+        location_arns = self.get_hook().get_location_arns(location_uri)
+        self.log.info("Found LocationArns %s for LocationUri %s", location_arns, location_uri)
         return location_arns

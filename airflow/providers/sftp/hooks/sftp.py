@@ -67,6 +67,7 @@ class SFTPHook(SSHHook):
                 # For backward compatibility
                 # TODO: remove in Airflow 2.1
                 import warnings
+
                 if 'ignore_hostkey_verification' in extra_options:
                     warnings.warn(
                         'Extra option `ignore_hostkey_verification` is deprecated.'
@@ -75,13 +76,12 @@ class SFTPHook(SSHHook):
                         DeprecationWarning,
                         stacklevel=2,
                     )
-                    self.no_host_key_check = str(
-                        extra_options['ignore_hostkey_verification']
-                    ).lower() == 'true'
+                    self.no_host_key_check = (
+                        str(extra_options['ignore_hostkey_verification']).lower() == 'true'
+                    )
 
                 if 'no_host_key_check' in extra_options:
-                    self.no_host_key_check = str(
-                        extra_options['no_host_key_check']).lower() == 'true'
+                    self.no_host_key_check = str(extra_options['no_host_key_check']).lower() == 'true'
 
                 if 'private_key' in extra_options:
                     warnings.warn(
@@ -106,7 +106,7 @@ class SFTPHook(SSHHook):
                 'host': self.remote_host,
                 'port': self.port,
                 'username': self.username,
-                'cnopts': cnopts
+                'cnopts': cnopts,
             }
             if self.password and self.password.strip():
                 conn_params['password'] = self.password
@@ -138,12 +138,12 @@ class SFTPHook(SSHHook):
         flist = conn.listdir_attr(path)
         files = {}
         for f in flist:
-            modify = datetime.datetime.fromtimestamp(
-                f.st_mtime).strftime('%Y%m%d%H%M%S')
+            modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime('%Y%m%d%H%M%S')
             files[f.filename] = {
                 'size': f.st_size,
                 'type': 'dir' if stat.S_ISDIR(f.st_mode) else 'file',
-                'modify': modify}
+                'modify': modify,
+            }
         return files
 
     def list_directory(self, path: str) -> List[str]:
@@ -278,11 +278,7 @@ class SFTPHook(SSHHook):
         files, dirs, unknowns = [], [], []  # type: List[str], List[str], List[str]
 
         def append_matching_path_callback(list_):
-            return (
-                lambda item: list_.append(item)
-                if self._is_path_match(item, prefix, delimiter)
-                else None
-            )
+            return lambda item: list_.append(item) if self._is_path_match(item, prefix, delimiter) else None
 
         conn.walktree(
             remotepath=path,

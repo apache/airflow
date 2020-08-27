@@ -20,6 +20,7 @@ This module contains a Google Cloud Storage to BigQuery operator.
 """
 
 import json
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -112,9 +113,9 @@ class GCSToBigQueryOperator(BaseOperator):
     :param google_cloud_storage_conn_id: (Optional) The connection ID used to connect to Google Cloud
         Platform and interact with the Google Cloud Storage service.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to
-        work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
@@ -149,45 +150,64 @@ class GCSToBigQueryOperator(BaseOperator):
     :param location: [Optional] The geographic location of the job. Required except for US and EU.
         See details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type location: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('bucket', 'source_objects',
-                       'schema_object', 'destination_project_dataset_table')
+
+    template_fields = (
+        'bucket',
+        'source_objects',
+        'schema_object',
+        'destination_project_dataset_table',
+        'impersonation_chain',
+    )
     template_ext = ('.sql',)
     ui_color = '#f0eee4'
 
     # pylint: disable=too-many-locals,too-many-arguments
     @apply_defaults
-    def __init__(self, *,
-                 bucket,
-                 source_objects,
-                 destination_project_dataset_table,
-                 schema_fields=None,
-                 schema_object=None,
-                 source_format='CSV',
-                 compression='NONE',
-                 create_disposition='CREATE_IF_NEEDED',
-                 skip_leading_rows=0,
-                 write_disposition='WRITE_EMPTY',
-                 field_delimiter=',',
-                 max_bad_records=0,
-                 quote_character=None,
-                 ignore_unknown_values=False,
-                 allow_quoted_newlines=False,
-                 allow_jagged_rows=False,
-                 encoding="UTF-8",
-                 max_id_key=None,
-                 bigquery_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 schema_update_options=(),
-                 src_fmt_configs=None,
-                 external_table=False,
-                 time_partitioning=None,
-                 cluster_fields=None,
-                 autodetect=True,
-                 encryption_configuration=None,
-                 location=None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        bucket,
+        source_objects,
+        destination_project_dataset_table,
+        schema_fields=None,
+        schema_object=None,
+        source_format='CSV',
+        compression='NONE',
+        create_disposition='CREATE_IF_NEEDED',
+        skip_leading_rows=0,
+        write_disposition='WRITE_EMPTY',
+        field_delimiter=',',
+        max_bad_records=0,
+        quote_character=None,
+        ignore_unknown_values=False,
+        allow_quoted_newlines=False,
+        allow_jagged_rows=False,
+        encoding="UTF-8",
+        max_id_key=None,
+        bigquery_conn_id='google_cloud_default',
+        google_cloud_storage_conn_id='google_cloud_default',
+        delegate_to=None,
+        schema_update_options=(),
+        src_fmt_configs=None,
+        external_table=False,
+        time_partitioning=None,
+        cluster_fields=None,
+        autodetect=True,
+        encryption_configuration=None,
+        location=None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ):
 
         super().__init__(**kwargs)
 
@@ -229,31 +249,37 @@ class GCSToBigQueryOperator(BaseOperator):
         self.autodetect = autodetect
         self.encryption_configuration = encryption_configuration
         self.location = location
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to,
-                               location=self.location)
+        bq_hook = BigQueryHook(
+            bigquery_conn_id=self.bigquery_conn_id,
+            delegate_to=self.delegate_to,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         if not self.schema_fields:
             if self.schema_object and self.source_format != 'DATASTORE_BACKUP':
                 gcs_hook = GCSHook(
                     google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                    delegate_to=self.delegate_to)
-                schema_fields = json.loads(gcs_hook.download(
-                    self.bucket,
-                    self.schema_object).decode("utf-8"))
+                    delegate_to=self.delegate_to,
+                    impersonation_chain=self.impersonation_chain,
+                )
+                schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object).decode("utf-8"))
             elif self.schema_object is None and self.autodetect is False:
-                raise AirflowException('At least one of `schema_fields`, '
-                                       '`schema_object`, or `autodetect` must be passed.')
+                raise AirflowException(
+                    'At least one of `schema_fields`, ' '`schema_object`, or `autodetect` must be passed.'
+                )
             else:
                 schema_fields = None
 
         else:
             schema_fields = self.schema_fields
 
-        source_uris = ['gs://{}/{}'.format(self.bucket, source_object)
-                       for source_object in self.source_objects]
+        source_uris = [
+            'gs://{}/{}'.format(self.bucket, source_object) for source_object in self.source_objects
+        ]
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
@@ -273,7 +299,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 allow_jagged_rows=self.allow_jagged_rows,
                 encoding=self.encoding,
                 src_fmt_configs=self.src_fmt_configs,
-                encryption_configuration=self.encryption_configuration
+                encryption_configuration=self.encryption_configuration,
             )
         else:
             cursor.run_load(
@@ -296,7 +322,8 @@ class GCSToBigQueryOperator(BaseOperator):
                 src_fmt_configs=self.src_fmt_configs,
                 time_partitioning=self.time_partitioning,
                 cluster_fields=self.cluster_fields,
-                encryption_configuration=self.encryption_configuration)
+                encryption_configuration=self.encryption_configuration,
+            )
 
         if cursor.use_legacy_sql:
             escaped_table_name = f'[{self.destination_project_dataset_table}]'
@@ -304,12 +331,12 @@ class GCSToBigQueryOperator(BaseOperator):
             escaped_table_name = f'`{self.destination_project_dataset_table}`'
 
         if self.max_id_key:
-            cursor.execute('SELECT MAX({}) FROM {}'.format(
-                self.max_id_key,
-                escaped_table_name))
+            cursor.execute('SELECT MAX({}) FROM {}'.format(self.max_id_key, escaped_table_name))
             row = cursor.fetchone()
             max_id = row[0] if row[0] else 0
             self.log.info(
                 'Loaded BQ data with max %s.%s=%s',
-                self.destination_project_dataset_table, self.max_id_key, max_id
+                self.destination_project_dataset_table,
+                self.max_id_key,
+                max_id,
             )

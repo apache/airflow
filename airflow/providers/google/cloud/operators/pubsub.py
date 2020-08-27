@@ -23,7 +23,12 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.pubsub_v1.types import (
-    DeadLetterPolicy, Duration, ExpirationPolicy, MessageStoragePolicy, PushConfig, ReceivedMessage,
+    DeadLetterPolicy,
+    Duration,
+    ExpirationPolicy,
+    MessageStoragePolicy,
+    PushConfig,
+    ReceivedMessage,
     RetryPolicy,
 )
 from google.protobuf.json_format import MessageToDict
@@ -76,9 +81,9 @@ class PubSubCreateTopicOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request
-        must have domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param labels: Client-assigned labels; see
         https://cloud.google.com/pubsub/docs/labels
@@ -105,14 +110,29 @@ class PubSubCreateTopicOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]]
     :param project: (Deprecated) the GCP project ID where the topic will be created
     :type project: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ['project_id', 'topic']
+
+    template_fields = [
+        'project_id',
+        'topic',
+        'impersonation_chain',
+    ]
     ui_color = '#0273d4'
 
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         topic: str,
         project_id: Optional[str] = None,
         fail_if_exists: bool = False,
@@ -125,14 +145,17 @@ class PubSubCreateTopicOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         project: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if project:
             warnings.warn(
-                "The project parameter has been deprecated. You should pass "
-                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+                "The project parameter has been deprecated. You should pass " "the project_id parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             project_id = project
 
         super().__init__(**kwargs)
@@ -147,10 +170,14 @@ class PubSubCreateTopicOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = PubSubHook(gcp_conn_id=self.gcp_conn_id,
-                          delegate_to=self.delegate_to)
+        hook = PubSubHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Creating topic %s", self.topic)
         hook.create_topic(
@@ -162,7 +189,7 @@ class PubSubCreateTopicOperator(BaseOperator):
             kms_key_name=self.kms_key_name,
             retry=self.retry,
             timeout=self.timeout,
-            metadata=self.metadata
+            metadata=self.metadata,
         )
         self.log.info("Created topic %s", self.topic)
 
@@ -237,9 +264,9 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request
-        must have domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param push_config: If push delivery is used with this subscription,
         this field is used to configure it. An empty ``pushConfig`` signifies
@@ -301,14 +328,31 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
     :param subscription_project: (Deprecated) the GCP project ID where the subscription
         will be created. If empty, ``topic_project`` will be used.
     :type subscription_project: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ['project_id', 'topic', 'subscription', 'subscription_project_id']
+
+    template_fields = [
+        'project_id',
+        'topic',
+        'subscription',
+        'subscription_project_id',
+        'impersonation_chain',
+    ]
     ui_color = '#0273d4'
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-locals
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         topic: str,
         project_id: Optional[str] = None,
         subscription: Optional[str] = None,
@@ -331,7 +375,8 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         topic_project: Optional[str] = None,
         subscription_project: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
 
         # To preserve backward compatibility
@@ -339,12 +384,18 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         if topic_project:
             warnings.warn(
                 "The topic_project parameter has been deprecated. You should pass "
-                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+                "the project_id parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             project_id = topic_project
         if subscription_project:
             warnings.warn(
                 "The project_id parameter has been deprecated. You should pass "
-                "the subscription_project parameter.", DeprecationWarning, stacklevel=2)
+                "the subscription_project parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             subscription_project_id = subscription_project
 
         super().__init__(**kwargs)
@@ -368,10 +419,14 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = PubSubHook(gcp_conn_id=self.gcp_conn_id,
-                          delegate_to=self.delegate_to)
+        hook = PubSubHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Creating subscription for topic %s", self.topic)
         result = hook.create_subscription(
@@ -392,7 +447,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
             retry_policy=self.retry_policy,
             retry=self.retry,
             timeout=self.timeout,
-            metadata=self.metadata
+            metadata=self.metadata,
         )
 
         self.log.info("Created subscription for topic %s", self.topic)
@@ -441,9 +496,9 @@ class PubSubDeleteTopicOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request
-        must have domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -456,13 +511,28 @@ class PubSubDeleteTopicOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]]
     :param project: (Deprecated) the GCP project ID where the topic will be created
     :type project: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ['project_id', 'topic']
+
+    template_fields = [
+        'project_id',
+        'topic',
+        'impersonation_chain',
+    ]
     ui_color = '#cb4335'
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         topic: str,
         project_id: Optional[str] = None,
         fail_if_not_exists: bool = False,
@@ -472,14 +542,17 @@ class PubSubDeleteTopicOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         project: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if project:
             warnings.warn(
-                "The project parameter has been deprecated. You should pass "
-                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+                "The project parameter has been deprecated. You should pass " "the project_id parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             project_id = project
 
         super().__init__(**kwargs)
@@ -491,10 +564,14 @@ class PubSubDeleteTopicOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = PubSubHook(gcp_conn_id=self.gcp_conn_id,
-                          delegate_to=self.delegate_to)
+        hook = PubSubHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Deleting topic %s", self.topic)
         hook.delete_topic(
@@ -503,7 +580,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
             fail_if_not_exists=self.fail_if_not_exists,
             retry=self.retry,
             timeout=self.timeout,
-            metadata=self.metadata
+            metadata=self.metadata,
         )
         self.log.info("Deleted topic %s", self.topic)
 
@@ -552,9 +629,9 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request
-        must have domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -567,13 +644,28 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]]
     :param project: (Deprecated) the GCP project ID where the topic will be created
     :type project: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ['project_id', 'subscription']
+
+    template_fields = [
+        'project_id',
+        'subscription',
+        'impersonation_chain',
+    ]
     ui_color = '#cb4335'
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         subscription: str,
         project_id: Optional[str] = None,
         fail_if_not_exists: bool = False,
@@ -583,14 +675,17 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         project: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if project:
             warnings.warn(
-                "The project parameter has been deprecated. You should pass "
-                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+                "The project parameter has been deprecated. You should pass " "the project_id parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             project_id = project
 
         super().__init__(**kwargs)
@@ -602,10 +697,14 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = PubSubHook(gcp_conn_id=self.gcp_conn_id,
-                          delegate_to=self.delegate_to)
+        hook = PubSubHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Deleting subscription %s", self.subscription)
         hook.delete_subscription(
@@ -614,7 +713,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
             fail_if_not_exists=self.fail_if_not_exists,
             retry=self.retry,
             timeout=self.timeout,
-            metadata=self.metadata
+            metadata=self.metadata,
         )
         self.log.info("Deleted subscription %s", self.subscription)
 
@@ -665,33 +764,52 @@ class PubSubPublishMessageOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request
-        must have domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param project: (Deprecated) the GCP project ID where the topic will be created
     :type project: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ['project_id', 'topic', 'messages']
+
+    template_fields = [
+        'project_id',
+        'topic',
+        'messages',
+        'impersonation_chain',
+    ]
     ui_color = '#0273d4'
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         topic: str,
         messages: List,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         project: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if project:
             warnings.warn(
-                "The project parameter has been deprecated. You should pass "
-                "the project_id parameter.", DeprecationWarning, stacklevel=2)
+                "The project parameter has been deprecated. You should pass " "the project_id parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             project_id = project
 
         super().__init__(**kwargs)
@@ -700,10 +818,14 @@ class PubSubPublishMessageOperator(BaseOperator):
         self.messages = messages
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = PubSubHook(gcp_conn_id=self.gcp_conn_id,
-                          delegate_to=self.delegate_to)
+        hook = PubSubHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Publishing to topic %s", self.topic)
         hook.publish(project_id=self.project_id, topic=self.topic, messages=self.messages)
@@ -746,9 +868,9 @@ class PubSubPullOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request
-        must have domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param messages_callback: (Optional) Callback to process received messages.
         It's return value will be saved to XCom.
@@ -756,12 +878,27 @@ class PubSubPullOperator(BaseOperator):
         If not provided, the default implementation will convert `ReceivedMessage` objects
         into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
     :type messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]]
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ['project_id', 'subscription']
+
+    template_fields = [
+        'project_id',
+        'subscription',
+        'impersonation_chain',
+    ]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         project_id: str,
         subscription: str,
         max_messages: int = 5,
@@ -769,7 +906,8 @@ class PubSubPullOperator(BaseOperator):
         messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -779,11 +917,13 @@ class PubSubPullOperator(BaseOperator):
         self.max_messages = max_messages
         self.ack_messages = ack_messages
         self.messages_callback = messages_callback
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         pulled_messages = hook.pull(
@@ -799,9 +939,7 @@ class PubSubPullOperator(BaseOperator):
 
         if pulled_messages and self.ack_messages:
             hook.acknowledge(
-                project_id=self.project_id,
-                subscription=self.subscription,
-                messages=pulled_messages,
+                project_id=self.project_id, subscription=self.subscription, messages=pulled_messages,
             )
 
         return ret
@@ -821,9 +959,6 @@ class PubSubPullOperator(BaseOperator):
         :return: value to be saved to XCom.
         """
 
-        messages_json = [
-            MessageToDict(m)
-            for m in pulled_messages
-        ]
+        messages_json = [MessageToDict(m) for m in pulled_messages]
 
         return messages_json

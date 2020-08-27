@@ -70,7 +70,9 @@ class SQSHook(AwsBaseHook):
             For details of the returned value see :py:meth:`botocore.client.SQS.send_message`
         :rtype: dict
         """
-        return self.get_conn().send_message(QueueUrl=queue_url,
-                                            MessageBody=message_body,
-                                            DelaySeconds=delay_seconds,
-                                            MessageAttributes=message_attributes or {})
+        return self.get_conn().send_message(
+            QueueUrl=queue_url,
+            MessageBody=message_body,
+            DelaySeconds=delay_seconds,
+            MessageAttributes=message_attributes or {},
+        )

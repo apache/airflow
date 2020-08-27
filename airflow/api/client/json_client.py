@@ -34,10 +34,9 @@ class Client(api_client.Client):
         resp = getattr(self._session, method.lower())(**params)  # pylint: disable=not-callable
         if not resp.ok:
             # It is justified here because there might be many resp types.
-            # noinspection PyBroadException
             try:
                 data = resp.json()
-            except Exception:  # pylint: disable=broad-except
+            except Exception:  # noqa pylint: disable=broad-except
                 data = {}
             raise OSError(data.get('error', 'Server error'))
 

@@ -24,7 +24,6 @@ from googleapiclient.http import MediaFileUpload
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-# noinspection PyAbstractClass
 class GoogleDriveHook(GoogleBaseHook):
     """
     Hook for the Google Drive APIs.
@@ -58,9 +57,7 @@ class GoogleDriveHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 

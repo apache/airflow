@@ -54,18 +54,21 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     integer_fields = [
         ['ResourceConfig', 'InstanceCount'],
         ['ResourceConfig', 'VolumeSizeInGB'],
-        ['StoppingCondition', 'MaxRuntimeInSeconds']
+        ['StoppingCondition', 'MaxRuntimeInSeconds'],
     ]
 
     @apply_defaults
-    def __init__(self, *,
-                 config,
-                 wait_for_completion=True,
-                 print_log=True,
-                 check_interval=30,
-                 max_ingestion_time=None,
-                 action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        config,
+        wait_for_completion=True,
+        print_log=True,
+        check_interval=30,
+        max_ingestion_time=None,
+        action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
+        **kwargs,
+    ):
         super().__init__(config=config, **kwargs)
 
         self.wait_for_completion = wait_for_completion
@@ -110,13 +113,9 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             wait_for_completion=self.wait_for_completion,
             print_log=self.print_log,
             check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time
+            max_ingestion_time=self.max_ingestion_time,
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException('Sagemaker Training Job creation failed: %s' % response)
         else:
-            return {
-                'Training': self.hook.describe_training_job(
-                    self.config['TrainingJobName']
-                )
-            }
+            return {'Training': self.hook.describe_training_job(self.config['TrainingJobName'])}

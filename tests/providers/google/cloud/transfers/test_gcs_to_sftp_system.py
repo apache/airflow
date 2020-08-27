@@ -22,7 +22,9 @@ from itertools import product
 import pytest
 
 from airflow.providers.google.cloud.example_dags.example_gcs_to_sftp import (
-    BUCKET_SRC, OBJECT_SRC_1, OBJECT_SRC_2,
+    BUCKET_SRC,
+    OBJECT_SRC_1,
+    OBJECT_SRC_2,
 )
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
@@ -30,7 +32,6 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 
 @pytest.mark.credential_file(GCP_GCS_KEY)
 class GcsToSftpExampleDagsSystemTest(GoogleSystemTest):
-
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
@@ -40,18 +41,12 @@ class GcsToSftpExampleDagsSystemTest(GoogleSystemTest):
 
         # 2. Prepare files
         for bucket_src, object_source in product(
-            (
-                BUCKET_SRC,
-                "{}/subdir-1".format(BUCKET_SRC),
-                "{}/subdir-2".format(BUCKET_SRC),
-            ),
+            (BUCKET_SRC, "{}/subdir-1".format(BUCKET_SRC), "{}/subdir-2".format(BUCKET_SRC),),
             (OBJECT_SRC_1, OBJECT_SRC_2),
         ):
             source_path = "gs://{}/{}".format(bucket_src, object_source)
             self.upload_content_to_gcs(
-                lines=f"{os.urandom(1 * 1024 * 1024)}",
-                bucket=source_path,
-                filename=object_source
+                lines=f"{os.urandom(1 * 1024 * 1024)}", bucket=source_path, filename=object_source
             )
 
     @provide_gcp_context(GCP_GCS_KEY)

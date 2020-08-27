@@ -52,15 +52,18 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     """
 
     @apply_defaults
-    def __init__(self, *,
-                 config,
-                 aws_conn_id,
-                 wait_for_completion=True,
-                 print_log=True,
-                 check_interval=30,
-                 max_ingestion_time=None,
-                 action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        config,
+        aws_conn_id,
+        wait_for_completion=True,
+        print_log=True,
+        check_interval=30,
+        max_ingestion_time=None,
+        action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
+        **kwargs,
+    ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
 
         if action_if_job_exists not in ("increment", "fail"):
@@ -79,12 +82,10 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         """Set fields which should be casted to integers."""
         self.integer_fields = [
             ['ProcessingResources', 'ClusterConfig', 'InstanceCount'],
-            ['ProcessingResources', 'ClusterConfig', 'VolumeSizeInGB']
+            ['ProcessingResources', 'ClusterConfig', 'VolumeSizeInGB'],
         ]
         if 'StoppingCondition' in self.config:
-            self.integer_fields += [
-                ['StoppingCondition', 'MaxRuntimeInSeconds']
-            ]
+            self.integer_fields += [['StoppingCondition', 'MaxRuntimeInSeconds']]
 
     def expand_role(self):
         if 'RoleArn' in self.config:
@@ -114,12 +115,8 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             self.config,
             wait_for_completion=self.wait_for_completion,
             check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time
+            max_ingestion_time=self.max_ingestion_time,
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException('Sagemaker Processing Job creation failed: %s' % response)
-        return {
-            'Processing': self.hook.describe_processing_job(
-                self.config['ProcessingJobName']
-            )
-        }
+        return {'Processing': self.hook.describe_processing_job(self.config['ProcessingJobName'])}

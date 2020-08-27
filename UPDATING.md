@@ -26,6 +26,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 1.10.12](#airflow-11012)
 - [Airflow 1.10.11](#airflow-11011)
 - [Airflow 1.10.10](#airflow-11010)
 - [Airflow 1.10.9](#airflow-1109)
@@ -136,6 +137,21 @@ with third party services to the ``airflow.providers`` package.
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
 
+
+### Breaking Change in OAuth
+
+The flask-ouathlib has been replaced with authlib because flask-outhlib has
+been deprecated in favour of authlib.
+The Old and New provider configuration keys that have changed are as follows
+
+|      Old Keys       |      New keys     |
+|---------------------|-------------------|
+| consumer_key        | client_id         |
+| consumer_secret     | client_secret     |
+| base_url            | api_base_url      |
+| request_token_params| client_kwargs     |
+
+For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
 
 ### Migration Guide from Experimental API to Stable API v1
 In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
@@ -561,6 +577,20 @@ better handle the case when a DAG file has multiple DAGs.
 Sentry is disabled by default. To enable these integrations, you need set ``sentry_on`` option
 in ``[sentry]`` section to ``"True"``.
 
+#### Simplified GCSTaskHandler configuration
+
+In previous versions, in order to configure the service account key file, you had to create a connection entry.
+In the current version, you can configure ``google_key_path`` option in ``[logging]`` section to set
+the key file path.
+
+Users using Application Default Credentials (ADC) need not take any action.
+
+The change aims to simplify the configuration of logging, to prevent corruption of
+the instance configuration by changing the value controlled by the user - connection entry. If you
+configure a backend secret, it also means the webserver doesn't need to connect to it. This
+simplifies setups with multiple GCP projects, because only one project will require the Secret Manager API
+to be enabled.
+
 ### Changes to the core operators/hooks
 
 We strive to ensure that there are no changes that may affect the end user and your files, but this
@@ -569,15 +599,14 @@ release may contain changes that will require changes to your DAG files.
 This section describes the changes that have been made, and what you need to do to update your DAG File,
 if you use core operators or any other.
 
-#### BaseSensorOperator to make respect the trigger_rule of downstream tasks
+#### BaseSensorOperator now respects the trigger_rule of downstream tasks
 
-Previously, BaseSensorOperator with setting soft_fail=True becomes skipped itself
-and skips all its downstream tasks unconditionally, when it fails.
-The point is not respect the trigger_rule of downstream tasks, when it fails.
-In the new behavior, the trigger_rule of downstream tasks are respected.
-User can preserve/achieve the original behaviour by setting every downstream task to all_success,
-because downstream tasks with trigger_rule all_success (i.e. the default) are skipped
-when upstream task is skipped.
+Previously, BaseSensorOperator with setting `soft_fail=True` skips itself
+and skips all its downstream tasks unconditionally, when it fails i.e the trigger_rule of downstream tasks is not
+respected.
+
+In the new behavior, the trigger_rule of downstream tasks is respected.
+User can preserve/achieve the original behaviour by setting the trigger_rule of each downstream task to `all_success`.
 
 #### BaseOperator uses metaclass
 
@@ -1009,6 +1038,12 @@ of this provider.
 
 This section describes the changes that have been made, and what you need to do to update your if
 you use operators or hooks which integrate with Google services (including Google Cloud Platform - GCP).
+
+#### Direct impersonation added to operators communicating with Google services
+[Directly impersonating a service account](https://cloud.google.com/iam/docs/understanding-service-accounts#directly_impersonating_a_service_account)
+has been made possible for operators communicating with Google services via new argument called `impersonation_chain`
+(`google_impersonation_chain` in case of operators that also communicate with services of other cloud providers).
+As a result, GCSToS3Operator no longer derivatives from GCSListObjectsOperator.
 
 #### Normalize gcp_conn_id for Google Cloud Platform
 
@@ -1706,6 +1741,23 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 ...
 }
 ```
+
+## Airflow 1.10.12
+
+### Clearing tasks skipped by SkipMixin will skip them
+
+Previously, when tasks skipped by SkipMixin (such as BranchPythonOperator, BaseBranchOperator and ShortCircuitOperator) are cleared, they execute. Since 1.10.12, when such skipped tasks are cleared,
+they will be skipped again by the newly introduced NotPreviouslySkippedDep.
+
+### The pod_mutation_hook function will now accept a kubernetes V1Pod object
+
+As of airflow 1.10.12, using the `airflow.contrib.kubernetes.Pod` class in the `pod_mutation_hook` is now deprecated. Instead we recommend that users
+treat the `pod` parameter as a `kubernetes.client.models.V1Pod` object. This means that users now have access to the full Kubernetes API
+when modifying airflow pods
+
+### pod_template_file option now available in the KubernetesPodOperator
+
+Users can now offer a path to a yaml for the KubernetesPodOperator using the `pod_template_file` parameter.
 
 ## Airflow 1.10.11
 

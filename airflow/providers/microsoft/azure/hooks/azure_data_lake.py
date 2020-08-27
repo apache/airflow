@@ -54,9 +54,9 @@ class AzureDataLakeHook(BaseHook):
             service_options = conn.extra_dejson
             self.account_name = service_options.get('account_name')
 
-            adl_creds = lib.auth(tenant_id=service_options.get('tenant'),
-                                 client_secret=conn.password,
-                                 client_id=conn.login)
+            adl_creds = lib.auth(
+                tenant_id=service_options.get('tenant'), client_secret=conn.password, client_id=conn.login
+            )
             self._conn = core.AzureDLFileSystem(adl_creds, store_name=self.account_name)
             self._conn.connect()
         return self._conn
@@ -76,8 +76,9 @@ class AzureDataLakeHook(BaseHook):
         except FileNotFoundError:
             return False
 
-    def upload_file(self, local_path, remote_path, nthreads=64, overwrite=True,
-                    buffersize=4194304, blocksize=4194304):
+    def upload_file(
+        self, local_path, remote_path, nthreads=64, overwrite=True, buffersize=4194304, blocksize=4194304
+    ):
         """
         Upload a file to Azure Data Lake.
 
@@ -104,16 +105,19 @@ class AzureDataLakeHook(BaseHook):
             block for each API call. This block cannot be bigger than a chunk.
         :type blocksize: int
         """
-        multithread.ADLUploader(self.get_conn(),
-                                lpath=local_path,
-                                rpath=remote_path,
-                                nthreads=nthreads,
-                                overwrite=overwrite,
-                                buffersize=buffersize,
-                                blocksize=blocksize)
+        multithread.ADLUploader(
+            self.get_conn(),
+            lpath=local_path,
+            rpath=remote_path,
+            nthreads=nthreads,
+            overwrite=overwrite,
+            buffersize=buffersize,
+            blocksize=blocksize,
+        )
 
-    def download_file(self, local_path, remote_path, nthreads=64, overwrite=True,
-                      buffersize=4194304, blocksize=4194304):
+    def download_file(
+        self, local_path, remote_path, nthreads=64, overwrite=True, buffersize=4194304, blocksize=4194304
+    ):
         """
         Download a file from Azure Blob Storage.
 
@@ -141,13 +145,15 @@ class AzureDataLakeHook(BaseHook):
             block for each API call. This block cannot be bigger than a chunk.
         :type blocksize: int
         """
-        multithread.ADLDownloader(self.get_conn(),
-                                  lpath=local_path,
-                                  rpath=remote_path,
-                                  nthreads=nthreads,
-                                  overwrite=overwrite,
-                                  buffersize=buffersize,
-                                  blocksize=blocksize)
+        multithread.ADLDownloader(
+            self.get_conn(),
+            lpath=local_path,
+            rpath=remote_path,
+            nthreads=nthreads,
+            overwrite=overwrite,
+            buffersize=buffersize,
+            blocksize=blocksize,
+        )
 
     def list(self, path):
         """

@@ -372,7 +372,7 @@
         last_run = json[safe_dag_id].last_run;
         g = d3.select('div#last-run-' + safe_dag_id)
         g.selectAll('a')
-          .attr("href", "{{ url_for('Airflow.graph') }}?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" + last_run)
+          .attr("href", "{{ url_for('Airflow.graph') }}?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" + encodeURIComponent(last_run))
           .insert(isoDateToTimeEl.bind(null, last_run, {title: false}));
         g.selectAll('span')
           // We don't translate the timezone in the tooltip, that stays in UTC.

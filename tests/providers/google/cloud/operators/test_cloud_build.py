@@ -164,9 +164,7 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
         }
         hook_mock.create_build(body=expected_result, project_id=TEST_PROJECT_ID)
 
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook",
-    )
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook",)
     def test_repo_source_replace(self, hook_mock):
         hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY
         current_body = {
@@ -212,25 +210,20 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
     def test_load_templated_yaml(self):
         dag = DAG(dag_id='example_cloudbuild_operator', start_date=TEST_DEFAULT_DATE)
         with tempfile.NamedTemporaryFile(suffix='.yaml', mode='w+t') as build:
-            build.writelines("""
+            build.writelines(
+                """
             steps:
                 - name: 'ubuntu'
                   args: ['echo', 'Hello {{ params.name }}!']
-            """)
+            """
+            )
             build.seek(0)
             body_path = build.name
             operator = CloudBuildCreateBuildOperator(
-                body=body_path,
-                task_id="task-id", dag=dag,
-                params={'name': 'airflow'}
+                body=body_path, task_id="task-id", dag=dag, params={'name': 'airflow'}
             )
             operator.prepare_template()
             ti = TaskInstance(operator, TEST_DEFAULT_DATE)
             ti.render_templates()
-            expected_body = {'steps': [
-                {'name': 'ubuntu',
-                 'args': ['echo', 'Hello airflow!']
-                 }
-            ]
-            }
+            expected_body = {'steps': [{'name': 'ubuntu', 'args': ['echo', 'Hello airflow!']}]}
             self.assertEqual(expected_body, operator.body)

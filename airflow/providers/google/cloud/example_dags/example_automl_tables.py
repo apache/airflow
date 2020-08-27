@@ -26,10 +26,19 @@ from typing import Dict, List
 from airflow import models
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
-    AutoMLBatchPredictOperator, AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator,
-    AutoMLDeleteModelOperator, AutoMLDeployModelOperator, AutoMLGetModelOperator, AutoMLImportDataOperator,
-    AutoMLListDatasetOperator, AutoMLPredictOperator, AutoMLTablesListColumnSpecsOperator,
-    AutoMLTablesListTableSpecsOperator, AutoMLTablesUpdateDatasetOperator, AutoMLTrainModelOperator,
+    AutoMLBatchPredictOperator,
+    AutoMLCreateDatasetOperator,
+    AutoMLDeleteDatasetOperator,
+    AutoMLDeleteModelOperator,
+    AutoMLDeployModelOperator,
+    AutoMLGetModelOperator,
+    AutoMLImportDataOperator,
+    AutoMLListDatasetOperator,
+    AutoMLPredictOperator,
+    AutoMLTablesListColumnSpecsOperator,
+    AutoMLTablesListTableSpecsOperator,
+    AutoMLTablesUpdateDatasetOperator,
+    AutoMLTrainModelOperator,
 )
 from airflow.utils.dates import days_ago
 
@@ -92,9 +101,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = (
-        "{{ task_instance.xcom_pull('create_dataset_task', key='dataset_id') }}"
-    )
+    dataset_id = "{{ task_instance.xcom_pull('create_dataset_task', key='dataset_id') }}"
     # [END howto_operator_automl_create_dataset]
 
     MODEL["dataset_id"] = dataset_id
@@ -135,18 +142,13 @@ with models.DAG(
     ] = "{{ get_target_column_spec(task_instance.xcom_pull('list_columns_spec_task'), target) }}"
 
     update_dataset_task = AutoMLTablesUpdateDatasetOperator(
-        task_id="update_dataset_task",
-        dataset=update,
-        location=GCP_AUTOML_LOCATION,
+        task_id="update_dataset_task", dataset=update, location=GCP_AUTOML_LOCATION,
     )
     # [END howto_operator_automl_update_dataset]
 
     # [START howto_operator_automl_create_model]
     create_model_task = AutoMLTrainModelOperator(
-        task_id="create_model_task",
-        model=MODEL,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
+        task_id="create_model_task", model=MODEL, location=GCP_AUTOML_LOCATION, project_id=GCP_PROJECT_ID,
     )
 
     model_id = "{{ task_instance.xcom_pull('create_model_task', key='model_id') }}"
@@ -194,9 +196,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = (
-        '{{ task_instance.xcom_pull("create_dataset_task", key="dataset_id") }}'
-    )
+    dataset_id = '{{ task_instance.xcom_pull("create_dataset_task", key="dataset_id") }}'
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -222,9 +222,7 @@ with models.DAG(
 
     # [START howto_operator_list_dataset]
     list_datasets_task = AutoMLListDatasetOperator(
-        task_id="list_datasets_task",
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
+        task_id="list_datasets_task", location=GCP_AUTOML_LOCATION, project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_list_dataset]
 
@@ -254,10 +252,7 @@ with models.DAG(
 ) as get_deploy_dag:
     # [START howto_operator_get_model]
     get_model_task = AutoMLGetModelOperator(
-        task_id="get_model_task",
-        model_id=MODEL_ID,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
+        task_id="get_model_task", model_id=MODEL_ID, location=GCP_AUTOML_LOCATION, project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_get_model]
 

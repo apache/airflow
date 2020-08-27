@@ -177,10 +177,8 @@ class TestCliUsers(unittest.TestCase):
             matches = [u for u in retrieved_users if u['username'] == username]
             if not matches:
                 self.fail("Couldn't find user with username {}".format(username))
-                return None
-            else:
-                matches[0].pop('id')  # this key not required for import
-                return matches[0]
+            matches[0].pop('id')  # this key not required for import
+            return matches[0]
 
         self.assertEqual(find_by_username('imported_user1'), user1)
         self.assertEqual(find_by_username('imported_user2'), user2)

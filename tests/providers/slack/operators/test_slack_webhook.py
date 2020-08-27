@@ -38,23 +38,16 @@ class TestSlackWebhookOperator(unittest.TestCase):
         'icon_emoji': ':hankey',
         'icon_url': 'https://airflow.apache.org/_images/pin_large.png',
         'link_names': True,
-        'proxy': 'https://my-horrible-proxy.proxyist.com:8080'
+        'proxy': 'https://my-horrible-proxy.proxyist.com:8080',
     }
 
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)
 
     def test_execute(self):
         # Given / When
-        operator = SlackWebhookOperator(
-            task_id='slack_webhook_job',
-            dag=self.dag,
-            **self._config
-        )
+        operator = SlackWebhookOperator(task_id='slack_webhook_job', dag=self.dag, **self._config)
 
         self.assertEqual(self._config['http_conn_id'], operator.http_conn_id)
         self.assertEqual(self._config['webhook_token'], operator.webhook_token)
@@ -69,13 +62,16 @@ class TestSlackWebhookOperator(unittest.TestCase):
         self.assertEqual(self._config['proxy'], operator.proxy)
 
     def test_assert_templated_fields(self):
-        operator = SlackWebhookOperator(
-            task_id='slack_webhook_job',
-            dag=self.dag,
-            **self._config
-        )
+        operator = SlackWebhookOperator(task_id='slack_webhook_job', dag=self.dag, **self._config)
 
-        template_fields = ['webhook_token', 'message', 'attachments', 'blocks', 'channel',
-                           'username', 'proxy']
+        template_fields = [
+            'webhook_token',
+            'message',
+            'attachments',
+            'blocks',
+            'channel',
+            'username',
+            'proxy',
+        ]
 
         self.assertEqual(operator.template_fields, template_fields)

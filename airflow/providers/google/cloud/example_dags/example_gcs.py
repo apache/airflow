@@ -24,8 +24,12 @@ import os
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import (
-    GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteBucketOperator,
-    GCSDeleteObjectsOperator, GCSFileTransformOperator, GCSListObjectsOperator,
+    GCSBucketCreateAclEntryOperator,
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSDeleteObjectsOperator,
+    GCSFileTransformOperator,
+    GCSListObjectsOperator,
     GCSObjectCreateAclEntryOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
@@ -42,21 +46,13 @@ GCS_ACL_OBJECT_ROLE = "OWNER"
 
 BUCKET_2 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket-2")
 
-PATH_TO_TRANSFORM_SCRIPT = os.environ.get(
-    'GCP_GCS_PATH_TO_TRANSFORM_SCRIPT', 'test.py'
-)
-PATH_TO_UPLOAD_FILE = os.environ.get(
-    "GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt"
-)
-PATH_TO_SAVED_FILE = os.environ.get(
-    "GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt"
-)
+PATH_TO_TRANSFORM_SCRIPT = os.environ.get('GCP_GCS_PATH_TO_TRANSFORM_SCRIPT', 'test.py')
+PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")
+PATH_TO_SAVED_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
 
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 
-with models.DAG(
-    "example_gcs", start_date=days_ago(1), schedule_interval=None, tags=['example'],
-) as dag:
+with models.DAG("example_gcs", start_date=days_ago(1), schedule_interval=None, tags=['example'],) as dag:
     create_bucket1 = GCSCreateBucketOperator(
         task_id="create_bucket1", bucket_name=BUCKET_1, project_id=PROJECT_ID
     )
@@ -65,27 +61,21 @@ with models.DAG(
         task_id="create_bucket2", bucket_name=BUCKET_2, project_id=PROJECT_ID
     )
 
-    list_buckets = GCSListObjectsOperator(
-        task_id="list_buckets", bucket=BUCKET_1
-    )
+    list_buckets = GCSListObjectsOperator(task_id="list_buckets", bucket=BUCKET_1)
 
     list_buckets_result = BashOperator(
-        task_id="list_buckets_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('list_buckets') }}\"",
+        task_id="list_buckets_result", bash_command="echo \"{{ task_instance.xcom_pull('list_buckets') }}\"",
     )
 
     upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file",
-        src=PATH_TO_UPLOAD_FILE,
-        dst=BUCKET_FILE_LOCATION,
-        bucket=BUCKET_1,
+        task_id="upload_file", src=PATH_TO_UPLOAD_FILE, dst=BUCKET_FILE_LOCATION, bucket=BUCKET_1,
     )
 
     transform_file = GCSFileTransformOperator(
         task_id="transform_file",
         source_bucket=BUCKET_1,
         source_object=BUCKET_FILE_LOCATION,
-        transform_script=["python", PATH_TO_TRANSFORM_SCRIPT]
+        transform_script=["python", PATH_TO_TRANSFORM_SCRIPT],
     )
     # [START howto_operator_gcs_bucket_create_acl_entry_task]
     gcs_bucket_create_acl_entry_task = GCSBucketCreateAclEntryOperator(

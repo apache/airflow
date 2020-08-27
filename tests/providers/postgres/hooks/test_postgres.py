@@ -29,16 +29,10 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
 class TestPostgresHookConn(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(
-            login='login',
-            password='password',
-            host='host',
-            schema='schema'
-        )
+        self.connection = Connection(login='login', password='password', host='host', schema='schema')
 
         class UnitTestPostgresHook(PostgresHook):
             conn_name_attr = 'test_conn_id'
@@ -51,24 +45,30 @@ class TestPostgresHookConn(unittest.TestCase):
     def test_get_conn_non_default_id(self, mock_connect):
         self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(user='login', password='password',
-                                             host='host', dbname='schema',
-                                             port=None)
+        mock_connect.assert_called_once_with(
+            user='login', password='password', host='host', dbname='schema', port=None
+        )
         self.db_hook.get_connection.assert_called_once_with('non_default')
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn(self, mock_connect):
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(user='login', password='password', host='host',
-                                             dbname='schema', port=None)
+        mock_connect.assert_called_once_with(
+            user='login', password='password', host='host', dbname='schema', port=None
+        )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_cursor(self, mock_connect):
         self.connection.extra = '{"cursor": "dictcursor"}'
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(cursor_factory=psycopg2.extras.DictCursor,
-                                             user='login', password='password', host='host',
-                                             dbname='schema', port=None)
+        mock_connect.assert_called_once_with(
+            cursor_factory=psycopg2.extras.DictCursor,
+            user='login',
+            password='password',
+            host='host',
+            dbname='schema',
+            port=None,
+        )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_with_invalid_cursor(self, mock_connect):
@@ -100,8 +100,9 @@ class TestPostgresHookConn(unittest.TestCase):
         self.connection.extra = '{"iam":true}'
         mock_client.return_value.generate_db_auth_token.return_value = 'aws_token'
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(user='login', password='aws_token', host='host',
-                                             dbname='schema', port=5432)
+        mock_connect.assert_called_once_with(
+            user='login', password='aws_token', host='host', dbname='schema', port=5432
+        )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
@@ -109,15 +110,17 @@ class TestPostgresHookConn(unittest.TestCase):
         self.connection.extra = '{"iam":true, "redshift":true}'
         self.connection.host = 'cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com'
         login = 'IAM:{login}'.format(login=self.connection.login)
-        mock_client.return_value.get_cluster_credentials.return_value = {'DbPassword': 'aws_token',
-                                                                         'DbUser': login}
+        mock_client.return_value.get_cluster_credentials.return_value = {
+            'DbPassword': 'aws_token',
+            'DbUser': login,
+        }
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(user=login, password='aws_token', host=self.connection.host,
-                                             dbname='schema', port=5439)
+        mock_connect.assert_called_once_with(
+            user=login, password='aws_token', host=self.connection.host, dbname='schema', port=5439
+        )
 
 
 class TestPostgresHook(unittest.TestCase):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.table = "test_postgres_hook_table"
@@ -203,8 +206,7 @@ class TestPostgresHook(unittest.TestCase):
     @pytest.mark.backend("postgres")
     def test_insert_rows(self):
         table = "table"
-        rows = [("hello",),
-                ("world",)]
+        rows = [("hello",), ("world",)]
 
         self.db_hook.insert_rows(table, rows)
 
@@ -221,12 +223,10 @@ class TestPostgresHook(unittest.TestCase):
     @pytest.mark.backend("postgres")
     def test_insert_rows_replace(self):
         table = "table"
-        rows = [(1, "hello",),
-                (2, "world",)]
+        rows = [(1, "hello",), (2, "world",)]
         fields = ("id", "value")
 
-        self.db_hook.insert_rows(
-            table, rows, fields, replace=True, replace_index=fields[0])
+        self.db_hook.insert_rows(table, rows, fields, replace=True, replace_index=fields[0])
 
         assert self.conn.close.call_count == 1
         assert self.cur.close.call_count == 1
@@ -234,9 +234,10 @@ class TestPostgresHook(unittest.TestCase):
         commit_count = 2  # The first and last commit
         self.assertEqual(commit_count, self.conn.commit.call_count)
 
-        sql = "INSERT INTO {0} ({1}, {2}) VALUES (%s,%s) " \
-              "ON CONFLICT ({1}) DO UPDATE SET {2} = excluded.{2}".format(
-                  table, fields[0], fields[1])
+        sql = (
+            "INSERT INTO {0} ({1}, {2}) VALUES (%s,%s) "
+            "ON CONFLICT ({1}) DO UPDATE SET {2} = excluded.{2}".format(table, fields[0], fields[1])
+        )
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
 
@@ -244,18 +245,15 @@ class TestPostgresHook(unittest.TestCase):
     @pytest.mark.backend("postgres")
     def test_insert_rows_replace_missing_target_field_arg(self):
         table = "table"
-        rows = [(1, "hello",),
-                (2, "world",)]
+        rows = [(1, "hello",), (2, "world",)]
         fields = ("id", "value")
-        self.db_hook.insert_rows(
-            table, rows, replace=True, replace_index=fields[0])
+        self.db_hook.insert_rows(table, rows, replace=True, replace_index=fields[0])
 
     @pytest.mark.xfail
     @pytest.mark.backend("postgres")
     def test_insert_rows_replace_missing_replace_index_arg(self):
         table = "table"
-        rows = [(1, "hello",),
-                (2, "world",)]
+        rows = [(1, "hello",), (2, "world",)]
         fields = ("id", "value")
         self.db_hook.insert_rows(table, rows, fields, replace=True)
 

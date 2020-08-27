@@ -36,15 +36,14 @@ class TestCloudTranslateHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.translate.CloudTranslateHook.client_info",
-        new_callable=mock.PropertyMock
+        new_callable=mock.PropertyMock,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.translate.CloudTranslateHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.translate.Client")
     def test_translate_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         result = self.hook.get_conn()
         mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value,
-            client_info=mock_client_info.return_value
+            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
         )
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.hook._client, result)

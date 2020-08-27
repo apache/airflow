@@ -55,9 +55,7 @@ class CloudSpeechToTextHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -78,7 +76,7 @@ class CloudSpeechToTextHook(GoogleBaseHook):
         config: Union[Dict, RecognitionConfig],
         audio: Union[Dict, RecognitionAudio],
         retry: Optional[Retry] = None,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
     ):
         """
         Recognizes audio input

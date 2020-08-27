@@ -19,7 +19,7 @@
 This module contains a Google Cloud Storage to Google Drive transfer operator.
 """
 import tempfile
-from typing import Optional
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -68,24 +68,41 @@ class GCSToGoogleDriveOperator(BaseOperator):
     :type move_object: bool
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("source_bucket", "source_object", "destination_object")
+    template_fields = (
+        "source_bucket",
+        "source_object",
+        "destination_object",
+        "impersonation_chain",
+    )
     ui_color = "#f0eee4"
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         source_bucket: str,
         source_object: str,
         destination_object: Optional[str] = None,
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ):
         super().__init__(**kwargs)
 
@@ -95,15 +112,22 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.move_object = move_object
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.gcs_hook = None  # type: Optional[GCSHook]
         self.gdrive_hook = None  # type: Optional[GoogleDriveHook]
 
     def execute(self, context):
 
         self.gcs_hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
+            google_cloud_storage_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
-        self.gdrive_hook = GoogleDriveHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        self.gdrive_hook = GoogleDriveHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         if WILDCARD in self.source_object:
             total_wildcards = self.source_object.count(WILDCARD)

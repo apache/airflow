@@ -25,7 +25,8 @@ from google.auth import exceptions
 from google.auth.environment_vars import CREDENTIALS
 
 from airflow.providers.google.common.utils.id_token_credentials import (
-    IDTokenCredentialsAdapter, get_default_id_token_credentials,
+    IDTokenCredentialsAdapter,
+    get_default_id_token_credentials,
 )
 
 

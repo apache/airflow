@@ -55,6 +55,9 @@ Fundamentals
    * - Operators
      - Guides
 
+   * - :mod:`airflow.operators.bash`
+     - :doc:`How to use <howto/operator/bash>`
+
    * - :mod:`airflow.operators.branch_operator`
      -
 
@@ -73,6 +76,9 @@ Fundamentals
    * - :mod:`airflow.operators.latest_only_operator`
      -
 
+   * - :mod:`airflow.operators.python`
+     - :doc:`How to use <howto/operator/python>`
+
    * - :mod:`airflow.operators.subdag_operator`
      -
 
@@ -87,11 +93,20 @@ Fundamentals
    * - Sensors
      - Guides
 
-   * - :mod:`airflow.sensors.weekday_sensor`
+   * - :mod:`airflow.sensors.bash`
+     -
+
+   * - :mod:`airflow.sensors.date_time_sensor`
      -
 
    * - :mod:`airflow.sensors.external_task_sensor`
      - :doc:`How to use <howto/operator/external_task_sensor>`
+
+   * - :mod:`airflow.sensors.filesystem`
+     -
+
+   * - :mod:`airflow.sensors.python`
+     -
 
    * - :mod:`airflow.sensors.sql_sensor`
      -
@@ -102,9 +117,19 @@ Fundamentals
    * - :mod:`airflow.sensors.time_sensor`
      -
 
-   * - :mod:`airflow.sensors.date_time_sensor`
+   * - :mod:`airflow.sensors.weekday_sensor`
      -
 
+**Hooks:**
+
+.. list-table::
+   :header-rows: 1
+
+   * - Hooks
+     - Guides
+
+   * - :mod:`airflow.hooks.filesystem`
+     -
 
 .. _Apache:
 
@@ -274,6 +299,9 @@ Azure: Microsoft Azure
 ----------------------
 
 Airflow has limited support for `Microsoft Azure <https://azure.microsoft.com/>`__.
+
+Some hooks are based on :mod:`airflow.providers.microsoft.azure.hooks.base_azure`
+which authenticate Azure's Python SDK Clients.
 
 Service operators and hooks
 '''''''''''''''''''''''''''
@@ -486,6 +514,12 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_transform`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_tuning`
 
+   * - `Amazon Simple Email Service (SES) <https://aws.amazon.com/ses/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.ses`
+     -
+     -
+
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.sns`
@@ -697,7 +731,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Cloud Data Loss Prevention (DLP) <https://cloud.google.com/dlp/>`__
-     -
+     - :doc:`How to use <howto/operator/google/cloud/data_loss_prevention>`
      - :mod:`airflow.providers.google.cloud.hooks.dlp`
      - :mod:`airflow.providers.google.cloud.operators.dlp`
      -
@@ -1356,12 +1390,6 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.providers.exasol.operators.exasol`
      -
 
-   * - `GNU Bash <https://www.gnu.org/software/bash/>`__
-     - :doc:`How to use <howto/operator/bash>`
-     -
-     - :mod:`airflow.operators.bash`
-     - :mod:`airflow.sensors.bash`
-
    * - `Hashicorp Vault <https://www.vaultproject.io/>`__
      -
      - :mod:`airflow.providers.hashicorp.hooks.vault`
@@ -1432,12 +1460,6 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.providers.presto.hooks.presto`
      -
      -
-
-   * - `Python <https://www.python.org>`__
-     -
-     - :doc:`How to use <howto/operator/python>`
-     - :mod:`airflow.operators.python`
-     - :mod:`airflow.sensors.python`
 
    * - `Redis <https://redis.io/>`__
      -
@@ -1573,12 +1595,6 @@ communication protocols or interface.
      - :mod:`airflow.providers.ftp.hooks.ftp`
      -
      - :mod:`airflow.providers.ftp.sensors.ftp`
-
-   * - Filesystem
-     -
-     - :mod:`airflow.hooks.filesystem`
-     -
-     - :mod:`airflow.sensors.filesystem`
 
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
      - :doc:`How to use <howto/operator/http>`

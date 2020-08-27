@@ -28,14 +28,12 @@ from tests.test_utils.system_tests_class import SystemTest
 CREDENTIALS_DIR = os.environ.get('CREDENTIALS_DIR', '/files/airflow-breeze-config/keys')
 SNOWFLAKE_KEY = 'snowflake.json'
 SNOWFLAKE_CREDENTIALS_PATH = os.path.join(CREDENTIALS_DIR, SNOWFLAKE_KEY)
-SNOWFLAKE_DAG_FOLDER = os.path.join(
-    AIRFLOW_MAIN_FOLDER, 'airflow', 'providers', 'snowflake', 'example_dags')
+SNOWFLAKE_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, 'airflow', 'providers', 'snowflake', 'example_dags')
 
 
 @pytest.mark.credential_file(SNOWFLAKE_KEY)
 @pytest.mark.system('snowflake')
 class SnowflakeExampleDagsSystemTest(SystemTest):
-
     def setUp(self):
         super().setUp()
 
@@ -61,9 +59,14 @@ class SnowflakeExampleDagsSystemTest(SystemTest):
                 'warehouse': credentials['warehouse'],
                 'database': credentials['database'],
             }
-            conn = Connection(conn_id='snowflake_conn_id', login=credentials['user'],
-                              password=credentials['password'], schema=credentials['schema'],
-                              conn_type='snowflake', extra=json.dumps(extra))
+            conn = Connection(
+                conn_id='snowflake_conn_id',
+                login=credentials['user'],
+                password=credentials['password'],
+                schema=credentials['schema'],
+                conn_type='snowflake',
+                extra=json.dumps(extra),
+            )
             db.merge_conn(conn)
 
     def test_dag_example(self):

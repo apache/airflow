@@ -22,8 +22,12 @@ from unittest.mock import MagicMock, call, patch
 
 from airflow.models.dag import DAG
 from airflow.providers.yandex.operators.yandexcloud_dataproc import (
-    DataprocCreateClusterOperator, DataprocCreateHiveJobOperator, DataprocCreateMapReduceJobOperator,
-    DataprocCreatePysparkJobOperator, DataprocCreateSparkJobOperator, DataprocDeleteClusterOperator,
+    DataprocCreateClusterOperator,
+    DataprocCreateHiveJobOperator,
+    DataprocCreateMapReduceJobOperator,
+    DataprocCreatePysparkJobOperator,
+    DataprocCreateSparkJobOperator,
+    DataprocDeleteClusterOperator,
 )
 
 # Airflow connection with type "yandexcloud"
@@ -67,7 +71,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
                 'start_date': datetime.datetime.today(),
                 'end_date': datetime.datetime.today() + datetime.timedelta(days=1),
             },
-            schedule_interval='@daily'
+            schedule_interval='@daily',
         )
 
     @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
@@ -110,21 +114,20 @@ class DataprocClusterCreateOperatorTest(TestCase):
                 'e6faKCxH6iDRteo4D8L8BxwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrhH1pON6P0='
             ],
             subnet_id='my_subnet_id',
-            zone='ru-central1-c'
+            zone='ru-central1-c',
         )
-        context['task_instance'].xcom_push.assert_has_calls([
-            call(key='cluster_id', value=create_cluster_mock().response.id),
-            call(key='yandexcloud_connection_id', value=CONNECTION_ID),
-        ])
+        context['task_instance'].xcom_push.assert_has_calls(
+            [
+                call(key='cluster_id', value=create_cluster_mock().response.id),
+                call(key='yandexcloud_connection_id', value=CONNECTION_ID),
+            ]
+        )
 
     @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @patch('yandexcloud._wrappers.dataproc.Dataproc.delete_cluster')
     def test_delete_cluster_operator(self, delete_cluster_mock, *_):
-        operator = DataprocDeleteClusterOperator(
-            task_id='delete_cluster',
-            connection_id=CONNECTION_ID,
-        )
+        operator = DataprocDeleteClusterOperator(task_id='delete_cluster', connection_id=CONNECTION_ID,)
         context = {'task_instance': MagicMock()}
         context['task_instance'].xcom_pull.return_value = 'my_cluster_id'
         operator.execute(context)
@@ -135,18 +138,14 @@ class DataprocClusterCreateOperatorTest(TestCase):
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @patch('yandexcloud._wrappers.dataproc.Dataproc.create_hive_job')
     def test_create_hive_job_operator(self, create_hive_job_mock, *_):
-        operator = DataprocCreateHiveJobOperator(
-            task_id='create_hive_job',
-            query='SELECT 1;',
-        )
+        operator = DataprocCreateHiveJobOperator(task_id='create_hive_job', query='SELECT 1;',)
         context = {'task_instance': MagicMock()}
         context['task_instance'].xcom_pull.return_value = 'my_cluster_id'
         operator.execute(context)
 
-        context['task_instance'].xcom_pull.assert_has_calls([
-            call(key='cluster_id'),
-            call(key='yandexcloud_connection_id'),
-        ])
+        context['task_instance'].xcom_pull.assert_has_calls(
+            [call(key='cluster_id'), call(key='yandexcloud_connection_id'),]
+        )
 
         create_hive_job_mock.assert_called_once_with(
             cluster_id='my_cluster_id',
@@ -167,14 +166,19 @@ class DataprocClusterCreateOperatorTest(TestCase):
             main_class='org.apache.hadoop.streaming.HadoopStreaming',
             file_uris=[
                 's3a://some-in-bucket/jobs/sources/mapreduce-001/mapper.py',
-                's3a://some-in-bucket/jobs/sources/mapreduce-001/reducer.py'
+                's3a://some-in-bucket/jobs/sources/mapreduce-001/reducer.py',
             ],
             args=[
-                '-mapper', 'mapper.py',
-                '-reducer', 'reducer.py',
-                '-numReduceTasks', '1',
-                '-input', 's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
-                '-output', 's3a://some-out-bucket/dataproc/job/results'
+                '-mapper',
+                'mapper.py',
+                '-reducer',
+                'reducer.py',
+                '-numReduceTasks',
+                '1',
+                '-input',
+                's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
+                '-output',
+                's3a://some-out-bucket/dataproc/job/results',
             ],
             properties={
                 'yarn.app.mapreduce.am.resource.mb': '2048',
@@ -186,22 +190,28 @@ class DataprocClusterCreateOperatorTest(TestCase):
         context['task_instance'].xcom_pull.return_value = 'my_cluster_id'
         operator.execute(context)
 
-        context['task_instance'].xcom_pull.assert_has_calls([
-            call(key='cluster_id'),
-            call(key='yandexcloud_connection_id'),
-        ])
+        context['task_instance'].xcom_pull.assert_has_calls(
+            [call(key='cluster_id'), call(key='yandexcloud_connection_id'),]
+        )
 
         create_mapreduce_job_mock.assert_called_once_with(
             archive_uris=None,
             args=[
-                '-mapper', 'mapper.py', '-reducer', 'reducer.py', '-numReduceTasks', '1', '-input',
-                's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2', '-output',
-                's3a://some-out-bucket/dataproc/job/results'
+                '-mapper',
+                'mapper.py',
+                '-reducer',
+                'reducer.py',
+                '-numReduceTasks',
+                '1',
+                '-input',
+                's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
+                '-output',
+                's3a://some-out-bucket/dataproc/job/results',
             ],
             cluster_id='my_cluster_id',
             file_uris=[
                 's3a://some-in-bucket/jobs/sources/mapreduce-001/mapper.py',
-                's3a://some-in-bucket/jobs/sources/mapreduce-001/reducer.py'
+                's3a://some-in-bucket/jobs/sources/mapreduce-001/reducer.py',
             ],
             jar_file_uris=None,
             main_class='org.apache.hadoop.streaming.HadoopStreaming',
@@ -210,8 +220,8 @@ class DataprocClusterCreateOperatorTest(TestCase):
             properties={
                 'yarn.app.mapreduce.am.resource.mb': '2048',
                 'yarn.app.mapreduce.am.command-opts': '-Xmx2048m',
-                'mapreduce.job.maps': '6'
-            }
+                'mapreduce.job.maps': '6',
+            },
         )
 
     @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
@@ -222,40 +232,33 @@ class DataprocClusterCreateOperatorTest(TestCase):
             task_id='create_spark_job',
             main_jar_file_uri='s3a://data-proc-public/jobs/sources/java/dataproc-examples-1.0.jar',
             main_class='ru.yandex.cloud.dataproc.examples.PopulationSparkJob',
-            file_uris=[
-                's3a://some-in-bucket/jobs/sources/data/config.json',
-            ],
-            archive_uris=[
-                's3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip',
-            ],
+            file_uris=['s3a://some-in-bucket/jobs/sources/data/config.json',],
+            archive_uris=['s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip',],
             jar_file_uris=[
                 's3a://some-in-bucket/jobs/sources/java/icu4j-61.1.jar',
                 's3a://some-in-bucket/jobs/sources/java/commons-lang-2.6.jar',
                 's3a://some-in-bucket/jobs/sources/java/opencsv-4.1.jar',
-                's3a://some-in-bucket/jobs/sources/java/json-20190722.jar'
+                's3a://some-in-bucket/jobs/sources/java/json-20190722.jar',
             ],
             args=[
                 's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
                 's3a://some-out-bucket/dataproc/job/results/${{JOB_ID}}',
             ],
-            properties={
-                'spark.submit.deployMode': 'cluster',
-            },
+            properties={'spark.submit.deployMode': 'cluster',},
         )
         context = {'task_instance': MagicMock()}
         context['task_instance'].xcom_pull.return_value = 'my_cluster_id'
         operator.execute(context)
 
-        context['task_instance'].xcom_pull.assert_has_calls([
-            call(key='cluster_id'),
-            call(key='yandexcloud_connection_id'),
-        ])
+        context['task_instance'].xcom_pull.assert_has_calls(
+            [call(key='cluster_id'), call(key='yandexcloud_connection_id'),]
+        )
 
         create_spark_job_mock.assert_called_once_with(
             archive_uris=['s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip'],
             args=[
                 's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
-                's3a://some-out-bucket/dataproc/job/results/${{JOB_ID}}'
+                's3a://some-out-bucket/dataproc/job/results/${{JOB_ID}}',
             ],
             cluster_id='my_cluster_id',
             file_uris=['s3a://some-in-bucket/jobs/sources/data/config.json'],
@@ -263,12 +266,12 @@ class DataprocClusterCreateOperatorTest(TestCase):
                 's3a://some-in-bucket/jobs/sources/java/icu4j-61.1.jar',
                 's3a://some-in-bucket/jobs/sources/java/commons-lang-2.6.jar',
                 's3a://some-in-bucket/jobs/sources/java/opencsv-4.1.jar',
-                's3a://some-in-bucket/jobs/sources/java/json-20190722.jar'
+                's3a://some-in-bucket/jobs/sources/java/json-20190722.jar',
             ],
             main_class='ru.yandex.cloud.dataproc.examples.PopulationSparkJob',
             main_jar_file_uri='s3a://data-proc-public/jobs/sources/java/dataproc-examples-1.0.jar',
             name='Spark job',
-            properties={'spark.submit.deployMode': 'cluster'}
+            properties={'spark.submit.deployMode': 'cluster'},
         )
 
     @patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
@@ -278,15 +281,9 @@ class DataprocClusterCreateOperatorTest(TestCase):
         operator = DataprocCreatePysparkJobOperator(
             task_id='create_pyspark_job',
             main_python_file_uri='s3a://some-in-bucket/jobs/sources/pyspark-001/main.py',
-            python_file_uris=[
-                's3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py',
-            ],
-            file_uris=[
-                's3a://some-in-bucket/jobs/sources/data/config.json',
-            ],
-            archive_uris=[
-                's3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip',
-            ],
+            python_file_uris=['s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py',],
+            file_uris=['s3a://some-in-bucket/jobs/sources/data/config.json',],
+            archive_uris=['s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip',],
             args=[
                 's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
                 's3a://some-out-bucket/jobs/results/${{JOB_ID}}',
@@ -296,34 +293,31 @@ class DataprocClusterCreateOperatorTest(TestCase):
                 's3a://some-in-bucket/jobs/sources/java/icu4j-61.1.jar',
                 's3a://some-in-bucket/jobs/sources/java/commons-lang-2.6.jar',
             ],
-            properties={
-                'spark.submit.deployMode': 'cluster',
-            },
+            properties={'spark.submit.deployMode': 'cluster',},
         )
         context = {'task_instance': MagicMock()}
         context['task_instance'].xcom_pull.return_value = 'my_cluster_id'
         operator.execute(context)
 
-        context['task_instance'].xcom_pull.assert_has_calls([
-            call(key='cluster_id'),
-            call(key='yandexcloud_connection_id'),
-        ])
+        context['task_instance'].xcom_pull.assert_has_calls(
+            [call(key='cluster_id'), call(key='yandexcloud_connection_id'),]
+        )
 
         create_pyspark_job_mock.assert_called_once_with(
             archive_uris=['s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip'],
             args=[
                 's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
-                's3a://some-out-bucket/jobs/results/${{JOB_ID}}'
+                's3a://some-out-bucket/jobs/results/${{JOB_ID}}',
             ],
             cluster_id='my_cluster_id',
             file_uris=['s3a://some-in-bucket/jobs/sources/data/config.json'],
             jar_file_uris=[
                 's3a://some-in-bucket/jobs/sources/java/dataproc-examples-1.0.jar',
                 's3a://some-in-bucket/jobs/sources/java/icu4j-61.1.jar',
-                's3a://some-in-bucket/jobs/sources/java/commons-lang-2.6.jar'
+                's3a://some-in-bucket/jobs/sources/java/commons-lang-2.6.jar',
             ],
             main_python_file_uri='s3a://some-in-bucket/jobs/sources/pyspark-001/main.py',
             name='Pyspark job',
             properties={'spark.submit.deployMode': 'cluster'},
-            python_file_uris=['s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py']
+            python_file_uris=['s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py'],
         )

@@ -57,12 +57,8 @@ class DataprocExampleDagsTest(GoogleSystemTest):
     def setUp(self):
         super().setUp()
         self.create_gcs_bucket(BUCKET)
-        self.upload_content_to_gcs(
-            lines=pyspark_file, bucket=PYSPARK_URI, filename=PYSPARK_MAIN
-        )
-        self.upload_content_to_gcs(
-            lines=sparkr_file, bucket=SPARKR_URI, filename=SPARKR_MAIN
-        )
+        self.upload_content_to_gcs(lines=pyspark_file, bucket=PYSPARK_URI, filename=PYSPARK_MAIN)
+        self.upload_content_to_gcs(lines=sparkr_file, bucket=SPARKR_URI, filename=SPARKR_MAIN)
 
     @provide_gcp_context(GCP_DATAPROC_KEY)
     def tearDown(self):

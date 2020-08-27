@@ -63,24 +63,25 @@ class HiveStatsCollectionOperator(BaseOperator):
     ui_color = '#aff7a6'
 
     @apply_defaults
-    def __init__(self, *,
-                 table: str,
-                 partition: Any,
-                 extra_exprs: Optional[Dict[str, Any]] = None,
-                 excluded_columns: Optional[List[str]] = None,
-                 assignment_func: Optional[Callable[[str, str], Optional[Dict[Any, Any]]]] = None,
-                 metastore_conn_id: str = 'metastore_default',
-                 presto_conn_id: str = 'presto_default',
-                 mysql_conn_id: str = 'airflow_db',
-                 **kwargs: Any
-                 ) -> None:
+    def __init__(
+        self,
+        *,
+        table: str,
+        partition: Any,
+        extra_exprs: Optional[Dict[str, Any]] = None,
+        excluded_columns: Optional[List[str]] = None,
+        assignment_func: Optional[Callable[[str, str], Optional[Dict[Any, Any]]]] = None,
+        metastore_conn_id: str = 'metastore_default',
+        presto_conn_id: str = 'presto_default',
+        mysql_conn_id: str = 'airflow_db',
+        **kwargs: Any,
+    ) -> None:
         if 'col_blacklist' in kwargs:
             warnings.warn(
                 'col_blacklist kwarg passed to {c} (task_id: {t}) is deprecated, please rename it to '
-                'excluded_columns instead'.format(
-                    c=self.__class__.__name__, t=kwargs.get('task_id')),
+                'excluded_columns instead'.format(c=self.__class__.__name__, t=kwargs.get('task_id')),
                 category=FutureWarning,
-                stacklevel=2
+                stacklevel=2,
             )
             excluded_columns = kwargs.pop('col_blacklist')
         super().__init__(**kwargs)
@@ -121,9 +122,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         table = metastore.get_table(table_name=self.table)
         field_types = {col.name: col.type for col in table.sd.cols}
 
-        exprs: Any = {
-            ('', 'count'): 'COUNT(*)'
-        }
+        exprs: Any = {('', 'count'): 'COUNT(*)'}
         for col, col_type in list(field_types.items()):
             if self.assignment_func:
                 assign_exprs = self.assignment_func(col, col_type)
@@ -134,14 +133,13 @@ class HiveStatsCollectionOperator(BaseOperator):
             exprs.update(assign_exprs)
         exprs.update(self.extra_exprs)
         exprs = OrderedDict(exprs)
-        exprs_str = ",\n        ".join([
-            v + " AS " + k[0] + '__' + k[1]
-            for k, v in exprs.items()])
+        exprs_str = ",\n        ".join([v + " AS " + k[0] + '__' + k[1] for k, v in exprs.items()])
 
         where_clause_ = ["{} = '{}'".format(k, v) for k, v in self.partition.items()]
         where_clause = " AND\n        ".join(where_clause_)
         sql = "SELECT {exprs_str} FROM {table} WHERE {where_clause};".format(
-            exprs_str=exprs_str, table=self.table, where_clause=where_clause)
+            exprs_str=exprs_str, table=self.table, where_clause=where_clause
+        )
 
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         self.log.info('Executing SQL check: %s', sql)
@@ -161,7 +159,9 @@ class HiveStatsCollectionOperator(BaseOperator):
             partition_repr='{part_json}' AND
             dttm='{dttm}'
         LIMIT 1;
-        """.format(table=self.table, part_json=part_json, dttm=self.dttm)
+        """.format(
+            table=self.table, part_json=part_json, dttm=self.dttm
+        )
         if mysql.get_records(sql):
             sql = """
             DELETE FROM hive_stats
@@ -169,22 +169,17 @@ class HiveStatsCollectionOperator(BaseOperator):
                 table_name='{table}' AND
                 partition_repr='{part_json}' AND
                 dttm='{dttm}';
-            """.format(table=self.table, part_json=part_json, dttm=self.dttm)
+            """.format(
+                table=self.table, part_json=part_json, dttm=self.dttm
+            )
             mysql.run(sql)
 
         self.log.info("Pivoting and loading cells into the Airflow db")
-        rows = [(self.ds, self.dttm, self.table, part_json) + (r[0][0], r[0][1], r[1])
-                for r in zip(exprs, row)]
+        rows = [
+            (self.ds, self.dttm, self.table, part_json) + (r[0][0], r[0][1], r[1]) for r in zip(exprs, row)
+        ]
         mysql.insert_rows(
             table='hive_stats',
             rows=rows,
-            target_fields=[
-                'ds',
-                'dttm',
-                'table_name',
-                'partition_repr',
-                'col',
-                'metric',
-                'value',
-            ]
+            target_fields=['ds', 'dttm', 'table_name', 'partition_repr', 'col', 'metric', 'value',],
         )

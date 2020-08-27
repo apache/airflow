@@ -170,7 +170,8 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     def get_count(self, dttm_filter, session, states):
         """
-        get the count of records against dttm filter and states
+        Get the count of records against dttm filter and states
+
         :param dttm_filter: date time filter for execution date
         :type dttm_filter: list
         :param session: airflow session object

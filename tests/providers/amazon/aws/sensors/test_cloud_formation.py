@@ -21,7 +21,8 @@ import boto3
 from mock import MagicMock, patch
 
 from airflow.providers.amazon.aws.sensors.cloud_formation import (
-    CloudFormationCreateStackSensor, CloudFormationDeleteStackSensor,
+    CloudFormationCreateStackSensor,
+    CloudFormationDeleteStackSensor,
 )
 
 try:
@@ -30,8 +31,9 @@ except ImportError:
     mock_cloudformation = None
 
 
-@unittest.skipIf(mock_cloudformation is None,
-                 "Skipping test because moto.mock_cloudformation is not available")
+@unittest.skipIf(
+    mock_cloudformation is None, "Skipping test because moto.mock_cloudformation is not available"
+)
 class TestCloudFormationCreateStackSensor(unittest.TestCase):
     task_id = 'test_cloudformation_cluster_create_sensor'
 
@@ -73,8 +75,9 @@ class TestCloudFormationCreateStackSensor(unittest.TestCase):
             self.assertEqual('Stack foo in bad state: bar', str(error.exception))
 
 
-@unittest.skipIf(mock_cloudformation is None,
-                 "Skipping test because moto.mock_cloudformation is not available")
+@unittest.skipIf(
+    mock_cloudformation is None, "Skipping test because moto.mock_cloudformation is not available"
+)
 class TestCloudFormationDeleteStackSensor(unittest.TestCase):
     task_id = 'test_cloudformation_cluster_delete_sensor'
 

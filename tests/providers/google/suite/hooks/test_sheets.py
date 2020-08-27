@@ -46,8 +46,10 @@ API_RESPONSE = {'test': 'repsonse'}
 
 class TestGSheetsHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch('airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
-                        new=mock_base_gcp_hook_default_project_id):
+        with mock.patch(
+            'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
+            new=mock_base_gcp_hook_default_project_id,
+        ):
             self.hook = GSheetsHook(gcp_conn_id=GCP_CONN_ID)
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook._authorize")
@@ -69,7 +71,8 @@ class TestGSheetsHook(unittest.TestCase):
             range_=RANGE_,
             major_dimension=MAJOR_DIMENSION,
             value_render_option=VALUE_RENDER_OPTION,
-            date_time_render_option=DATE_TIME_RENDER_OPTION)
+            date_time_render_option=DATE_TIME_RENDER_OPTION,
+        )
         self.assertIs(result, VALUES)
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         get_method.assert_called_once_with(
@@ -77,7 +80,7 @@ class TestGSheetsHook(unittest.TestCase):
             range=RANGE_,
             majorDimension=MAJOR_DIMENSION,
             valueRenderOption=VALUE_RENDER_OPTION,
-            dateTimeRenderOption=DATE_TIME_RENDER_OPTION
+            dateTimeRenderOption=DATE_TIME_RENDER_OPTION,
         )
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
@@ -90,7 +93,8 @@ class TestGSheetsHook(unittest.TestCase):
             ranges=RANGES,
             major_dimension=MAJOR_DIMENSION,
             value_render_option=VALUE_RENDER_OPTION,
-            date_time_render_option=DATE_TIME_RENDER_OPTION)
+            date_time_render_option=DATE_TIME_RENDER_OPTION,
+        )
         self.assertIs(result, API_RESPONSE)
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         batch_get_method.assert_called_once_with(
@@ -98,7 +102,7 @@ class TestGSheetsHook(unittest.TestCase):
             ranges=RANGES,
             majorDimension=MAJOR_DIMENSION,
             valueRenderOption=VALUE_RENDER_OPTION,
-            dateTimeRenderOption=DATE_TIME_RENDER_OPTION
+            dateTimeRenderOption=DATE_TIME_RENDER_OPTION,
         )
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
@@ -114,12 +118,9 @@ class TestGSheetsHook(unittest.TestCase):
             value_input_option=VALUE_INPUT_OPTION,
             include_values_in_response=INCLUDE_VALUES_IN_RESPONSE,
             value_render_option=VALUE_RENDER_OPTION,
-            date_time_render_option=DATE_TIME_RENDER_OPTION)
-        body = {
-            "range": RANGE_,
-            "majorDimension": MAJOR_DIMENSION,
-            "values": VALUES
-        }
+            date_time_render_option=DATE_TIME_RENDER_OPTION,
+        )
+        body = {"range": RANGE_, "majorDimension": MAJOR_DIMENSION, "values": VALUES}
         self.assertIs(result, API_RESPONSE)
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         update_method.assert_called_once_with(
@@ -129,7 +130,7 @@ class TestGSheetsHook(unittest.TestCase):
             includeValuesInResponse=INCLUDE_VALUES_IN_RESPONSE,
             responseValueRenderOption=VALUE_RENDER_OPTION,
             responseDateTimeRenderOption=DATE_TIME_RENDER_OPTION,
-            body=body
+            body=body,
         )
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
@@ -145,28 +146,22 @@ class TestGSheetsHook(unittest.TestCase):
             value_input_option=VALUE_INPUT_OPTION,
             include_values_in_response=INCLUDE_VALUES_IN_RESPONSE,
             value_render_option=VALUE_RENDER_OPTION,
-            date_time_render_option=DATE_TIME_RENDER_OPTION)
+            date_time_render_option=DATE_TIME_RENDER_OPTION,
+        )
         data = []
         for idx, range_ in enumerate(RANGES):
-            value_range = {
-                "range": range_,
-                "majorDimension": MAJOR_DIMENSION,
-                "values": VALUES_BATCH[idx]
-            }
+            value_range = {"range": range_, "majorDimension": MAJOR_DIMENSION, "values": VALUES_BATCH[idx]}
             data.append(value_range)
         body = {
             "valueInputOption": VALUE_INPUT_OPTION,
             "data": data,
             "includeValuesInResponse": INCLUDE_VALUES_IN_RESPONSE,
             "responseValueRenderOption": VALUE_RENDER_OPTION,
-            "responseDateTimeRenderOption": DATE_TIME_RENDER_OPTION
+            "responseDateTimeRenderOption": DATE_TIME_RENDER_OPTION,
         }
         self.assertIs(result, API_RESPONSE)
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
-        batch_update_method.assert_called_once_with(
-            spreadsheetId=SPREADHSEET_ID,
-            body=body
-        )
+        batch_update_method.assert_called_once_with(spreadsheetId=SPREADHSEET_ID, body=body)
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_batch_update_values_with_bad_data(self, get_conn):
@@ -182,7 +177,8 @@ class TestGSheetsHook(unittest.TestCase):
                 value_input_option=VALUE_INPUT_OPTION,
                 include_values_in_response=INCLUDE_VALUES_IN_RESPONSE,
                 value_render_option=VALUE_RENDER_OPTION,
-                date_time_render_option=DATE_TIME_RENDER_OPTION)
+                date_time_render_option=DATE_TIME_RENDER_OPTION,
+            )
         batch_update_method.assert_not_called()
         execute_method.assert_not_called()
         err = cm.exception
@@ -202,12 +198,9 @@ class TestGSheetsHook(unittest.TestCase):
             insert_data_option=INSERT_DATA_OPTION,
             include_values_in_response=INCLUDE_VALUES_IN_RESPONSE,
             value_render_option=VALUE_RENDER_OPTION,
-            date_time_render_option=DATE_TIME_RENDER_OPTION)
-        body = {
-            "range": RANGE_,
-            "majorDimension": MAJOR_DIMENSION,
-            "values": VALUES
-        }
+            date_time_render_option=DATE_TIME_RENDER_OPTION,
+        )
+        body = {"range": RANGE_, "majorDimension": MAJOR_DIMENSION, "values": VALUES}
         self.assertIs(result, API_RESPONSE)
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         append_method.assert_called_once_with(
@@ -218,7 +211,7 @@ class TestGSheetsHook(unittest.TestCase):
             includeValuesInResponse=INCLUDE_VALUES_IN_RESPONSE,
             responseValueRenderOption=VALUE_RENDER_OPTION,
             responseDateTimeRenderOption=DATE_TIME_RENDER_OPTION,
-            body=body
+            body=body,
         )
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
@@ -230,10 +223,7 @@ class TestGSheetsHook(unittest.TestCase):
 
         self.assertIs(result, API_RESPONSE)
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
-        clear_method.assert_called_once_with(
-            spreadsheetId=SPREADHSEET_ID,
-            range=RANGE_
-        )
+        clear_method.assert_called_once_with(spreadsheetId=SPREADHSEET_ID, range=RANGE_)
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_batch_clear_values(self, get_conn):
@@ -244,10 +234,7 @@ class TestGSheetsHook(unittest.TestCase):
         body = {"ranges": RANGES}
         self.assertIs(result, API_RESPONSE)
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
-        batch_clear_method.assert_called_once_with(
-            spreadsheetId=SPREADHSEET_ID,
-            body=body
-        )
+        batch_clear_method.assert_called_once_with(spreadsheetId=SPREADHSEET_ID, body=body)
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_get_spreadsheet(self, mock_get_conn):

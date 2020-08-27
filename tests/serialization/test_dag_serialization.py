@@ -135,7 +135,7 @@ def make_simple_dag():
 
 
 def make_user_defined_macro_filter_dag():
-    """ Make DAGs with user defined macros and filters using locally defined methods.
+    """Make DAGs with user defined macros and filters using locally defined methods.
 
     For Webserver, we do not include ``user_defined_macros`` & ``user_defined_filters``.
 
