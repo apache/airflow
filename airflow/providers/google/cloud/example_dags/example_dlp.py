@@ -52,14 +52,18 @@ ITEM = ContentItem(
 )
 INSPECT_CONFIG = InspectConfig(info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}])
 INSPECT_TEMPLATE = InspectTemplate(inspect_config=INSPECT_CONFIG)
+OUTPUT_BUCKET = os.environ.get("DLP_OUTPUT_BUCKET", "gs://test-dlp-airflow")
+OUTPUT_FILENAME = "test.txt"
 
+OBJECT_GCS_URI = os.path.join(OUTPUT_BUCKET, "tmp")
+OBJECT_GCS_OUTPUT_URI = os.path.join(OUTPUT_BUCKET, "tmp", OUTPUT_FILENAME)
 
 with models.DAG(
     "example_gcp_dlp",
     schedule_interval=None,  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
-) as dag:
+) as dag1:
     # [START howto_operator_dlp_create_inspect_template]
     create_template = CloudDLPCreateInspectTemplateOperator(
         project_id=GCP_PROJECT,
@@ -67,7 +71,6 @@ with models.DAG(
         template_id=TEMPLATE_ID,
         task_id="create_template",
         do_xcom_push=True,
-        dag=dag,
     )
     # [END howto_operator_dlp_create_inspect_template]
 
@@ -77,37 +80,42 @@ with models.DAG(
         project_id=GCP_PROJECT,
         item=ITEM,
         inspect_template_name="{{ task_instance.xcom_pull('create_template', key='return_value')['name'] }}",
-        dag=dag,
     )
     # [END howto_operator_dlp_use_inspect_template]
 
     # [START howto_operator_dlp_delete_inspect_template]
     delete_template = CloudDLPDeleteInspectTemplateOperator(
-        task_id="delete_template", template_id=TEMPLATE_ID, project_id=GCP_PROJECT, dag=dag,
+        task_id="delete_template", template_id=TEMPLATE_ID, project_id=GCP_PROJECT,
     )
     # [END howto_operator_dlp_delete_inspect_template]
 
     create_template >> inspect_content >> delete_template
 
-
-CUSTOM_INFO_TYPES = [{"info_type": {"name": "C_MRN"}, "regex": {"pattern": "[1-9]{3}-[1-9]{1}-[1-9]{5}"},}]
 CUSTOM_INFO_TYPE_ID = "custom_info_type"
-UPDATE_CUSTOM_INFO_TYPE = [
-    {"info_type": {"name": "C_MRN"}, "regex": {"pattern": "[a-z]{3}-[a-z]{1}-[a-z]{5}"},}
-]
+CUSTOM_INFO_TYPES = {
+    "large_custom_dictionary": {
+        "output_path": {"path": OBJECT_GCS_OUTPUT_URI},
+        "cloud_storage_file_set": {"url": OBJECT_GCS_URI + "/"},
+    }
+}
+UPDATE_CUSTOM_INFO_TYPE = {
+    "large_custom_dictionary": {
+        "output_path": {"path": OBJECT_GCS_OUTPUT_URI},
+        "cloud_storage_file_set": {"url": OBJECT_GCS_URI + "/"},
+    }
+}
 
 with models.DAG(
     "example_gcp_dlp_info_types",
     schedule_interval=None,
     start_date=days_ago(1),
     tags=["example", "dlp", "info-types"],
-) as dag:
+) as dag2:
     # [START howto_operator_dlp_create_info_type]
     create_info_type = CloudDLPCreateStoredInfoTypeOperator(
         project_id=GCP_PROJECT,
         config=CUSTOM_INFO_TYPES,
         stored_info_type_id=CUSTOM_INFO_TYPE_ID,
-        dag=dag,
         task_id="create_info_type",
     )
     # [END howto_operator_dlp_create_info_type]
@@ -116,57 +124,53 @@ with models.DAG(
         project_id=GCP_PROJECT,
         stored_info_type_id=CUSTOM_INFO_TYPE_ID,
         config=UPDATE_CUSTOM_INFO_TYPE,
-        dag=dag,
         task_id="update_info_type",
     )
     # [END howto_operator_dlp_update_info_type]
     # [START howto_operator_dlp_delete_info_type]
     delete_info_type = CloudDLPDeleteStoredInfoTypeOperator(
-        project_id=GCP_PROJECT, stored_info_type_id=CUSTOM_INFO_TYPE_ID, dag=dag, task_id="delete_info_type",
+        project_id=GCP_PROJECT, stored_info_type_id=CUSTOM_INFO_TYPE_ID, task_id="delete_info_type",
     )
     # [END howto_operator_dlp_delete_info_type]
     create_info_type >> update_info_type >> delete_info_type
 
-SCHEDULE = {"recurrence_period_duration": {"seconds": 60 * 60 * 24}}
-JOB = {
-    "inspect_config": INSPECT_CONFIG,
-}
-
 JOB_TRIGGER = {
-    "inspect_job": JOB,
-    "triggers": [{"schedule": SCHEDULE}],
+    "inspect_job": {
+        "storage_config": {
+            "datastore_options": {"partition_id": {"project_id": GCP_PROJECT}, "kind": {"name": "test"}}
+        }
+    },
+    "triggers": [{"schedule": {"recurrence_period_duration": {"seconds": 60 * 60 * 24}}}],
     "status": "HEALTHY",
 }
 
 TRIGGER_ID = "example_trigger"
 
 with models.DAG(
-    "example_gcp_dlp_job", schedule_interval=None, start_date=days_ago(1), tags=["example", "dlp_job"],
-) as dag:  # [START howto_operator_dlp_create_job_trigger]
+    "example_gcp_dlp_job", schedule_interval=None, start_date=days_ago(1), tags=["example", "dlp_job"]
+) as dag3:  # [START howto_operator_dlp_create_job_trigger]
     create_trigger = CloudDLPCreateJobTriggerOperator(
         project_id=GCP_PROJECT,
         job_trigger=JOB_TRIGGER,
         trigger_id=TRIGGER_ID,
-        dag=dag,
         task_id="create_trigger",
     )
     # [END howto_operator_dlp_create_job_trigger]
-    UPDATED_SCHEDULE = {"recurrence_period_duration": {"seconds": 2 * 60 * 60 * 24}}
 
-    JOB_TRIGGER["triggers"] = [{"schedule": UPDATED_SCHEDULE}]
+    JOB_TRIGGER["triggers"] = [{"schedule": {"recurrence_period_duration": {"seconds": 2 * 60 * 60 * 24}}}]
 
     # [START howto_operator_dlp_update_job_trigger]
     update_trigger = CloudDLPUpdateJobTriggerOperator(
         project_id=GCP_PROJECT,
         job_trigger_id=TRIGGER_ID,
         job_trigger=JOB_TRIGGER,
-        dag=dag,
         task_id="update_info_type",
     )
     # [END howto_operator_dlp_update_job_trigger]
     # [START howto_operator_dlp_delete_job_trigger]
     delete_trigger = CloudDLPDeleteJobTriggerOperator(
-        project_id=GCP_PROJECT, job_trigger_id=TRIGGER_ID, dag=dag, task_id="delete_info_type",
+        project_id=GCP_PROJECT, job_trigger_id=TRIGGER_ID, task_id="delete_info_type"
     )
     # [END howto_operator_dlp_delete_job_trigger]
     create_trigger >> update_trigger >> delete_trigger
+
