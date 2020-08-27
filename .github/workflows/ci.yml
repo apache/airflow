@@ -773,8 +773,6 @@ jobs:
       - tests-kubernetes
       - constraints-push
       - prepare-backport-packages
-      - push-prod-images-to-github-registry
-      - push-ci-images-to-github-registry
     if: github.event_name == 'schedule' &&  github.repository == 'apache/airflow'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
