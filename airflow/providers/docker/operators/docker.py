@@ -167,6 +167,7 @@ class DockerOperator(BaseOperator):
         shm_size: Optional[int] = None,
         tty: Optional[bool] = False,
         cap_add: Optional[Iterable[str]] = None,
+        extra_hosts: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> None:
 
@@ -200,6 +201,7 @@ class DockerOperator(BaseOperator):
         self.shm_size = shm_size
         self.tty = tty
         self.cap_add = cap_add
+        self.extra_hosts = extra_hosts
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
@@ -244,6 +246,7 @@ class DockerOperator(BaseOperator):
                     cpu_shares=int(round(self.cpus * 1024)),
                     mem_limit=self.mem_limit,
                     cap_add=self.cap_add,
+                    extra_hosts=self.extra_hosts,
                 ),
                 image=self.image,
                 user=self.user,
