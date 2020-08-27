@@ -46,7 +46,7 @@ class TestGetConfig:
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission
-        create_role(cls.app, name="Test")
+        create_role(cls.app, name="Test")  # type: ignore
         create_user(cls.app, username="test", role="Test")  # type: ignore
 
         cls.client = None
@@ -54,7 +54,7 @@ class TestGetConfig:
     @classmethod
     def teardown_class(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")
+        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
 
     def setup_method(self) -> None:
         self.client = self.app.test_client()  # type:ignore

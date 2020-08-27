@@ -54,13 +54,18 @@ class TestGetLog(unittest.TestCase):
             cls.app = app.create_app(testing=True)
 
         # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test", permissions=[('can_read', 'Dag'), ('can_read', 'DagRun'), ('can_read', 'Task')])
+        create_role(cls.app, name="Test",
+                    permissions=[('can_read', 'Dag'), ('can_read', 'DagRun'), ('can_read', 'Task')])
         create_user(cls.app, username="test", role="Test")
+        create_role(cls.app, name="TestNoPermissions", permissions=[])
+        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")
-        cls.app.appbuilder.sm.delete_role("Test")
+        cls.app.appbuilder.sm.delete_role("Test")  # pylint: disable=no-member
+        delete_user(cls.app, username="test_no_permissions")
+        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # pylint: disable=no-member
 
     def setUp(self) -> None:
         self.default_time = "2020-06-10T20:00:00+00:00"
@@ -306,3 +311,16 @@ class TestGetLog(unittest.TestCase):
         )
 
         assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": True})
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            headers={'Accept': 'text/plain'},
+            environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
