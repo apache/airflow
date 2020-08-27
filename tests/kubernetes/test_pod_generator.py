@@ -207,6 +207,39 @@ class TestPodGenerator(unittest.TestCase):
         self.assertDictEqual(self.expected, result_dict)
 
     @mock.patch('uuid.uuid4')
+    def test_gen_pod_with_repository(self, mock_uuid):
+        mock_uuid.return_value = self.static_uuid
+        pod_generator = PodGenerator(
+            labels={'app': 'myapp'},
+            name='myapp-pod',
+            image_pull_secrets='pull_secret_a,pull_secret_b',
+            docker_repository='docker.private.com',
+            image='busybox',
+            envs=self.envs,
+            cmds=['sh', '-c', 'echo Hello Kubernetes!'],
+            security_context=k8s.V1PodSecurityContext(
+                run_as_user=1000,
+                fs_group=2000,
+            ),
+            namespace='default',
+            ports=[k8s.V1ContainerPort(name='foo', container_port=1234)],
+            configmaps=['configmap_a', 'configmap_b']
+        )
+        result = pod_generator.gen_pod()
+        result = append_to_pod(result, self.secrets)
+        result = self.resources.attach_to_pod(result)
+        result_dict = self.k8s_client.sanitize_for_serialization(result)
+        # sort
+        result_dict['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
+        result_dict['spec']['containers'][0]['envFrom'].sort(
+            key=lambda x: list(x.values())[0]['name']
+        )
+
+        self.expected['spec']['containers'][0]['image'] = 'docker.private.com/busybox'
+
+        self.assertDictEqual(self.expected, result_dict)
+
+    @mock.patch('uuid.uuid4')
     def test_gen_pod_extract_xcom(self, mock_uuid):
         mock_uuid.return_value = self.static_uuid
         pod_generator = PodGenerator(
@@ -249,6 +282,55 @@ class TestPodGenerator(unittest.TestCase):
         self.expected['spec']['volumes'].insert(0, {
             'name': 'xcom', 'emptyDir': {}
         })
+        result_dict['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
+        self.assertEqual(result_dict, self.expected)
+
+
+    @mock.patch('uuid.uuid4')
+    def test_gen_pod_extract_xcom_with_repository(self, mock_uuid):
+        mock_uuid.return_value = self.static_uuid
+        pod_generator = PodGenerator(
+            labels={'app': 'myapp'},
+            name='myapp-pod',
+            image_pull_secrets='pull_secret_a,pull_secret_b',
+            docker_repository='docker.private.com',
+            image='busybox',
+            envs=self.envs,
+            cmds=['sh', '-c', 'echo Hello Kubernetes!'],
+            namespace='default',
+            security_context=k8s.V1PodSecurityContext(
+                run_as_user=1000,
+                fs_group=2000,
+            ),
+            ports=[k8s.V1ContainerPort(name='foo', container_port=1234)],
+            configmaps=['configmap_a', 'configmap_b'],
+            extract_xcom=True
+        )
+        result = pod_generator.gen_pod()
+        result = append_to_pod(result, self.secrets)
+        result = self.resources.attach_to_pod(result)
+        result_dict = self.k8s_client.sanitize_for_serialization(result)
+        container_two = {
+            'name': 'airflow-xcom-sidecar',
+            'image': "docker.private.com/alpine",
+            'command': ['sh', '-c', PodDefaults.XCOM_CMD],
+            'volumeMounts': [
+                {
+                    'name': 'xcom',
+                    'mountPath': '/airflow/xcom'
+                }
+            ],
+            'resources': {'requests': {'cpu': '1m'}},
+        }
+        self.expected['spec']['containers'].append(container_two)
+        self.expected['spec']['containers'][0]['volumeMounts'].insert(0, {
+            'name': 'xcom',
+            'mountPath': '/airflow/xcom'
+        })
+        self.expected['spec']['volumes'].insert(0, {
+            'name': 'xcom', 'emptyDir': {}
+        })
+        self.expected['spec']['containers'][0]['image'] = 'docker.private.com/busybox'
         result_dict['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
         self.assertEqual(result_dict, self.expected)
 
