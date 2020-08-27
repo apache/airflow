@@ -20,14 +20,12 @@ Objects relating to retrieving connections and variables from local file
 """
 import json
 import logging
-import os
+import yaml
 import _io
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
 from typing import Any, Dict, List, Optional, Set, Tuple
-
-import yaml
 
 from airflow.exceptions import (
     AirflowException, AirflowFileParseException, ConnectionNotUnique, FileSyntaxError,
@@ -242,7 +240,6 @@ def load_connections(file: _io.TextIOWrapper):
     :rtype: Dict[str, List[airflow.models.connection.Connection]]
     """
     log.debug("Loading connection")
-
     secrets: Dict[str, Any] = _parse_secret_file(file)
     connections_by_conn_id = defaultdict(list)
     for key, secret_values in list(secrets.items()):
@@ -253,7 +250,7 @@ def load_connections(file: _io.TextIOWrapper):
             connections_by_conn_id[key].append(_create_connection(key, secret_values))
 
         if len(connections_by_conn_id[key]) > 1:
-            raise ConnectionNotUnique(f"Found multiple values for {key} in {file_path}")
+            raise ConnectionNotUnique(f"Found multiple values for {key} in {file.name}")
 
     num_conn = sum(map(len, connections_by_conn_id.values()))
     log.debug("Loaded %d connections", num_conn)
@@ -286,8 +283,9 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             self.log.debug("The file for variables is not specified. Skipping")
             # The user may not specify any file.
             return {}
-        secrets = load_variables(self.variables_file)
-        return secrets
+        with open(self.variables_file, 'r') as file:
+            secrets = load_variables(file)
+            return secrets
 
     @property
     def _local_connections(self) -> Dict[str, List[Any]]:
@@ -295,7 +293,10 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             self.log.debug("The file for connection is not specified. Skipping")
             # The user may not specify any file.
             return {}
-        return load_connections(self.connections_file)
+
+        with open(self.connections_file, 'r') as file:
+            connection = load_connections(file)
+            return connection
 
     def get_connections(self, conn_id: str) -> List[Any]:
         return self._local_connections.get(conn_id) or []

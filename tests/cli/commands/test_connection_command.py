@@ -26,6 +26,7 @@ from parameterized import parameterized
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import connection_command
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
@@ -58,11 +59,22 @@ class TestCliGetConnection(unittest.TestCase):
             ))
 
 
+class TextIOWrapper(io.TextIOWrapper):
+    name = ''
+
+    def __init__(self, buffer, name=None, **kwargs):
+        self.name = name
+        print()
+        super().__init__(buffer, **kwargs)
+
+
 @contextmanager
-def mock_local_file(content):
+def mock_local_file(content, filename):
     with mock.patch(
         "airflow.secrets.local_filesystem.open", mock.mock_open(read_data=content)
-    ) as file_mock, mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=True):
+    ) as file_mock, mock.patch(
+            "airflow.cli.cli_parser.argparse.open",
+            return_value=TextIOWrapper(io.BytesIO(content.encode('ascii')), name=filename)):
         yield file_mock
 
 
@@ -434,7 +446,7 @@ class TestCliAddConnections(unittest.TestCase):
         [
             (
                 ["connections", "add", "new0", "--conn-uri=%s" % TEST_URL],
-                "\tSuccessfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
+                "\tSuccessfully added `conn_id`=new0 : postgres://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "host": "host",
@@ -447,7 +459,7 @@ class TestCliAddConnections(unittest.TestCase):
             ),
             (
                 ["connections", "add", "new1", "--conn-uri=%s" % TEST_URL],
-                "\tSuccessfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
+                "\tSuccessfully added `conn_id`=new1 : postgres://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "host": "host",
@@ -467,7 +479,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
-                "\tSuccessfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
+                "\tSuccessfully added `conn_id`=new2 : postgres://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "host": "host",
@@ -487,7 +499,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
-                "\tSuccessfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
+                "\tSuccessfully added `conn_id`=new3 : postgres://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "host": "host",
@@ -510,7 +522,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-port=9083",
                     "--conn-schema=airflow",
                 ],
-                "\tSuccessfully added `conn_id`=new4 : hive_metastore://airflow:******@host:9083/airflow",
+                "\tSuccessfully added `conn_id`=new4 : hive-metastore://airflow:airflow@host:9083/airflow",
                 {
                     "conn_type": "hive_metastore",
                     "host": "host",
@@ -530,9 +542,9 @@ class TestCliAddConnections(unittest.TestCase):
                     "",
                     "--conn-type=google_cloud_platform",
                     "--conn-extra",
-                    "{'extra': 'yes'}",
+                    '{"extra": "yes"}'
                 ],
-                "\tSuccessfully added `conn_id`=new5 : google_cloud_platform://:@:",
+                "\tSuccessfully added `conn_id`=new5 : google-cloud-platform://?extra=yes",
                 {
                     "conn_type": "google_cloud_platform",
                     "host": None,
@@ -648,7 +660,7 @@ class TestCliImportConnections(unittest.TestCase):
     def test_connections_import(self, file_content, expected_connection_uris):
         """Test connections_import command"""
 
-        with mock_local_file(json.dumps(file_content)):
+        with mock_local_file(json.dumps(file_content), 'a.json'):
             connection_command.connections_import(self.parser.parse_args(['connections', 'import', "a.json"]))
             with create_session() as session:
                 for conn_id in expected_connection_uris:
@@ -660,54 +672,57 @@ class TestCliImportConnections(unittest.TestCase):
     @parameterized.expand(
         (
             (
-                {"CONN_ID2": [{'conn_type': 'mysql', 'host': 'host_1'},
-                              {'conn_type': 'mysql', 'host': 'host_2'}]},
-                {"CONN_ID2": [{'conn_type': 'mysql', 'host': 'host_1'},
-                              {'conn_type': 'mysql', 'host': 'host_2'}]}
+                [
+                    {"CONN_ID2": {'conn_type': 'mysql', 'host': 'host_1'}},
+                    {"CONN_ID2": {'conn_type': 'mysql', 'host': 'host_2'}}
+                ],
+                "mysql://host_1"
             ),
         )
     )
     def test_connections_import_disposition_ignore(self, file_content, expected_connection_uris):
         """Test connections_import command with --conflict-disposition ignore"""
-        with mock_local_file(json.dumps(file_content)):
+        with mock_local_file(json.dumps(file_content[0]), 'a.json'):
             connection_command.connections_import(self.parser.parse_args([
                 'connections', 'import', 'a.json']))
 
+        with mock_local_file(json.dumps(file_content[1]), 'a.json'):
             connection_command.connections_import(self.parser.parse_args([
                 'connections', 'import', 'a.json', '--conflict-disposition', 'ignore']))
 
             conn_id = 'CONN_ID2'
             with create_session() as session:
                 current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
-                self.assertEqual(expected_connection_uris[conn_id][0],
-                                 {attr: getattr(current_conn, attr)
-                                  for attr in expected_connection_uris[conn_id][0]})
+                self.assertEqual(expected_connection_uris, current_conn.get_uri())
 
     @parameterized.expand(
         (
             (
-                {"CONN_ID3": [{'conn_type': 'mysql', 'host': 'host_1'},
-                              {'conn_type': 'mysql', 'host': 'host_2'}]},
-                {"CONN_ID3": [{'conn_type': 'mysql', 'host': 'host_1'},
-                              {'conn_type': 'mysql', 'host': 'host_2'}]}
+                [
+                    {"CONN_ID3": {'conn_type': 'mysql', 'host': 'host_1'}},
+                    {"CONN_ID3": {'conn_type': 'mysql', 'host': 'host_2'}}
+                ],
+                "mysql://host_2"
             ),
         )
     )
     def test_connections_import_disposition_overwrite(self, file_content, expected_connection_uris):
         """Test connections_import command with --conflict-disposition overwrite"""
-        with mock_local_file(json.dumps(file_content)):
-            connection_command.connections_import(self.parser.parse_args([
-                'connections', 'import', 'a.json', '--conflict-disposition', 'overwrite']))
+        with mock_local_file(json.dumps(file_content[0]), 'a.json'):
             connection_command.connections_import(self.parser.parse_args([
                 'connections', 'import', 'a.json', '--conflict-disposition', 'overwrite']))
 
-            with redirect_stdout(io.StringIO()) as stdout:
-                stdout = stdout.getvalue()
-                print(stdout)
+        with mock_local_file(json.dumps(file_content[1]), 'a.json'):
+            connection_command.connections_import(self.parser.parse_args([
+                'connections', 'import', 'a.json', '--conflict-disposition', 'overwrite']))
 
-            conn_id = 'CONN_ID3'
-            with create_session() as session:
-                current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
-                self.assertEqual(expected_connection_uris[conn_id][1],
-                                 {attr: getattr(current_conn, attr)
-                                  for attr in expected_connection_uris[conn_id][1]})
+        conn_id = 'CONN_ID3'
+        with create_session() as session:
+            current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+            self.assertEqual(expected_connection_uris, current_conn.get_uri())
+
+    def test_connections_import_missing_file(self):
+        """Test connections_import command with missing file"""
+        with self.assertRaises(SystemExit):
+            connection_command.connections_import(self.parser.parse_args([
+                'connections', 'import', 'a.json', '--conflict-disposition', 'overwrite']))

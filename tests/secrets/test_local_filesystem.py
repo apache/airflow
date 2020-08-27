@@ -32,19 +32,11 @@ from airflow.secrets.local_filesystem import LocalFilesystemBackend
 
 class TextIOWrapper(io.TextIOWrapper):
     name = ''
-    
+
     def __init__(self, buffer, name=None, **kwargs):
         self.name = name
         print()
         super().__init__(buffer, **kwargs)
-
-
-@contextmanager
-def mock_local_file(content):
-    with mock.patch(
-        "airflow.secrets.local_filesystem.open", mock.mock_open(read_data=content)
-    ) as file_mock, mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=True):
-        yield file_mock
 
 
 class FileParsers(unittest.TestCase):
@@ -212,7 +204,6 @@ class TestLoadConnection(unittest.TestCase):
         )
     )
     def test_yaml_file_should_load_connection(self, file_content, expected_connection_uris):
-        # with mock_local_file(file_content):
         connections_by_conn_id = local_filesystem.load_connections(
             TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.yaml"))
         connection_uris_by_conn_id = {
@@ -297,9 +288,9 @@ class TestLoadConnection(unittest.TestCase):
         ),
     )
     def test_ensure_unique_connection_env(self, file_content):
-        with mock_local_file(file_content):
-            with self.assertRaises(ConnectionNotUnique):
-                local_filesystem.load_connections("a.env")
+        with self.assertRaises(ConnectionNotUnique):
+            local_filesystem.load_connections(
+                TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name='a.env'))
 
     @parameterized.expand(
         (
@@ -312,9 +303,9 @@ class TestLoadConnection(unittest.TestCase):
         )
     )
     def test_ensure_unique_connection_json(self, file_content):
-        with mock_local_file(json.dumps(file_content)):
-            with self.assertRaises(ConnectionNotUnique):
-                local_filesystem.load_connections("a.json")
+        with self.assertRaises(ConnectionNotUnique):
+            local_filesystem.load_connections(
+                TextIOWrapper(io.BytesIO(json.dumps(file_content).encode('ascii')), name="a.json"))
 
     @parameterized.expand(
         (
@@ -325,9 +316,9 @@ class TestLoadConnection(unittest.TestCase):
         ),
     )
     def test_ensure_unique_connection_yaml(self, file_content):
-        with mock_local_file(file_content):
-            with self.assertRaises(ConnectionNotUnique):
-                local_filesystem.load_connections("a.yaml")
+        with self.assertRaises(ConnectionNotUnique):
+            local_filesystem.load_connections(
+                TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.yaml"))
 
 
 class TestLocalFileBackend(unittest.TestCase):

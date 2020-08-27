@@ -292,7 +292,7 @@ def connections_import(args):
         disposition = DIS_RESTRICT
     elif args.conflict_disposition in DISPOSITIONS:
         disposition = args.conflict_disposition
-        
+
     conn_status_map = {
         DIS_OVERWRITE: [],
         DIS_IGNORE: [],
@@ -310,6 +310,7 @@ def connections_import(args):
                         conn_status_map[CREATED].append(conn)
                     elif disposition == DIS_OVERWRITE:
                         session.delete(conn_row)
+                        session.flush()
                         session.add(conn)
                         conn_status_map[DIS_OVERWRITE].append(conn)
                     elif disposition == DIS_IGNORE:
