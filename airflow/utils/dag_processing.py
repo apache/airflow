@@ -29,7 +29,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Any, Callable, Dict, KeysView, List, NamedTuple, Optional, Tuple
+from typing import Callable, Dict, KeysView, List, NamedTuple, Optional, Tuple
 
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 from sqlalchemy import or_
@@ -37,10 +37,11 @@ from tabulate import tabulate
 
 import airflow.models
 from airflow.configuration import conf
-from airflow.dag.base_dag import BaseDag, BaseDagBag
+from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.models import errors
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import STORE_DAG_CODE, STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -52,101 +53,24 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
-class SimpleDag(BaseDag):
-    """
-    A simplified representation of a DAG that contains all attributes
-    required for instantiating and scheduling its associated tasks.
-
-    :param dag: the DAG
-    :type dag: airflow.models.DAG
-    :param pickle_id: ID associated with the pickled version of this DAG.
-    :type pickle_id: unicode
-    """
-
-    def __init__(self, dag, pickle_id: Optional[int] = None):
-        self._dag_id: str = dag.dag_id
-        self._task_ids: List[str] = [task.task_id for task in dag.tasks]
-        self._full_filepath: str = dag.full_filepath
-        self._concurrency: int = dag.concurrency
-        self._pickle_id: Optional[int] = pickle_id
-        self._task_special_args: Dict[str, Any] = {}
-        for task in dag.tasks:
-            special_args = {}
-            if task.task_concurrency is not None:
-                special_args['task_concurrency'] = task.task_concurrency
-            if special_args:
-                self._task_special_args[task.task_id] = special_args
-
-    @property
-    def dag_id(self) -> str:
-        """
-        :return: the DAG ID
-        :rtype: unicode
-        """
-        return self._dag_id
-
-    @property
-    def task_ids(self) -> List[str]:
-        """
-        :return: A list of task IDs that are in this DAG
-        :rtype: list[unicode]
-        """
-        return self._task_ids
-
-    @property
-    def full_filepath(self) -> str:
-        """
-        :return: The absolute path to the file that contains this DAG's definition
-        :rtype: unicode
-        """
-        return self._full_filepath
-
-    @property
-    def concurrency(self) -> int:
-        """
-        :return: maximum number of tasks that can run simultaneously from this DAG
-        :rtype: int
-        """
-        return self._concurrency
-
-    @property
-    def pickle_id(self) -> Optional[int]:    # pylint: disable=invalid-overridden-method
-        """
-        :return: The pickle ID for this DAG, if it has one. Otherwise None.
-        :rtype: unicode
-        """
-        return self._pickle_id
-
-    @property
-    def task_special_args(self) -> Dict[str, Any]:
-        """Special arguments of the task."""
-        return self._task_special_args
-
-    def get_task_special_arg(self, task_id: str, special_arg_name: str):
-        """Retrieve special arguments of the task."""
-        if task_id in self._task_special_args and special_arg_name in self._task_special_args[task_id]:
-            return self._task_special_args[task_id][special_arg_name]
-        else:
-            return None
-
-
 class SimpleDagBag(BaseDagBag):
     """
     A collection of SimpleDag objects with some convenience methods.
     """
 
-    def __init__(self, simple_dags: List[SimpleDag]):
+    def __init__(self, simple_dags: List[dict]):
         """
         Constructor.
 
         :param simple_dags: SimpleDag objects that should be in this
-        :type list(airflow.utils.dag_processing.SimpleDag)
+        :type simple_dags: list[airflow.models.dag.DAG]
         """
         self.simple_dags = simple_dags
-        self.dag_id_to_simple_dag: Dict[str, SimpleDag] = {}
+        self.dag_id_to_simple_dag: Dict[str, SerializedDAG] = {}
 
         for simple_dag in simple_dags:
-            self.dag_id_to_simple_dag[simple_dag.dag_id] = simple_dag
+            serialized_dag = SerializedDAG.from_dict(simple_dag)
+            self.dag_id_to_simple_dag[serialized_dag.dag_id] = serialized_dag
 
     @property
     def dag_ids(self) -> KeysView[str]:
@@ -156,13 +80,13 @@ class SimpleDagBag(BaseDagBag):
         """
         return self.dag_id_to_simple_dag.keys()
 
-    def get_dag(self, dag_id: str) -> SimpleDag:
+    def get_dag(self, dag_id: str) -> SerializedDAG:
         """
         :param dag_id: DAG ID
         :type dag_id: unicode
         :return: if the given DAG ID exists in the bag, return the BaseDag
         corresponding to that ID. Otherwise, throw an Exception
-        :rtype: airflow.utils.dag_processing.SimpleDag
+        :rtype: SerializedDAG
         """
         if dag_id not in self.dag_id_to_simple_dag:
             raise AirflowException("Unknown DAG ID {}".format(dag_id))
@@ -225,12 +149,12 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def result(self) -> Optional[Tuple[List[SimpleDag], int]]:
+    def result(self) -> Optional[Tuple[List[SerializedDAG], int]]:
         """
         A list of simple dags found, and the number of import errors
 
         :return: result of running SchedulerJob.process_file() if availlablle. Otherwise, none
-        :rtype: Optional[Tuple[List[SimpleDag], int]]
+        :rtype: Optional[Tuple[List[SerializedDAG], int]]
         """
         raise NotImplementedError()
 
@@ -489,7 +413,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
         processor_manager.start()
 
-    def harvest_simple_dags(self) -> List[SimpleDag]:
+    def harvest_simple_dags(self) -> List[dict]:
         """
         Harvest DAG parsing results from result queue and sync metadata from stat queue.
 
@@ -1126,7 +1050,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
         :return: a list of SimpleDags that were produced by processors that
             have finished since the last time this was called
-        :rtype: list[airflow.utils.dag_processing.SimpleDag]
+        :rtype: list[SerializedDAG]
         """
         # Collect all the DAGs that were found in the processed files
         simple_dags = []

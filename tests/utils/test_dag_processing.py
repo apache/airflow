@@ -401,7 +401,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                 processor_agent.wait_until_finished()
             parsing_result.extend(processor_agent.harvest_simple_dags())
 
-        dag_ids = [result.dag_id for result in parsing_result]
+        dag_ids = [result["dag"]["_dag_id"] for result in parsing_result]
         self.assertEqual(dag_ids.count('test_start_date_scheduling'), 1)
 
     def test_launch_process(self):

@@ -46,7 +46,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
-from airflow.utils.dag_processing import FailureCallbackRequest, SimpleDag, SimpleDagBag
+from airflow.utils.dag_processing import FailureCallbackRequest, SimpleDagBag
 from airflow.utils.dates import days_ago
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
@@ -1167,7 +1167,7 @@ class TestDagFileProcessor(unittest.TestCase):
             tis = session.query(TaskInstance).all()
 
         self.assertEqual(0, import_errors_count)
-        self.assertEqual(['test_multiple_dags__dag_2'], [dag.dag_id for dag in simple_dags])
+        self.assertEqual(['test_multiple_dags__dag_2'], [dag["dag"]["_dag_id"] for dag in simple_dags])
         self.assertEqual({'test_multiple_dags__dag_2'}, {ti.dag_id for ti in tis})
 
     def test_should_mark_dummy_task_as_success(self):
@@ -1189,7 +1189,7 @@ class TestDagFileProcessor(unittest.TestCase):
             tis = session.query(TaskInstance).all()
 
         self.assertEqual(0, import_errors_count)
-        self.assertEqual(['test_only_dummy_tasks'], [dag.dag_id for dag in simple_dags])
+        self.assertEqual(['test_only_dummy_tasks'], [dag["dag"]["_dag_id"] for dag in simple_dags])
         self.assertEqual(5, len(tis))
         self.assertEqual({
             ('test_task_a', 'success'),
@@ -1415,7 +1415,7 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.run()
 
     def _make_simple_dag_bag(self, dags):
-        return SimpleDagBag([SimpleDag(dag) for dag in dags])
+        return SimpleDagBag([SerializedDAG.to_dict(dag) for dag in dags])
 
     def test_no_orphan_process_will_be_left(self):
         empty_dir = mkdtemp()
@@ -2370,7 +2370,7 @@ class TestSchedulerJob(unittest.TestCase):
         executor.queued_tasks
         scheduler.executor = executor
         processor = mock.MagicMock()
-        processor.harvest_simple_dags.return_value = [dag]
+        processor.harvest_simple_dags.return_value = [SerializedDAG.to_dict(dag)]
         processor.done = True
         scheduler.processor_agent = processor
 
@@ -3603,7 +3603,8 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
                     ti.set_state(state=State.SCHEDULED)
 
             mock_agent = mock.MagicMock()
-            mock_agent.harvest_simple_dags.return_value = [SimpleDag(d) for d in dagbag.dags.values()]
+            mock_agent.harvest_simple_dags.return_value = [
+                SerializedDAG.to_dict(d) for d in dagbag.dags.values()]
 
             job = SchedulerJob(subdir=PERF_DAGS_FOLDER)
             job.executor = MockExecutor()
