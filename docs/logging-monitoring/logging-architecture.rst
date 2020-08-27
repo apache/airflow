@@ -39,4 +39,3 @@ Similarly, we recommend using StatsD for gathering metrics from Airflow and send
 
 .. note::
     For more information on configuring metrics, see :doc:`/logging-monitoring/metrics`
-
