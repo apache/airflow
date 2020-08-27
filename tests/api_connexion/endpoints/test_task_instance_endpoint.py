@@ -19,7 +19,7 @@ import unittest
 import pytest
 
 from airflow.www import app
-from tests.test_utils.api_connexion_utils import create_user, delete_user
+from tests.test_utils.api_connexion_utils import create_role, create_user, delete_user
 from tests.test_utils.config import conf_vars
 
 
@@ -30,12 +30,18 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test", permissions=[("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "TaskInstance")])
+        create_role(cls.app, name="Test",  # type: ignore
+                    permissions=[("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "TaskInstance")])
         create_user(cls.app, username="test", role="Test")  # type: ignore
+        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
+        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore

@@ -47,13 +47,18 @@ class TestGetExtraLinks(unittest.TestCase):
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test", permissions=[('can_read', 'DagBag'), ('can_read', 'Dag'), ('can_read', 'Task')])
-        create_user(cls.app, username="test", role="Test")
+        create_role(cls.app, name="Test",  # type: ignore
+                    permissions=[('can_read', 'DagBag'), ('can_read', 'Dag'), ('can_read', 'Task')])
+        create_user(cls.app, username="test", role="Test")  # type: ignore
+        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
+        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")
+        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
 
     @provide_session
     def setUp(self, session) -> None:
@@ -130,6 +135,13 @@ class TestGetExtraLinks(unittest.TestCase):
             },
             response.json,
         )
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get(
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
+            environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
 
     @mock_plugin_manager(plugins=[])
     def test_should_response_200(self):

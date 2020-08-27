@@ -35,14 +35,23 @@ class TestXComEndpoint(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test",
-            permissions=[("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")])
+        create_role(cls.app, name="Test",  # type: ignore
+                    permissions=[
+                        ("can_read", "Dag"),
+                        ("can_read", "DagRun"),
+                        ("can_read", "Task"),
+                        ("can_read", "XCom")
+                    ])
         create_user(cls.app, username="test", role="Test")  # type: ignore
+        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
+        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")
+        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
 
     @staticmethod
     def clean_db():
@@ -106,6 +115,21 @@ class TestGetXComEntry(TestXComEndpoint):
         )
 
         assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        dag_id = 'test-dag-id'
+        task_id = 'test-task-id'
+        execution_date = '2005-04-02T00:00:00+00:00'
+        xcom_key = 'test-xcom-key'
+        execution_date_parsed = parse_execution_date(execution_date)
+        dag_run_id = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+
+        self._create_xcom_entry(dag_id, dag_run_id, execution_date_parsed, task_id, xcom_key)
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+            environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
 
     @provide_session
     def _create_xcom_entry(self, dag_id, dag_run_id, execution_date, task_id, xcom_key, session=None):

@@ -38,14 +38,23 @@ class TestDagRunEndpoint(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test",
-            permissions=[("can_create", "DagRun"), ("can_read", "DagRun"), ("can_edit", "DagRun"), ("can_delete", "DagRun")])
+        create_role(cls.app, name="Test",  # type: ignore
+                    permissions=[
+                        ("can_create", "DagRun"),
+                        ("can_read", "DagRun"),
+                        ("can_edit", "DagRun"),
+                        ("can_delete", "DagRun")
+                    ])
         create_user(cls.app, username="test", role="Test")  # type: ignore
+        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
+        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")
+        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -137,6 +146,13 @@ class TestDeleteDagRun(TestDagRunEndpoint):
         )
 
         assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID",
+            environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
 
 
 class TestGetDagRun(TestDagRunEndpoint):

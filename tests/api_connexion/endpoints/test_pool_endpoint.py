@@ -34,14 +34,23 @@ class TestBasePoolEndpoints(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test",
-            permissions=[("can_create", "Pool"), ("can_read", "Pool"), ("can_edit", "Pool"), ("can_delete", "Pool")])
-        create_user(cls.app, username="test", role="Test")
+        create_role(cls.app, name="Test",  # type: ignore
+                    permissions=[
+                        ("can_create", "Pool"),
+                        ("can_read", "Pool"),
+                        ("can_edit", "Pool"),
+                        ("can_delete", "Pool")
+                    ])
+        create_user(cls.app, username="test", role="Test")  # type: ignore
+        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
+        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")
+        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -91,6 +100,10 @@ class TestGetPools(TestBasePoolEndpoints):
         response = self.client.get("/api/v1/pools")
 
         assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get("/api/v1/pools", environ_overrides={'REMOTE_USER': "test_no_permissions"})
+        assert response.status_code == 403
 
 
 class TestGetPoolsPagination(TestBasePoolEndpoints):

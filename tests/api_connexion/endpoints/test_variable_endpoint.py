@@ -33,14 +33,23 @@ class TestVariableEndpoint(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test", 
-            permissions=[("can_create", "Variable"), ("can_read", "Variable"), ("can_edit", "Variable"), ("can_delete", "Variable")])
+        create_role(cls.app, name="Test",  # type: ignore
+                    permissions=[
+                        ("can_create", "Variable"),
+                        ("can_read", "Variable"),
+                        ("can_edit", "Variable"),
+                        ("can_delete", "Variable")
+                    ])
         create_user(cls.app, username="test", role="Test")  # type: ignore
+        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
+        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")
+        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -82,6 +91,14 @@ class TestDeleteVariable(TestVariableEndpoint):
         # make sure variable is not deleted
         response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
+
+    def test_should_raise_403_forbidden(self):
+        expected_value = '{"foo": 1}'
+        Variable.set("TEST_VARIABLE_KEY", expected_value)
+        response = self.client.get(
+            "/api/v1/variables/TEST_VARIABLE_KEY", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
 
 
 class TestGetVariable(TestVariableEndpoint):
