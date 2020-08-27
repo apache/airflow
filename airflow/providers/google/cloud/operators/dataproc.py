@@ -37,49 +37,59 @@ from google.protobuf.field_mask_pb2 import FieldMask
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
+from airflow.providers.google.cloud.hooks.dataproc import (
+    DataprocHook,
+    DataProcJobBuilder,
+)
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 
 DATAPROC_BASE_LINK = "https://console.cloud.google.com/dataproc"
-DATAPROC_JOB_LOG_LINK = \
-    DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
-DATAPROC_CLUSTER_LINK = \
-    DATAPROC_BASE_LINK + "/clusters/{cluster_name}/monitoring?" \
-    "region={region}&project={project_id}"
+DATAPROC_JOB_LOG_LINK = DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
+DATAPROC_CLUSTER_LINK = (
+    DATAPROC_BASE_LINK + "/clusters/{cluster_name}/monitoring?" "region={region}&project={project_id}"
+)
 
 
 class DataprocJobLink(BaseOperatorLink):
     """
     Helper class for constructing Dataproc Job link
     """
+
     name = "Dataproc Job"
 
     def get_link(self, operator, dttm):
         ti = TaskInstance(task=operator, execution_date=dttm)
-        job_conf = ti.xcom_pull(task_ids=operator.task_id, key='job_conf')
-        return DATAPROC_JOB_LOG_LINK.format(
-            job_id=job_conf['job_id'],
-            region=job_conf['region'],
-            project_id=job_conf['project_id']
-        ) if job_conf else ''
+        job_conf = ti.xcom_pull(task_ids=operator.task_id, key="job_conf")
+        return (
+            DATAPROC_JOB_LOG_LINK.format(
+                job_id=job_conf["job_id"], region=job_conf["region"], project_id=job_conf["project_id"],
+            )
+            if job_conf
+            else ""
+        )
 
 
 class DataprocClusterLink(BaseOperatorLink):
     """
     Helper class for constructing Dataproc Cluster link
     """
+
     name = "Dataproc Cluster"
 
     def get_link(self, operator, dttm):
         ti = TaskInstance(task=operator, execution_date=dttm)
-        cluster_conf = ti.xcom_pull(task_ids=operator.task_id, key='cluster_conf')
-        return DATAPROC_CLUSTER_LINK.format(
-            cluster_name=cluster_conf['cluster_name'],
-            region=cluster_conf['region'],
-            project_id=cluster_conf['project_id']
-        ) if cluster_conf else ''
+        cluster_conf = ti.xcom_pull(task_ids=operator.task_id, key="cluster_conf")
+        return (
+            DATAPROC_CLUSTER_LINK.format(
+                cluster_name=cluster_conf["cluster_name"],
+                region=cluster_conf["region"],
+                project_id=cluster_conf["project_id"],
+            )
+            if cluster_conf
+            else ""
+        )
 
 
 # pylint: disable=too-many-instance-attributes
@@ -213,11 +223,11 @@ class ClusterGenerator:
         properties: Optional[Dict] = None,
         optional_components: Optional[List[str]] = None,
         num_masters: int = 1,
-        master_machine_type: str = 'n1-standard-4',
-        master_disk_type: str = 'pd-standard',
+        master_machine_type: str = "n1-standard-4",
+        master_disk_type: str = "pd-standard",
         master_disk_size: int = 1024,
-        worker_machine_type: str = 'n1-standard-4',
-        worker_disk_type: str = 'pd-standard',
+        worker_machine_type: str = "n1-standard-4",
+        worker_disk_type: str = "pd-standard",
         worker_disk_size: int = 1024,
         num_preemptible_workers: int = 0,
         service_account: Optional[str] = None,
@@ -291,7 +301,7 @@ class ClusterGenerator:
 
     def _build_gce_cluster_config(self, cluster_data):
         if self.zone:
-            zone_uri = 'https://www.googleapis.com/compute/v1/projects/{}/zones/{}'.format(
+            zone_uri = "https://www.googleapis.com/compute/v1/projects/{}/zones/{}".format(
                 self.project_id, self.zone
             )
             cluster_data['gce_cluster_config']['zone_uri'] = zone_uri
@@ -379,7 +389,7 @@ class ClusterGenerator:
                     'boot_disk_type': self.worker_disk_type,
                     'boot_disk_size_gb': self.worker_disk_size,
                 },
-                'is_preemptible': True,
+                "is_preemptible": True,
             }
 
         if self.storage_bucket:
@@ -391,8 +401,8 @@ class ClusterGenerator:
         elif self.custom_image:
             project_id = self.custom_image_project_id or self.project_id
             custom_image_url = (
-                'https://www.googleapis.com/compute/beta/projects/'
-                '{}/global/images/{}'.format(project_id, self.custom_image)
+                "https://www.googleapis.com/compute/beta/projects/"
+                "{}/global/images/{}".format(project_id, self.custom_image)
             )
             cluster_data['master_config']['image_uri'] = custom_image_url
             if not self.single_node:
@@ -423,7 +433,7 @@ class ClusterGenerator:
 
         if self.init_actions_uris:
             init_actions_dict = [
-                {'executable_file': uri, 'execution_timeout': self._get_init_action_timeout()}
+                {"executable_file": uri, "execution_timeout": self._get_init_action_timeout(),}
                 for uri in self.init_actions_uris
             ]
             cluster_data['initialization_actions'] = init_actions_dict
@@ -518,9 +528,7 @@ class DataprocCreateClusterOperator(BaseOperator):
     )
     template_fields_renderers = {'cluster_config': 'json'}
 
-    operator_extra_links = (
-        DataprocClusterLink(),
-    )
+    operator_extra_links = (DataprocClusterLink(),)
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
@@ -560,8 +568,8 @@ class DataprocCreateClusterOperator(BaseOperator):
                 stacklevel=1,
             )
             # Remove result of apply defaults
-            if 'params' in kwargs:
-                del kwargs['params']
+            if "params" in kwargs:
+                del kwargs["params"]
 
             # Create cluster object from kwargs
             if project_id is None:
@@ -630,7 +638,9 @@ class DataprocCreateClusterOperator(BaseOperator):
         gcs_uri = hook.diagnose_cluster(
             region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
         )
-        self.log.info('Diagnostic information for cluster %s available at: %s', self.cluster_name, gcs_uri)
+        self.log.info(
+            "Diagnostic information for cluster %s available at: %s", self.cluster_name, gcs_uri,
+        )
         if self.delete_on_error:
             self._delete_cluster(hook)
             raise AirflowException("Cluster was created but was in ERROR state.")
@@ -743,9 +753,7 @@ class DataprocScaleClusterOperator(BaseOperator):
 
     template_fields = ['cluster_name', 'project_id', 'region', 'impersonation_chain']
 
-    operator_extra_links = (
-        DataprocClusterLink(),
-    )
+    operator_extra_links = (DataprocClusterLink(),)
 
     @apply_defaults
     def __init__(
@@ -753,7 +761,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         *,
         cluster_name: str,
         project_id: Optional[str] = None,
-        region: str = 'global',
+        region: str = "global",
         num_workers: int = 2,
         num_preemptible_workers: int = 0,
         graceful_decommission_timeout: Optional[str] = None,
@@ -782,9 +790,9 @@ class DataprocScaleClusterOperator(BaseOperator):
 
     def _build_scale_cluster_data(self) -> dict:
         scale_data = {
-            'config': {
-                'worker_config': {'num_instances': self.num_workers},
-                'secondary_worker_config': {'num_instances': self.num_preemptible_workers},
+            "config": {
+                "worker_config": {"num_instances": self.num_workers},
+                "secondary_worker_config": {"num_instances": self.num_preemptible_workers},
             }
         }
         return scale_data
@@ -816,14 +824,17 @@ class DataprocScaleClusterOperator(BaseOperator):
                 " i.e. 1d, 4h, 10m, 30s"
             )
 
-        return {'seconds': timeout}
+        return {"seconds": timeout}
 
     def execute(self, context) -> None:
         """Scale, up or down, a cluster on Google Cloud Dataproc."""
         self.log.info("Scaling cluster: %s", self.cluster_name)
 
         scaling_cluster_data = self._build_scale_cluster_data()
-        update_mask = ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
+        update_mask = [
+            "config.worker_config.num_instances",
+            "config.secondary_worker_config.num_instances",
+        ]
 
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         operation = hook.update_cluster(
@@ -832,15 +843,15 @@ class DataprocScaleClusterOperator(BaseOperator):
             cluster_name=self.cluster_name,
             cluster=scaling_cluster_data,
             graceful_decommission_timeout=self._graceful_decommission_timeout_object,
-            update_mask={'paths': update_mask},
+            update_mask={"paths": update_mask},
         )
         operation.result()
         self.log.info("Cluster scaling finished")
-        self.xcom_push(context, key='cluster_conf', value={
-            'cluster_name': self.cluster_name,
-            'region': self.region,
-            'project_id': self.project_id
-        })
+        self.xcom_push(
+            context,
+            key="cluster_conf",
+            value={"cluster_name": self.cluster_name, "region": self.region, "project_id": self.project_id,},
+        )
 
 
 class DataprocDeleteClusterOperator(BaseOperator):
@@ -989,20 +1000,18 @@ class DataprocJobBaseOperator(BaseOperator):
 
     job_type = ""
 
-    operator_extra_links = (
-        DataprocJobLink(),
-    )
+    operator_extra_links = (DataprocJobLink(),)
 
     @apply_defaults
     def __init__(
         self,
         *,
-        job_name: str = '{{task.task_id}}_{{ds_nodash}}',
+        job_name: str = "{{task.task_id}}_{{ds_nodash}}",
         cluster_name: str = "cluster-1",
         project_id: Optional[str] = None,
         dataproc_properties: Optional[Dict] = None,
         dataproc_jars: Optional[List[str]] = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
         region: Optional[str] = None,
@@ -1054,14 +1063,14 @@ class DataprocJobBaseOperator(BaseOperator):
     def _generate_job_template(self) -> str:
         if self.job_template:
             job = self.job_template.build()
-            return job['job']
+            return job["job"]
         raise Exception("Create a job template before")
 
     def execute(self, context):
         if self.job_template:
             self.job = self.job_template.build()
             self.dataproc_job_id = self.job["job"]["reference"]["job_id"]
-            self.log.info('Submitting %s job %s', self.job_type, self.dataproc_job_id)
+            self.log.info("Submitting %s job %s", self.job_type, self.dataproc_job_id)
             job_object = self.hook.submit_job(
                 project_id=self.project_id, job=self.job["job"], location=self.region
             )
@@ -1089,7 +1098,7 @@ class DataprocJobBaseOperator(BaseOperator):
         """
         if self.dataproc_job_id:
             self.hook.cancel_job(
-                project_id=self.project_id, job_id=self.dataproc_job_id, location=self.region
+                project_id=self.project_id, job_id=self.dataproc_job_id, location=self.region,
             )
 
 
@@ -1137,22 +1146,20 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     """
 
     template_fields = [
-        'query',
-        'variables',
-        'job_name',
-        'cluster_name',
-        'region',
-        'dataproc_jars',
-        'dataproc_properties',
-        'impersonation_chain',
+        "query",
+        "variables",
+        "job_name",
+        "cluster_name",
+        "region",
+        "dataproc_jars",
+        "dataproc_properties",
+        "impersonation_chain",
     ]
     template_ext = ('.pg', '.pig')
     ui_color = '#0273d4'
     job_type = 'pig_job'
 
-    operator_extra_links = (
-        DataprocJobLink(),
-    )
+    operator_extra_links = (DataprocJobLink(),)
 
     @apply_defaults
     def __init__(
@@ -1217,14 +1224,14 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     """
 
     template_fields = [
-        'query',
-        'variables',
-        'job_name',
-        'cluster_name',
-        'region',
-        'dataproc_jars',
-        'dataproc_properties',
-        'impersonation_chain',
+        "query",
+        "variables",
+        "job_name",
+        "cluster_name",
+        "region",
+        "dataproc_jars",
+        "dataproc_properties",
+        "impersonation_chain",
     ]
     template_ext = ('.q', '.hql')
     ui_color = '#0273d4'
@@ -1253,7 +1260,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         self.query_uri = query_uri
         self.variables = variables
         if self.query is not None and self.query_uri is not None:
-            raise AirflowException('Only one of `query` and `query_uri` can be passed.')
+            raise AirflowException("Only one of `query` and `query_uri` can be passed.")
 
     def generate_job(self):
         """
@@ -1292,18 +1299,18 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     """
 
     template_fields = [
-        'query',
-        'variables',
-        'job_name',
-        'cluster_name',
-        'region',
-        'dataproc_jars',
-        'dataproc_properties',
-        'impersonation_chain',
+        "query",
+        "variables",
+        "job_name",
+        "cluster_name",
+        "region",
+        "dataproc_jars",
+        "dataproc_properties",
+        "impersonation_chain",
     ]
-    template_ext = ('.q',)
-    ui_color = '#0273d4'
-    job_type = 'spark_sql_job'
+    template_ext = (".q",)
+    ui_color = "#0273d4"
+    job_type = "spark_sql_job"
 
     @apply_defaults
     def __init__(
@@ -1328,7 +1335,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         self.query_uri = query_uri
         self.variables = variables
         if self.query is not None and self.query_uri is not None:
-            raise AirflowException('Only one of `query` and `query_uri` can be passed.')
+            raise AirflowException("Only one of `query` and `query_uri` can be passed.")
 
     def generate_job(self):
         """
@@ -1374,16 +1381,16 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     """
 
     template_fields = [
-        'arguments',
-        'job_name',
-        'cluster_name',
-        'region',
-        'dataproc_jars',
-        'dataproc_properties',
-        'impersonation_chain',
+        "arguments",
+        "job_name",
+        "cluster_name",
+        "region",
+        "dataproc_jars",
+        "dataproc_properties",
+        "impersonation_chain",
     ]
-    ui_color = '#0273d4'
-    job_type = 'spark_job'
+    ui_color = "#0273d4"
+    job_type = "spark_job"
 
     @apply_defaults
     def __init__(
@@ -1454,16 +1461,16 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     """
 
     template_fields = [
-        'arguments',
-        'job_name',
-        'cluster_name',
-        'region',
-        'dataproc_jars',
-        'dataproc_properties',
-        'impersonation_chain',
+        "arguments",
+        "job_name",
+        "cluster_name",
+        "region",
+        "dataproc_jars",
+        "dataproc_properties",
+        "impersonation_chain",
     ]
-    ui_color = '#0273d4'
-    job_type = 'hadoop_job'
+    ui_color = "#0273d4"
+    job_type = "hadoop_job"
 
     @apply_defaults
     def __init__(
@@ -1534,17 +1541,17 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     """
 
     template_fields = [
-        'main',
-        'arguments',
-        'job_name',
-        'cluster_name',
-        'region',
-        'dataproc_jars',
-        'dataproc_properties',
-        'impersonation_chain',
+        "main",
+        "arguments",
+        "job_name",
+        "cluster_name",
+        "region",
+        "dataproc_jars",
+        "dataproc_properties",
+        "impersonation_chain",
     ]
-    ui_color = '#0273d4'
-    job_type = 'pyspark_job'
+    ui_color = "#0273d4"
+    job_type = "pyspark_job"
 
     @staticmethod
     def _generate_temp_filename(filename):
@@ -1565,7 +1572,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain).upload(
             bucket_name=bucket,
             object_name=temp_filename,
-            mime_type='application/x-python',
+            mime_type="application/x-python",
             filename=local_file,
         )
         return f"gs://{bucket}/{temp_filename}"
@@ -1606,7 +1613,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
-                project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
+                project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name,
             )
             bucket = cluster_info['config']['config_bucket']
             self.main = f"gs://{bucket}/{self.main}"
@@ -1623,9 +1630,9 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
-                project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
+                project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name,
             )
-            bucket = cluster_info['config']['config_bucket']
+            bucket = cluster_info["config"]["config_bucket"]
             self.main = self._upload_file_temp(bucket, self.main)
 
         self.job_template.set_python_main(self.main)
@@ -1798,7 +1805,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
             metadata=self.metadata,
         )
         operation.result()
-        self.log.info('Template instantiated.')
+        self.log.info("Template instantiated.")
 
 
 class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
@@ -1892,7 +1899,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
             metadata=self.metadata,
         )
         operation.result()
-        self.log.info('Template instantiated.')
+        self.log.info("Template instantiated.")
 
 
 class DataprocSubmitJobOperator(BaseOperator):
@@ -1944,9 +1951,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     template_fields = ('project_id', 'location', 'job', 'impersonation_chain', 'request_id')
     template_fields_renderers = {"job": "json"}
 
-    operator_extra_links = (
-        DataprocJobLink(),
-    )
+    operator_extra_links = (DataprocJobLink(),)
 
     @apply_defaults
     def __init__(
@@ -2011,11 +2016,11 @@ class DataprocSubmitJobOperator(BaseOperator):
         if self.job_id and self.cancel_on_kill:
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
 
-        self.xcom_push(context, key='job_conf', value={
-            'job_id': job_id,
-            'region': self.location,
-            'project_id': self.project_id
-        })
+        self.xcom_push(
+            context,
+            key="job_conf",
+            value={"job_id": job_id, "region": self.location, "project_id": self.project_id,},
+        )
 
 
 class DataprocUpdateClusterOperator(BaseOperator):
@@ -2124,8 +2129,12 @@ class DataprocUpdateClusterOperator(BaseOperator):
         )
         operation.result()
         self.log.info("Updated %s cluster.", self.cluster_name)
-        self.xcom_push(context, key='cluster_conf', value={
-            'cluster_name': self.cluster_name,
-            'region': self.location,
-            'project_id': self.project_id
-        })
+        self.xcom_push(
+            context,
+            key="cluster_conf",
+            value={
+                "cluster_name": self.cluster_name,
+                "region": self.location,
+                "project_id": self.project_id,
+            },
+        )
