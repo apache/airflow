@@ -66,7 +66,7 @@ class GCSCreateBucketOperator(BaseOperator):
         .. seealso:: https://developers.google.com/storage/docs/bucket-locations
 
     :type location: str
-    :param project_id: The ID of the GCP Project. (templated)
+    :param project_id: The ID of the Google Cloud Project. (templated)
     :type project_id: str
     :param labels: User-provided labels, in key/value pairs.
     :type labels: dict

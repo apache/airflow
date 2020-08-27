@@ -53,7 +53,7 @@ class PubSubHook(GoogleBaseHook):
     """
     Hook for accessing Google Pub/Sub.
 
-    The GCP project against which actions are applied is determined by
+    The Google Cloud project against which actions are applied is determined by
     the project embedded in the Connection referenced by gcp_conn_id.
     """
 
@@ -101,8 +101,8 @@ class PubSubHook(GoogleBaseHook):
             message is set, it should be a bytestring (utf-8 encoded)
         :type messages: list of PubSub messages; see
             http://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
-        :param project_id: Optional, the GCP project ID in which to publish.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID in which to publish.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         """
         self._validate_messages(messages)
@@ -172,8 +172,8 @@ class PubSubHook(GoogleBaseHook):
         :param topic: the Pub/Sub topic name to create; do not
             include the ``projects/{project}/topics/`` prefix.
         :type topic: str
-        :param project_id: Optional, the GCP project ID in which to create the topic
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID in which to create the topic
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param fail_if_exists: if set, raise an exception if the topic
             already exists
@@ -246,8 +246,8 @@ class PubSubHook(GoogleBaseHook):
         :param topic: the Pub/Sub topic name to delete; do not
             include the ``projects/{project}/topics/`` prefix.
         :type topic: str
-        :param project_id: Optional, the GCP project ID in which to delete the topic.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID in which to delete the topic.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param fail_if_not_exists: if set, raise an exception if the topic
             does not exist
@@ -308,13 +308,14 @@ class PubSubHook(GoogleBaseHook):
         :param topic: the Pub/Sub topic name that the subscription will be bound
             to create; do not include the ``projects/{project}/subscriptions/`` prefix.
         :type topic: str
-        :param project_id: Optional, the GCP project ID of the topic that the subscription will be bound to.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID of the topic that the subscription will be
+            bound to. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
         :type project_id: str
         :param subscription: the Pub/Sub subscription name. If empty, a random
             name will be generated using the uuid module
         :type subscription: str
-        :param subscription_project_id: the GCP project ID where the subscription
+        :param subscription_project_id: the Google Cloud project ID where the subscription
             will be created. If unspecified, ``project_id`` will be used.
         :type subscription_project_id: str
         :param ack_deadline_secs: Number of seconds that a subscriber has to
@@ -441,8 +442,8 @@ class PubSubHook(GoogleBaseHook):
 
         :param subscription: the Pub/Sub subscription name to delete; do not
             include the ``projects/{project}/subscriptions/`` prefix.
-        :param project_id: Optional, the GCP project ID where the subscription exists
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID where the subscription exists
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :type subscription: str
         :param fail_if_not_exists: if set, raise an exception if the topic does not exist
@@ -497,8 +498,8 @@ class PubSubHook(GoogleBaseHook):
         :param max_messages: The maximum number of messages to return from
             the Pub/Sub API.
         :type max_messages: int
-        :param project_id: Optional, the GCP project ID where the subscription exists.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID where the subscription exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param return_immediately: If set, the Pub/Sub API will immediately
             return if no messages are available. Otherwise, the request will
@@ -562,8 +563,8 @@ class PubSubHook(GoogleBaseHook):
         :param messages: List of ReceivedMessage objects to acknowledge.
             Mutually exclusive with ``ack_ids`` argument.
         :type messages: list
-        :param project_id: Optional, the GCP project name or ID in which to create the topic
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project name or ID in which to create the topic
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.

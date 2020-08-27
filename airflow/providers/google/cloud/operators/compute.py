@@ -84,8 +84,8 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     :param resource_id: Name of the Compute Engine instance resource.
     :type resource_id: str
     :param project_id: Optional, Google Cloud Platform Project ID where the Compute
-        Engine Instance exists.  If set to None or missing, the default project_id from the GCP connection is
-        used.
+        Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
     :type project_id: str
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
@@ -161,8 +161,8 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     :param resource_id: Name of the Compute Engine instance resource.
     :type resource_id: str
     :param project_id: Optional, Google Cloud Platform Project ID where the Compute
-        Engine Instance exists. If set to None or missing, the default project_id from the GCP connection is
-        used.
+        Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
     :type project_id: str
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
@@ -247,8 +247,8 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType#request-body
     :type body: dict
     :param project_id: Optional, Google Cloud Platform Project ID where the Compute
-        Engine Instance exists. If set to None or missing, the default project_id from the GCP connection
-        is used.
+        Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
     :type project_id: str
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.
@@ -406,8 +406,8 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         provide the whole target array as patch element.
     :type body_patch: dict
     :param project_id: Optional, Google Cloud Platform Project ID where the Compute
-        Engine Instance exists.  If set to None or missing, the default project_id from the GCP connection
-        is used.
+        Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
     :type project_id: str
     :param request_id: Optional, unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
@@ -543,8 +543,8 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
     :param destination_template: URL of the target template.
     :type destination_template: str
     :param project_id: Optional, Google Cloud Platform Project ID where the Compute
-        Engine Instance exists.  If set to None or missing, the default project_id from the GCP connection is
-        used.
+        Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
     :type project_id: str
     :param request_id: Optional, unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request

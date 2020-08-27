@@ -56,7 +56,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.Instance`
     :type instance: Union[Dict, google.cloud.redis_v1.types.Instance]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -146,7 +146,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
     :param instance: The logical name of the Redis instance in the customer project.
     :type instance: str
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -238,7 +238,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.OutputConfig`
     :type output_config: Union[Dict, google.cloud.redis_v1.types.OutputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -331,7 +331,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         unspecified, data protection mode will be LIMITED_DATA_LOSS by default.
     :type data_protection_mode: google.cloud.redis_v1.gapic.enums.FailoverInstanceRequest.DataProtectionMode
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -419,7 +419,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
     :param instance: The logical name of the Redis instance in the customer project.
     :type instance: str
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -512,7 +512,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.InputConfig`
     :type input_config: Union[Dict, google.cloud.redis_v1.types.InputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -604,7 +604,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         streaming is performed per-page, this determines the maximum number of resources in a page.
     :type page_size: int
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -706,8 +706,8 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
     :type location: str
     :param instance_id: The logical name of the Redis instance in the customer project.
     :type instance_id: str
-    :param project_id:  Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -801,8 +801,8 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
     :type location: str
     :param instance_id: The logical name of the Redis instance in the customer project.
     :type instance_id: str
-    :param project_id:  Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -914,7 +914,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.InputConfig`
     :type input_config: Union[Dict, google.cloud.redis_v1.types.InputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -1025,7 +1025,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.OutputConfig`
     :type output_config: Union[Dict, google.cloud.redis_v1.types.OutputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry

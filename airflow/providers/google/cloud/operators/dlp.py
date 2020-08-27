@@ -18,7 +18,7 @@
 
 # pylint: disable=R0913, C0302
 """
-This module contains various GCP Cloud DLP operators
+This module contains various Google Cloud DLP operators
 which allow you to perform basic operations using
 Cloud DLP.
 """
@@ -59,7 +59,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
     :type dlp_job_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default project_id
-        from the GCP connection is used.
+        from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -237,7 +237,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
 
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param inspect_job: (Optional) The configuration for the inspect job.
     :type inspect_job: dict or google.cloud.dlp_v2.types.InspectJobConfig
@@ -447,7 +447,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
 
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param job_trigger: (Optional) The JobTrigger to create.
     :type job_trigger: dict or google.cloud.dlp_v2.types.JobTrigger
@@ -644,7 +644,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
 
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param deidentify_config: (Optional) Configuration for the de-identification of the
         content item. Items specified here will override the template referenced by the
@@ -842,7 +842,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
     :type dlp_job_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -1007,7 +1007,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
     :type job_trigger_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -1258,7 +1258,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
     :type dlp_job_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -1423,7 +1423,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
     :type job_trigger_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -1587,7 +1587,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
 
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param inspect_config: (Optional) Configuration for the inspector. Items specified
         here will override the template referenced by the inspect_template_name argument.
@@ -1772,7 +1772,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
 
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param results_filter: (Optional) Filter used to specify a subset of results.
     :type results_filter: str
@@ -2037,7 +2037,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
 
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param page_size: (Optional) The maximum number of resources contained in the
         underlying API response.
@@ -2220,7 +2220,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
 
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param inspect_config: (Optional) Configuration for the inspector. Items specified
         here will override the template referenced by the inspect_template_name argument.
@@ -2321,7 +2321,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
 
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param reidentify_config: (Optional) Configuration for the re-identification of
         the content item.
@@ -2626,7 +2626,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
     :type job_trigger_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. If set to None or missing, the default
-        project_id from the GCP connection is used.
+        project_id from the Google Cloud connection is used.
     :type project_id: str
     :param job_trigger: New JobTrigger value.
     :type job_trigger: dict or google.cloud.dlp_v2.types.JobTrigger

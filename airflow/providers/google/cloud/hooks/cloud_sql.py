@@ -113,15 +113,15 @@ class CloudSQLHook(GoogleBaseHook):
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: A Cloud SQL instance resource.
         :rtype: dict
         """
         return (
-            self.get_conn()
+            self.get_conn()  # noqa # pylint: disable=no-member
             .instances()
-            .get(project=project_id, instance=instance)  # noqa # pylint: disable=no-member
+            .get(project=project_id, instance=instance)
             .execute(num_retries=self.num_retries)
         )
 
@@ -135,14 +135,14 @@ class CloudSQLHook(GoogleBaseHook):
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert#request-body.
         :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
         response = (
-            self.get_conn()
+            self.get_conn()  # noqa # pylint: disable=no-member
             .instances()
-            .insert(project=project_id, body=body)  # noqa # pylint: disable=no-member
+            .insert(project=project_id, body=body)
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
@@ -163,14 +163,14 @@ class CloudSQLHook(GoogleBaseHook):
         :param instance: Cloud SQL instance ID. This does not include the project ID.
         :type instance: str
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
         response = (
-            self.get_conn()
+            self.get_conn()  # noqa # pylint: disable=no-member
             .instances()
-            .patch(project=project_id, instance=instance, body=body)  # noqa # pylint: disable=no-member
+            .patch(project=project_id, instance=instance, body=body)
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
@@ -183,16 +183,16 @@ class CloudSQLHook(GoogleBaseHook):
         Deletes a Cloud SQL instance.
 
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param instance: Cloud SQL instance ID. This does not include the project ID.
         :type instance: str
         :return: None
         """
         response = (
-            self.get_conn()
+            self.get_conn()  # noqa # pylint: disable=no-member
             .instances()
-            .delete(project=project_id, instance=instance,)  # noqa # pylint: disable=no-member
+            .delete(project=project_id, instance=instance)
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
@@ -208,16 +208,16 @@ class CloudSQLHook(GoogleBaseHook):
         :param database: Name of the database in the instance.
         :type database: str
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: A Cloud SQL database resource, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases#resource.
         :rtype: dict
         """
         return (
-            self.get_conn()
+            self.get_conn()  # noqa # pylint: disable=no-member
             .databases()
-            .get(project=project_id, instance=instance, database=database)  # noqa # pylint: disable=no-member
+            .get(project=project_id, instance=instance, database=database)
             .execute(num_retries=self.num_retries)
         )
 
@@ -233,14 +233,14 @@ class CloudSQLHook(GoogleBaseHook):
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
         :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
         response = (
-            self.get_conn()
+            self.get_conn()  # noqa # pylint: disable=no-member
             .databases()
-            .insert(project=project_id, instance=instance, body=body)  # noqa # pylint: disable=no-member
+            .insert(project=project_id, instance=instance, body=body)
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
@@ -263,16 +263,14 @@ class CloudSQLHook(GoogleBaseHook):
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
         :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
         response = (
-            self.get_conn()
+            self.get_conn()  # noqa # pylint: disable=no-member
             .databases()
-            .patch(  # noqa # pylint: disable=no-member
-                project=project_id, instance=instance, database=database, body=body
-            )
+            .patch(project=project_id, instance=instance, database=database, body=body)
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
@@ -289,16 +287,14 @@ class CloudSQLHook(GoogleBaseHook):
         :param database: Name of the database to be deleted in the instance.
         :type database: str
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
         response = (
-            self.get_conn()
+            self.get_conn()  # noqa # pylint: disable=no-member
             .databases()
-            .delete(  # noqa # pylint: disable=no-member
-                project=project_id, instance=instance, database=database
-            )
+            .delete(project=project_id, instance=instance, database=database)
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
@@ -318,14 +314,14 @@ class CloudSQLHook(GoogleBaseHook):
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
         :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
         response = (
-            self.get_conn()
+            self.get_conn()  # noqa # pylint: disable=no-member
             .instances()
-            .export(project=project_id, instance=instance, body=body)  # noqa # pylint: disable=no-member
+            .export(project=project_id, instance=instance, body=body)
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
@@ -344,15 +340,15 @@ class CloudSQLHook(GoogleBaseHook):
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
         :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
         try:
             response = (
-                self.get_conn()
+                self.get_conn()  # noqa # pylint: disable=no-member
                 .instances()
-                .import_(project=project_id, instance=instance, body=body)  # noqa # pylint: disable=no-member
+                .import_(project=project_id, instance=instance, body=body)
                 .execute(num_retries=self.num_retries)
             )
             operation_name = response["name"]
@@ -374,8 +370,8 @@ class CloudSQLHook(GoogleBaseHook):
         service = self.get_conn()
         while True:
             operation_response = (
-                service.operations()
-                .get(project=project_id, operation=operation_name,)  # noqa # pylint: disable=no-member
+                service.operations()  # noqa # pylint: disable=no-member
+                .get(project=project_id, operation=operation_name)
                 .execute(num_retries=self.num_retries)
             )
             if operation_response.get("status") == CloudSqlOperationStatus.DONE:
@@ -405,7 +401,7 @@ class CloudSqlProxyRunner(LoggingMixin):
     The cloud-sql-proxy needs to be downloaded and started before we can connect
     to the Google Cloud SQL instance via database connection. It establishes
     secure tunnel connection to the database. It authorizes using the
-    GCP credentials that are passed by the configuration.
+    Google Cloud credentials that are passed by the configuration.
 
     More details about the proxy can be found here:
     https://cloud.google.com/sql/docs/mysql/sql-proxy
@@ -423,8 +419,8 @@ class CloudSqlProxyRunner(LoggingMixin):
     :param gcp_conn_id: Id of Google Cloud Platform connection to use for
         authentication
     :type gcp_conn_id: str
-    :param project_id: Optional id of the GCP project to connect to - it overwrites
-        default project id taken from the GCP connection.
+    :param project_id: Optional id of the Google Cloud project to connect to - it overwrites
+        default project id taken from the Google Cloud connection.
     :type project_id: str
     :param sql_proxy_version: Specific version of SQL proxy to download
         (for example 'v1.13'). By default latest version is downloaded.
@@ -529,8 +525,8 @@ class CloudSqlProxyRunner(LoggingMixin):
             if not project_id:
                 raise AirflowException(
                     "For forwarding all instances, the project id "
-                    "for GCP should be provided either "
-                    "by project_id extra in the GCP connection or by "
+                    "for Google Cloud should be provided either "
+                    "by project_id extra in the Google Cloud connection or by "
                     "project_id provided in the operator."
                 )
             credential_params.extend(['-projects', project_id])

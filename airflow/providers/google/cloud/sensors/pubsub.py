@@ -53,7 +53,7 @@ class PubSubPullSensor(BaseSensorOperator):
     ``project`` and ``subscription`` are templated so you can use
     variables in them.
 
-    :param project: the GCP project ID for the subscription (templated)
+    :param project: the Google Cloud project ID for the subscription (templated)
     :type project: str
     :param subscription: the Pub/Sub subscription name. Do not include the
         full subscription path.

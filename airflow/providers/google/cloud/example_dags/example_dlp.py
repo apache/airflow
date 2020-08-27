@@ -18,10 +18,10 @@
 
 """
 Example Airflow DAG that execute the following tasks using
-Cloud DLP service in the Google Cloud Platform:
+Cloud DLP service in the Google Cloud:
 1) Creating a content inspect template;
 2) Using the created template to inspect content;
-3) Deleting the template from GCP .
+3) Deleting the template from Google Cloud .
 """
 
 import os

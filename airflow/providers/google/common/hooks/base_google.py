@@ -368,7 +368,7 @@ class GoogleBaseHook(BaseHook):
                 raise AirflowException(
                     "The project id must be passed either as "
                     "keyword project_id parameter or as project_id extra "
-                    "in GCP connection definition. Both are not set!"
+                    "in Google Cloud connection definition. Both are not set!"
                 )
             return func(self, *args, **kwargs)
 
@@ -377,7 +377,7 @@ class GoogleBaseHook(BaseHook):
     @staticmethod
     def provide_gcp_credential_file(func: T) -> T:
         """
-        Function decorator that provides a GCP credentials for application supporting Application
+        Function decorator that provides a Google Cloud credentials for application supporting Application
         Default Credentials (ADC) strategy.
 
         It is recommended to use ``provide_gcp_credential_file_as_context`` context manager to limit the
@@ -395,7 +395,7 @@ class GoogleBaseHook(BaseHook):
     @contextmanager
     def provide_gcp_credential_file_as_context(self):
         """
-        Context manager that provides a GCP credentials for application supporting `Application
+        Context manager that provides a Google Cloud credentials for application supporting `Application
         Default Credentials (ADC) strategy <https://cloud.google.com/docs/authentication/production>`__.
 
         It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
@@ -432,7 +432,7 @@ class GoogleBaseHook(BaseHook):
         """
         Provides a separate gcloud configuration with current credentials.
 
-        The gcloud allows you to login to GCP only - ``gcloud auth login`` and
+        The gcloud tool allows you to login to Google Cloud only - ``gcloud auth login`` and
         for the needs of Application Default Credentials ``gcloud auth application-default login``.
         In our case, we want all commands to use only the credentials from ADCm so
         we need to configure the credentials in gcloud manually.

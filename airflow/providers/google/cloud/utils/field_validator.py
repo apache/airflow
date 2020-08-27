@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Validator for body fields sent via GCP API.
+"""Validator for body fields sent via Google Cloud API.
 
 The validator performs validation of the body (being dictionary of fields) that
 is sent in the API request to Google Cloud (via googleclient API usually).
@@ -23,7 +23,7 @@ is sent in the API request to Google Cloud (via googleclient API usually).
 Context
 -------
 The specification mostly focuses on helping Airflow DAG developers in the development
-phase. You can build your own GCP operator (such as GcfDeployOperator for example) which
+phase. You can build your own Google Cloud operator (such as GcfDeployOperator for example) which
 can have built-in validation specification for the particular API. It's super helpful
 when developer plays with different fields and their values at the initial phase of
 DAG development. Most of the Google Cloud APIs perform their own validation on the

@@ -91,7 +91,7 @@ class LifeSciencesHook(GoogleBaseHook):
         :param location: The location of the project. For example: "us-east1".
         :type location: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :rtype: dict
         """
@@ -120,7 +120,7 @@ class LifeSciencesHook(GoogleBaseHook):
 
         :param project_id: Optional, Google Cloud Project project_id where the
             function belongs. If set to None or missing, the default project_id
-            from the GCP connection is used.
+            from the Google Cloud connection is used.
         :type project_id: str
         :param location: The location of the project. For example: "us-east1".
         :type location: str

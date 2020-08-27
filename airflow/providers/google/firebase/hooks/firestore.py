@@ -103,7 +103,7 @@ class CloudFirestoreHook(GoogleBaseHook):
             https://firebase.google.com/docs/firestore/reference/rest/v1beta1/projects.databases/exportDocuments
         :type body: dict
         :param project_id: Optional, Google Cloud Project project_id where the database belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         """
         service = self.get_conn()

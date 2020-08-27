@@ -87,7 +87,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type resource_id: str
         :param project_id: Optional, Google Cloud Platform project ID where the
             Compute Engine Instance exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
@@ -118,7 +118,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type resource_id: str
         :param project_id: Optional, Google Cloud Platform project ID where the
             Compute Engine Instance exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
@@ -153,7 +153,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type body: dict
         :param project_id: Optional, Google Cloud Platform project ID where the
             Compute Engine Instance exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
@@ -185,7 +185,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type resource_id: str
         :param project_id: Optional, Google Cloud Platform project ID where the
             Compute Engine Instance exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: Instance template representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
@@ -218,7 +218,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type request_id: str
         :param project_id: Optional, Google Cloud Platform project ID where the
             Compute Engine Instance exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
@@ -249,7 +249,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type resource_id: str
         :param project_id: Optional, Google Cloud Platform project ID where the
             Compute Engine Instance exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: Instance group manager representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers
@@ -287,7 +287,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type request_id: str
         :param project_id: Optional, Google Cloud Platform project ID where the
             Compute Engine Instance exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """

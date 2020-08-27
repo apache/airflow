@@ -15,17 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sanitizer for body fields sent via GCP API.
+"""Sanitizer for body fields sent via Google Cloud API.
 
 The sanitizer removes fields specified from the body.
 
 Context
 -------
-In some cases where GCP operation requires modification of existing resources (such
+In some cases where Google Cloud operation requires modification of existing resources (such
 as instances or instance templates) we need to sanitize body of the resources returned
-via GCP APIs. This is in the case when we retrieve information from GCP first,
+via Google Cloud APIs. This is in the case when we retrieve information from Google Cloud first,
 modify the body and either update the existing resource or create a new one with the
-modified body. Usually when you retrieve resource from GCP you get some extra fields which
+modified body. Usually when you retrieve resource from Google Cloud you get some extra fields which
 are Output-only, and we need to delete those fields if we want to use
 the body as input for subsequent create/insert type operation.
 

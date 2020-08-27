@@ -361,7 +361,7 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
     :param job_name: (Required) Name of the TRANSFER operation
     :type job_name: str
     :param project_id: (Optional) the ID of the project that owns the Transfer
-        Job. If set to None or missing, the default project_id from the GCP
+        Job. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud
@@ -760,7 +760,7 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
 class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     """
     Synchronizes an S3 bucket with a Google Cloud Storage bucket using the
-    GCP Storage Transfer Service.
+    Google Cloud Storage Transfer Service.
 
     .. warning::
 
@@ -914,8 +914,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
 
 class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     """
-    Copies objects from a bucket to another using the GCP Storage Transfer
-    Service.
+    Copies objects from a bucket to another using the Google Cloud Storage Transfer Service.
 
     .. warning::
 

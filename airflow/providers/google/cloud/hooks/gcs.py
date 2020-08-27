@@ -690,7 +690,7 @@ class GCSHook(GoogleBaseHook):
                 https://developers.google.com/storage/docs/bucket-locations
 
         :type location: str
-        :param project_id: The ID of the GCP Project.
+        :param project_id: The ID of the Google Cloud Project.
         :type project_id: str
         :param labels: User-provided labels, in key/value pairs.
         :type labels: dict

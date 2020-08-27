@@ -93,10 +93,10 @@ class VaultHook(BaseHook):
     :param token_path: path to file containing authentication token to include in requests sent to Vault
         (for ``token`` and ``github`` auth_type).
     :type token_path: str
-    :param gcp_key_path: Path to GCP Credential JSON file (for ``gcp`` auth_type)
+    :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type)
            Mutually exclusive with gcp_keyfile_dict
     :type gcp_key_path: str
-    :param gcp_scopes: Comma-separated string containing GCP scopes (for ``gcp`` auth_type)
+    :param gcp_scopes: Comma-separated string containing OAuth2  scopes (for ``gcp`` auth_type)
     :type gcp_scopes: str
     :param azure_tenant_id: The tenant id for the Azure Active Directory (for ``azure`` auth_type)
     :type azure_tenant_id: str

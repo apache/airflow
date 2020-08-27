@@ -307,7 +307,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             raise AirflowException(
                 "The project id must be passed either as "
                 "keyword project_id parameter or as project_id extra "
-                "in GCP connection definition. Both are not set!"
+                "in Google Cloud connection definition. Both are not set!"
             )
 
         # Write config to a temp file and set the environment variable to point to it.

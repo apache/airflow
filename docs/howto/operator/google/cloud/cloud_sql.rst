@@ -44,7 +44,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
     :language: python
@@ -89,7 +89,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
     :language: python
@@ -129,7 +129,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
     :language: python
@@ -176,7 +176,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
     :language: python
@@ -237,7 +237,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
     :language: python
@@ -263,7 +263,7 @@ See Google Cloud SQL API documentation to `export data
 Troubleshooting
 """""""""""""""
 
-If you receive an "Unauthorized" error in GCP, make sure that the service account
+If you receive an "Unauthorized" error in Google Cloud, make sure that the service account
 of the Cloud SQL instance is authorized to write to the selected GCS bucket.
 
 It is not the service account configured in Airflow that communicates with GCS,
@@ -322,7 +322,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
     :language: python
@@ -348,7 +348,7 @@ See Google Cloud SQL API documentation to `import data
 Troubleshooting
 """""""""""""""
 
-If you receive an "Unauthorized" error in GCP, make sure that the service account
+If you receive an "Unauthorized" error in Google Cloud, make sure that the service account
 of the Cloud SQL instance is authorized to read from the selected GCS object.
 
 It is not the service account configured in Airflow that communicates with GCS,
@@ -403,7 +403,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
     :language: python
@@ -454,7 +454,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_sql.py
     :language: python

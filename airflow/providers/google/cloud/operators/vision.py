@@ -55,7 +55,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
         (as of 2019-02-05) are: us-east1, us-west1, europe-west1, asia-east1
     :type location: str
     :param project_id: (Optional) The project in which the ProductSet should be created. If set to None or
-        missing, the default project_id from the GCP connection is used.
+        missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param product_set_id: (Optional) A user-supplied resource id for this ProductSet.
         If set, the server will attempt to use this value as the resource id. If it is
@@ -154,7 +154,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
     :param product_set_id: (Required) The resource id of this ProductSet.
     :type product_set_id: str
     :param project_id: (Optional) The project in which the ProductSet is located. If set
-        to None or missing, the default `project_id` from the GCP connection is used.
+        to None or missing, the default `project_id` from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
@@ -253,7 +253,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
     :param product_set_id: (Optional) The resource id of this ProductSet.
     :type product_set_id: str
     :param project_id: (Optional) The project in which the ProductSet should be created. If set to None or
-        missing, the default project_id from the GCP connection is used.
+        missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param update_mask: (Optional) The `FieldMask` that specifies which fields to update. If update_mask
         isn’t specified, all mutable fields are to be updated. Valid mask path is display_name. If a dict is
@@ -349,7 +349,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
     :param product_set_id: (Required) The resource id of this ProductSet.
     :type product_set_id: str
     :param project_id: (Optional) The project in which the ProductSet should be created.
-        If set to None or missing, the default project_id from the GCP connection is used.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
@@ -440,7 +440,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
         the protobuf message `Product`.
     :type product: dict or google.cloud.vision_v1.types.Product
     :param project_id: (Optional) The project in which the Product should be created. If set to None or
-        missing, the default project_id from the GCP connection is used.
+        missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param product_id: (Optional) A user-supplied resource id for this Product.
         If set, the server will attempt to use this value as the resource id. If it is
@@ -542,7 +542,7 @@ class CloudVisionGetProductOperator(BaseOperator):
     :param product_id: (Required) The resource id of this Product.
     :type product_id: str
     :param project_id: (Optional) The project in which the Product is located. If set to
-        None or missing, the default project_id from the GCP connection is used.
+        None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
@@ -651,7 +651,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
     :param product_id: (Optional) The resource id of this Product.
     :type product_id: str
     :param project_id: (Optional) The project in which the Product is located. If set to None or
-        missing, the default project_id from the GCP connection is used.
+        missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param update_mask: (Optional) The `FieldMask` that specifies which fields to update. If update_mask
         isn’t specified, all mutable fields are to be updated. Valid mask paths include product_labels,
@@ -753,7 +753,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
     :param product_id: (Required) The resource id of this Product.
     :type product_id: str
     :param project_id: (Optional) The project in which the Product is located. If set to None or
-        missing, the default project_id from the GCP connection is used.
+        missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
@@ -919,7 +919,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
     :param product_id: (Optional) The resource id of this Product.
     :type product_id: str
     :param project_id: (Optional) The project in which the Product is located. If set to None or
-        missing, the default project_id from the GCP connection is used.
+        missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
@@ -1025,7 +1025,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
     :param product_id: (Optional) The resource id of this Product.
     :type product_id: str
     :param project_id: (Optional) The project in which the Product is located. If set to None or
-        missing, the default project_id from the GCP connection is used.
+        missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
@@ -1121,7 +1121,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
         are: us-east1, us-west1, europe-west1, asia-east1
     :type: str
     :param project_id: (Optional) The project in which the Product is located. If set to None or
-        missing, the default project_id from the GCP connection is used.
+        missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
@@ -1211,7 +1211,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
         are: us-east1, us-west1, europe-west1, asia-east1
     :type: str
     :param project_id: (Optional) The project in which the Product is located. If set to None or
-        missing, the default project_id from the GCP connection is used.
+        missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests. If `None` is
         specified, requests will not be retried.

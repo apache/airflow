@@ -623,8 +623,8 @@
       default: ""
     - name: google_key_path
       description: |
-        Path to GCP Credential JSON file. If omitted, authorization based on `the Application Default
-        Credentials
+        Path to Google Cloud Service Account key file (JSON). If omitted, authorization based on
+        `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
       type: string

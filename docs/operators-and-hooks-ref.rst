@@ -567,7 +567,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * -
        .. _integration:AWS-Discovery-ref:
 
-       All GCP services :ref:`[1] <integration:GCP-Discovery>`
+       All Google Cloud services :ref:`[1] <integration:GCP-Discovery>`
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - :doc:`How to use <howto/operator/amazon/aws/google_api_to_s3_transfer>`
      - :mod:`airflow.providers.amazon.aws.transfers.google_api_to_s3`
@@ -646,8 +646,8 @@ These integrations allow you to copy data from/to Amazon Web Services.
 :ref:`[1] <integration:AWS-Discovery-ref>` Those discovery-based operators use
 :class:`~airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
 Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
-Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
-Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
+Please note that this library is in maintenance mode hence it won't fully support Google Cloud in the future.
+Therefore it is recommended that you use the custom Google Cloud Service Operators for working with the Google
 Cloud Platform.
 
 .. _Google:
@@ -660,15 +660,15 @@ Airflow has support for the `Google service <https://developer.google.com/>`__.
 All hooks are based on :class:`airflow.providers.google.common.hooks.base_google.GoogleBaseHook`. Some integration
 also use :mod:`airflow.providers.google.common.hooks.discovery_api`.
 
-See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
+See the :doc:`Google Cloud connection type <howto/connection/gcp>` documentation to
 configure connections to Google services.
 
 .. _GCP:
 
-GCP: Google Cloud Platform
-''''''''''''''''''''''''''
+Google Cloud
+''''''''''''
 
-Airflow has extensive support for the `Google Cloud Platform <https://cloud.google.com/>`__.
+Airflow has extensive support for the `Google Cloud <https://cloud.google.com/>`__.
 
 .. note::
     You can learn how to use Google Cloud Platform integrations by analyzing the
