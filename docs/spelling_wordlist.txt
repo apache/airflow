@@ -135,6 +135,7 @@ Fileshares
 Filesystem
 Firehose
 Firestore
+FluentD
 Fokko
 Formaturas
 Fundera
@@ -320,6 +321,7 @@ SparkPi
 SparkR
 SparkSQL
 SpeechClient
+Splunk
 Sql
 Sqlalchemy
 Sqlite
