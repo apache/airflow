@@ -450,7 +450,9 @@ class TestGoogleBaseHook(unittest.TestCase):
         with self.assertRaisesRegex(AirflowException, re.escape('Invalid key JSON.')):
             self.instance._get_credentials_and_project_id()
 
-    @unittest.skipIf(not default_creds_available, 'Default GCP credentials not available to run tests')
+    @unittest.skipIf(
+        not default_creds_available, 'Default Google Cloud credentials not available to run tests'
+    )
     def test_default_creds_with_scopes(self):
         self.instance.extras = {
             'extra__google_cloud_platform__project': default_project,
@@ -475,7 +477,9 @@ class TestGoogleBaseHook(unittest.TestCase):
         self.assertIn('https://www.googleapis.com/auth/bigquery', scopes)
         self.assertIn('https://www.googleapis.com/auth/devstorage.read_only', scopes)
 
-    @unittest.skipIf(not default_creds_available, 'Default GCP credentials not available to run tests')
+    @unittest.skipIf(
+        not default_creds_available, 'Default Google Cloud credentials not available to run tests'
+    )
     def test_default_creds_no_scopes(self):
         self.instance.extras = {'extra__google_cloud_platform__project': default_project}
 

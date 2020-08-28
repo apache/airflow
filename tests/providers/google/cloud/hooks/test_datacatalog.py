@@ -1163,8 +1163,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
 
 
 TEST_MESSAGE = re.escape(
-    "The project id must be passed either as keyword project_id parameter or as project_id extra in GCP "
-    "connection definition. Both are not set!"
+    "The project id must be passed either as keyword project_id parameter or as project_id extra in "
+    "Google Cloud connection definition. Both are not set!"
 )
 
 

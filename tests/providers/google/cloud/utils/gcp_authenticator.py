@@ -173,7 +173,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         Authenticate with service account specified via key name.
         """
         self._validate_key_set()
-        self.log.info("Setting the GCP key to %s", self.full_key_path)
+        self.log.info("Setting the Google Cloud key to %s", self.full_key_path)
         # Checking if we can authenticate using service account credentials provided
         self.execute_cmd(
             [
@@ -227,4 +227,4 @@ class GcpAuthenticator(LoggingCommandExecutor):
                 ]
             )
         else:
-            self.log.info("Not restoring the original GCP account: it is not set")
+            self.log.info("Not restoring the original Google Cloud account: it is not set")
