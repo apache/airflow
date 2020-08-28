@@ -19,7 +19,9 @@
 
 
 How To Cancel a Running Job
-=========================
+===========================
+.. toctree::
+   :maxdepth: 2
 
 The task can be marked as success or not failed from the web interface. When the task changes state, Airflow will execute the ``on_kill()`` method of the operator.
 For cases where the Airflow is running on local machine, clearing the tasks will not suffice and you have to kill the process instance in the remote machine.
