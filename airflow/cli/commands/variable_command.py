@@ -17,11 +17,13 @@
 # under the License.
 """Variable subcommands"""
 import json
-import os
 import sys
-from json import JSONDecodeError
 
+from sqlalchemy.exc import SQLAlchemyError
+
+from airflow.exceptions import AirflowException
 from airflow.models import Variable
+from airflow.secrets.local_filesystem import load_variables
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import create_session
 
@@ -66,42 +68,78 @@ def variables_delete(args):
     Variable.delete(args.key)
 
 
+DIS_RESTRICT = 'restrict'
+DIS_OVERWRITE = 'overwrite'
+DIS_IGNORE = 'ignore'
+CREATED = 'created'
+DISPOSITIONS = [DIS_RESTRICT, DIS_OVERWRITE, DIS_IGNORE]
+
+
+def _prep_import_status_msgs(var_status_map):
+    """Prepare import variable status messages"""
+    msg = "\n"
+    for status, vars_list in var_status_map.items():
+        if len(vars_list) == 0:
+            continue
+
+        msg = msg + status + " : \n\t"
+        for key in vars_list:
+            msg = msg + '\n\t{key}\n'.format(key=key)
+    return msg
+
+
 @cli_utils.action_logging
 def variables_import(args):
     """Imports variables from a given file"""
-    if os.path.exists(args.file):
-        _import_helper(args.file)
+
+    try:
+        vars_map = load_variables(args.file)
+    except AirflowException as e:
+        print(e)
+        return
+
+    if not args.conflict_disposition:
+        disposition = DIS_RESTRICT
     else:
-        print("Missing variables file.")
+        disposition = args.conflict_disposition
+
+    var_status_map = {
+        DIS_OVERWRITE: [],
+        DIS_IGNORE: [],
+        CREATED: []
+    }
+    try:
+        with create_session() as session:
+            for key, val in vars_map.items():
+                vars_row = Variable.get_variable_from_secrets(key)
+                if not vars_row:
+                    session.add(Variable(key=key, val=val))
+                    session.flush()
+                    var_status_map[CREATED].append(key)
+                elif disposition == DIS_OVERWRITE:
+                    Variable.set(key=key, value=val, session=session)
+                    session.flush()
+                    var_status_map[DIS_OVERWRITE].append(key)
+                elif disposition == DIS_IGNORE:
+                    var_status_map[DIS_IGNORE].append(key)
+                else:
+                    msg = "\nVariable with `key`={key} already exists"
+                    msg = msg.format(key=key)
+                    raise AirflowException(msg)
+
+            print(_prep_import_status_msgs(var_status_map))
+
+    except (SQLAlchemyError, AirflowException) as e:
+        print(e)
+        session.rollback()
+
+    finally:
+        session.close()
 
 
 def variables_export(args):
     """Exports all of the variables to the file"""
     _variable_export_helper(args.file)
-
-
-def _import_helper(filepath):
-    """Helps import variables from the file"""
-    with open(filepath, 'r') as varfile:
-        data = varfile.read()
-
-    try:
-        var_json = json.loads(data)
-    except JSONDecodeError:
-        print("Invalid variables file.")
-    else:
-        suc_count = fail_count = 0
-        for k, v in var_json.items():
-            try:
-                Variable.set(k, v, serialize_json=not isinstance(v, str))
-            except Exception as e:  # pylint: disable=broad-except
-                print('Variable import failed: {}'.format(repr(e)))
-                fail_count += 1
-            else:
-                suc_count += 1
-        print("{} of {} variables successfully updated.".format(suc_count, len(var_json)))
-        if fail_count:
-            print("{} variable(s) failed to be updated.".format(fail_count))
 
 
 def _variable_export_helper(filepath):

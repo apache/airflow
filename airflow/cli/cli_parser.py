@@ -388,8 +388,15 @@ ARG_JSON = Arg(
     help="Deserialize JSON variable",
     action="store_true")
 ARG_VAR_IMPORT = Arg(
-    ("file",),
-    help="Import variables from JSON file")
+    ('file',),
+    help='Import variables from a file. Acceptable file formats .json, .yaml, .env',
+    type=argparse.FileType('r'))
+
+ARG_VAR_CONFLICT_DISPOSITION = Arg(
+    ('--conflict-disposition',),
+    help=("Specifies the action that occurs if the variable already exists. Default value : restrict"),
+    choices=['overwrite', 'ignore', 'restrict'],
+    type=str)
 ARG_VAR_EXPORT = Arg(
     ("file",),
     help="Export all variables to JSON file")
@@ -642,7 +649,7 @@ ARG_CONN_IMPORT = Arg(
     ('file',),
     help='Import connections from a file. Acceptable file formats .json, .yaml, .env',
     type=argparse.FileType('r'))
-ARG_CONFLICT_DISPOSITION = Arg(
+ARG_CONN_CONFLICT_DISPOSITION = Arg(
     ('--conflict-disposition',),
     help=("Specifies the action that occurs if the connection already exists. Default value : restrict"),
     choices=['overwrite', 'ignore', 'restrict'],
@@ -1060,7 +1067,7 @@ VARIABLES_COMMANDS = (
         name='import',
         help='Import variables',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_import'),
-        args=(ARG_VAR_IMPORT,),
+        args=(ARG_VAR_IMPORT, ARG_VAR_CONFLICT_DISPOSITION),
     ),
     ActionCommand(
         name='export',
@@ -1136,7 +1143,7 @@ CONNECTIONS_COMMANDS = (
         name='import',
         help='Import connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_import'),
-        args=(ARG_CONN_IMPORT, ARG_CONFLICT_DISPOSITION),
+        args=(ARG_CONN_IMPORT, ARG_CONN_CONFLICT_DISPOSITION),
     ),
     ActionCommand(
         name='export',

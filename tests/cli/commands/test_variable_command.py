@@ -19,14 +19,36 @@
 import io
 import os
 import tempfile
-import unittest.mock
-from contextlib import redirect_stdout
+import unittest
+from contextlib import contextmanager, redirect_stdout
+from unittest import mock
+
+from parameterized import parameterized
 
 from airflow import models
 from airflow.cli import cli_parser
 from airflow.cli.commands import variable_command
 from airflow.models import Variable
 from tests.test_utils.db import clear_db_variables
+
+
+class TextIOWrapper(io.TextIOWrapper):
+    name = ''
+
+    def __init__(self, buffer, name=None, **kwargs):
+        self.name = name
+        print()
+        super().__init__(buffer, **kwargs)
+
+
+@contextmanager
+def mock_local_file(content, filename):
+    with mock.patch(
+        "airflow.secrets.local_filesystem.open", mock.mock_open(read_data=content)
+    ) as file_mock, mock.patch(
+            "airflow.cli.cli_parser.argparse.open",
+            return_value=TextIOWrapper(io.BytesIO(content.encode('ascii')), name=filename)):
+        yield file_mock
 
 
 class TestCliVariables(unittest.TestCase):
@@ -130,6 +152,87 @@ class TestCliVariables(unittest.TestCase):
         """Test variables_import command"""
         variable_command.variables_import(self.parser.parse_args([
             'variables', 'import', os.devnull]))
+
+    @parameterized.expand(
+        (
+            (
+                (
+                    '{"var_a" : "some_value"}',
+                    '{"var_a" : "some_other_value"}'
+                ),
+                {
+                    "key": "var_a",
+                    "val": "some_value"
+                }
+            ),
+        )
+    )
+    def test_variables_import_conflict_disposition_restrict(self, file_content, expected_value):
+        """Test variables_import command with --conflict-disposition restrict"""
+        with mock_local_file(file_content[0], 'a.json'):
+            variable_command.variables_import(self.parser.parse_args([
+                'variables', 'import', 'a.json']))
+
+        with mock_local_file(file_content[1], 'a.json'):
+            variable_command.variables_import(self.parser.parse_args([
+                'variables', 'import', 'a.json', '--conflict-disposition', 'restrict']))
+
+        var = Variable.get_variable_from_secrets(expected_value["key"])
+        self.assertEqual(var, expected_value["val"])
+
+    @parameterized.expand(
+        (
+            (
+                (
+                    '{"var_a" : "some_value"}',
+                    '{"var_a" : "some_other_value"}'
+                ),
+                {
+                    "key": "var_a",
+                    "val": "some_value"
+                }
+            ),
+        )
+    )
+    def test_variables_import_conflict_disposition_ignore(self, file_content, expected_value):
+        """Test variables_import command with --conflict-disposition ignore"""
+        with mock_local_file(file_content[0], 'a.json'):
+            variable_command.variables_import(self.parser.parse_args([
+                'variables', 'import', 'a.json']))
+
+        with mock_local_file(file_content[1], 'a.json'):
+            variable_command.variables_import(self.parser.parse_args([
+                'variables', 'import', 'a.json', '--conflict-disposition', 'ignore']))
+
+        var = Variable.get_variable_from_secrets(expected_value["key"])
+        self.assertEqual(var, expected_value["val"])
+
+    @parameterized.expand(
+        (
+            (
+                (
+                    '{"var_a" : "some_value"}',
+                    '{"var_a" : "some_other_value"}'
+                ),
+                {
+                    "key": "var_a",
+                    "val": "some_other_value"
+                }
+            ),
+        )
+    )
+    def test_variables_import_conflict_disposition_overwrite(self, file_content, expected_value):
+        """Test variables_import command with --conflict-disposition overwrite"""
+        with mock_local_file(file_content[0], 'a.json'):
+            variable_command.variables_import(self.parser.parse_args([
+                'variables', 'import', 'a.json']))
+
+        with mock_local_file(file_content[1], 'a.json'):
+            variable_command.variables_import(self.parser.parse_args([
+                'variables', 'import', 'a.json', '--conflict-disposition', 'overwrite']))
+
+        var = Variable.get_variable_from_secrets(expected_value["key"])
+        self.assertEqual(var, expected_value["val"])
 
     def test_variables_export(self):
         """Test variables_export command"""
