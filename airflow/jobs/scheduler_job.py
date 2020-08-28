@@ -827,7 +827,7 @@ class DagFileProcessor(LoggingMixin):
         self,
         file_path: str,
         failure_callback_requests: List[FailureCallbackRequest],
-        pickle_dags: bool = False,
+        pickle_dags: bool = False,  # pylint: disable=unused-argument
         session: Session = None
     ) -> Tuple[List[dict], int]:
         """
@@ -853,9 +853,11 @@ class DagFileProcessor(LoggingMixin):
         :param pickle_dags: whether serialize the DAGs found in the file and
             save them to the db
         :type pickle_dags: bool
+        :param session: Sqlalchemy ORM Session
+        :type session: Session
         :return: a tuple with list of SimpleDags made from the Dags found in the file and
             count of import errors.
-        :rtype: Tuple[List[SerializedDAG], int]
+        :rtype: Tuple[List[dict], int]
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
 
@@ -882,8 +884,7 @@ class DagFileProcessor(LoggingMixin):
         dagbag.sync_to_db()
 
         paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
-        # todo: remove the below line
-        print(pickle_dags)
+
         unpaused_dags: List[DAG] = [
             dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids
         ]
