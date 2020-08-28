@@ -990,7 +990,7 @@ class TaskInstance(Base, LoggingMixin):
                 task_copy.post_execute(context=context, result=result)
 
                 end_time = time.time()
-                duration = end_time - start_time
+                duration = timedelta(seconds=end_time - start_time)
                 Stats.timing(
                     'dag.{dag_id}.{task_id}.duration'.format(
                         dag_id=task_copy.dag_id,
