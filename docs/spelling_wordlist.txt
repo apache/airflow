@@ -139,7 +139,6 @@ FluentD
 Fokko
 Formaturas
 Fundera
-GCP
 GCS
 GH
 GSoD

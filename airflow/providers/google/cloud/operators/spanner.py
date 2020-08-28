@@ -45,11 +45,11 @@ class SpannerDeployInstanceOperator(BaseOperator):
       instance.
     :type node_count: int
     :param display_name: (Optional) The display name for the Cloud Spanner  instance in
-      the GCP Console. (Must be between 4 and 30 characters.) If this value is not set
+      the Google Cloud Console. (Must be between 4 and 30 characters.) If this value is not set
       in the constructor, the name is the same as the instance ID.
     :type display_name: str
     :param project_id: Optional, the ID of the project which owns the Cloud Spanner
-        Database.  If set to None or missing, the default project_id from the GCP connection is used.
+        Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
@@ -133,7 +133,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
-        Database.  If set to None or missing, the default project_id from the GCP connection is used.
+        Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
@@ -209,7 +209,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
        file.
     :type query: str or list
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
-        Database.  If set to None or missing, the default project_id from the GCP connection is used.
+        Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
@@ -316,7 +316,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
     :param ddl_statements: The string list containing DDL for the new database.
     :type ddl_statements: list[str]
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
-        Database.  If set to None or missing, the default project_id from the GCP connection is used.
+        Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
@@ -415,7 +415,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
     :param ddl_statements: The string list containing DDL to apply to the database.
     :type ddl_statements: list[str]
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
-        Database.  If set to None or missing, the default project_id from the GCP connection is used.
+        Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param operation_id: (Optional) Unique per database operation id that can
            be specified to implement idempotency check.
@@ -511,7 +511,7 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
     :param database_id: Cloud Spanner database ID.
     :type database_id: str
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
-        Database.  If set to None or missing, the default project_id from the GCP connection is used.
+        Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str

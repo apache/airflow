@@ -41,7 +41,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
     :type expected_statuses: set[str] or string
     :param project_id: (Optional) the ID of the project that owns the Transfer
-        Job. If set to None or missing, the default project_id from the GCP
+        Job. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud

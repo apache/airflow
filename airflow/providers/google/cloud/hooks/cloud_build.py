@@ -90,7 +90,7 @@ class CloudBuildHook(GoogleBaseHook):
             See: https://cloud.google.com/cloud-build/docs/api/reference/rest/v1/projects.builds
         :type body: dict
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: Dict
         """

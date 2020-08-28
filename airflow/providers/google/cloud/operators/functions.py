@@ -422,7 +422,7 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
     :param location: The location where the function is located.
     :type location: str
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-        If set to None or missing, the default project_id from the GCP connection is used.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

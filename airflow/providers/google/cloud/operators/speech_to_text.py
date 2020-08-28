@@ -45,8 +45,8 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/types.html#google.cloud.speech_v1.types.RecognitionAudio
     :type audio: dict or google.cloud.speech_v1.types.RecognitionAudio
     :param project_id: Optional, Google Cloud Platform Project ID where the Compute
-        Engine Instance exists.  If set to None or missing, the default project_id from the GCP connection is
-        used.
+        Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
     :type project_id: str
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
         Platform. Defaults to 'google_cloud_default'.

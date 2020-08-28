@@ -109,8 +109,8 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
         When defining labels (``labels`` option), you can also provide a dictionary.
     :type options: dict
-    :param project_id: Optional, the GCP project ID in which to start a job.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Optional, the Google Cloud project ID in which to start a job.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param location: Job location.
     :type location: str
@@ -293,8 +293,8 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     :type dataflow_default_options: dict
     :param parameters: Map of job specific parameters for the template.
     :type parameters: dict
-    :param project_id: Optional, the GCP project ID in which to start a job.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Optional, the Google Cloud project ID in which to start a job.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param location: Job location.
     :type location: str
@@ -496,8 +496,8 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         This option is only relevant if the ``py_requirements`` parameter is not None.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
-    :param project_id: Optional, the GCP project ID in which to start a job.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Optional, the Google Cloud project ID in which to start a job.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param location: Job location.
     :type location: str

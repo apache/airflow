@@ -750,7 +750,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         self.assertEqual(
             'The project id must be passed either as `projectId` key in `body` '
             'parameter or as project_id '
-            'extra in GCP connection definition. Both are not set!',
+            'extra in Google Cloud connection definition. Both are not set!',
             str(e.exception),
         )
 
@@ -773,7 +773,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
             )
         self.assertEqual(
             'The project id must be passed either as keyword project_id '
-            'parameter or as project_id extra in GCP connection definition. '
+            'parameter or as project_id extra in Google Cloud connection definition. '
             'Both are not set!',
             str(e.exception),
         )
@@ -802,7 +802,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
 
         self.assertEqual(
             'The project id must be passed either as `project_id` key in `filter` parameter or as '
-            'project_id extra in GCP connection definition. Both are not set!',
+            'project_id extra in Google Cloud connection definition. Both are not set!',
             str(e.exception),
         )
 
@@ -848,7 +848,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
 
         self.assertEqual(
             'The project id must be passed either as `projectId` key in `body` parameter or as project_id '
-            'extra in GCP connection definition. Both are not set!',
+            'extra in Google Cloud connection definition. Both are not set!',
             str(e.exception),
         )
 
@@ -869,7 +869,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
 
         self.assertEqual(
             'The project id must be passed either as keyword project_id parameter or as project_id extra in '
-            'GCP connection definition. Both are not set!',
+            'Google Cloud connection definition. Both are not set!',
             str(e.exception),
         )
 
@@ -897,6 +897,6 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
 
         self.assertEqual(
             'The project id must be passed either as `project_id` key in `filter` parameter or as project_id '
-            'extra in GCP connection definition. Both are not set!',
+            'extra in Google Cloud connection definition. Both are not set!',
             str(e.exception),
         )

@@ -58,7 +58,7 @@ class BigQueryToMySqlOperator(BaseOperator):
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :type selected_fields: str
-    :param gcp_conn_id: reference to a specific GCP hook.
+    :param gcp_conn_id: reference to a specific Google Cloud hook.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have

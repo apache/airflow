@@ -105,7 +105,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         :param body: The body required by the Cloud Functions insert API.
         :type body: dict
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """
@@ -150,7 +150,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         :param zip_path: The path of the valid .zip file to upload.
         :type zip_path: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: The upload URL that was returned by generateUploadUrl method.
         :rtype: str
@@ -203,7 +203,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         :param location: The location where the function is located.
         :type location: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :return: None
         """

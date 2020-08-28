@@ -16,7 +16,7 @@
 # under the License.
 
 """
-Objects relating to sourcing connections from GCP Secrets Manager
+Objects relating to sourcing connections from Google Cloud Secrets Manager
 """
 from typing import Optional
 
@@ -33,7 +33,7 @@ SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connection object from GCP Secrets Manager
+    Retrieves Connection object from Google Cloud Secrets Manager
 
     Configurable via ``airflow.cfg`` as follows:
 
@@ -57,12 +57,12 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
     :type variables_prefix: str
-    :param gcp_key_path: Path to GCP Credential JSON file. Mutually exclusive with gcp_keyfile_dict.
-        use default credentials in the current environment if not provided.
+    :param gcp_key_path: Path to Google Cloud Service Account key file (JSON). Mutually exclusive with
+        gcp_keyfile_dict. use default credentials in the current environment if not provided.
     :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. Mutually exclusive with gcp_key_path.
     :type gcp_keyfile_dict: dict
-    :param gcp_scopes: Comma-separated string containing GCP scopes
+    :param gcp_scopes: Comma-separated string containing OAuth2 scopes
     :type gcp_scopes: str
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.

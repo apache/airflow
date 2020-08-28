@@ -66,8 +66,8 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     :param main_cluster_zone: The zone for main cluster
         See https://cloud.google.com/bigtable/docs/locations for more details.
     :type project_id: str
-    :param project_id: Optional, the ID of the GCP project.  If set to None or missing,
-            the default project_id from the GCP connection is used.
+    :param project_id: Optional, the ID of the Google Cloud project.  If set to None or missing,
+            the default project_id from the Google Cloud connection is used.
     :type replica_clusters: List[Dict[str, str]]
     :param replica_clusters: (optional) A list of replica clusters for the new
         instance. Each cluster dictionary contains an id and a zone.
@@ -199,8 +199,8 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to update.
     :type project_id: str
-    :param project_id: Optional, the ID of the GCP project. If set to None or missing,
-            the default project_id from the GCP connection is used.
+    :param project_id: Optional, the ID of the Google Cloud project. If set to None or missing,
+            the default project_id from the Google Cloud connection is used.
     :type instance_display_name: str
     :param instance_display_name: (optional) Human-readable name of the instance.
     :type instance_type: enums.Instance.Type or enum.IntEnum
@@ -289,8 +289,8 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to delete.
-    :param project_id: Optional, the ID of the GCP project.  If set to None or missing,
-            the default project_id from the GCP connection is used.
+    :param project_id: Optional, the ID of the Google Cloud project.  If set to None or missing,
+            the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
     :type gcp_conn_id: str
@@ -361,8 +361,8 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
     :type table_id: str
     :param table_id: The ID of the table to be created.
     :type project_id: str
-    :param project_id: Optional, the ID of the GCP project. If set to None or missing,
-            the default project_id from the GCP connection is used.
+    :param project_id: Optional, the ID of the Google Cloud project. If set to None or missing,
+            the default project_id from the Google Cloud connection is used.
     :type initial_split_keys: list
     :param initial_split_keys: (Optional) list of row keys in bytes that will be used to
         initially split the table into several tablets.
@@ -475,8 +475,8 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
     :type table_id: str
     :param table_id: The ID of the table to be deleted.
     :type project_id: str
-    :param project_id: Optional, the ID of the GCP project. If set to None or missing,
-            the default project_id from the GCP connection is used.
+    :param project_id: Optional, the ID of the Google Cloud project. If set to None or missing,
+            the default project_id from the Google Cloud connection is used.
     :type app_profile_id: str
     :param app_profile_id: Application profile.
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
@@ -558,7 +558,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
     :type nodes: int
     :param nodes: The desired number of nodes for the Cloud Bigtable cluster.
     :type project_id: str
-    :param project_id: Optional, the ID of the GCP project.
+    :param project_id: Optional, the ID of the Google Cloud project.
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term

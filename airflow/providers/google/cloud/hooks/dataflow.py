@@ -481,8 +481,8 @@ class DataflowHook(GoogleBaseHook):
         :type job_name: str
         :param variables: Variables passed to the job.
         :type variables: dict
-        :param project_id: Optional, the GCP project ID in which to start a job.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :param jar: Name of the jar for the job
         :type job_class: str
         :param job_class: Name of the java class for the job.
@@ -546,8 +546,8 @@ class DataflowHook(GoogleBaseHook):
         :type parameters: dict
         :param dataflow_template: GCS path to the template.
         :type dataflow_template: str
-        :param project_id: Optional, the GCP project ID in which to start a job.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :param append_job_name: True if unique suffix has to be appended to job name.
         :type append_job_name: bool
         :param on_new_job_id_callback: Callback called when the job ID is known.
@@ -634,8 +634,8 @@ class DataflowHook(GoogleBaseHook):
         :type py_interpreter: str
         :param append_job_name: True if unique suffix has to be appended to job name.
         :type append_job_name: bool
-        :param project_id: Optional, the GCP project ID in which to start a job.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :param on_new_job_id_callback: Callback called when the job ID is known.
         :type on_new_job_id_callback: callable
         :param location: Job location.
@@ -751,8 +751,8 @@ class DataflowHook(GoogleBaseHook):
 
         :param name: The name of the job.
         :type name: str
-        :param project_id: Optional, the GCP project ID in which to start a job.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param location: Job location.
         :type location: str
@@ -794,8 +794,8 @@ class DataflowHook(GoogleBaseHook):
         :type job_id: str
         :param location: Job location.
         :type location: str
-        :param project_id: Optional, the GCP project ID in which to start a job.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id:
         """
         jobs_controller = _DataflowJobsController(

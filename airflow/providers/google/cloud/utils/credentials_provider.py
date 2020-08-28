@@ -55,7 +55,7 @@ def build_gcp_conn(
     :type key_file_path: Optional[str]
     :param scopes: Required OAuth scopes.
     :type scopes: Optional[List[str]]
-    :param project_id: The GCP project id to be used for the connection.
+    :param project_id: The Google Cloud project id to be used for the connection.
     :type project_id: Optional[str]
     :return: String representing Airflow connection.
     """
@@ -78,13 +78,13 @@ def build_gcp_conn(
 @contextmanager
 def provide_gcp_credentials(key_file_path: Optional[str] = None, key_file_dict: Optional[Dict] = None):
     """
-    Context manager that provides a GCP credentials for application supporting `Application
+    Context manager that provides a Google Cloud credentials for application supporting `Application
     Default Credentials (ADC) strategy <https://cloud.google.com/docs/authentication/production>`__.
 
     It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
     file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
 
-    :param key_file_path: Path to file with GCP credentials .json file.
+    :param key_file_path: Path to file with Google Cloud Service Account .json file.
     :type key_file_path: str
     :param key_file_dict: Dictionary with credentials.
     :type key_file_dict: Dict
@@ -117,11 +117,11 @@ def provide_gcp_connection(
     connection. It build a new connection that includes path to provided service json,
     required scopes and project id.
 
-    :param key_file_path: Path to file with GCP credentials .json file.
+    :param key_file_path: Path to file with Gooogle Cloud Service Account .json file.
     :type key_file_path: str
     :param scopes: OAuth scopes for the connection
     :type scopes: Sequence
-    :param project_id: The id of GCP project for the connection.
+    :param project_id: The id of Google Cloud project for the connection.
     :type project_id: str
     """
     if key_file_path and key_file_path.endswith(".p12"):
@@ -140,15 +140,15 @@ def provide_gcp_conn_and_credentials(
     """
     Context manager that provides both:
 
-    - GCP credentials for application supporting `Application Default Credentials (ADC)
-    strategy <https://cloud.google.com/docs/authentication/production>`__.
+    - Google Cloud credentials for application supporting `Application Default Credentials (ADC)
+      strategy <https://cloud.google.com/docs/authentication/production>`__.
     - temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT` connection
 
-    :param key_file_path: Path to file with GCP credentials .json file.
+    :param key_file_path: Path to file with Google Cloud Service Account .json file.
     :type key_file_path: str
     :param scopes: OAuth scopes for the connection
     :type scopes: Sequence
-    :param project_id: The id of GCP project for the connection.
+    :param project_id: The id of Google Cloud project for the connection.
     :type project_id: str
     """
     with ExitStack() as stack:
@@ -174,9 +174,9 @@ class _CredentialProvider(LoggingMixin):
     Only either `key_path` or `keyfile_dict` should be provided, or an exception will
     occur. If neither of them are provided, return default credentials for the current environment
 
-    :param key_path: Path to GCP Credential JSON file
+    :param key_path: Path to Google Cloud Service Account key file (JSON).
     :type key_path: str
-    :param keyfile_dict: A dict representing GCP Credential as in the Credential JSON file
+    :param keyfile_dict: A dict representing Cloud Service Account as in the Credential JSON file
     :type keyfile_dict: Dict[str, str]
     :param scopes:  OAuth scopes for the connection
     :type scopes: Collection[str]
@@ -309,10 +309,10 @@ def get_credentials_and_project_id(*args, **kwargs) -> Tuple[google.auth.credent
 
 def _get_scopes(scopes: Optional[str] = None) -> Sequence[str]:
     """
-    Parse a comma-separated string containing GCP scopes if `scopes` is provided.
+    Parse a comma-separated string containing OAuth2 scopes if `scopes` is provided.
     Otherwise, default scope will be returned.
 
-    :param scopes: A comma-separated string containing GCP scopes
+    :param scopes: A comma-separated string containing OAuth2 scopes
     :type scopes: Optional[str]
     :return: Returns the scope defined in the connection configuration, or the default scope
     :rtype: Sequence[str]

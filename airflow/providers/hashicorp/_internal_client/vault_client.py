@@ -84,13 +84,13 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
     :type kubernetes_jwt_path: str
-    :param gcp_key_path: Path to GCP Credential JSON file (for ``gcp`` auth_type).
+    :param gcp_key_path: Path to Google Cloud Service Account key file (JSON)  (for ``gcp`` auth_type).
            Mutually exclusive with gcp_keyfile_dict
     :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
            Mutually exclusive with gcp_key_path
     :type gcp_keyfile_dict: dict
-    :param gcp_scopes: Comma-separated string containing GCP scopes (for ``gcp`` auth_type).
+    :param gcp_scopes: Comma-separated string containing OAuth2 scopes (for ``gcp`` auth_type).
     :type gcp_scopes: str
     :param azure_tenant_id: The tenant id for the Azure Active Directory (for ``azure`` auth_type).
     :type azure_tenant_id: str
