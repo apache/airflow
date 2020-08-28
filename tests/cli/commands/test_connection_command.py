@@ -719,9 +719,3 @@ class TestCliImportConnections(unittest.TestCase):
         with create_session() as session:
             current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
             self.assertEqual(expected_connection_uris, current_conn.get_uri())
-
-    def test_connections_import_missing_file(self):
-        """Test connections_import command with missing file"""
-        with self.assertRaises(SystemExit):
-            connection_command.connections_import(self.parser.parse_args([
-                'connections', 'import', 'a.json', '--conflict-disposition', 'overwrite']))
