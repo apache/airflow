@@ -19,7 +19,7 @@ import inspect
 import unittest
 from datetime import datetime
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import call, MagicMock, Mock
 
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -212,6 +212,12 @@ class DataprocTestBase(unittest.TestCase):
         cls.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
         cls.mock_ti = MagicMock()
         cls.mock_context = {"ti": cls.mock_ti}
+        cls.extra_links_expected_calls = [
+            call.ti.xcom_push(execution_date=None, key='job_conf', value=DATAPROC_JOB_CONF_EXPECTED),
+            call.hook().wait_for_job(job_id=TEST_JOB_ID, location=GCP_LOCATION, project_id=GCP_PROJECT),
+        ]
+        cls.extra_links_manager_mock = Mock()
+        cls.extra_links_manager_mock.attach_mock(cls.mock_ti, 'ti')
 
     @classmethod
     def tearDownClass(cls):
@@ -709,6 +715,7 @@ class TestDataprocSubmitJobOperator(DataprocTestBase):
         job = {}
         mock_hook.return_value.wait_for_job.return_value = None
         mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
 
         op = DataprocSubmitJobOperator(
             task_id=TASK_ID,
@@ -724,7 +731,12 @@ class TestDataprocSubmitJobOperator(DataprocTestBase):
         )
         op.execute(context=self.mock_context)
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        # Test whether xcom push occurs before polling for job
+        self.extra_links_manager_mock.assert_has_calls(self.extra_links_expected_calls, any_order=False)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -1252,6 +1264,7 @@ class TestDataProcSparkOperator(DataprocTestBase):
         mock_hook.return_value.project_id = GCP_PROJECT
         mock_uuid.return_value = TEST_JOB_ID
         mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
 
         op = DataprocSubmitSparkJobOperator(
             task_id=TASK_ID,
@@ -1267,6 +1280,9 @@ class TestDataProcSparkOperator(DataprocTestBase):
         self.mock_ti.xcom_push.assert_called_once_with(
             key="job_conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
         )
+
+        # Test whether xcom push occurs before polling for job
+        self.extra_links_manager_mock.assert_has_calls(self.extra_links_expected_calls, any_order=False)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_operator_extra_links(self, mock_hook):

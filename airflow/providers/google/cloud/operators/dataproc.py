@@ -1076,6 +1076,7 @@ class DataprocJobBaseOperator(BaseOperator):
             )
             job_id = job_object.reference.job_id
             self.log.info('Job %s submitted successfully.', job_id)
+            # XCom push is referenced by extra links and has to be pushed before polling for job completion
             self.xcom_push(context, key='job_conf', value={
                 'job_id': job_id,
                 'region': self.region,
@@ -1087,7 +1088,6 @@ class DataprocJobBaseOperator(BaseOperator):
                 self.hook.wait_for_job(job_id=job_id, location=self.region, project_id=self.project_id)
                 self.log.info('Job %s completed successfully.', job_id)
             return job_id
-
         else:
             raise AirflowException("Create a job template before")
 
@@ -2001,6 +2001,12 @@ class DataprocSubmitJobOperator(BaseOperator):
         )
         job_id = job_object.reference.job_id
         self.log.info('Job %s submitted successfully.', job_id)
+        # XCom job_conf is referenced by extra links and has be pushed before we poll for job completion
+        self.xcom_push(
+            context,
+            key="job_conf",
+            value={"job_id": job_id, "region": self.location, "project_id": self.project_id,},
+        )
 
         if not self.asynchronous:
             self.log.info('Waiting for job %s to complete', job_id)
@@ -2015,12 +2021,6 @@ class DataprocSubmitJobOperator(BaseOperator):
     def on_kill(self):
         if self.job_id and self.cancel_on_kill:
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
-
-        self.xcom_push(
-            context,
-            key="job_conf",
-            value={"job_id": job_id, "region": self.location, "project_id": self.project_id,},
-        )
 
 
 class DataprocUpdateClusterOperator(BaseOperator):
