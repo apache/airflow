@@ -179,7 +179,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     }
 
     BASE_PERMS = {
-        'can_index'
+        'menu_access',
+        'can_index',
         'can_last_dagruns',
         'can_dag_stats',
         'can_blocked',
@@ -187,9 +188,15 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     }
 
     MAINTAIN_PERMS = {
-        'menu_access',
         'can_list',
         'can_show',
+        'can_add',
+        'can_edit',
+        'can_delete',
+        'muldelete',
+        'set_failed',
+        'set_running',
+        'set_success',
     }
 
     MAINTAIN_VMS = {
@@ -248,8 +255,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         },
         {
             'role': '运维人员',
-            'perms': BASE_PERMS | MAINTAIN_PERMS,
-            'vms': BASE_VMS
+            'perms': BASE_PERMS | MAINTAIN_PERMS | DAG_PERMS | VIEWER_PERMS | OP_PERMS | USER_PERMS,
+            'vms': BASE_VMS | MAINTAIN_VMS | DAG_VMS | VIEWER_VMS | OP_VMS
         },
     ]
 
