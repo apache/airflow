@@ -48,6 +48,24 @@ MOCK_COMMANDS: List[CLICommand] = [
             ),
         ],
     ),
+    GroupCommand(
+        name='cmd_e',
+        help='Help text E',
+        subcommands=[
+            ActionCommand(
+                name='cmd_f',
+                help='Help text F',
+                func=noop,
+                args=(),
+            ),
+            ActionCommand(
+                name='cmd_g',
+                help='Help text G',
+                func=noop,
+                args=(),
+            ),
+        ],
+    ),
     ActionCommand(
         name='cmd_b',
         help='Help text D',
@@ -65,6 +83,11 @@ Help text A
 
   airflow cmd_a cmd_b - Help text B
   airflow cmd_a cmd_c - Help text C
+
+Help text E
+
+  airflow cmd_e cmd_f - Help text F
+  airflow cmd_e cmd_g - Help text G
 """
 
 

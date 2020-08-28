@@ -44,7 +44,8 @@ def display_commands_index():
     def display_recursive(prefix: List[str], commands: Iterable[Union[GroupCommand, ActionCommand]]):
         actions: List[ActionCommand]
         groups: List[GroupCommand]
-        actions, groups = partition(lambda x: isinstance(x, GroupCommand), commands)
+        actions_tter, groups_iter = partition(lambda x: isinstance(x, GroupCommand), commands)
+        actions, groups = list(actions_tter), list(groups_iter)
 
         if actions:
             for action_command in sorted(actions, key=lambda d: d.name):
