@@ -39,6 +39,8 @@ from airflow.utils.session import create_session
 
 
 def prep_msg(msg, conn):
+    """ Prepare status messages for connections """
+    
     msg = msg.format(conn_id=conn.conn_id,
                      uri=conn.get_uri() or
                      urlunparse((conn.conn_type,
@@ -266,6 +268,8 @@ DISPOSITIONS = [DIS_RESTRICT, DIS_OVERWRITE, DIS_IGNORE]
 
 
 def prep_import_status_msgs(conn_status_map):
+    """ prepare import connection status messages """
+
     msg = "\n"
     for status, conn_list in conn_status_map.items():
         if len(conn_list) == 0:

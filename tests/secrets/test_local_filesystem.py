@@ -15,13 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import io
 import json
 import re
 import unittest
-import io
-from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
-from unittest import mock
 
 from parameterized import parameterized
 
