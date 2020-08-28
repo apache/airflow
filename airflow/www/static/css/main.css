@@ -277,6 +277,10 @@ label[for="timezone-other"],
   margin-bottom: 15px;
 }
 
+.dag-import-error {
+  white-space: pre;
+}
+
 /* stylelint-disable declaration-block-single-line-max-declarations */
 .hll { background-color: #ffc; }
 .c { color: #408080; font-style: italic; } /* Comment */
