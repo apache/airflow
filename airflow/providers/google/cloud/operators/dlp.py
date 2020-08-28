@@ -520,7 +520,9 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        except AlreadyExists:
+        except InvalidArgument as e:
+            if "already in use" not in e.message:
+                raise
             trigger = hook.get_job_trigger(
                 project_id=self.project_id,
                 job_trigger_id=self.trigger_id,
@@ -621,7 +623,9 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        except AlreadyExists:
+        except InvalidArgument as e:
+            if "already exists" not in e.message:
+                raise
             info = hook.get_stored_info_type(
                 organization_id=self.organization_id,
                 project_id=self.project_id,
