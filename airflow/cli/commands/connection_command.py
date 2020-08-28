@@ -39,7 +39,7 @@ from airflow.utils.code_utils import get_terminal_formatter
 from airflow.utils.session import create_session
 
 
-def prep_msg(msg, conn):
+def _prep_msg(msg, conn):
     """Prepare status messages for connections"""
 
     msg = msg.format(conn_id=conn.conn_id,
@@ -225,7 +225,7 @@ def connections_add(args):
                 .filter(Connection.conn_id == new_conn.conn_id).first()):
             session.add(new_conn)
             msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-            msg = prep_msg(msg, new_conn)
+            msg = _prep_msg(msg, new_conn)
             print(msg)
         else:
             msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
@@ -268,7 +268,7 @@ CREATED = 'created'
 DISPOSITIONS = [DIS_RESTRICT, DIS_OVERWRITE, DIS_IGNORE]
 
 
-def prep_import_status_msgs(conn_status_map):
+def _prep_import_status_msgs(conn_status_map):
     """Prepare import connection status messages"""
 
     msg = "\n"
@@ -279,7 +279,7 @@ def prep_import_status_msgs(conn_status_map):
         msg = msg + status + " : \n\t"
         for conn in conn_list:
             msg = msg + '\n\t`conn_id`={conn_id} : {uri}\n'
-            msg = prep_msg(msg, conn)
+            msg = _prep_msg(msg, conn)
     return msg
 
 
@@ -295,7 +295,7 @@ def connections_import(args):
 
     if not args.conflict_disposition:
         disposition = DIS_RESTRICT
-    elif args.conflict_disposition in DISPOSITIONS:
+    else:
         disposition = args.conflict_disposition
 
     conn_status_map = {
@@ -325,7 +325,7 @@ def connections_import(args):
                         msg = msg.format(conn_ids=conn.conn_id)
                         raise AirflowException(msg)
 
-            print(prep_import_status_msgs(conn_status_map))
+            print(_prep_import_status_msgs(conn_status_map))
 
     except (SQLAlchemyError, AirflowException) as e:
         print(e)
