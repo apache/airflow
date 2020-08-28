@@ -29,7 +29,7 @@ from airflow.providers.google.cloud.hooks import dataprep
 JOB_ID = 1234567
 RECIPE_ID = 1234567
 TOKEN = "1111"
-EXTRA = {"token": TOKEN}
+EXTRA = {"extra__dataprep__token": TOKEN}
 EMBED = ""
 INCLUDE_DELETED = False
 DATA = json.dumps({"wrangledDataset": {"id": RECIPE_ID}})
@@ -37,20 +37,20 @@ URL = "https://api.clouddataprep.com/v4/jobGroups"
 
 
 class TestGoogleDataprepHook(unittest.TestCase):
-
     def setUp(self):
         with mock.patch("airflow.hooks.base_hook.BaseHook.get_connection") as conn:
             conn.return_value.extra_dejson = EXTRA
             self.hook = dataprep.GoogleDataprepHook(dataprep_conn_id="dataprep_conn_id")
 
     @patch("airflow.providers.google.cloud.hooks.dataprep.requests.get")
-    def test_get_jobs_for_job_group_should_be_called_once_with_params(
-        self, mock_get_request
-    ):
+    def test_get_jobs_for_job_group_should_be_called_once_with_params(self, mock_get_request):
         self.hook.get_jobs_for_job_group(JOB_ID)
         mock_get_request.assert_called_once_with(
             f"{URL}/{JOB_ID}/jobs",
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}",},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {TOKEN}",
+            },
         )
 
     @patch(
@@ -65,9 +65,7 @@ class TestGoogleDataprepHook(unittest.TestCase):
         "airflow.providers.google.cloud.hooks.dataprep.requests.get",
         side_effect=[mock.MagicMock(), HTTPError()],
     )
-    def test_get_jobs_for_job_group_should_not_retry_after_success(
-        self, mock_get_request
-    ):
+    def test_get_jobs_for_job_group_should_not_retry_after_success(self, mock_get_request):
         # pylint: disable=no-member
         self.hook.get_jobs_for_job_group.retry.sleep = mock.Mock()
         self.hook.get_jobs_for_job_group(JOB_ID)
@@ -75,11 +73,15 @@ class TestGoogleDataprepHook(unittest.TestCase):
 
     @patch(
         "airflow.providers.google.cloud.hooks.dataprep.requests.get",
-        side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), mock.MagicMock(),],
+        side_effect=[
+            HTTPError(),
+            HTTPError(),
+            HTTPError(),
+            HTTPError(),
+            mock.MagicMock(),
+        ],
     )
-    def test_get_jobs_for_job_group_should_retry_after_four_errors(
-        self, mock_get_request
-    ):
+    def test_get_jobs_for_job_group_should_retry_after_four_errors(self, mock_get_request):
         # pylint: disable=no-member
         self.hook.get_jobs_for_job_group.retry.sleep = mock.Mock()
         self.hook.get_jobs_for_job_group(JOB_ID)
@@ -89,9 +91,7 @@ class TestGoogleDataprepHook(unittest.TestCase):
         "airflow.providers.google.cloud.hooks.dataprep.requests.get",
         side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), HTTPError()],
     )
-    def test_get_jobs_for_job_group_raise_error_after_five_calls(
-        self, mock_get_request
-    ):
+    def test_get_jobs_for_job_group_raise_error_after_five_calls(self, mock_get_request):
         with pytest.raises(RetryError) as err:
             # pylint: disable=no-member
             self.hook.get_jobs_for_job_group.retry.sleep = mock.Mock()
