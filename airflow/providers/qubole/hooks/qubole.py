@@ -242,7 +242,7 @@ class QuboleHook(BaseHook):
                 elif key == 'tags':
                     self._add_tags(tags, value)
                 elif key == 'notify':
-                    if value is True:
+                    if value is True: # pylint: disable=too-many-nested-blocks
                         args.append("--notify")
                 else:
                     args.append("--{0}={1}".format(key, value))
