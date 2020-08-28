@@ -58,18 +58,19 @@ class SimpleDagBag(BaseDagBag):
     A collection of SimpleDag objects with some convenience methods.
     """
 
-    def __init__(self, simple_dags: List[SerializedDAG]):
+    def __init__(self, simple_dags: List[dict]):
         """
         Constructor.
 
         :param simple_dags: SimpleDag objects that should be in this
-        :type simple_dags: list[SerializedDAG]
+        :type simple_dags: list[dict]
         """
         self.simple_dags = simple_dags
         self.dag_id_to_simple_dag: Dict[str, SerializedDAG] = {}
 
         for simple_dag in simple_dags:
-            self.dag_id_to_simple_dag[simple_dag.dag_id] = simple_dag
+            serialized_dag = SerializedDAG.from_dict(simple_dag)
+            self.dag_id_to_simple_dag[serialized_dag.dag_id] = serialized_dag
 
     @property
     def dag_ids(self) -> KeysView[str]:
@@ -148,12 +149,12 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def result(self) -> Optional[Tuple[List[SerializedDAG], int]]:
+    def result(self) -> Optional[Tuple[List[dict], int]]:
         """
         A list of simple dags found, and the number of import errors
 
         :return: result of running SchedulerJob.process_file() if availlablle. Otherwise, none
-        :rtype: Optional[Tuple[List[SerializedDAG], int]]
+        :rtype: Optional[Tuple[List[dict], int]]
         """
         raise NotImplementedError()
 
@@ -412,7 +413,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
         processor_manager.start()
 
-    def harvest_simple_dags(self) -> List[SerializedDAG]:
+    def harvest_simple_dags(self) -> List[dict]:
         """
         Harvest DAG parsing results from result queue and sync metadata from stat queue.
 
@@ -1049,7 +1050,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
         :return: a list of SimpleDags that were produced by processors that
             have finished since the last time this was called
-        :rtype: list[SerializedDAG]
+        :rtype: list[dict]
         """
         # Collect all the DAGs that were found in the processed files
         simple_dags = []

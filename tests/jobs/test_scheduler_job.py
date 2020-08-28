@@ -1167,7 +1167,7 @@ class TestDagFileProcessor(unittest.TestCase):
             tis = session.query(TaskInstance).all()
 
         self.assertEqual(0, import_errors_count)
-        self.assertEqual(['test_multiple_dags__dag_2'], [dag.dag_id for dag in simple_dags])
+        self.assertEqual(['test_multiple_dags__dag_2'], list(SimpleDagBag(simple_dags).dag_ids))
         self.assertEqual({'test_multiple_dags__dag_2'}, {ti.dag_id for ti in tis})
 
     def test_should_mark_dummy_task_as_success(self):
@@ -1189,7 +1189,7 @@ class TestDagFileProcessor(unittest.TestCase):
             tis = session.query(TaskInstance).all()
 
         self.assertEqual(0, import_errors_count)
-        self.assertEqual(['test_only_dummy_tasks'], [dag.dag_id for dag in simple_dags])
+        self.assertEqual(['test_only_dummy_tasks'], list(SimpleDagBag(simple_dags).dag_ids))
         self.assertEqual(5, len(tis))
         self.assertEqual({
             ('test_task_a', 'success'),
@@ -2371,7 +2371,7 @@ class TestSchedulerJob(unittest.TestCase):
         executor.queued_tasks
         scheduler.executor = executor
         processor = mock.MagicMock()
-        processor.harvest_simple_dags.return_value = [SerializedDAG.from_dict(SerializedDAG.to_dict(dag))]
+        processor.harvest_simple_dags.return_value = [SerializedDAG.to_dict(dag)]
         processor.done = True
         scheduler.processor_agent = processor
 
@@ -3605,7 +3605,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
 
             mock_agent = mock.MagicMock()
             mock_agent.harvest_simple_dags.return_value = [
-                SerializedDAG.from_dict(SerializedDAG.to_dict(d)) for d in dagbag.dags.values()]
+                SerializedDAG.to_dict(d) for d in dagbag.dags.values()]
 
             job = SchedulerJob(subdir=PERF_DAGS_FOLDER)
             job.executor = MockExecutor()

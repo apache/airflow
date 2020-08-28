@@ -33,7 +33,7 @@ from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (
     DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, DagParsingSignal, DagParsingStat,
-    FailureCallbackRequest,
+    FailureCallbackRequest, SimpleDagBag,
 )
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import create_session
@@ -401,7 +401,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                 processor_agent.wait_until_finished()
             parsing_result.extend(processor_agent.harvest_simple_dags())
 
-        dag_ids = [result.dag_id for result in parsing_result]
+        dag_ids = list(SimpleDagBag(parsing_result).dag_ids)
         self.assertEqual(dag_ids.count('test_start_date_scheduling'), 1)
 
     def test_launch_process(self):
