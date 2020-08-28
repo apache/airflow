@@ -53,7 +53,7 @@ def _parse_env_file(file: _io.TextIOWrapper) -> Tuple[Dict[str, List[str]], List
 
         MY_CONN_ID=my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2
 
-    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :param file: TextIOWrapper object of the file that will be processed.
     :type file: _io.TextIOWrapper
     :return: Tuple with mapping of key and list of values and list of syntax errors
     """
@@ -91,7 +91,7 @@ def _parse_yaml_file(file: _io.TextIOWrapper) -> Tuple[Dict[str, List[str]], Lis
     """
     Parse a file in the YAML format.
 
-    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :param file: TextIOWrapper object of the file that will be processed.
     :type file: _io.TextIOWrapper
     :return: Tuple with mapping of key and list of values and list of syntax errors
     """
@@ -114,7 +114,7 @@ def _parse_json_file(file: _io.TextIOWrapper) -> Tuple[Dict[str, Any], List[File
     """
     Parse a file in the JSON format.
 
-    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :param file: TextIOWrapper object of the file that will be processed.
     :type file: _io.TextIOWrapper
     :return: Tuple with mapping of key and list of values and list of syntax errors
     """
@@ -143,7 +143,7 @@ def _parse_secret_file(file: _io.TextIOWrapper) -> Dict[str, Any]:
     """
     Based on the file extension format, selects a parser, and parses the file.
 
-    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :param file: TextIOWrapper object of the file that will be processed.
     :type file: _io.TextIOWrapper
     :return: Map of secret key (e.g. connection ID) and value.
     """
@@ -213,7 +213,7 @@ def load_variables(file: _io.TextIOWrapper) -> Dict[str, str]:
 
     Both ``JSON`` and ``.env`` files are supported.
 
-    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :param file: TextIOWrapper object of the file that will be processed.
     :type file: _io.TextIOWrapper
     :rtype: Dict[str, List[str]]
     """
@@ -234,7 +234,7 @@ def load_connections(file: _io.TextIOWrapper):
 
     Both ``JSON`` and ``.env`` files are supported.
 
-    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :param file: TextIOWrapper object of the file that will be processed.
     :type file: _io.TextIOWrapper
 
     :return: A dictionary where the key contains a connection ID and the value contains a list of connections.
