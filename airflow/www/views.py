@@ -726,7 +726,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return wwwutils.json_response({})
 
         query = session.query(
-            DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('last_run')
+            DagRun.dag_id,
+            sqla.func.max(DagRun.execution_date).label('execution_date'),
+            sqla.func.max(DagRun.start_date).label('start_date'),
         ).group_by(DagRun.dag_id)
 
         # Filter to only ask for accessible and selected dags
@@ -735,7 +737,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         resp = {
             r.dag_id.replace('.', '__dot__'): {
                 'dag_id': r.dag_id,
-                'last_run': r.last_run.isoformat(),
+                'execution_date': r.execution_date.isoformat(),
+                'start_date': r.start_date.isoformat(),
             } for r in query
         }
         return wwwutils.json_response(resp)

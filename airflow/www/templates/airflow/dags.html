@@ -370,14 +370,15 @@
     function lastDagRunsHandler(error, json) {
       for(var safe_dag_id in json) {
         dag_id = json[safe_dag_id].dag_id;
-        last_run = json[safe_dag_id].last_run;
+        execution_date = json[safe_dag_id].execution_date;
+        start_date = json[safe_dag_id].start_date;
         g = d3.select('div#last-run-' + safe_dag_id)
         g.selectAll('a')
-          .attr('href', '{{ url_for('Airflow.graph') }}?dag_id=' + encodeURIComponent(dag_id) + '&execution_date=' + encodeURIComponent(last_run))
-          .insert(isoDateToTimeEl.bind(null, last_run, {title: false}));
+          .attr('href', '{{ url_for('Airflow.graph') }}?dag_id=' + encodeURIComponent(dag_id) + '&execution_date=' + encodeURIComponent(execution_date))
+          .insert(isoDateToTimeEl.bind(null, execution_date, {title: false}));
         g.selectAll('span')
           // We don't translate the timezone in the tooltip, that stays in UTC.
-          .attr('data-original-title', 'Start Date: ' + last_run)
+          .attr('data-original-title', 'Start Date: ' + start_date)
           .style('display', null);
         g.selectAll('.loading-last-run').remove();
       }
