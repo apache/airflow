@@ -1,0 +1,78 @@
+name: Package
+
+on:
+  push:
+    tags:
+      - '**'
+  release:
+    types: [created]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get committer details
+        run: |
+          echo Actor: ${{ github.actor }}
+          echo $(pwd)
+          echo Committed By: ${{ github.event.commits[0].author.name }}
+      - name: Add airlfow
+        uses: actions/checkout@v2
+        with:
+          ref: dev
+          path: airflow
+          token: ${{ secrets.airflow_curve }}
+      - name: Add dags
+        uses: actions/checkout@v2
+        with:
+          repository: masami10/curve
+          ref: master
+          path: curve
+          token: ${{ secrets.airflow_curve }}
+      - name: Add docker-ariflow
+        uses: actions/checkout@v2
+        with:
+          repository: chasers2012/docker-airflow
+          ref: master
+          path: docker-airflow
+          token: ${{ secrets.airflow_curve }}
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+      - name: Install dependencies
+        run: |
+          cd $GITHUB_WORKSPACE/airflow
+          echo $(pwd)
+          sudo apt-get install $(grep -vE "^\s*#" apt-requirements.txt  | tr "\n" " ")
+          python -m pip install --upgrade pip
+          pip install setuptools wheel gitpython
+          pip install -r requirements.txt --cache-dir .pip_cache
+      - name: Build
+        run: |
+          cd $GITHUB_WORKSPACE/airflow
+          echo $(pwd)
+          echo creating a build
+          python setup.py sdist bdist_wheel
+          echo "$(ls dist/ | grep whl)" > $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME
+          echo "$(ls dist/)"
+          echo ${GITHUB_REF##*/} > $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION
+          echo  "$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)"
+          echo  "$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME)"
+      - name: Build airflow-base
+        run: |
+          cd $GITHUB_WORKSPACE/docker-airflow
+          echo $(pwd)
+          cp $GITHUB_WORKSPACE/airflow/dist/$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME) ./$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME)
+          docker build --build-arg AIRFLOW_WHEEL_NAME=$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME) -t docker.pkg.github.com/masami10/airflow/airflow-base:latest --no-cache .
+          docker tag docker.pkg.github.com/masami10/airflow/airflow-base:latest docker.pkg.github.com/masami10/airflow/airflow-base:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
+          docker push docker.pkg.github.com/masami10/airflow/airflow-base:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
+      - name: Build airflow
+        run: |
+          cd $GITHUB_WORKSPACE/curve
+          echo $(pwd)
+          docker build -t docker.pkg.github.com/masami10/airflow/airflow:latest --no-cache .
+          docker tag docker.pkg.github.com/masami10/airflow/airflow:latest docker.pkg.github.com/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
+          docker push docker.pkg.github.com/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
+
+
