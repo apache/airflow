@@ -43,7 +43,7 @@ function check_service {
             MAX_CHECK=$((MAX_CHECK-1))
         fi
         if [[ ${MAX_CHECK} == 0 ]]; then
-            echo -e " \e[31mERROR!\e[30m"
+            echo -e " \e[31mERROR!\e[0m"
             echo "Maximum number of retries while checking service. Exiting"
             break
         else
@@ -53,6 +53,7 @@ function check_service {
     if [[ ${RES} != 0 ]]; then
         echo "Service could not be started!"
         echo
+        echo "$ ${CALL}"
         echo "${LAST_CHECK_RESULT}"
         echo
         EXIT_CODE=${RES}
