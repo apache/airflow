@@ -25,6 +25,7 @@ from urllib.parse import urlunparse
 import pygments
 import yaml
 from pygments.lexers.data import YamlLexer
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import exc
 from tabulate import tabulate
 
@@ -39,8 +40,8 @@ from airflow.utils.session import create_session
 
 
 def prep_msg(msg, conn):
-    """ Prepare status messages for connections """
-    
+    """Prepare status messages for connections"""
+
     msg = msg.format(conn_id=conn.conn_id,
                      uri=conn.get_uri() or
                      urlunparse((conn.conn_type,
@@ -268,7 +269,7 @@ DISPOSITIONS = [DIS_RESTRICT, DIS_OVERWRITE, DIS_IGNORE]
 
 
 def prep_import_status_msgs(conn_status_map):
-    """ prepare import connection status messages """
+    """Prepare import connection status messages"""
 
     msg = "\n"
     for status, conn_list in conn_status_map.items():
@@ -326,8 +327,9 @@ def connections_import(args):
 
             print(prep_import_status_msgs(conn_status_map))
 
-    except Exception as e:
+    except (SQLAlchemyError, AirflowException) as e:
         print(e)
         session.rollback()
+
     finally:
         session.close()
