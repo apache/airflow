@@ -627,15 +627,6 @@ ARG_CONN_EXTRA = Arg(
     ('--conn-extra',),
     help='Connection `Extra` field, optional when adding a connection',
     type=str)
-ARG_INCLUDE_SECRETS = Arg(
-    ('--include-secrets',),
-    help=(
-        "If passed, the connection in the secret backend will also be displayed."
-        "To use this option you must pass `--conn_id` option."
-        ""
-    ),
-    action="store_true",
-    default=False)
 ARG_CONN_EXPORT = Arg(
     ('file',),
     help='Output file path for exporting the connections',
@@ -654,7 +645,6 @@ ARG_CONN_CONFLICT_DISPOSITION = Arg(
     help=("Specifies the action that occurs if the connection already exists. Default value : restrict"),
     choices=['overwrite', 'ignore', 'restrict'],
     type=str)
-
 # users
 ARG_USERNAME = Arg(
     ('-u', '--username'),
@@ -1162,7 +1152,6 @@ CONNECTIONS_COMMANDS = (
         args=(ARG_CONN_EXPORT, ARG_CONN_EXPORT_FORMAT,),
     ),
 )
-
 USERS_COMMANDS = (
     ActionCommand(
         name='list',
