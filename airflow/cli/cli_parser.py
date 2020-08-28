@@ -784,9 +784,9 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='list_runs',
-        help="List dag runs given a DAG id.",
+        help="List DAG runs given a DAG id",
         description=(
-            "List dag runs given a DAG id. If state option is given, it will only search for all the "
+            "List DAG runs given a DAG id. If state option is given, it will only search for all the "
             "dagruns with the given state. If no_backfill option is given, it will filter out all "
             "backfill dagruns for given dag id. If start_date is given, it will filter out all the "
             "dagruns that were executed before this date. If end_date is given, it will filter out "
@@ -809,8 +809,11 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='next_execution',
-        help="Get the next execution datetimes of a DAG. It returns one execution unless the "
-             "num-executions option is given",
+        help="Get the next execution datetimes of a DAG",
+        description=(
+            "Get the next execution datetimes of a DAG. It returns one execution unless the "
+            "num-executions option is given"
+        ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_next_execution'),
         args=(ARG_DAG_ID, ARG_SUBDIR, ARG_NUM_EXECUTIONS),
     ),
@@ -861,7 +864,7 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='backfill',
-        help="Run subsections of a DAG for a specified date range.",
+        help="Run subsections of a DAG for a specified date range",
         description=(
             "Run subsections of a DAG for a specified date range. If reset_dag_run option is used, "
             "backfill will first prompt users whether airflow should clear all the previous dag_run and "
@@ -878,7 +881,7 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='test',
-        help="Execute one single DagRun for a given DAG and execution date, using the DebugExecutor.",
+        help="Execute one single DagRun",
         description=("Execute one single DagRun for a given DAG and execution date, "
                      "using the DebugExecutor.\n"
                      "\n"
@@ -928,7 +931,7 @@ TASKS_COMMANDS = (
     ),
     ActionCommand(
         name='failed_deps',
-        help="Returns the unmet dependencies for a task instance from the perspective of the scheduler. ",
+        help="Returns the unmet dependencies for a task instance",
         description=(
             "Returns the unmet dependencies for a task instance from the perspective of the scheduler. "
             "In other words, why a task instance doesn't get scheduled and then queued by the scheduler, "
@@ -1059,7 +1062,10 @@ DB_COMMANDS = (
     ),
     ActionCommand(
         name="check-migrations",
-        help="Check if migration have finished (or continually check until timeout)",
+        help="Check if migration have finished",
+        description=(
+            "Check if migration have finished (or continually check until timeout)"
+        ),
         func=lazy_load_command('airflow.cli.commands.db_command.check_migrations'),
         args=(ARG_MIGRATION_TIMEOUT,),
     ),
@@ -1083,7 +1089,7 @@ DB_COMMANDS = (
     ),
     ActionCommand(
         name='check',
-        help="Check if the database can be reached.",
+        help="Check if the database can be reached",
         func=lazy_load_command('airflow.cli.commands.db_command.check'),
         args=(),
     ),
@@ -1229,7 +1235,7 @@ CONFIG_COMMANDS = (
     ),
     ActionCommand(
         name='list',
-        help='List options for the configuration.',
+        help='List options for the configuration',
         func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
         args=(ARG_COLOR, ),
     ),
@@ -1238,22 +1244,22 @@ CONFIG_COMMANDS = (
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
-        help='List and manage DAGs',
+        help='Manage DAGs',
         subcommands=DAGS_COMMANDS,
     ),
     GroupCommand(
         name='tasks',
-        help='List and manage tasks',
+        help='Manage tasks',
         subcommands=TASKS_COMMANDS,
     ),
     GroupCommand(
         name='pools',
-        help="CRUD operations on pools",
+        help="Manage pools",
         subcommands=POOLS_COMMANDS,
     ),
     GroupCommand(
         name='variables',
-        help="CRUD operations on variables",
+        help="Manage variables",
         subcommands=VARIABLES_COMMANDS,
     ),
     GroupCommand(
@@ -1292,19 +1298,25 @@ airflow_commands: List[CLICommand] = [
         func=lazy_load_command('airflow.cli.commands.version_command.version'),
         args=(),
     ),
+    ActionCommand(
+        name='cheat-sheet',
+        help="Display cheat sheet",
+        func=lazy_load_command('airflow.cli.commands.cheat_sheet_command.cheat_sheet'),
+        args=(),
+    ),
     GroupCommand(
         name='connections',
-        help="List/Add/Delete connections",
+        help="Manage connections",
         subcommands=CONNECTIONS_COMMANDS,
     ),
     GroupCommand(
         name='users',
-        help="CRUD operations on users",
+        help="Manage users",
         subcommands=USERS_COMMANDS,
     ),
     GroupCommand(
         name='roles',
-        help='Create/List roles',
+        help='Manage roles',
         subcommands=ROLES_COMMANDS,
     ),
     ActionCommand(
@@ -1326,7 +1338,7 @@ airflow_commands: List[CLICommand] = [
     ),
     GroupCommand(
         name="config",
-        help='View the configuration options.',
+        help='View configuration',
         subcommands=CONFIG_COMMANDS
     ),
     ActionCommand(
@@ -1343,7 +1355,7 @@ airflow_commands: List[CLICommand] = [
     ),
     GroupCommand(
         name="celery",
-        help='Start celery components',
+        help='Celery components',
         description=(
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
             'https://airflow.readthedocs.io/en/stable/executor/celery.html'
