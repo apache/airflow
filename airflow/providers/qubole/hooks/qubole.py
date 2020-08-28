@@ -35,7 +35,7 @@ from qds_sdk.commands import (
     ShellCommand,
     SparkCommand,
     SqlCommand,
-    JupyterNotebookCommand
+    JupyterNotebookCommand,
 )
 from qds_sdk.qubole import Qubole
 
