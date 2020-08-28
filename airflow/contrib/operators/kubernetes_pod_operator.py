@@ -134,10 +134,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type init_containers: list[kubernetes.client.models.V1Container]
     :param log_events_on_failure: Log the pod's events if a failure occurs
     :type log_events_on_failure: bool
-    :param do_xcom_push: If True, the content of the file
-        /airflow/xcom/return.json in the container will also be pushed to an
-        XCom when the container completes.
-    :type do_xcom_push: bool
     :param pod_template_file: path to pod template file
     :type pod_template_file: str
     """
