@@ -59,6 +59,9 @@ jobs:
           echo ${GITHUB_REF##*/} > $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION
           echo  "$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)"
           echo  "$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME)"
+      - name: Docker login
+        run: |
+          docker login docker.pkg.github.com -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
       - name: Build airflow-base
         run: |
           cd $GITHUB_WORKSPACE/docker-airflow
