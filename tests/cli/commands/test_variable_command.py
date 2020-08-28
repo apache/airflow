@@ -241,8 +241,8 @@ class TestCliVariables(unittest.TestCase):
 
     def test_variables_isolation(self):
         """Test isolation of variables"""
-        tmp1 = tempfile.NamedTemporaryFile(delete=True)
-        tmp2 = tempfile.NamedTemporaryFile(delete=True)
+        tmp1 = tempfile.NamedTemporaryFile(delete=True, suffix='.json')
+        tmp2 = tempfile.NamedTemporaryFile(delete=True, suffix='.json')
 
         # First export
         variable_command.variables_set(self.parser.parse_args([
@@ -261,7 +261,7 @@ class TestCliVariables(unittest.TestCase):
         variable_command.variables_delete(self.parser.parse_args([
             'variables', 'delete', 'foo']))
         variable_command.variables_import(self.parser.parse_args([
-            'variables', 'import', tmp1.name]))
+            'variables', 'import', tmp1.name, '--conflict-disposition', 'overwrite']))
 
         self.assertEqual('original', Variable.get('bar'))
         self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))

@@ -108,16 +108,18 @@ def variables_import(args):
         DIS_IGNORE: [],
         CREATED: []
     }
+
     try:
         with create_session() as session:
             for key, val in vars_map.items():
+                serialize = isinstance(val, (list, dict))
                 vars_row = Variable.get_variable_from_secrets(key)
                 if not vars_row:
-                    session.add(Variable(key=key, val=val))
+                    Variable.set(key=key, value=val, session=session, serialize_json=serialize)
                     session.flush()
                     var_status_map[CREATED].append(key)
                 elif disposition == DIS_OVERWRITE:
-                    Variable.set(key=key, value=val, session=session)
+                    Variable.set(key=key, value=val, session=session, serialize_json=serialize)
                     session.flush()
                     var_status_map[DIS_OVERWRITE].append(key)
                 elif disposition == DIS_IGNORE:
