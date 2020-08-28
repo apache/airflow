@@ -20,12 +20,13 @@ Objects relating to retrieving connections and variables from local file
 """
 import json
 import logging
-import yaml
-import _io
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
 from typing import Any, Dict, List, Optional, Set, Tuple
+
+import _io
+import yaml
 
 from airflow.exceptions import (
     AirflowException, AirflowFileParseException, ConnectionNotUnique, FileSyntaxError,
