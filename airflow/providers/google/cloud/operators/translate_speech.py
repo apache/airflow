@@ -87,13 +87,13 @@ class CloudTranslateSpeechOperator(BaseOperator):
         as ``'base'`` or ``'nmt'``.
     :type model: str or None
 
-    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
+    :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
 
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
 
     :param impersonation_chain: Optional service account to impersonate using short-term

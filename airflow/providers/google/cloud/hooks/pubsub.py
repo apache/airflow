@@ -182,7 +182,7 @@ class PubSubHook(GoogleBaseHook):
             https://cloud.google.com/pubsub/docs/labels
         :type labels: Dict[str, str]
         :param message_storage_policy: Policy constraining the set
-            of Google Cloud Platform regions where messages published to
+            of Google Cloud regions where messages published to
             the topic may be stored. If not present, then no constraints
             are in effect.
         :type message_storage_policy:

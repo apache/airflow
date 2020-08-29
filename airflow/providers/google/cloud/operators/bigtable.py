@@ -92,7 +92,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     :type timeout: int
     :param timeout: (optional) timeout (in seconds) for instance creation.
                     If None is not specified, Operator will wait indefinitely.
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -211,7 +211,7 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
     :type timeout: int
     :param timeout: (optional) timeout (in seconds) for instance update.
                     If None is not specified, Operator will wait indefinitely.
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -292,7 +292,7 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
     :param project_id: Optional, the ID of the Google Cloud project.  If set to None or missing,
             the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -370,7 +370,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
     :param column_families: (Optional) A map columns to create.
                             The key is the column_id str and the value is a
                             :class:`google.cloud.bigtable.column_family.GarbageCollectionRule`
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -479,7 +479,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
             the default project_id from the Google Cloud connection is used.
     :type app_profile_id: str
     :param app_profile_id: Application profile.
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -559,7 +559,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
     :param nodes: The desired number of nodes for the Cloud Bigtable cluster.
     :type project_id: str
     :param project_id: Optional, the ID of the Google Cloud project.
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

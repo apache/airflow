@@ -18,7 +18,7 @@
 
 """
 Example Airflow DAG that creates, gets, updates and deletes Products and Product Sets in the Google Cloud
-Vision service in the Google Cloud Platform.
+Vision service.
 
 This DAG relies on the following OS environment variables
 

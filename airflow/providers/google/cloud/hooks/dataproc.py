@@ -260,7 +260,7 @@ class DataprocHook(GoogleBaseHook):
         """
         Creates a cluster in a project.
 
-        :param project_id: Required. The ID of the Google Cloud Platform project that the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
         :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
         :type region: str
@@ -308,7 +308,7 @@ class DataprocHook(GoogleBaseHook):
         """
         Deletes a cluster in a project.
 
-        :param project_id: Required. The ID of the Google Cloud Platform project that the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
         :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
         :type region: str
@@ -357,7 +357,7 @@ class DataprocHook(GoogleBaseHook):
         Gets cluster diagnostic information. After the operation completes GCS uri to
         diagnose is returned
 
-        :param project_id: Required. The ID of the Google Cloud Platform project that the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
         :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
         :type region: str
@@ -398,7 +398,7 @@ class DataprocHook(GoogleBaseHook):
         """
         Gets the resource representation for a cluster in a project.
 
-        :param project_id: Required. The ID of the Google Cloud Platform project that the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
         :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
         :type region: str
@@ -438,7 +438,7 @@ class DataprocHook(GoogleBaseHook):
         """
         Lists all regions/{region}/clusters in a project.
 
-        :param project_id: Required. The ID of the Google Cloud Platform project that the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
         :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
         :type region: str
@@ -486,7 +486,7 @@ class DataprocHook(GoogleBaseHook):
         """
         Updates a cluster in a project.
 
-        :param project_id: Required. The ID of the Google Cloud Platform project the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
         :param location: Required. The Cloud Dataproc region in which to handle the request.
         :type location: str
@@ -569,7 +569,7 @@ class DataprocHook(GoogleBaseHook):
         """
         Creates new workflow template.
 
-        :param project_id: Required. The ID of the Google Cloud Platform project the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
         :param location: Required. The Cloud Dataproc region in which to handle the request.
         :type location: str
@@ -609,7 +609,7 @@ class DataprocHook(GoogleBaseHook):
 
         :param template_name: Name of template to instantiate.
         :type template_name: str
-        :param project_id: Required. The ID of the Google Cloud Platform project the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
         :param location: Required. The Cloud Dataproc region in which to handle the request.
         :type location: str
@@ -665,7 +665,7 @@ class DataprocHook(GoogleBaseHook):
         :param template: The workflow template to instantiate. If a dict is provided,
             it must be of the same form as the protobuf message WorkflowTemplate
         :type template: Union[Dict, WorkflowTemplate]
-        :param project_id: Required. The ID of the Google Cloud Platform project the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
         :param location: Required. The Cloud Dataproc region in which to handle the request.
         :type location: str
@@ -701,7 +701,7 @@ class DataprocHook(GoogleBaseHook):
 
         :param job_id: Id of the Dataproc job
         :type job_id: str
-        :param project_id: Required. The ID of the Google Cloud Platform project the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
         :param location: Required. The Cloud Dataproc region in which to handle the request.
         :type location: str
@@ -733,7 +733,7 @@ class DataprocHook(GoogleBaseHook):
 
         :param job_id: Id of the Dataproc job
         :type job_id: str
-        :param project_id: Required. The ID of the Google Cloud Platform project the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
         :param location: Required. The Cloud Dataproc region in which to handle the request.
         :type location: str
@@ -774,7 +774,7 @@ class DataprocHook(GoogleBaseHook):
         :param job: The job resource. If a dict is provided,
             it must be of the same form as the protobuf message Job
         :type job: Union[Dict, Job]
-        :param project_id: Required. The ID of the Google Cloud Platform project the cluster belongs to.
+        :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
         :param location: Required. The Cloud Dataproc region in which to handle the request.
         :type location: str
@@ -840,7 +840,7 @@ class DataprocHook(GoogleBaseHook):
         """
         Starts a job cancellation request.
 
-        :param project_id: Required. The ID of the Google Cloud Platform project that the job belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the job belongs to.
         :type project_id: str
         :param location: Required. The Cloud Dataproc region in which to handle the request.
         :type location: str

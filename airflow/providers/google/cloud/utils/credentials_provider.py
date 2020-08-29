@@ -17,7 +17,7 @@
 # under the License.
 """
 This module contains a mechanism for providing temporary
-Google Cloud Platform authentication.
+Google Cloud authentication.
 """
 import json
 import logging

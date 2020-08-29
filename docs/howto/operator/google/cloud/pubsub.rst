@@ -23,7 +23,7 @@ Google Cloud PubSub Operators
 `Google Cloud PubSub <https://cloud.google.com/pubsub/>`__ is a fully-managed real-time
 messaging service that allows you to send and receive messages between independent applications.
 You can leverage Cloud Pub/Sub’s flexibility to decouple systems and components hosted
-on Google Cloud Platform or elsewhere on the Internet.
+on Google Cloud or elsewhere on the Internet.
 
 Publisher applications can send messages to a topic and other applications can subscribe to that topic to receive the messages.
 By decoupling senders and receivers Google Cloud PubSub allows developers to communicate between independently written applications.
