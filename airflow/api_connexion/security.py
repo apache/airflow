@@ -50,7 +50,16 @@ def requires_access(permissions: Sequence[Tuple[str, str]]) -> Callable[[T], T]:
         def decorated(*args, **kwargs):
             appbuilder = current_app.appbuilder
             for permission in permissions:
-                if not appbuilder.sm.has_access(*permission):
+                if permission in (('can_read', 'Dag'), ('can_edit', 'Dag')):
+                    action = permission[0]
+                    has_access_to_all_dags = appbuilder.sm.has_access(*permission)
+                    has_access_to_this_dag = appbuilder.sm.has_access(action, kwargs.get('dag_id'))
+
+                    if has_access_to_all_dags or has_access_to_this_dag:
+                        continue
+                    raise PermissionDenied()
+
+                elif not appbuilder.sm.has_access(*permission):
                     raise PermissionDenied()
 
             return func(*args, **kwargs)

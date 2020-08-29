@@ -152,10 +152,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     WRITE_DAG_PERMS = {
         'can_dag_edit',
+        'can_edit',
     }
 
     READ_DAG_PERMS = {
         'can_dag_read',
+        'can_read',
     }
 
     DAG_PERMS = WRITE_DAG_PERMS | READ_DAG_PERMS
@@ -524,11 +526,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         self.clean_perms()
 
     def sync_resource_permissions(self):
-        resources = ['Pool', 'Connection', 'Dag', 'DagBag', 'DagRun', 'DagCode', 'Log', 'Task', 'ImportError', 'Variable', 'XCom']
+        """
+        Populates resource-based permissions.
+        """
+        resources = ['Pool', 'Connection', 'Dag', 'DagBag', 'DagRun',
+                     'DagCode', 'Log', 'Task', 'ImportError', 'Variable', 'XCom']
         actions = ['can_create', 'can_read', 'can_edit', 'can_delete']
         for resource in resources:
-            menu = self.add_view_menu(resource)
-            
+            self.add_view_menu(resource)
             for action in actions:
                 self.add_permission_view_menu(action, resource)
 
