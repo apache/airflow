@@ -32,23 +32,16 @@ class TestDingdingOperator(unittest.TestCase):
         'message_type': 'text',
         'message': 'Airflow dingding webhook test',
         'at_mobiles': ['123', '456'],
-        'at_all': False
+        'at_all': False,
     }
 
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)
 
     @mock.patch('airflow.providers.dingding.operators.dingding.DingdingHook')
     def test_execute(self, mock_hook):
-        operator = DingdingOperator(
-            task_id='dingding_task',
-            dag=self.dag,
-            **self._config
-        )
+        operator = DingdingOperator(task_id='dingding_task', dag=self.dag, **self._config)
 
         self.assertIsNotNone(operator)
         self.assertEqual(self._config['dingding_conn_id'], operator.dingding_conn_id)
@@ -63,6 +56,6 @@ class TestDingdingOperator(unittest.TestCase):
             self._config['message_type'],
             self._config['message'],
             self._config['at_mobiles'],
-            self._config['at_all']
+            self._config['at_all'],
         )
         mock_hook.return_value.send.assert_called_once_with()

@@ -95,41 +95,58 @@ class SparkSubmitOperator(BaseOperator):
                          Some distros may use spark2-submit.
     :type spark_binary: str
     """
-    template_fields = ('_application', '_conf', '_files', '_py_files', '_jars', '_driver_class_path',
-                       '_packages', '_exclude_packages', '_keytab', '_principal', '_proxy_user', '_name',
-                       '_application_args', '_env_vars')
+
+    template_fields = (
+        '_application',
+        '_conf',
+        '_files',
+        '_py_files',
+        '_jars',
+        '_driver_class_path',
+        '_packages',
+        '_exclude_packages',
+        '_keytab',
+        '_principal',
+        '_proxy_user',
+        '_name',
+        '_application_args',
+        '_env_vars',
+    )
     ui_color = WEB_COLORS['LIGHTORANGE']
 
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
-    def __init__(self, *,
-                 application: str = '',
-                 conf: Optional[Dict[str, Any]] = None,
-                 conn_id: str = 'spark_default',
-                 files: Optional[str] = None,
-                 py_files: Optional[str] = None,
-                 archives: Optional[str] = None,
-                 driver_class_path: Optional[str] = None,
-                 jars: Optional[str] = None,
-                 java_class: Optional[str] = None,
-                 packages: Optional[str] = None,
-                 exclude_packages: Optional[str] = None,
-                 repositories: Optional[str] = None,
-                 total_executor_cores: Optional[int] = None,
-                 executor_cores: Optional[int] = None,
-                 executor_memory: Optional[str] = None,
-                 driver_memory: Optional[str] = None,
-                 keytab: Optional[str] = None,
-                 principal: Optional[str] = None,
-                 proxy_user: Optional[str] = None,
-                 name: str = 'arrow-spark',
-                 num_executors: Optional[int] = None,
-                 status_poll_interval: int = 1,
-                 application_args: Optional[List[Any]] = None,
-                 env_vars: Optional[Dict[str, Any]] = None,
-                 verbose: bool = False,
-                 spark_binary: Optional[str] = None,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        application: str = '',
+        conf: Optional[Dict[str, Any]] = None,
+        conn_id: str = 'spark_default',
+        files: Optional[str] = None,
+        py_files: Optional[str] = None,
+        archives: Optional[str] = None,
+        driver_class_path: Optional[str] = None,
+        jars: Optional[str] = None,
+        java_class: Optional[str] = None,
+        packages: Optional[str] = None,
+        exclude_packages: Optional[str] = None,
+        repositories: Optional[str] = None,
+        total_executor_cores: Optional[int] = None,
+        executor_cores: Optional[int] = None,
+        executor_memory: Optional[str] = None,
+        driver_memory: Optional[str] = None,
+        keytab: Optional[str] = None,
+        principal: Optional[str] = None,
+        proxy_user: Optional[str] = None,
+        name: str = 'arrow-spark',
+        num_executors: Optional[int] = None,
+        status_poll_interval: int = 1,
+        application_args: Optional[List[Any]] = None,
+        env_vars: Optional[Dict[str, Any]] = None,
+        verbose: bool = False,
+        spark_binary: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self._application = application
         self._conf = conf
@@ -198,5 +215,5 @@ class SparkSubmitOperator(BaseOperator):
             application_args=self._application_args,
             env_vars=self._env_vars,
             verbose=self._verbose,
-            spark_binary=self._spark_binary
+            spark_binary=self._spark_binary,
         )

@@ -42,7 +42,7 @@ Using the operator
 """"""""""""""""""
 
 You can use this operator with or without project id to fetch all the alert policies.
-If project is is missing it wil be retrieved from GCP connection used.
+If project is is missing it wil be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
@@ -62,7 +62,7 @@ Using the operator
 """"""""""""""""""
 
 You can use this operator with or without project id to fetch all the alert policies.
-If project is is missing it wil be retrieved from GCP connection used.
+If project is is missing it wil be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
@@ -82,7 +82,7 @@ Using the operator
 """"""""""""""""""
 
 You can use this operator with or without project id to fetch all the alert policies.
-If project is is missing it wil be retrieved from GCP connection used.
+If project is is missing it wil be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
@@ -103,7 +103,7 @@ Using the operator
 """"""""""""""""""
 
 You can use this operator with or without project id to fetch all the alert policies.
-If project is is missing it wil be retrieved from GCP connection used.
+If project is is missing it wil be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
@@ -142,7 +142,7 @@ Using the operator
 """"""""""""""""""
 
 You can use this operator with or without project id to fetch all the alert policies.
-If project is is missing it wil be retrieved from GCP connection used.
+If project is is missing it wil be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
@@ -162,7 +162,7 @@ Using the operator
 """"""""""""""""""
 
 You can use this operator with or without project id to fetch all the alert policies.
-If project is is missing it wil be retrieved from GCP connection used.
+If project is is missing it wil be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
@@ -182,7 +182,7 @@ Using the operator
 """"""""""""""""""
 
 You can use this operator with or without project id to fetch all the alert policies.
-If project is is missing it wil be retrieved from GCP connection used.
+If project is is missing it wil be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
@@ -203,7 +203,7 @@ Using the operator
 """"""""""""""""""
 
 You can use this operator with or without project id to fetch all the alert policies.
-If project is is missing it wil be retrieved from GCP connection used.
+If project is is missing it wil be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
@@ -222,7 +222,7 @@ Using the operator
 """"""""""""""""""
 
 You can use this operator with or without project id to fetch all the alert policies.
-If project is is missing it wil be retrieved from GCP connection used.
+If project is is missing it wil be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python

@@ -20,6 +20,7 @@ import unittest
 from unittest.mock import ANY
 
 import mock
+from dateutil import parser
 from parameterized import parameterized
 
 from tests.test_utils.config import conf_vars
@@ -30,7 +31,7 @@ try:
 
     from airflow.exceptions import AirflowConfigException
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig
-    from airflow.kubernetes.pod_generator import PodGenerator
+    from airflow.kubernetes.pod_generator import PodGenerator, datetime_to_label_safe_datestring
     from airflow.kubernetes.secret import Secret
     from airflow.kubernetes.worker_configuration import WorkerConfiguration
     from airflow.version import version as airflow_version
@@ -381,12 +382,13 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_folder = 'dags'
 
         worker_config = WorkerConfiguration(self.kube_config)
+        execution_date = parser.parse('2019-11-21 11:08:22.920875')
         pod = PodGenerator.construct_pod(
             "test_dag_id",
             "test_task_id",
             "test_pod_id",
             1,
-            "2019-11-21 11:08:22.920875",
+            execution_date,
             ["bash -c 'ls /'"],
             None,
             worker_config.as_pod(),
@@ -397,7 +399,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             'airflow-worker': 'sample-uuid',
             'airflow_version': airflow_version.replace('+', '-'),
             'dag_id': 'test_dag_id',
-            'execution_date': '2019-11-21 11:08:22.920875',
+            'execution_date': datetime_to_label_safe_datestring(execution_date),
             'kubernetes_executor': 'True',
             'my_label': 'label_id',
             'task_id': 'test_task_id',

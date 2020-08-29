@@ -44,29 +44,27 @@ class TestDagEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test",  # type: ignore
-                    permissions=[
-                        ("can_create", "Dag"),
-                        ("can_read", "Dag"),
-                        ("can_edit", "Dag"),
-                        ("can_delete", "Dag")
-                    ])
+        create_role(
+            cls.app,  # type: ignore
+            name="Test",
+            permissions=[
+                ("can_create", "Dag"),
+                ("can_read", "Dag"),
+                ("can_edit", "Dag"),
+                ("can_delete", "Dag"),
+            ],
+        )
         create_user(cls.app, username="test", role="Test")  # type: ignore
         create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
         create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
         create_role(cls.app, name="TestGranularDag")  # type: ignore
-        create_user(cls.app, username="test_granular_permissions",  # type: ignore
-                    role="TestGranularDag")
+        create_user(cls.app, username="test_granular_permissions", role="TestGranularDag")  # type: ignore
         cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
-            "TEST_DAG_1",
-            access_control={
-                'TestGranularDag': ['can_edit', 'can_read']
-            })
+            "TEST_DAG_1", access_control={'TestGranularDag': ['can_edit', 'can_read']}
+        )
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
@@ -184,9 +182,7 @@ class TestGetDagDetails(TestDagEndpoint):
 
     def test_should_response_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             app_serialized = app.create_app(testing=True)
         create_user(app_serialized, username="test", role="Test")
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
@@ -242,15 +238,10 @@ class TestGetDagDetails(TestDagEndpoint):
             'is_subdag': False,
             'orientation': 'LR',
             'owners': [],
-            'schedule_interval': {
-                '__type': 'TimeDelta',
-                'days': 1,
-                'microseconds': 0,
-                'seconds': 0
-            },
+            'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'microseconds': 0, 'seconds': 0},
             'start_date': '2020-06-15T00:00:00+00:00',
             'tags': None,
-            'timezone': "Timezone('UTC')"
+            'timezone': "Timezone('UTC')",
         }
         assert response.json == expected
 
@@ -369,7 +360,7 @@ class TestPatchDag(TestDagEndpoint):
             json={
                 "is_paused": False,
             },
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         self.assertEqual(response.status_code, 200)
         expected_response = {
@@ -395,7 +386,7 @@ class TestPatchDag(TestDagEndpoint):
             json={
                 "is_paused": False,
             },
-            environ_overrides={'REMOTE_USER': "test_granular_permissions"}
+            environ_overrides={'REMOTE_USER': "test_granular_permissions"},
         )
         assert response.status_code == 200
 
@@ -410,12 +401,15 @@ class TestPatchDag(TestDagEndpoint):
         dag_model = self._create_dag_model()
         response = self.client.patch(f"/api/v1/dags/{dag_model.dag_id}", json=patch_body)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json, {
-            'detail': "Property is read-only - 'schedule_interval'",
-            'status': 400,
-            'title': 'Bad Request',
-            'type': 'about:blank'
-        })
+        self.assertEqual(
+            response.json,
+            {
+                'detail': "Property is read-only - 'schedule_interval'",
+                'status': 400,
+                'title': 'Bad Request',
+                'type': 'about:blank',
+            },
+        )
 
     def test_should_response_404(self):
         response = self.client.get("/api/v1/dags/INVALID_DAG", environ_overrides={'REMOTE_USER': "test"})
@@ -424,10 +418,7 @@ class TestPatchDag(TestDagEndpoint):
     @provide_session
     def _create_dag_model(self, session=None):
         dag_model = DagModel(
-            dag_id="TEST_DAG_1",
-            fileloc="/tmp/dag_1.py",
-            schedule_interval="2 2 * * *",
-            is_paused=True
+            dag_id="TEST_DAG_1", fileloc="/tmp/dag_1.py", schedule_interval="2 2 * * *", is_paused=True
         )
         session.add(dag_model)
         return dag_model
@@ -442,3 +433,59 @@ class TestPatchDag(TestDagEndpoint):
         )
 
         assert_401(response)
+
+    def test_should_response_200_with_update_mask(self):
+        dag_model = self._create_dag_model()
+        payload = {
+            "is_paused": False,
+        }
+        response = self.client.patch(
+            f"/api/v1/dags/{dag_model.dag_id}?update_mask=is_paused",
+            json=payload,
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        self.assertEqual(response.status_code, 200)
+        expected_response = {
+            "dag_id": "TEST_DAG_1",
+            "description": None,
+            "fileloc": "/tmp/dag_1.py",
+            "is_paused": False,
+            "is_subdag": False,
+            "owners": [],
+            "root_dag_id": None,
+            "schedule_interval": {
+                "__type": "CronExpression",
+                "value": "2 2 * * *",
+            },
+            "tags": [],
+        }
+        self.assertEqual(response.json, expected_response)
+
+    @parameterized.expand(
+        [
+            (
+                {
+                    "is_paused": True,
+                },
+                "update_mask=description",
+                "Only `is_paused` field can be updated through the REST API",
+            ),
+            (
+                {
+                    "is_paused": True,
+                },
+                "update_mask=schedule_interval, description",
+                "Only `is_paused` field can be updated through the REST API",
+            ),
+        ]
+    )
+    def test_should_response_400_for_invalid_fields_in_update_mask(self, payload, update_mask, error_message):
+        dag_model = self._create_dag_model()
+
+        response = self.client.patch(
+            f"/api/v1/dags/{dag_model.dag_id}?{update_mask}",
+            json=payload,
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json['detail'], error_message)

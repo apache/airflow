@@ -39,6 +39,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+  BUILD_IMAGES: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE != 'false' }}
 
 jobs:
 
@@ -52,6 +53,7 @@ jobs:
       sourceHeadSha: ${{ steps.cancel.outputs.sourceHeadSha }}
       sourceEvent: ${{ steps.cancel.outputs.sourceEvent }}
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
+      buildImages: ${{ steps.build-images.outputs.buildImages }}
     if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
       - name: "Cancel duplicated 'CI Build' runs"
@@ -61,6 +63,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: duplicates
           sourceRunId: ${{ github.event.workflow_run.id }}
+      - name: "Output BUILD_IMAGES"
+        id: build-images
+        run: |
+          # Workaround - jobs cannot access env variable in "ifs"
+          # https://github.community/t/how-to-set-and-access-a-workflow-variable/17335/16
+          echo "::set-output name=buildImages::${BUILD_IMAGES}"
       - name: "Cancel duplicated 'Build Image' runs"
 
         # We find duplicates of our own "Build Image" runs - due to a missing feature
@@ -75,6 +83,7 @@ jobs:
             [".*Event: ${{ steps.cancel.outputs.sourceEvent }}
             Repo: ${{ steps.cancel.outputs.sourceHeadRepo }}
             Branch: ${{ steps.cancel.outputs.sourceHeadBranch }}.*"]
+        if: env.BUILD_IMAGES == 'true'
       - name: "Cancel all 'CI Build' runs where some jobs failed"
 
         # We find any of the "CI Build" workflow runs, where any of the important jobs
@@ -118,7 +127,7 @@ jobs:
         # it to cancel any jobs that have matching names containing Source Run Id:
         # followed by one of the run ids. Yes I know it's super complex ¯\_(ツ)_/¯.
 
-        if: steps.cancel-failed.outputs.cancelledRuns != '[]'
+        if: env.BUILD_IMAGES == 'true' && steps.cancel-failed.outputs.cancelledRuns != '[]'
         uses: potiuk/cancel-workflow-runs@v2
         with:
           cancelMode: namedJobs
@@ -149,9 +158,11 @@ jobs:
       Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
     runs-on: ubuntu-latest
     needs: [cancel-workflow-runs]
-    if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
+    if: >
+      needs.cancel-workflow-runs.outputs.buildImages == 'true' &&
+      (github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule')
     steps:
       - name: >
           Event: ${{ needs.cancel-workflow-runs.outputs.sourceEvent }}
@@ -174,7 +185,9 @@ jobs:
         python-version: [3.6, 3.7, 3.8]
         image-type: [CI, PROD]
       fail-fast: true
-    if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
+    if: >
+      needs.cancel-workflow-runs.outputs.buildImages == 'true' &&
+      (github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule')
     env:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}

@@ -149,6 +149,13 @@ repos:
   - repo: meta
     hooks:
       - id: check-hooks-apply
+  - repo: https://github.com/psf/black
+    rev: stable
+    hooks:
+      - id: black
+        files: api_connexion/.*\.py|.*providers.*\.py
+        exclude: .*kubernetes_pod\.py|.*google/common/hooks/base_google\.py$
+        args: [--config=./pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
     hooks:
@@ -184,7 +191,7 @@ repos:
         name: Run isort to sort imports
         types: [python]
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^.tox/.*$|^venv/.*$
+        exclude: ^build/.*$|^.tox/.*$|^venv/.*$|.*api_connexion/.*\.py|.*providers.*\.py
   - repo: https://github.com/pycqa/pydocstyle
     rev: 5.0.2
     hooks:
@@ -192,7 +199,7 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D104,D105,D106,D107,D200,D202,D204,D205,D207,D208,D210,D400,D401,D403
+          - --add-ignore=D100,D102,D104,D105,D106,D107,D200,D202,D204,D205,D207,D208,D400,D401
         exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
   - repo: local
     hooks:
@@ -379,6 +386,7 @@ repos:
         files: \.py$
         exclude: ^scripts/.*\.py$|^dev|^backport_packages
         pass_filenames: true
+        require_serial: true
       - id: flake8
         name: Run flake8
         language: system

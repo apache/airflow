@@ -74,8 +74,7 @@ class TestSSHHook(unittest.TestCase):
                 conn_id=cls.CONN_SSH_WITH_EXTRA,
                 host='localhost',
                 conn_type='ssh',
-                extra='{"compress" : true, "no_host_key_check" : "true", '
-                      '"allow_host_key_change": false}'
+                extra='{"compress" : true, "no_host_key_check" : "true", ' '"allow_host_key_change": false}',
             )
         )
         db.merge_conn(
@@ -84,7 +83,7 @@ class TestSSHHook(unittest.TestCase):
                 host='localhost',
                 conn_type='ssh',
                 extra='{"compress" : true, "no_host_key_check" : "true", '
-                      '"allow_host_key_change": false, "look_for_keys": false}'
+                '"allow_host_key_change": false, "look_for_keys": false}',
             )
         )
         db.merge_conn(
@@ -92,20 +91,20 @@ class TestSSHHook(unittest.TestCase):
                 conn_id=cls.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
                 host='localhost',
                 conn_type='ssh',
-                extra=json.dumps({
-                    "private_key": TEST_PRIVATE_KEY,
-                })
+                extra=json.dumps({"private_key": TEST_PRIVATE_KEY,}),
             )
         )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_password(self, ssh_mock):
-        hook = SSHHook(remote_host='remote_host',
-                       port='port',
-                       username='username',
-                       password='password',
-                       timeout=10,
-                       key_file='fake.file')
+        hook = SSHHook(
+            remote_host='remote_host',
+            port='port',
+            username='username',
+            password='password',
+            timeout=10,
+            key_file='fake.file',
+        )
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
@@ -117,16 +116,14 @@ class TestSSHHook(unittest.TestCase):
                 compress=True,
                 port='port',
                 sock=None,
-                look_for_keys=True
+                look_for_keys=True,
             )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_without_password(self, ssh_mock):
-        hook = SSHHook(remote_host='remote_host',
-                       port='port',
-                       username='username',
-                       timeout=10,
-                       key_file='fake.file')
+        hook = SSHHook(
+            remote_host='remote_host', port='port', username='username', timeout=10, key_file='fake.file'
+        )
 
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
@@ -137,47 +134,51 @@ class TestSSHHook(unittest.TestCase):
                 compress=True,
                 port='port',
                 sock=None,
-                look_for_keys=True
+                look_for_keys=True,
             )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
     def test_tunnel_with_password(self, ssh_mock):
-        hook = SSHHook(remote_host='remote_host',
-                       port='port',
-                       username='username',
-                       password='password',
-                       timeout=10,
-                       key_file='fake.file')
+        hook = SSHHook(
+            remote_host='remote_host',
+            port='port',
+            username='username',
+            password='password',
+            timeout=10,
+            key_file='fake.file',
+        )
 
         with hook.get_tunnel(1234):
-            ssh_mock.assert_called_once_with('remote_host',
-                                             ssh_port='port',
-                                             ssh_username='username',
-                                             ssh_password='password',
-                                             ssh_pkey='fake.file',
-                                             ssh_proxy=None,
-                                             local_bind_address=('localhost', ),
-                                             remote_bind_address=('localhost', 1234),
-                                             logger=hook.log)
+            ssh_mock.assert_called_once_with(
+                'remote_host',
+                ssh_port='port',
+                ssh_username='username',
+                ssh_password='password',
+                ssh_pkey='fake.file',
+                ssh_proxy=None,
+                local_bind_address=('localhost',),
+                remote_bind_address=('localhost', 1234),
+                logger=hook.log,
+            )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
     def test_tunnel_without_password(self, ssh_mock):
-        hook = SSHHook(remote_host='remote_host',
-                       port='port',
-                       username='username',
-                       timeout=10,
-                       key_file='fake.file')
+        hook = SSHHook(
+            remote_host='remote_host', port='port', username='username', timeout=10, key_file='fake.file'
+        )
 
         with hook.get_tunnel(1234):
-            ssh_mock.assert_called_once_with('remote_host',
-                                             ssh_port='port',
-                                             ssh_username='username',
-                                             ssh_pkey='fake.file',
-                                             ssh_proxy=None,
-                                             local_bind_address=('localhost', ),
-                                             remote_bind_address=('localhost', 1234),
-                                             host_pkey_directories=[],
-                                             logger=hook.log)
+            ssh_mock.assert_called_once_with(
+                'remote_host',
+                ssh_port='port',
+                ssh_username='username',
+                ssh_pkey='fake.file',
+                ssh_proxy=None,
+                local_bind_address=('localhost',),
+                remote_bind_address=('localhost', 1234),
+                host_pkey_directories=[],
+                logger=hook.log,
+            )
 
     def test_conn_with_extra_parameters(self):
         ssh_hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_EXTRA)
@@ -201,15 +202,17 @@ class TestSSHHook(unittest.TestCase):
         )
 
         with hook.get_tunnel(1234):
-            ssh_mock.assert_called_once_with('remote_host',
-                                             ssh_port='port',
-                                             ssh_username='username',
-                                             ssh_pkey=TEST_PKEY,
-                                             ssh_proxy=None,
-                                             local_bind_address=('localhost',),
-                                             remote_bind_address=('localhost', 1234),
-                                             host_pkey_directories=[],
-                                             logger=hook.log)
+            ssh_mock.assert_called_once_with(
+                'remote_host',
+                ssh_port='port',
+                ssh_username='username',
+                ssh_pkey=TEST_PKEY,
+                ssh_proxy=None,
+                local_bind_address=('localhost',),
+                remote_bind_address=('localhost', 1234),
+                host_pkey_directories=[],
+                logger=hook.log,
+            )
 
     def test_ssh_connection(self):
         hook = SSHHook(ssh_conn_id='ssh_default')
@@ -230,10 +233,7 @@ class TestSSHHook(unittest.TestCase):
         import socket
         import subprocess
 
-        subprocess_kwargs = dict(
-            args=["python", "-c", HELLO_SERVER_CMD],
-            stdout=subprocess.PIPE,
-        )
+        subprocess_kwargs = dict(args=["python", "-c", HELLO_SERVER_CMD], stdout=subprocess.PIPE,)
         with subprocess.Popen(**subprocess_kwargs) as server_handle, hook.create_tunnel(2135, 2134):
             server_output = server_handle.stdout.read(5)
             self.assertEqual(b"ready", server_output)
@@ -264,5 +264,5 @@ class TestSSHHook(unittest.TestCase):
                 compress=True,
                 port='port',
                 sock=None,
-                look_for_keys=True
+                look_for_keys=True,
             )

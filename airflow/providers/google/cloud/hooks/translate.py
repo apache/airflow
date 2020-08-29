@@ -40,9 +40,7 @@ class CloudTranslateHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._client = None  # type: Optional[Client]
 
@@ -64,7 +62,7 @@ class CloudTranslateHook(GoogleBaseHook):
         target_language: str,
         format_: Optional[str] = None,
         source_language: Optional[str] = None,
-        model: Optional[Union[str, List[str]]] = None
+        model: Optional[Union[str, List[str]]] = None,
     ) -> Dict:
         """Translate a string or list of strings.
 

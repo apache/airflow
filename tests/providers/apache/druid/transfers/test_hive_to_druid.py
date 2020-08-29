@@ -37,7 +37,7 @@ class TestDruidHook(unittest.TestCase):
         'ts_dim': 'timedimension_column',
         'metric_spec': [
             {"name": "count", "type": "count"},
-            {"name": "amountSum", "type": "doubleSum", "fieldName": "amount"}
+            {"name": "amountSum", "type": "doubleSum", "fieldName": "amount"},
         ],
         'hive_cli_conn_id': 'hive_cli_custom',
         'druid_ingest_conn_id': 'druid_ingest_default',
@@ -51,22 +51,16 @@ class TestDruidHook(unittest.TestCase):
         'job_properties': {
             "mapreduce.job.user.classpath.first": "false",
             "mapreduce.map.output.compress": "false",
-            "mapreduce.output.fileoutputformat.compress": "false"
-        }
+            "mapreduce.output.fileoutputformat.compress": "false",
+        },
     }
 
-    index_spec_config = {
-        'static_path': '/apps/db/warehouse/hive/',
-        'columns': ['country', 'segment']
-    }
+    index_spec_config = {'static_path': '/apps/db/warehouse/hive/', 'columns': ['country', 'segment']}
 
     def setUp(self):
         super().setUp()
 
-        args = {
-            'owner': 'airflow',
-            'start_date': '2017-01-01'
-        }
+        args = {'owner': 'airflow', 'start_date': '2017-01-01'}
         self.dag = DAG('hive_to_druid', default_args=args)
 
         session = requests.Session()
@@ -74,15 +68,9 @@ class TestDruidHook(unittest.TestCase):
         session.mount('mock', adapter)
 
     def test_construct_ingest_query(self):
-        operator = HiveToDruidOperator(
-            task_id='hive_to_druid',
-            dag=self.dag,
-            **self.hook_config
-        )
+        operator = HiveToDruidOperator(task_id='hive_to_druid', dag=self.dag, **self.hook_config)
 
-        provided_index_spec = operator.construct_ingest_query(
-            **self.index_spec_config
-        )
+        provided_index_spec = operator.construct_ingest_query(**self.index_spec_config)
 
         expected_index_spec = {
             "hadoopDependencyCoordinates": self.hook_config['hadoop_dependency_coordinates'],
@@ -103,16 +91,13 @@ class TestDruidHook(unittest.TestCase):
                             "dimensionsSpec": {
                                 "dimensionExclusions": [],
                                 "dimensions": self.index_spec_config['columns'],
-                                "spatialDimensions": []
+                                "spatialDimensions": [],
                             },
-                            "timestampSpec": {
-                                "column": self.hook_config['ts_dim'],
-                                "format": "auto"
-                            },
-                            "format": "tsv"
-                        }
+                            "timestampSpec": {"column": self.hook_config['ts_dim'], "format": "auto"},
+                            "format": "tsv",
+                        },
                     },
-                    "dataSource": self.hook_config['druid_datasource']
+                    "dataSource": self.hook_config['druid_datasource'],
                 },
                 "tuningConfig": {
                     "type": "hadoop",
@@ -124,13 +109,10 @@ class TestDruidHook(unittest.TestCase):
                     },
                 },
                 "ioConfig": {
-                    "inputSpec": {
-                        "paths": self.index_spec_config['static_path'],
-                        "type": "static"
-                    },
-                    "type": "hadoop"
-                }
-            }
+                    "inputSpec": {"paths": self.index_spec_config['static_path'], "type": "static"},
+                    "type": "hadoop",
+                },
+            },
         }
 
         # Make sure it is like we expect it

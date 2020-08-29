@@ -24,11 +24,14 @@ from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryDeleteDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryDeleteDatasetOperator,
     BigQueryExecuteQueryOperator,
 )
 from airflow.providers.google.cloud.sensors.bigquery import (
-    BigQueryTableExistenceSensor, BigQueryTablePartitionExistenceSensor,
+    BigQueryTableExistenceSensor,
+    BigQueryTablePartitionExistenceSensor,
 )
 from airflow.utils.dates import days_ago
 
@@ -40,9 +43,7 @@ INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
 
 PARTITION_NAME = "{{ ds_nodash }}"
 
-INSERT_ROWS_QUERY = \
-    f"INSERT {DATASET_NAME}.{TABLE_NAME} VALUES " \
-    "(42, '{{ ds }}')"
+INSERT_ROWS_QUERY = f"INSERT {DATASET_NAME}.{TABLE_NAME} VALUES " "(42, '{{ ds }}')"
 
 SCHEMA = [
     {"name": "value", "type": "INTEGER", "mode": "REQUIRED"},
@@ -57,7 +58,7 @@ with models.DAG(
     start_date=days_ago(1),
     tags=["example"],
     user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_NAME},
-    default_args={"project_id": PROJECT_ID}
+    default_args={"project_id": PROJECT_ID},
 ) as dag_with_locations:
     create_dataset = BigQueryCreateEmptyDatasetOperator(
         task_id="create-dataset", dataset_id=DATASET_NAME, project_id=PROJECT_ID
@@ -68,10 +69,7 @@ with models.DAG(
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
         schema_fields=SCHEMA,
-        time_partitioning={
-            "type": "DAY",
-            "field": "ds",
-        }
+        time_partitioning={"type": "DAY", "field": "ds",},
     )
     # [START howto_sensor_bigquery_table]
     check_table_exists = BigQueryTableExistenceSensor(
@@ -85,8 +83,11 @@ with models.DAG(
 
     # [START howto_sensor_bigquery_table_partition]
     check_table_partition_exists = BigQueryTablePartitionExistenceSensor(
-        task_id="check_table_partition_exists", project_id=PROJECT_ID, dataset_id=DATASET_NAME,
-        table_id=TABLE_NAME, partition_id=PARTITION_NAME
+        task_id="check_table_partition_exists",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        partition_id=PARTITION_NAME,
     )
     # [END howto_sensor_bigquery_table_partition]
 

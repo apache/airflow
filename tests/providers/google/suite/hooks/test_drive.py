@@ -37,7 +37,7 @@ class TestGoogleDriveHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook._authorize",
-        return_value="AUTHORIZE"
+        return_value="AUTHORIZE",
     )
     @mock.patch("airflow.providers.google.suite.hooks.drive.build")
     def test_get_conn(self, mock_discovery_build, mock_authorize):
@@ -190,7 +190,7 @@ class TestGoogleDriveHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     @mock.patch(
         "airflow.providers.google.suite.hooks.drive.GoogleDriveHook._ensure_folders_exists",
-        return_value="PARENT_ID"
+        return_value="PARENT_ID",
     )
     def test_upload_file_to_subdirectory(
         self, mock_ensure_folders_exists, mock_get_conn, mock_media_file_upload

@@ -46,14 +46,16 @@ class OracleToOracleOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, *,
-            oracle_destination_conn_id,
-            destination_table,
-            oracle_source_conn_id,
-            source_sql,
-            source_sql_params=None,
-            rows_chunk=5000,
-            **kwargs):
+        self,
+        *,
+        oracle_destination_conn_id,
+        destination_table,
+        oracle_source_conn_id,
+        source_sql,
+        source_sql_params=None,
+        rows_chunk=5000,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         if source_sql_params is None:
             source_sql_params = {}
@@ -76,9 +78,9 @@ class OracleToOracleOperator(BaseOperator):
             rows = cursor.fetchmany(self.rows_chunk)
             while len(rows) > 0:
                 rows_total += len(rows)
-                dest_hook.bulk_insert_rows(self.destination_table, rows,
-                                           target_fields=target_fields,
-                                           commit_every=self.rows_chunk)
+                dest_hook.bulk_insert_rows(
+                    self.destination_table, rows, target_fields=target_fields, commit_every=self.rows_chunk
+                )
                 rows = cursor.fetchmany(self.rows_chunk)
                 self.log.info("Total inserted: %s rows", rows_total)
 

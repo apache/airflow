@@ -69,11 +69,19 @@ class GoogleAdsToGcsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("client_ids", "query", "attributes", "bucket", "obj", "impersonation_chain",)
+    template_fields = (
+        "client_ids",
+        "query",
+        "attributes",
+        "bucket",
+        "obj",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         client_ids: List[str],
         query: str,
         attributes: List[str],
@@ -99,13 +107,8 @@ class GoogleAdsToGcsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        service = GoogleAdsHook(
-            gcp_conn_id=self.gcp_conn_id,
-            google_ads_conn_id=self.google_ads_conn_id
-        )
-        rows = service.search(
-            client_ids=self.client_ids, query=self.query, page_size=self.page_size
-        )
+        service = GoogleAdsHook(gcp_conn_id=self.gcp_conn_id, google_ads_conn_id=self.google_ads_conn_id)
+        rows = service.search(client_ids=self.client_ids, query=self.query, page_size=self.page_size)
 
         try:
             getter = attrgetter(*self.attributes)
@@ -119,14 +122,8 @@ class GoogleAdsToGcsOperator(BaseOperator):
             writer.writerows(converted_rows)
             csvfile.flush()
 
-            hook = GCSHook(
-                gcp_conn_id=self.gcp_conn_id,
-                impersonation_chain=self.impersonation_chain
-            )
+            hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
             hook.upload(
-                bucket_name=self.bucket,
-                object_name=self.obj,
-                filename=csvfile.name,
-                gzip=self.gzip,
+                bucket_name=self.bucket, object_name=self.obj, filename=csvfile.name, gzip=self.gzip,
             )
             self.log.info("%s uploaded to GCS", self.obj)

@@ -39,14 +39,13 @@ class TestBigQueryToMySqlOperator(unittest.TestCase):
         )
 
         operator.execute(None)
-        mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
-            .get_tabledata \
+        # fmt: off
+        mock_hook.return_value.get_conn.return_value.cursor.return_value.get_tabledata\
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 table_id=TEST_TABLE_ID,
                 max_results=1000,
                 selected_fields=None,
-                start_index=0
+                start_index=0,
             )
+        # fmt: on

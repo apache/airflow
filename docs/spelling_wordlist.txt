@@ -45,7 +45,6 @@ BounceX
 Boxel
 Bq
 Breguła
-CLoud
 CSRFProtect
 Cancelled
 Cassanda
@@ -136,10 +135,10 @@ Fileshares
 Filesystem
 Firehose
 Firestore
+FluentD
 Fokko
 Formaturas
 Fundera
-GCP
 GCS
 GH
 GSoD
@@ -235,6 +234,7 @@ Memorystore
 Mesos
 MessageAttributes
 Metastore
+Multinamespace
 Mixin
 Mongo
 Moto
@@ -280,6 +280,7 @@ Protobuf
 PublisherClient
 Pubsub
 Py
+Pyarrow
 PyPI
 Pylint
 Pyspark
@@ -319,6 +320,7 @@ SparkPi
 SparkR
 SparkSQL
 SpeechClient
+Splunk
 Sql
 Sqlalchemy
 Sqlite
@@ -706,6 +708,7 @@ fetchmany
 fetchone
 filehandle
 fileloc
+filelocs
 filepath
 filesize
 filesystem
@@ -773,6 +776,7 @@ hostname
 hostnames
 hotfix
 houqp
+howto
 hql
 html
 htmlcontent
@@ -922,6 +926,7 @@ moinmoin
 mongo
 mongoHook
 monospace
+mouseover
 msg
 mssql
 msumit

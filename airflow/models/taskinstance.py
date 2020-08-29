@@ -268,7 +268,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
     @reconstructor
     def init_on_load(self):
-        """ Initialize the attributes that aren't stored in the DB. """
+        """Initialize the attributes that aren't stored in the DB"""
         self.test_mode = False  # can be changed when calling 'run'
 
     @property

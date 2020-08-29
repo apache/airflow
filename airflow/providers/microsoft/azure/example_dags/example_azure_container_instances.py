@@ -54,5 +54,5 @@ with DAG(
         volumes=[],
         memory_in_gb=4.0,
         cpu=1.0,
-        task_id='start_container'
+        task_id='start_container',
     )

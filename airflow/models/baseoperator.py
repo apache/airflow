@@ -1299,7 +1299,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
 
     @cached_property
     def extra_links(self) -> List[str]:
-        """@property: extra links for the task. """
+        """@property: extra links for the task"""
         return list(set(self.operator_extra_link_dict.keys())
                     .union(self.global_operator_extra_link_dict.keys()))
 

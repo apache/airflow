@@ -19,7 +19,10 @@ import unittest
 from sqlalchemy import or_
 
 from airflow.api_connexion.schemas.xcom_schema import (
-    XComCollection, xcom_collection_item_schema, xcom_collection_schema, xcom_schema,
+    XComCollection,
+    xcom_collection_item_schema,
+    xcom_collection_schema,
+    xcom_schema,
 )
 from airflow.models import XCom
 from airflow.utils.dates import parse_execution_date
@@ -27,7 +30,6 @@ from airflow.utils.session import create_session, provide_session
 
 
 class TestXComSchemaBase(unittest.TestCase):
-
     def setUp(self):
         """
         Clear Hanging XComs pre test
@@ -44,7 +46,6 @@ class TestXComSchemaBase(unittest.TestCase):
 
 
 class TestXComCollectionItemSchema(TestXComSchemaBase):
-
     def setUp(self) -> None:
         super().setUp()
         self.default_time = '2005-04-02T21:00:00+00:00'
@@ -71,7 +72,7 @@ class TestXComCollectionItemSchema(TestXComSchemaBase):
                 'execution_date': self.default_time,
                 'task_id': 'test_task_id',
                 'dag_id': 'test_dag',
-            }
+            },
         )
 
     def test_deserialize(self):
@@ -91,12 +92,11 @@ class TestXComCollectionItemSchema(TestXComSchemaBase):
                 'execution_date': self.default_time_parsed,
                 'task_id': 'test_task_id',
                 'dag_id': 'test_dag',
-            }
+            },
         )
 
 
 class TestXComCollectionSchema(TestXComSchemaBase):
-
     def setUp(self) -> None:
         super().setUp()
         self.default_time_1 = '2005-04-02T21:00:00+00:00'
@@ -127,10 +127,9 @@ class TestXComCollectionSchema(TestXComSchemaBase):
             or_(XCom.execution_date == self.time_1, XCom.execution_date == self.time_2)
         )
         xcom_models_queried = xcom_models_query.all()
-        deserialized_xcoms = xcom_collection_schema.dump(XComCollection(
-            xcom_entries=xcom_models_queried,
-            total_entries=xcom_models_query.count(),
-        ))
+        deserialized_xcoms = xcom_collection_schema.dump(
+            XComCollection(xcom_entries=xcom_models_queried, total_entries=xcom_models_query.count(),)
+        )
         self.assertEqual(
             deserialized_xcoms,
             {
@@ -148,15 +147,14 @@ class TestXComCollectionSchema(TestXComSchemaBase):
                         'execution_date': self.default_time_2,
                         'task_id': 'test_task_id_2',
                         'dag_id': 'test_dag_2',
-                    }
+                    },
                 ],
                 'total_entries': len(xcom_models),
-            }
+            },
         )
 
 
 class TestXComSchema(TestXComSchemaBase):
-
     def setUp(self) -> None:
         super().setUp()
         self.default_time = '2005-04-02T21:00:00+00:00'
@@ -185,7 +183,7 @@ class TestXComSchema(TestXComSchemaBase):
                 'task_id': 'test_task_id',
                 'dag_id': 'test_dag',
                 'value': 'test_binary',
-            }
+            },
         )
 
     def test_deserialize(self):
@@ -207,5 +205,5 @@ class TestXComSchema(TestXComSchemaBase):
                 'task_id': 'test_task_id',
                 'dag_id': 'test_dag',
                 'value': 'test_binary',
-            }
+            },
         )

@@ -27,13 +27,14 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test",  # type: ignore
-                    permissions=[("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "TaskInstance")])
+        create_role(
+            cls.app,  # type: ignore
+            name="Test",
+            permissions=[("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "TaskInstance")],
+        )
         create_user(cls.app, username="test", role="Test")  # type: ignore
         create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
         create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
@@ -54,7 +55,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_should_response_200(self):
         response = self.client.get(
             "/api/v1/dags/TEST_DG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_TASK_ID",
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
 

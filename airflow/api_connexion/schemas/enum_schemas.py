@@ -21,9 +21,8 @@ from airflow.utils.state import State
 
 
 class DagStateField(fields.String):
-    """ Schema for DagState Enum"""
+    """Schema for DagState Enum"""
+
     def __init__(self, **metadata):
         super().__init__(**metadata)
-        self.validators = (
-            [validate.OneOf(State.dag_states)] + list(self.validators)
-        )
+        self.validators = [validate.OneOf(State.dag_states)] + list(self.validators)

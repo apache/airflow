@@ -28,6 +28,7 @@ class PoolSchema(SQLAlchemySchema):
 
     class Meta:
         """Meta"""
+
         model = Pool
 
     name = auto_field("pool")

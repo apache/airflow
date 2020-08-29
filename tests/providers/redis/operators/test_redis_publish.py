@@ -32,12 +32,8 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 @pytest.mark.integration("redis")
 class TestRedisPublishOperator(unittest.TestCase):
-
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         self.dag = DAG('test_redis_dag_id', default_args=args)
 
@@ -50,7 +46,7 @@ class TestRedisPublishOperator(unittest.TestCase):
             dag=self.dag,
             message='hello',
             channel=self.channel,
-            redis_conn_id='redis_default'
+            redis_conn_id='redis_default',
         )
 
         hook = RedisHook(redis_conn_id='redis_default')

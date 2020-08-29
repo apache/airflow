@@ -47,13 +47,15 @@ class TestGCSToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GCSToS3Operator(task_id=TASK_ID,
-                                   bucket=GCS_BUCKET,
-                                   prefix=PREFIX,
-                                   delimiter=DELIMITER,
-                                   dest_aws_conn_id="aws_default",
-                                   dest_s3_key=S3_BUCKET,
-                                   replace=False)
+        operator = GCSToS3Operator(
+            task_id=TASK_ID,
+            bucket=GCS_BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
+            dest_aws_conn_id="aws_default",
+            dest_s3_key=S3_BUCKET,
+            replace=False,
+        )
         # create dest bucket
         hook = S3Hook(aws_conn_id='airflow_gcs_test')
         bucket = hook.get_bucket('bucket')
@@ -63,10 +65,8 @@ class TestGCSToS3Operator(unittest.TestCase):
         # we expect all except first file in MOCK_FILES to be uploaded
         # and all the MOCK_FILES to be present at the S3 bucket
         uploaded_files = operator.execute(None)
-        self.assertEqual(sorted(MOCK_FILES[1:]),
-                         sorted(uploaded_files))
-        self.assertEqual(sorted(MOCK_FILES),
-                         sorted(hook.list_keys('bucket', delimiter='/')))
+        self.assertEqual(sorted(MOCK_FILES[1:]), sorted(uploaded_files))
+        self.assertEqual(sorted(MOCK_FILES), sorted(hook.list_keys('bucket', delimiter='/')))
 
     # Test2: All the files are already in origin and destination without replace
     @mock_s3
@@ -77,13 +77,15 @@ class TestGCSToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GCSToS3Operator(task_id=TASK_ID,
-                                   bucket=GCS_BUCKET,
-                                   prefix=PREFIX,
-                                   delimiter=DELIMITER,
-                                   dest_aws_conn_id="aws_default",
-                                   dest_s3_key=S3_BUCKET,
-                                   replace=False)
+        operator = GCSToS3Operator(
+            task_id=TASK_ID,
+            bucket=GCS_BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
+            dest_aws_conn_id="aws_default",
+            dest_s3_key=S3_BUCKET,
+            replace=False,
+        )
         # create dest bucket with all the files
         hook = S3Hook(aws_conn_id='airflow_gcs_test')
         bucket = hook.get_bucket('bucket')
@@ -94,10 +96,8 @@ class TestGCSToS3Operator(unittest.TestCase):
         # we expect nothing to be uploaded
         # and all the MOCK_FILES to be present at the S3 bucket
         uploaded_files = operator.execute(None)
-        self.assertEqual([],
-                         uploaded_files)
-        self.assertEqual(sorted(MOCK_FILES),
-                         sorted(hook.list_keys('bucket', delimiter='/')))
+        self.assertEqual([], uploaded_files)
+        self.assertEqual(sorted(MOCK_FILES), sorted(hook.list_keys('bucket', delimiter='/')))
 
     # Test3: There are no files in destination bucket
     @mock_s3
@@ -108,13 +108,15 @@ class TestGCSToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GCSToS3Operator(task_id=TASK_ID,
-                                   bucket=GCS_BUCKET,
-                                   prefix=PREFIX,
-                                   delimiter=DELIMITER,
-                                   dest_aws_conn_id="aws_default",
-                                   dest_s3_key=S3_BUCKET,
-                                   replace=False)
+        operator = GCSToS3Operator(
+            task_id=TASK_ID,
+            bucket=GCS_BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
+            dest_aws_conn_id="aws_default",
+            dest_s3_key=S3_BUCKET,
+            replace=False,
+        )
         # create dest bucket without files
         hook = S3Hook(aws_conn_id='airflow_gcs_test')
         bucket = hook.get_bucket('bucket')
@@ -123,10 +125,8 @@ class TestGCSToS3Operator(unittest.TestCase):
         # we expect all MOCK_FILES to be uploaded
         # and all MOCK_FILES to be present at the S3 bucket
         uploaded_files = operator.execute(None)
-        self.assertEqual(sorted(MOCK_FILES),
-                         sorted(uploaded_files))
-        self.assertEqual(sorted(MOCK_FILES),
-                         sorted(hook.list_keys('bucket', delimiter='/')))
+        self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
+        self.assertEqual(sorted(MOCK_FILES), sorted(hook.list_keys('bucket', delimiter='/')))
 
     # Test4: Destination and Origin are in sync but replace all files in destination
     @mock_s3
@@ -137,13 +137,15 @@ class TestGCSToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GCSToS3Operator(task_id=TASK_ID,
-                                   bucket=GCS_BUCKET,
-                                   prefix=PREFIX,
-                                   delimiter=DELIMITER,
-                                   dest_aws_conn_id="aws_default",
-                                   dest_s3_key=S3_BUCKET,
-                                   replace=True)
+        operator = GCSToS3Operator(
+            task_id=TASK_ID,
+            bucket=GCS_BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
+            dest_aws_conn_id="aws_default",
+            dest_s3_key=S3_BUCKET,
+            replace=True,
+        )
         # create dest bucket with all the files
         hook = S3Hook(aws_conn_id='airflow_gcs_test')
         bucket = hook.get_bucket('bucket')
@@ -154,10 +156,8 @@ class TestGCSToS3Operator(unittest.TestCase):
         # we expect all MOCK_FILES to be uploaded and replace the existing ones
         # and all MOCK_FILES to be present at the S3 bucket
         uploaded_files = operator.execute(None)
-        self.assertEqual(sorted(MOCK_FILES),
-                         sorted(uploaded_files))
-        self.assertEqual(sorted(MOCK_FILES),
-                         sorted(hook.list_keys('bucket', delimiter='/')))
+        self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
+        self.assertEqual(sorted(MOCK_FILES), sorted(hook.list_keys('bucket', delimiter='/')))
 
     # Test5: Incremental sync with replace
     @mock_s3
@@ -168,13 +168,15 @@ class TestGCSToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GCSToS3Operator(task_id=TASK_ID,
-                                   bucket=GCS_BUCKET,
-                                   prefix=PREFIX,
-                                   delimiter=DELIMITER,
-                                   dest_aws_conn_id="aws_default",
-                                   dest_s3_key=S3_BUCKET,
-                                   replace=True)
+        operator = GCSToS3Operator(
+            task_id=TASK_ID,
+            bucket=GCS_BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
+            dest_aws_conn_id="aws_default",
+            dest_s3_key=S3_BUCKET,
+            replace=True,
+        )
         # create dest bucket with just two files (the first two files in MOCK_FILES)
         hook = S3Hook(aws_conn_id='airflow_gcs_test')
         bucket = hook.get_bucket('bucket')
@@ -185,7 +187,5 @@ class TestGCSToS3Operator(unittest.TestCase):
         # we expect all the MOCK_FILES to be uploaded and replace the existing ones
         # and all MOCK_FILES to be present at the S3 bucket
         uploaded_files = operator.execute(None)
-        self.assertEqual(sorted(MOCK_FILES),
-                         sorted(uploaded_files))
-        self.assertEqual(sorted(MOCK_FILES),
-                         sorted(hook.list_keys('bucket', delimiter='/')))
+        self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
+        self.assertEqual(sorted(MOCK_FILES), sorted(hook.list_keys('bucket', delimiter='/')))

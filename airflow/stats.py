@@ -127,7 +127,7 @@ class AllowListValidator:
             self.allow_list = None
 
     def test(self, stat):
-        """ Test if stat is in the Allow List """
+        """Test if stat is in the Allow List"""
         if self.allow_list is not None:
             return stat.strip().lower().startswith(self.allow_list)
         else:

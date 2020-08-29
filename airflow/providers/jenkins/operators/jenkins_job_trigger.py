@@ -54,8 +54,8 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Optio
         response_headers = response.headers
         if response_body is None:
             raise jenkins.EmptyResponseException(
-                "Error communicating with server[%s]: "
-                "empty response" % jenkins_server.server)
+                "Error communicating with server[%s]: " "empty response" % jenkins_server.server
+            )
         return {'body': response_body.decode('utf-8'), 'headers': response_headers}
     except HTTPError as e:
         # Jenkins's funky authentication means its nigh impossible to distinguish errors.
@@ -95,18 +95,22 @@ class JenkinsJobTriggerOperator(BaseOperator):
         while waiting for the job to appears on jenkins server (default 10)
     :type max_try_before_job_appears: int
     """
+
     template_fields = ('parameters',)
     template_ext = ('.json',)
     ui_color = '#f9ec86'
 
     @apply_defaults
-    def __init__(self, *,
-                 jenkins_connection_id: str,
-                 job_name: str,
-                 parameters: ParamType = "",
-                 sleep_time: int = 10,
-                 max_try_before_job_appears: int = 10,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        jenkins_connection_id: str,
+        job_name: str,
+        parameters: ParamType = "",
+        sleep_time: int = 10,
+        max_try_before_job_appears: int = 10,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.parameters = parameters
@@ -116,9 +120,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
 
-    def build_job(self,
-                  jenkins_server: Jenkins,
-                  params: ParamType = "") -> Optional[JenkinsRequest]:
+    def build_job(self, jenkins_server: Jenkins, params: ParamType = "") -> Optional[JenkinsRequest]:
         """
         This function makes an API call to Jenkins to trigger a build for 'job_name'
         It returned a dict with 2 keys : body and headers.
@@ -139,9 +141,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         if not params:
             params = None
 
-        request = Request(
-            method='POST',
-            url=jenkins_server.build_job_url(self.job_name, params, None))
+        request = Request(method='POST', url=jenkins_server.build_job_url(self.job_name, params, None))
         return jenkins_request_with_headers(jenkins_server, request)
 
     def poll_job_in_queue(self, location: str, jenkins_server: Jenkins) -> int:
@@ -166,18 +166,19 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.log.info('Polling jenkins queue at the url %s', location)
         while try_count < self.max_try_before_job_appears:
             location_answer = jenkins_request_with_headers(
-                jenkins_server, Request(method='POST', url=location))
+                jenkins_server, Request(method='POST', url=location)
+            )
             if location_answer is not None:
                 json_response = json.loads(location_answer['body'])
                 if 'executable' in json_response:
                     build_number = json_response['executable']['number']
-                    self.log.info('Job executed on Jenkins side with the build number %s',
-                                  build_number)
+                    self.log.info('Job executed on Jenkins side with the build number %s', build_number)
                     return build_number
             try_count += 1
             time.sleep(self.sleep_time)
-        raise AirflowException("The job hasn't been executed after polling "
-                               f"the queue {self.max_try_before_job_appears} times")
+        raise AirflowException(
+            "The job hasn't been executed after polling " f"the queue {self.max_try_before_job_appears} times"
+        )
 
     def get_hook(self) -> JenkinsHook:
         """
@@ -190,23 +191,26 @@ class JenkinsJobTriggerOperator(BaseOperator):
             self.log.error(
                 'Please specify the jenkins connection id to use.'
                 'You must create a Jenkins connection before'
-                ' being able to use this operator')
-            raise AirflowException('The jenkins_connection_id parameter is missing,'
-                                   'impossible to trigger the job')
+                ' being able to use this operator'
+            )
+            raise AirflowException(
+                'The jenkins_connection_id parameter is missing,' 'impossible to trigger the job'
+            )
 
         if not self.job_name:
             self.log.error("Please specify the job name to use in the job_name parameter")
-            raise AirflowException('The job_name parameter is missing,'
-                                   'impossible to trigger the job')
+            raise AirflowException('The job_name parameter is missing,' 'impossible to trigger the job')
 
         self.log.info(
             'Triggering the job %s on the jenkins : %s with the parameters : %s',
-            self.job_name, self.jenkins_connection_id, self.parameters)
+            self.job_name,
+            self.jenkins_connection_id,
+            self.parameters,
+        )
         jenkins_server = self.get_hook().get_jenkins_server()
         jenkins_response = self.build_job(jenkins_server, self.parameters)
         if jenkins_response:
-            build_number = self.poll_job_in_queue(
-                jenkins_response['headers']['Location'], jenkins_server)
+            build_number = self.poll_job_in_queue(jenkins_response['headers']['Location'], jenkins_server)
 
         time.sleep(self.sleep_time)
         keep_polling_job = True
@@ -214,8 +218,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         # pylint: disable=too-many-nested-blocks
         while keep_polling_job:
             try:
-                build_info = jenkins_server.get_build_info(name=self.job_name,
-                                                           number=build_number)
+                build_info = jenkins_server.get_build_info(name=self.job_name, number=build_number)
                 if build_info['result'] is not None:
                     keep_polling_job = False
                     # Check if job had errors.
@@ -223,23 +226,24 @@ class JenkinsJobTriggerOperator(BaseOperator):
                         raise AirflowException(
                             'Jenkins job failed, final state : %s.'
                             'Find more information on job url : %s'
-                            % (build_info['result'], build_info['url']))
+                            % (build_info['result'], build_info['url'])
+                        )
                 else:
-                    self.log.info('Waiting for job to complete : %s , build %s',
-                                  self.job_name, build_number)
+                    self.log.info('Waiting for job to complete : %s , build %s', self.job_name, build_number)
                     time.sleep(self.sleep_time)
             except jenkins.NotFoundException as err:
                 # pylint: disable=no-member
                 raise AirflowException(
-                    'Jenkins job status check failed. Final error was: '
-                    f'{err.resp.status}')
+                    'Jenkins job status check failed. Final error was: ' f'{err.resp.status}'
+                )
             except jenkins.JenkinsException as err:
                 raise AirflowException(
                     f'Jenkins call failed with error : {err}, if you have parameters '
                     'double check them, jenkins sends back '
                     'this exception for unknown parameters'
                     'You can also check logs for more details on this exception '
-                    '(jenkins_url/log/rss)')
+                    '(jenkins_url/log/rss)'
+                )
         if build_info:
             # If we can we return the url of the job
             # for later use (like retrieving an artifact)

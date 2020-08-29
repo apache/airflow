@@ -59,7 +59,7 @@ set to ``True``.
     :end-before: [END howto_bigquery_dts_create_args]
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Basic usage of the operator:
+it will be retrieved from the Google Cloud connection used. Basic usage of the operator:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigquery_dts.py
     :language: python

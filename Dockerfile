@@ -42,7 +42,6 @@ ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_GID="50000"
 
-ARG PIP_VERSION="19.0.2"
 ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
@@ -145,11 +144,6 @@ RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
         mysql-client \
     && apt-get autoremove -yqq --purge \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-ARG PIP_VERSION
-ENV PIP_VERSION=${PIP_VERSION}
-
-RUN pip install --upgrade pip==${PIP_VERSION}
 
 ARG AIRFLOW_REPO=apache/airflow
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}
@@ -327,10 +321,6 @@ RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
         mysql-client \
     && apt-get autoremove -yqq --purge \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-ARG PIP_VERSION
-ENV PIP_VERSION=${PIP_VERSION}
-RUN pip install --upgrade pip==${PIP_VERSION}
 
 ENV AIRFLOW_UID=${AIRFLOW_UID}
 ENV AIRFLOW_GID=${AIRFLOW_GID}

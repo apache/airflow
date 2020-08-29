@@ -66,9 +66,7 @@ class TestGetHeath(TestHealthTestBase):
 
     @provide_session
     def test_unhealthy_scheduler_is_slow(self, session):
-        last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(
-            minutes=1
-        )
+        last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
         session.add(
             BaseJob(
                 job_type="SchedulerJob",

@@ -28,7 +28,8 @@ class XComCollectionItemSchema(SQLAlchemySchema):
     """
 
     class Meta:
-        """ Meta """
+        """Meta"""
+
         model = XCom
 
     key = auto_field()
@@ -47,13 +48,15 @@ class XComSchema(XComCollectionItemSchema):
 
 
 class XComCollection(NamedTuple):
-    """ List of XComs with meta"""
+    """List of XComs with meta"""
+
     xcom_entries: List[XCom]
     total_entries: int
 
 
 class XComCollectionSchema(Schema):
-    """ XCom Collection Schema"""
+    """XCom Collection Schema"""
+
     xcom_entries = fields.List(fields.Nested(XComCollectionItemSchema))
     total_entries = fields.Int()
 

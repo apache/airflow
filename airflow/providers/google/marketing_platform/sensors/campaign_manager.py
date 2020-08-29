@@ -62,7 +62,12 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("profile_id", "report_id", "file_id", "impersonation_chain",)
+    template_fields = (
+        "profile_id",
+        "report_id",
+        "file_id",
+        "impersonation_chain",
+    )
 
     def poke(self, context: Dict) -> bool:
         hook = GoogleCampaignManagerHook(
@@ -71,15 +76,14 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        response = hook.get_report(
-            profile_id=self.profile_id, report_id=self.report_id, file_id=self.file_id
-        )
+        response = hook.get_report(profile_id=self.profile_id, report_id=self.report_id, file_id=self.file_id)
         self.log.info("Report status: %s", response["status"])
         return response["status"] != "PROCESSING"
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         profile_id: str,
         report_id: str,
         file_id: str,
@@ -89,7 +93,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         mode: str = "reschedule",
         poke_interval: int = 60 * 5,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.mode = mode

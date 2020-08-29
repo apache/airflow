@@ -28,14 +28,12 @@ from airflow.utils import timezone
 
 
 class TestKubernetesPodOperator(unittest.TestCase):
-
     @staticmethod
     def create_context(task):
         dag = DAG(dag_id="dag")
         tzinfo = pendulum.timezone("Europe/Amsterdam")
         execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
-        task_instance = TaskInstance(task=task,
-                                     execution_date=execution_date)
+        task_instance = TaskInstance(task=task, execution_date=execution_date)
         return {
             "dag": dag,
             "ts": execution_date.isoformat(),
@@ -68,9 +66,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
         context = self.create_context(k)
         k.execute(context=context)
         client_mock.assert_called_once_with(
-            in_cluster=False,
-            cluster_context='default',
-            config_file=file_path,
+            in_cluster=False, cluster_context='default', config_file=file_path,
         )
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
@@ -98,7 +94,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
         k.execute(context=context)
         self.assertEqual(
             start_mock.call_args[0][0].spec.image_pull_secrets,
-            [k8s.V1LocalObjectReference(name=fake_pull_secrets)]
+            [k8s.V1LocalObjectReference(name=fake_pull_secrets)],
         )
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
@@ -106,11 +102,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.delete_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_pod_delete_even_on_launcher_error(
-            self,
-            mock_client,
-            delete_pod_mock,
-            monitor_pod_mock,
-            start_pod_mock):
+        self, mock_client, delete_pod_mock, monitor_pod_mock, start_pod_mock
+    ):
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",

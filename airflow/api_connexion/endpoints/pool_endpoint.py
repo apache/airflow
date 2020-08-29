@@ -57,9 +57,7 @@ def get_pool(pool_name, session):
 
 @security.requires_authentication
 @security.requires_access([("can_read", "Pool")])
-@format_parameters({
-    'limit': check_limit
-})
+@format_parameters({'limit': check_limit})
 @provide_session
 def get_pools(session, limit, offset=None):
     """
@@ -67,9 +65,7 @@ def get_pools(session, limit, offset=None):
     """
     total_entries = session.query(func.count(Pool.id)).scalar()
     pools = session.query(Pool).order_by(Pool.id).offset(offset).limit(limit).all()
-    return pool_collection_schema.dump(
-        PoolCollection(pools=pools, total_entries=total_entries)
-    )
+    return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
 
 
 @security.requires_authentication

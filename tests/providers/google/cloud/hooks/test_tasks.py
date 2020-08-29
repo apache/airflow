@@ -32,9 +32,7 @@ FULL_LOCATION_PATH = "projects/test-project/locations/asia-east2"
 QUEUE_ID = "test-queue"
 FULL_QUEUE_PATH = "projects/test-project/locations/asia-east2/queues/test-queue"
 TASK_NAME = "test-task"
-FULL_TASK_PATH = (
-    "projects/test-project/locations/asia-east2/queues/test-queue/tasks/test-task"
-)
+FULL_TASK_PATH = "projects/test-project/locations/asia-east2/queues/test-queue/tasks/test-task"
 
 
 class TestCloudTasksHook(unittest.TestCase):
@@ -47,15 +45,14 @@ class TestCloudTasksHook(unittest.TestCase):
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.client_info",
-        new_callable=mock.PropertyMock
+        new_callable=mock.PropertyMock,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksClient")
     def test_cloud_tasks_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         result = self.hook.get_conn()
         mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value,
-            client_info=mock_client_info.return_value
+            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
         )
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.hook._client, result)
@@ -66,10 +63,7 @@ class TestCloudTasksHook(unittest.TestCase):
     )
     def test_create_queue(self, get_conn):
         result = self.hook.create_queue(
-            location=LOCATION,
-            task_queue=Queue(),
-            queue_name=QUEUE_ID,
-            project_id=PROJECT_ID,
+            location=LOCATION, task_queue=Queue(), queue_name=QUEUE_ID, project_id=PROJECT_ID,
         )
 
         self.assertIs(result, API_RESPONSE)
@@ -88,10 +82,7 @@ class TestCloudTasksHook(unittest.TestCase):
     )
     def test_update_queue(self, get_conn):
         result = self.hook.update_queue(
-            task_queue=Queue(state=3),
-            location=LOCATION,
-            queue_name=QUEUE_ID,
-            project_id=PROJECT_ID,
+            task_queue=Queue(state=3), location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID,
         )
 
         self.assertIs(result, API_RESPONSE)
@@ -109,9 +100,7 @@ class TestCloudTasksHook(unittest.TestCase):
         **{"return_value.get_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_get_queue(self, get_conn):
-        result = self.hook.get_queue(
-            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
-        )
+        result = self.hook.get_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
         self.assertIs(result, API_RESPONSE)
 
@@ -129,12 +118,7 @@ class TestCloudTasksHook(unittest.TestCase):
         self.assertEqual(result, list(API_RESPONSE))
 
         get_conn.return_value.list_queues.assert_called_once_with(
-            parent=FULL_LOCATION_PATH,
-            filter_=None,
-            page_size=None,
-            retry=None,
-            timeout=None,
-            metadata=None,
+            parent=FULL_LOCATION_PATH, filter_=None, page_size=None, retry=None, timeout=None, metadata=None,
         )
 
     @mock.patch(
@@ -142,9 +126,7 @@ class TestCloudTasksHook(unittest.TestCase):
         **{"return_value.delete_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_delete_queue(self, get_conn):
-        result = self.hook.delete_queue(
-            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
-        )
+        result = self.hook.delete_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
         self.assertEqual(result, None)
 
@@ -157,9 +139,7 @@ class TestCloudTasksHook(unittest.TestCase):
         **{"return_value.purge_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_purge_queue(self, get_conn):
-        result = self.hook.purge_queue(
-            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
-        )
+        result = self.hook.purge_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
         self.assertEqual(result, API_RESPONSE)
 
@@ -172,9 +152,7 @@ class TestCloudTasksHook(unittest.TestCase):
         **{"return_value.pause_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_pause_queue(self, get_conn):
-        result = self.hook.pause_queue(
-            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
-        )
+        result = self.hook.pause_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
         self.assertEqual(result, API_RESPONSE)
 
@@ -187,9 +165,7 @@ class TestCloudTasksHook(unittest.TestCase):
         **{"return_value.resume_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_resume_queue(self, get_conn):
-        result = self.hook.resume_queue(
-            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
-        )
+        result = self.hook.resume_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
         self.assertEqual(result, API_RESPONSE)
 
@@ -203,11 +179,7 @@ class TestCloudTasksHook(unittest.TestCase):
     )
     def test_create_task(self, get_conn):
         result = self.hook.create_task(
-            location=LOCATION,
-            queue_name=QUEUE_ID,
-            task=Task(),
-            project_id=PROJECT_ID,
-            task_name=TASK_NAME,
+            location=LOCATION, queue_name=QUEUE_ID, task=Task(), project_id=PROJECT_ID, task_name=TASK_NAME,
         )
 
         self.assertEqual(result, API_RESPONSE)
@@ -227,20 +199,13 @@ class TestCloudTasksHook(unittest.TestCase):
     )
     def test_get_task(self, get_conn):
         result = self.hook.get_task(
-            location=LOCATION,
-            queue_name=QUEUE_ID,
-            task_name=TASK_NAME,
-            project_id=PROJECT_ID,
+            location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, project_id=PROJECT_ID,
         )
 
         self.assertEqual(result, API_RESPONSE)
 
         get_conn.return_value.get_task.assert_called_once_with(
-            name=FULL_TASK_PATH,
-            response_view=None,
-            retry=None,
-            timeout=None,
-            metadata=None,
+            name=FULL_TASK_PATH, response_view=None, retry=None, timeout=None, metadata=None,
         )
 
     @mock.patch(
@@ -248,9 +213,7 @@ class TestCloudTasksHook(unittest.TestCase):
         **{"return_value.list_tasks.return_value": API_RESPONSE},  # type: ignore
     )
     def test_list_tasks(self, get_conn):
-        result = self.hook.list_tasks(
-            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
-        )
+        result = self.hook.list_tasks(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
         self.assertEqual(result, list(API_RESPONSE))
 
@@ -269,10 +232,7 @@ class TestCloudTasksHook(unittest.TestCase):
     )
     def test_delete_task(self, get_conn):
         result = self.hook.delete_task(
-            location=LOCATION,
-            queue_name=QUEUE_ID,
-            task_name=TASK_NAME,
-            project_id=PROJECT_ID,
+            location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, project_id=PROJECT_ID,
         )
 
         self.assertEqual(result, None)
@@ -287,18 +247,11 @@ class TestCloudTasksHook(unittest.TestCase):
     )
     def test_run_task(self, get_conn):
         result = self.hook.run_task(
-            location=LOCATION,
-            queue_name=QUEUE_ID,
-            task_name=TASK_NAME,
-            project_id=PROJECT_ID,
+            location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, project_id=PROJECT_ID,
         )
 
         self.assertEqual(result, API_RESPONSE)
 
         get_conn.return_value.run_task.assert_called_once_with(
-            name=FULL_TASK_PATH,
-            response_view=None,
-            retry=None,
-            timeout=None,
-            metadata=None,
+            name=FULL_TASK_PATH, response_view=None, retry=None, timeout=None, metadata=None,
         )

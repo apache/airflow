@@ -54,16 +54,20 @@ class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("report_id", "impersonation_chain",)
+    template_fields = (
+        "report_id",
+        "impersonation_chain",
+    )
 
     def __init__(
-        self, *,
+        self,
+        *,
         report_id: str,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
 
@@ -117,7 +121,10 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
 
     """
 
-    template_fields = ("operation_name", "impersonation_chain",)
+    template_fields = (
+        "operation_name",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
@@ -129,7 +136,7 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
         poke_interval: int = 60 * 5,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.mode = mode

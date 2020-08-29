@@ -33,9 +33,7 @@ class TestEventLogEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
         create_role(cls.app, name="Test", permissions=[("can_read", "Log")])  # type: ignore
@@ -60,17 +58,21 @@ class TestEventLogEndpoint(unittest.TestCase):
         clear_db_logs()
 
     def _create_task_instance(self):
-        dag = DAG('TEST_DAG_ID', start_date=timezone.parse(self.default_time),
-                  end_date=timezone.parse(self.default_time))
-        op1 = DummyOperator(task_id="TEST_TASK_ID", owner="airflow",
-                            )
+        dag = DAG(
+            'TEST_DAG_ID',
+            start_date=timezone.parse(self.default_time),
+            end_date=timezone.parse(self.default_time),
+        )
+        op1 = DummyOperator(
+            task_id="TEST_TASK_ID",
+            owner="airflow",
+        )
         dag.add_task(op1)
         ti = TaskInstance(task=op1, execution_date=timezone.parse(self.default_time))
         return ti
 
 
 class TestGetEventLog(TestEventLogEndpoint):
-
     @provide_session
     def test_should_response_200(self, session):
         log_model = Log(
@@ -95,18 +97,16 @@ class TestGetEventLog(TestEventLogEndpoint):
                 "execution_date": self.default_time,
                 "owner": 'airflow',
                 "when": self.default_time,
-                "extra": None
-            }
+                "extra": None,
+            },
         )
 
     def test_should_response_404(self):
-        response = self.client.get(
-            "/api/v1/eventLogs/1", environ_overrides={'REMOTE_USER': "test"}
-        )
+        response = self.client.get("/api/v1/eventLogs/1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         self.assertEqual(
             {'detail': None, 'status': 404, 'title': 'Event Log not found', 'type': 'about:blank'},
-            response.json
+            response.json,
         )
 
     @provide_session
@@ -125,13 +125,13 @@ class TestGetEventLog(TestEventLogEndpoint):
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get("/api/v1/eventLogs",
-                                   environ_overrides={'REMOTE_USER': "test_no_permissions"})
+        response = self.client.get(
+            "/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
         assert response.status_code == 403
 
 
 class TestGetEventLogs(TestEventLogEndpoint):
-
     @provide_session
     def test_should_response_200(self, session):
         log_model_1 = Log(
@@ -153,7 +153,6 @@ class TestGetEventLogs(TestEventLogEndpoint):
             {
                 "event_logs": [
                     {
-
                         "event_log_id": log_model_1.id,
                         "event": "TEST_EVENT_1",
                         "dag_id": "TEST_DAG_ID",
@@ -161,8 +160,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                         "execution_date": self.default_time,
                         "owner": 'airflow',
                         "when": self.default_time,
-                        "extra": None
-
+                        "extra": None,
                     },
                     {
                         "event_log_id": log_model_2.id,
@@ -172,11 +170,11 @@ class TestGetEventLogs(TestEventLogEndpoint):
                         "execution_date": self.default_time,
                         "owner": 'airflow',
                         "when": self.default_time_2,
-                        "extra": None
-                    }
+                        "extra": None,
+                    },
                 ],
-                "total_entries": 2
-            }
+                "total_entries": 2,
+            },
         )
 
     @provide_session
@@ -231,7 +229,10 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
             ),
             ("api/v1/eventLogs?limit=1&offset=5", ["TEST_EVENT_6"]),
             ("api/v1/eventLogs?limit=1&offset=1", ["TEST_EVENT_2"]),
-            ("api/v1/eventLogs?limit=2&offset=2", ["TEST_EVENT_3", "TEST_EVENT_4"],),
+            (
+                "api/v1/eventLogs?limit=2&offset=2",
+                ["TEST_EVENT_3", "TEST_EVENT_4"],
+            ),
         ]
     )
     @provide_session
@@ -272,9 +273,6 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
 
     def _create_event_logs(self, count):
         return [
-            Log(
-                event="TEST_EVENT_" + str(i),
-                task_instance=self._create_task_instance()
-            )
+            Log(event="TEST_EVENT_" + str(i), task_instance=self._create_task_instance())
             for i in range(1, count + 1)
         ]

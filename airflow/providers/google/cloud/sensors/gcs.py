@@ -55,17 +55,25 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('bucket', 'object', 'impersonation_chain',)
+
+    template_fields = (
+        'bucket',
+        'object',
+        'impersonation_chain',
+    )
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, *,
-                 bucket: str,
-                 object: str,  # pylint: disable=redefined-builtin
-                 google_cloud_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        bucket: str,
+        object: str,  # pylint: disable=redefined-builtin
+        google_cloud_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
 
         super().__init__(**kwargs)
         self.bucket = bucket
@@ -123,18 +131,25 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('bucket', 'object', 'impersonation_chain',)
+
+    template_fields = (
+        'bucket',
+        'object',
+        'impersonation_chain',
+    )
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
-                 bucket: str,
-                 object: str,  # pylint: disable=redefined-builtin
-                 ts_func: Callable = ts_function,
-                 google_cloud_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        bucket: str,
+        object: str,  # pylint: disable=redefined-builtin
+        ts_func: Callable = ts_function,
+        google_cloud_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
 
         super().__init__(**kwargs)
         self.bucket = bucket
@@ -184,17 +199,24 @@ class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('bucket', 'prefix', 'impersonation_chain',)
+
+    template_fields = (
+        'bucket',
+        'prefix',
+        'impersonation_chain',
+    )
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
-                 bucket: str,
-                 prefix: str,
-                 google_cloud_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        bucket: str,
+        prefix: str,
+        google_cloud_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.bucket = bucket
         self.prefix = prefix
@@ -204,8 +226,7 @@ class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context):
-        self.log.info('Sensor checks existence of objects: %s, %s',
-                      self.bucket, self.prefix)
+        self.log.info('Sensor checks existence of objects: %s, %s', self.bucket, self.prefix)
         hook = GCSHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to,
@@ -274,21 +295,27 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('bucket', 'prefix', 'impersonation_chain',)
+    template_fields = (
+        'bucket',
+        'prefix',
+        'impersonation_chain',
+    )
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
-                 bucket: str,
-                 prefix: str,
-                 inactivity_period: float = 60 * 60,
-                 min_objects: int = 1,
-                 previous_objects: Optional[Set[str]] = None,
-                 allow_delete: bool = True,
-                 google_cloud_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        bucket: str,
+        prefix: str,
+        inactivity_period: float = 60 * 60,
+        min_objects: int = 1,
+        previous_objects: Optional[Set[str]] = None,
+        allow_delete: bool = True,
+        google_cloud_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
 
         super().__init__(**kwargs)
 
@@ -328,10 +355,11 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         if current_objects > self.previous_objects:
             # When new objects arrived, reset the inactivity_seconds
             # and update previous_objects for the next poke.
-            self.log.info("New objects found at %s resetting last_activity_time.",
-                          os.path.join(self.bucket, self.prefix))
-            self.log.debug("New objects: %s",
-                           "\n".join(current_objects - self.previous_objects))
+            self.log.info(
+                "New objects found at %s resetting last_activity_time.",
+                os.path.join(self.bucket, self.prefix),
+            )
+            self.log.debug("New objects: %s", "\n".join(current_objects - self.previous_objects))
             self.last_activity_time = get_time()
             self.inactivity_seconds = 0
             self.previous_objects = current_objects
@@ -348,14 +376,17 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
                     poke interval. Updating the file counter and
                     resetting last_activity_time.
                     %s
-                    """, self.previous_objects - current_objects
+                    """,
+                    self.previous_objects - current_objects,
                 )
                 return False
 
             raise AirflowException(
                 """
                 Illegal behavior: objects were deleted in {} between pokes.
-                """.format(os.path.join(self.bucket, self.prefix))
+                """.format(
+                    os.path.join(self.bucket, self.prefix)
+                )
             )
 
         if self.last_activity_time:
@@ -369,10 +400,15 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
             path = os.path.join(self.bucket, self.prefix)
 
             if current_num_objects >= self.min_objects:
-                self.log.info("""SUCCESS:
+                self.log.info(
+                    """SUCCESS:
                     Sensor found %s objects at %s.
                     Waited at least %s seconds, with no new objects dropped.
-                    """, current_num_objects, path, self.inactivity_period)
+                    """,
+                    current_num_objects,
+                    path,
+                    self.inactivity_period,
+                )
                 return True
 
             self.log.error("FAILURE: Inactivity Period passed, not enough objects found in %s", path)

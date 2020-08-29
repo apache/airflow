@@ -34,6 +34,7 @@ class BatchState(Enum):
     """
     Batch session states
     """
+
     NOT_STARTED = 'not_started'
     STARTING = 'starting'
     RUNNING = 'running'
@@ -65,10 +66,7 @@ class LivyHook(HttpHook, LoggingMixin):
         BatchState.ERROR,
     }
 
-    _def_headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-    }
+    _def_headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 
     def __init__(self, livy_conn_id: str = 'livy_default') -> None:
         super(LivyHook, self).__init__(http_conn_id=livy_conn_id)
@@ -93,7 +91,7 @@ class LivyHook(HttpHook, LoggingMixin):
         method: str = 'GET',
         data: Optional[Any] = None,
         headers: Optional[Dict[str, Any]] = None,
-        extra_options: Optional[Dict[Any, Any]] = None
+        extra_options: Optional[Dict[Any, Any]] = None,
     ) -> Any:
         """
         Wrapper for HttpHook, allows to change method on the same HttpHook
@@ -138,20 +136,17 @@ class LivyHook(HttpHook, LoggingMixin):
             self.get_conn()
         self.log.info("Submitting job %s to %s", batch_submit_body, self.base_url)
 
-        response = self.run_method(
-            method='POST',
-            endpoint='/batches',
-            data=batch_submit_body
-        )
+        response = self.run_method(method='POST', endpoint='/batches', data=batch_submit_body)
         self.log.debug("Got response: %s", response.text)
 
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            raise AirflowException("Could not submit batch. Status code: {}. Message: '{}'".format(
-                err.response.status_code,
-                err.response.text
-            ))
+            raise AirflowException(
+                "Could not submit batch. Status code: {}. Message: '{}'".format(
+                    err.response.status_code, err.response.text
+                )
+            )
 
         batch_id = self._parse_post_response(response.json())
         if batch_id is None:
@@ -178,10 +173,9 @@ class LivyHook(HttpHook, LoggingMixin):
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
             self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
-            raise AirflowException("Unable to fetch batch with id: {}. Message: {}".format(
-                session_id,
-                err.response.text
-            ))
+            raise AirflowException(
+                "Unable to fetch batch with id: {}. Message: {}".format(session_id, err.response.text)
+            )
 
         return response.json()
 
@@ -203,10 +197,9 @@ class LivyHook(HttpHook, LoggingMixin):
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
             self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
-            raise AirflowException("Unable to fetch batch with id: {}. Message: {}".format(
-                session_id,
-                err.response.text
-            ))
+            raise AirflowException(
+                "Unable to fetch batch with id: {}. Message: {}".format(session_id, err.response.text)
+            )
 
         jresp = response.json()
         if 'state' not in jresp:
@@ -225,19 +218,17 @@ class LivyHook(HttpHook, LoggingMixin):
         self._validate_session_id(session_id)
 
         self.log.info("Deleting batch session %d", session_id)
-        response = self.run_method(
-            method='DELETE',
-            endpoint='/batches/{}'.format(session_id)
-        )
+        response = self.run_method(method='DELETE', endpoint='/batches/{}'.format(session_id))
 
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
             self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
-            raise AirflowException("Could not kill the batch with session id: {}. Message: {}".format(
-                session_id,
-                err.response.text
-            ))
+            raise AirflowException(
+                "Could not kill the batch with session id: {}. Message: {}".format(
+                    session_id, err.response.text
+                )
+            )
 
         return response.json()
 
@@ -283,7 +274,7 @@ class LivyHook(HttpHook, LoggingMixin):
         num_executors: Optional[Union[int, str]] = None,
         queue: Optional[str] = None,
         proxy_user: Optional[str] = None,
-        conf: Optional[Dict[Any, Any]] = None
+        conf: Optional[Dict[Any, Any]] = None,
     ) -> Any:
         """
         Build the post batch request body.
@@ -386,9 +377,11 @@ class LivyHook(HttpHook, LoggingMixin):
         :return: true if valid
         :rtype: bool
         """
-        if vals is None or \
-           not isinstance(vals, (tuple, list)) or \
-           any(1 for val in vals if not isinstance(val, (str, int, float))):
+        if (
+            vals is None
+            or not isinstance(vals, (tuple, list))
+            or any(1 for val in vals if not isinstance(val, (str, int, float)))
+        ):
             raise ValueError("List of strings expected")
         return True
 

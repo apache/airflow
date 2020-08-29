@@ -24,9 +24,7 @@ TASK_ID = "dataprep_job"
 
 
 class TestDataprepGetJobsForJobGroupOperator(TestCase):
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook"
-    )
+    @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
     def test_execute(self, hook_mock):
         op = DataprepGetJobsForJobGroupOperator(job_id=JOB_ID, task_id=TASK_ID)
         op.execute(context={})

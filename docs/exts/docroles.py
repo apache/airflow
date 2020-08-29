@@ -25,7 +25,7 @@ from sphinx.ext.autodoc.importer import import_module, mock
 
 
 class RoleException(Exception):
-    """Exception for roles extension """
+    """Exception for roles extension"""
 
 
 def get_template_field(env, fullname):

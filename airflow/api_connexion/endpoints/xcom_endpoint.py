@@ -23,7 +23,10 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.xcom_schema import (
-    XComCollection, XComCollectionItemSchema, XComCollectionSchema, xcom_collection_item_schema,
+    XComCollection,
+    XComCollectionItemSchema,
+    XComCollectionSchema,
+    xcom_collection_item_schema,
     xcom_collection_schema,
 )
 from airflow.models import DagRun as DR, XCom
@@ -32,10 +35,9 @@ from airflow.utils.session import provide_session
 
 @security.requires_authentication
 @security.requires_access(
-    [("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")])
-@format_parameters({
-    'limit': check_limit
-})
+    [("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")]
+)
+@format_parameters({'limit': check_limit})
 @provide_session
 def get_xcom_entries(
     dag_id: str,
@@ -43,7 +45,7 @@ def get_xcom_entries(
     task_id: str,
     session: Session,
     limit: Optional[int],
-    offset: Optional[int] = None
+    offset: Optional[int] = None,
 ) -> XComCollectionSchema:
     """
     Get all XCom values
@@ -59,9 +61,7 @@ def get_xcom_entries(
         query = query.filter(XCom.task_id == task_id)
     if dag_run_id != '~':
         query = query.filter(DR.run_id == dag_run_id)
-    query = query.order_by(
-        XCom.execution_date, XCom.task_id, XCom.dag_id, XCom.key
-    )
+    query = query.order_by(XCom.execution_date, XCom.task_id, XCom.dag_id, XCom.key)
     total_entries = session.query(func.count(XCom.key)).scalar()
     query = query.offset(offset).limit(limit)
     return xcom_collection_schema.dump(XComCollection(xcom_entries=query.all(), total_entries=total_entries))
@@ -69,21 +69,16 @@ def get_xcom_entries(
 
 @security.requires_authentication
 @security.requires_access(
-    [("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")])
+    [("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")]
+)
 @provide_session
 def get_xcom_entry(
-    dag_id: str,
-    task_id: str,
-    dag_run_id: str,
-    xcom_key: str,
-    session: Session
+    dag_id: str, task_id: str, dag_run_id: str, xcom_key: str, session: Session
 ) -> XComCollectionItemSchema:
     """
     Get an XCom entry
     """
-    query = session.query(XCom).filter(XCom.dag_id == dag_id,
-                                       XCom.task_id == task_id,
-                                       XCom.key == xcom_key)
+    query = session.query(XCom).filter(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key)
     query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
     query = query.filter(DR.run_id == dag_run_id)
 

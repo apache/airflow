@@ -77,11 +77,17 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("facebook_conn_id", "bucket_name", "object_name", "impersonation_chain",)
+    template_fields = (
+        "facebook_conn_id",
+        "bucket_name",
+        "object_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         bucket_name: str,
         object_name: str,
         fields: List[str],
@@ -105,10 +111,10 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        service = FacebookAdsReportingHook(facebook_conn_id=self.facebook_conn_id,
-                                           api_version=self.api_version)
-        rows = service.bulk_facebook_report(params=self.params,
-                                            fields=self.fields)
+        service = FacebookAdsReportingHook(
+            facebook_conn_id=self.facebook_conn_id, api_version=self.api_version
+        )
+        rows = service.bulk_facebook_report(params=self.params, fields=self.fields)
 
         converted_rows = [dict(row) for row in rows]
         self.log.info("Facebook Returned %s data points", len(converted_rows))
@@ -120,10 +126,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                 writer.writeheader()
                 writer.writerows(converted_rows)
                 csvfile.flush()
-                hook = GCSHook(
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                )
+                hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
                 hook.upload(
                     bucket_name=self.bucket_name,
                     object_name=self.object_name,

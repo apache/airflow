@@ -30,18 +30,19 @@ class TestBasePoolEndpoints(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test",  # type: ignore
-                    permissions=[
-                        ("can_create", "Pool"),
-                        ("can_read", "Pool"),
-                        ("can_edit", "Pool"),
-                        ("can_delete", "Pool")
-                    ])
+        create_role(
+            cls.app,  # type: ignore
+            name="Test",
+            permissions=[
+                ("can_create", "Pool"),
+                ("can_read", "Pool"),
+                ("can_edit", "Pool"),
+                ("can_delete", "Pool"),
+            ],
+        )
         create_user(cls.app, username="test", role="Test")  # type: ignore
         create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
         create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
@@ -170,9 +171,7 @@ class TestGetPool(TestBasePoolEndpoints):
         pool_model = Pool(pool="test_pool_a", slots=3)
         session.add(pool_model)
         session.commit()
-        response = self.client.get(
-            "/api/v1/pools/test_pool_a", environ_overrides={'REMOTE_USER': "test"}
-        )
+        response = self.client.get("/api/v1/pools/test_pool_a", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         self.assertEqual(
             {
@@ -187,9 +186,7 @@ class TestGetPool(TestBasePoolEndpoints):
         )
 
     def test_response_404(self):
-        response = self.client.get(
-            "/api/v1/pools/invalid_pool", environ_overrides={'REMOTE_USER': "test"}
-        )
+        response = self.client.get("/api/v1/pools/invalid_pool", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         self.assertEqual(
             {
@@ -246,9 +243,7 @@ class TestDeletePool(TestBasePoolEndpoints):
         assert_401(response)
 
         # Should still exists
-        response = self.client.get(
-            f"/api/v1/pools/{pool_name}", environ_overrides={'REMOTE_USER': "test"}
-        )
+        response = self.client.get(f"/api/v1/pools/{pool_name}", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
 
 
@@ -257,7 +252,7 @@ class TestPostPool(TestBasePoolEndpoints):
         response = self.client.post(
             "api/v1/pools",
             json={"name": "test_pool_a", "slots": 3},
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
         self.assertEqual(
@@ -281,7 +276,7 @@ class TestPostPool(TestBasePoolEndpoints):
         response = self.client.post(
             "api/v1/pools",
             json={"name": "test_pool_a", "slots": 3},
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 409
         self.assertEqual(
@@ -296,7 +291,11 @@ class TestPostPool(TestBasePoolEndpoints):
 
     @parameterized.expand(
         [
-            ("for missing pool name", {"slots": 3}, "'name' is a required property",),
+            (
+                "for missing pool name",
+                {"slots": 3},
+                "'name' is a required property",
+            ),
             (
                 "for missing slots",
                 {"name": "invalid_pool"},
@@ -312,9 +311,7 @@ class TestPostPool(TestBasePoolEndpoints):
     def test_response_400(self, name, request_json, error_detail):
         del name
         response = self.client.post(
-            "api/v1/pools",
-            json=request_json,
-            environ_overrides={'REMOTE_USER': "test"}
+            "api/v1/pools", json=request_json, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 400
         self.assertDictEqual(
@@ -328,10 +325,7 @@ class TestPostPool(TestBasePoolEndpoints):
         )
 
     def test_should_raises_401_unauthenticated(self):
-        response = self.client.post(
-            "api/v1/pools",
-            json={"name": "test_pool_a", "slots": 3}
-        )
+        response = self.client.post("api/v1/pools", json={"name": "test_pool_a", "slots": 3})
 
         assert_401(response)
 
@@ -345,7 +339,7 @@ class TestPatchPool(TestBasePoolEndpoints):
         response = self.client.patch(
             "api/v1/pools/test_pool",
             json={"name": "test_pool_a", "slots": 3},
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -398,7 +392,8 @@ class TestPatchPool(TestBasePoolEndpoints):
         session.commit()
 
         response = self.client.patch(
-            "api/v1/pools/test_pool", json={"name": "test_pool_a", "slots": 3},
+            "api/v1/pools/test_pool",
+            json={"name": "test_pool_a", "slots": 3},
         )
 
         assert_401(response)
@@ -525,9 +520,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
         ]
     )
     @provide_session
-    def test_response_200(
-        self, url, patch_json, expected_name, expected_slots, session
-    ):
+    def test_response_200(self, url, patch_json, expected_name, expected_slots, session):
         pool = Pool(pool="test_pool", slots=3)
         session.add(pool)
         session.commit()

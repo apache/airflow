@@ -20,7 +20,10 @@ import pytest
 from airflow.providers.amazon.aws.example_dags.example_imap_attachment_to_s3 import S3_DESTINATION_KEY
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from tests.test_utils.amazon_system_helpers import (
-    AWS_DAG_FOLDER, AmazonSystemTest, provide_aws_context, provide_aws_s3_bucket,
+    AWS_DAG_FOLDER,
+    AmazonSystemTest,
+    provide_aws_context,
+    provide_aws_s3_bucket,
 )
 
 BUCKET, _ = S3Hook.parse_s3_url(S3_DESTINATION_KEY)
@@ -35,7 +38,6 @@ def provide_s3_bucket():
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.system("imap")
 class TestImapAttachmentToS3ExampleDags(AmazonSystemTest):
-
     @pytest.mark.usefixtures("provide_s3_bucket")
     @provide_aws_context()
     def test_run_example_dag_imap_attachment_to_s3(self):

@@ -22,13 +22,13 @@
 Google Cloud Platform Connection
 ================================
 
-The Google Cloud Platform connection type enables the :ref:`GCP Integrations
+The Google Cloud Platform connection type enables the :ref:`Google Cloud Integrations
 <GCP>`.
 
-Authenticating to GCP
----------------------
+Authenticating to Google Cloud
+------------------------------
 
-There are three ways to connect to GCP using Airflow.
+There are three ways to connect to Google Cloud using Airflow.
 
 1. Use `Application Default Credentials
    <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_,

@@ -62,14 +62,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     """
 
     @apply_defaults
-    def __init__(self, *,
-                 config,
-                 wait_for_completion=True,
-                 check_interval=30,
-                 max_ingestion_time=None,
-                 **kwargs):
-        super().__init__(config=config,
-                         **kwargs)
+    def __init__(
+        self, *, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None, **kwargs
+    ):
+        super().__init__(config=config, **kwargs)
         self.config = config
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
@@ -81,7 +77,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self.integer_fields = [
             ['Transform', 'TransformResources', 'InstanceCount'],
             ['Transform', 'MaxConcurrentTransforms'],
-            ['Transform', 'MaxPayloadInMB']
+            ['Transform', 'MaxPayloadInMB'],
         ]
         if 'Transform' not in self.config:
             for field in self.integer_fields:
@@ -110,15 +106,12 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             transform_config,
             wait_for_completion=self.wait_for_completion,
             check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time)
+            max_ingestion_time=self.max_ingestion_time,
+        )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException('Sagemaker transform Job creation failed: %s' % response)
         else:
             return {
-                'Model': self.hook.describe_model(
-                    transform_config['ModelName']
-                ),
-                'Transform': self.hook.describe_transform_job(
-                    transform_config['TransformJobName']
-                )
+                'Model': self.hook.describe_model(transform_config['ModelName']),
+                'Transform': self.hook.describe_transform_job(transform_config['TransformJobName']),
             }

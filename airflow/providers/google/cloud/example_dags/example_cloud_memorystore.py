@@ -26,11 +26,16 @@ from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest, Instance
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_memorystore import (
-    CloudMemorystoreCreateInstanceAndImportOperator, CloudMemorystoreCreateInstanceOperator,
-    CloudMemorystoreDeleteInstanceOperator, CloudMemorystoreExportAndDeleteInstanceOperator,
-    CloudMemorystoreExportInstanceOperator, CloudMemorystoreFailoverInstanceOperator,
-    CloudMemorystoreGetInstanceOperator, CloudMemorystoreImportOperator,
-    CloudMemorystoreListInstancesOperator, CloudMemorystoreScaleInstanceOperator,
+    CloudMemorystoreCreateInstanceAndImportOperator,
+    CloudMemorystoreCreateInstanceOperator,
+    CloudMemorystoreDeleteInstanceOperator,
+    CloudMemorystoreExportAndDeleteInstanceOperator,
+    CloudMemorystoreExportInstanceOperator,
+    CloudMemorystoreFailoverInstanceOperator,
+    CloudMemorystoreGetInstanceOperator,
+    CloudMemorystoreImportOperator,
+    CloudMemorystoreListInstancesOperator,
+    CloudMemorystoreScaleInstanceOperator,
     CloudMemorystoreUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSBucketCreateAclEntryOperator

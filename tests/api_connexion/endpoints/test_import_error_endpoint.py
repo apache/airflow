@@ -31,9 +31,7 @@ class TestBaseImportError(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
         create_role(cls.app, name="Test", permissions=[('can_read', 'ImportError')])  # type: ignore
@@ -114,15 +112,14 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         session.add(import_error)
         session.commit()
 
-        response = self.client.get(
-            f"/api/v1/importErrors/{import_error.id}"
-        )
+        response = self.client.get(f"/api/v1/importErrors/{import_error.id}")
 
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get("/api/v1/importErrors",
-                                   environ_overrides={'REMOTE_USER': "test_no_permissions"})
+        response = self.client.get(
+            "/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
         assert response.status_code == 403
 
 
@@ -213,9 +210,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
-        import_ids = [
-            pool["filename"] for pool in response.json["import_errors"]
-        ]
+        import_ids = [pool["filename"] for pool in response.json["import_errors"]]
         self.assertEqual(import_ids, expected_import_error_ids)
 
     @provide_session

@@ -54,9 +54,7 @@ def get_variable(variable_key: str) -> Response:
 
 @security.requires_authentication
 @security.requires_access([("can_read", "Variable")])
-@format_parameters({
-    'limit': check_limit
-})
+@format_parameters({'limit': check_limit})
 @provide_session
 def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -> Response:
     """
@@ -69,10 +67,12 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
     if limit:
         query = query.limit(limit)
     variables = query.all()
-    return variable_collection_schema.dump({
-        "variables": variables,
-        "total_entries": total_entries,
-    })
+    return variable_collection_schema.dump(
+        {
+            "variables": variables,
+            "total_entries": total_entries,
+        }
+    )
 
 
 @security.requires_authentication

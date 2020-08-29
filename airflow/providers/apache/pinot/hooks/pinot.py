@@ -54,26 +54,26 @@ class PinotAdminHook(BaseHook):
     :type pinot_admin_system_exit: bool
     """
 
-    def __init__(self,
-                 conn_id: str = "pinot_admin_default",
-                 cmd_path: str = "pinot-admin.sh",
-                 pinot_admin_system_exit: bool = False
-                 ) -> None:
+    def __init__(
+        self,
+        conn_id: str = "pinot_admin_default",
+        cmd_path: str = "pinot-admin.sh",
+        pinot_admin_system_exit: bool = False,
+    ) -> None:
         super().__init__()
         conn = self.get_connection(conn_id)
         self.host = conn.host
         self.port = str(conn.port)
         self.cmd_path = conn.extra_dejson.get("cmd_path", cmd_path)
-        self.pinot_admin_system_exit = conn.extra_dejson.get("pinot_admin_system_exit",
-                                                             pinot_admin_system_exit)
+        self.pinot_admin_system_exit = conn.extra_dejson.get(
+            "pinot_admin_system_exit", pinot_admin_system_exit
+        )
         self.conn = conn
 
     def get_conn(self) -> Any:
         return self.conn
 
-    def add_schema(self, schema_file: str,
-                   with_exec: Optional[bool] = True
-                   ) -> Any:
+    def add_schema(self, schema_file: str, with_exec: Optional[bool] = True) -> Any:
         """
         Add Pinot schema by run AddSchema command
 
@@ -90,9 +90,7 @@ class PinotAdminHook(BaseHook):
             cmd += ["-exec"]
         self.run_cli(cmd)
 
-    def add_table(self, file_path: str,
-                  with_exec: Optional[bool] = True
-                  ) -> Any:
+    def add_table(self, file_path: str, with_exec: Optional[bool] = True) -> Any:
         """
         Add Pinot table with run AddTable command
 
@@ -110,26 +108,27 @@ class PinotAdminHook(BaseHook):
         self.run_cli(cmd)
 
     # pylint: disable=too-many-arguments
-    def create_segment(self,
-                       generator_config_file: Optional[str] = None,
-                       data_dir: Optional[str] = None,
-                       segment_format: Optional[str] = None,
-                       out_dir: Optional[str] = None,
-                       overwrite: Optional[str] = None,
-                       table_name: Optional[str] = None,
-                       segment_name: Optional[str] = None,
-                       time_column_name: Optional[str] = None,
-                       schema_file: Optional[str] = None,
-                       reader_config_file: Optional[str] = None,
-                       enable_star_tree_index: Optional[str] = None,
-                       star_tree_index_spec_file: Optional[str] = None,
-                       hll_size: Optional[str] = None,
-                       hll_columns: Optional[str] = None,
-                       hll_suffix: Optional[str] = None,
-                       num_threads: Optional[str] = None,
-                       post_creation_verification: Optional[str] = None,
-                       retry: Optional[str] = None
-                       ) -> Any:
+    def create_segment(
+        self,
+        generator_config_file: Optional[str] = None,
+        data_dir: Optional[str] = None,
+        segment_format: Optional[str] = None,
+        out_dir: Optional[str] = None,
+        overwrite: Optional[str] = None,
+        table_name: Optional[str] = None,
+        segment_name: Optional[str] = None,
+        time_column_name: Optional[str] = None,
+        schema_file: Optional[str] = None,
+        reader_config_file: Optional[str] = None,
+        enable_star_tree_index: Optional[str] = None,
+        star_tree_index_spec_file: Optional[str] = None,
+        hll_size: Optional[str] = None,
+        hll_columns: Optional[str] = None,
+        hll_suffix: Optional[str] = None,
+        num_threads: Optional[str] = None,
+        post_creation_verification: Optional[str] = None,
+        retry: Optional[str] = None,
+    ) -> Any:
         """
         Create Pinot segment by run CreateSegment command
         """
@@ -191,8 +190,7 @@ class PinotAdminHook(BaseHook):
 
         self.run_cli(cmd)
 
-    def upload_segment(self, segment_dir: str, table_name: Optional[str] = None
-                       ) -> Any:
+    def upload_segment(self, segment_dir: str, table_name: Optional[str] = None) -> Any:
         """
         Upload Segment with run UploadSegment command
 
@@ -230,11 +228,8 @@ class PinotAdminHook(BaseHook):
             self.log.info(" ".join(command))
 
         sub_process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            close_fds=True,
-            env=env)
+            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True, env=env
+        )
 
         stdout = ""
         if sub_process.stdout:
@@ -248,8 +243,9 @@ class PinotAdminHook(BaseHook):
         # As of Pinot v0.1.0, either of "Error: ..." or "Exception caught: ..."
         # is expected to be in the output messages. See:
         # https://github.com/apache/incubator-pinot/blob/release-0.1.0/pinot-tools/src/main/java/org/apache/pinot/tools/admin/PinotAdministrator.java#L98-L101
-        if ((self.pinot_admin_system_exit and sub_process.returncode) or
-                ("Error" in stdout or "Exception" in stdout)):
+        if (self.pinot_admin_system_exit and sub_process.returncode) or (
+            "Error" in stdout or "Exception" in stdout
+        ):
             raise AirflowException(stdout)
 
         return stdout
@@ -259,6 +255,7 @@ class PinotDbApiHook(DbApiHook):
     """
     Connect to pinot db (https://github.com/apache/incubator-pinot) to issue pql
     """
+
     conn_name_attr = 'pinot_broker_conn_id'
     default_conn_name = 'pinot_broker_default'
     supports_autocommit = False
@@ -274,10 +271,9 @@ class PinotDbApiHook(DbApiHook):
             host=conn.host,
             port=conn.port,
             path=conn.extra_dejson.get('endpoint', '/pql'),
-            scheme=conn.extra_dejson.get('schema', 'http')
+            scheme=conn.extra_dejson.get('schema', 'http'),
         )
-        self.log.info('Get the connection to pinot '
-                      'broker on %s', conn.host)
+        self.log.info('Get the connection to pinot ' 'broker on %s', conn.host)
         return pinot_broker_conn
 
     def get_uri(self) -> str:
@@ -292,12 +288,9 @@ class PinotDbApiHook(DbApiHook):
             host += ':{port}'.format(port=conn.port)
         conn_type = 'http' if not conn.conn_type else conn.conn_type
         endpoint = conn.extra_dejson.get('endpoint', 'pql')
-        return '{conn_type}://{host}/{endpoint}'.format(
-            conn_type=conn_type, host=host, endpoint=endpoint)
+        return '{conn_type}://{host}/{endpoint}'.format(conn_type=conn_type, host=host, endpoint=endpoint)
 
-    def get_records(self, sql: str,
-                    parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None
-                    ) -> Any:
+    def get_records(self, sql: str, parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None) -> Any:
         """
         Executes the sql and returns a set of records.
 
@@ -311,9 +304,7 @@ class PinotDbApiHook(DbApiHook):
             cur.execute(sql)
             return cur.fetchall()
 
-    def get_first(self, sql: str,
-                  parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None
-                  ) -> Any:
+    def get_first(self, sql: str, parameters: Optional[Union[Dict[str, Any], Iterable[Any]]] = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 
@@ -330,9 +321,13 @@ class PinotDbApiHook(DbApiHook):
     def set_autocommit(self, conn: Connection, autocommit: Any) -> Any:
         raise NotImplementedError()
 
-    def insert_rows(self, table: str, rows: str,
-                    target_fields: Optional[str] = None,
-                    commit_every: int = 1000,
-                    replace: bool = False,
-                    **kwargs: Any) -> Any:
+    def insert_rows(
+        self,
+        table: str,
+        rows: str,
+        target_fields: Optional[str] = None,
+        commit_every: int = 1000,
+        replace: bool = False,
+        **kwargs: Any,
+    ) -> Any:
         raise NotImplementedError()

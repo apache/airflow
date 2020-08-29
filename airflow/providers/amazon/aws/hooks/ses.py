@@ -52,7 +52,7 @@ class SESHook(AwsBaseHook):
         mime_charset: str = 'utf-8',
         reply_to: Optional[str] = None,
         return_path: Optional[str] = None,
-        custom_headers: Optional[Dict[str, Any]] = None
+        custom_headers: Optional[Dict[str, Any]] = None,
     ) -> dict:
         """
         Send email using Amazon Simple Email Service

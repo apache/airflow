@@ -44,7 +44,6 @@ DEFAULT_DATE = datetime(2018, 1, 1)
 
 
 class TestSFTPToS3Operator(unittest.TestCase):
-
     @mock_s3
     def setUp(self):
         hook = SSHHook(ssh_conn_id='ssh_default')
@@ -73,18 +72,18 @@ class TestSFTPToS3Operator(unittest.TestCase):
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_sftp_to_s3_operation(self):
         # Setting
-        test_remote_file_content = \
-            "This is remote file content \n which is also multiline " \
+        test_remote_file_content = (
+            "This is remote file content \n which is also multiline "
             "another line here \n this is last line. EOF"
+        )
 
         # create a test file remotely
         create_file_task = SSHOperator(
             task_id="test_create_file",
             ssh_hook=self.hook,
-            command="echo '{0}' > {1}".format(test_remote_file_content,
-                                              self.sftp_path),
+            command="echo '{0}' > {1}".format(test_remote_file_content, self.sftp_path),
             do_xcom_push=True,
-            dag=self.dag
+            dag=self.dag,
         )
         self.assertIsNotNone(create_file_task)
         ti1 = TaskInstance(task=create_file_task, execution_date=timezone.utcnow())
@@ -103,15 +102,14 @@ class TestSFTPToS3Operator(unittest.TestCase):
             sftp_conn_id=SFTP_CONN_ID,
             s3_conn_id=S3_CONN_ID,
             task_id='test_sftp_to_s3',
-            dag=self.dag
+            dag=self.dag,
         )
         self.assertIsNotNone(run_task)
 
         run_task.execute(None)
 
         # Check if object was created in s3
-        objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket,
-                                                   Prefix=self.s3_key)
+        objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
         # there should be object found, and there should only be one object found
         self.assertEqual(len(objects_in_dest_bucket['Contents']), 1)
 

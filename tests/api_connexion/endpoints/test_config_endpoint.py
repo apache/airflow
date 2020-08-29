@@ -34,16 +34,11 @@ MOCK_CONF = {
 }
 
 
-@patch(
-    "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
-    return_value=MOCK_CONF
-)
+@patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
 class TestGetConfig:
     @classmethod
     def setup_class(cls) -> None:
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission
         create_role(cls.app, name="Test")  # type: ignore
@@ -64,21 +59,23 @@ class TestGetConfig:
             "/api/v1/config", headers={'Accept': 'text/plain'}, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        expected = textwrap.dedent("""\
+        expected = textwrap.dedent(
+            """\
         [core]
         parallelism = 1024
 
         [smtp]
         smtp_host = localhost
         smtp_mail_from = airflow@example.com
-        """)
+        """
+        )
         assert expected == response.data.decode()
 
     def test_should_response_200_application_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
             headers={'Accept': 'application/json'},
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
         expected = {
@@ -87,14 +84,14 @@ class TestGetConfig:
                     'name': 'core',
                     'options': [
                         {'key': 'parallelism', 'value': '1024'},
-                    ]
+                    ],
                 },
                 {
                     'name': 'smtp',
                     'options': [
                         {'key': 'smtp_host', 'value': 'localhost'},
                         {'key': 'smtp_mail_from', 'value': 'airflow@example.com'},
-                    ]
+                    ],
                 },
             ]
         }
@@ -104,14 +101,11 @@ class TestGetConfig:
         response = self.client.get(
             "/api/v1/config",
             headers={'Accept': 'application/octet-stream'},
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 406
 
     def test_should_raises_401_unauthenticated(self, mock_as_dict):
-        response = self.client.get(
-            "/api/v1/config",
-            headers={'Accept': 'application/json'}
-        )
+        response = self.client.get("/api/v1/config", headers={'Accept': 'application/json'})
 
         assert_401(response)

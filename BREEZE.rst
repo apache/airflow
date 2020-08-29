@@ -1189,8 +1189,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 master
-                 v1-10-test
+                 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
+                 master v1-10-test
 
   -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
           If specified, installs Airflow directly from reference in GitHub. This happens at
@@ -1804,7 +1804,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all all-but-pylint airflow-config-yaml base-operator bat-tests build
+                 all all-but-pylint airflow-config-yaml base-operator bat-tests black build
                  build-providers-dependencies check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-hooks-apply check-integrations
                  check-merge-conflict check-xml consistent-pylint daysago-import-check
@@ -2008,8 +2008,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 master
-                 v1-10-test
+                 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
+                 master v1-10-test
 
   -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
           If specified, installs Airflow directly from reference in GitHub. This happens at

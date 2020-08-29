@@ -56,7 +56,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.Instance`
     :type instance: Union[Dict, google.cloud.redis_v1.types.Instance]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -93,7 +93,8 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance_id: str,
         instance: Union[Dict, Instance],
@@ -103,7 +104,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -118,8 +119,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudMemorystoreHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         result = hook.create_instance(
             location=self.location,
@@ -146,7 +146,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
     :param instance: The logical name of the Redis instance in the customer project.
     :type instance: str
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -169,12 +169,21 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("location", "instance", "project_id", "retry", "timeout", "metadata",
-                       "gcp_conn_id", "impersonation_chain",)
+    template_fields = (
+        "location",
+        "instance",
+        "project_id",
+        "retry",
+        "timeout",
+        "metadata",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         project_id: Optional[str] = None,
@@ -183,7 +192,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -197,8 +206,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudMemorystoreHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         hook.delete_instance(
             location=self.location,
@@ -230,7 +238,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.OutputConfig`
     :type output_config: Union[Dict, google.cloud.redis_v1.types.OutputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -266,7 +274,8 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         output_config: Union[Dict, OutputConfig],
@@ -276,7 +285,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -291,8 +300,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudMemorystoreHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
 
         hook.export_instance(
@@ -323,7 +331,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         unspecified, data protection mode will be LIMITED_DATA_LOSS by default.
     :type data_protection_mode: google.cloud.redis_v1.gapic.enums.FailoverInstanceRequest.DataProtectionMode
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -359,7 +367,8 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
@@ -369,7 +378,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -384,8 +393,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudMemorystoreHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         hook.failover_instance(
             location=self.location,
@@ -411,7 +419,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
     :param instance: The logical name of the Redis instance in the customer project.
     :type instance: str
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -433,12 +441,21 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("location", "instance", "project_id", "retry", "timeout", "metadata",
-                       "gcp_conn_id", "impersonation_chain",)
+    template_fields = (
+        "location",
+        "instance",
+        "project_id",
+        "retry",
+        "timeout",
+        "metadata",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         project_id: Optional[str] = None,
@@ -447,7 +464,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -461,8 +478,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudMemorystoreHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         result = hook.get_instance(
             location=self.location,
@@ -496,7 +512,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.InputConfig`
     :type input_config: Union[Dict, google.cloud.redis_v1.types.InputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -532,7 +548,8 @@ class CloudMemorystoreImportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         input_config: Union[Dict, InputConfig],
@@ -542,7 +559,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -557,8 +574,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudMemorystoreHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         hook.import_instance(
             location=self.location,
@@ -588,7 +604,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         streaming is performed per-page, this determines the maximum number of resources in a page.
     :type page_size: int
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -610,12 +626,21 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("location", "page_size", "project_id", "retry", "timeout", "metadata",
-                       "gcp_conn_id", "impersonation_chain",)
+    template_fields = (
+        "location",
+        "page_size",
+        "project_id",
+        "retry",
+        "timeout",
+        "metadata",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         page_size: int,
         project_id: Optional[str] = None,
@@ -624,7 +649,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -638,8 +663,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudMemorystoreHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         result = hook.list_instances(
             location=self.location,
@@ -682,8 +706,8 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
     :type location: str
     :param instance_id: The logical name of the Redis instance in the customer project.
     :type instance_id: str
-    :param project_id:  Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -721,7 +745,8 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         update_mask: Union[Dict, FieldMask],
         instance: Union[Dict, Instance],
         location: Optional[str] = None,
@@ -732,7 +757,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.update_mask = update_mask
@@ -748,8 +773,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudMemorystoreHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         hook.update_instance(
             update_mask=self.update_mask,
@@ -777,8 +801,8 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
     :type location: str
     :param instance_id: The logical name of the Redis instance in the customer project.
     :type instance_id: str
-    :param project_id:  Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -815,7 +839,8 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         memory_size_gb: int,
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
@@ -825,7 +850,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.memory_size_gb = memory_size_gb
@@ -840,8 +865,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudMemorystoreHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
 
         hook.update_instance(
@@ -890,7 +914,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.InputConfig`
     :type input_config: Union[Dict, google.cloud.redis_v1.types.InputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -928,7 +952,8 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance_id: str,
         instance: Union[Dict, Instance],
@@ -939,7 +964,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -955,8 +980,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudMemorystoreHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
 
         hook.create_instance(
@@ -1001,7 +1025,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         :class:`~google.cloud.redis_v1.types.OutputConfig`
     :type output_config: Union[Dict, google.cloud.redis_v1.types.OutputConfig]
     :param project_id: Project ID of the project that contains the instance. If set
-        to None or missing, the default project_id from the GCP connection is used.
+        to None or missing, the default project_id from the Google Cloud connection is used.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -1037,7 +1061,8 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         location: str,
         instance: str,
         output_config: Union[Dict, OutputConfig],
@@ -1047,7 +1072,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.location = location
@@ -1062,8 +1087,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CloudMemorystoreHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
 
         hook.export_instance(

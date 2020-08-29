@@ -20,7 +20,10 @@ from typing import List, NamedTuple
 from marshmallow import Schema, fields
 
 from airflow.api_connexion.schemas.common_schema import (
-    ClassReferenceSchema, ColorField, TimeDeltaSchema, WeightRuleField,
+    ClassReferenceSchema,
+    ColorField,
+    TimeDeltaSchema,
+    WeightRuleField,
 )
 from airflow.api_connexion.schemas.dag_schema import DAGSchema
 from airflow.models.baseoperator import BaseOperator
@@ -36,9 +39,7 @@ class TaskSchema(Schema):
     end_date = fields.DateTime(dump_only=True)
     trigger_rule = fields.String(dump_only=True)
     extra_links = fields.List(
-        fields.Nested(ClassReferenceSchema),
-        dump_only=True,
-        attribute="operator_extra_links"
+        fields.Nested(ClassReferenceSchema), dump_only=True, attribute="operator_extra_links"
     )
     depends_on_past = fields.Boolean(dump_only=True)
     wait_for_downstream = fields.Boolean(dump_only=True)

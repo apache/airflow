@@ -18,7 +18,7 @@
 
 """
 This module contains a CloudDLPHook
-which allows you to connect to GCP Cloud DLP service.
+which allows you to connect to Google Cloud DLP service.
 """
 
 import re
@@ -28,10 +28,25 @@ from typing import List, Optional, Sequence, Tuple, Union
 from google.api_core.retry import Retry
 from google.cloud.dlp_v2 import DlpServiceClient
 from google.cloud.dlp_v2.types import (
-    ByteContentItem, ContentItem, DeidentifyConfig, DeidentifyContentResponse, DeidentifyTemplate, DlpJob,
-    FieldMask, InspectConfig, InspectContentResponse, InspectJobConfig, InspectTemplate, JobTrigger,
-    ListInfoTypesResponse, RedactImageRequest, RedactImageResponse, ReidentifyContentResponse,
-    RiskAnalysisJobConfig, StoredInfoType, StoredInfoTypeConfig,
+    ByteContentItem,
+    ContentItem,
+    DeidentifyConfig,
+    DeidentifyContentResponse,
+    DeidentifyTemplate,
+    DlpJob,
+    FieldMask,
+    InspectConfig,
+    InspectContentResponse,
+    InspectJobConfig,
+    InspectTemplate,
+    JobTrigger,
+    ListInfoTypesResponse,
+    RedactImageRequest,
+    RedactImageResponse,
+    ReidentifyContentResponse,
+    RiskAnalysisJobConfig,
+    StoredInfoType,
+    StoredInfoTypeConfig,
 )
 
 from airflow.exceptions import AirflowException
@@ -74,9 +89,7 @@ class CloudDLPHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -84,7 +97,7 @@ class CloudDLPHook(GoogleBaseHook):
         """
         Provides a client for interacting with the Cloud DLP API.
 
-        :return: GCP Cloud DLP API Client
+        :return: Google Cloud DLP API Client
         :rtype: google.cloud.dlp_v2.DlpServiceClient
         """
         if not self._client:
@@ -107,7 +120,7 @@ class CloudDLPHook(GoogleBaseHook):
         :type dlp_job_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default project_id
-            from the GCP connection is used.
+            from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -196,14 +209,14 @@ class CloudDLPHook(GoogleBaseHook):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         wait_until_finished: bool = True,
-        time_to_sleep_in_seconds: int = 60
+        time_to_sleep_in_seconds: int = 60,
     ) -> DlpJob:
         """
         Creates a new job to inspect storage or calculate risk metrics.
 
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param inspect_job: (Optional) The configuration for the inspect job.
         :type inspect_job: dict or google.cloud.dlp_v2.types.InspectJobConfig
@@ -345,7 +358,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param job_trigger: (Optional) The job trigger to create.
         :type job_trigger: dict or google.cloud.dlp_v2.types.JobTrigger
@@ -451,7 +464,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param deidentify_config: (Optional) Configuration for the de-identification of the
             content item. Items specified here will override the template referenced by the
@@ -556,7 +569,7 @@ class CloudDLPHook(GoogleBaseHook):
         :type dlp_job_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -642,7 +655,7 @@ class CloudDLPHook(GoogleBaseHook):
         :type job_trigger_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -778,7 +791,7 @@ class CloudDLPHook(GoogleBaseHook):
         :type dlp_job_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -866,7 +879,7 @@ class CloudDLPHook(GoogleBaseHook):
         :type job_trigger_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -955,7 +968,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param inspect_config: (Optional) Configuration for the inspector. Items specified
             here will override the template referenced by the inspect_template_name argument.
@@ -1068,7 +1081,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param results_filter: (Optional) Filter used to specify a subset of results.
         :type results_filter: str
@@ -1222,7 +1235,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param page_size: (Optional) The maximum number of resources contained in the
             underlying API response.
@@ -1338,7 +1351,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param inspect_config: (Optional) Configuration for the inspector. Items specified
             here will override the template referenced by the inspect_template_name argument.
@@ -1396,7 +1409,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param reidentify_config: (Optional) Configuration for the re-identification of
             the content item.
@@ -1582,7 +1595,7 @@ class CloudDLPHook(GoogleBaseHook):
         :type job_trigger_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. If set to None or missing, the default
-            project_id from the GCP connection is used.
+            project_id from the Google Cloud connection is used.
         :type project_id: str
         :param job_trigger: New job trigger value.
         :type job_trigger: dict or google.cloud.dlp_v2.types.JobTrigger

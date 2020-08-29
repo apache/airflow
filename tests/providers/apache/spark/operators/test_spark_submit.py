@@ -31,9 +31,7 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 class TestSparkSubmitOperator(unittest.TestCase):
 
     _config = {
-        'conf': {
-            'parquet.compression': 'SNAPPY'
-        },
+        'conf': {'parquet.compression': 'SNAPPY'},
         'files': 'hive-site.xml',
         'py_files': 'sample_library.py',
         'archives': 'sample_archive.zip#SAMPLE',
@@ -56,19 +54,21 @@ class TestSparkSubmitOperator(unittest.TestCase):
         'driver_memory': '3g',
         'java_class': 'com.foo.bar.AppMain',
         'application_args': [
-            '-f', 'foo',
-            '--bar', 'bar',
-            '--start', '{{ macros.ds_add(ds, -1)}}',
-            '--end', '{{ ds }}',
-            '--with-spaces', 'args should keep embdedded spaces',
-        ]
+            '-f',
+            'foo',
+            '--bar',
+            'bar',
+            '--start',
+            '{{ macros.ds_add(ds, -1)}}',
+            '--end',
+            '{{ ds }}',
+            '--with-spaces',
+            'args should keep embdedded spaces',
+        ],
     }
 
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)
 
     def test_execute(self):
@@ -76,17 +76,12 @@ class TestSparkSubmitOperator(unittest.TestCase):
         # Given / When
         conn_id = 'spark_default'
         operator = SparkSubmitOperator(
-            task_id='spark_submit_job',
-            spark_binary="sparky",
-            dag=self.dag,
-            **self._config
+            task_id='spark_submit_job', spark_binary="sparky", dag=self.dag, **self._config
         )
 
         # Then expected results
         expected_dict = {
-            'conf': {
-                'parquet.compression': 'SNAPPY'
-            },
+            'conf': {'parquet.compression': 'SNAPPY'},
             'files': 'hive-site.xml',
             'py_files': 'sample_library.py',
             'archives': 'sample_archive.zip#SAMPLE',
@@ -109,13 +104,18 @@ class TestSparkSubmitOperator(unittest.TestCase):
             'driver_memory': '3g',
             'java_class': 'com.foo.bar.AppMain',
             'application_args': [
-                '-f', 'foo',
-                '--bar', 'bar',
-                '--start', '{{ macros.ds_add(ds, -1)}}',
-                '--end', '{{ ds }}',
-                '--with-spaces', 'args should keep embdedded spaces',
+                '-f',
+                'foo',
+                '--bar',
+                'bar',
+                '--start',
+                '{{ macros.ds_add(ds, -1)}}',
+                '--end',
+                '{{ ds }}',
+                '--with-spaces',
+                'args should keep embdedded spaces',
             ],
-            'spark_binary': 'sparky'
+            'spark_binary': 'sparky',
         }
 
         self.assertEqual(conn_id, operator._conn_id)
@@ -129,8 +129,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(expected_dict['packages'], operator._packages)
         self.assertEqual(expected_dict['exclude_packages'], operator._exclude_packages)
         self.assertEqual(expected_dict['repositories'], operator._repositories)
-        self.assertEqual(expected_dict['total_executor_cores'],
-                         operator._total_executor_cores)
+        self.assertEqual(expected_dict['total_executor_cores'], operator._total_executor_cores)
         self.assertEqual(expected_dict['executor_cores'], operator._executor_cores)
         self.assertEqual(expected_dict['executor_memory'], operator._executor_memory)
         self.assertEqual(expected_dict['keytab'], operator._keytab)
@@ -147,23 +146,25 @@ class TestSparkSubmitOperator(unittest.TestCase):
 
     def test_render_template(self):
         # Given
-        operator = SparkSubmitOperator(task_id='spark_submit_job',
-                                       dag=self.dag, **self._config)
+        operator = SparkSubmitOperator(task_id='spark_submit_job', dag=self.dag, **self._config)
         ti = TaskInstance(operator, DEFAULT_DATE)
 
         # When
         ti.render_templates()
 
         # Then
-        expected_application_args = ['-f', 'foo',
-                                     '--bar', 'bar',
-                                     '--start', (DEFAULT_DATE - timedelta(days=1))
-                                     .strftime("%Y-%m-%d"),
-                                     '--end', DEFAULT_DATE.strftime("%Y-%m-%d"),
-                                     '--with-spaces',
-                                     'args should keep embdedded spaces',
-                                     ]
+        expected_application_args = [
+            '-f',
+            'foo',
+            '--bar',
+            'bar',
+            '--start',
+            (DEFAULT_DATE - timedelta(days=1)).strftime("%Y-%m-%d"),
+            '--end',
+            DEFAULT_DATE.strftime("%Y-%m-%d"),
+            '--with-spaces',
+            'args should keep embdedded spaces',
+        ]
         expected_name = 'spark_submit_job'
-        self.assertListEqual(expected_application_args,
-                             getattr(operator, '_application_args'))
+        self.assertListEqual(expected_application_args, getattr(operator, '_application_args'))
         self.assertEqual(expected_name, getattr(operator, '_name'))

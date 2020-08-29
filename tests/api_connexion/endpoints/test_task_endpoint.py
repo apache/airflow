@@ -41,13 +41,14 @@ class TestTaskEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test",  # type: ignore
-                    permissions=[('can_read', 'Dag'), ('can_read', 'DagRun'), ('can_read', 'Task')])
+        create_role(
+            cls.app,  # type: ignore
+            name="Test",
+            permissions=[('can_read', 'Dag'), ('can_read', 'DagRun'), ('can_read', 'Task')],
+        )
         create_user(cls.app, username="test", role="Test")  # type: ignore
         create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
         create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
@@ -113,9 +114,7 @@ class TestGetTask(TestTaskEndpoint):
     @conf_vars({("core", "store_serialized_dags"): "True"})
     def test_should_response_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             app_serialized = app.create_app(testing=True)
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         app_serialized.dag_bag = dag_bag
@@ -217,9 +216,7 @@ class TestGetTasks(TestTaskEndpoint):
 
     def test_should_response_404(self):
         dag_id = "xxxx_not_existing"
-        response = self.client.get(
-            f"/api/v1/dags/{dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"}
-        )
+        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
 
     def test_should_raises_401_unauthenticated(self):

@@ -24,16 +24,11 @@ from airflow.operators.dummy_operator import DummyOperator
 class TestTaskSchema:
     def test_serialize(self):
         op = DummyOperator(
-            task_id="task_id",
-            start_date=datetime(2020, 6, 16),
-            end_date=datetime(2020, 6, 26),
+            task_id="task_id", start_date=datetime(2020, 6, 16), end_date=datetime(2020, 6, 26),
         )
         result = task_schema.dump(op)
         expected = {
-            "class_ref": {
-                "module_path": "airflow.operators.dummy_operator",
-                "class_name": "DummyOperator",
-            },
+            "class_ref": {"module_path": "airflow.operators.dummy_operator", "class_name": "DummyOperator",},
             "depends_on_past": False,
             "downstream_task_ids": [],
             "end_date": "2020-06-26T00:00:00+00:00",

@@ -96,7 +96,7 @@ def get_safe_url(url):
 
 
 def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
-    """Get Execution Data, Base Date & Number of runs from a Request """
+    """Get Execution Data, Base Date & Number of runs from a Request"""
     date_time = www_request.args.get('execution_date')
     if date_time:
         date_time = timezone.parse(date_time)
@@ -1625,7 +1625,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         def get_downstream(task):
             for downstream_task in task.downstream_list:
                 edge = {
-                    'source_id': downstream_task.task_id,
+                    'source_id': task.task_id,
                     'target_id': downstream_task.task_id,
                 }
                 if edge not in edges:

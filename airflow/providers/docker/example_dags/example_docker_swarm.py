@@ -26,7 +26,7 @@ default_args = {
     'depends_on_past': False,
     'email': ['airflow@example.com'],
     'email_on_failure': False,
-    'email_on_retry': False
+    'email_on_retry': False,
 }
 
 dag = DAG(
@@ -34,7 +34,7 @@ dag = DAG(
     default_args=default_args,
     schedule_interval=timedelta(minutes=10),
     start_date=days_ago(1),
-    catchup=False
+    catchup=False,
 )
 
 with dag as dag:

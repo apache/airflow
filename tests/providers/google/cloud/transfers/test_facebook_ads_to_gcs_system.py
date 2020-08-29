@@ -32,16 +32,11 @@ FACEBOOK_KEY = 'facebook.json'
 FACEBOOK_CREDENTIALS_PATH = os.path.join(CREDENTIALS_DIR, FACEBOOK_KEY)
 CONNECTION_TYPE = os.environ.get('CONNECTION_TYPE', 'facebook_social')
 FACEBOOK_CONNECTION_ID = os.environ.get('FACEBOOK_CONNECTION_ID', 'facebook_default')
-CONFIG_REQUIRED_FIELDS = ["app_id",
-                          "app_secret",
-                          "access_token",
-                          "account_id"]
+CONFIG_REQUIRED_FIELDS = ["app_id", "app_secret", "access_token", "account_id"]
 
 
 @contextmanager
-def provide_facebook_connection(
-    key_file_path: str
-):
+def provide_facebook_connection(key_file_path: str):
     """
     Context manager that provides a temporary value of AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT
     connection. It build a new connection that includes path to provided service json,
@@ -51,20 +46,14 @@ def provide_facebook_connection(
     :type key_file_path: str
     """
     if not key_file_path.endswith(".json"):
-        raise AirflowException(
-            "Use a JSON key file."
-        )
+        raise AirflowException("Use a JSON key file.")
     with open(key_file_path, 'r') as credentials:
         creds = json.load(credentials)
     missing_keys = CONFIG_REQUIRED_FIELDS - creds.keys()
     if missing_keys:
         message = "{missing_keys} fields are missing".format(missing_keys=missing_keys)
         raise AirflowException(message)
-    conn = Connection(
-        conn_id=FACEBOOK_CONNECTION_ID,
-        conn_type=CONNECTION_TYPE,
-        extra=json.dumps(creds)
-    )
+    conn = Connection(conn_id=FACEBOOK_CONNECTION_ID, conn_type=CONNECTION_TYPE, extra=json.dumps(creds))
     with patch_environ({f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
         yield
 
@@ -73,7 +62,6 @@ def provide_facebook_connection(
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
 @pytest.mark.system("google.cloud")
 class FacebookAdsToGcsExampleDagsSystemTest(GoogleSystemTest):
-
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     @provide_facebook_connection(FACEBOOK_CREDENTIALS_PATH)
     def test_dag_example(self):

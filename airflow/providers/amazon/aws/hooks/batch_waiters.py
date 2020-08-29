@@ -102,12 +102,7 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
     :type region_name: Optional[str]
     """
 
-    def __init__(
-        self,
-        *args,
-        waiter_config: Optional[Dict] = None,
-        **kwargs
-    ):
+    def __init__(self, *args, waiter_config: Optional[Dict] = None, **kwargs):
 
         super().__init__(*args, **kwargs)
 
@@ -183,9 +178,7 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
         :return: a waiter object for the named AWS batch service
         :rtype: botocore.waiter.Waiter
         """
-        return botocore.waiter.create_waiter_with_client(
-            waiter_name, self.waiter_model, self.client
-        )
+        return botocore.waiter.create_waiter_with_client(waiter_name, self.waiter_model, self.client)
 
     def list_waiters(self) -> List[str]:
         """

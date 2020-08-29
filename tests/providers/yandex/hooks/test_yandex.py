@@ -24,12 +24,10 @@ from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
 
 class TestYandexHook(unittest.TestCase):
-
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
-    def test_client_created_without_exceptions(self, get_credentials_mock,
-                                               get_connection_mock):
-        """ tests `init` method to validate client creation when all parameters are passed """
+    def test_client_created_without_exceptions(self, get_credentials_mock, get_connection_mock):
+        """tests `init` method to validate client creation when all parameters are passed """
 
         # Inputs to constructor
         default_folder_id = 'test_id'
@@ -38,18 +36,18 @@ class TestYandexHook(unittest.TestCase):
         extra_dejson = '{"extras": "extra"}'
         get_connection_mock['extra_dejson'] = "sdsd"
         get_connection_mock.extra_dejson = '{"extras": "extra"}'
-        get_connection_mock.return_value = mock.\
-            Mock(connection_id='yandexcloud_default', extra_dejson=extra_dejson)
+        get_connection_mock.return_value = mock.Mock(
+            connection_id='yandexcloud_default', extra_dejson=extra_dejson
+        )
         get_credentials_mock.return_value = {"token": 122323}
 
-        hook = YandexCloudBaseHook(None,
-                                   default_folder_id, default_public_ssh_key)
+        hook = YandexCloudBaseHook(None, default_folder_id, default_public_ssh_key)
         self.assertIsNotNone(hook.client)
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     def test_get_credentials_raise_exception(self, get_connection_mock):
 
-        """ tests 'get_credentials' method raising exception if none of the required fields are passed."""
+        """tests 'get_credentials' method raising exception if none of the required fields are passed."""
 
         # Inputs to constructor
         default_folder_id = 'test_id'
@@ -58,11 +56,13 @@ class TestYandexHook(unittest.TestCase):
         extra_dejson = '{"extras": "extra"}'
         get_connection_mock['extra_dejson'] = "sdsd"
         get_connection_mock.extra_dejson = '{"extras": "extra"}'
-        get_connection_mock.return_value = mock.Mock(connection_id='yandexcloud_default',
-                                                     extra_dejson=extra_dejson)
+        get_connection_mock.return_value = mock.Mock(
+            connection_id='yandexcloud_default', extra_dejson=extra_dejson
+        )
 
-        self.assertRaises(AirflowException, YandexCloudBaseHook, None,
-                          default_folder_id, default_public_ssh_key)
+        self.assertRaises(
+            AirflowException, YandexCloudBaseHook, None, default_folder_id, default_public_ssh_key
+        )
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
@@ -74,11 +74,11 @@ class TestYandexHook(unittest.TestCase):
         extra_dejson = {"extra__yandexcloud__one": "value_one"}
         get_connection_mock['extra_dejson'] = "sdsd"
         get_connection_mock.extra_dejson = '{"extras": "extra"}'
-        get_connection_mock.return_value = mock.Mock(connection_id='yandexcloud_default',
-                                                     extra_dejson=extra_dejson)
+        get_connection_mock.return_value = mock.Mock(
+            connection_id='yandexcloud_default', extra_dejson=extra_dejson
+        )
         get_credentials_mock.return_value = {"token": 122323}
 
-        hook = YandexCloudBaseHook(None,
-                                   default_folder_id, default_public_ssh_key)
+        hook = YandexCloudBaseHook(None, default_folder_id, default_public_ssh_key)
 
         self.assertEqual(hook._get_field('one'), 'value_one')

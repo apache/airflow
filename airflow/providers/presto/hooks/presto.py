@@ -55,7 +55,7 @@ class PrestoHook(DbApiHook):
             catalog=db.extra_dejson.get('catalog', 'hive'),
             schema=db.schema,
             auth=auth,
-            isolation_level=self.get_isolation_level()
+            isolation_level=self.get_isolation_level(),
         )
 
     def get_isolation_level(self):
@@ -73,8 +73,7 @@ class PrestoHook(DbApiHook):
         Get a set of records from Presto
         """
         try:
-            return super().get_records(
-                self._strip_sql(hql), parameters)
+            return super().get_records(self._strip_sql(hql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
@@ -84,8 +83,7 @@ class PrestoHook(DbApiHook):
         returns.
         """
         try:
-            return super().get_first(
-                self._strip_sql(hql), parameters)
+            return super().get_first(self._strip_sql(hql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
@@ -94,6 +92,7 @@ class PrestoHook(DbApiHook):
         Get a pandas dataframe from a sql query.
         """
         import pandas
+
         cursor = self.get_cursor()
         try:
             cursor.execute(self._strip_sql(hql), parameters)

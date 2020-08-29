@@ -175,33 +175,47 @@ class GCSToGCSOperator(BaseOperator):
         )
 
     """
-    template_fields = ('source_bucket', 'source_object', 'source_objects', 'destination_bucket',
-                       'destination_object', 'delimiter', 'impersonation_chain',)
+
+    template_fields = (
+        'source_bucket',
+        'source_object',
+        'source_objects',
+        'destination_bucket',
+        'destination_object',
+        'delimiter',
+        'impersonation_chain',
+    )
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, *,  # pylint: disable=too-many-arguments
-                 source_bucket,
-                 source_object=None,
-                 source_objects=None,
-                 destination_bucket=None,
-                 destination_object=None,
-                 delimiter=None,
-                 move_object=False,
-                 replace=True,
-                 gcp_conn_id='google_cloud_default',
-                 google_cloud_storage_conn_id=None,
-                 delegate_to=None,
-                 last_modified_time=None,
-                 maximum_modified_time=None,
-                 is_older_than=None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,  # pylint: disable=too-many-arguments
+        source_bucket,
+        source_object=None,
+        source_objects=None,
+        destination_bucket=None,
+        destination_object=None,
+        delimiter=None,
+        move_object=False,
+        replace=True,
+        gcp_conn_id='google_cloud_default',
+        google_cloud_storage_conn_id=None,
+        delegate_to=None,
+        last_modified_time=None,
+        maximum_modified_time=None,
+        is_older_than=None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.source_bucket = source_bucket
@@ -227,9 +241,11 @@ class GCSToGCSOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if self.source_objects and self.source_object:
-            error_msg = "You can either set source_object parameter or source_objects " \
-                        "parameter but not both. Found source_object={} and" \
-                        " source_objects={}".format(self.source_object, self.source_objects)
+            error_msg = (
+                "You can either set source_object parameter or source_objects "
+                "parameter but not both. Found source_object={} and"
+                " source_objects={}".format(self.source_object, self.source_objects)
+            )
             raise AirflowException(error_msg)
 
         if not self.source_object and not self.source_objects:
@@ -245,8 +261,8 @@ class GCSToGCSOperator(BaseOperator):
 
         if self.destination_bucket is None:
             self.log.warning(
-                'destination_bucket is None. Defaulting it to source_bucket (%s)',
-                self.source_bucket)
+                'destination_bucket is None. Defaulting it to source_bucket (%s)', self.source_bucket
+            )
             self.destination_bucket = self.source_bucket
 
         # An empty source_object means to copy all files
@@ -272,21 +288,25 @@ class GCSToGCSOperator(BaseOperator):
         # and copy directly
         if len(objects) == 0 and prefix:
             if hook.exists(self.source_bucket, prefix):
-                self._copy_single_object(hook=hook, source_object=prefix,
-                                         destination_object=self.destination_object)
+                self._copy_single_object(
+                    hook=hook, source_object=prefix, destination_object=self.destination_object
+                )
         for source_obj in objects:
             if self.destination_object is None:
                 destination_object = source_obj
             else:
                 destination_object = self.destination_object
-            self._copy_single_object(hook=hook, source_object=source_obj,
-                                     destination_object=destination_object)
+            self._copy_single_object(
+                hook=hook, source_object=source_obj, destination_object=destination_object
+            )
 
     def _copy_source_with_wildcard(self, hook, prefix):
         total_wildcards = prefix.count(WILDCARD)
         if total_wildcards > 1:
-            error_msg = "Only one wildcard '*' is allowed in source_object parameter. " \
-                        "Found {} in {}.".format(total_wildcards, prefix)
+            error_msg = (
+                "Only one wildcard '*' is allowed in source_object parameter. "
+                "Found {} in {}.".format(total_wildcards, prefix)
+            )
 
             raise AirflowException(error_msg)
         self.log.info('Delimiter ignored because wildcard is in prefix')
@@ -301,30 +321,24 @@ class GCSToGCSOperator(BaseOperator):
 
             objects = set(objects) - set(existing_objects)
             if len(objects) > 0:
-                self.log.info(
-                    '%s files are going to be synced: %s.', len(objects), objects
-                )
+                self.log.info('%s files are going to be synced: %s.', len(objects), objects)
             else:
-                self.log.info(
-                    'There are no new files to sync. Have a nice day!')
+                self.log.info('There are no new files to sync. Have a nice day!')
         for source_object in objects:
             if self.destination_object is None:
                 destination_object = source_object
             else:
-                destination_object = source_object.replace(prefix_,
-                                                           self.destination_object, 1)
+                destination_object = source_object.replace(prefix_, self.destination_object, 1)
 
-            self._copy_single_object(hook=hook, source_object=source_object,
-                                     destination_object=destination_object)
+            self._copy_single_object(
+                hook=hook, source_object=source_object, destination_object=destination_object
+            )
 
     def _copy_single_object(self, hook, source_object, destination_object):
         if self.is_older_than:
             # Here we check if the given object is older than the given time
             # If given, last_modified_time and maximum_modified_time is ignored
-            if hook.is_older_than(self.source_bucket,
-                                  source_object,
-                                  self.is_older_than
-                                  ):
+            if hook.is_older_than(self.source_bucket, source_object, self.is_older_than):
                 self.log.info("Object is older than %s seconds ago", self.is_older_than)
             else:
                 self.log.debug("Object is not older than %s seconds ago", self.is_older_than)
@@ -332,43 +346,46 @@ class GCSToGCSOperator(BaseOperator):
         elif self.last_modified_time and self.maximum_modified_time:
             # check to see if object was modified between last_modified_time and
             # maximum_modified_time
-            if hook.is_updated_between(self.source_bucket,
-                                       source_object,
-                                       self.last_modified_time,
-                                       self.maximum_modified_time
-                                       ):
-                self.log.info("Object has been modified between %s and %s",
-                              self.last_modified_time, self.maximum_modified_time)
+            if hook.is_updated_between(
+                self.source_bucket, source_object, self.last_modified_time, self.maximum_modified_time
+            ):
+                self.log.info(
+                    "Object has been modified between %s and %s",
+                    self.last_modified_time,
+                    self.maximum_modified_time,
+                )
             else:
-                self.log.debug("Object was not modified between %s and %s",
-                               self.last_modified_time, self.maximum_modified_time)
+                self.log.debug(
+                    "Object was not modified between %s and %s",
+                    self.last_modified_time,
+                    self.maximum_modified_time,
+                )
                 return
 
         elif self.last_modified_time is not None:
             # Check to see if object was modified after last_modified_time
-            if hook.is_updated_after(self.source_bucket,
-                                     source_object,
-                                     self.last_modified_time):
+            if hook.is_updated_after(self.source_bucket, source_object, self.last_modified_time):
                 self.log.info("Object has been modified after %s ", self.last_modified_time)
             else:
                 self.log.debug("Object was not modified after %s ", self.last_modified_time)
                 return
         elif self.maximum_modified_time is not None:
             # Check to see if object was modified before maximum_modified_time
-            if hook.is_updated_before(self.source_bucket,
-                                      source_object,
-                                      self.maximum_modified_time):
+            if hook.is_updated_before(self.source_bucket, source_object, self.maximum_modified_time):
                 self.log.info("Object has been modified before %s ", self.maximum_modified_time)
             else:
                 self.log.debug("Object was not modified before %s ", self.maximum_modified_time)
                 return
 
-        self.log.info('Executing copy of gs://%s/%s to gs://%s/%s',
-                      self.source_bucket, source_object,
-                      self.destination_bucket, destination_object)
+        self.log.info(
+            'Executing copy of gs://%s/%s to gs://%s/%s',
+            self.source_bucket,
+            source_object,
+            self.destination_bucket,
+            destination_object,
+        )
 
-        hook.rewrite(self.source_bucket, source_object,
-                     self.destination_bucket, destination_object)
+        hook.rewrite(self.source_bucket, source_object, self.destination_bucket, destination_object)
 
         if self.move_object:
             hook.delete(self.source_bucket, source_object)

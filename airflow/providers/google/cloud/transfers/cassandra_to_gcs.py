@@ -86,30 +86,43 @@ class CassandraToGCSOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('cql', 'bucket', 'filename', 'schema_filename', 'impersonation_chain',)
+
+    template_fields = (
+        'cql',
+        'bucket',
+        'filename',
+        'schema_filename',
+        'impersonation_chain',
+    )
     template_ext = ('.cql',)
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self, *,  # pylint: disable=too-many-arguments
-                 cql: str,
-                 bucket: str,
-                 filename: str,
-                 schema_filename: Optional[str] = None,
-                 approx_max_file_size_bytes: int = 1900000000,
-                 gzip: bool = False,
-                 cassandra_conn_id: str = 'cassandra_default',
-                 gcp_conn_id: str = 'google_cloud_default',
-                 google_cloud_storage_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,  # pylint: disable=too-many-arguments
+        cql: str,
+        bucket: str,
+        filename: str,
+        schema_filename: Optional[str] = None,
+        approx_max_file_size_bytes: int = 1900000000,
+        gzip: bool = False,
+        cassandra_conn_id: str = 'cassandra_default',
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             gcp_conn_id = google_cloud_storage_conn_id
 
         self.cql = cql
@@ -229,7 +242,7 @@ class CassandraToGCSOperator(BaseOperator):
                 object_name=obj,
                 filename=tmp_file_handle.name,
                 mime_type='application/json',
-                gzip=self.gzip
+                gzip=self.gzip,
             )
 
     @classmethod
@@ -241,8 +254,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def convert_value(  # pylint: disable=too-many-return-statements
-        cls,
-        value: Optional[Any]
+        cls, value: Optional[Any]
     ) -> Optional[Any]:
         """
         Convert value to BQ type.
@@ -308,10 +320,7 @@ class CassandraToGCSOperator(BaseOperator):
         """
         converted_map = []
         for k, v in zip(value.keys(), value.values()):
-            converted_map.append({
-                'key': cls.convert_value(k),
-                'value': cls.convert_value(v)
-            })
+            converted_map.append({'key': cls.convert_value(k), 'value': cls.convert_value(v)})
         return converted_map
 
     @classmethod

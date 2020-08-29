@@ -56,12 +56,7 @@ hello_world = ECSOperator(
     task_definition="hello-world",
     launch_type="FARGATE",
     overrides={
-        "containerOverrides": [
-            {
-                "name": "hello-world-container",
-                "command": ["echo", "hello", "world"],
-            },
-        ],
+        "containerOverrides": [{"name": "hello-world-container", "command": ["echo", "hello", "world"],},],
     },
     network_configuration={
         "awsvpcConfiguration": {
