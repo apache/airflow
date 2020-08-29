@@ -59,6 +59,14 @@ class TestDagEndpoint(unittest.TestCase):
         create_user(cls.app, username="test", role="Test")  # type: ignore
         create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
         create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
+        create_role(cls.app, name="TestGranularDag")  # type: ignore
+        create_user(cls.app, username="test_granular_permissions",  # type: ignore
+                    role="TestGranularDag")
+        cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+            "TEST_DAG_1",
+            access_control={
+                'TestGranularDag': ['can_edit', 'can_read']
+            })
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
@@ -74,6 +82,8 @@ class TestDagEndpoint(unittest.TestCase):
         cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
         delete_user(cls.app, username="test_no_permissions")  # type: ignore
         cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
+        delete_user(cls.app, username="test_granular_permissions")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("TestGranularDag")  # type: ignore  # pylint: disable=no-member
 
     def setUp(self) -> None:
         self.clean_db()
@@ -115,6 +125,13 @@ class TestGetDag(TestDagEndpoint):
             },
             current_response,
         )
+
+    def test_should_response_200_with_granular_dag_access(self):
+        self._create_dag_models(1)
+        response = self.client.get(
+            "/api/v1/dags/TEST_DAG_1", environ_overrides={'REMOTE_USER': "test_granular_permissions"}
+        )
+        assert response.status_code == 200
 
     def test_should_response_404(self):
         response = self.client.get("/api/v1/dags/INVALID_DAG", environ_overrides={'REMOTE_USER': "test"})
@@ -370,6 +387,17 @@ class TestPatchDag(TestDagEndpoint):
             "tags": [],
         }
         self.assertEqual(response.json, expected_response)
+
+    def test_should_response_200_on_patch_with_granular_dag_access(self):
+        self._create_dag_models(1)
+        response = self.client.patch(
+            "/api/v1/dags/TEST_DAG_1",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test_granular_permissions"}
+        )
+        assert response.status_code == 200
 
     def test_should_response_400_on_invalid_request(self):
         patch_body = {
