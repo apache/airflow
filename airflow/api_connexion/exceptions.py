@@ -26,12 +26,12 @@ if 'dev' in version.version:
     doc_link = "https://airflow.readthedocs.io/en/latest/stable-rest-api-ref.html"
 
 EXCEPTIONS_LINK_MAP = {
-    400: doc_link + "#section/Errors/BadRequest",
-    404: doc_link + "#section/Errors/NotFound",
-    401: doc_link + "#section/Errors/Unauthenticated",
-    409: doc_link + "#section/Errors/AlreadyExists",
-    403: doc_link + "#section/Errors/PermissionDenied",
-    500: doc_link + "#section/Errors/Unknown",
+    400: f"{doc_link}#section/Errors/BadRequest",
+    404: f"{doc_link}#section/Errors/NotFound",
+    401: f"{doc_link}#section/Errors/Unauthenticated",
+    409: f"{doc_link}#section/Errors/AlreadyExists",
+    403: f"{doc_link}#section/Errors/PermissionDenied",
+    500: f"{doc_link}#section/Errors/Unknown",
 }
 
 
@@ -42,12 +42,13 @@ def common_error_handler(exception):
     """
     if isinstance(exception, ProblemException):
 
-        if EXCEPTIONS_LINK_MAP.get(exception.status, None):
+        link = EXCEPTIONS_LINK_MAP.get(exception.status, None)
+        if link:
             response = problem(
                 status=exception.status,
                 title=exception.title,
                 detail=exception.detail,
-                type=EXCEPTIONS_LINK_MAP[exception.status],
+                type=link,
                 instance=exception.instance,
                 headers=exception.headers,
                 ext=exception.ext,
