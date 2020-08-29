@@ -34,7 +34,8 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreScaleInstanceOperator,
     CloudMemorystoreUpdateInstanceOperator,
     CloudMemorystoreMemcachedCreateInstanceOperator,
-    CloudMemorystoreMemcachedDeleteInstanceOperator
+    CloudMemorystoreMemcachedDeleteInstanceOperator,
+    CloudMemorystoreMemcachedGetInstanceOperator
 )
 
 TEST_GCP_CONN_ID = "test-gcp-conn-id"
@@ -410,6 +411,34 @@ class TestCloudMemorystoreMemcachedDeleteInstanceOperator(TestCase):
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
         mock_hook.return_value.delete_instance.assert_called_once_with(
+            location=TEST_LOCATION,
+            instance=TEST_INSTANCE_NAME,
+            project_id=TEST_PROJECT_ID,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+
+
+class TestCloudMemorystoreMemcachedGetInstanceOperator(TestCase):
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedHook")
+    def test_assert_valid_hook_call(self, mock_hook):
+        task = CloudMemorystoreMemcachedGetInstanceOperator(
+            task_id=TEST_TASK_ID,
+            location=TEST_LOCATION,
+            instance=TEST_INSTANCE_NAME,
+            project_id=TEST_PROJECT_ID,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        task.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.get_instance.assert_called_once_with(
             location=TEST_LOCATION,
             instance=TEST_INSTANCE_NAME,
             project_id=TEST_PROJECT_ID,
