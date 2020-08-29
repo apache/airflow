@@ -388,15 +388,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 stacklevel=3
             )
         validate_key(task_id)
-        self.label = task_id
-
-        # Prefix task_id with group_id
+        self.task_id = task_id
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
         if task_group:
-            self.task_id = f"{task_group.group_id}.{self.label}" if task_group.group_id else self.label
             task_group.add(self)
-        else:
-            self.task_id = self.label
 
         self.owner = owner
         self.email = email

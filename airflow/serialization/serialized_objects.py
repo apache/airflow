@@ -379,10 +379,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Extra Operator Links defined in Plugins
         op_extra_links_from_plugin = {}
 
-        if "label" not in encoded_op:
-            # Handle deserialization of old data before the introduction of TaskGroup
-            encoded_op["label"] = encoded_op["task_id"]
-
         for ope in plugins_manager.operator_extra_links:
             for operator in ope.operators:
                 if operator.__name__ == encoded_op["_task_type"] and \

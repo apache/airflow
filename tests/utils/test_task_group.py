@@ -17,6 +17,7 @@
 # under the License.
 
 import pendulum
+import pytest
 
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
@@ -48,7 +49,7 @@ EXPECTED_JSON = {
             'tooltip': '',
             'children': [
                 {
-                    'id': 'group234.group34',
+                    'id': 'group34',
                     'value': {
                         'label': 'group34',
                         'labelStyle': 'fill:#000;',
@@ -60,7 +61,7 @@ EXPECTED_JSON = {
                     'tooltip': '',
                     'children': [
                         {
-                            'id': 'group234.group34.task3',
+                            'id': 'task3',
                             'value': {
                                 'label': 'task3',
                                 'labelStyle': 'fill:#000;',
@@ -70,7 +71,7 @@ EXPECTED_JSON = {
                             },
                         },
                         {
-                            'id': 'group234.group34.task4',
+                            'id': 'task4',
                             'value': {
                                 'label': 'task4',
                                 'labelStyle': 'fill:#000;',
@@ -80,7 +81,7 @@ EXPECTED_JSON = {
                             },
                         },
                         {
-                            'id': 'group234.group34_downstream_join_id',
+                            'id': 'group34_downstream_join_id',
                             'value': {
                                 'label': '',
                                 'labelStyle': 'fill:#000;',
@@ -91,7 +92,7 @@ EXPECTED_JSON = {
                     ],
                 },
                 {
-                    'id': 'group234.task2',
+                    'id': 'task2',
                     'value': {
                         'label': 'task2',
                         'labelStyle': 'fill:#000;',
@@ -140,37 +141,30 @@ def test_build_task_group_context_manager():
     with DAG("test_build_task_group_context_manager", start_date=execution_date) as dag:
         task1 = DummyOperator(task_id="task1")
         with TaskGroup("group234") as group234:
-            task2 = DummyOperator(task_id="task2")
+            _ = DummyOperator(task_id="task2")
 
             with TaskGroup("group34") as group34:
-                task3 = DummyOperator(task_id="task3")
-                task4 = DummyOperator(task_id="task4")
+                _ = DummyOperator(task_id="task3")
+                _ = DummyOperator(task_id="task4")
 
         task5 = DummyOperator(task_id="task5")
         task1 >> group234
         group34 >> task5
 
-    assert task1.task_id == "task1"
-    assert task2.task_id == "group234.task2"
-    assert task3.task_id == "group234.group34.task3"
-    assert task3.label == "task3"
-    assert task4.task_id == "group234.group34.task4"
-    assert task4.label == "task4"
-    assert task5.task_id == "task5"
-    assert task5.label == "task5"
     assert task1.get_direct_relative_ids(upstream=False) == {
-        "group234.task2",
-        "group234.group34.task3",
-        "group234.group34.task4",
+        "task2",
+        "task3",
+        "task4",
     }
     assert task5.get_direct_relative_ids(upstream=True) == {
-        "group234.group34.task3",
-        "group234.group34.task4",
+        "task3",
+        "task4",
     }
 
-    assert dag.task_group.parent_group is None
+    assert dag.task_group.group_id is None
+    assert dag.task_group.is_root
     assert set(dag.task_group.children.keys()) == {"task1", "group234", "task5"}
-    assert group34.group_id == "group234.group34"
+    assert group34.group_id == "group34"
 
     assert task_group_to_dict(dag.task_group) == EXPECTED_JSON
 
@@ -241,7 +235,7 @@ def test_sub_dag_task_group():
                 'tooltip': '',
                 'children': [
                     {
-                        'id': 'group234.task2',
+                        'id': 'task2',
                         'value': {
                             'label': 'task2',
                             'labelStyle': 'fill:#000;',
@@ -335,15 +329,15 @@ def test_dag_edges():
                 'id': 'group_a',
                 'children': [
                     {
-                        'id': 'group_a.group_b',
+                        'id': 'group_b',
                         'children': [
-                            {'id': 'group_a.group_b.task2'},
-                            {'id': 'group_a.group_b.task3'},
-                            {'id': 'group_a.group_b.task4'},
-                            {'id': 'group_a.group_b_downstream_join_id'},
+                            {'id': 'task2'},
+                            {'id': 'task3'},
+                            {'id': 'task4'},
+                            {'id': 'group_b_downstream_join_id'},
                         ],
                     },
-                    {'id': 'group_a.task5'},
+                    {'id': 'task5'},
                     {'id': 'group_a_upstream_join_id'},
                     {'id': 'group_a_downstream_join_id'},
                 ],
@@ -351,20 +345,16 @@ def test_dag_edges():
             {
                 'id': 'group_c',
                 'children': [
-                    {'id': 'group_c.task6'},
-                    {'id': 'group_c.task7'},
-                    {'id': 'group_c.task8'},
+                    {'id': 'task6'},
+                    {'id': 'task7'},
+                    {'id': 'task8'},
                     {'id': 'group_c_upstream_join_id'},
                     {'id': 'group_c_downstream_join_id'},
                 ],
             },
             {
                 'id': 'group_d',
-                'children': [
-                    {'id': 'group_d.task11'},
-                    {'id': 'group_d.task12'},
-                    {'id': 'group_d_upstream_join_id'},
-                ],
+                'children': [{'id': 'task11'}, {'id': 'task12'}, {'id': 'group_d_upstream_join_id'},],
             },
             {'id': 'task1'},
             {'id': 'task10'},
@@ -373,23 +363,60 @@ def test_dag_edges():
     }
 
     assert sorted((e["source_id"], e["target_id"]) for e in edges) == [
-        ('group_a.group_b.task2', 'group_a.group_b.task3'),
-        ('group_a.group_b.task2', 'group_a.group_b.task4'),
-        ('group_a.group_b.task3', 'group_a.group_b_downstream_join_id'),
-        ('group_a.group_b.task4', 'group_a.group_b_downstream_join_id'),
-        ('group_a.group_b_downstream_join_id', 'group_a.task5'),
-        ('group_a.task5', 'group_a_downstream_join_id'),
-        ('group_a.task5', 'group_c.task8'),
         ('group_a_downstream_join_id', 'group_c_upstream_join_id'),
-        ('group_c.task6', 'group_c.task8'),
-        ('group_c.task7', 'group_c.task8'),
-        ('group_c.task8', 'group_c_downstream_join_id'),
+        ('group_a_upstream_join_id', 'task2'),
+        ('group_b_downstream_join_id', 'task5'),
         ('group_c_downstream_join_id', 'group_d_upstream_join_id'),
         ('group_c_downstream_join_id', 'task10'),
         ('group_c_downstream_join_id', 'task9'),
-        ('group_c_upstream_join_id', 'group_c.task6'),
-        ('group_c_upstream_join_id', 'group_c.task7'),
-        ('group_d.task11', 'group_d.task12'),
-        ('group_d_upstream_join_id', 'group_d.task11'),
+        ('group_c_upstream_join_id', 'task6'),
+        ('group_c_upstream_join_id', 'task7'),
+        ('group_d_upstream_join_id', 'task11'),
         ('task1', 'group_a_upstream_join_id'),
+        ('task11', 'task12'),
+        ('task2', 'task3'),
+        ('task2', 'task4'),
+        ('task3', 'group_b_downstream_join_id'),
+        ('task4', 'group_b_downstream_join_id'),
+        ('task5', 'group_a_downstream_join_id'),
+        ('task5', 'task8'),
+        ('task6', 'task8'),
+        ('task7', 'task8'),
+        ('task8', 'group_c_downstream_join_id'),
     ]
+
+
+def test_duplicate_group_id():
+    from airflow.exceptions import DuplicateTaskIdFound
+
+    execution_date = pendulum.parse("20200101")
+
+    with pytest.raises(DuplicateTaskIdFound, match=r".* 'task1' .*"):
+        with DAG("test_duplicate_group_id", start_date=execution_date):
+            _ = DummyOperator(task_id="task1")
+            with TaskGroup("task1"):
+                pass
+
+    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
+        with DAG("test_duplicate_group_id", start_date=execution_date):
+            _ = DummyOperator(task_id="task1")
+            with TaskGroup("group1"):
+                with TaskGroup("group1"):
+                    pass
+
+    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
+        with DAG("test_duplicate_group_id", start_date=execution_date):
+            with TaskGroup("group1"):
+                _ = DummyOperator(task_id="group1")
+
+    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1_downstream_join_id' .*"):
+        with DAG("test_duplicate_group_id", start_date=execution_date):
+            _ = DummyOperator(task_id="task1")
+            with TaskGroup("group1"):
+                _ = DummyOperator(task_id="group1_downstream_join_id")
+
+    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1_upstream_join_id' .*"):
+        with DAG("test_duplicate_group_id", start_date=execution_date):
+            _ = DummyOperator(task_id="task1")
+            with TaskGroup("group1"):
+                _ = DummyOperator(task_id="group1_upstream_join_id")

@@ -1282,10 +1282,9 @@ class DAG(BaseDag, LoggingMixin):
                 else:
                     remove_excluded(child)
 
-            # Remove this TaskGroup if it doesn't contain any tasks in this subdag
-            if not group.children:
-                if group.parent_group:
-                    group.parent_group.children.pop(group.group_id)
+                    # Remove this TaskGroup if it doesn't contain any tasks in this subdag
+                    if not child.children:
+                        group.children.pop(child.group_id)
 
         remove_excluded(dag.task_group)
 
@@ -1385,12 +1384,15 @@ class DAG(BaseDag, LoggingMixin):
         elif task.end_date and self.end_date:
             task.end_date = min(task.end_date, self.end_date)
 
-        if task.task_id in self.task_dict and self.task_dict[task.task_id] is not task:
+        if ((task.task_id in self.task_dict and self.task_dict[task.task_id] is not task)
+                or task.task_id in self._task_group.used_group_ids):
             raise DuplicateTaskIdFound(
                 "Task id '{}' has already been added to the DAG".format(task.task_id))
         else:
             self.task_dict[task.task_id] = task
             task.dag = self
+            # Add task_id to used_group_ids to prevent group_id and task_id collisions.
+            self._task_group.used_group_ids.add(task.task_id)
 
         self.task_count = len(self.task_dict)
 

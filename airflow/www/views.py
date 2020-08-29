@@ -150,14 +150,14 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
 
 def task_group_to_dict(task_group):
     """
-    Create a nested dict representation of this TaskGroup and its children used for
-    rendering web UI.
+    Create a nested dict representation of this TaskGroup and its children used to construct
+    the Graph View.
     """
     if isinstance(task_group, BaseOperator):
         return {
             'id': task_group.task_id,
             'value': {
-                'label': task_group.label,
+                'label': task_group.task_id,
                 'labelStyle': f"fill:{task_group.ui_fgcolor};",
                 'style': f"fill:{task_group.ui_color};",
                 'rx': 5,
@@ -166,7 +166,8 @@ def task_group_to_dict(task_group):
         }
 
     children = [task_group_to_dict(child) for child in
-                sorted(task_group.children.values(), key=lambda t: t.label)]
+                sorted(task_group.children.values(),
+                       key=lambda t: t.task_id if isinstance(t, BaseOperator) else t.group_id)]
 
     if task_group.upstream_group_ids or task_group.upstream_task_ids:
         children.append({
@@ -194,7 +195,7 @@ def task_group_to_dict(task_group):
     return {
         "id": task_group.group_id,
         'value': {
-            'label': task_group.label,
+            'label': task_group.group_id,
             'labelStyle': f"fill:{task_group.ui_fgcolor};",
             'style': f"fill:{task_group.ui_color}",
             'rx': 5,
@@ -210,11 +211,11 @@ def dag_edges(dag):
     """
     Create the list of edges needed to construct the Graph View.
 
-    A special case is made if TaskGroup group1 of size M has an immediate downstream
-    TaskGroup group2 of size N. Instead of adding an edge between every individual task in
-    group1 and group2 which will result in M * N number of edges between group1 and group2,
-    this function skips the individual edges, and instead add two dummy join nodes between group1
-    and group2. This reduces the number of edges to M + N + 1.
+    A special case is made if a TaskGroup is immediately upstream/downstream of another
+    TaskGroup or task. Two dummy nodes named upstream_join_id and downstream_join_id are
+    created for the TaskGroup. Instead of drawing an edge onto every task in the TaskGroup,
+    all edges are directed onto the dummy nodes. This is to cut down the number of edges on
+    the graph.
 
     For example: A DAG with TaskGroups group1 and group2:
         group1: task1, task2, task3
@@ -223,7 +224,7 @@ def dag_edges(dag):
     group2 is downstream of group1:
         group1 >> group2
 
-    Edges to add:
+    Edges to add (This avoids having to create edges between every task in group1 and group2):
         task1 >> downstream_join_id
         task2 >> downstream_join_id
         task3 >> downstream_join_id
@@ -241,10 +242,15 @@ def dag_edges(dag):
     task_group_map = dag.task_group.get_task_group_dict()
 
     def collect_edges(task_group):
+        """
+        Update edges_to_add and edges_to_skip according to TaskGroups.
+        """
         if isinstance(task_group, BaseOperator):
             return
 
         for target_id in task_group.downstream_group_ids:
+            # For every TaskGroup immediately downstream, add edges between downstream_join_id
+            # and upstream_join_id. Skip edges between individual tasks of the TaskGroups.
             target_group = task_group_map[target_id]
             edges_to_add.add((task_group.downstream_join_id, target_group.upstream_join_id))
 
@@ -258,6 +264,9 @@ def dag_edges(dag):
                 edges_to_add.add((target_group.upstream_join_id, child.task_id))
                 edges_to_skip.add((task_group.downstream_join_id, child.task_id))
 
+        # For every individual task immediately downstream, add edges between downstream_join_id and
+        # the downstream task. Skip edges between individual tasks of the TaskGroup and the
+        # downstream task.
         for target_id in task_group.downstream_task_ids:
             edges_to_add.add((task_group.downstream_join_id, target_id))
 
@@ -265,10 +274,13 @@ def dag_edges(dag):
                 edges_to_add.add((child.task_id, task_group.downstream_join_id))
                 edges_to_skip.add((child.task_id, target_id))
 
+        # For every individual task immediately upstream, add edges between the upstream task
+        # and upstream_join_id. Skip edges between the upstream task and individual tasks
+        # of the TaskGroup.
         for source_id in task_group.upstream_task_ids:
             edges_to_add.add((source_id, task_group.upstream_join_id))
-
             for child in task_group.get_roots():
+                edges_to_add.add((task_group.upstream_join_id, child.task_id))
                 edges_to_skip.add((source_id, child.task_id))
 
         for child in task_group.children.values():

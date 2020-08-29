@@ -944,7 +944,8 @@ TaskGroup
 =========
 TaskGroup can be used to organize tasks into hierarchical groups in Graph View. It is
 useful for creating repeating patterns and cutting down visual clutter. Unlike SubDagOperator,
-TaskGroup is a UI grouping concept. Tasks in TaskGroups honor all the pool configurations.
+TaskGroup is a UI grouping concept. Tasks in TaskGroups live on the same original DAG. They
+honor all the pool configurations.
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<``
 operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1``
@@ -961,9 +962,9 @@ and then puts both tasks upstream of ``task3``:
     group1 >> task3
 
 .. note::
-   When tasks are created inside a TaskGroup, their ``task_id`` are prefixed with the ``group_id``
-   of their TaskGroup. For example, in the above example, ``task_id`` of ``task1`` actually
-   becomes ``"group1.task1"``.
+   Every task in the same DAG must have a unique ``task_id``. Since tasks in TaskGroups are
+   on the same DAG as other tasks, they must all have unique ``task_id`` throughout the DAG.
+   Additionally, ``group_id`` of TaskGroups must not conflict with ``task_id`` of tasks.
 
 Here is a more complicated example DAG with multiple levels of nested TaskGroups:
 
