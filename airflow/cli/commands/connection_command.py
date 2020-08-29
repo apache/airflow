@@ -275,9 +275,8 @@ def connections_import(args):
 
     try:
         conns_map = load_connections(args.file)
-    except AirflowException as e:
-        print(e)
-        return
+    except AirflowException:
+        sys.exit(1)
 
     if not args.conflict_disposition:
         disposition = DIS_RESTRICT

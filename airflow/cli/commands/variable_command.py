@@ -96,7 +96,7 @@ def variables_import(args):
         vars_map = load_variables(args.file)
     except AirflowException as e:
         print(e)
-        return
+        sys.exit(1)
 
     if not args.conflict_disposition:
         disposition = DIS_RESTRICT
