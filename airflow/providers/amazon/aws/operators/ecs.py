@@ -56,6 +56,14 @@ class ECSProtocol(Protocol):
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501  # pylint: disable=line-too-long
         ...
 
+    def describe_task_definition(self, taskDefinition: str) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition"""  # noqa: E501  # pylint: disable=line-too-long
+        ...
+
+    def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501  # pylint: disable=line-too-long
+        ...
+
 
 class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
@@ -172,12 +180,16 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
         self.client = self.get_hook().get_conn()
 
-        self._start_task()
+        if self.reattach:
+            self._try_reattach_task()
+
+        if not self.arn:
+            self._start_task()
 
         self._wait_for_task_ended()
 
         self._check_success_task()
-        self.log.info('ECS Task has been successfully executed: %s', response)
+        self.log.info('ECS Task has been successfully executed')
 
     def _start_task(self):
         run_opts = {
@@ -212,6 +224,28 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
+
+    def _try_reattach_task(self):
+        task_def_resp = self.client.describe_task_definition(self.task_definition)
+        ecs_task_family = task_def_resp['taskDefinition']['family']
+
+        list_tasks_resp = self.client.list_tasks(
+            cluster=self.cluster,
+            launchType=self.launch_type,
+            desiredStatus='RUNNING',
+            family=ecs_task_family
+        )
+        running_tasks = list_tasks_resp['taskArns']
+
+        running_tasks_count = len(running_tasks)
+        if running_tasks_count > 1:
+            self.arn = running_tasks[0]
+            self.log.warning(f'More than 1 ECS Task found. Reattaching to {self.arn}')
+        elif running_tasks_count == 1:
+            self.arn = running_tasks[0]
+            self.log.info(f'Reattaching task: {self.arn}')
+        else:
+            self.log.info(f'No active tasks found to reattach')
 
     def _wait_for_task_ended(self):
         waiter = self.client.get_waiter('tasks_stopped')
