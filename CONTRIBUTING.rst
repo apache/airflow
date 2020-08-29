@@ -84,6 +84,70 @@ If you are proposing a new feature:
 -   Remember that this is a volunteer-driven project, and that contributions are
     welcome :)
 
+
+Roles
+=============
+
+There are several roles within the Airflow Open-Source community.
+
+
+PMC Member
+-----------
+The PMC (Project Management Committee) is a group of maintainers that drives changes in the way that
+Airflow is managed as a project.
+
+Considering Apache, the role of the PMC is primarily to ensure that Airflow conforms to Apache's processes
+and guidelines.
+
+Committers/Maintainers
+----------------------
+
+Committers are community members that have write access to the project’s repositories, i.e., they can modify the code,
+documentation, and website by themselves and also accept other contributions.
+
+The official list of committers can be found `here <https://airflow.apache.org/docs/stable/project.html#committers>`__.
+
+Additionally, committers are listed in a few other places (some of these may only be visible to existing committers):
+
+* https://whimsy.apache.org/roster/ppmc/airflow
+* https://github.com/orgs/apache/teams/airflow-committers/members
+
+Committers are responsible for:
+
+* Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__
+* Reviewing & Merging Pull-Requests
+* Scanning and responding to Github issues
+* Responding to questions on the dev mailing list (dev@airflow.apache.org)
+
+Becoming a Committer
+--------------------
+
+There is no strict protocol for becoming a committer.
+Candidates for new committers are typically people that are active contributors and community members.
+
+The key aspects of a committer are:
+
+* Consistent contributions over the past 6 months
+* Understanding of Airflow Core or has displayed a holistic understanding of a particular part and made
+  contributions towards a more strategic goal
+* Understanding of contributor/committer guidelines: `Contributors' Guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__
+* Quality of the commits
+* Visibility in community discussions (dev mailing list, Slack and Github)
+* Testing Release Candidates
+
+
+Contributors
+------------
+
+A contributor is anyone who wants to contribute code, documentation, tests, ideas, or anything to the
+Apache Airflow project.
+
+Contributors are responsible for:
+
+* Fixing bugs
+* Adding features
+* Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__.
+
 Contribution Workflow
 =====================
 
@@ -154,7 +218,7 @@ You can use the default Breeze configuration as follows:
 
 .. code-block:: bash
 
-   ./breeze --initialize-local-virtualenv
+   ./breeze initialize-local-virtualenv
 
 6. Open your IDE (for example, PyCharm) and select the virtualenv you created
    as the project's default virtualenv in your IDE.
