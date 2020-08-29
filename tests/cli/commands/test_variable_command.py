@@ -148,10 +148,18 @@ class TestCliVariables(unittest.TestCase):
             'variables', 'delete', 'foo']))
         self.assertRaises(KeyError, Variable.get, "foo")
 
-    def test_variables_import(self):
+    @parameterized.expand(
+        (
+            (
+                '{"var_a" : "some_value"}'
+            ),
+        )
+    )
+    def test_variables_import(self, file_content):
         """Test variables_import command"""
-        variable_command.variables_import(self.parser.parse_args([
-            'variables', 'import', os.devnull]))
+        with mock_local_file(file_content, 'a.json'):
+            variable_command.variables_import(self.parser.parse_args([
+                'variables', 'import', 'a.json']))
 
     @parameterized.expand(
         (
