@@ -802,6 +802,8 @@ class DagTest(unittest.TestCase):
 
         session = settings.Session()
         dag.sync_to_db(session=session)
+        DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=False)
+        DagModel.get_dagmodel(subdag.dag_id).set_is_paused(is_paused=False)
 
         unpaused_dags = session.query(
             DagModel

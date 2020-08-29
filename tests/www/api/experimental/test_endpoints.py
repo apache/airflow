@@ -145,7 +145,7 @@ class TestApiExperimental(unittest.TestCase):
         from airflow import settings
         session = settings.Session()
         key = "my_dag_id"
-        session.add(DagModel(dag_id=key))
+        session.add(session.merge(DagModel(dag_id=key)))
         session.commit()
         response = self.app.delete(
             url_template.format(key),

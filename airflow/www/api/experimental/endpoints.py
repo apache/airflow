@@ -29,6 +29,7 @@ from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
+from airflow.api.common.experimental.cancel_dag_run import cancel_dag_run as _cancel_dag_run
 from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -267,6 +268,40 @@ def dag_run_status(dag_id, execution_date):
         return response
 
     return jsonify(info)
+
+
+@csrf.exempt
+@api_experimental.route('/dags/<string:dag_id>/cancel_dag_run', methods=['POST'])
+@requires_authentication
+def cancel_dag_run(dag_id):
+    """
+    Cancel a specific dagrun run_id for a given DAG
+    """
+    data = request.get_json(force=True)
+
+    run_id = None
+    if 'run_id' in data:
+        run_id = data['run_id']
+    else:
+        error_message = 'Missing run_id'
+        _log.info(error_message)
+        response = jsonify({'error': error_message})
+        response.status_code = 400
+        return response
+
+    try:
+       dr = _cancel_dag_run(dag_id, run_id)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    if getattr(g, 'user', None):
+        _log.info("User {} canceled {}".format(g.user, dr))
+
+    response = jsonify(message="Cancelled {}".format(dr))
+    return response
 
 
 @api_experimental.route('/latest_runs', methods=['GET'])

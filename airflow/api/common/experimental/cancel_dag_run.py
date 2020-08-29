@@ -24,9 +24,12 @@ from flask import url_for
 from airflow.api.common.experimental import check_and_get_dag
 from airflow.exceptions import AirflowBadRequest
 from airflow.models import DagRun, cancel_task_instances
+from airflow.utils.db import provide_session
+from airflow.utils.state import State
 
 
-def cancel_dag_run(dag_id, dagrun_run_id):
+@provide_session
+def cancel_dag_run(dag_id, dagrun_run_id, session=None):
     # type: (str, str) -> DagRun
     """
     Cancels the targetted dagrun and returns the DagRun object
@@ -38,14 +41,25 @@ def cancel_dag_run(dag_id, dagrun_run_id):
     """
     check_and_get_dag(dag_id=dag_id)
 
-    runs = DagRun.find(dag_id=dag_id, run_id=dagrun_run_id):
+    runs = DagRun.find(dag_id=dag_id, run_id=dagrun_run_id)
     if not runs:
         raise AirflowBadRequest('No matching dagrun with run_id {0}'.format(dagrun_run_id))
     if len(runs) > 1:
         raise AirflowBadRequest('Multiple dagruns found with run_id {0}'.format(dagrun_run_id))
 
     dag_run = runs[0]
+    if dag_run.state in State.finished():
+        raise AirflowBadRequest('dagrun with run_id {0} is in a finished state ({1}) and cannot be canceled'\
+            .format(dagrun_run_id, dag_run.state))
+
     task_instances = dag_run.get_task_instances()
-    cancel_task_instances(task_instances)
+    if not task_instances:
+        raise AirflowBadRequest('dagrun with run_id {0} has no existing task instances to cancel.'\
+            .format(dagrun_run_id))
+    cancel_task_instances(task_instances, session)
+
+    for ti in task_instances:
+        session.add(session.merge(ti))
+    session.commit()
     return dag_run
 

@@ -134,3 +134,10 @@ class TestLocalClient(unittest.TestCase):
         self.assertEqual(self.session.query(models.Pool).count(), 2)
         self.client.delete_pool(name='foo')
         self.assertEqual(self.session.query(models.Pool).count(), 1)
+
+    @patch('airflow.api.common.experimental.cancel_dag_run.cancel_dag_run', autospec=True)
+    def test_cancel_dag_run(self, mock_cancel_dagrun):
+        dag_run = models.DagRun()
+        mock_cancel_dagrun.return_value = dag_run
+        result = self.client.cancel_dag_run('test', 'ok')
+        self.assertEqual(dag_run, result)

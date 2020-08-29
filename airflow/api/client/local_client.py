@@ -54,6 +54,6 @@ class Client(api_client.Client):
         the_pool = pool.delete_pool(name=name)
         return the_pool.pool, the_pool.slots, the_pool.description
 
-    def cancel_dag_run(dag_id, dagrun_run_id):
-        return cancel_dag_run.cancel_dagrun(dag_id, dagrun_run_id)
+    def cancel_dag_run(self, dag_id, dagrun_run_id):
+        return cancel_dag_run.cancel_dag_run(dag_id, dagrun_run_id)
 

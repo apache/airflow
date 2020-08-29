@@ -25,7 +25,7 @@ from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
-from airflow.api.common.experimental.cancel_dag_run import cancel_dag_run
+from airflow.api.common.experimental.cancel_dag_run import cancel_dag_run as _cancel_dag_run
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.strings import to_boolean
@@ -258,6 +258,7 @@ def dag_run_status(dag_id, execution_date):
     return jsonify(info)
 
 
+@csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>/cancel_dag_run', methods=['POST'])
 @requires_authentication
 def cancel_dag_run(dag_id):
@@ -277,7 +278,7 @@ def cancel_dag_run(dag_id):
         return response
 
     try:
-       dr = cancel_dag_run(dag_id, run_id)
+       dr = _cancel_dag_run(dag_id, run_id)
     except AirflowException as err:
         _log.error(err)
         response = jsonify(error="{}".format(err))
