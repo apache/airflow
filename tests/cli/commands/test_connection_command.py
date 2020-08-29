@@ -445,7 +445,7 @@ class TestCliAddConnections(unittest.TestCase):
         [
             (
                 ["connections", "add", "new0", "--conn-uri=%s" % TEST_URL],
-                "\tSuccessfully added `conn_id`=new0 : postgres://airflow:airflow@host:5432/airflow",
+                "\tSuccessfully added `conn_id`=new0 : postgres://airflow:******@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "host": "host",
@@ -458,7 +458,7 @@ class TestCliAddConnections(unittest.TestCase):
             ),
             (
                 ["connections", "add", "new1", "--conn-uri=%s" % TEST_URL],
-                "\tSuccessfully added `conn_id`=new1 : postgres://airflow:airflow@host:5432/airflow",
+                "\tSuccessfully added `conn_id`=new1 : postgres://airflow:******@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "host": "host",
@@ -478,7 +478,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
-                "\tSuccessfully added `conn_id`=new2 : postgres://airflow:airflow@host:5432/airflow",
+                "\tSuccessfully added `conn_id`=new2 : postgres://airflow:******@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "host": "host",
@@ -498,7 +498,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
-                "\tSuccessfully added `conn_id`=new3 : postgres://airflow:airflow@host:5432/airflow",
+                "\tSuccessfully added `conn_id`=new3 : postgres://airflow:******@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "host": "host",
@@ -521,7 +521,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-port=9083",
                     "--conn-schema=airflow",
                 ],
-                "\tSuccessfully added `conn_id`=new4 : hive-metastore://airflow:airflow@host:9083/airflow",
+                "\tSuccessfully added `conn_id`=new4 : hive-metastore://airflow:******@host:9083/airflow",
                 {
                     "conn_type": "hive_metastore",
                     "host": "host",
@@ -543,7 +543,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-extra",
                     '{"extra": "yes"}'
                 ],
-                "\tSuccessfully added `conn_id`=new5 : google-cloud-platform://?extra=yes",
+                "\tSuccessfully added `conn_id`=new5 : google-cloud-platform://?******",
                 {
                     "conn_type": "google_cloud_platform",
                     "host": None,
