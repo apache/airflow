@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-extends: spectral:oas
 
 rules:
   operation-x-openapi-router-controller:

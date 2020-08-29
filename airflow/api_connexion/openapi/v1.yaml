@@ -1477,7 +1477,7 @@ components:
           nullable: true
         state:
           readOnly: True
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/DagState'
         external_trigger:
           type: boolean
@@ -1856,8 +1856,8 @@ components:
               format: 'date-time'
               readOnly: true
             dag_run_timeout:
-              nullable: true
-              allOf:
+              oneOf:
+                - type: 'null'
                 - $ref: '#/components/schemas/TimeDelta'
             doc_md:
               type: string
@@ -1940,13 +1940,13 @@ components:
           type: number
           readOnly: true
         execution_timeout:
-          nullable: true
-          allOf:
+          oneOf:
+            - type: 'null'
             - $ref: '#/components/schemas/TimeDelta'
         retry_delay:
-          allOf:
+          oneOf:
+            - type: 'null'
             - $ref: '#/components/schemas/TimeDelta'
-          nullable: true
         retry_exponential_backoff:
           type: boolean
           readOnly: true
