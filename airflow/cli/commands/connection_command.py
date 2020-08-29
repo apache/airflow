@@ -20,7 +20,6 @@ import json
 import os
 import sys
 from typing import List
-from urllib.parse import urlunparse
 
 import pygments
 import yaml
@@ -37,21 +36,6 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import should_use_colors
 from airflow.utils.code_utils import get_terminal_formatter
 from airflow.utils.session import create_session
-
-
-def _prep_msg(msg, conn):
-    """Prepare status messages for connections"""
-
-    msg = msg.format(conn_id=conn.conn_id,
-                     uri=conn.get_uri() or
-                     urlunparse((conn.conn_type,
-                                '{login}:{password}@{host}:{port}'
-                                 .format(login=conn.conn_login or '',
-                                         password='******' if conn.conn_password else '',
-                                         host=conn.conn_host or '',
-                                         port=conn.conn_port or ''),
-                                 conn.conn_schema or '', '', '', '')))
-    return msg
 
 
 def _tabulate_connection(conns: List[Connection], tablefmt: str):
@@ -224,12 +208,13 @@ def connections_add(args):
         if not (session.query(Connection)
                 .filter(Connection.conn_id == new_conn.conn_id).first()):
             session.add(new_conn)
-            msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-            msg = _prep_msg(msg, new_conn)
+            msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'.format(
+                conn_id=new_conn.conn_id,
+                uri=new_conn.get_uri(display_sensitive=False)
+            )
             print(msg)
         else:
-            msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
-            msg = msg.format(conn_id=new_conn.conn_id)
+            msg = f'\n\tA connection with `conn_id`={new_conn.conn_id} already exists\n'
             print(msg)
 
 
@@ -278,8 +263,10 @@ def _prep_import_status_msgs(conn_status_map):
 
         msg = msg + status + " : \n\t"
         for conn in conn_list:
-            msg = msg + '\n\t`conn_id`={conn_id} : {uri}\n'
-            msg = _prep_msg(msg, conn)
+            msg = msg + '\n\t`conn_id`={conn_id} : {uri}\n'.format(
+                conn_id=conn.conn_id,
+                uri=conn.get_uri(display_sensitive=False)
+            )
     return msg
 
 

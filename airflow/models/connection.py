@@ -219,7 +219,7 @@ class Connection(Base, LoggingMixin):
         if uri_parts.query:
             self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
 
-    def get_uri(self) -> str:
+    def get_uri(self, display_sensitive=True) -> str:
         """Return connection in URI format"""
         uri = '{}://'.format(str(self.conn_type).lower().replace('_', '-'))
 
@@ -228,7 +228,7 @@ class Connection(Base, LoggingMixin):
             authority_block += quote(self.login, safe='')
 
         if self.password is not None:
-            authority_block += ':' + quote(self.password, safe='')
+            authority_block += ':' + quote(self.password, safe='') if display_sensitive else ":******"
 
         if authority_block > '':
             authority_block += '@'
@@ -250,8 +250,9 @@ class Connection(Base, LoggingMixin):
 
         uri += host_block
 
-        if self.extra_dejson:
-            uri += '?{}'.format(urlencode(self.extra_dejson))
+        extra_dejson = self.extra_dejson
+        if extra_dejson:
+            uri += '?{}'.format(urlencode(extra_dejson)) if display_sensitive else "?******"
 
         return uri
 
