@@ -116,6 +116,9 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
     :type awslogs_stream_prefix: str
+    :param reattach: If set to True, will check if a task from the same family is already running.
+        If so, the operator will attach to it instead of starting a new task.
+    :type reattach: bool
     """
 
     ui_color = '#f0ede4'
