@@ -250,10 +250,9 @@ DIS_RESTRICT = 'restrict'
 DIS_OVERWRITE = 'overwrite'
 DIS_IGNORE = 'ignore'
 CREATED = 'created'
-DISPOSITIONS = [DIS_RESTRICT, DIS_OVERWRITE, DIS_IGNORE]
 
 
-def _prep_import_status_msgs(conn_status_map):
+def _prep_import_status_message(conn_status_map):
     """Prepare import connection status messages"""
 
     msg = "\n"
@@ -312,7 +311,7 @@ def connections_import(args):
                         msg = msg.format(conn_ids=conn.conn_id)
                         raise AirflowException(msg)
 
-            print(_prep_import_status_msgs(conn_status_map))
+            print(_prep_import_status_message(conn_status_map))
 
     except (SQLAlchemyError, AirflowException) as e:
         print(e)
