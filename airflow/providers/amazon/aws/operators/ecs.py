@@ -40,7 +40,7 @@ class ECSProtocol(Protocol):
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
     """
 
-    def run_task(self, **kwargs):
+    def run_task(self, **kwargs) -> Dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501  # pylint: disable=line-too-long
         ...
 
@@ -135,6 +135,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         awslogs_region=None,
         awslogs_stream_prefix=None,
         propagate_tags=None,
+        reattach:bool=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -156,6 +157,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.awslogs_stream_prefix = awslogs_stream_prefix
         self.awslogs_region = awslogs_region
         self.propagate_tags = propagate_tags
+        self.reattach = reattach
 
         if self.awslogs_region is None:
             self.awslogs_region = region_name
@@ -170,6 +172,14 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
         self.client = self.get_hook().get_conn()
 
+        self._start_task()
+
+        self._wait_for_task_ended()
+
+        self._check_success_task()
+        self.log.info('ECS Task has been successfully executed: %s', response)
+
+    def _start_task(self):
         run_opts = {
             'cluster': self.cluster,
             'taskDefinition': self.task_definition,
@@ -202,10 +212,6 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
-        self._wait_for_task_ended()
-
-        self._check_success_task()
-        self.log.info('ECS Task has been successfully executed: %s', response)
 
     def _wait_for_task_ended(self):
         waiter = self.client.get_waiter('tasks_stopped')
