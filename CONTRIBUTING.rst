@@ -86,8 +86,181 @@ If you are proposing a new feature:
 -   Remember that this is a volunteer-driven project, and that contributions are
     welcome :)
 
-Documentation
+
+Roles
 =============
+
+There are several roles within the Airflow Open-Source community.
+
+
+PMC Member
+-----------
+The PMC (Project Management Committee) is a group of maintainers that drives changes in the way that
+Airflow is managed as a project.
+
+Considering Apache, the role of the PMC is primarily to ensure that Airflow conforms to Apache's processes
+and guidelines.
+
+Committers/Maintainers
+----------------------
+
+Committers are community members that have write access to the project’s repositories, i.e., they can modify the code,
+documentation, and website by themselves and also accept other contributions.
+
+The official list of committers can be found `here <https://airflow.apache.org/docs/stable/project.html#committers>`__.
+
+Additionally, committers are listed in a few other places (some of these may only be visible to existing committers):
+
+* https://whimsy.apache.org/roster/ppmc/airflow
+* https://github.com/orgs/apache/teams/airflow-committers/members
+
+Committers are responsible for:
+
+* Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__
+* Reviewing & Merging Pull-Requests
+* Scanning and responding to Github issues
+* Responding to questions on the dev mailing list (dev@airflow.apache.org)
+
+Becoming a Committer
+--------------------
+
+There is no strict protocol for becoming a committer.
+Candidates for new committers are typically people that are active contributors and community members.
+
+The key aspects of a committer are:
+
+* Consistent contributions over the past 6 months
+* Understanding of Airflow Core or has displayed a holistic understanding of a particular part and made
+  contributions towards a more strategic goal
+* Understanding of contributor/committer guidelines: `Contributors' Guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__
+* Quality of the commits
+* Visibility in community discussions (dev mailing list, Slack and Github)
+* Testing Release Candidates
+
+
+Contributors
+------------
+
+A contributor is anyone who wants to contribute code, documentation, tests, ideas, or anything to the
+Apache Airflow project.
+
+Contributors are responsible for:
+
+* Fixing bugs
+* Adding features
+* Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__.
+
+=============
+
+There are several roles within the Airflow Open-Source community.
+
+
+PMC Member
+-----------
+The PMC (Project Management Committee) is a group of maintainers that drives changes in the way that
+Airflow is managed as a project.
+
+Considering Apache, the role of the PMC is primarily to ensure that Airflow conforms to Apache's processes
+and guidelines.
+
+Committers/Maintainers
+----------------------
+
+Committers are community members that have write access to the project’s repositories, i.e., they can modify the code,
+documentation, and website by themselves and also accept other contributions.
+
+The official list of committers can be found `here <https://airflow.apache.org/docs/stable/project.html#committers>`__.
+
+Additionally, committers are listed in a few other places (some of these may only be visible to existing committers):
+
+* https://whimsy.apache.org/roster/ppmc/airflow
+* https://github.com/orgs/apache/teams/airflow-committers/members
+
+Committers are responsible for:
+
+* Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__
+* Reviewing & Merging Pull-Requests
+* Scanning and responding to Github issues
+* Responding to questions on the dev mailing list (dev@airflow.apache.org)
+
+Becoming a Committer
+--------------------
+
+There is no strict protocol for becoming a committer.
+Candidates for new committers are typically people that are active contributors and community members.
+
+The key aspects of a committer are:
+
+* Consistent contributions over the past 6 months
+* Understanding of Airflow Core or has displayed a holistic understanding of a particular part and made
+  contributions towards a more strategic goal
+* Understanding of contributor/committer guidelines: `Contributors' Guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__
+* Quality of the commits
+* Visibility in community discussions (dev mailing list, Slack and Github)
+* Testing Release Candidates
+
+
+Contributors
+------------
+
+A contributor is anyone who wants to contribute code, documentation, tests, ideas, or anything to the
+Apache Airflow project.
+
+Contributors are responsible for:
+
+* Fixing bugs
+* Adding features
+* Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__.
+
+
+Contribution Workflow
+=====================
+
+Typically, you start your first contribution by reviewing open tickets
+at `GitHub issues <https://github.com/apache/airflow/issues>`__.
+
+If you create pull-request, you don't have to create an issue first, but if you want, you can do it.
+Creating an issue will allow you to collect feedback or share plans with other people.
+
+For example, you want to have the following sample ticket assigned to you:
+`#7782: Add extra CC: to the emails sent by Airflow <https://github.com/apache/airflow/issues/7782>`_.
+
+In general, your contribution includes the following stages:
+
+.. image:: images/workflow.png
+    :align: center
+    :alt: Contribution Workflow
+
+1. Make your own `fork <https://help.github.com/en/github/getting-started-with-github/fork-a-repo>`__ of
+   the Apache Airflow `main repository <https://github.com/apache/airflow>`__.
+
+2. Create a `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
+   initialize the `Breeze environment <BREEZE.rst>`__, and
+   install `pre-commit framework <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__.
+   If you want to add more changes in the future, set up your fork and enable Github Actions.
+
+3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
+   and set up a `Slack account <https://apache-airflow-slack.herokuapp.com>`__.
+
+4. Make the change and create a `Pull Request from your fork <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__.
+
+5. Ping @ #development slack, comment @people. Be annoying. Be considerate.
+
+Step 1: Fork the Apache Airflow Repo
+------------------------------------
+From the `apache/airflow <https://github.com/apache/airflow>`_ repo,
+`create a fork <https://help.github.com/en/github/getting-started-with-github/fork-a-repo>`_:
+
+.. image:: images/fork.png
+    :align: center
+    :alt: Creating a fork
+
+
+Step 2: Configure Your Environment
+----------------------------------
+Configure the Docker-based Breeze development environment and run tests.
+
+You can use the default Breeze configuration as follows:
 
 The latest API documentation is usually available
 `here <https://airflow.apache.org/>`__.
@@ -107,9 +280,76 @@ To generate a local version:
 
 .. code-block:: bash
 
-    cd docs
-    ./build
-    ./start_doc_server.sh
+   ./breeze initialize-local-virtualenv
+
+6. Open your IDE (for example, PyCharm) and select the virtualenv you created
+   as the project's default virtualenv in your IDE.
+
+Step 3: Connect with People
+---------------------------
+
+For effective collaboration, make sure to join the following Airflow groups:
+
+- Mailing lists:
+
+  - Developer’s mailing list `<dev-subscribe@airflow.apache.org>`_
+    (quite substantial traffic on this list)
+
+  - All commits mailing list: `<commits-subscribe@airflow.apache.org>`_
+    (very high traffic on this list)
+
+  - Airflow users mailing list: `<users-subscribe@airflow.apache.org>`_
+    (reasonably small traffic on this list)
+
+- `Issues on GitHub <https://github.com/apache/airflow/issues>`__
+
+- `Slack (chat) <https://s.apache.org/airflow-slack>`__
+
+Step 4: Prepare PR
+------------------
+
+1. Update the local sources to address the issue.
+
+   For example, to address this example issue, do the following:
+
+   * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
+
+   * Find the class you should modify. For the example github issue,
+     this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
+
+   * Find the test class where you should add tests. For the example ticket,
+     this is `test_email.py <https://github.com/apache/airflow/blob/master/tests/utils/test_email.py>`__.
+
+   * Make sure your fork's master is synced with Apache Airflow's master before you create a branch. See
+     `How to sync your fork <#how-to-sync-your-fork>`_ for details.
+
+   * Create a local branch for your development. Make sure to use latest
+     ``apache/master`` as base for the branch. See `How to Rebase PR <#how-to-rebase-pr>`_ for some details
+     on setting up the ``apache`` remote. Note, some people develop their changes directly in their own
+     ``master`` branches - this is OK and you can make PR from your master to ``apache/master`` but we
+     recommend to always create a local branch for your development. This allows you to easily compare
+     changes, have several changes that you work on at the same time and many more.
+     If you have ``apache`` set as remote then you can make sure that you have latest changes in your master
+     by ``git pull apache master`` when you are in the local ``master`` branch. If you have conflicts and
+     want to override your locally changed master you can override your local changes with
+     ``git fetch apache; git reset --hard apache/master``.
+
+   * Modify the class and add necessary code and unit tests.
+
+   * Run the unit tests from the `IDE <TESTING.rst#running-unit-tests-from-ide>`__
+     or `local virtualenv <TESTING.rst#running-unit-tests-from-local-virtualenv>`__ as you see fit.
+
+   * Run the tests in `Breeze <TESTING.rst#running-unit-tests-inside-breeze>`__.
+
+   * Run and fix all the `static checks <STATIC_CODE_CHECKS>`__. If you have
+     `pre-commits installed <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__,
+     this step is automatically run while you are committing your code. If not, you can do it manually
+     via ``git add`` and then ``pre-commit run``.
+
+2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
+   if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to
+   review/fix. This will make rebase process much easier and less painful and the more often you do it,
+   the more comfortable you will feel doing it.
 
 .. note::
     The docs build script ``build`` requires Python 3.6 or greater.
