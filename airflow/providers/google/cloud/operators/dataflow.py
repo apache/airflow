@@ -114,8 +114,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     :type project_id: str
     :param location: Job location.
     :type location: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud
-        Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -298,8 +297,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     :type project_id: str
     :param location: Job location.
     :type location: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud
-        Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -494,7 +492,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         See virtualenv documentation for more information.
 
         This option is only relevant if the ``py_requirements`` parameter is not None.
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.

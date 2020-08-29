@@ -147,12 +147,12 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
         the job_id argument.
     :type batch_prediction_job_id: str
 
-    :param project_id: the Google Cloud Platform project id in which to execute
+    :param project_id: the Google Cloud project id in which to execute
         Cloud ML Batch Prediction and Dataflow jobs. If None, then the `dag`'s
         `default_args['project_id']` will be used.
     :type project_id: str
 
-    :param region: the Google Cloud Platform region in which to execute Cloud ML
+    :param region: the Google Cloud region in which to execute Cloud ML
         Batch Prediction and Dataflow jobs. If None, then the `dag`'s
         `default_args['region']` will be used.
     :type region: str

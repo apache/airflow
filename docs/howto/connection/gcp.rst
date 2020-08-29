@@ -19,10 +19,10 @@
 
 .. _howto/connection:gcp:
 
-Google Cloud Platform Connection
+Google Cloud Connection
 ================================
 
-The Google Cloud Platform connection type enables the :ref:`Google Cloud Integrations
+The Google Cloud connection type enables the :ref:`Google Cloud Integrations
 <GCP>`.
 
 Authenticating to Google Cloud
@@ -44,7 +44,7 @@ configure multiple connections.
 Default Connection IDs
 ----------------------
 
-All hooks and operators related to Google Cloud Platform use ``google_cloud_default`` by default.
+All hooks and operators related to Google Cloud use ``google_cloud_default`` by default.
 
 Configuring the Connection
 --------------------------

@@ -186,7 +186,7 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
         * transfer job `name` has been soft deleted. In this case,
           each new task will receive a unique suffix
 
-        If you run it many times, many transfer jobs will be created in the Google Cloud Platform.
+        If you run it many times, many transfer jobs will be created in the Google Cloud.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -205,8 +205,7 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
     :param aws_conn_id: The connection ID used to retrieve credentials to
         Amazon Web Service.
     :type aws_conn_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud
-        Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1).
     :type api_version: str
@@ -285,8 +284,7 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
     :param aws_conn_id: The connection ID used to retrieve credentials to
         Amazon Web Service.
     :type aws_conn_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud
-        Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1).
     :type api_version: str
@@ -364,8 +362,7 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
         Job. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud
-        Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1).
     :type api_version: str
@@ -574,7 +571,7 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version:  API version used (e.g. v1).
     :type api_version: str
@@ -638,7 +635,7 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param api_version: API version used (e.g. v1).
     :type api_version: str
     :type gcp_conn_id: str
@@ -765,7 +762,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     .. warning::
 
         This operator is NOT idempotent. If you run it many times, many transfer
-        jobs will be created in the Google Cloud Platform.
+        jobs will be created in the Google Cloud.
 
     **Example**:
 
@@ -783,7 +780,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     :param gcs_bucket: The destination Google Cloud Storage bucket
         where you want to store the files. (templated)
     :type gcs_bucket: str
-    :param project_id: Optional ID of the Google Cloud Platform Console project that
+    :param project_id: Optional ID of the Google Cloud Console project that
         owns the job
     :type project_id: str
     :param aws_conn_id: The source S3 connection
@@ -919,7 +916,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     .. warning::
 
         This operator is NOT idempotent. If you run it many times, many transfer
-        jobs will be created in the Google Cloud Platform.
+        jobs will be created in the Google Cloud.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -942,7 +939,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     :param destination_bucket: The destination Google Cloud Storage bucket
         where the object should be. (templated)
     :type destination_bucket: str
-    :param project_id: The ID of the Google Cloud Platform Console project that
+    :param project_id: The ID of the Google Cloud Console project that
         owns the job
     :type project_id: str
     :param gcp_conn_id: Optional connection ID to use when connecting to Google Cloud

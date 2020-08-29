@@ -61,7 +61,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -166,7 +166,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -254,7 +254,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -337,7 +337,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -419,7 +419,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -496,7 +496,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -576,7 +576,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -656,7 +656,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -745,7 +745,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -841,7 +841,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -934,7 +934,7 @@ class CloudTasksTasksListOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1022,7 +1022,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1108,7 +1108,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

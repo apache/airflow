@@ -63,8 +63,7 @@ BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
 # pylint: disable=too-many-public-methods
 class BigQueryHook(GoogleBaseHook, DbApiHook):
     """
-    Interact with BigQuery. This hook uses the Google Cloud Platform
-    connection.
+    Interact with BigQuery. This hook uses the Google Cloud connection.
     """
 
     conn_name_attr = 'gcp_conn_id'  # type: str

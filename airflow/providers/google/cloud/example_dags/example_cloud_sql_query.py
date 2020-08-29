@@ -21,7 +21,7 @@ Example Airflow DAG that performs query in a Cloud SQL instance.
 
 This DAG relies on the following OS environment variables
 
-* GCP_PROJECT_ID - Google Cloud Platform project for the Cloud SQL instance
+* GCP_PROJECT_ID - Google Cloud project for the Cloud SQL instance
 * GCP_REGION - Google Cloud region where the database is created
 *
 * GCSQL_POSTGRES_INSTANCE_NAME - Name of the postgres Cloud SQL instance
