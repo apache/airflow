@@ -189,6 +189,7 @@ class _SessionFactory(LoggingMixin):
 
     def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: Dict[str, Any]):
         import requests
+
         # requests_gssapi will need paramiko > 2.6 since you'll need
         # 'gssapi' not 'python-gssapi' from PyPi.
         # https://github.com/paramiko/paramiko/pull/1311
@@ -269,7 +270,7 @@ class AwsBaseHook(BaseHook):
         region_name: Optional[str] = None,
         client_type: Optional[str] = None,
         resource_type: Optional[str] = None,
-        config: Optional[Config] = None
+        config: Optional[Config] = None,
     ) -> None:
         super().__init__()
         self.aws_conn_id = aws_conn_id
@@ -280,9 +281,7 @@ class AwsBaseHook(BaseHook):
         self.config = config
 
         if not (self.client_type or self.resource_type):
-            raise AirflowException(
-                'Either client_type or resource_type'
-                ' must be provided.')
+            raise AirflowException('Either client_type or resource_type' ' must be provided.')
 
     def _get_credentials(self, region_name):
 
@@ -302,7 +301,7 @@ class AwsBaseHook(BaseHook):
             if "config_kwargs" in extra_config:
                 self.log.info(
                     "Retrieving config_kwargs from Connection.extra_config['config_kwargs']: %s",
-                    extra_config["config_kwargs"]
+                    extra_config["config_kwargs"],
                 )
                 self.config = Config(**extra_config["config_kwargs"])
 
@@ -318,8 +317,7 @@ class AwsBaseHook(BaseHook):
             # http://boto3.readthedocs.io/en/latest/guide/configuration.html
 
         self.log.info(
-            "Creating session using boto3 credential strategy region_name=%s",
-            region_name,
+            "Creating session using boto3 credential strategy region_name=%s", region_name,
         )
         session = boto3.session.Session(region_name=region_name)
         return session, None
@@ -333,9 +331,7 @@ class AwsBaseHook(BaseHook):
         if config is None:
             config = self.config
 
-        return session.client(
-            client_type, endpoint_url=endpoint_url, config=config, verify=self.verify
-        )
+        return session.client(client_type, endpoint_url=endpoint_url, config=config, verify=self.verify)
 
     def get_resource_type(self, resource_type, region_name=None, config=None):
         """Get the underlying boto3 resource using boto3 session"""
@@ -346,9 +342,7 @@ class AwsBaseHook(BaseHook):
         if config is None:
             config = self.config
 
-        return session.resource(
-            resource_type, endpoint_url=endpoint_url, config=config, verify=self.verify
-        )
+        return session.resource(resource_type, endpoint_url=endpoint_url, config=config, verify=self.verify)
 
     @cached_property
     def conn(self):

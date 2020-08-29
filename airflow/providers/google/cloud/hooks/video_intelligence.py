@@ -59,9 +59,7 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._conn = None
 
@@ -73,8 +71,7 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         """
         if not self._conn:
             self._conn = VideoIntelligenceServiceClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._conn
 

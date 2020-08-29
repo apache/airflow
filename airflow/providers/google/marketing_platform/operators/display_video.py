@@ -23,7 +23,7 @@ import json
 import shutil
 import tempfile
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import urlparse
 
 from airflow.exceptions import AirflowException
@@ -52,21 +52,36 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("body",)
+    template_fields = (
+        "body",
+        "impersonation_chain",
+    )
     template_ext = (".json",)
 
     @apply_defaults
     def __init__(
         self,
+        *,
         body: Dict[str, Any],
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -74,6 +89,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
@@ -86,6 +102,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Creating Display & Video 360 report.")
         response = hook.create_query(query=self.body)
@@ -115,21 +132,36 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("report_id",)
+    template_fields = (
+        "report_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         report_id: Optional[str] = None,
         report_name: Optional[str] = None,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -138,29 +170,27 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
         if report_name and report_id:
             raise AirflowException("Use only one value - `report_name` or `report_id`.")
 
         if not (report_name or report_id):
-            raise AirflowException(
-                "Provide one of the values: `report_name` or `report_id`."
-            )
+            raise AirflowException("Provide one of the values: `report_name` or `report_id`.")
 
     def execute(self, context: Dict):
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         if self.report_id:
             reports_ids_to_delete = [self.report_id]
         else:
             reports = hook.list_queries()
             reports_ids_to_delete = [
-                report["queryId"]
-                for report in reports
-                if report["metadata"]["title"] == self.report_name
+                report["queryId"] for report in reports if report["metadata"]["title"] == self.report_name
             ]
 
         for report_id in reports_ids_to_delete:
@@ -195,16 +225,32 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("report_id", "bucket_name", "report_name")
+    template_fields = (
+        "report_id",
+        "bucket_name",
+        "report_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         report_id: str,
         bucket_name: str,
         report_name: Optional[str] = None,
@@ -213,6 +259,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -224,6 +271,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def _resolve_file_name(self, name: str) -> str:
         new_name = name if name.endswith(".csv") else f"{name}.csv"
@@ -240,9 +288,12 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         gcs_hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
+            google_cloud_storage_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         resource = hook.get_query(query_id=self.report_id)
@@ -271,10 +322,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
                 mime_type="text/csv",
             )
         self.log.info(
-            "Report %s was saved in bucket %s as %s.",
-            self.report_id,
-            self.bucket_name,
-            report_name,
+            "Report %s was saved in bucket %s as %s.", self.report_id, self.bucket_name, report_name,
         )
         self.xcom_push(context, key="report_name", value=report_name)
 
@@ -300,21 +348,37 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service account making the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("report_id", "params")
+    template_fields = (
+        "report_id",
+        "params",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         report_id: str,
         params: Dict[str, Any],
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -323,17 +387,17 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
         self.log.info(
-            "Running report %s with the following params:\n %s",
-            self.report_id,
-            self.params,
+            "Running report %s with the following params:\n %s", self.report_id, self.params,
         )
         hook.run_query(query_id=self.report_id, params=self.params)
 
@@ -356,11 +420,17 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
     :type request_body: Dict[str, Any],
     """
 
-    template_fields = ("request_body", "bucket_name", "object_name")
+    template_fields = (
+        "request_body",
+        "bucket_name",
+        "object_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         request_body: Dict[str, Any],
         bucket_name: str,
         object_name: str,
@@ -368,7 +438,8 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
         api_version: str = "v1.1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.request_body = request_body
@@ -378,13 +449,19 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict) -> str:
-        gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        gcs_hook = GCSHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         self.log.info("Retrieving report...")
@@ -431,16 +508,19 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
     template_fields = (
         "bucket_name",
         "object_name",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         bucket_name: str,
         object_name: str,
         api_version: str = "v1.1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -449,13 +529,19 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        gcs_hook = GCSHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
 
         self.log.info("Uploading file %s...")
@@ -463,9 +549,7 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         # downloaded file from the GCS could be a 1GB size or even more
         with tempfile.NamedTemporaryFile("w+") as f:
             line_items = gcs_hook.download(
-                bucket_name=self.bucket_name,
-                object_name=self.object_name,
-                filename=f.name,
+                bucket_name=self.bucket_name, object_name=self.object_name, filename=f.name,
             )
             f.flush()
             hook.upload_line_items(line_items=line_items)
@@ -497,20 +581,35 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
     :type inventory_source_filter: Dict[str, Any]
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service account making the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("body_request", )
+    template_fields = (
+        "body_request",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         body_request: Dict[str, Any],
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -518,18 +617,18 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
 
         self.log.info("Creating operation for SDF download task...")
-        operation = hook.create_sdf_download_operation(
-            body_request=self.body_request
-        )
+        operation = hook.create_sdf_download_operation(body_request=self.body_request)
 
         return operation
 
@@ -560,16 +659,32 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
     :type inventory_source_filter: Dict[str, Any]
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service account making the
-        request must have  domain-wide delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("operation_name", "bucket_name", "object_name")
+    template_fields = (
+        "operation_name",
+        "bucket_name",
+        "object_name",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         operation_name: str,
         bucket_name: str,
         object_name: str,
@@ -577,6 +692,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -587,14 +703,20 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
         )
-        gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        gcs_hook = GCSHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.log.info("Retrieving operation...")
         operation = hook.get_sdf_download_operation(operation_name=self.operation_name)
@@ -604,9 +726,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
 
         self.log.info("Sending file to the Google Cloud Storage...")
         with tempfile.NamedTemporaryFile() as temp_file:
-            hook.download_content_from_request(
-                temp_file, media, chunk_size=1024 * 1024
-            )
+            hook.download_content_from_request(temp_file, media, chunk_size=1024 * 1024)
             temp_file.flush()
             gcs_hook.upload(
                 bucket_name=self.bucket_name,

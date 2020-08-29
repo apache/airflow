@@ -25,15 +25,10 @@ from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchHoo
 
 
 class TestElasticsearchHookConn(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(
-            host='localhost',
-            port=9200,
-            schema='http'
-        )
+        self.connection = Connection(host='localhost', port=9200, schema='http')
 
         class UnitTestElasticsearchHook(ElasticsearchHook):
             conn_name_attr = 'elasticsearch_conn_id'
@@ -46,13 +41,10 @@ class TestElasticsearchHookConn(unittest.TestCase):
     def test_get_conn(self, mock_connect):
         self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
         self.db_hook.get_conn()
-        mock_connect.assert_called_with(host='localhost', port=9200,
-                                        scheme='http', user=None,
-                                        password=None)
+        mock_connect.assert_called_with(host='localhost', port=9200, scheme='http', user=None, password=None)
 
 
 class TestElasticsearchHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 

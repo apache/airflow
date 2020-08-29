@@ -20,7 +20,9 @@ from dateutil.parser import parse
 from parameterized import parameterized
 
 from airflow.api_connexion.schemas.dag_run_schema import (
-    DAGRunCollection, dagrun_collection_schema, dagrun_schema,
+    DAGRunCollection,
+    dagrun_collection_schema,
+    dagrun_schema,
 )
 from airflow.models import DagRun
 from airflow.utils import timezone
@@ -76,16 +78,8 @@ class TestDAGRunSchema(TestDAGRunBase):
                 {"run_id": "my-dag-run", "execution_date": parse(DEFAULT_TIME)},
             ),
             (
-                {
-                    "dag_run_id": "my-dag-run",
-                    "execution_date": DEFAULT_TIME,
-                    "conf": {"start": "stop"},
-                },
-                {
-                    "run_id": "my-dag-run",
-                    "execution_date": parse(DEFAULT_TIME),
-                    "conf": {"start": "stop"},
-                },
+                {"dag_run_id": "my-dag-run", "execution_date": DEFAULT_TIME, "conf": {"start": "stop"},},
+                {"run_id": "my-dag-run", "execution_date": parse(DEFAULT_TIME), "conf": {"start": "stop"},},
             ),
         ]
     )
@@ -98,8 +92,7 @@ class TestDAGRunSchema(TestDAGRunBase):
         serialized_dagrun = {}
         result = dagrun_schema.load(serialized_dagrun)
         self.assertDictEqual(
-            result,
-            {"execution_date": result["execution_date"], "run_id": result["run_id"]},
+            result, {"execution_date": result["execution_date"], "run_id": result["run_id"]},
         )
 
 

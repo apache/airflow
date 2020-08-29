@@ -139,6 +139,7 @@ extensions = [
     'sphinxcontrib.redoc',
     # Second, update redoc script
     "sphinx_script_update",
+    "sphinxcontrib.spelling",
 ]
 
 autodoc_default_options = {
@@ -548,7 +549,7 @@ OPENAPI_FILE = os.path.join(
 redoc = [
     {
         'name': 'Airflow REST API',
-        'page': 'stable-rest-api/redoc',
+        'page': 'stable-rest-api-ref',
         'spec': OPENAPI_FILE,
         'opts': {
             'hide-hostname': True,

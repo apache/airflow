@@ -22,7 +22,7 @@ default_language_version:
 minimum_pre_commit_version: "1.20.0"
 repos:
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.7
+    rev: v1.1.9
     hooks:
       - id: forbid-tabs
         exclude: ^docs/Makefile$|^clients/gen/go.sh
@@ -100,7 +100,7 @@ repos:
       - id: insert-license
         name: Add license for all XML files
         exclude: ^\.github/.*$
-        types: [xml]
+        files: \.xml$
         args:
           - --comment-style
           - "<!--||-->"
@@ -111,6 +111,7 @@ repos:
         name: Add license for all yaml files
         exclude: ^\.github/.*$
         types: [yaml]
+        files: \.yml$|\.yaml$
         args:
           - --comment-style
           - "|#|"
@@ -127,6 +128,15 @@ repos:
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all mermaid files
+        args:
+          - --comment-style
+          - "|%%|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+        files: \.mermaid$
   - repo: https://github.com/thlorenz/doctoc.git
     rev: v1.4.0
     hooks:
@@ -139,8 +149,15 @@ repos:
   - repo: meta
     hooks:
       - id: check-hooks-apply
+  - repo: https://github.com/psf/black
+    rev: stable
+    hooks:
+      - id: black
+        files: api_connexion/.*\.py|.*providers.*\.py
+        exclude: .*kubernetes_pod\.py|.*google/common/hooks/base_google\.py$
+        args: [--config=./pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.1.0
+    rev: v3.2.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -155,12 +172,12 @@ repos:
         args:
           - --remove
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.5.1
+    rev: v1.6.0
     hooks:
       - id: rst-backticks
       - id: python-no-log-warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.23.0
+    rev: v1.24.2
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
@@ -168,13 +185,13 @@ repos:
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/templates/.*\.yaml$
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.0.8
+    rev: 5.4.2
     hooks:
       - id: isort
         name: Run isort to sort imports
         types: [python]
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^.tox/.*$|^venv/.*$
+        exclude: ^build/.*$|^.tox/.*$|^venv/.*$|.*api_connexion/.*\.py|.*providers.*\.py
   - repo: https://github.com/pycqa/pydocstyle
     rev: 5.0.2
     hooks:
@@ -182,7 +199,7 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D104,D105,D106,D107,D200,D202,D204,D205,D207,D208,D210,D400,D401,D403
+          - --add-ignore=D100,D102,D104,D105,D106,D107,D200,D202,D204,D205,D207,D208,D400,D401
         exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
   - repo: local
     hooks:
@@ -363,18 +380,11 @@ repos:
         exclude: ^dev|^backport_packages
         require_serial: true
       - id: pylint
-        name: Run pylint for main sources
+        name: Run pylint
         language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_pylint_main.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: \.py$
-        exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
-        pass_filenames: true
-        require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
-      - id: pylint-tests
-        name: Run pylint for tests
-        language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_pylint_tests.sh"
-        files: ^tests/.*\.py$
+        exclude: ^scripts/.*\.py$|^dev|^backport_packages
         pass_filenames: true
         require_serial: true
       - id: flake8
@@ -396,3 +406,9 @@ repos:
         files: ^airflow/www/.*\.(css|scss|sass)$
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
+      - id: mermaid
+        name: Generate mermaid images
+        entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
+        language: system
+        files: \.mermaid$
+        require_serial: true

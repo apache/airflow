@@ -71,7 +71,7 @@ task_get_op = SimpleHttpOperator(
 )
 # [END howto_operator_http_task_get_op]
 # [START howto_operator_http_task_get_op_response_filter]
-task_get_op = SimpleHttpOperator(
+task_get_op_response_filter = SimpleHttpOperator(
     task_id='get_op_response_filter',
     method='GET',
     endpoint='get',
@@ -110,4 +110,5 @@ task_http_sensor_check = HttpSensor(
     dag=dag,
 )
 # [END howto_operator_http_http_sensor_check]
-task_http_sensor_check >> task_post_op >> task_get_op >> task_put_op >> task_del_op >> task_post_op_formenc
+task_http_sensor_check >> task_post_op >> task_get_op >> task_get_op_response_filter
+task_get_op_response_filter >> task_put_op >> task_del_op >> task_post_op_formenc

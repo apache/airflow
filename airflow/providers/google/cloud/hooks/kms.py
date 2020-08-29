@@ -31,16 +31,15 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 def _b64encode(s: bytes) -> str:
-    """ Base 64 encodes a bytes object to a string """
+    """Base 64 encodes a bytes object to a string"""
     return base64.b64encode(s).decode("ascii")
 
 
 def _b64decode(s: str) -> bytes:
-    """ Base 64 decodes a string to bytes. """
+    """Base 64 decodes a string to bytes"""
     return base64.b64decode(s.encode("utf-8"))
 
 
-# noinspection PyAbstractClass
 class CloudKMSHook(GoogleBaseHook):
     """
     Hook for Google Cloud Key Management service.
@@ -69,9 +68,7 @@ class CloudKMSHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._conn = None  # type: Optional[KeyManagementServiceClient]
 
@@ -84,8 +81,7 @@ class CloudKMSHook(GoogleBaseHook):
         """
         if not self._conn:
             self._conn = KeyManagementServiceClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._conn
 
@@ -102,7 +98,7 @@ class CloudKMSHook(GoogleBaseHook):
         Encrypts a plaintext message using Google Cloud KMS.
 
         :param key_name: The Resource Name for the key (or key version)
-                         to be used for encyption. Of the form
+                         to be used for encryption. Of the form
                          ``projects/*/locations/*/keyRings/*/cryptoKeys/**``
         :type key_name: str
         :param plaintext: The message to be encrypted.

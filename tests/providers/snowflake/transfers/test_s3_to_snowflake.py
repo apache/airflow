@@ -40,7 +40,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
             schema=schema,
             columns_array=None,
             task_id="task_id",
-            dag=None
+            dag=None,
         ).execute(None)
 
         files = str(s3_keys)
@@ -51,17 +51,13 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
                 files={files}
                 file_format={file_format}
             """.format(
-            stage=stage,
-            files=files,
-            file_format=file_format
+            stage=stage, files=files, file_format=file_format
         )
 
         copy_query = """
                 COPY INTO {schema}.{table} {base_sql}
             """.format(
-            schema=schema,
-            table=table,
-            base_sql=base_sql
+            schema=schema, table=table, base_sql=base_sql
         )
 
         assert mock_run.call_count == 1
@@ -84,7 +80,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
             schema=schema,
             columns_array=columns_array,
             task_id="task_id",
-            dag=None
+            dag=None,
         ).execute(None)
 
         files = str(s3_keys)
@@ -95,18 +91,13 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
                 files={files}
                 file_format={file_format}
             """.format(
-            stage=stage,
-            files=files,
-            file_format=file_format
+            stage=stage, files=files, file_format=file_format
         )
 
         copy_query = """
                 COPY INTO {schema}.{table}({columns}) {base_sql}
             """.format(
-            schema=schema,
-            table=table,
-            columns=",".join(columns_array),
-            base_sql=base_sql
+            schema=schema, table=table, columns=",".join(columns_array), base_sql=base_sql
         )
 
         assert mock_run.call_count == 1

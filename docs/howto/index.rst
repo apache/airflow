@@ -37,13 +37,10 @@ configuring an Airflow environment.
     customize-state-colors-ui
     custom-operator
     connection/index
-    write-logs
+    variable
     run-behind-proxy
     run-with-systemd
     run-with-upstart
     use-test-config
-    check-health
     define_extra_link
-    tracking-user-activity
     email-config
-    use-alternative-secrets-backend

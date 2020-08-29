@@ -34,7 +34,6 @@ from airflow.providers.amazon.aws.operators.s3_file_transform import S3FileTrans
 
 
 class TestS3FileTransformOperator(unittest.TestCase):
-
     def setUp(self):
         self.content = b"input"
         self.bucket = "bucket"
@@ -66,12 +65,13 @@ class TestS3FileTransformOperator(unittest.TestCase):
             dest_s3_key=output_path,
             transform_script=self.transform_script,
             replace=True,
-            task_id="task_id")
+            task_id="task_id",
+        )
         op.execute(None)
 
-        mock_log.info.assert_has_calls([
-            mock.call(line.decode(sys.getdefaultencoding())) for line in process_output
-        ])
+        mock_log.info.assert_has_calls(
+            [mock.call(line.decode(sys.getdefaultencoding())) for line in process_output]
+        )
 
     @mock.patch('subprocess.Popen')
     @mock_s3
@@ -84,7 +84,8 @@ class TestS3FileTransformOperator(unittest.TestCase):
             dest_s3_key=output_path,
             transform_script=self.transform_script,
             replace=True,
-            task_id="task_id")
+            task_id="task_id",
+        )
 
         with self.assertRaises(AirflowException) as e:
             op.execute(None)
@@ -104,7 +105,8 @@ class TestS3FileTransformOperator(unittest.TestCase):
             transform_script=self.transform_script,
             script_args=script_args,
             replace=True,
-            task_id="task_id")
+            task_id="task_id",
+        )
         op.execute(None)
 
         self.assertEqual(script_args, mock_popen.call_args[0][0][3:])
@@ -120,13 +122,11 @@ class TestS3FileTransformOperator(unittest.TestCase):
             dest_s3_key=output_path,
             select_expression=select_expression,
             replace=True,
-            task_id="task_id")
+            task_id="task_id",
+        )
         op.execute(None)
 
-        mock_select_key.assert_called_once_with(
-            key=input_path,
-            expression=select_expression
-        )
+        mock_select_key.assert_called_once_with(key=input_path, expression=select_expression)
 
         conn = boto3.client('s3')
         result = conn.get_object(Bucket=self.bucket, Key=self.output_key)

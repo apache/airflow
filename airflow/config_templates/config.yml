@@ -334,7 +334,7 @@
       description: |
         Fetching serialized DAG can not be faster than a minimum interval to reduce database
         read rate. This config controls when your DAGs are updated in the Webserver
-      version_added: ~
+      version_added: 1.10.12
       type: string
       example: ~
       default: "10"
@@ -370,7 +370,7 @@
     - name: xcom_backend
       description: |
         Path to custom XCom class that will be used to store and resolve operators results
-      version_added: 2.0.0
+      version_added: 1.10.12
       type: string
       example: "path.to.CustomXCom"
       default: "airflow.models.xcom.BaseXCom"
@@ -402,9 +402,9 @@
       type: string
       example: ~
       default: ""
-    - name: stackdriver_key_path
+    - name: google_key_path
       description: |
-        Path to GCP Credential JSON file. If ommited, authorization based on `the Application Default
+        Path to Google Credential JSON file. If omitted, authorization based on `the Application Default
         Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
@@ -623,8 +623,8 @@
       default: ""
     - name: google_key_path
       description: |
-        Path to GCP Credential JSON file. If ommited, authorization based on `the Application Default
-        Credentials
+        Path to Google Cloud Service Account key file (JSON). If omitted, authorization based on
+        `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
       type: string
@@ -1163,6 +1163,12 @@
     Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,
     ``ignore_errors``, ``before_breadcrumb``, ``before_send``, ``transport``.
   options:
+    - name: sentry_on
+      description: Enable error reporting to Sentry
+      version_added: ~
+      type: string
+      example: ~
+      default: "false"
     - name: sentry_dsn
       description: ~
       version_added: 1.10.6
@@ -1460,14 +1466,6 @@
       type: string
       example: ~
       default: "30"
-    - name: dag_cleanup_interval
-      description: |
-        How often unseen Dags should be marked inactive and their serializations deleted.
-        Setting to 0 will disable DAG cleanup. Defaults to 5 minutes
-      version_added: ~
-      type: string
-      example: ~
-      default: "300"
     - name: scheduler_health_check_threshold
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
@@ -1881,6 +1879,14 @@
       type: string
       example: ~
       default: "default"
+    - name: multi_namespace_mode
+      description: |
+        Allows users to launch pods in multiple namespaces.
+        Will require creating a cluster-role for the scheduler
+      version_added: 1.10.12
+      type: boolean
+      example: ~
+      default: "False"
     - name: airflow_configmap
       description: |
         The name of the Kubernetes ConfigMap containing ``airflow.cfg`` file.
@@ -2252,7 +2258,7 @@
         This should be an object and can contain any of the options listed in the ``v1DeleteOptions``
         class defined here:
         https://github.com/kubernetes-client/python/blob/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/models/v1_delete_options.py#L19
-      version_added: ~
+      version_added: 1.10.12
       type: string
       example: '{"grace_period_seconds": 10}'
       default: ""

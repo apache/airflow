@@ -39,14 +39,12 @@ except ImportError:
 
 
 class TestHiveToDynamoDBOperator(unittest.TestCase):
-
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
         self.sql = 'SELECT 1'
-        self.hook = AwsDynamoDBHook(
-            aws_conn_id='aws_default', region_name='us-east-1')
+        self.hook = AwsDynamoDBHook(aws_conn_id='aws_default', region_name='us-east-1')
 
     @staticmethod
     def process_data(data, *args, **kwargs):
@@ -58,30 +56,19 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
         hook = AwsDynamoDBHook(aws_conn_id='aws_default')
         self.assertIsNotNone(hook.get_conn())
 
-    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df',
-                return_value=pd.DataFrame(data=[('1', 'sid')], columns=['id', 'name']))
+    @mock.patch(
+        'airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df',
+        return_value=pd.DataFrame(data=[('1', 'sid')], columns=['id', 'name']),
+    )
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
     def test_get_records_with_schema(self, mock_get_pandas_df):
         # this table needs to be created in production
         self.hook.get_conn().create_table(
             TableName='test_airflow',
-            KeySchema=[
-                {
-                    'AttributeName': 'id',
-                    'KeyType': 'HASH'
-                },
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'id',
-                    'AttributeType': 'S'
-                }
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 10,
-                'WriteCapacityUnits': 10
-            }
+            KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'},],
+            AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
+            ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
         )
 
         operator = airflow.providers.amazon.aws.transfers.hive_to_dynamodb.HiveToDynamoDBOperator(
@@ -89,39 +76,28 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
             table_name="test_airflow",
             task_id='hive_to_dynamodb_check',
             table_keys=['id'],
-            dag=self.dag)
+            dag=self.dag,
+        )
 
         operator.execute(None)
 
         table = self.hook.get_conn().Table('test_airflow')
-        table.meta.client.get_waiter(
-            'table_exists').wait(TableName='test_airflow')
+        table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
         self.assertEqual(table.item_count, 1)
 
-    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df',
-                return_value=pd.DataFrame(data=[('1', 'sid'), ('1', 'gupta')], columns=['id', 'name']))
+    @mock.patch(
+        'airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df',
+        return_value=pd.DataFrame(data=[('1', 'sid'), ('1', 'gupta')], columns=['id', 'name']),
+    )
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
     def test_pre_process_records_with_schema(self, mock_get_pandas_df):
         # this table needs to be created in production
         self.hook.get_conn().create_table(
             TableName='test_airflow',
-            KeySchema=[
-                {
-                    'AttributeName': 'id',
-                    'KeyType': 'HASH'
-                },
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'id',
-                    'AttributeType': 'S'
-                }
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 10,
-                'WriteCapacityUnits': 10
-            }
+            KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'},],
+            AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
+            ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
         )
 
         operator = airflow.providers.amazon.aws.transfers.hive_to_dynamodb.HiveToDynamoDBOperator(
@@ -130,7 +106,8 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
             task_id='hive_to_dynamodb_check',
             table_keys=['id'],
             pre_process=self.process_data,
-            dag=self.dag)
+            dag=self.dag,
+        )
 
         operator.execute(None)
 

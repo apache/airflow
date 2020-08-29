@@ -37,7 +37,7 @@ adal==1.2.4
 aiohttp==3.6.2
 alabaster==0.7.12
 alembic==1.4.2
-amqp==2.6.0
+amqp==2.6.1
 analytics-python==1.2.9
 ansiwrap==0.8.4
 apipkg==1.5
@@ -80,7 +80,7 @@ cached-property==1.5.1
 cachetools==4.1.1
 cassandra-driver==3.20.2
 cattrs==1.0.0
-celery==4.4.6
+celery==4.4.7
 certifi==2020.6.20
 cffi==1.14.0
 cfgv==3.1.0

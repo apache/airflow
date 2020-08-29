@@ -18,15 +18,19 @@
 
 from sqlalchemy import func
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.event_log_schema import (
-    EventLogCollection, event_log_collection_schema, event_log_schema,
+    EventLogCollection,
+    event_log_collection_schema,
+    event_log_schema,
 )
 from airflow.models import Log
 from airflow.utils.session import provide_session
 
 
+@security.requires_authentication
 @provide_session
 def get_event_log(event_log_id, session):
     """
@@ -38,9 +42,8 @@ def get_event_log(event_log_id, session):
     return event_log_schema.dump(event_log)
 
 
-@format_parameters({
-    'limit': check_limit
-})
+@security.requires_authentication
+@format_parameters({'limit': check_limit})
 @provide_session
 def get_event_logs(session, limit, offset=None):
     """
@@ -49,5 +52,6 @@ def get_event_logs(session, limit, offset=None):
 
     total_entries = session.query(func.count(Log.id)).scalar()
     event_logs = session.query(Log).order_by(Log.id).offset(offset).limit(limit).all()
-    return event_log_collection_schema.dump(EventLogCollection(event_logs=event_logs,
-                                                               total_entries=total_entries))
+    return event_log_collection_schema.dump(
+        EventLogCollection(event_logs=event_logs, total_entries=total_entries)
+    )

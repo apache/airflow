@@ -98,5 +98,15 @@ The universal order of precedence for all configuration options is as follows:
 #. secret key in ``airflow.cfg``
 #. Airflow's built in defaults
 
+You can check the current configuration with the ``airflow config list`` command.
+
+If you only want to see the value for one option, you can use ``airflow config get-value`` command as in
+the example below.
+
+.. code-block:: bash
+
+    $ airflow config get-value core executor
+    SequentialExecutor
+
 .. note::
     For more information on configuration options, see :doc:`../configurations-ref`

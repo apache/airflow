@@ -61,7 +61,7 @@ else
         "--durations=100"
         "--cov=airflow/"
         "--cov-config=.coveragerc"
-        "--cov-report=html:airflow/www/static/coverage/"
+        "--cov-report=xml:files/coverage.xml"
         "--color=yes"
         "--maxfail=50"
         "--pythonwarnings=ignore::DeprecationWarning"
@@ -100,7 +100,7 @@ if [[ ${INTERACTIVE} == "true" ]]; then
     echo "You can run kubernetes testing via 'pytest kubernetes_tests/....'"
     echo "You can add -s to see the output of your tests on screen"
     echo
-    echo "The webserver is available at http://localhost:30809/"
+    echo "The webserver is available at http://localhost:8080/"
     echo
     echo "User/password: admin/admin"
     echo

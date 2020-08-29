@@ -187,7 +187,8 @@ class TestBase(unittest.TestCase):
         else:
             self.assertNotIn(text, resp_html)
 
-    def percent_encode(self, obj):
+    @staticmethod
+    def percent_encode(obj):
         return urllib.parse.quote_plus(str(obj))
 
 
@@ -230,9 +231,7 @@ class TestVariableModelView(TestBase):
     def test_can_handle_error_on_decrypt(self):
 
         # create valid variable
-        resp = self.client.post('/variable/add',
-                                data=self.variable,
-                                follow_redirects=True)
+        self.client.post('/variable/add', data=self.variable, follow_redirects=True)
 
         # update the variable with a wrong value, given that is encrypted
         Var = models.Variable
@@ -317,23 +316,17 @@ class TestPoolModelView(TestBase):
 
     def test_create_pool_with_same_name(self):
         # create test pool
-        resp = self.client.post('/pool/add',
-                                data=self.pool,
-                                follow_redirects=True)
+        resp = self.client.post('/pool/add', data=self.pool, follow_redirects=True)
         self.check_content_in_response('Added Row', resp)
 
         # create pool with the same name
-        resp = self.client.post('/pool/add',
-                                data=self.pool,
-                                follow_redirects=True)
+        resp = self.client.post('/pool/add', data=self.pool, follow_redirects=True)
         self.check_content_in_response('Already exists.', resp)
 
     def test_create_pool_with_empty_name(self):
 
         self.pool['pool'] = ''
-        resp = self.client.post('/pool/add',
-                                data=self.pool,
-                                follow_redirects=True)
+        resp = self.client.post('/pool/add', data=self.pool, follow_redirects=True)
         self.check_content_in_response('This field is required.', resp)
 
     def test_odd_name(self):
@@ -556,7 +549,7 @@ class TestAirflowBaseViews(TestBase):
             self.assertEqual('example,data', flask_session[FILTER_TAGS_COOKIE])
 
             self.client.get('home?reset_tags', follow_redirects=True)
-            self.assertEqual(None, flask_session[FILTER_TAGS_COOKIE])
+            self.assertIsNone(flask_session[FILTER_TAGS_COOKIE])
 
     def test_home_status_filter_cookie(self):
         from airflow.www.views import FILTER_STATUS_COOKIE
@@ -924,7 +917,7 @@ class TestAirflowBaseViews(TestBase):
             )
             resp = self.client.post('run', data=form, follow_redirects=True)
 
-            self.check_content_in_response('', resp, resp_code=200)
+            self.check_content_in_response('', resp)
 
             msg = "Task is in the &#39;{}&#39; state which is not a valid state for execution. " \
                   .format(state) + "The task must be cleared in order to be run"
@@ -954,7 +947,7 @@ class TestAirflowBaseViews(TestBase):
             )
             resp = self.client.post('run', data=form, follow_redirects=True)
 
-            self.check_content_in_response('', resp, resp_code=200)
+            self.check_content_in_response('', resp)
 
             msg = "Task is in the &#39;{}&#39; state which is not a valid state for execution. " \
                   .format(state) + "The task must be cleared in order to be run"
@@ -963,6 +956,24 @@ class TestAirflowBaseViews(TestBase):
     def test_refresh(self):
         resp = self.client.post('refresh?dag_id=example_bash_operator')
         self.check_content_in_response('', resp, resp_code=302)
+
+    @parameterized.expand([(True,), (False,)])
+    def test_refresh_all(self, dag_serialization):
+        with mock.patch('airflow.www.views.settings.STORE_SERIALIZED_DAGS', dag_serialization):
+            if dag_serialization:
+                with mock.patch.object(
+                    self.app.dag_bag, 'collect_dags_from_db'
+                ) as collect_dags_from_db:
+                    resp = self.client.post("/refresh_all", follow_redirects=True)
+                    self.check_content_in_response('', resp)
+                    collect_dags_from_db.assert_called_once_with()
+            else:
+                with mock.patch.object(
+                    self.app.dag_bag, 'collect_dags'
+                ) as collect_dags:
+                    resp = self.client.post("/refresh_all", follow_redirects=True)
+                    self.check_content_in_response('', resp)
+                    collect_dags.assert_called_once_with(only_if_updated=False)
 
     def test_delete_dag_button_normal(self):
         resp = self.client.get('/', follow_redirects=True)
@@ -2200,7 +2211,7 @@ class TestDagACLView(TestBase):
         self.check_content_not_in_response('example_bash_operator', resp)
 
     def test_success_fail_for_read_only_role(self):
-        # succcess endpoint need can_dag_edit, which read only role can not access
+        # success endpoint need can_dag_edit, which read only role can not access
         self.logout()
         self.login(username='dag_read_only',
                    password='dag_read_only')
@@ -2462,11 +2473,23 @@ class TestTriggerDag(TestBase):
 
     def test_trigger_dag_form(self):
         test_dag_id = "example_bash_operator"
-
         resp = self.client.get('trigger?dag_id={}'.format(test_dag_id))
-
-        self.assertEqual(resp.status_code, 200)
         self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
+
+    @parameterized.expand([
+        ("javascript:alert(1)", "/home"),
+        ("http://google.com", "/home"),
+        ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
+        ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
+    ])
+    def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
+        test_dag_id = "example_bash_operator"
+
+        resp = self.client.get('trigger?dag_id={}&origin={}'.format(test_dag_id, test_origin))
+        self.check_content_in_response(
+            '<button class="btn" onclick="location.href = \'{}\'; return false">'.format(
+                expected_origin),
+            resp)
 
     def test_trigger_endpoint_uses_existing_dagbag(self):
         """
@@ -2626,7 +2649,7 @@ class TestExtraLinks(TestBase):
     def test_operator_extra_link_override_plugin(self):
         """
         This tests checks if Operator Link (AirflowLink) defined in the Dummy2TestOperator
-        is overriden by Airflow Plugin (AirflowLink2).
+        is overridden by Airflow Plugin (AirflowLink2).
 
         AirflowLink returns 'https://airflow.apache.org/' link
         AirflowLink2 returns 'https://airflow.apache.org/1.10.5/' link

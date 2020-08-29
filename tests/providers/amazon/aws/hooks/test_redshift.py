@@ -38,13 +38,13 @@ class TestRedshiftHook(unittest.TestCase):
             ClusterIdentifier='test_cluster',
             NodeType='dc1.large',
             MasterUsername='admin',
-            MasterUserPassword='mock_password'
+            MasterUserPassword='mock_password',
         )
         client.create_cluster(
             ClusterIdentifier='test_cluster_2',
             NodeType='dc1.large',
             MasterUsername='admin',
-            MasterUserPassword='mock_password'
+            MasterUserPassword='mock_password',
         )
         if not client.describe_clusters()['Clusters']:
             raise ValueError('AWS not properly mocked')
@@ -66,10 +66,9 @@ class TestRedshiftHook(unittest.TestCase):
         hook = RedshiftHook(aws_conn_id='aws_default')
         hook.create_cluster_snapshot('test_snapshot', 'test_cluster')
         self.assertEqual(
-            hook.restore_from_cluster_snapshot(
-                'test_cluster_3', 'test_snapshot'
-            )['ClusterIdentifier'],
-            'test_cluster_3')
+            hook.restore_from_cluster_snapshot('test_cluster_3', 'test_snapshot')['ClusterIdentifier'],
+            'test_cluster_3',
+        )
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift

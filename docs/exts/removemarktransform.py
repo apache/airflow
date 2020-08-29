@@ -22,12 +22,11 @@
 import re
 
 from docutils import nodes
-# noinspection PyUnresolvedReferences
-from pygments.lexers import Python3Lexer, PythonLexer, guess_lexer  # pylint: disable=no-name-in-module
+from pygments.lexers import Python3Lexer, PythonLexer, guess_lexer  # noqa pylint: disable=no-name-in-module
 from sphinx.transforms import SphinxTransform
 from sphinx.transforms.post_transforms.code import TrimDoctestFlagsTransform
 
-docmark_re = re.compile(r"\s*#\s*\[(START|END)\s*[a-z_A-Z]+\].*$", re.MULTILINE)
+docmark_re = re.compile(r"\s*#\s*\[(START|END)\s*[a-z_A-Z]+].*$", re.MULTILINE)
 
 
 class TrimDocMarkerFlagsTransform(SphinxTransform):
@@ -59,11 +58,10 @@ class TrimDocMarkerFlagsTransform(SphinxTransform):
         if language in ("py", "py3", "python", "python3", "default"):
             return True
         elif language == "guess":
-            # noinspection PyBroadException
             try:
                 lexer = guess_lexer(node.rawsource)
                 return isinstance(lexer, (PythonLexer, Python3Lexer))
-            except Exception:  # pylint: disable=broad-except
+            except Exception:  # noqa pylint: disable=broad-except
                 pass
 
         return False

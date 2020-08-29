@@ -41,18 +41,16 @@ services:
       - ../../../NOTICE:/opt/airflow/NOTICE:cached
       - ../../../airflow:/opt/airflow/airflow:cached
       - ../../../backport_packages:/opt/airflow/backport_packages:cached
-      - ../../../common:/opt/airflow/common:cached
       - ../../../dags:/opt/airflow/dags:cached
       - ../../../dev:/opt/airflow/dev:cached
       - ../../../docs:/opt/airflow/docs:cached
-      - ../../../files:/files:cached
       - ../../../dist:/dist:cached
       - ../../../hooks:/opt/airflow/hooks:cached
       - ../../../logs:/root/airflow/logs:cached
       - ../../../pylintrc:/opt/airflow/pylintrc:cached
       - ../../../pytest.ini:/opt/airflow/pytest.ini:cached
       - ../../../scripts:/opt/airflow/scripts:cached
-      - ../../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint:cached
+      - ../../../scripts/in_container/entrypoint_ci.sh:/entrypoint:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
@@ -60,12 +58,5 @@ services:
       - ../../../tmp:/tmp:cached
       - ../../../metastore_browser:/opt/airflow/metastore_browser:cached
       # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
-    environment:
-      - HOST_USER_ID
-      - HOST_GROUP_ID
-      - HOST_HOME=${HOME}
-      - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
-      - HOST_OS
-      - PYTHONDONTWRITEBYTECODE
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"

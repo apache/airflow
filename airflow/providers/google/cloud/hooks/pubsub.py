@@ -29,7 +29,12 @@ from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
 from google.cloud.pubsub_v1.types import (
-    DeadLetterPolicy, Duration, ExpirationPolicy, MessageStoragePolicy, PushConfig, ReceivedMessage,
+    DeadLetterPolicy,
+    Duration,
+    ExpirationPolicy,
+    MessageStoragePolicy,
+    PushConfig,
+    ReceivedMessage,
     RetryPolicy,
 )
 from googleapiclient.errors import HttpError
@@ -44,12 +49,11 @@ class PubSubException(Exception):
     """
 
 
-# noinspection PyAbstractClass
 class PubSubHook(GoogleBaseHook):
     """
     Hook for accessing Google Pub/Sub.
 
-    The GCP project against which actions are applied is determined by
+    The Google Cloud project against which actions are applied is determined by
     the project embedded in the Connection referenced by gcp_conn_id.
     """
 
@@ -60,9 +64,7 @@ class PubSubHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -74,10 +76,7 @@ class PubSubHook(GoogleBaseHook):
         :rtype: google.cloud.pubsub_v1.PublisherClient
         """
         if not self._client:
-            self._client = PublisherClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
-            )
+            self._client = PublisherClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
     @cached_property
@@ -88,18 +87,10 @@ class PubSubHook(GoogleBaseHook):
         :return: Google Cloud Pub/Sub client object.
         :rtype: google.cloud.pubsub_v1.SubscriberClient
         """
-        return SubscriberClient(
-            credentials=self._get_credentials(),
-            client_info=self.client_info
-        )
+        return SubscriberClient(credentials=self._get_credentials(), client_info=self.client_info)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def publish(
-        self,
-        topic: str,
-        messages: List[Dict],
-        project_id: str,
-    ) -> None:
+    def publish(self, topic: str, messages: List[Dict], project_id: str,) -> None:
         """
         Publishes messages to a Pub/Sub topic.
 
@@ -110,8 +101,8 @@ class PubSubHook(GoogleBaseHook):
             message is set, it should be a bytestring (utf-8 encoded)
         :type messages: list of PubSub messages; see
             http://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
-        :param project_id: Optional, the GCP project ID in which to publish.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID in which to publish.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         """
         self._validate_messages(messages)
@@ -123,9 +114,7 @@ class PubSubHook(GoogleBaseHook):
         try:
             for message in messages:
                 future = publisher.publish(
-                    topic=topic_path,
-                    data=message.get("data", b''),
-                    **message.get('attributes', {})
+                    topic=topic_path, data=message.get("data", b''), **message.get('attributes', {})
                 )
                 future.result()
         except GoogleAPICallError as e:
@@ -143,7 +132,9 @@ class PubSubHook(GoogleBaseHook):
                     b64decode(message["data"])
                     warnings.warn(
                         "The base 64 encoded string as 'data' field has been deprecated. "
-                        "You should pass bytestring (utf-8 encoded).", DeprecationWarning, stacklevel=4
+                        "You should pass bytestring (utf-8 encoded).",
+                        DeprecationWarning,
+                        stacklevel=4,
                     )
                 except ValueError:
                     pass
@@ -154,10 +145,12 @@ class PubSubHook(GoogleBaseHook):
                 raise PubSubException("Wrong message. Dictionary must contain 'data' or 'attributes'.")
             if "data" in message and not isinstance(message["data"], bytes):
                 raise PubSubException("Wrong message. 'data' must be send as a bytestring")
-            if ("data" not in message and "attributes" in message and not message["attributes"]) \
-                    or ("attributes" in message and not isinstance(message["attributes"], dict)):
+            if ("data" not in message and "attributes" in message and not message["attributes"]) or (
+                "attributes" in message and not isinstance(message["attributes"], dict)
+            ):
                 raise PubSubException(
-                    "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary.")
+                    "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary."
+                )
 
     # pylint: disable=too-many-arguments
     @GoogleBaseHook.fallback_to_default_project_id
@@ -179,8 +172,8 @@ class PubSubHook(GoogleBaseHook):
         :param topic: the Pub/Sub topic name to create; do not
             include the ``projects/{project}/topics/`` prefix.
         :type topic: str
-        :param project_id: Optional, the GCP project ID in which to create the topic
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID in which to create the topic
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param fail_if_exists: if set, raise an exception if the topic
             already exists
@@ -253,8 +246,8 @@ class PubSubHook(GoogleBaseHook):
         :param topic: the Pub/Sub topic name to delete; do not
             include the ``projects/{project}/topics/`` prefix.
         :type topic: str
-        :param project_id: Optional, the GCP project ID in which to delete the topic.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID in which to delete the topic.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param fail_if_not_exists: if set, raise an exception if the topic
             does not exist
@@ -276,10 +269,7 @@ class PubSubHook(GoogleBaseHook):
         try:
             # pylint: disable=no-member
             publisher.delete_topic(
-                topic=topic_path,
-                retry=retry,
-                timeout=timeout,
-                metadata=metadata,
+                topic=topic_path, retry=retry, timeout=timeout, metadata=metadata,
             )
         except NotFound:
             self.log.warning('Topic does not exist: %s', topic_path)
@@ -318,13 +308,14 @@ class PubSubHook(GoogleBaseHook):
         :param topic: the Pub/Sub topic name that the subscription will be bound
             to create; do not include the ``projects/{project}/subscriptions/`` prefix.
         :type topic: str
-        :param project_id: Optional, the GCP project ID of the topic that the subscription will be bound to.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID of the topic that the subscription will be
+            bound to. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
         :type project_id: str
         :param subscription: the Pub/Sub subscription name. If empty, a random
             name will be generated using the uuid module
         :type subscription: str
-        :param subscription_project_id: the GCP project ID where the subscription
+        :param subscription_project_id: the Google Cloud project ID where the subscription
             will be created. If unspecified, ``project_id`` will be used.
         :type subscription_project_id: str
         :param ack_deadline_secs: Number of seconds that a subscriber has to
@@ -451,8 +442,8 @@ class PubSubHook(GoogleBaseHook):
 
         :param subscription: the Pub/Sub subscription name to delete; do not
             include the ``projects/{project}/subscriptions/`` prefix.
-        :param project_id: Optional, the GCP project ID where the subscription exists
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID where the subscription exists
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :type subscription: str
         :param fail_if_not_exists: if set, raise an exception if the topic does not exist
@@ -468,16 +459,14 @@ class PubSubHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]]
         """
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Deleting subscription (path) %s", subscription_path)
         try:
             # pylint: disable=no-member
             subscriber.delete_subscription(
-                subscription=subscription_path,
-                retry=retry,
-                timeout=timeout,
-                metadata=metadata
+                subscription=subscription_path, retry=retry, timeout=timeout, metadata=metadata
             )
 
         except NotFound:
@@ -509,8 +498,8 @@ class PubSubHook(GoogleBaseHook):
         :param max_messages: The maximum number of messages to return from
             the Pub/Sub API.
         :type max_messages: int
-        :param project_id: Optional, the GCP project ID where the subscription exists.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project ID where the subscription exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param return_immediately: If set, the Pub/Sub API will immediately
             return if no messages are available. Otherwise, the request will
@@ -531,7 +520,8 @@ class PubSubHook(GoogleBaseHook):
             https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#ReceivedMessage
         """
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member,line-too-long
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
         try:
@@ -573,8 +563,8 @@ class PubSubHook(GoogleBaseHook):
         :param messages: List of ReceivedMessage objects to acknowledge.
             Mutually exclusive with ``ack_ids`` argument.
         :type messages: list
-        :param project_id: Optional, the GCP project name or ID in which to create the topic
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Optional, the Google Cloud project name or ID in which to create the topic
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -589,15 +579,13 @@ class PubSubHook(GoogleBaseHook):
         if ack_ids is not None and messages is None:
             pass
         elif ack_ids is None and messages is not None:
-            ack_ids = [
-                message.ack_id
-                for message in messages
-            ]
+            ack_ids = [message.ack_id for message in messages]
         else:
             raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
 
         subscriber = self.subscriber_client
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
+        # noqa E501 # pylint: disable=no-member
+        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
 
         self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
         try:
@@ -611,7 +599,10 @@ class PubSubHook(GoogleBaseHook):
             )
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException(
-                'Error acknowledging {} messages pulled from subscription {}'
-                .format(len(ack_ids), subscription_path), e)
+                'Error acknowledging {} messages pulled from subscription {}'.format(
+                    len(ack_ids), subscription_path
+                ),
+                e,
+            )
 
         self.log.info("Acknowledged ack_ids from subscription (path) %s", subscription_path)

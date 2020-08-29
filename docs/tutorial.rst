@@ -127,7 +127,7 @@ otherwise Airflow will raise an exception.
 Templating with Jinja
 ---------------------
 Airflow leverages the power of
-`Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  and provides
+`Jinja Templating <https://jinja.palletsprojects.com/>`_  and provides
 the pipeline author
 with a set of built-in parameters and macros. Airflow also provides
 hooks for the pipeline author to define their own parameters, macros and

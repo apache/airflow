@@ -35,8 +35,12 @@ class StepFunctionHook(AwsBaseHook):
     def __init__(self, region_name=None, *args, **kwargs):
         super().__init__(client_type='stepfunctions', *args, **kwargs)
 
-    def start_execution(self, state_machine_arn: str, name: Optional[str] = None,
-                        state_machine_input: Union[dict, str, None] = None) -> str:
+    def start_execution(
+        self,
+        state_machine_arn: str,
+        name: Optional[str] = None,
+        state_machine_input: Union[dict, str, None] = None,
+    ) -> str:
         """
         Start Execution of the State Machine.
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/stepfunctions.html#SFN.Client.start_execution
@@ -50,9 +54,7 @@ class StepFunctionHook(AwsBaseHook):
         :return: Execution ARN
         :rtype: str
         """
-        execution_args = {
-            'stateMachineArn': state_machine_arn
-        }
+        execution_args = {'stateMachineArn': state_machine_arn}
         if name is not None:
             execution_args['name'] = name
         if state_machine_input is not None:

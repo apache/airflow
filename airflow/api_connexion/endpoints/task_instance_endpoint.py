@@ -17,8 +17,10 @@
 
 # TODO(mik-laj): We have to implement it.
 #     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8132
+from airflow.api_connexion import security
 
 
+@security.requires_authentication
 def get_task_instance():
     """
     Get a task instance
@@ -26,6 +28,7 @@ def get_task_instance():
     raise NotImplementedError("Not implemented yet.")
 
 
+@security.requires_authentication
 def get_task_instances():
     """
     Get list of task instances of DAG.
@@ -33,6 +36,7 @@ def get_task_instances():
     raise NotImplementedError("Not implemented yet.")
 
 
+@security.requires_authentication
 def get_task_instances_batch():
     """
     Get list of task instances.
@@ -40,6 +44,7 @@ def get_task_instances_batch():
     raise NotImplementedError("Not implemented yet.")
 
 
+@security.requires_authentication
 def post_clear_task_instances():
     """
     Clear task instances.

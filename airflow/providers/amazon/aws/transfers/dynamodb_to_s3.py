@@ -31,6 +31,7 @@ from uuid import uuid4
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.aws_dynamodb import AwsDynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.utils.decorators import apply_defaults
 
 
 def _convert_item_to_json_bytes(item):
@@ -41,9 +42,7 @@ def _upload_file_to_s3(file_obj, bucket_name, s3_key_prefix):
     s3_client = S3Hook().get_conn()
     file_obj.seek(0)
     s3_client.upload_file(
-        Filename=file_obj.name,
-        Bucket=bucket_name,
-        Key=s3_key_prefix + str(uuid4()),
+        Filename=file_obj.name, Bucket=bucket_name, Key=s3_key_prefix + str(uuid4()),
     )
 
 
@@ -90,15 +89,19 @@ class DynamoDBToS3Operator(BaseOperator):
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
     """
 
-    def __init__(self,
-                 dynamodb_table_name: str,
-                 s3_bucket_name: str,
-                 file_size: int,
-                 dynamodb_scan_kwargs: Optional[Dict[str, Any]] = None,
-                 s3_key_prefix: str = '',
-                 process_func: Callable[[Dict[str, Any]], bytes] = _convert_item_to_json_bytes,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        dynamodb_table_name: str,
+        s3_bucket_name: str,
+        file_size: int,
+        dynamodb_scan_kwargs: Optional[Dict[str, Any]] = None,
+        s3_key_prefix: str = '',
+        process_func: Callable[[Dict[str, Any]], bytes] = _convert_item_to_json_bytes,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
         self.file_size = file_size
         self.process_func = process_func
         self.dynamodb_table_name = dynamodb_table_name
@@ -137,8 +140,7 @@ class DynamoDBToS3Operator(BaseOperator):
 
             # Upload the file to S3 if reach file size limit
             if getsize(temp_file.name) >= self.file_size:
-                _upload_file_to_s3(temp_file, self.s3_bucket_name,
-                                   self.s3_key_prefix)
+                _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix)
                 temp_file.close()
                 temp_file = NamedTemporaryFile()
         return temp_file

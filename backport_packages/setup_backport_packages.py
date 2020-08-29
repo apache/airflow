@@ -53,7 +53,6 @@ from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
 
-# noinspection DuplicatedCode
 logger = logging.getLogger(__name__)  # noqa
 
 PY3 = sys.version_info[0] == 3
@@ -174,8 +173,7 @@ class CleanCommand(Command):
     def finalize_options(self):
         """Set final values for options."""
 
-    # noinspection PyMethodMayBeStatic
-    def run(self):
+    def run(self):  # noqa
         """Run command to remove temporary files and directories."""
         os.chdir(dirname(__file__))
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
@@ -215,7 +213,7 @@ def get_long_description(provider_package_id: str) -> str:
     :return: content of the description (README file)
     """
     package_folder = get_target_providers_package_folder(provider_package_id)
-    with open(os.path.join(package_folder, "README.md"), encoding='utf-8') as file:
+    with open(os.path.join(package_folder, "README.md"), encoding='utf-8', mode="w+") as file:
         readme_contents = file.read()
     copying = True
     long_description = ""
@@ -1044,7 +1042,7 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
             cross_providers_dependencies,
             base_url="https://github.com/apache/airflow/tree/master/airflow/providers/")
     context: Dict[str, Any] = {
-        "ENTITY_TYPES": [entity_type for entity_type in EntityType],
+        "ENTITY_TYPES": list(EntityType),
         "PROVIDER_PACKAGE_ID": provider_package_id,
         "PACKAGE_PIP_NAME": f"apache-airflow-backport-providers-{provider_package_id.replace('.', '-')}",
         "FULL_PACKAGE_NAME": full_package_name,
@@ -1143,7 +1141,7 @@ def update_release_notes_for_packages(provider_ids: List[str], release_version: 
         print()
         print(f"ERROR! There are in total: {bad} entities badly named out of {total} entities ")
         print()
-        exit(1)
+        sys.exit(1)
 
 
 def get_all_backportable_providers() -> List[str]:
@@ -1174,19 +1172,19 @@ if __name__ == "__main__":
 ERROR! Missing first param"
 """, file=sys.stderr)
         usage()
-        exit(1)
+        sys.exit(1)
     if sys.argv[1] == "--version-suffix":
         if len(sys.argv) < 3:
             print("""
 ERROR! --version-suffix needs parameter!
 """, file=sys.stderr)
             usage()
-            exit(1)
+            sys.exit(1)
         suffix = sys.argv[2]
         sys.argv = [sys.argv[0]] + sys.argv[3:]
     elif "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) < 2:
         usage()
-        exit(0)
+        sys.exit(0)
 
     if sys.argv[1] not in possible_first_params:
         print(f"""
@@ -1194,18 +1192,18 @@ ERROR! Wrong first param: {sys.argv[1]}
 """, file=sys.stderr)
         usage()
         print()
-        exit(1)
+        sys.exit(1)
 
     if sys.argv[1] == LIST_PROVIDERS_PACKAGES:
         providers = PROVIDERS_REQUIREMENTS.keys()
         for provider in providers:
             print(provider)
-        exit(0)
+        sys.exit(0)
     elif sys.argv[1] == LIST_BACKPORTABLE_PACKAGES:
         providers = get_all_backportable_providers()
         for provider in providers:
             print(provider)
-        exit(0)
+        sys.exit(0)
     elif sys.argv[1] == UPDATE_PACKAGE_RELEASE_NOTES:
         release_ver = ""
         if len(sys.argv) > 2 and re.match(r'\d{4}\.\d{2}\.\d{2}', sys.argv[2]):
@@ -1221,7 +1219,7 @@ ERROR! Wrong first param: {sys.argv[1]}
             package_list = sys.argv[2:]
         print()
         update_release_notes_for_packages(package_list, release_version=release_ver)
-        exit(0)
+        sys.exit(0)
 
     provider_package = sys.argv[1]
     if provider_package not in get_provider_packages():

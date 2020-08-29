@@ -25,14 +25,13 @@ from tests.test_utils.gcp_system_helpers import MARKETING_DAG_FOLDER, GoogleSyst
 SCOPES = [
     "https://www.googleapis.com/auth/doubleclickbidmanager",
     "https://www.googleapis.com/auth/cloud-platform",
-    "https://www.googleapis.com/auth/display-video"
+    "https://www.googleapis.com/auth/display-video",
 ]
 
 
 @pytest.mark.system("google.marketing_platform")
 @pytest.mark.credential_file(GMP_KEY)
 class DisplayVideoSystemTest(GoogleSystemTest):
-
     def setUp(self):
         super().setUp()
         self.create_gcs_bucket(BUCKET)

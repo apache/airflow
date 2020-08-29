@@ -31,12 +31,7 @@ dag = DAG(
     default_args=args,
     schedule_interval=None,
     start_date=days_ago(2),
-    tags=['example']
+    tags=['example'],
 )
 
-run_this = PigOperator(
-    task_id="run_example_pig_script",
-    pig="ls /;",
-    pig_opts="-x local",
-    dag=dag,
-)
+run_this = PigOperator(task_id="run_example_pig_script", pig="ls /;", pig_opts="-x local", dag=dag,)

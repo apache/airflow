@@ -124,7 +124,7 @@ The code to create the operator:
     :end-before: [END howto_operator_gcf_deploy]
 
 You can also create the operator without project id - project id will be retrieved
-from the GCP connection used:
+from the Google Cloud connection used:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
@@ -168,7 +168,7 @@ and SERVICE_ACCOUNT_EMAIL with the email ID of your service account.
     --member="serviceAccount:[SERVICE_ACCOUNT_EMAIL]" \
     --role="roles/iam.serviceAccountUser"
 
-You can also do that via the GCP Web console.
+You can also do that via the Google Cloud Console.
 
 See `Adding the IAM service agent user role to the runtime service <https://cloud.google.com/functions/docs/reference/iam/roles#adding_the_iam_service_agent_user_role_to_the_runtime_service_account>`_  for details.
 

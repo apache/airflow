@@ -18,20 +18,20 @@ import unittest
 from unittest import mock
 
 from airflow.www import app
+from tests.test_utils.config import conf_vars
 
 
 class TestGetHealthTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
+            cls.app = app.create_app(testing=True)  # type:ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
 
-    @mock.patch(
-        "airflow.api_connexion.endpoints.version_endpoint.airflow.__version__", "MOCK_VERSION"
-    )
+    @mock.patch("airflow.api_connexion.endpoints.version_endpoint.airflow.__version__", "MOCK_VERSION")
     @mock.patch(
         "airflow.api_connexion.endpoints.version_endpoint.get_airflow_git_version", return_value="GIT_COMMIT"
     )

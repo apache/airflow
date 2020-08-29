@@ -30,7 +30,6 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
-# noinspection PyAbstractClass
 class LifeSciencesHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Life Sciences APIs.
@@ -67,9 +66,7 @@ class LifeSciencesHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
@@ -81,8 +78,7 @@ class LifeSciencesHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("lifesciences", self.api_version,
-                               http=http_authorized, cache_discovery=False)
+            self._conn = build("lifesciences", self.api_version, http=http_authorized, cache_discovery=False)
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -95,18 +91,19 @@ class LifeSciencesHook(GoogleBaseHook):
         :param location: The location of the project. For example: "us-east1".
         :type location: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :rtype: dict
         """
         parent = self._location_path(project_id=project_id, location=location)
         service = self.get_conn()
 
-        request = (service.projects()  # pylint: disable=no-member
-                   .locations()
-                   .pipelines()
-                   .run(parent=parent, body=body)
-                   )
+        request = (
+            service.projects()  # pylint: disable=no-member
+            .locations()
+            .pipelines()
+            .run(parent=parent, body=body)
+        )
 
         response = request.execute(num_retries=self.num_retries)
 
@@ -123,15 +120,13 @@ class LifeSciencesHook(GoogleBaseHook):
 
         :param project_id: Optional, Google Cloud Project project_id where the
             function belongs. If set to None or missing, the default project_id
-            from the GCP connection is used.
+            from the Google Cloud connection is used.
         :type project_id: str
         :param location: The location of the project. For example: "us-east1".
         :type location: str
         """
         return google.api_core.path_template.expand(
-            'projects/{project}/locations/{location}',
-            project=project_id,
-            location=location,
+            'projects/{project}/locations/{location}', project=project_id, location=location,
         )
 
     def _wait_for_operation_to_complete(self, operation_name: str) -> None:
@@ -147,11 +142,13 @@ class LifeSciencesHook(GoogleBaseHook):
         """
         service = self.get_conn()
         while True:
-            operation_response = (service.projects()  # pylint: disable=no-member
-                                  .locations()
-                                  .operations()
-                                  .get(name=operation_name)
-                                  .execute(num_retries=self.num_retries))
+            operation_response = (
+                service.projects()  # pylint: disable=no-member
+                .locations()
+                .operations()
+                .get(name=operation_name)
+                .execute(num_retries=self.num_retries)
+            )
             self.log.info('Waiting for pipeline operation to complete')
             if operation_response.get("done"):
                 response = operation_response.get("response")

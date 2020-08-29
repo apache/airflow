@@ -32,7 +32,7 @@ Release: {{ RELEASE_NO_LEADING_ZEROS }}
 {%- if CROSS_PROVIDERS_DEPENDENCIES %}
 - [Cross provider package dependencies](#cross-provider-package-dependencies)
 {%- endif %}
-- [Provider class summary](#provider-class-summary)
+- [Provider class summary](#provider-classes-summary)
 {%- for entity_type in ENTITY_TYPES %}
 {%- set entity_type_string = entity_type.value %}
 {%- set entity_name = ENTITY_NAMES.get(entity_type) %}

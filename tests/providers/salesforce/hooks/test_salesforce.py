@@ -189,8 +189,7 @@ class TestSalesforceHook(unittest.TestCase):
         obj_name = "obj_name"
 
         data_frame = self.salesforce_hook.object_to_df(
-            query_results=[{"attributes": {"type": obj_name}}],
-            coerce_to_timestamp=True,
+            query_results=[{"attributes": {"type": obj_name}}], coerce_to_timestamp=True,
         )
 
         mock_describe_object.assert_called_once_with(obj_name)
@@ -204,9 +203,7 @@ class TestSalesforceHook(unittest.TestCase):
         return_value=pd.DataFrame({"test": [1, 2, 3]}),
     )
     def test_object_to_df_with_record_time(self, mock_data_frame, mock_time):
-        data_frame = self.salesforce_hook.object_to_df(
-            query_results=[], record_time_added=True
-        )
+        data_frame = self.salesforce_hook.object_to_df(query_results=[], record_time_added=True)
 
         pd.testing.assert_frame_equal(
             data_frame,

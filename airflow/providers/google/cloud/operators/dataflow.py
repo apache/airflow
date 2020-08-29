@@ -23,7 +23,7 @@ import copy
 import re
 from contextlib import ExitStack
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataflow import DEFAULT_DATAFLOW_LOCATION, DataflowHook
@@ -39,6 +39,7 @@ class CheckJobRunning(Enum):
     FinishIfRunning - finish current dag run with no action
     WaitForRun - wait for job to finish and then continue with new job
     """
+
     IgnoreJob = 1
     FinishIfRunning = 2
     WaitForRun = 3
@@ -108,16 +109,16 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
         When defining labels (``labels`` option), you can also provide a dictionary.
     :type options: dict
-    :param project_id: Optional, the GCP project ID in which to start a job.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Optional, the Google Cloud project ID in which to start a job.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param location: Job location.
     :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
@@ -174,32 +175,36 @@ class DataflowCreateJavaJobOperator(BaseOperator):
            dag=my-dag)
 
     """
+
     template_fields = ['options', 'jar', 'job_name']
     ui_color = '#0273d4'
 
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-            self,
-            jar: str,
-            job_name: str = '{{task.task_id}}',
-            dataflow_default_options: Optional[dict] = None,
-            options: Optional[dict] = None,
-            project_id: Optional[str] = None,
-            location: str = DEFAULT_DATAFLOW_LOCATION,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            poll_sleep: int = 10,
-            job_class: Optional[str] = None,
-            check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
-            multiple_jobs: Optional[bool] = None,
-            **kwargs) -> None:
+        self,
+        *,
+        jar: str,
+        job_name: str = '{{task.task_id}}',
+        dataflow_default_options: Optional[dict] = None,
+        options: Optional[dict] = None,
+        project_id: Optional[str] = None,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        poll_sleep: int = 10,
+        job_class: Optional[str] = None,
+        check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
+        multiple_jobs: Optional[bool] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
         options = options or {}
         options.setdefault('labels', {}).update(
-            {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
+            {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')}
+        )
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
@@ -217,9 +222,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
     def execute(self, context):
         self.hook = DataflowHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            poll_sleep=self.poll_sleep
+            gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to, poll_sleep=self.poll_sleep
         )
         dataflow_options = copy.copy(self.dataflow_default_options)
         dataflow_options.update(self.options)
@@ -229,12 +232,14 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                 name=self.job_name,
                 variables=dataflow_options,
                 project_id=self.project_id,
-                location=self.location
+                location=self.location,
             )
             while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
                 is_running = self.hook.is_job_dataflow_running(
-                    name=self.job_name, variables=dataflow_options, project_id=self.project_id,
-                    location=self.location
+                    name=self.job_name,
+                    variables=dataflow_options,
+                    project_id=self.project_id,
+                    location=self.location,
                 )
 
         if not is_running:
@@ -258,7 +263,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                     multiple_jobs=self.multiple_jobs,
                     on_new_job_id_callback=set_current_job_id,
                     project_id=self.project_id,
-                    location=self.location
+                    location=self.location,
                 )
 
     def on_kill(self) -> None:
@@ -288,22 +293,31 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     :type dataflow_default_options: dict
     :param parameters: Map of job specific parameters for the template.
     :type parameters: dict
-    :param project_id: Optional, the GCP project ID in which to start a job.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Optional, the Google Cloud project ID in which to start a job.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param location: Job location.
     :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     It's a good practice to define dataflow_* parameters in the default_args of the dag
     like the project, zone and staging location.
@@ -351,6 +365,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             For more detail on job template execution have a look at the reference:
             https://cloud.google.com/dataflow/docs/templates/executing-templates
     """
+
     template_fields = [
         'template',
         'job_name',
@@ -358,24 +373,28 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         'parameters',
         'project_id',
         'location',
-        'gcp_conn_id'
+        'gcp_conn_id',
+        'impersonation_chain',
     ]
     ui_color = '#0273d4'
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
-            template: str,
-            job_name: str = '{{task.task_id}}',
-            options: Optional[Dict[str, Any]] = None,
-            dataflow_default_options: Optional[Dict[str, Any]] = None,
-            parameters: Optional[Dict[str, str]] = None,
-            project_id: Optional[str] = None,
-            location: str = DEFAULT_DATAFLOW_LOCATION,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            poll_sleep: int = 10,
-            **kwargs) -> None:
+        self,
+        *,
+        template: str,
+        job_name: str = '{{task.task_id}}',
+        options: Optional[Dict[str, Any]] = None,
+        dataflow_default_options: Optional[Dict[str, Any]] = None,
+        parameters: Optional[Dict[str, str]] = None,
+        project_id: Optional[str] = None,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        poll_sleep: int = 10,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.template = template
         self.job_name = job_name
@@ -389,16 +408,19 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.poll_sleep = poll_sleep
         self.job_id = None
         self.hook: Optional[DataflowHook] = None
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
-            poll_sleep=self.poll_sleep
+            poll_sleep=self.poll_sleep,
+            impersonation_chain=self.impersonation_chain,
         )
 
         def set_current_job_id(job_id):
             self.job_id = job_id
+
         options = self.dataflow_default_options
         options.update(self.options)
 
@@ -409,7 +431,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             dataflow_template=self.template,
             on_new_job_id_callback=set_current_job_id,
             project_id=self.project_id,
-            location=self.location
+            location=self.location,
         )
 
         return job
@@ -471,42 +493,45 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
 
-        This option is only relevant if the ``py_requirements`` parameter is passed.
+        This option is only relevant if the ``py_requirements`` parameter is not None.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
-    :param project_id: Optional, the GCP project ID in which to start a job.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Optional, the Google Cloud project ID in which to start a job.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param location: Job location.
     :type location: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
-        domain-wide  delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
     """
+
     template_fields = ['options', 'dataflow_default_options', 'job_name', 'py_file']
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
-            py_file: str,
-            job_name: str = '{{task.task_id}}',
-            dataflow_default_options: Optional[dict] = None,
-            options: Optional[dict] = None,
-            py_interpreter: str = "python3",
-            py_options: Optional[List[str]] = None,
-            py_requirements: Optional[List[str]] = None,
-            py_system_site_packages: bool = False,
-            project_id: Optional[str] = None,
-            location: str = DEFAULT_DATAFLOW_LOCATION,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            poll_sleep: int = 10,
-            **kwargs) -> None:
+        self,
+        *,
+        py_file: str,
+        job_name: str = '{{task.task_id}}',
+        dataflow_default_options: Optional[dict] = None,
+        options: Optional[dict] = None,
+        py_interpreter: str = "python3",
+        py_options: Optional[List[str]] = None,
+        py_requirements: Optional[List[str]] = None,
+        py_system_site_packages: bool = False,
+        project_id: Optional[str] = None,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        poll_sleep: int = 10,
+        **kwargs,
+    ) -> None:
 
         super().__init__(**kwargs)
 
@@ -516,9 +541,10 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.dataflow_default_options = dataflow_default_options or {}
         self.options = options or {}
         self.options.setdefault('labels', {}).update(
-            {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
+            {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')}
+        )
         self.py_interpreter = py_interpreter
-        self.py_requirements = py_requirements or []
+        self.py_requirements = py_requirements
         self.py_system_site_packages = py_system_site_packages
         self.project_id = project_id
         self.location = location
@@ -539,16 +565,13 @@ class DataflowCreatePythonJobOperator(BaseOperator):
                 self.py_file = tmp_gcs_file.name
 
             self.hook = DataflowHook(
-                gcp_conn_id=self.gcp_conn_id,
-                delegate_to=self.delegate_to,
-                poll_sleep=self.poll_sleep
+                gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to, poll_sleep=self.poll_sleep
             )
             dataflow_options = self.dataflow_default_options.copy()
             dataflow_options.update(self.options)
             # Convert argument names from lowerCamelCase to snake case.
             camel_to_snake = lambda name: re.sub(r'[A-Z]', lambda x: '_' + x.group(0).lower(), name)
-            formatted_options = {camel_to_snake(key): dataflow_options[key]
-                                 for key in dataflow_options}
+            formatted_options = {camel_to_snake(key): dataflow_options[key] for key in dataflow_options}
 
             def set_current_job_id(job_id):
                 self.job_id = job_id

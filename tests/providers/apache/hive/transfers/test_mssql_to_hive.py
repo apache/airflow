@@ -37,31 +37,24 @@ except ImportError:
 @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
 @unittest.skipIf(pymssql is None, 'pymssql package not present')
 class TestMsSqlToHiveTransfer(unittest.TestCase):
-
     def setUp(self):
-        self.kwargs = dict(
-            sql='sql',
-            hive_table='table',
-            task_id='test_mssql_to_hive',
-            dag=None
-        )
+        self.kwargs = dict(sql='sql', hive_table='table', task_id='test_mssql_to_hive', dag=None)
 
-    # pylint: disable=c-extension-no-member
     def test_type_map_binary(self):
-        mapped_type = MsSqlToHiveOperator(
-            **self.kwargs).type_map(pymssql.BINARY.value)  # pylint: disable=c-extension-no-member
+        # pylint: disable=c-extension-no-member
+        mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.BINARY.value)
 
         self.assertEqual(mapped_type, 'INT')
 
     def test_type_map_decimal(self):
-        mapped_type = MsSqlToHiveOperator(
-            **self.kwargs).type_map(pymssql.DECIMAL.value)  # pylint: disable=c-extension-no-member
+        # pylint: disable=c-extension-no-member
+        mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.DECIMAL.value)
 
         self.assertEqual(mapped_type, 'FLOAT')
 
     def test_type_map_number(self):
-        mapped_type = MsSqlToHiveOperator(
-            **self.kwargs).type_map(pymssql.NUMBER.value)  # pylint: disable=c-extension-no-member
+        # pylint: disable=c-extension-no-member
+        mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.NUMBER.value)
 
         self.assertEqual(mapped_type, 'INT')
 
@@ -86,7 +79,8 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
 
         mock_mssql_hook_cursor.return_value.execute.assert_called_once_with(mssql_to_hive_transfer.sql)
         mock_csv.writer.assert_called_once_with(
-            mock_tmp_file, delimiter=mssql_to_hive_transfer.delimiter, encoding='utf-8')
+            mock_tmp_file, delimiter=mssql_to_hive_transfer.delimiter, encoding='utf-8'
+        )
         field_dict = OrderedDict()
         for field in mock_mssql_hook_cursor.return_value.description:
             field_dict[field[0]] = mssql_to_hive_transfer.type_map(field[1])
@@ -99,7 +93,8 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
             partition=mssql_to_hive_transfer.partition,
             delimiter=mssql_to_hive_transfer.delimiter,
             recreate=mssql_to_hive_transfer.recreate,
-            tblproperties=mssql_to_hive_transfer.tblproperties)
+            tblproperties=mssql_to_hive_transfer.tblproperties,
+        )
 
     @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.csv')
     @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.NamedTemporaryFile')
@@ -129,4 +124,5 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
             partition=mssql_to_hive_transfer.partition,
             delimiter=mssql_to_hive_transfer.delimiter,
             recreate=mssql_to_hive_transfer.recreate,
-            tblproperties=mssql_to_hive_transfer.tblproperties)
+            tblproperties=mssql_to_hive_transfer.tblproperties,
+        )

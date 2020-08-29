@@ -36,31 +36,45 @@ import os
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.vision import (
-    CloudVisionAddProductToProductSetOperator, CloudVisionCreateProductOperator,
-    CloudVisionCreateProductSetOperator, CloudVisionCreateReferenceImageOperator,
-    CloudVisionDeleteProductOperator, CloudVisionDeleteProductSetOperator,
-    CloudVisionDeleteReferenceImageOperator, CloudVisionDetectImageLabelsOperator,
-    CloudVisionDetectImageSafeSearchOperator, CloudVisionDetectTextOperator, CloudVisionGetProductOperator,
-    CloudVisionGetProductSetOperator, CloudVisionImageAnnotateOperator,
-    CloudVisionRemoveProductFromProductSetOperator, CloudVisionTextDetectOperator,
-    CloudVisionUpdateProductOperator, CloudVisionUpdateProductSetOperator,
+    CloudVisionAddProductToProductSetOperator,
+    CloudVisionCreateProductOperator,
+    CloudVisionCreateProductSetOperator,
+    CloudVisionCreateReferenceImageOperator,
+    CloudVisionDeleteProductOperator,
+    CloudVisionDeleteProductSetOperator,
+    CloudVisionDeleteReferenceImageOperator,
+    CloudVisionDetectImageLabelsOperator,
+    CloudVisionDetectImageSafeSearchOperator,
+    CloudVisionDetectTextOperator,
+    CloudVisionGetProductOperator,
+    CloudVisionGetProductSetOperator,
+    CloudVisionImageAnnotateOperator,
+    CloudVisionRemoveProductFromProductSetOperator,
+    CloudVisionTextDetectOperator,
+    CloudVisionUpdateProductOperator,
+    CloudVisionUpdateProductSetOperator,
 )
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_vision_retry_import]
 from google.api_core.retry import Retry  # isort:skip pylint: disable=wrong-import-order
+
 # [END howto_operator_vision_retry_import]
 # [START howto_operator_vision_product_set_import]
 from google.cloud.vision_v1.types import ProductSet  # isort:skip pylint: disable=wrong-import-order
+
 # [END howto_operator_vision_product_set_import]
 # [START howto_operator_vision_product_import]
 from google.cloud.vision_v1.types import Product  # isort:skip pylint: disable=wrong-import-order
+
 # [END howto_operator_vision_product_import]
 # [START howto_operator_vision_reference_image_import]
 from google.cloud.vision_v1.types import ReferenceImage  # isort:skip pylint: disable=wrong-import-order
+
 # [END howto_operator_vision_reference_image_import]
 # [START howto_operator_vision_enums_import]
 from google.cloud.vision import enums  # isort:skip pylint: disable=wrong-import-order
+
 # [END howto_operator_vision_enums_import]
 
 

@@ -22,6 +22,7 @@ from datetime import timedelta
 from time import sleep
 from typing import Any, Dict, Iterable
 
+from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSensorTimeout, AirflowSkipException,
 )
@@ -68,15 +69,14 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  poke_interval: float = 60,
                  timeout: float = 60 * 60 * 24 * 7,
                  soft_fail: bool = False,
                  mode: str = 'poke',
                  exponential_backoff: bool = False,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.timeout = timeout
@@ -122,7 +122,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 # give it a chance and fail with timeout.
                 # This gives the ability to set up non-blocking AND soft-fail sensors.
                 if self.soft_fail and not context['ti'].is_eligible_to_retry():
-                    self._do_skip_downstream_tasks(context)
                     raise AirflowSkipException(
                         f"Snap. Time is OUT. DAG id: {log_dag_id}")
                 else:
@@ -136,12 +135,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 sleep(self._get_next_poke_interval(started_at, try_number))
                 try_number += 1
         self.log.info("Success criteria met. Exiting.")
-
-    def _do_skip_downstream_tasks(self, context: Dict) -> None:
-        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream task_ids %s", downstream_tasks)
-        if downstream_tasks:
-            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
 
     def _get_next_poke_interval(self, started_at, try_number):
         """
@@ -166,6 +159,16 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             return new_interval
         else:
             return self.poke_interval
+
+    def prepare_for_execution(self) -> BaseOperator:
+        task = super().prepare_for_execution()
+        # Sensors in `poke` mode can block execution of DAGs when running
+        # with single process executor, thus we change the mode to`reschedule`
+        # to allow parallel task being scheduled and executed
+        if conf.get('core', 'executor') == "DebugExecutor":
+            self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
+            task.mode = 'reschedule'
+        return task
 
     @property
     def reschedule(self):

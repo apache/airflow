@@ -194,6 +194,9 @@ Step 4: Prepare PR
    * Find the test class where you should add tests. For the example ticket,
      this is `test_email.py <https://github.com/apache/airflow/blob/master/tests/utils/test_email.py>`__.
 
+   * Make sure your fork's master is synced with Apache Airflow's master before you create a branch. See
+     `How to sync your fork <#how-to-sync-your-fork>`_ for details.
+
    * Create a local branch for your development. Make sure to use latest
      ``apache/master`` as base for the branch. See `How to Rebase PR <#how-to-rebase-pr>`_ for some details
      on setting up the ``apache`` remote. Note, some people develop their changes directly in their own
@@ -429,7 +432,7 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 
-all_dbs, amazon, apache.atlas, apache_beam, apache.cassandra, apache.druid, apache.hdfs,
+all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
 apache.hive, apache.kylin, apache.pinot, apache.webhdfs, async, atlas, aws, azure, cassandra,
 celery, cgroups, cloudant, cncf.kubernetes, dask, databricks, datadog, devel, devel_hadoop, doc,
 docker, druid, elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise, google,
@@ -517,6 +520,10 @@ jobs for each python version.
 Backport providers packages
 ---------------------------
 
+**NOTE:** In case of problems with installation / development of backport packages
+check `troubleshooting installing backport packages <https://github
+.com/apache/airflow#troubleshooting-installing-backport-packages>`_.
+
 Since we are developing new operators in the master branch, we prepared backport packages ready to be
 installed for Airflow 1.10.* series. Those backport operators (the tested ones) are going to be released
 in PyPi and we are going to maintain the list at
@@ -580,27 +587,32 @@ Documentation
 The latest API documentation (for the master branch) is usually available
 `here <https://airflow.readthedocs.io/en/latest/>`__.
 
-To generate a local version:
+To generate a local version you can use `<BREEZE.rst>`_.
 
-1.  Set up an Airflow development environment.
+The documentation build consists of verifying consistency of documentation and two steps:
 
-2.  Install the ``doc`` extra.
+* spell checking
+* building documentation
 
-.. code-block:: bash
-
-    pip install -e '.[doc]'
-
-
-3.  Generate and serve the documentation as follows:
+You can only run one of the steps via ``--spellcheck-only`` or ``--docs-only``.
 
 .. code-block:: bash
 
-    cd docs
-    ./build
-    ./start_doc_server.sh
+    ./breeze build-docs
 
-.. note::
-    The docs build script ``build`` requires Python 3.6 or greater.
+or just to run spell-check
+
+.. code-block:: bash
+
+     ./breeze build-docs -- --spellcheck-only
+
+or just to run documentation building
+
+.. code-block:: bash
+
+     ./breeze build-docs -- --docs-only
+
+Also documentation is available as downloadable artifact in GitHub Actions after the CI builds your PR.
 
 **Known issues:**
 
@@ -862,6 +874,19 @@ commands:
     # Check JS code in .js and .html files, report any errors/warnings and fix them if possible
     yarn run lint:fix
 
+How to sync your fork
+=====================
+
+When you have your fork, you should periodically synchronize the master of your fork with the
+Apache Airflow master. In order to do that you can ``git pull --rebase`` to your local git repository from
+apache remote and push the master (often with ``--force`` to your fork). There is also an easy
+way using ``Force sync master from apache/airflow`` workflow. You can go to "Actions" in your repository and
+choose the workflow and manually trigger the workflow using "Run workflow" command.
+
+This will force-push the master from apache/airflow to the master in your fork. Note that in case you
+modified the master in your fork, you might loose those changes.
+
+
 How to rebase PR
 ================
 
@@ -872,7 +897,6 @@ clearly separate your changes from changes of others, puts responsibility of pro
 author of the change. It also produces a "single-line" series of commits in master branch which
 makes it much easier to understand what was going on and to find reasons for problems (it is especially
 useful for "bisecting" when looking for a commit that introduced some bugs.
-
 
 First of all - you can read about rebase workflow here:
 `Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_ - this is an

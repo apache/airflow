@@ -209,6 +209,7 @@ _connection_types = [
     ('spark', 'Spark'),
     ('imap', 'IMAP'),
     ('vault', 'Hashicorp Vault'),
+    ('azure', 'Azure'),
 ]
 
 

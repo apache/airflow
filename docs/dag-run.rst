@@ -20,15 +20,15 @@ DAG Runs
 A DAG Run is an object representing an instantiation of the DAG in time.
 
 Each DAG may or may not have a schedule, which informs how DAG Runs are
-created. ``schedule_interval`` is defined as a DAG argument, and receives
-preferably a
+created. ``schedule_interval`` is defined as a DAG argument, which can be passed a
 `cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_ as
-a ``str``, or a ``datetime.timedelta`` object.
+a ``str``, a ``datetime.timedelta`` object, or one of of the following cron "presets".
 
 .. tip::
     You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
 
-Alternatively, you can also use one of these cron "presets":
+Cron Presets
+''''''''''''
 
 +----------------+----------------------------------------------------------------+-----------------+
 | preset         | meaning                                                        | cron            |
@@ -52,7 +52,7 @@ Alternatively, you can also use one of these cron "presets":
 +----------------+----------------------------------------------------------------+-----------------+
 
 Your DAG will be instantiated for each schedule along with a corresponding
-DAG Run entry in the database backend.
+DAG Run entry in the database backend.
 
 .. note::
 
@@ -148,9 +148,9 @@ The `backfill command <cli-ref.html#backfill>`_ will re-run all the instances of
 Re-run Tasks
 ------------
 Some of the tasks can fail during the scheduled run. Once you have fixed
-the errors after going through the logs, you can re-run the tasks by clearing it for the
+the errors after going through the logs, you can re-run the tasks by clearing them for the
 scheduled date. Clearing a task instance doesn't delete the task instance record.
-Instead, it updates ``max_tries`` to ``0`` and set the current task instance state to be ``None``, this forces the task to re-run.
+Instead, it updates ``max_tries`` to ``0`` and sets the current task instance state to ``None``, which causes the task to re-run.
 
 Click on the failed task in the Tree or Graph views and then click on **Clear**.
 The executor will re-run it.
@@ -198,7 +198,7 @@ In addition, you can also manually trigger a DAG Run using the web UI (tab **
 Passing Parameters when triggering dags
 ------------------------------------------
 
-When triggering a DAG from the CLI, the REST API or the UI, it is possible to pass configuration for a DAGRun as
+When triggering a DAG from the CLI, the REST API or the UI, it is possible to pass configuration for a DAG Run as
 a JSON blob.
 
 Example of a parameterized DAG:

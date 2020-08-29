@@ -20,7 +20,8 @@ from unittest.mock import MagicMock, patch
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.cloud_formation import (
-    CloudFormationCreateStackOperator, CloudFormationDeleteStackOperator,
+    CloudFormationCreateStackOperator,
+    CloudFormationDeleteStackOperator,
 )
 from airflow.utils import timezone
 
@@ -28,12 +29,8 @@ DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
 
 class TestCloudFormationCreateStackOperator(unittest.TestCase):
-
     def setUp(self):
-        self.args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         # Mock out the cloudformation_client (moto fails with an exception).
         self.cloudformation_client_mock = MagicMock()
@@ -53,28 +50,21 @@ class TestCloudFormationCreateStackOperator(unittest.TestCase):
         operator = CloudFormationCreateStackOperator(
             task_id='test_task',
             stack_name=stack_name,
-            params={
-                'TimeoutInMinutes': timeout,
-                'TemplateBody': template_body
-            },
+            params={'TimeoutInMinutes': timeout, 'TemplateBody': template_body},
             dag=DAG('test_dag_id', default_args=self.args),
         )
 
         with patch('boto3.session.Session', self.boto3_session_mock):
             operator.execute(self.mock_context)
 
-        self.cloudformation_client_mock.create_stack.assert_any_call(StackName=stack_name,
-                                                                     TemplateBody=template_body,
-                                                                     TimeoutInMinutes=timeout)
+        self.cloudformation_client_mock.create_stack.assert_any_call(
+            StackName=stack_name, TemplateBody=template_body, TimeoutInMinutes=timeout
+        )
 
 
 class TestCloudFormationDeleteStackOperator(unittest.TestCase):
-
     def setUp(self):
-        self.args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         # Mock out the cloudformation_client (moto fails with an exception).
         self.cloudformation_client_mock = MagicMock()
@@ -90,9 +80,7 @@ class TestCloudFormationDeleteStackOperator(unittest.TestCase):
         stack_name = "myStackToBeDeleted"
 
         operator = CloudFormationDeleteStackOperator(
-            task_id='test_task',
-            stack_name=stack_name,
-            dag=DAG('test_dag_id', default_args=self.args),
+            task_id='test_task', stack_name=stack_name, dag=DAG('test_dag_id', default_args=self.args),
         )
 
         with patch('boto3.session.Session', self.boto3_session_mock):

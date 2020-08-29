@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Manages all plugins."""
-# noinspection PyDeprecation
 import importlib
 import importlib.machinery
 import importlib.util
@@ -193,7 +192,6 @@ def load_plugins_from_plugin_directory():
 
 
 # pylint: disable=protected-access
-# noinspection Mypy,PyTypeHints
 def make_module(name: str, objects: List[Any]):
     """Creates new module."""
     if not objects:

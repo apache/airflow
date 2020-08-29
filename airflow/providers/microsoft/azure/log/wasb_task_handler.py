@@ -33,8 +33,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from Wasb remote storage.
     """
 
-    def __init__(self, base_log_folder, wasb_log_folder, wasb_container,
-                 filename_template, delete_local_copy):
+    def __init__(
+        self, base_log_folder, wasb_log_folder, wasb_container, filename_template, delete_local_copy
+    ):
         super().__init__(base_log_folder, filename_template)
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
@@ -52,12 +53,14 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+
             return WasbHook(remote_conn_id)
         except AzureHttpError:
             self.log.error(
                 'Could not create an WasbHook with connection id "%s". '
                 'Please make sure that airflow[azure] is installed and '
-                'the Wasb connection exists.', remote_conn_id
+                'the Wasb connection exists.',
+                remote_conn_id,
             )
 
     def set_context(self, ti):
@@ -117,8 +120,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             # local machine even if there are errors reading remote logs, as
             # returned remote_log will contain error messages.
             remote_log = self.wasb_read(remote_loc, return_error=True)
-            log = '*** Reading remote log from {}.\n{}\n'.format(
-                remote_loc, remote_log)
+            log = '*** Reading remote log from {}.\n{}\n'.format(remote_loc, remote_log)
             return log, {'end_of_log': True}
         else:
             return super()._read(ti, try_number)
@@ -175,10 +177,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
         try:
             self.hook.load_string(
-                log,
-                self.wasb_container,
-                remote_log_location,
+                log, self.wasb_container, remote_log_location,
             )
         except AzureHttpError:
-            self.log.exception('Could not write logs to %s',
-                               remote_log_location)
+            self.log.exception('Could not write logs to %s', remote_log_location)

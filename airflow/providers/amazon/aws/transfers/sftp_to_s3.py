@@ -49,15 +49,10 @@ class SFTPToS3Operator(BaseOperator):
     template_fields = ('s3_key', 'sftp_path')
 
     @apply_defaults
-    def __init__(self,
-                 s3_bucket,
-                 s3_key,
-                 sftp_path,
-                 sftp_conn_id='ssh_default',
-                 s3_conn_id='aws_default',
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self, *, s3_bucket, s3_key, sftp_path, sftp_conn_id='ssh_default', s3_conn_id='aws_default', **kwargs
+    ):
+        super().__init__(**kwargs)
         self.sftp_conn_id = sftp_conn_id
         self.sftp_path = sftp_path
         self.s3_bucket = s3_bucket
@@ -81,9 +76,4 @@ class SFTPToS3Operator(BaseOperator):
         with NamedTemporaryFile("w") as f:
             sftp_client.get(self.sftp_path, f.name)
 
-            s3_hook.load_file(
-                filename=f.name,
-                key=self.s3_key,
-                bucket_name=self.s3_bucket,
-                replace=True
-            )
+            s3_hook.load_file(filename=f.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=True)

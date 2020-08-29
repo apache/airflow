@@ -36,12 +36,13 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     :type aws_conn_id: str
     """
+
     template_fields = ['execution_arn']
     template_ext = ()
     ui_color = '#f9c915'
 
     @apply_defaults
-    def __init__(self, execution_arn: str, aws_conn_id='aws_default', region_name=None, **kwargs):
+    def __init__(self, *, execution_arn: str, aws_conn_id='aws_default', region_name=None, **kwargs):
         super().__init__(**kwargs)
         self.execution_arn = execution_arn
         self.aws_conn_id = aws_conn_id

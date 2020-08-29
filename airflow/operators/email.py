@@ -51,8 +51,8 @@ class EmailOperator(BaseOperator):
     ui_color = '#e6faf9'
 
     @apply_defaults
-    def __init__(
-            self,
+    def __init__(  # pylint: disable=invalid-name
+            self, *,
             to: Union[List[str], str],
             subject: str,
             html_content: str,
@@ -61,8 +61,8 @@ class EmailOperator(BaseOperator):
             bcc: Optional[Union[List[str], str]] = None,
             mime_subtype: str = 'mixed',
             mime_charset: str = 'utf-8',
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+            **kwargs) -> None:
+        super().__init__(**kwargs)
         self.to = to  # pylint: disable=invalid-name
         self.subject = subject
         self.html_content = html_content

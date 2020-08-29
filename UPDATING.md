@@ -26,6 +26,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 1.10.12](#airflow-11012)
 - [Airflow 1.10.11](#airflow-11011)
 - [Airflow 1.10.10](#airflow-11010)
 - [Airflow 1.10.9](#airflow-1109)
@@ -135,6 +136,70 @@ with third party services to the ``airflow.providers`` package.
 
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
+
+
+### Breaking Change in OAuth
+
+The flask-ouathlib has been replaced with authlib because flask-outhlib has
+been deprecated in favour of authlib.
+The Old and New provider configuration keys that have changed are as follows
+
+|      Old Keys       |      New keys     |
+|---------------------|-------------------|
+| consumer_key        | client_id         |
+| consumer_secret     | client_secret     |
+| base_url            | api_base_url      |
+| request_token_params| client_kwargs     |
+
+For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
+
+### Migration Guide from Experimental API to Stable API v1
+In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
+If your application is still using the experimental API, you should consider migrating to the stable API.
+
+The stable API exposes many endpoints available through the webserver. Here are the
+differences between the two endpoints that will help you migrate from the
+experimental REST API to the stable REST API.
+
+#### Base Endpoint
+The base endpoint for the stable API v1 is ``/api/v1/``. You must change the
+experimental base endpoint from ``/api/experimental/`` to ``/api/v1/``.
+The table below shows the differences:
+
+| Purpose                           | Experimental REST API Endpoint                                                   | Stable REST API Endpoint                                                       |
+|-----------------------------------|----------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
+| Create a DAGRuns(POST)            | /api/experimental/dags/<DAG_ID>/dag_runs                                         | /api/v1/dags/{dag_id}/dagRuns                                                  |
+| List DAGRuns(GET)                 | /api/experimental/dags/<DAG_ID>/dag_runs                                         | /api/v1/dags/{dag_id}/dagRuns                                                  |
+| Check Health status(GET)          | /api/experimental/test                                                           | /api/v1/health                                                                 |
+| Task information(GET)             | /api/experimental/dags/<DAG_ID>/tasks/<TASK_ID>                                  | /api/v1//dags/{dag_id}/tasks/{task_id}                                         |
+| TaskInstance public variable(GET) | /api/experimental/dags/<DAG_ID>/dag_runs/<string:execution_date>/tasks/<TASK_ID> | /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}             |
+| Pause DAG(PATCH)                  | /api/experimental/dags/<DAG_ID>/paused/<string:paused>                           | /api/v1/dags/{dag_id}                                                          |
+| Information of paused DAG(GET)    | /api/experimental/dags/<DAG_ID>/paused                                           | /api/v1/dags/{dag_id}                                                          |
+| Latest DAG Runs(GET)              | /api/experimental/latest_runs                                                    | /api/v1/dags/{dag_id}/dagRuns                                                  |
+| Get all pools(GET)                | /api/experimental/pools                                                          | /api/v1/pools                                                                  |
+| Create a pool(POST)               | /api/experimental/pools                                                          | /api/v1/pools                                                                  |
+| Delete a pool(DELETE)             | /api/experimental/pools/<string:name>                                            | /api/v1/pools/{pool_name}                                                      |
+| DAG Lineage(GET)                  | /api/experimental/lineage/<DAG_ID>/<string:execution_date>/                      | /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries |
+
+#### Note
+This endpoint ``/api/v1/dags/{dag_id}/dagRuns`` also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
+Therefore the operation previously performed by this endpoint
+
+    /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
+
+can now be handled with filter parameters in the query string.
+Getting information about latest runs can be accomplished with the help of
+filters in the query string of this endpoint(``/api/v1/dags/{dag_id}/dagRuns``). Please check the Stable API
+reference documentation for more information
+
+
+### Changes to Exception handling for from DAG callbacks
+
+Exception from DAG callbacks used to crash scheduler. In order to make
+scheduler more robust, we have changed this behavior to log the exception
+instead. On top of that, a new `dag.callback_exceptions` counter metric has
+been added to help better monitor callback exceptions.
+
 
 ### CLI changes in Airflow 2.0
 
@@ -301,16 +366,6 @@ If the DAGRun was triggered with conf key/values passed in, they will also be pr
 ie. running, {"name": "bob"}
 whereas in in prior releases it just printed the state:
 ie. running
-
-#### Added `airflow dags test` CLI command
-
-A new command was added to the CLI for executing one full run of a DAG for a given execution date, similar to
-`airflow tasks test`. Example usage:
-
-```
-airflow dags test [dag_id] [execution_date]
-airflow dags test example_branch_operator 2018-01-01
-```
 
 #### Deprecating ignore_first_depends_on_past on backfill command and default it to True
 
@@ -517,6 +572,25 @@ Change DAG file loading duration metric from
 `dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to
 better handle the case when a DAG file has multiple DAGs.
 
+#### Sentry is disabled by default
+
+Sentry is disabled by default. To enable these integrations, you need set ``sentry_on`` option
+in ``[sentry]`` section to ``"True"``.
+
+#### Simplified GCSTaskHandler configuration
+
+In previous versions, in order to configure the service account key file, you had to create a connection entry.
+In the current version, you can configure ``google_key_path`` option in ``[logging]`` section to set
+the key file path.
+
+Users using Application Default Credentials (ADC) need not take any action.
+
+The change aims to simplify the configuration of logging, to prevent corruption of
+the instance configuration by changing the value controlled by the user - connection entry. If you
+configure a backend secret, it also means the webserver doesn't need to connect to it. This
+simplifies setups with multiple GCP projects, because only one project will require the Secret Manager API
+to be enabled.
+
 ### Changes to the core operators/hooks
 
 We strive to ensure that there are no changes that may affect the end user and your files, but this
@@ -524,6 +598,15 @@ release may contain changes that will require changes to your DAG files.
 
 This section describes the changes that have been made, and what you need to do to update your DAG File,
 if you use core operators or any other.
+
+#### BaseSensorOperator now respects the trigger_rule of downstream tasks
+
+Previously, BaseSensorOperator with setting `soft_fail=True` skips itself
+and skips all its downstream tasks unconditionally, when it fails i.e the trigger_rule of downstream tasks is not
+respected.
+
+In the new behavior, the trigger_rule of downstream tasks is respected.
+User can preserve/achieve the original behaviour by setting the trigger_rule of each downstream task to `all_success`.
 
 #### BaseOperator uses metaclass
 
@@ -590,7 +673,7 @@ The `chain` method and `cross_downstream` method both use BaseOperator. If any o
 any classes or functions from helpers module, then it automatically has an
 implicit dependency to BaseOperator. That can often lead to cyclic dependencies.
 
-More information in [AIFLOW-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
+More information in [Airflow-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
 
 In Airflow <2.0 you imported those two methods like this:
 
@@ -943,16 +1026,6 @@ arguments, please change `store_serialized_dags` to `read_dags_from_db`.
 Similarly, if you were using `DagBag().store_serialized_dags` property, change it to
 `DagBag().read_dags_from_db`.
 
-#### `airflow.models.baseoperator.BaseOperator`
-It was not possible to patch pool in BaseOperator as the signature sets the default value of pool
-as Pool.DEFAULT_POOL_NAME.
-While using subdagoperator in unittest(without initializing the sqlite db), it was throwing the
-following error:
-```
-sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: slot_pool.
-```
-Fix for this, https://github.com/apache/airflow/pull/8587
-
 ### Changes in `google` provider package
 
 We strive to ensure that there are no changes that may affect the end user and your Python files, but this
@@ -965,6 +1038,12 @@ of this provider.
 
 This section describes the changes that have been made, and what you need to do to update your if
 you use operators or hooks which integrate with Google services (including Google Cloud Platform - GCP).
+
+#### Direct impersonation added to operators communicating with Google services
+[Directly impersonating a service account](https://cloud.google.com/iam/docs/understanding-service-accounts#directly_impersonating_a_service_account)
+has been made possible for operators communicating with Google services via new argument called `impersonation_chain`
+(`google_impersonation_chain` in case of operators that also communicate with services of other cloud providers).
+As a result, GCSToS3Operator no longer derivatives from GCSListObjectsOperator.
 
 #### Normalize gcp_conn_id for Google Cloud Platform
 
@@ -1399,7 +1478,7 @@ you should write `@GoogleBaseHook.provide_gcp_credential_file`
 It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
 https://cloud.google.com/compute/docs/disks/performance
 
-Hence, the default value for `master_disk_size` in DataprocCreateClusterOperator has beeen changes from 500GB to 1TB.
+Hence, the default value for `master_disk_size` in DataprocCreateClusterOperator has been changes from 500GB to 1TB.
 
 #### `<airflow class="providers google c"></airflow>loud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 
@@ -1566,7 +1645,7 @@ See the [docs](https://python-cloudant.readthedocs.io/en/latest/) for more infor
 
 #### `airflow.providers.snowflake`
 
-When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overriden when specified.
+When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overridden when specified.
 
 ### Other changes
 
@@ -1615,20 +1694,6 @@ If you want to install integration for Amazon Web Services, then instead of
 
 The deprecated extras will be removed in 2.1:
 
-#### Added mypy plugin to preserve types of decorated functions
-
-Mypy currently doesn't support precise type information for decorated
-functions; see https://github.com/python/mypy/issues/3157 for details.
-To preserve precise type definitions for decorated functions, we now
-include a mypy plugin to preserve precise type definitions for decorated
-functions. To use the plugin, update your setup.cfg:
-
-```
-[mypy]
-plugins =
-  airflow.mypy.plugin.decorators
-```
-
 #### Simplify the response payload of endpoints /dag_stats and /task_stats
 
 The response of endpoints `/dag_stats` and `/task_stats` help UI fetch brief statistics about DAGs and Tasks. The format was like
@@ -1676,6 +1741,23 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 ...
 }
 ```
+
+## Airflow 1.10.12
+
+### Clearing tasks skipped by SkipMixin will skip them
+
+Previously, when tasks skipped by SkipMixin (such as BranchPythonOperator, BaseBranchOperator and ShortCircuitOperator) are cleared, they execute. Since 1.10.12, when such skipped tasks are cleared,
+they will be skipped again by the newly introduced NotPreviouslySkippedDep.
+
+### The pod_mutation_hook function will now accept a kubernetes V1Pod object
+
+As of airflow 1.10.12, using the `airflow.contrib.kubernetes.Pod` class in the `pod_mutation_hook` is now deprecated. Instead we recommend that users
+treat the `pod` parameter as a `kubernetes.client.models.V1Pod` object. This means that users now have access to the full Kubernetes API
+when modifying airflow pods
+
+### pod_template_file option now available in the KubernetesPodOperator
+
+Users can now offer a path to a yaml for the KubernetesPodOperator using the `pod_template_file` parameter.
 
 ## Airflow 1.10.11
 

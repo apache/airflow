@@ -27,7 +27,7 @@ from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 
 
 class TaskLogReader:
-    """ Task log reader"""
+    """Task log reader"""
 
     def read_log_chunks(self, ti: TaskInstance, try_number: Optional[int],
                         metadata) -> Tuple[List[str], Dict[str, Any]]:

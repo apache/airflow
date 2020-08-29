@@ -35,9 +35,11 @@ TASK_PREFIX_PREDICTION = TASK_PREFIX + "-prediction"
 TASK_PREFIX_SUMMARY = TASK_PREFIX + "-summary"
 TASK_PREFIX_VALIDATION = TASK_PREFIX + "-validation"
 DATA_FORMAT = "TEXT"
-INPUT_PATHS = ["gs://path/to/input/file.json",
-               "gs://path/to/input/file2.json",
-               "gs://path/to/input/file3.json"]
+INPUT_PATHS = [
+    "gs://path/to/input/file.json",
+    "gs://path/to/input/file2.json",
+    "gs://path/to/input/file3.json",
+]
 PREDICTION_PATH = "gs://path/to/output/predictions.json"
 BATCH_PREDICTION_JOB_ID = "test-batch-prediction-job-id"
 PROJECT_ID = "test-project-id"
@@ -45,7 +47,7 @@ REGION = "test-region"
 DATAFLOW_OPTIONS = {
     "project": "my-gcp-project",
     "zone": "us-central1-f",
-    "stagingLocation": "gs://bucket/tmp/dataflow/staging/"
+    "stagingLocation": "gs://bucket/tmp/dataflow/staging/",
 }
 MODEL_URI = "gs://path/to/model/model"
 MODEL_NAME = "test-model-name"
@@ -55,7 +57,7 @@ DAG_DEFAULT_ARGS = {
     "region": REGION,
     "model_name": MODEL_NAME,
     "version_name": VERSION_NAME,
-    "dataflow_default_options": DATAFLOW_OPTIONS
+    "dataflow_default_options": DATAFLOW_OPTIONS,
 }
 TEST_DAG = DAG(dag_id="test-dag-id", start_date=datetime(2000, 1, 1), default_args=DAG_DEFAULT_ARGS)
 
@@ -92,18 +94,19 @@ class TestMlengineOperatorUtils(unittest.TestCase):
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
     def test_create_evaluate_ops(self, mock_dataflow, mock_python):
-        result = create_evaluate_ops(task_prefix=TASK_PREFIX,
-                                     data_format=DATA_FORMAT,
-                                     input_paths=INPUT_PATHS,
-                                     prediction_path=PREDICTION_PATH,
-                                     metric_fn_and_keys=get_metric_fn_and_keys(),
-                                     validate_fn=validate_err_and_count,
-                                     batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
-                                     project_id=PROJECT_ID,
-                                     region=REGION,
-                                     dataflow_options=DATAFLOW_OPTIONS,
-                                     model_uri=MODEL_URI
-                                     )
+        result = create_evaluate_ops(
+            task_prefix=TASK_PREFIX,
+            data_format=DATA_FORMAT,
+            input_paths=INPUT_PATHS,
+            prediction_path=PREDICTION_PATH,
+            metric_fn_and_keys=get_metric_fn_and_keys(),
+            validate_fn=validate_err_and_count,
+            batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            dataflow_options=DATAFLOW_OPTIONS,
+            model_uri=MODEL_URI,
+        )
 
         evaluate_prediction, evaluate_summary, evaluate_validation = result
 
@@ -131,19 +134,20 @@ class TestMlengineOperatorUtils(unittest.TestCase):
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
     def test_create_evaluate_ops_model_and_version_name(self, mock_dataflow, mock_python):
-        result = create_evaluate_ops(task_prefix=TASK_PREFIX,
-                                     data_format=DATA_FORMAT,
-                                     input_paths=INPUT_PATHS,
-                                     prediction_path=PREDICTION_PATH,
-                                     metric_fn_and_keys=get_metric_fn_and_keys(),
-                                     validate_fn=validate_err_and_count,
-                                     batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
-                                     project_id=PROJECT_ID,
-                                     region=REGION,
-                                     dataflow_options=DATAFLOW_OPTIONS,
-                                     model_name=MODEL_NAME,
-                                     version_name=VERSION_NAME
-                                     )
+        result = create_evaluate_ops(
+            task_prefix=TASK_PREFIX,
+            data_format=DATA_FORMAT,
+            input_paths=INPUT_PATHS,
+            prediction_path=PREDICTION_PATH,
+            metric_fn_and_keys=get_metric_fn_and_keys(),
+            validate_fn=validate_err_and_count,
+            batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            dataflow_options=DATAFLOW_OPTIONS,
+            model_name=MODEL_NAME,
+            version_name=VERSION_NAME,
+        )
 
         evaluate_prediction, evaluate_summary, evaluate_validation = result
 
@@ -172,15 +176,16 @@ class TestMlengineOperatorUtils(unittest.TestCase):
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
     def test_create_evaluate_ops_dag(self, mock_dataflow, mock_python):
-        result = create_evaluate_ops(task_prefix=TASK_PREFIX,
-                                     data_format=DATA_FORMAT,
-                                     input_paths=INPUT_PATHS,
-                                     prediction_path=PREDICTION_PATH,
-                                     metric_fn_and_keys=get_metric_fn_and_keys(),
-                                     validate_fn=validate_err_and_count,
-                                     batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
-                                     dag=TEST_DAG
-                                     )
+        result = create_evaluate_ops(
+            task_prefix=TASK_PREFIX,
+            data_format=DATA_FORMAT,
+            input_paths=INPUT_PATHS,
+            prediction_path=PREDICTION_PATH,
+            metric_fn_and_keys=get_metric_fn_and_keys(),
+            validate_fn=validate_err_and_count,
+            batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
+            dag=TEST_DAG,
+        )
 
         evaluate_prediction, evaluate_summary, evaluate_validation = result
 
@@ -210,32 +215,30 @@ class TestMlengineOperatorUtils(unittest.TestCase):
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
     def test_apply_validate_fn(self, mock_dataflow, mock_python, mock_download):
-        result = create_evaluate_ops(task_prefix=TASK_PREFIX,
-                                     data_format=DATA_FORMAT,
-                                     input_paths=INPUT_PATHS,
-                                     prediction_path=PREDICTION_PATH,
-                                     metric_fn_and_keys=get_metric_fn_and_keys(),
-                                     validate_fn=validate_err_and_count,
-                                     batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
-                                     project_id=PROJECT_ID,
-                                     region=REGION,
-                                     dataflow_options=DATAFLOW_OPTIONS,
-                                     model_uri=MODEL_URI
-                                     )
+        result = create_evaluate_ops(
+            task_prefix=TASK_PREFIX,
+            data_format=DATA_FORMAT,
+            input_paths=INPUT_PATHS,
+            prediction_path=PREDICTION_PATH,
+            metric_fn_and_keys=get_metric_fn_and_keys(),
+            validate_fn=validate_err_and_count,
+            batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            dataflow_options=DATAFLOW_OPTIONS,
+            model_uri=MODEL_URI,
+        )
 
         _, _, evaluate_validation = result
 
-        mock_download.return_value = json.dumps({
-            "err": 0.3,
-            "mse": 0.04,
-            "count": 1100
-        })
+        mock_download.return_value = json.dumps({"err": 0.3, "mse": 0.04, "count": 1100})
         templates_dict = {"prediction_path": PREDICTION_PATH}
         with self.assertRaises(ValueError) as context:
             evaluate_validation.python_callable(templates_dict=templates_dict)
 
-        self.assertEqual("Too high err>0.2; summary={'err': 0.3, 'mse': 0.04, 'count': 1100}",
-                         str(context.exception))
+        self.assertEqual(
+            "Too high err>0.2; summary={'err': 0.3, 'mse': 0.04, 'count': 1100}", str(context.exception)
+        )
         mock_download.assert_called_once_with("path", "to/output/predictions.json/prediction.summary.json")
 
         invalid_prediction_paths = ["://path/to/output/predictions.json", "gs://", ""]
@@ -251,27 +254,33 @@ class TestMlengineOperatorUtils(unittest.TestCase):
 
         for invalid_task_prefix_value in invalid_task_prefix_values:
             with self.assertRaises(AirflowException):
-                create_evaluate_ops(task_prefix=invalid_task_prefix_value,
-                                    data_format=DATA_FORMAT,
-                                    input_paths=INPUT_PATHS,
-                                    prediction_path=PREDICTION_PATH,
-                                    metric_fn_and_keys=get_metric_fn_and_keys(),
-                                    validate_fn=validate_err_and_count)
+                create_evaluate_ops(
+                    task_prefix=invalid_task_prefix_value,
+                    data_format=DATA_FORMAT,
+                    input_paths=INPUT_PATHS,
+                    prediction_path=PREDICTION_PATH,
+                    metric_fn_and_keys=get_metric_fn_and_keys(),
+                    validate_fn=validate_err_and_count,
+                )
 
     def test_non_callable_metric_fn(self):
         with self.assertRaises(AirflowException):
-            create_evaluate_ops(task_prefix=TASK_PREFIX,
-                                data_format=DATA_FORMAT,
-                                input_paths=INPUT_PATHS,
-                                prediction_path=PREDICTION_PATH,
-                                metric_fn_and_keys=("error_and_squared_error", ['err', 'mse']),
-                                validate_fn=validate_err_and_count)
+            create_evaluate_ops(
+                task_prefix=TASK_PREFIX,
+                data_format=DATA_FORMAT,
+                input_paths=INPUT_PATHS,
+                prediction_path=PREDICTION_PATH,
+                metric_fn_and_keys=("error_and_squared_error", ['err', 'mse']),
+                validate_fn=validate_err_and_count,
+            )
 
     def test_non_callable_validate_fn(self):
         with self.assertRaises(AirflowException):
-            create_evaluate_ops(task_prefix=TASK_PREFIX,
-                                data_format=DATA_FORMAT,
-                                input_paths=INPUT_PATHS,
-                                prediction_path=PREDICTION_PATH,
-                                metric_fn_and_keys=get_metric_fn_and_keys(),
-                                validate_fn="validate_err_and_count")
+            create_evaluate_ops(
+                task_prefix=TASK_PREFIX,
+                data_format=DATA_FORMAT,
+                input_paths=INPUT_PATHS,
+                prediction_path=PREDICTION_PATH,
+                metric_fn_and_keys=get_metric_fn_and_keys(),
+                validate_fn="validate_err_and_count",
+            )

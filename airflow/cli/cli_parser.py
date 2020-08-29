@@ -28,6 +28,7 @@ from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Un
 from tabulate import tabulate_formats
 
 from airflow import settings
+from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -65,6 +66,8 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if value == 'celery' and executor != ExecutorLoader.CELERY_EXECUTOR:
             message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
             raise ArgumentError(action, message)
+        if action.choices is not None and value not in action.choices:
+            check_legacy_command(action, value)
 
         super()._check_value(action, value)
 
@@ -579,7 +582,7 @@ ARG_ENV_VARS = Arg(
 # connections
 ARG_CONN_ID = Arg(
     ('conn_id',),
-    help='Connection id, required to add/delete a connection',
+    help='Connection id, required to get/add/delete a connection',
     type=str)
 ARG_CONN_ID_FILTER = Arg(
     ('--conn-id',),
@@ -617,15 +620,15 @@ ARG_CONN_EXTRA = Arg(
     ('--conn-extra',),
     help='Connection `Extra` field, optional when adding a connection',
     type=str)
-ARG_INCLUDE_SECRETS = Arg(
-    ('--include-secrets',),
-    help=(
-        "If passed, the connection in the secret backend will also be displayed."
-        "To use this option you must pass `--conn_id` option."
-        ""
-    ),
-    action="store_true",
-    default=False)
+ARG_CONN_EXPORT = Arg(
+    ('file',),
+    help='Output file path for exporting the connections',
+    type=argparse.FileType('w', encoding='UTF-8'))
+ARG_CONN_EXPORT_FORMAT = Arg(
+    ('--format',),
+    help='Format of the connections data in file',
+    type=str,
+    choices=['json', 'yaml', 'env'])
 # users
 ARG_USERNAME = Arg(
     ('-u', '--username'),
@@ -781,9 +784,9 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='list_runs',
-        help="List dag runs given a DAG id.",
+        help="List DAG runs given a DAG id",
         description=(
-            "List dag runs given a DAG id. If state option is given, it will only search for all the "
+            "List DAG runs given a DAG id. If state option is given, it will only search for all the "
             "dagruns with the given state. If no_backfill option is given, it will filter out all "
             "backfill dagruns for given dag id. If start_date is given, it will filter out all the "
             "dagruns that were executed before this date. If end_date is given, it will filter out "
@@ -806,8 +809,11 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='next_execution',
-        help="Get the next execution datetimes of a DAG. It returns one execution unless the "
-             "num-executions option is given",
+        help="Get the next execution datetimes of a DAG",
+        description=(
+            "Get the next execution datetimes of a DAG. It returns one execution unless the "
+            "num-executions option is given"
+        ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_next_execution'),
         args=(ARG_DAG_ID, ARG_SUBDIR, ARG_NUM_EXECUTIONS),
     ),
@@ -858,7 +864,7 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='backfill',
-        help="Run subsections of a DAG for a specified date range.",
+        help="Run subsections of a DAG for a specified date range",
         description=(
             "Run subsections of a DAG for a specified date range. If reset_dag_run option is used, "
             "backfill will first prompt users whether airflow should clear all the previous dag_run and "
@@ -875,7 +881,7 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='test',
-        help="Execute one single DagRun for a given DAG and execution date, using the DebugExecutor.",
+        help="Execute one single DagRun",
         description=("Execute one single DagRun for a given DAG and execution date, "
                      "using the DebugExecutor.\n"
                      "\n"
@@ -925,7 +931,7 @@ TASKS_COMMANDS = (
     ),
     ActionCommand(
         name='failed_deps',
-        help="Returns the unmet dependencies for a task instance from the perspective of the scheduler. ",
+        help="Returns the unmet dependencies for a task instance",
         description=(
             "Returns the unmet dependencies for a task instance from the perspective of the scheduler. "
             "In other words, why a task instance doesn't get scheduled and then queued by the scheduler, "
@@ -1056,7 +1062,10 @@ DB_COMMANDS = (
     ),
     ActionCommand(
         name="check-migrations",
-        help="Check if migration have finished (or continually check until timeout)",
+        help="Check if migration have finished",
+        description=(
+            "Check if migration have finished (or continually check until timeout)"
+        ),
         func=lazy_load_command('airflow.cli.commands.db_command.check_migrations'),
         args=(ARG_MIGRATION_TIMEOUT,),
     ),
@@ -1080,17 +1089,23 @@ DB_COMMANDS = (
     ),
     ActionCommand(
         name='check',
-        help="Check if the database can be reached.",
+        help="Check if the database can be reached",
         func=lazy_load_command('airflow.cli.commands.db_command.check'),
         args=(),
     ),
 )
 CONNECTIONS_COMMANDS = (
     ActionCommand(
+        name='get',
+        help='Get a connection',
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_get'),
+        args=(ARG_CONN_ID, ARG_COLOR),
+    ),
+    ActionCommand(
         name='list',
         help='List connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
-        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER, ARG_INCLUDE_SECRETS),
+        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER),
     ),
     ActionCommand(
         name='add',
@@ -1103,6 +1118,22 @@ CONNECTIONS_COMMANDS = (
         help='Delete a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
         args=(ARG_CONN_ID,),
+    ),
+    ActionCommand(
+        name='export',
+        help='Export all connections',
+        description=("All connections can be exported in STDOUT using the following command:\n"
+                     "airflow connections export -\n"
+                     "The file format can be determined by the provided file extension. eg, The following "
+                     "command will export the connections in JSON format:\n"
+                     "airflow connections export /tmp/connections.json\n"
+                     "The --format parameter can be used to mention the connections format. eg, "
+                     "the default format is JSON in STDOUT mode, which can be overridden using: \n"
+                     "airflow connections export - --format yaml\n"
+                     "The --format parameter can also be used for the files, for example:\n"
+                     "airflow connections export /tmp/connections --format json\n"),
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_export'),
+        args=(ARG_CONN_EXPORT, ARG_CONN_EXPORT_FORMAT,),
     ),
 )
 USERS_COMMANDS = (
@@ -1204,7 +1235,7 @@ CONFIG_COMMANDS = (
     ),
     ActionCommand(
         name='list',
-        help='List options for the configuration.',
+        help='List options for the configuration',
         func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
         args=(ARG_COLOR, ),
     ),
@@ -1213,22 +1244,22 @@ CONFIG_COMMANDS = (
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
-        help='List and manage DAGs',
+        help='Manage DAGs',
         subcommands=DAGS_COMMANDS,
     ),
     GroupCommand(
         name='tasks',
-        help='List and manage tasks',
+        help='Manage tasks',
         subcommands=TASKS_COMMANDS,
     ),
     GroupCommand(
         name='pools',
-        help="CRUD operations on pools",
+        help="Manage pools",
         subcommands=POOLS_COMMANDS,
     ),
     GroupCommand(
         name='variables',
-        help="CRUD operations on variables",
+        help="Manage variables",
         subcommands=VARIABLES_COMMANDS,
     ),
     GroupCommand(
@@ -1267,19 +1298,25 @@ airflow_commands: List[CLICommand] = [
         func=lazy_load_command('airflow.cli.commands.version_command.version'),
         args=(),
     ),
+    ActionCommand(
+        name='cheat-sheet',
+        help="Display cheat sheet",
+        func=lazy_load_command('airflow.cli.commands.cheat_sheet_command.cheat_sheet'),
+        args=(),
+    ),
     GroupCommand(
         name='connections',
-        help="List/Add/Delete connections",
+        help="Manage connections",
         subcommands=CONNECTIONS_COMMANDS,
     ),
     GroupCommand(
         name='users',
-        help="CRUD operations on users",
+        help="Manage users",
         subcommands=USERS_COMMANDS,
     ),
     GroupCommand(
         name='roles',
-        help='Create/List roles',
+        help='Manage roles',
         subcommands=ROLES_COMMANDS,
     ),
     ActionCommand(
@@ -1301,7 +1338,7 @@ airflow_commands: List[CLICommand] = [
     ),
     GroupCommand(
         name="config",
-        help='View the configuration options.',
+        help='View configuration',
         subcommands=CONFIG_COMMANDS
     ),
     ActionCommand(
@@ -1318,7 +1355,7 @@ airflow_commands: List[CLICommand] = [
     ),
     GroupCommand(
         name="celery",
-        help='Start celery components',
+        help='Celery components',
         description=(
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
             'https://airflow.readthedocs.io/en/stable/executor/celery.html'
