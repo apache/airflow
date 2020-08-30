@@ -861,6 +861,13 @@
       type: string
       example: ~
       default: "-"
+    - name: access_logformat
+      description: |
+        Access log format for gunicorn webserver
+      version_added: ~
+      type: string
+      example: ~
+      default: "%%(h)s %%(l)s %%(u)s %%(t)s \"%%(r)s\" %%(s)s %%(b)s \"%%(f)s\" \"%%(a)s\""
     - name: expose_config
       description: |
         Expose the configuration file in the web server

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import os
 import subprocess
 import tempfile
@@ -375,3 +376,45 @@ class TestCliWebServer(unittest.TestCase):
             "webserver terminated with return code {} in debug mode".format(return_code))
         proc.terminate()
         self.assertEqual(-15, proc.wait(60))
+
+    def test_cli_webserver_access_log_format(self):
+        access_logfile = "/var/log/access.log"
+        if os.path.exists(access_logfile):
+            os.remove(access_logfile)
+
+        # json access log format
+        access_logformat = "{\"ts\":\"%(t)s\",\"remote_ip\":\"%(h)s\",\"request_id\":\"%({X-Request-Id}i)s\"," \
+                           "\"code\":\"%(s)s\",\"request_method\":\"%(m)s\",\"request_path\":\"%(U)s\",\"agent\":\"%(" \
+                           "a)s\",\"response_time\":\"%(D)s\",\"response_length\":\"%(B)s\"} "
+        with mock.patch.dict(
+            "os.environ",
+            AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
+            AIRFLOW__CORE__LOAD_EXAMPLES="False",
+            AIRFLOW__WEBSERVER__WORKERS="1"
+        ):
+            # Run webserver in foreground and terminate it.
+            proc = subprocess.Popen(
+                ["airflow", "webserver", "--access-logfile", access_logfile, "--access-logformat", access_logformat])
+            self.assertEqual(None, proc.poll())
+
+        # Wait for webserver process
+        sleep(10)
+
+        proc2 = subprocess.Popen(["curl", "http://localhost:8080"])
+        proc2.wait(10)
+        self.assertTrue(os.path.isfile(access_logfile))
+        try:
+            file = open(access_logfile)
+            log = json.loads(file.read())
+            self.assertEqual('127.0.0.1', log.get('remote_ip'))
+            self.assertEqual(len(log), 9)
+            self.assertEqual('GET', log.get('request_method'))
+
+        except IOError:
+            print("access log file not found at " + access_logfile)
+
+        # Terminate webserver
+        proc.terminate()
+        # -15 - the server was stopped before it started
+        #   0 - the server terminated correctly
+        self.assertIn(proc.wait(60), (-15, 0))
