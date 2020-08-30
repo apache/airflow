@@ -24,12 +24,7 @@ from kubernetes.client import CoreV1Api
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
-from airflow.kubernetes.k8s_model import append_to_pod
-from airflow.kubernetes.pod import Port, Resources
-from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.kubernetes.secret import Secret
-from airflow.kubernetes.volume import Volume
-from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
@@ -66,11 +61,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         The docker image's CMD is used if this is not provided.
     :type arguments: list[str]
     :param ports: ports for launched pod.
-    :type ports: list[airflow.kubernetes.pod.Port]
+    :type ports: list[k8s.V1ContainerPort]
     :param volume_mounts: volumeMounts for launched pod.
-    :type volume_mounts: list[airflow.kubernetes.volume_mount.VolumeMount]
+    :type volume_mounts: list[k8s.V1VolumeMount]
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes.
-    :type volumes: list[airflow.kubernetes.volume.Volume]
+    :type volumes: list[k8s.V1Volume]
     :param env_vars: Environment variables initialized in the container. (templated)
     :type env_vars: dict
     :param secrets: Kubernetes secrets to inject in the container.
@@ -99,7 +94,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         Possible keys are request_memory, request_cpu, limit_memory, limit_cpu,
         and limit_gpu, which will be used to generate airflow.kubernetes.pod.Resources.
         See also kubernetes.io/docs/concepts/configuration/manage-compute-resources-container
-    :type resources: dict
+    :type resources: k8s.V1ResourceRequirements
     :param affinity: A dict containing a group of affinity scheduling rules.
     :type affinity: dict
     :param config_file: The path to the Kubernetes config file. (templated)
@@ -110,7 +105,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
         comma separated list: secret_a,secret_b
-    :type image_pull_secrets: str
+    :type image_pull_secrets: List[k8s.V1LocalObjectReference]
     :param service_account_name: Name of the service account
     :type service_account_name: str
     :param is_delete_operator_pod: What to do when the pod reaches its final
@@ -121,14 +116,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations.
     :type tolerations: list tolerations
-    :param configmaps: A list of configmap names objects that we
-        want mount as env variables.
-    :type configmaps: list[str]
     :param security_context: security options the pod should run with (PodSecurityContext).
     :type security_context: dict
-    :param pod_runtime_info_envs: environment variables about
-        pod runtime information (ip, namespace, nodeName, podName).
-    :type pod_runtime_info_envs: list[airflow.kubernetes.pod_runtime_info_env.PodRuntimeInfoEnv]
     :param dnspolicy: dnspolicy for the pod.
     :type dnspolicy: str
     :param schedulername: Specify a schedulername for the pod
@@ -162,10 +151,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  name: Optional[str] = None,
                  cmds: Optional[List[str]] = None,
                  arguments: Optional[List[str]] = None,
-                 ports: Optional[List[Port]] = None,
-                 volume_mounts: Optional[List[VolumeMount]] = None,
-                 volumes: Optional[List[Volume]] = None,
-                 env_vars: Optional[Dict] = None,
+                 ports: Optional[List[k8s.V1ContainerPort]] = None,
+                 volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
+                 volumes: Optional[List[k8s.V1Volume]] = None,
+                 env_vars: Optional[List[k8s.V1EnvVar]] = None,
+                 env_from: Optional[List[k8s.V1EnvFromSource]] = None,
                  secrets: Optional[List[Secret]] = None,
                  in_cluster: Optional[bool] = None,
                  cluster_context: Optional[str] = None,
@@ -175,18 +165,16 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  get_logs: bool = True,
                  image_pull_policy: str = 'IfNotPresent',
                  annotations: Optional[Dict] = None,
-                 resources: Optional[Dict] = None,
+                 resources: Optional[k8s.V1ResourceRequirements] = None,
                  affinity: Optional[Dict] = None,
                  config_file: Optional[str] = None,
                  node_selectors: Optional[Dict] = None,
-                 image_pull_secrets: Optional[str] = None,
+                 image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
                  service_account_name: str = 'default',
                  is_delete_operator_pod: bool = False,
                  hostnetwork: bool = False,
                  tolerations: Optional[List] = None,
-                 configmaps: Optional[List] = None,
                  security_context: Optional[Dict] = None,
-                 pod_runtime_info_envs: Optional[List[PodRuntimeInfoEnv]] = None,
                  dnspolicy: Optional[str] = None,
                  schedulername: Optional[str] = None,
                  full_pod_spec: Optional[k8s.V1Pod] = None,
@@ -208,7 +196,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
-        self.env_vars = env_vars or {}
+        self.env_vars = env_vars or []
+        self.env_from = env_from or []
         self.ports = ports or []
         self.volume_mounts = volume_mounts or []
         self.volumes = volumes or []
@@ -221,16 +210,14 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
-        self.resources = self._set_resources(resources)  # noqa
+        self.k8s_resources = resources or {}
         self.config_file = config_file
-        self.image_pull_secrets = image_pull_secrets
+        self.image_pull_secrets = image_pull_secrets or []
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
         self.tolerations = tolerations or []
-        self.configmaps = configmaps or []
         self.security_context = security_context or {}
-        self.pod_runtime_info_envs = pod_runtime_info_envs or []
         self.dnspolicy = dnspolicy
         self.schedulername = schedulername
         self.full_pod_spec = full_pod_spec
@@ -347,12 +334,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     def _try_numbers_match(context, pod):
         return pod.metadata.labels['try_number'] == context['ti'].try_number
 
-    @staticmethod
-    def _set_resources(resources):
-        if not resources:
-            return []
-        return [Resources(**resources)]
-
     def _set_name(self, name):
         if self.pod_template_file or self.full_pod_spec:
             return None
@@ -365,43 +346,55 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         will supersede all other values.
 
         """
-        pod = pod_generator.PodGenerator(
-            image=self.image,
-            namespace=self.namespace,
-            cmds=self.cmds,
-            args=self.arguments,
-            labels=self.labels,
-            name=self.name,
-            envs=self.env_vars,
-            extract_xcom=self.do_xcom_push,
-            image_pull_policy=self.image_pull_policy,
-            node_selectors=self.node_selectors,
-            annotations=self.annotations,
-            affinity=self.affinity,
-            image_pull_secrets=self.image_pull_secrets,
-            service_account_name=self.service_account_name,
-            hostnetwork=self.hostnetwork,
-            tolerations=self.tolerations,
-            configmaps=self.configmaps,
-            security_context=self.security_context,
-            dnspolicy=self.dnspolicy,
-            schedulername=self.schedulername,
-            init_containers=self.init_containers,
-            restart_policy='Never',
-            priority_class_name=self.priority_class_name,
-            pod_template_file=self.pod_template_file,
-            pod=self.full_pod_spec,
-        ).gen_pod()
+        if self.pod_template_file:
+            pod = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
+        elif not self.pod:
+            pod = k8s.V1Pod(
+                api_version="v1",
+                kind="Pod",
+                metadata=k8s.V1ObjectMeta(
+                    namespace=self.namespace,
+                    labels=self.labels,
+                    name=self.name,
+                    annotations=self.annotations,
 
-        pod = append_to_pod(
-            pod,
-            self.pod_runtime_info_envs +
-            self.ports +  # type: ignore
-            self.resources +
-            self.secrets +  # type: ignore
-            self.volumes +  # type: ignore
-            self.volume_mounts  # type: ignore
-        )
+                ),
+                spec=k8s.V1PodSpec(
+                    node_selector=self.node_selectors,
+                    affinity=self.affinity,
+                    tolerations=self.tolerations,
+                    init_containers=self.init_containers,
+                    containers=[
+                        k8s.V1Container(
+                            image=self.image,
+                            name="base",
+                            command=self.cmds,
+                            ports=self.ports,
+                            resources=self.k8s_resources,
+                            volume_mounts=self.volume_mounts,
+                            args=self.arguments,
+                            env=self.env_vars,
+                            env_from=self.env_from,
+                        )
+                    ],
+                    image_pull_secrets=self.image_pull_secrets,
+                    service_account_name=self.service_account_name,
+                    host_network=self.hostnetwork,
+                    security_context=self.security_context,
+                    dns_policy=self.dnspolicy,
+                    scheduler_name=self.schedulername,
+                    restart_policy='Never',
+                    priority_class_name=self.priority_class_name,
+                    volumes=self.volumes,
+                )
+            )
+        else:
+            pod = self.pod
+        for secret in self.secrets:
+            pod = secret.attach_to_pod(pod)
+        if self.do_xcom_push:
+            from airflow.kubernetes.pod_generator import PodGenerator
+            pod = PodGenerator.add_xcom_sidecar(pod)
         return pod
 
     def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:

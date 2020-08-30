@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 import unittest
 import uuid
 from unittest import mock
@@ -67,8 +68,8 @@ class TestSecret(unittest.TestCase):
     def test_attach_to_pod(self, mock_uuid):
         static_uuid = uuid.UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
         mock_uuid.return_value = static_uuid
-        pod = PodGenerator(image='airflow-worker:latest',
-                           name='base').gen_pod()
+        path = sys.path[0] + '/tests/kubernetes/pod_generator_base.yaml'
+        pod = PodGenerator(pod_template_file=path).gen_pod()
         secrets = [
             # This should be a secretRef
             Secret('env', None, 'secret_a'),
@@ -78,39 +79,46 @@ class TestSecret(unittest.TestCase):
             Secret('env', 'TARGET', 'secret_b', 'source_b'),
         ]
         k8s_client = ApiClient()
-        result = append_to_pod(pod, secrets)
-        result = k8s_client.sanitize_for_serialization(result)
-        self.assertEqual(result, {
-            'apiVersion': 'v1',
-            'kind': 'Pod',
-            'metadata': {'name': 'base-' + static_uuid.hex},
-            'spec': {
-                'containers': [{
-                    'args': [],
-                    'command': [],
-                    'env': [{
-                        'name': 'TARGET',
-                        'valueFrom': {
-                            'secretKeyRef': {
-                                'key': 'source_b',
-                                'name': 'secret_b'
-                            }
-                        }
-                    }],
-                    'envFrom': [{'secretRef': {'name': 'secret_a'}}],
-                    'image': 'airflow-worker:latest',
-                    'name': 'base',
-                    'ports': [],
-                    'volumeMounts': [{
-                        'mountPath': '/etc/foo',
-                        'name': 'secretvol' + str(static_uuid),
-                        'readOnly': True}]
-                }],
-                'hostNetwork': False,
-                'imagePullSecrets': [],
-                'volumes': [{
-                    'name': 'secretvol' + str(static_uuid),
-                    'secret': {'secretName': 'secret_b'}
-                }]
-            }
-        })
+        pod = append_to_pod(pod, secrets)
+        result = k8s_client.sanitize_for_serialization(pod)
+        self.assertEqual(result,
+                         {'apiVersion': 'v1',
+                          'kind': 'Pod',
+                          'metadata': {'labels': {'app': 'myapp'},
+                                       'name': 'myapp-pod-cf4a56d281014217b0272af6216feb48',
+                                       'namespace': 'default'},
+                          'spec': {'containers': [{'command': ['sh', '-c', 'echo Hello Kubernetes!'],
+                                                   'env': [{'name': 'ENVIRONMENT', 'value': 'prod'},
+                                                           {'name': 'LOG_LEVEL', 'value': 'warning'},
+                                                           {'name': 'TARGET',
+                                                            'valueFrom':
+                                                                {'secretKeyRef': {'key': 'source_b',
+                                                                                  'name': 'secret_b'}}}],
+                                                   'envFrom': [{'configMapRef': {'name': 'configmap_a'}},
+                                                               {'secretRef': {'name': 'secret_a'}}],
+                                                   'image': 'busybox',
+                                                   'name': 'base',
+                                                   'ports': [{'containerPort': 1234, 'name': 'foo'}],
+                                                   'resources': {'limits': {'memory': '200Mi'},
+                                                                 'requests': {'memory': '100Mi'}},
+                                                   'volumeMounts': [{'mountPath': '/airflow/xcom',
+                                                                     'name': 'xcom'},
+                                                                    {'mountPath': '/etc/foo',
+                                                                     'name': 'secretvol' + str(static_uuid),
+                                                                     'readOnly': True}]},
+                                                  {'command': ['sh',
+                                                               '-c',
+                                                               'trap "exit 0" INT; while true; do sleep '
+                                                               '30; done;'],
+                                                   'image': 'alpine',
+                                                   'name': 'airflow-xcom-sidecar',
+                                                   'resources': {'requests': {'cpu': '1m'}},
+                                                   'volumeMounts': [{'mountPath': '/airflow/xcom',
+                                                                     'name': 'xcom'}]}],
+                                   'hostNetwork': True,
+                                   'imagePullSecrets': [{'name': 'pull_secret_a'},
+                                                        {'name': 'pull_secret_b'}],
+                                   'securityContext': {'fsGroup': 2000, 'runAsUser': 1000},
+                                   'volumes': [{'emptyDir': {}, 'name': 'xcom'},
+                                               {'name': 'secretvol' + str(static_uuid),
+                                                'secret': {'secretName': 'secret_b'}}]}})
