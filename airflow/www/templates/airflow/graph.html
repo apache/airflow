@@ -210,24 +210,42 @@
     });
 
 
-    function highlight_nodes(nodes, color) {
+    function highlight_nodes(nodes, color, stroke_width) {
         nodes.forEach (function (nodeid) {
             my_node = d3.select('[id="' + nodeid + '"]').node().parentNode;
-            d3.select(my_node).selectAll("rect").style("stroke", color) ;
+            d3.select(my_node)
+                .selectAll("rect")
+                .style("stroke", color)
+                .style("stroke-width", stroke_width) ;
         })
     }
 
     d3.selectAll("g.node").on("mouseover", function(d){
         d3.select(this).selectAll("rect").style("stroke", highlight_color) ;
-        highlight_nodes(g.predecessors(d), upstream_color);
-        highlight_nodes(g.successors(d), downstream_color)
-
+        highlight_nodes(g.predecessors(d), upstream_color, highlightStrokeWidth);
+        highlight_nodes(g.successors(d), downstream_color, highlightStrokeWidth)
+        adjacent_node_names = [d, ...g.predecessors(d), ...g.successors(d)]
+        d3.selectAll("g.nodes g.node")
+            .filter(x => !adjacent_node_names.includes(x))
+            .style("opacity", 0.2);
+        adjacent_edges = g.nodeEdges(d)
+        d3.selectAll("g.edgePath")[0]
+            .filter(x => !adjacent_edges.includes(x.__data__))
+            .forEach(function(x) {
+                d3.select(x).style('opacity', .2)
+            })
     });
 
     d3.selectAll("g.node").on("mouseout", function(d){
         d3.select(this).selectAll("rect").style("stroke", null) ;
-        highlight_nodes(g.predecessors(d), null)
-        highlight_nodes(g.successors(d), null)
+        highlight_nodes(g.predecessors(d), null, initialStrokeWidth)
+        highlight_nodes(g.successors(d), null, initialStrokeWidth)
+        d3.selectAll("g.node")
+            .style("opacity", 1);
+        d3.selectAll("g.node rect")
+            .style("stroke-width", initialStrokeWidth);
+        d3.selectAll("g.edgePath")
+            .style("opacity", 1);
     });
 
 

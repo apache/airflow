@@ -29,12 +29,10 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_s3_to_redshift_env_variables]
-S3_BUCKET = getenv("S3_BUCKET")
+S3_BUCKET = getenv("S3_BUCKET", "test-bucket")
 S3_KEY = getenv("S3_KEY", "key")
 REDSHIFT_TABLE = getenv("REDSHIFT_TABLE", "test_table")
 # [END howto_operator_s3_to_redshift_env_variables]
-
-default_args = {"start_date": days_ago(1)}
 
 
 def _add_sample_data_to_s3():
@@ -49,19 +47,15 @@ def _remove_sample_data_from_s3():
 
 
 with DAG(
-    dag_id="example_s3_to_redshift",
-    default_args=default_args,
-    schedule_interval=None,
-    tags=['example']
+    dag_id="example_s3_to_redshift", start_date=days_ago(1), schedule_interval=None, tags=['example']
 ) as dag:
     setup__task_add_sample_data_to_s3 = PythonOperator(
-        python_callable=_add_sample_data_to_s3,
-        task_id='setup__add_sample_data_to_s3'
+        python_callable=_add_sample_data_to_s3, task_id='setup__add_sample_data_to_s3'
     )
     setup__task_create_table = PostgresOperator(
         sql=f'CREATE TABLE IF NOT EXISTS {REDSHIFT_TABLE}(Id int, Name varchar)',
         postgres_conn_id='redshift_default',
-        task_id='setup__create_table'
+        task_id='setup__create_table',
     )
     # [START howto_operator_s3_to_redshift_task_1]
     task_transfer_s3_to_redshift = S3ToRedshiftOperator(
@@ -70,22 +64,18 @@ with DAG(
         schema="PUBLIC",
         table=REDSHIFT_TABLE,
         copy_options=['csv'],
-        task_id='transfer_s3_to_redshift'
+        task_id='transfer_s3_to_redshift',
     )
     # [END howto_operator_s3_to_redshift_task_1]
     teardown__task_drop_table = PostgresOperator(
         sql=f'DROP TABLE IF EXISTS {REDSHIFT_TABLE}',
         postgres_conn_id='redshift_default',
-        task_id='teardown__drop_table'
+        task_id='teardown__drop_table',
     )
     teardown__task_remove_sample_data_from_s3 = PythonOperator(
-        python_callable=_remove_sample_data_from_s3,
-        task_id='teardown__remove_sample_data_from_s3'
+        python_callable=_remove_sample_data_from_s3, task_id='teardown__remove_sample_data_from_s3'
     )
-    [
-        setup__task_add_sample_data_to_s3,
-        setup__task_create_table
-    ] >> task_transfer_s3_to_redshift >> [
+    [setup__task_add_sample_data_to_s3, setup__task_create_table] >> task_transfer_s3_to_redshift >> [
         teardown__task_drop_table,
-        teardown__task_remove_sample_data_from_s3
+        teardown__task_remove_sample_data_from_s3,
     ]

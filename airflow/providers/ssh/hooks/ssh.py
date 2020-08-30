@@ -57,16 +57,17 @@ class SSHHook(BaseHook):
     :type keepalive_interval: int
     """
 
-    def __init__(self,
-                 ssh_conn_id=None,
-                 remote_host=None,
-                 username=None,
-                 password=None,
-                 key_file=None,
-                 port=None,
-                 timeout=10,
-                 keepalive_interval=30
-                 ):
+    def __init__(
+        self,
+        ssh_conn_id=None,
+        remote_host=None,
+        username=None,
+        password=None,
+        key_file=None,
+        port=None,
+        timeout=10,
+        keepalive_interval=30,
+    ):
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
@@ -111,25 +112,28 @@ class SSHHook(BaseHook):
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
 
-                if "compress" in extra_options\
-                        and str(extra_options["compress"]).lower() == 'false':
+                if "compress" in extra_options and str(extra_options["compress"]).lower() == 'false':
                     self.compress = False
-                if "no_host_key_check" in extra_options\
-                        and\
-                        str(extra_options["no_host_key_check"]).lower() == 'false':
+                if (
+                    "no_host_key_check" in extra_options
+                    and str(extra_options["no_host_key_check"]).lower() == 'false'
+                ):
                     self.no_host_key_check = False
-                if "allow_host_key_change" in extra_options\
-                        and\
-                        str(extra_options["allow_host_key_change"]).lower() == 'true':
+                if (
+                    "allow_host_key_change" in extra_options
+                    and str(extra_options["allow_host_key_change"]).lower() == 'true'
+                ):
                     self.allow_host_key_change = True
-                if "look_for_keys" in extra_options\
-                        and\
-                        str(extra_options["look_for_keys"]).lower() == 'false':
+                if (
+                    "look_for_keys" in extra_options
+                    and str(extra_options["look_for_keys"]).lower() == 'false'
+                ):
                     self.look_for_keys = False
 
         if self.pkey and self.key_file:
             raise AirflowException(
-                "Params key_file and private_key both provided.  Must provide no more than one.")
+                "Params key_file and private_key both provided.  Must provide no more than one."
+            )
 
         if not self.remote_host:
             raise AirflowException("Missing required param: remote_host")
@@ -139,7 +143,8 @@ class SSHHook(BaseHook):
             self.log.debug(
                 "username to ssh to host: %s is not specified for connection id"
                 " %s. Using system's default provided by getpass.getuser()",
-                self.remote_host, self.ssh_conn_id
+                self.remote_host,
+                self.ssh_conn_id,
             )
             self.username = getpass.getuser()
 
@@ -169,12 +174,15 @@ class SSHHook(BaseHook):
         client = paramiko.SSHClient()
 
         if not self.allow_host_key_change:
-            self.log.warning('Remote Identification Change is not verified. '
-                             'This wont protect against Man-In-The-Middle attacks')
+            self.log.warning(
+                'Remote Identification Change is not verified. '
+                'This wont protect against Man-In-The-Middle attacks'
+            )
             client.load_system_host_keys()
         if self.no_host_key_check:
-            self.log.warning('No Host Key Verification. This wont protect '
-                             'against Man-In-The-Middle attacks')
+            self.log.warning(
+                'No Host Key Verification. This wont protect ' 'against Man-In-The-Middle attacks'
+            )
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         connect_kwargs = dict(
@@ -184,7 +192,7 @@ class SSHHook(BaseHook):
             compress=self.compress,
             port=self.port,
             sock=self.host_proxy,
-            look_for_keys=self.look_for_keys
+            look_for_keys=self.look_for_keys,
         )
 
         if self.password:
@@ -206,10 +214,12 @@ class SSHHook(BaseHook):
         return client
 
     def __enter__(self):
-        warnings.warn('The contextmanager of SSHHook is deprecated.'
-                      'Please use get_conn() as a contextmanager instead.'
-                      'This method will be removed in Airflow 2.0',
-                      category=DeprecationWarning)
+        warnings.warn(
+            'The contextmanager of SSHHook is deprecated.'
+            'Please use get_conn() as a contextmanager instead.'
+            'This method will be removed in Airflow 2.0',
+            category=DeprecationWarning,
+        )
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -243,28 +253,21 @@ class SSHHook(BaseHook):
             ssh_proxy=self.host_proxy,
             local_bind_address=local_bind_address,
             remote_bind_address=(remote_host, remote_port),
-            logger=self.log
+            logger=self.log,
         )
 
         if self.password:
             password = self.password.strip()
-            tunnel_kwargs.update(
-                ssh_password=password,
-            )
+            tunnel_kwargs.update(ssh_password=password,)
         else:
-            tunnel_kwargs.update(
-                host_pkey_directories=[],
-            )
+            tunnel_kwargs.update(host_pkey_directories=[],)
 
         client = SSHTunnelForwarder(self.remote_host, **tunnel_kwargs)
 
         return client
 
     def create_tunnel(
-        self,
-        local_port: int,
-        remote_port: Optional[int] = None,
-        remote_host: str = "localhost"
+        self, local_port: int, remote_port: Optional[int] = None, remote_host: str = "localhost"
     ) -> SSHTunnelForwarder:
         """
         Creates tunnel for SSH connection [Deprecated].
@@ -274,10 +277,12 @@ class SSHHook(BaseHook):
         :param remote_host: remote host
         :return:
         """
-        warnings.warn('SSHHook.create_tunnel is deprecated, Please'
-                      'use get_tunnel() instead. But please note that the'
-                      'order of the parameters have changed'
-                      'This method will be removed in Airflow 2.0',
-                      category=DeprecationWarning)
+        warnings.warn(
+            'SSHHook.create_tunnel is deprecated, Please'
+            'use get_tunnel() instead. But please note that the'
+            'order of the parameters have changed'
+            'This method will be removed in Airflow 2.0',
+            category=DeprecationWarning,
+        )
 
         return self.get_tunnel(remote_port, remote_host, local_port)

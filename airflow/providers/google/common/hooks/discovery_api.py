@@ -19,7 +19,7 @@
 """
 This module allows you to connect to the Google Discovery API Service and query it.
 """
-from typing import Dict, Optional
+from typing import Dict, Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build
 
@@ -37,21 +37,34 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     _conn = None  # type: Optional[Resource]
 
     def __init__(
         self,
         api_service_name: str,
         api_version: str,
-        gcp_conn_id='google_cloud_default',
-        delegate_to: Optional[str] = None
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+        )
         self.api_service_name = api_service_name
         self.api_version = api_version
 
@@ -70,7 +83,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
                 serviceName=self.api_service_name,
                 version=self.api_version,
                 http=http_authorized,
-                cache_discovery=False
+                cache_discovery=False,
             )
         return self._conn
 
@@ -103,9 +116,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         api_endpoint_parts = endpoint.split('.')
 
         google_api_endpoint_instance = self._build_api_request(
-            google_api_conn_client,
-            api_sub_functions=api_endpoint_parts[1:],
-            api_endpoint_params=data
+            google_api_conn_client, api_sub_functions=api_endpoint_parts[1:], api_endpoint_params=data
         )
 
         if paginate:

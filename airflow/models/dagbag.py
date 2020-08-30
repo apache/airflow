@@ -34,7 +34,7 @@ from tabulate import tabulate
 from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
-from airflow.exceptions import AirflowDagCycleException
+from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException
 from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -343,9 +343,10 @@ class DagBag(BaseDagBag, LoggingMixin):
                 self.import_errors[dag.full_filepath] = f"Invalid Cron expression: {cron_e}"
                 self.file_last_changed[dag.full_filepath] = \
                     file_last_changed_on_disk
-            except AirflowDagCycleException as cycle_exception:
+            except (AirflowDagCycleException,
+                    AirflowClusterPolicyViolation) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                self.import_errors[dag.full_filepath] = str(cycle_exception)
+                self.import_errors[dag.full_filepath] = str(exception)
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
         return found_dags
 
@@ -448,6 +449,27 @@ class DagBag(BaseDagBag, LoggingMixin):
             Stats.timing('dag.loading-duration.{}'.
                          format(filename),
                          file_stat.duration)
+
+    def collect_dags_from_db(self):
+        """Collects DAGs from database."""
+        from airflow.models.serialized_dag import SerializedDagModel
+        start_dttm = timezone.utcnow()
+        self.log.info("Filling up the DagBag from database")
+
+        # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
+        # from the table by the scheduler job.
+        self.dags = SerializedDagModel.read_all_dags()
+
+        # Adds subdags.
+        # DAG post-processing steps such as self.bag_dag and croniter are not needed as
+        # they are done by scheduler before serialization.
+        subdags = {}
+        for dag in self.dags.values():
+            for subdag in dag.subdags:
+                subdags[subdag.dag_id] = subdag
+        self.dags.update(subdags)
+
+        Stats.timing('collect_db_dags', timezone.utcnow() - start_dttm)
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""

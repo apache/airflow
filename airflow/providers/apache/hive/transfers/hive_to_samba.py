@@ -45,16 +45,22 @@ class HiveToSambaOperator(BaseOperator):
     """
 
     template_fields = ('hql', 'destination_filepath')
-    template_ext = ('.hql', '.sql',)
+    template_ext = (
+        '.hql',
+        '.sql',
+    )
 
     @apply_defaults
-    def __init__(self,
-                 hql: str,
-                 destination_filepath: str,
-                 samba_conn_id: str = 'samba_default',
-                 hiveserver2_conn_id: str = 'hiveserver2_default',
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        hql: str,
+        destination_filepath: str,
+        samba_conn_id: str = 'samba_default',
+        hiveserver2_conn_id: str = 'hiveserver2_default',
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.samba_conn_id = samba_conn_id
         self.destination_filepath = destination_filepath

@@ -74,7 +74,7 @@ Extra (optional)
     * ``config_kwargs``: Additional ``kwargs`` used to construct a ``botocore.config.Config`` passed to *boto3.client* and *boto3.resource*.
     * ``session_kwargs``: Additional ``kwargs`` passed to *boto3.session.Session*.
 
-If you are configuing the connection via a URI, ensure that all components of the URI are URL-encoded.
+If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 
 Examples
 --------

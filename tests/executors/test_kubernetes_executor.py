@@ -107,14 +107,12 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
                 pod_generator.make_safe_label_value(dag_id)
             )
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None,
-                     "kubernetes python package is not installed")
     def test_execution_date_serialize_deserialize(self):
         datetime_obj = datetime.now()
         serialized_datetime = \
-            AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
+            pod_generator.datetime_to_label_safe_datestring(
                 datetime_obj)
-        new_datetime_obj = AirflowKubernetesScheduler._label_safe_datestring_to_datetime(
+        new_datetime_obj = pod_generator.label_safe_datestring_to_datetime(
             serialized_datetime)
 
         self.assertEqual(datetime_obj, new_datetime_obj)

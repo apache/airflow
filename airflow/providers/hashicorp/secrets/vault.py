@@ -90,13 +90,13 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
     :type kubernetes_jwt_path: str
-    :param gcp_key_path: Path to GCP Credential JSON file (for ``gcp`` auth_type).
+    :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type).
            Mutually exclusive with gcp_keyfile_dict.
     :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
            Mutually exclusive with gcp_key_path.
     :type gcp_keyfile_dict: dict
-    :param gcp_scopes: Comma-separated string containing GCP scopes (for ``gcp`` auth_type).
+    :param gcp_scopes: Comma-separated string containing OAuth2 scopes (for ``gcp`` auth_type).
     :type gcp_scopes: str
     :param azure_tenant_id: The tenant id for the Azure Active Directory (for ``azure`` auth_type).
     :type azure_tenant_id: str
@@ -110,6 +110,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param radius_port: Port for radius (for ``radius`` auth_type).
     :type radius_port: str
     """
+
     def __init__(  # pylint: disable=too-many-arguments
         self,
         connections_path: str = 'connections',
@@ -137,7 +138,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         radius_host: Optional[str] = None,
         radius_secret: Optional[str] = None,
         radius_port: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         self.connections_path = connections_path.rstrip('/')
@@ -168,7 +169,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             radius_host=radius_host,
             radius_secret=radius_secret,
             radius_port=radius_port,
-            **kwargs
+            **kwargs,
         )
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:

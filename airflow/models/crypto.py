@@ -30,10 +30,10 @@ log = logging.getLogger(__name__)
 class FernetProtocol(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)"""
     def decrypt(self, b):
-        ...
+        """Decrypt with Fernet"""
 
     def encrypt(self, b):
-        ...
+        """Encrypt with Fernet"""
 
 
 class NullFernet:
@@ -48,9 +48,11 @@ class NullFernet:
     is_encrypted = False
 
     def decrypt(self, b):
+        """Decrypt with Fernet."""
         return b
 
     def encrypt(self, b):
+        """Encrypt with Fernet."""
         return b
 
 
@@ -67,7 +69,7 @@ def get_fernet():
     :return: Fernet object
     :raises: airflow.exceptions.AirflowException if there's a problem trying to load Fernet
     """
-    global _fernet
+    global _fernet  # pylint: disable=global-statement
 
     if _fernet:
         return _fernet
@@ -85,7 +87,7 @@ def get_fernet():
                 for fernet_part in fernet_key.split(',')
             ])
             _fernet.is_encrypted = True
-    except (ValueError, TypeError) as ve:
-        raise AirflowException("Could not create Fernet object: {}".format(ve))
+    except (ValueError, TypeError) as value_error:
+        raise AirflowException("Could not create Fernet object: {}".format(value_error))
 
     return _fernet

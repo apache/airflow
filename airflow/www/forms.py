@@ -161,7 +161,7 @@ _connection_types = [
     ('facebook_social', 'Facebook Social'),
     ('fs', 'File (path)'),
     ('ftp', 'FTP'),
-    ('google_cloud_platform', 'Google Cloud Platform'),
+    ('google_cloud_platform', 'Google Cloud'),
     ('hdfs', 'HDFS'),
     ('http', 'HTTP'),
     ('pig_cli', 'Pig Client Wrapper'),
@@ -209,6 +209,7 @@ _connection_types = [
     ('spark', 'Spark'),
     ('imap', 'IMAP'),
     ('vault', 'Hashicorp Vault'),
+    ('azure', 'Azure'),
 ]
 
 

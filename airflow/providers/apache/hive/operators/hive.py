@@ -17,7 +17,7 @@
 # under the License.
 import os
 import re
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
@@ -62,30 +62,39 @@ class HiveOperator(BaseOperator):
     :type  mapred_job_name: str
     """
 
-    template_fields = ('hql', 'schema', 'hive_cli_conn_id', 'mapred_queue',
-                       'hiveconfs', 'mapred_job_name', 'mapred_queue_priority')
-    template_ext = ('.hql', '.sql',)
+    template_fields = (
+        'hql',
+        'schema',
+        'hive_cli_conn_id',
+        'mapred_queue',
+        'hiveconfs',
+        'mapred_job_name',
+        'mapred_queue_priority',
+    )
+    template_ext = (
+        '.hql',
+        '.sql',
+    )
     ui_color = '#f0e4ec'
 
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-            self,
-            hql: str,
-            hive_cli_conn_id: str = 'hive_cli_default',
-            schema: str = 'default',
-            hiveconfs: Optional[Dict[Any, Any]] = None,
-            hiveconf_jinja_translate: bool = False,
-            script_begin_tag: Optional[str] = None,
-            run_as_owner: bool = False,
-            mapred_queue: Optional[str] = None,
-            mapred_queue_priority: Optional[str] = None,
-            mapred_job_name: Optional[str] = None,
-            *args: Tuple[Any, ...],
-            **kwargs: Any
+        self,
+        *,
+        hql: str,
+        hive_cli_conn_id: str = 'hive_cli_default',
+        schema: str = 'default',
+        hiveconfs: Optional[Dict[Any, Any]] = None,
+        hiveconf_jinja_translate: bool = False,
+        script_begin_tag: Optional[str] = None,
+        run_as_owner: bool = False,
+        mapred_queue: Optional[str] = None,
+        mapred_queue_priority: Optional[str] = None,
+        mapred_job_name: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
-
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.hql = hql
         self.hive_cli_conn_id = hive_cli_conn_id
         self.schema = schema
@@ -99,8 +108,10 @@ class HiveOperator(BaseOperator):
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
         self.mapred_job_name_template = conf.get(
-            'hive', 'mapred_job_name_template',
-            fallback="Airflow HiveOperator task for {hostname}.{dag_id}.{task_id}.{execution_date}")
+            'hive',
+            'mapred_job_name_template',
+            fallback="Airflow HiveOperator task for {hostname}.{dag_id}.{task_id}.{execution_date}",
+        )
 
         # assigned lazily - just for consistency we can create the attribute with a
         # `None` initial value, later it will be populated by the execute method.
@@ -117,12 +128,12 @@ class HiveOperator(BaseOperator):
             run_as=self.run_as,
             mapred_queue=self.mapred_queue,
             mapred_queue_priority=self.mapred_queue_priority,
-            mapred_job_name=self.mapred_job_name)
+            mapred_job_name=self.mapred_job_name,
+        )
 
     def prepare_template(self) -> None:
         if self.hiveconf_jinja_translate:
-            self.hql = re.sub(
-                r"(\$\{(hiveconf:)?([ a-zA-Z0-9_]*)\})", r"{{ \g<3> }}", self.hql)
+            self.hql = re.sub(r"(\$\{(hiveconf:)?([ a-zA-Z0-9_]*)\})", r"{{ \g<3> }}", self.hql)
         if self.script_begin_tag and self.script_begin_tag in self.hql:
             self.hql = "\n".join(self.hql.split(self.script_begin_tag)[1:])
 
@@ -133,10 +144,12 @@ class HiveOperator(BaseOperator):
         # set the mapred_job_name if it's not set with dag, task, execution time info
         if not self.mapred_job_name:
             ti = context['ti']
-            self.hook.mapred_job_name = self.mapred_job_name_template\
-                .format(dag_id=ti.dag_id, task_id=ti.task_id,
-                        execution_date=ti.execution_date.isoformat(),
-                        hostname=ti.hostname.split('.')[0])
+            self.hook.mapred_job_name = self.mapred_job_name_template.format(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                execution_date=ti.execution_date.isoformat(),
+                hostname=ti.hostname.split('.')[0],
+            )
 
         if self.hiveconf_jinja_translate:
             self.hiveconfs = context_to_airflow_vars(context)
@@ -162,6 +175,7 @@ class HiveOperator(BaseOperator):
         """
         Reset airflow environment variables to prevent existing ones from impacting behavior.
         """
-        blank_env_vars = {value['env_var_format']: '' for value in
-                          operator_helpers.AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()}
+        blank_env_vars = {
+            value['env_var_format']: '' for value in operator_helpers.AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
+        }
         os.environ.update(blank_env_vars)

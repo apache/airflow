@@ -31,7 +31,6 @@ from airflow.providers.amazon.aws.operators.ecs import ECSOperator
 DEFAULT_ARGS = {
     "owner": "airflow",
     "depends_on_past": False,
-    "start_date": datetime.datetime(2020, 1, 1),
     "email": ["airflow@example.com"],
     "email_on_failure": False,
     "email_on_retry": False,
@@ -42,6 +41,7 @@ dag = DAG(
     default_args=DEFAULT_ARGS,
     default_view="graph",
     schedule_interval=None,
+    start_date=datetime.datetime(2020, 1, 1),
     tags=["example"],
 )
 # generate dag documentation
@@ -56,12 +56,7 @@ hello_world = ECSOperator(
     task_definition="hello-world",
     launch_type="FARGATE",
     overrides={
-        "containerOverrides": [
-            {
-                "name": "hello-world-container",
-                "command": ["echo", "hello", "world"],
-            },
-        ],
+        "containerOverrides": [{"name": "hello-world-container", "command": ["echo", "hello", "world"],},],
     },
     network_configuration={
         "awsvpcConfiguration": {

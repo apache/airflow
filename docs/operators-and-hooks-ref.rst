@@ -55,12 +55,19 @@ Fundamentals
    * - Operators
      - Guides
 
+   * - :mod:`airflow.operators.bash`
+     - :doc:`How to use <howto/operator/bash>`
+
    * - :mod:`airflow.operators.branch_operator`
      -
+
    * - :mod:`airflow.operators.dagrun_operator`
      -
 
    * - :mod:`airflow.operators.dummy_operator`
+     -
+
+   * - :mod:`airflow.operators.email`
      -
 
    * - :mod:`airflow.operators.generic_transfer`
@@ -68,6 +75,9 @@ Fundamentals
 
    * - :mod:`airflow.operators.latest_only_operator`
      -
+
+   * - :mod:`airflow.operators.python`
+     - :doc:`How to use <howto/operator/python>`
 
    * - :mod:`airflow.operators.subdag_operator`
      -
@@ -83,11 +93,20 @@ Fundamentals
    * - Sensors
      - Guides
 
-   * - :mod:`airflow.sensors.weekday_sensor`
+   * - :mod:`airflow.sensors.bash`
+     -
+
+   * - :mod:`airflow.sensors.date_time_sensor`
      -
 
    * - :mod:`airflow.sensors.external_task_sensor`
      - :doc:`How to use <howto/operator/external_task_sensor>`
+
+   * - :mod:`airflow.sensors.filesystem`
+     -
+
+   * - :mod:`airflow.sensors.python`
+     -
 
    * - :mod:`airflow.sensors.sql_sensor`
      -
@@ -98,6 +117,19 @@ Fundamentals
    * - :mod:`airflow.sensors.time_sensor`
      -
 
+   * - :mod:`airflow.sensors.weekday_sensor`
+     -
+
+**Hooks:**
+
+.. list-table::
+   :header-rows: 1
+
+   * - Hooks
+     - Guides
+
+   * - :mod:`airflow.hooks.filesystem`
+     -
 
 .. _Apache:
 
@@ -267,6 +299,9 @@ Azure: Microsoft Azure
 ----------------------
 
 Airflow has limited support for `Microsoft Azure <https://azure.microsoft.com/>`__.
+
+Some hooks are based on :mod:`airflow.providers.microsoft.azure.hooks.base_azure`
+which authenticate Azure's Python SDK Clients.
 
 Service operators and hooks
 '''''''''''''''''''''''''''
@@ -469,14 +504,21 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_endpoint_config`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_endpoint`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_model`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_processing`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_training`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_transform`,
-       :mod:`airflow.providers.amazon.aws.operators.sagemaker_tuning`
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_tuning`,
      - :mod:`airflow.providers.amazon.aws.sensors.sagemaker_base`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_endpoint`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_training`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_transform`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_tuning`
+
+   * - `Amazon Simple Email Service (SES) <https://aws.amazon.com/ses/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.ses`
+     -
+     -
 
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
      -
@@ -499,7 +541,8 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.operators.s3_delete_objects`,
        :mod:`airflow.providers.amazon.aws.operators.s3_list`
      - :mod:`airflow.providers.amazon.aws.sensors.s3_key`,
-       :mod:`airflow.providers.amazon.aws.sensors.s3_prefix`
+       :mod:`airflow.providers.amazon.aws.sensors.s3_prefix`,
+       :mod:`airflow.providers.amazon.aws.sensors.s3_keys_unchanged`
 
    * - `AWS Step Functions <https://aws.amazon.com/step-functions/>`__
      -
@@ -524,7 +567,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * -
        .. _integration:AWS-Discovery-ref:
 
-       All GCP services :ref:`[1] <integration:GCP-Discovery>`
+       All Google Cloud services :ref:`[1] <integration:GCP-Discovery>`
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - :doc:`How to use <howto/operator/amazon/aws/google_api_to_s3_transfer>`
      - :mod:`airflow.providers.amazon.aws.transfers.google_api_to_s3`
@@ -603,8 +646,8 @@ These integrations allow you to copy data from/to Amazon Web Services.
 :ref:`[1] <integration:AWS-Discovery-ref>` Those discovery-based operators use
 :class:`~airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
 Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
-Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
-Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
+Please note that this library is in maintenance mode hence it won't fully support Google Cloud in the future.
+Therefore it is recommended that you use the custom Google Cloud Service Operators for working with the Google
 Cloud Platform.
 
 .. _Google:
@@ -617,26 +660,26 @@ Airflow has support for the `Google service <https://developer.google.com/>`__.
 All hooks are based on :class:`airflow.providers.google.common.hooks.base_google.GoogleBaseHook`. Some integration
 also use :mod:`airflow.providers.google.common.hooks.discovery_api`.
 
-See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
+See the :doc:`Google Cloud connection type <howto/connection/gcp>` documentation to
 configure connections to Google services.
 
 .. _GCP:
 
-GCP: Google Cloud Platform
-''''''''''''''''''''''''''
+Google Cloud
+''''''''''''
 
-Airflow has extensive support for the `Google Cloud Platform <https://cloud.google.com/>`__.
+Airflow has extensive support for the `Google Cloud <https://cloud.google.com/>`__.
 
 .. note::
-    You can learn how to use Google Cloud Platform integrations by analyzing the
-    `source code of the Google Cloud Platform example DAGs
+    You can learn how to use Google Cloud integrations by analyzing the
+    `source code of the Google Cloud example DAGs
     <https://github.com/apache/airflow/tree/master/airflow/providers/google/cloud/example_dags/>`_
 
 
 Service operators and hooks
 """""""""""""""""""""""""""
 
-These integrations allow you to perform various operations within the Google Cloud Platform.
+These integrations allow you to perform various operations within the Google Cloud.
 
 ..
   PLEASE KEEP THE ALPHABETICAL ORDER OF THE LIST BELOW, BUT OMIT THE "Cloud" PREFIX
@@ -688,7 +731,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Cloud Data Loss Prevention (DLP) <https://cloud.google.com/dlp/>`__
-     -
+     - :doc:`How to use <howto/operator/google/cloud/data_loss_prevention>`
      - :mod:`airflow.providers.google.cloud.hooks.dlp`
      - :mod:`airflow.providers.google.cloud.operators.dlp`
      -
@@ -711,6 +754,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.dataflow`
      -
 
+   * - `Dataprep <https://cloud.google.com/dataprep/>`__
+     - :doc:`How to use <howto/operator/google/cloud/dataprep>`
+     - :mod:`airflow.providers.google.cloud.hooks.dataprep`
+     - :mod:`airflow.providers.google.cloud.operators.dataprep`
+     -
+
    * - `Dataproc <https://cloud.google.com/dataproc/>`__
      - :doc:`How to use <howto/operator/google/cloud/dataproc>`
      - :mod:`airflow.providers.google.cloud.hooks.dataproc`
@@ -718,7 +767,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Datastore <https://cloud.google.com/datastore/>`__
-     -
+     - :doc:`How to use <howto/operator/google/cloud/datastore>`
      - :mod:`airflow.providers.google.cloud.hooks.datastore`
      - :mod:`airflow.providers.google.cloud.operators.datastore`
      -
@@ -857,7 +906,7 @@ These integrations allow you to perform various operations within the Google Clo
 Transfer operators and hooks
 """"""""""""""""""""""""""""
 
-These integrations allow you to copy data from/to Google Cloud Platform.
+These integrations allow you to copy data from/to Google Cloud.
 
 .. list-table::
    :header-rows: 1
@@ -1341,12 +1390,6 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.providers.exasol.operators.exasol`
      -
 
-   * - `GNU Bash <https://www.gnu.org/software/bash/>`__
-     - :doc:`How to use <howto/operator/bash>`
-     -
-     - :mod:`airflow.operators.bash`
-     - :mod:`airflow.sensors.bash`
-
    * - `Hashicorp Vault <https://www.vaultproject.io/>`__
      -
      - :mod:`airflow.providers.hashicorp.hooks.vault`
@@ -1417,12 +1460,6 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.providers.presto.hooks.presto`
      -
      -
-
-   * - `Python <https://www.python.org>`__
-     -
-     - :doc:`How to use <howto/operator/python>`
-     - :mod:`airflow.operators.python`
-     - :mod:`airflow.sensors.python`
 
    * - `Redis <https://redis.io/>`__
      -
@@ -1559,12 +1596,6 @@ communication protocols or interface.
      -
      - :mod:`airflow.providers.ftp.sensors.ftp`
 
-   * - Filesystem
-     -
-     - :mod:`airflow.hooks.filesystem`
-     -
-     - :mod:`airflow.sensors.filesystem`
-
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
      - :doc:`How to use <howto/operator/http>`
      - :mod:`airflow.providers.http.hooks.http`
@@ -1593,12 +1624,6 @@ communication protocols or interface.
      -
      - :mod:`airflow.providers.ssh.hooks.ssh`
      - :mod:`airflow.providers.ssh.operators.ssh`
-     -
-
-   * - `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc821>`__
-     -
-     -
-     - :mod:`airflow.providers.email.operators.email`
      -
 
    * - `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-gb/windows/win32/winrm/portal>`__

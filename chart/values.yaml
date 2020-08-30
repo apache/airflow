@@ -31,7 +31,7 @@ airflowHome: "/opt/airflow"
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: 1.10.10.1-alpha2-python3.6
+defaultAirflowTag: 1.10.12
 
 
 # Select certain nodes for airflow pods.
@@ -41,6 +41,59 @@ tolerations: []
 
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
+
+# Ingress configuration
+ingress:
+  # Enable ingress resource
+  enabled: false
+
+  # Configs for the Ingress of the web Service
+  web:
+    # Annotations for the web Ingress
+    annotations: {}
+
+    # The path for the web Ingress
+    path: ""
+
+    # The hostname for the web Ingress
+    host: ""
+
+    # configs for web Ingress TLS
+    tls:
+      # Enable TLS termination for the web Ingress
+      enabled: false
+      # the name of a pre-created Secret containing a TLS private key and certificate
+      secretName: ""
+
+    # HTTP paths to add to the web Ingress before the default path
+    precedingPaths: []
+
+    # Http paths to add to the web Ingress after the default path
+    succeedingPaths: []
+
+  # Configs for the Ingress of the flower Service
+  flower:
+    # Annotations for the flower Ingress
+    annotations: {}
+
+    # The path for the flower Ingress
+    path: ""
+
+    # The hostname for the flower Ingress
+    host: ""
+
+    # configs for web Ingress TLS
+    tls:
+      # Enable TLS termination for the flower Ingress
+      enabled: false
+      # the name of a pre-created Secret containing a TLS private key and certificate
+      secretName: ""
+
+    # HTTP paths to add to the flower Ingress before the default path
+    precedingPaths: []
+
+    # Http paths to add to the flower Ingress after the default path
+    succeedingPaths: []
 
 # Network policy configuration
 networkPolicies:
@@ -75,20 +128,20 @@ images:
     tag: ~
     pullPolicy: IfNotPresent
   statsd:
-    repository: astronomerinc/ap-statsd-exporter
-    tag: 0.11.0
+    repository: apache/airflow
+    tag: airflow-statsd-exporter-2020.07.10-v0.17.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
     tag: 6-buster
     pullPolicy: IfNotPresent
   pgbouncer:
-    repository: astronomerinc/ap-pgbouncer
-    tag: 1.8.1
+    repository: apache/airflow
+    tag: airflow-pgbouncer-2020.07.10-1.14.0
     pullPolicy: IfNotPresent
   pgbouncerExporter:
-    repository: astronomerinc/ap-pgbouncer-exporter
-    tag: 0.5.0-1
+    repository: apache/airflow
+    tag: airflow-pgbouncer-exporter-2020.07.10-0.5.0
     pullPolicy: IfNotPresent
 
 # Environment variables for all airflow containers
@@ -143,7 +196,7 @@ workers:
     pollingInterval: 5
 
     # How many seconds KEDA will wait before scaling to zero.
-    # Note that HPA has a seperate cooldwon period for scale-downs
+    # Note that HPA has a separate cooldown period for scale-downs
     cooldownPeriod: 30
 
     # Maximum number of workers created by keda

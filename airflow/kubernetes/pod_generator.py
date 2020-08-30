@@ -21,6 +21,7 @@ The advantage being that the full Kubernetes API
 is supported and no serialization need be written.
 """
 import copy
+import datetime
 import hashlib
 import inspect
 import os
@@ -30,6 +31,7 @@ from functools import reduce
 from typing import Dict, List, Optional, Union
 
 import yaml
+from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
@@ -86,6 +88,30 @@ def make_safe_label_value(string):
         safe_label = safe_label[:MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
 
     return safe_label
+
+
+def datetime_to_label_safe_datestring(datetime_obj: datetime.datetime) -> str:
+    """
+    Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but
+    not "_" let's
+    replace ":" with "_"
+
+    :param datetime_obj: datetime.datetime object
+    :return: ISO-like string representing the datetime
+    """
+    return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
+
+
+def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
+    """
+    Kubernetes doesn't permit ":" in labels. ISO datetime format uses ":" but not
+    "_", let's
+    replace ":" with "_"
+
+    :param string: str
+    :return: datetime.datetime object
+    """
+    return parser.parse(string.replace('_plus_', '+').replace("_", ":"))
 
 
 class PodGenerator:
@@ -357,11 +383,35 @@ class PodGenerator:
 
         client_pod_cp = copy.deepcopy(client_pod)
         client_pod_cp.spec = PodGenerator.reconcile_specs(base_pod.spec, client_pod_cp.spec)
-
-        client_pod_cp.metadata = merge_objects(base_pod.metadata, client_pod_cp.metadata)
+        client_pod_cp.metadata = PodGenerator.reconcile_metadata(base_pod.metadata, client_pod_cp.metadata)
         client_pod_cp = merge_objects(base_pod, client_pod_cp)
 
         return client_pod_cp
+
+    @staticmethod
+    def reconcile_metadata(base_meta, client_meta):
+        """
+        Merge kubernetes Metadata objects
+        :param base_meta: has the base attributes which are overwritten if they exist
+            in the client_meta and remain if they do not exist in the client_meta
+        :type base_meta: k8s.V1ObjectMeta
+        :param client_meta: the spec that the client wants to create.
+        :type client_meta: k8s.V1ObjectMeta
+        :return: the merged specs
+        """
+        if base_meta and not client_meta:
+            return base_meta
+        if not base_meta and client_meta:
+            return client_meta
+        elif client_meta and base_meta:
+            client_meta.labels = merge_objects(base_meta.labels, client_meta.labels)
+            client_meta.annotations = merge_objects(base_meta.annotations, client_meta.annotations)
+            extend_object_field(base_meta, client_meta, 'managed_fields')
+            extend_object_field(base_meta, client_meta, 'finalizers')
+            extend_object_field(base_meta, client_meta, 'owner_references')
+            return merge_objects(base_meta, client_meta)
+
+        return None
 
     @staticmethod
     def reconcile_specs(base_spec: Optional[k8s.V1PodSpec],
@@ -424,7 +474,7 @@ class PodGenerator:
         task_id: str,
         pod_id: str,
         try_number: int,
-        date: str,
+        date: datetime.datetime,
         command: List[str],
         kube_executor_config: Optional[k8s.V1Pod],
         worker_config: k8s.V1Pod,
@@ -441,12 +491,18 @@ class PodGenerator:
             namespace=namespace,
             labels={
                 'airflow-worker': worker_uuid,
-                'dag_id': dag_id,
-                'task_id': task_id,
-                'execution_date': date,
+                'dag_id': make_safe_label_value(dag_id),
+                'task_id': make_safe_label_value(task_id),
+                'execution_date': datetime_to_label_safe_datestring(date),
                 'try_number': str(try_number),
                 'airflow_version': airflow_version.replace('+', '-'),
                 'kubernetes_executor': 'True',
+            },
+            annotations={
+                'dag_id': dag_id,
+                'task_id': task_id,
+                'execution_date': date.isoformat(),
+                'try_number': str(try_number),
             },
             cmds=command,
             name=pod_id
@@ -553,10 +609,18 @@ def merge_objects(base_obj, client_obj):
 
     client_obj_cp = copy.deepcopy(client_obj)
 
+    if isinstance(base_obj, dict) and isinstance(client_obj_cp, dict):
+        base_obj_cp = copy.deepcopy(base_obj)
+        base_obj_cp.update(client_obj_cp)
+        return base_obj_cp
+
     for base_key in base_obj.to_dict().keys():
         base_val = getattr(base_obj, base_key, None)
         if not getattr(client_obj, base_key, None) and base_val:
-            setattr(client_obj_cp, base_key, base_val)
+            if not isinstance(client_obj_cp, dict):
+                setattr(client_obj_cp, base_key, base_val)
+            else:
+                client_obj_cp[base_key] = base_val
     return client_obj_cp
 
 

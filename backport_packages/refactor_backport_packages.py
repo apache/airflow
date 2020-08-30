@@ -54,9 +54,16 @@ def copy_provider_sources() -> None:
                     ignored_names.append(file_name)
         return ignored_names
 
+    def ignore_google_auth_backend(src: str, names: List[str]) -> List[str]:
+        del names
+        if src.endswith("google" + os.path.sep + "common"):
+            return ["auth_backend"]
+        return []
+
     def ignore_some_files(src: str, names: List[str]) -> List[str]:
         ignored_list = []
         ignored_list.extend(ignore_kubernetes_files(src=src, names=names))
+        ignored_list.extend(ignore_google_auth_backend(src=src, names=names))
         return ignored_list
 
     rm_build_dir()
@@ -72,7 +79,7 @@ def copy_helper_py_file(target_file_path: str) -> None:
 
     The helper has two methods (chain, cross_downstream) that are moved from the original helper to
     'airflow.models.baseoperator'. so in 1.10 they should reimport the original 'airflow.utils.helper'
-    methods. Those deprecated methods use importe with import_string("<IMPORT>") so it is easier to
+    methods. Those deprecated methods use import with import_string("<IMPORT>") so it is easier to
     replace them as strings rather than with Bowler
 
     :param target_file_path: target path name for the helpers.py
@@ -112,7 +119,6 @@ class RefactorBackportPackages:
 
         :param class_name: name to remove
         """
-        # noinspection PyUnusedLocal
         def _remover(node: LN, capture: Capture, filename: Filename) -> None:
             node.remove()
 
@@ -187,7 +193,6 @@ class RefactorBackportPackages:
                  )
 
         """
-        # noinspection PyUnusedLocal
         def add_provide_context_to_python_operator(node: LN, capture: Capture, filename: Filename) -> None:
             fn_args = capture['function_arguments'][0]
             if len(fn_args.children) > 0 and (not isinstance(fn_args.children[-1], Leaf)
@@ -266,7 +271,6 @@ class RefactorBackportPackages:
                      self.max_ingestion_time = max_ingestion_time
 
         """
-        # noinspection PyUnusedLocal
         def remove_super_init_call_modifier(node: LN, capture: Capture, filename: Filename) -> None:
             for ch in node.post_order():
                 if isinstance(ch, Leaf) and ch.value == "super":
@@ -302,7 +306,6 @@ class RefactorBackportPackages:
              ) as dag:
 
         """
-        # noinspection PyUnusedLocal
         def remove_tags_modifier(_: LN, capture: Capture, filename: Filename) -> None:
             for node in capture['function_arguments'][0].post_order():
                 if isinstance(node, Leaf) and node.value == "tags" and node.type == TOKEN.NAME:
@@ -366,7 +369,6 @@ class RefactorBackportPackages:
                 isinstance(node.children[0], Leaf) and node.children[0].value == '@' and \
                 isinstance(node.children[1], Leaf) and node.children[1].value == 'poke_mode_only'
 
-        # noinspection PyUnusedLocal
         def remove_poke_mode_only_modifier(node: LN, capture: Capture, filename: Filename) -> None:
             for child in capture['node'].parent.children:
                 if is_poke_mode_only_decorator(child):
@@ -379,7 +381,7 @@ class RefactorBackportPackages:
         """
         Fixes to "amazon" providers package.
 
-        Copies some of the classes used from core Airflow to "common.utils" package of the
+        Copies some of the classes used from core Airflow to "common.utils" package of
         the provider and renames imports to use them from there.
 
         We copy typing_compat.py and change import as in example diff:
@@ -398,7 +400,6 @@ class RefactorBackportPackages:
 
         """
 
-        # noinspection PyUnusedLocal
         def amazon_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             return filename.startswith("./airflow/providers/amazon/")
 
@@ -421,6 +422,17 @@ class RefactorBackportPackages:
             select_module("airflow.typing_compat").
             filter(callback=amazon_package_filter).
             rename("airflow.providers.amazon.common.utils.typing_compat")
+        )
+
+        copyfile(
+            os.path.join(get_source_airflow_folder(), "airflow", "utils", "email.py"),
+            os.path.join(get_target_providers_package_folder("amazon"), "common", "utils", "email.py")
+        )
+        (
+            self.qry.
+            select_module("airflow.utils.email").
+            filter(callback=amazon_package_filter).
+            rename("airflow.providers.amazon.common.utils.email")
         )
 
     def refactor_google_package(self):
@@ -521,14 +533,12 @@ class RefactorBackportPackages:
              KEY_REGEX = re.compile(r'^[\\w.-]+$')
 
         """
-        # noinspection PyUnusedLocal
         def google_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             return filename.startswith("./airflow/providers/google/")
 
-        # noinspection PyUnusedLocal
         def pure_airflow_models_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             """Check if select is exactly [airflow, . , models]"""
-            return len([ch for ch in node.children[1].leaves()]) == 3
+            return len(list(node.children[1].leaves())) == 3
 
         os.makedirs(os.path.join(get_target_providers_package_folder("google"), "common", "utils"),
                     exist_ok=True)
@@ -622,7 +632,6 @@ class RefactorBackportPackages:
 
 
         """
-        # noinspection PyUnusedLocal
         def odbc_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             return filename.startswith("./airflow/providers/odbc/")
 
@@ -641,7 +650,7 @@ class RefactorBackportPackages:
             rename("airflow.providers.odbc.utils.helpers")
         )
 
-    def do_refactor(self, in_process: bool = False) -> None:
+    def do_refactor(self, in_process: bool = False) -> None:  # noqa
         self.rename_deprecated_modules()
         self.refactor_amazon_package()
         self.refactor_google_package()

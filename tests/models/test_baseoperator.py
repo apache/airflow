@@ -292,8 +292,7 @@ class TestBaseOperatorMethods(unittest.TestCase):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
         [op1, op2] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 3)]
         with self.assertRaises(TypeError):
-            # noinspection PyTypeChecker
-            chain([op1, op2], 1)
+            chain([op1, op2], 1)  # noqa
 
     def test_chain_different_length_iterable(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
@@ -363,8 +362,8 @@ class CustomOp(DummyOperator):
     template_fields = ("field", "field2")
 
     @apply_defaults
-    def __init__(self, field=None, field2=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, field=None, field2=None, **kwargs):
+        super().__init__(**kwargs)
         self.field = field
         self.field2 = field2
 

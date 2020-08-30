@@ -19,7 +19,7 @@
 This module contains Google DisplayVideo hook.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build
 
@@ -38,8 +38,11 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+        )
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
@@ -49,10 +52,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
-                "doubleclickbidmanager",
-                self.api_version,
-                http=http_authorized,
-                cache_discovery=False,
+                "doubleclickbidmanager", self.api_version, http=http_authorized, cache_discovery=False,
             )
         return self._conn
 
@@ -62,12 +62,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build(
-                "displayvideo",
-                self.api_version,
-                http=http_authorized,
-                cache_discovery=False,
-            )
+            self._conn = build("displayvideo", self.api_version, http=http_authorized, cache_discovery=False,)
         return self._conn
 
     @staticmethod
@@ -136,7 +131,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         )
         return response
 
-    def list_queries(self, ) -> List[Dict]:
+    def list_queries(self,) -> List[Dict]:
         """
         Retrieves stored queries.
 

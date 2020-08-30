@@ -24,7 +24,9 @@ import os
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
-    GKECreateClusterOperator, GKEDeleteClusterOperator, GKEStartPodOperator,
+    GKECreateClusterOperator,
+    GKEDeleteClusterOperator,
+    GKEStartPodOperator,
 )
 from airflow.utils.dates import days_ago
 
@@ -36,20 +38,15 @@ CLUSTER_NAME = os.environ.get("GCP_GKE_CLUSTER_NAME", "cluster-name")
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 # [END howto_operator_gcp_gke_create_cluster_definition]
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_gcp_gke",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     # [START howto_operator_gke_create_cluster]
     create_cluster = GKECreateClusterOperator(
-        task_id="create_cluster",
-        project_id=GCP_PROJECT_ID,
-        location=GCP_LOCATION,
-        body=CLUSTER,
+        task_id="create_cluster", project_id=GCP_PROJECT_ID, location=GCP_LOCATION, body=CLUSTER,
     )
     # [END howto_operator_gke_create_cluster]
 
@@ -86,10 +83,7 @@ with models.DAG(
 
     # [START howto_operator_gke_delete_cluster]
     delete_cluster = GKEDeleteClusterOperator(
-        task_id="delete_cluster",
-        name=CLUSTER_NAME,
-        project_id=GCP_PROJECT_ID,
-        location=GCP_LOCATION,
+        task_id="delete_cluster", name=CLUSTER_NAME, project_id=GCP_PROJECT_ID, location=GCP_LOCATION,
     )
     # [END howto_operator_gke_delete_cluster]
 

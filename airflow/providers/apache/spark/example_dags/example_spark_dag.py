@@ -28,19 +28,18 @@ from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'Airflow',
-    'start_date': days_ago(2)
 }
 
 with DAG(
     dag_id='example_spark_operator',
     default_args=args,
     schedule_interval=None,
-    tags=['example']
+    start_date=days_ago(2),
+    tags=['example'],
 ) as dag:
     # [START howto_operator_spark_submit]
     submit_job = SparkSubmitOperator(
-        application="${SPARK_HOME}/examples/src/main/python/pi.py",
-        task_id="submit_job"
+        application="${SPARK_HOME}/examples/src/main/python/pi.py", task_id="submit_job"
     )
     # [END howto_operator_spark_submit]
 
@@ -53,7 +52,7 @@ with DAG(
         metastore_table="bar",
         save_mode="overwrite",
         save_format="JSON",
-        task_id="jdbc_to_spark_job"
+        task_id="jdbc_to_spark_job",
     )
 
     spark_to_jdbc_job = SparkJDBCOperator(
@@ -63,14 +62,10 @@ with DAG(
         jdbc_driver="org.postgresql.Driver",
         metastore_table="bar",
         save_mode="append",
-        task_id="spark_to_jdbc_job"
+        task_id="spark_to_jdbc_job",
     )
     # [END howto_operator_spark_jdbc]
 
     # [START howto_operator_spark_sql]
-    sql_job = SparkSqlOperator(
-        sql="SELECT * FROM bar",
-        master="local",
-        task_id="sql_job"
-    )
+    sql_job = SparkSqlOperator(sql="SELECT * FROM bar", master="local", task_id="sql_job")
     # [END howto_operator_spark_sql]

@@ -51,13 +51,14 @@ class GenericTransfer(BaseOperator):
     @apply_defaults
     def __init__(
             self,
+            *,
             sql: str,
             destination_table: str,
             source_conn_id: str,
             destination_conn_id: str,
             preoperator: Optional[Union[str, List[str]]] = None,
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+            **kwargs) -> None:
+        super().__init__(**kwargs)
         self.sql = sql
         self.destination_table = destination_table
         self.source_conn_id = source_conn_id

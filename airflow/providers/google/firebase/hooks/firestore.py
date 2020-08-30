@@ -18,7 +18,7 @@
 """Hook for Google Cloud Firestore service"""
 
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence, Union
 
 from googleapiclient.discovery import build, build_from_document
 
@@ -29,7 +29,6 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
-# noinspection PyAbstractClass
 class CloudFirestoreHook(GoogleBaseHook):
     """
     Hook for the Google Firestore APIs.
@@ -41,10 +40,19 @@ class CloudFirestoreHook(GoogleBaseHook):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     _conn = None  # type: Optional[Any]
@@ -54,8 +62,11 @@ class CloudFirestoreHook(GoogleBaseHook):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+        )
         self.api_version = api_version
 
     def get_conn(self):
@@ -74,8 +85,7 @@ class CloudFirestoreHook(GoogleBaseHook):
             # At the same time, the Non-Authorized Client has no problems.
             non_authorized_conn = build("firestore", self.api_version, cache_discovery=False)
             self._conn = build_from_document(
-                non_authorized_conn._rootDesc,  # pylint: disable=protected-access
-                http=http_authorized
+                non_authorized_conn._rootDesc, http=http_authorized  # pylint: disable=protected-access
             )
         return self._conn
 
@@ -93,7 +103,7 @@ class CloudFirestoreHook(GoogleBaseHook):
             https://firebase.google.com/docs/firestore/reference/rest/v1beta1/projects.databases/exportDocuments
         :type body: dict
         :param project_id: Optional, Google Cloud Project project_id where the database belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         """
         service = self.get_conn()

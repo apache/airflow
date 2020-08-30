@@ -16,7 +16,7 @@
 # under the License.
 
 """
-Objects relating to sourcing connections from GCP Secrets Manager
+Objects relating to sourcing connections from Google Cloud Secrets Manager
 """
 from typing import Optional
 
@@ -33,7 +33,7 @@ SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connection object from GCP Secrets Manager
+    Retrieves Connection object from Google Cloud Secrets Manager
 
     Configurable via ``airflow.cfg`` as follows:
 
@@ -57,18 +57,20 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
     :type variables_prefix: str
-    :param gcp_key_path: Path to GCP Credential JSON file. Mutually exclusive with gcp_keyfile_dict.
-        use default credentials in the current environment if not provided.
+    :param gcp_key_path: Path to Google Cloud Service Account key file (JSON). Mutually exclusive with
+        gcp_keyfile_dict. use default credentials in the current environment if not provided.
     :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. Mutually exclusive with gcp_key_path.
     :type gcp_keyfile_dict: dict
-    :param gcp_scopes: Comma-separated string containing GCP scopes
+    :param gcp_scopes: Comma-separated string containing OAuth2 scopes
     :type gcp_scopes: str
-    :param project_id: Project id (if you want to override the project_id from credentials)
+    :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
+        will be used.
     :type project_id: str
-    :param sep: separator used to concatenate connections_prefix and conn_id. Default: "-"
+    :param sep: Separator used to concatenate connections_prefix and conn_id. Default: "-"
     :type sep: str
     """
+
     def __init__(
         self,
         connections_prefix: str = "airflow-connections",
@@ -78,7 +80,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         gcp_scopes: Optional[str] = None,
         project_id: Optional[str] = None,
         sep: str = "-",
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.connections_prefix = connections_prefix
@@ -90,9 +92,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
                 f"follows that pattern {SECRET_ID_PATTERN}"
             )
         self.credentials, self.project_id = get_credentials_and_project_id(
-            keyfile_dict=gcp_keyfile_dict,
-            key_path=gcp_key_path,
-            scopes=gcp_scopes
+            keyfile_dict=gcp_keyfile_dict, key_path=gcp_key_path, scopes=gcp_scopes
         )
         # In case project id provided
         if project_id:

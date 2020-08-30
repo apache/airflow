@@ -63,7 +63,7 @@ from tests.test_utils.mock_executor import MockExecutor
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
-PERF_DAGS_FOLDER = os.path.join(ROOT_FOLDER, "scripts", "perf", "dags")
+PERF_DAGS_FOLDER = os.path.join(ROOT_FOLDER, "tests", "utils", "perf", "dags")
 ELASTIC_DAG_FILE = os.path.join(PERF_DAGS_FOLDER, "elastic_dag.py")
 
 TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
@@ -1473,8 +1473,10 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.processor_agent.send_callback_to_execute.assert_called_once_with(
             full_filepath='/test_path1/',
             task_instance=mock.ANY,
-            msg='Executor reports task instance finished (failed) '
-                'although the task says its queued. (Info: None) Was the task killed externally?'
+            msg='Executor reports task instance '
+                '<TaskInstance: test_process_executor_events.dummy_task 2016-01-01 00:00:00+00:00 [queued]> '
+                'finished (failed) although the task says its queued. (Info: None) '
+                'Was the task killed externally?'
         )
         scheduler.processor_agent.reset_mock()
 

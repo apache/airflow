@@ -18,7 +18,7 @@
 """
 This module contains Google Campaign Manager hook.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient import http
 from googleapiclient.discovery import Resource, build
@@ -39,8 +39,11 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+        )
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
@@ -49,12 +52,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build(
-                "dfareporting",
-                self.api_version,
-                http=http_authorized,
-                cache_discovery=False,
-            )
+            self._conn = build("dfareporting", self.api_version, http=http_authorized, cache_discovery=False,)
         return self._conn
 
     def delete_report(self, profile_id: str, report_id: str) -> Any:
@@ -151,9 +149,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         )
         return response
 
-    def run_report(
-        self, profile_id: str, report_id: str, synchronous: Optional[bool] = None
-    ) -> Any:
+    def run_report(self, profile_id: str, report_id: str, synchronous: Optional[bool] = None) -> Any:
         """
         Runs a report.
 
@@ -209,9 +205,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         )
         return response
 
-    def get_report_file(
-        self, file_id: str, profile_id: str, report_id: str
-    ) -> http.HttpRequest:
+    def get_report_file(self, file_id: str, profile_id: str, report_id: str) -> http.HttpRequest:
         """
         Retrieves a media part of report file.
 
@@ -326,7 +320,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :param encryption_source: Describes whether the encrypted cookie was received from ad serving
             (the %m macro) or from Data Transfer.
         :type encryption_source: str
-        :param max_failed_updates: The maximum number of conversions that failed to be updateed
+        :param max_failed_updates: The maximum number of conversions that failed to be updated
         :type max_failed_updates: int
         """
         response = (

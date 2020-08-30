@@ -24,7 +24,9 @@ from urllib.parse import urlparse
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dataflow import (
-    CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
+    CheckJobRunning,
+    DataflowCreateJavaJobOperator,
+    DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
@@ -40,18 +42,12 @@ GCS_JAR_PARTS = urlparse(GCS_JAR)
 GCS_JAR_BUCKET_NAME = GCS_JAR_PARTS.netloc
 GCS_JAR_OBJECT_NAME = GCS_JAR_PARTS.path[1:]
 
-default_args = {
-    "start_date": days_ago(1),
-    'dataflow_default_options': {
-        'tempLocation': GCS_TMP,
-        'stagingLocation': GCS_STAGING,
-    }
-}
+default_args = {'dataflow_default_options': {'tempLocation': GCS_TMP, 'stagingLocation': GCS_STAGING,}}
 
 with models.DAG(
     "example_gcp_dataflow_native_java",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag_native_java:
 
@@ -60,13 +56,11 @@ with models.DAG(
         task_id="start-java-job",
         jar=GCS_JAR,
         job_name='{{task.task_id}}',
-        options={
-            'output': GCS_OUTPUT,
-        },
+        options={'output': GCS_OUTPUT,},
         poll_sleep=10,
         job_class='org.apache.beam.examples.WordCount',
         check_if_running=CheckJobRunning.IgnoreJob,
-        location='europe-west3'
+        location='europe-west3',
     )
     # [END howto_operator_start_java_job]
 
@@ -81,9 +75,7 @@ with models.DAG(
         task_id="start-java-job-local",
         jar="/tmp/dataflow-{{ ds_nodash }}.jar",
         job_name='{{task.task_id}}',
-        options={
-            'output': GCS_OUTPUT,
-        },
+        options={'output': GCS_OUTPUT,},
         poll_sleep=10,
         job_class='org.apache.beam.examples.WordCount',
         check_if_running=CheckJobRunning.WaitForRun,
@@ -93,6 +85,7 @@ with models.DAG(
 with models.DAG(
     "example_gcp_dataflow_native_python",
     default_args=default_args,
+    start_date=days_ago(1),
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag_native_python:
@@ -103,15 +96,11 @@ with models.DAG(
         py_file=GCS_PYTHON,
         py_options=[],
         job_name='{{task.task_id}}',
-        options={
-            'output': GCS_OUTPUT,
-        },
-        py_requirements=[
-            'apache-beam[gcp]==2.21.0'
-        ],
+        options={'output': GCS_OUTPUT,},
+        py_requirements=['apache-beam[gcp]==2.21.0'],
         py_interpreter='python3',
         py_system_site_packages=False,
-        location='europe-west3'
+        location='europe-west3',
     )
     # [END howto_operator_start_python_job]
 
@@ -120,28 +109,22 @@ with models.DAG(
         py_file='apache_beam.examples.wordcount',
         py_options=['-m'],
         job_name='{{task.task_id}}',
-        options={
-            'output': GCS_OUTPUT,
-        },
-        py_requirements=[
-            'apache-beam[gcp]==2.14.0'
-        ],
+        options={'output': GCS_OUTPUT,},
+        py_requirements=['apache-beam[gcp]==2.14.0'],
         py_interpreter='python3',
-        py_system_site_packages=False
+        py_system_site_packages=False,
     )
 
 with models.DAG(
     "example_gcp_dataflow_template",
     default_args=default_args,
+    start_date=days_ago(1),
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag_template:
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
         template='gs://dataflow-templates/latest/Word_Count',
-        parameters={
-            'inputFile': "gs://dataflow-samples/shakespeare/kinglear.txt",
-            'output': GCS_OUTPUT
-        },
-        location='europe-west3'
+        parameters={'inputFile': "gs://dataflow-samples/shakespeare/kinglear.txt", 'output': GCS_OUTPUT},
+        location='europe-west3',
     )

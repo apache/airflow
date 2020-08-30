@@ -35,15 +35,11 @@ class CeleryQueueSensor(BaseSensorOperator):
     :param target_task_id: Task id for checking
     :type target_task_id: str
     """
-    @apply_defaults
-    def __init__(
-            self,
-            celery_queue: str,
-            target_task_id: Optional[str] = None,
-            *args,
-            **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+    @apply_defaults
+    def __init__(self, *, celery_queue: str, target_task_id: Optional[str] = None, **kwargs) -> None:
+
+        super().__init__(**kwargs)
         self.celery_queue = celery_queue
         self.target_task_id = target_task_id
 
@@ -77,14 +73,8 @@ class CeleryQueueSensor(BaseSensorOperator):
             scheduled = len(scheduled[self.celery_queue])
             active = len(active[self.celery_queue])
 
-            self.log.info(
-                'Checking if celery queue %s is empty.', self.celery_queue
-            )
+            self.log.info('Checking if celery queue %s is empty.', self.celery_queue)
 
             return reserved == 0 and scheduled == 0 and active == 0
         except KeyError:
-            raise KeyError(
-                'Could not locate Celery queue {0}'.format(
-                    self.celery_queue
-                )
-            )
+            raise KeyError('Could not locate Celery queue {0}'.format(self.celery_queue))

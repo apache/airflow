@@ -26,7 +26,6 @@ from airflow.providers.amazon.aws.operators.s3_delete_objects import S3DeleteObj
 
 
 class TestS3DeleteObjectsOperator(unittest.TestCase):
-
     @mock_s3
     def test_s3_delete_single_object(self):
         bucket = "testbucket"
@@ -34,24 +33,18 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
 
         conn = boto3.client('s3')
         conn.create_bucket(Bucket=bucket)
-        conn.upload_fileobj(Bucket=bucket,
-                            Key=key,
-                            Fileobj=io.BytesIO(b"input"))
+        conn.upload_fileobj(Bucket=bucket, Key=key, Fileobj=io.BytesIO(b"input"))
 
         # The object should be detected before the DELETE action is taken
-        objects_in_dest_bucket = conn.list_objects(Bucket=bucket,
-                                                   Prefix=key)
+        objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key)
         self.assertEqual(len(objects_in_dest_bucket['Contents']), 1)
         self.assertEqual(objects_in_dest_bucket['Contents'][0]['Key'], key)
 
-        op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_single_object",
-                                     bucket=bucket,
-                                     keys=key)
+        op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_single_object", bucket=bucket, keys=key)
         op.execute(None)
 
         # There should be no object found in the bucket created earlier
-        self.assertFalse('Contents' in conn.list_objects(Bucket=bucket,
-                                                         Prefix=key))
+        self.assertFalse('Contents' in conn.list_objects(Bucket=bucket, Prefix=key))
 
     @mock_s3
     def test_s3_delete_multiple_objects(self):
@@ -63,25 +56,18 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         conn = boto3.client('s3')
         conn.create_bucket(Bucket=bucket)
         for k in keys:
-            conn.upload_fileobj(Bucket=bucket,
-                                Key=k,
-                                Fileobj=io.BytesIO(b"input"))
+            conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=io.BytesIO(b"input"))
 
         # The objects should be detected before the DELETE action is taken
-        objects_in_dest_bucket = conn.list_objects(Bucket=bucket,
-                                                   Prefix=key_pattern)
+        objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key_pattern)
         self.assertEqual(len(objects_in_dest_bucket['Contents']), n_keys)
-        self.assertEqual(sorted([x['Key'] for x in objects_in_dest_bucket['Contents']]),
-                         sorted(keys))
+        self.assertEqual(sorted([x['Key'] for x in objects_in_dest_bucket['Contents']]), sorted(keys))
 
-        op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_multiple_objects",
-                                     bucket=bucket,
-                                     keys=keys)
+        op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_multiple_objects", bucket=bucket, keys=keys)
         op.execute(None)
 
         # There should be no object found in the bucket created earlier
-        self.assertFalse('Contents' in conn.list_objects(Bucket=bucket,
-                                                         Prefix=key_pattern))
+        self.assertFalse('Contents' in conn.list_objects(Bucket=bucket, Prefix=key_pattern))
 
     @mock_s3
     def test_s3_delete_prefix(self):
@@ -93,22 +79,15 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         conn = boto3.client('s3')
         conn.create_bucket(Bucket=bucket)
         for k in keys:
-            conn.upload_fileobj(Bucket=bucket,
-                                Key=k,
-                                Fileobj=io.BytesIO(b"input"))
+            conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=io.BytesIO(b"input"))
 
         # The objects should be detected before the DELETE action is taken
-        objects_in_dest_bucket = conn.list_objects(Bucket=bucket,
-                                                   Prefix=key_pattern)
+        objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key_pattern)
         self.assertEqual(len(objects_in_dest_bucket['Contents']), n_keys)
-        self.assertEqual(sorted([x['Key'] for x in objects_in_dest_bucket['Contents']]),
-                         sorted(keys))
+        self.assertEqual(sorted([x['Key'] for x in objects_in_dest_bucket['Contents']]), sorted(keys))
 
-        op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_prefix",
-                                     bucket=bucket,
-                                     prefix=key_pattern)
+        op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_prefix", bucket=bucket, prefix=key_pattern)
         op.execute(None)
 
         # There should be no object found in the bucket created earlier
-        self.assertFalse('Contents' in conn.list_objects(Bucket=bucket,
-                                                         Prefix=key_pattern))
+        self.assertFalse('Contents' in conn.list_objects(Bucket=bucket, Prefix=key_pattern))

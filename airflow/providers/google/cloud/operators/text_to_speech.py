@@ -20,7 +20,7 @@ This module contains a Google Text to Speech operator.
 """
 
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Sequence, Union
 
 from google.api_core.retry import Retry
 from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
@@ -53,12 +53,12 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
     :type target_bucket_name: str
     :param target_filename: filename of the output file.
     :type target_filename: str
-    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
-        Engine Instance exists.  If set to None or missing, the default project_id from the GCP connection is
-        used.
+    :param project_id: Optional, Google Cloud Project ID where the Compute
+        Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
     :type project_id: str
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param retry: (Optional) A retry object used to retry requests. If None is specified,
             requests will not be retried.
@@ -66,7 +66,17 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request to complete.
         Note that if retry is specified, the timeout applies to each individual attempt.
     :type timeout: float
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_text_to_speech_synthesize_template_fields]
     template_fields = (
         "input_data",
@@ -76,12 +86,14 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         "gcp_conn_id",
         "target_bucket_name",
         "target_filename",
+        "impersonation_chain",
     )
     # [END gcp_text_to_speech_synthesize_template_fields]
 
     @apply_defaults
     def __init__(
         self,
+        *,
         input_data: Union[Dict, SynthesisInput],
         voice: Union[Dict, VoiceSelectionParams],
         audio_config: Union[Dict, AudioConfig],
@@ -91,8 +103,8 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
         self.input_data = input_data
         self.voice = voice
@@ -104,7 +116,8 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        self.impersonation_chain = impersonation_chain
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         for parameter in [
@@ -118,7 +131,9 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
                 raise AirflowException("The required parameter '{}' is empty".format(parameter))
 
     def execute(self, context):
-        hook = CloudTextToSpeechHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTextToSpeechHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+        )
         result = hook.synthesize_speech(
             input_data=self.input_data,
             voice=self.voice,
@@ -128,7 +143,9 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         )
         with NamedTemporaryFile() as temp_file:
             temp_file.write(result.audio_content)
-            cloud_storage_hook = GCSHook(google_cloud_storage_conn_id=self.gcp_conn_id)
+            cloud_storage_hook = GCSHook(
+                google_cloud_storage_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            )
             cloud_storage_hook.upload(
                 bucket_name=self.target_bucket_name, object_name=self.target_filename, filename=temp_file.name
             )

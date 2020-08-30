@@ -22,7 +22,7 @@ Example Airflow DAG that showss interactions with Google Cloud Firestore.
 Prerequisites
 =============
 
-This example uses two GCP projects:
+This example uses two Google Cloud projects:
 
 * ``GCP_PROJECT_ID`` - It contains a bucket and a firestore database.
 * ``G_FIRESTORE_PROJECT_ID`` - it contains the Data Warehouse based on the BigQuery service.
@@ -34,9 +34,9 @@ The bucket and dataset should be located in the same region.
 
 If you want to run this example, you must do the following:
 
-1. Create GCP project and enable the BigQuery API
+1. Create Google Cloud project and enable the BigQuery API
 2. Create the Firebase project
-3. Create a bucket in the same location as the the Firebase project
+3. Create a bucket in the same location as the Firebase project
 4. Grant Firebase admin account permissions to manage BigQuery. This is required to create a dataset.
 5. Create a bucket in Firebase project and
 6. Give read/write access for Firebase admin to bucket to step no. 5.
@@ -48,7 +48,9 @@ from urllib.parse import urlparse
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator,
     BigQueryExecuteQueryOperator,
 )
 from airflow.providers.google.firebase.operators.firestore import CloudFirestoreExportDatabaseOperator
@@ -65,6 +67,8 @@ EXPORT_COLLECTION_ID = os.environ.get("GCP_FIRESTORE_COLLECTION_ID", "firestore_
 DATASET_NAME = os.environ.get("GCP_FIRESTORE_DATASET_NAME", "test_firestore_export")
 DATASET_LOCATION = os.environ.get("GCP_FIRESTORE_DATASET_LOCATION", "EU")
 
+if BUCKET_NAME is None:
+    raise ValueError("Bucket name is required. Please set GCP_FIRESTORE_ARCHIVE_URL env variable.")
 
 with models.DAG(
     "example_google_firestore",

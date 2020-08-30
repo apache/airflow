@@ -1,0 +1,117 @@
+%% Licensed to the Apache Software Foundation (ASF) under one
+%% or more contributor license agreements.  See the NOTICE file
+%% distributed with this work for additional information
+%% regarding copyright ownership.  The ASF licenses this file
+%% to you under the Apache License, Version 2.0 (the
+%% "License"); you may not use this file except in compliance
+%% with the License.  You may obtain a copy of the License at
+%%
+%%   http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing,
+%% software distributed under the License is distributed on an
+%% "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+%% KIND, either express or implied.  See the License for the
+%% specific language governing permissions and limitations
+%% under the License.
+
+sequenceDiagram
+    Committer -->> Airflow Repo: Merge PR
+    activate Airflow Repo
+    Note over Airflow Repo: Trigger PR build
+    Note over CI Build: push<br>[Write Token]
+    Note over Build Images: workflow_run<br>[Write Token]
+    Airflow Repo -->> CI Build: Trigger 'pull_request' event
+    activate CI Build
+    CI Build -->> Build Images: Trigger 'workflow_run' event
+    activate Build Images
+    Note over Build Images: Find Duplicate<br>[CI Build]
+    opt Duplicated builds
+        Build Images -->> CI Build: Cancel
+    end
+    Note over Build Images: Find Duplicates<br>[Build Image]
+    opt Duplicated builds
+        Build Images -->> Build Images: Cancel
+    end
+    Note over Build Images: Find failed<br>[CI Build]
+    opt Failed builds
+        Build Images -->> CI Build: Cancel
+    end
+    Note over Build Images: Find failed<br>[Build Image]
+    opt Failed builds
+        Build Images -->> Build Images: Cancel
+    end
+    Note over Build Images: Build info
+    par 3.6, 3.7, 3.8
+        Note over Build Images: Update constraints
+        Note over Build Images: Build PROD Images<br>[GITHUB_RUN_ID]
+    and
+        Note over Build Images: Update constraints
+        Note over Build Images: Build CI Images<br>[GITHUB_RUN_ID]
+    end
+    par No CI image
+        Note over CI Build: Build info
+    and
+        Note over CI Build: Test always!
+    and
+        Note over CI Build: Helm tests
+    and
+        Note over CI Build: OpenAPI client gen
+    end
+    par 3.6, 3.7, 3.8
+        Build Images ->> GitHub Registry: Push CI Images
+        activate GitHub Registry
+    and
+        Build Images ->> GitHub Registry: Push PROD Images
+    end
+    opt If any step failed
+        Build Images -->> CI Build: Cancel triggering run
+    end
+    deactivate Build Images
+    Note over GitHub Registry: Tagged Images<br>[GITHUB_RUN_ID]
+    loop Wait for images
+        par 3.6, 3.7, 3.8
+            CI Build ->> CI Build: Pull CI Images
+            Note over CI Build: Wait for<br>[GITHUB_RUN_ID]
+        and
+            CI Build ->> CI Build: Pull PROD Images
+            Note over CI Build: Wait for<br>[GITHUB_RUN_ID]
+        end
+    end
+    par 3.6, 3.7, 3.8
+        GitHub Registry ->> CI Build: Pull CI Images
+    and
+        GitHub Registry ->> CI Build: Pull PROD Images
+    end
+    deactivate GitHub Registry
+    par 3.6, 3.7, 3.8
+        Note over CI Build: Run static checks
+    and
+        Note over CI Build: Build docs
+    and
+        Note over CI Build: Spell check docs
+    and
+        Note over CI Build: Backport packages
+    and
+        Note over CI Build: Tests
+    and
+        Note over CI Build: Kubernetes  Tests
+    end
+    Note over CI Build: Quarantined tests
+    Note over CI Build: Merge Coverage
+    CI Build -->> Coverage.io: Upload Coverage
+    Note over CI Build: Tag image<br>[COMMIT_SHA]
+    par 3.6, 3.7, 3.8
+        CI Build ->> GitHub Registry: Push CI Images
+        activate GitHub Registry
+    and
+        CI Build ->> GitHub Registry: Push PROD Images
+    end
+    Note over GitHub Registry: Tagged Images<br>[COMMIT_SHA]
+    par 3.6, 3.7, 3.8
+        CI Build ->> Airflow Repo: Push Constraints
+    end
+    deactivate GitHub Registry
+    CI Build -->> Airflow Repo: Status Check for CI Build
+    deactivate Airflow Repo
+    deactivate CI Build

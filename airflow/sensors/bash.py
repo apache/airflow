@@ -45,12 +45,12 @@ class BashSensor(BaseSensorOperator):
     template_fields = ('bash_command', 'env')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bash_command,
                  env=None,
                  output_encoding='utf-8',
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+                 **kwargs):
+        super().__init__(**kwargs)
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding

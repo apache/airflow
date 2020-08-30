@@ -43,7 +43,7 @@ class Anonymizer(Protocol):
         """Remove pii from paths"""
 
     def process_username(self, value):
-        """Remove pii from ussername"""
+        """Remove pii from username"""
 
     def process_url(self, value):
         """Remove pii from URL"""
@@ -247,7 +247,7 @@ class SystemInfo:
 
 
 class PathsInfo:
-    """Path informaation"""
+    """Path information"""
 
     def __init__(self, anonymizer: Anonymizer):
         system_path = os.environ.get("PATH", "").split(os.pathsep)
@@ -391,7 +391,7 @@ class FileIoException(Exception):
     after=tenacity.after_log(log, logging.DEBUG),
 )
 def _upload_text_to_fileio(content):
-    """Uload text file to File.io service and return lnk"""
+    """Upload text file to File.io service and return lnk"""
     resp = requests.post("https://file.io", files={"file": ("airflow-report.txt", content)})
     if not resp.ok:
         raise FileIoException("Failed to send report to file.io service.")

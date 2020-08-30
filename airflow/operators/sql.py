@@ -66,26 +66,19 @@ class SQLCheckOperator(BaseOperator):
     publishing dubious data, or on the side and receive email alerts
     without stopping the progress of the DAG.
 
-    Note that this is an abstract class and get_db_hook
-    needs to be defined. Whereas a get_db_hook is hook that gets a
-    single record from an external source.
-
     :param sql: the sql to be executed. (templated)
     :type sql: str
     """
 
-    template_fields = ("sql",)  # type: Iterable[str]
-    template_ext = (
-        ".hql",
-        ".sql",
-    )  # type: Iterable[str]
+    template_fields: Iterable[str] = ("sql",)
+    template_ext: Iterable[str] = (".hql", ".sql",)
     ui_color = "#fff7e6"
 
     @apply_defaults
     def __init__(
-        self, sql: str, conn_id: Optional[str] = None, *args, **kwargs
+        self, *, sql: str, conn_id: Optional[str] = None, **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.conn_id = conn_id
         self.sql = sql
 
@@ -155,15 +148,14 @@ class SQLValueCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
         conn_id: Optional[str] = None,
-        *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.sql = sql
         self.conn_id = conn_id
         self.pass_value = str(pass_value)
@@ -264,11 +256,8 @@ class SQLIntervalCheckOperator(BaseOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
-    template_fields = ("sql1", "sql2")  # type: Iterable[str]
-    template_ext = (
-        ".hql",
-        ".sql",
-    )  # type: Iterable[str]
+    template_fields: Iterable[str] = ("sql1", "sql2")
+    template_ext: Iterable[str] = (".hql", ".sql",)
     ui_color = "#fff7e6"
 
     ratio_formulas = {
@@ -278,7 +267,7 @@ class SQLIntervalCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         table: str,
         metrics_thresholds: Dict[str, int],
         date_filter_column: Optional[str] = "ds",
@@ -286,10 +275,9 @@ class SQLIntervalCheckOperator(BaseOperator):
         ratio_formula: Optional[str] = "max_over_min",
         ignore_zero: Optional[bool] = True,
         conn_id: Optional[str] = None,
-        *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if ratio_formula not in self.ratio_formulas:
             msg_template = (
                 "Invalid diff_method: {diff_method}. "
@@ -399,7 +387,7 @@ class SQLIntervalCheckOperator(BaseOperator):
 
 class SQLThresholdCheckOperator(BaseOperator):
     """
-    Performs a value check using sql code against a mininmum threshold
+    Performs a value check using sql code against a minimum threshold
     and a maximum threshold. Thresholds can be in the form of a numeric
     value OR a sql statement that results a numeric.
 
@@ -415,7 +403,7 @@ class SQLThresholdCheckOperator(BaseOperator):
     :type max_threshold: numeric or str
     """
 
-    template_fields = ("sql", "min_threshold", "max_threshold")  # type: Iterable[str]
+    template_fields = ("sql", "min_threshold", "max_threshold")
     template_ext = (
         ".hql",
         ".sql",
@@ -423,15 +411,14 @@ class SQLThresholdCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         min_threshold: Any,
         max_threshold: Any,
         conn_id: Optional[str] = None,
-        *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.sql = sql
         self.conn_id = conn_id
         self.min_threshold = _convert_to_float_if_possible(min_threshold)
@@ -516,17 +503,16 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         follow_task_ids_if_true: List[str],
         follow_task_ids_if_false: List[str],
         conn_id: str = "default_conn_id",
         database: Optional[str] = None,
         parameters: Optional[Union[Mapping, Iterable]] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.conn_id = conn_id
         self.sql = sql
         self.parameters = parameters

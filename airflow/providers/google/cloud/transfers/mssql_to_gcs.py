@@ -49,20 +49,14 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
                 dag=dag
             )
     """
+
     ui_color = '#e0a98c'
 
-    type_map = {
-        3: 'INTEGER',
-        4: 'TIMESTAMP',
-        5: 'NUMERIC'
-    }
+    type_map = {3: 'INTEGER', 4: 'TIMESTAMP', 5: 'NUMERIC'}
 
     @apply_defaults
-    def __init__(self,
-                 mssql_conn_id='mssql_default',
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, mssql_conn_id='mssql_default', **kwargs):
+        super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id
 
     def query(self):

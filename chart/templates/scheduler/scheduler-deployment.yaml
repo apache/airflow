@@ -145,6 +145,10 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
 {{- end }}
+{{- if .Values.dags.persistence.enabled }}
+            - name: dags
+              mountPath: {{ template "airflow_dags_mount_path" . }}
+{{- end }}
 {{- if .Values.dags.gitSync.enabled }}
             - name: dags
               mountPath: {{ template "airflow_dags_mount_path" . }}

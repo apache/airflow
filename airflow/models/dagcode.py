@@ -18,9 +18,9 @@ import logging
 import os
 import struct
 from datetime import datetime
-from typing import Iterable, Optional
+from typing import Iterable, List, Optional
 
-from sqlalchemy import BigInteger, Column, String, UnicodeText, and_, exists
+from sqlalchemy import BigInteger, Column, String, UnicodeText, exists
 
 from airflow.exceptions import AirflowException, DagCodeNotFound
 from airflow.models.base import Base
@@ -97,11 +97,11 @@ class DagCode(Base):
         existing_orm_dag_codes_by_fileloc_hashes = {
             orm.fileloc_hash: orm for orm in existing_orm_dag_codes
         }
-        exisitng_orm_filelocs = {
+        existing_orm_filelocs = {
             orm.fileloc for orm in existing_orm_dag_codes_by_fileloc_hashes.values()
         }
-        if not exisitng_orm_filelocs.issubset(filelocs):
-            conflicting_filelocs = exisitng_orm_filelocs.difference(filelocs)
+        if not existing_orm_filelocs.issubset(filelocs):
+            conflicting_filelocs = existing_orm_filelocs.difference(filelocs)
             hashes_to_filelocs = {
                 DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs
             }
@@ -137,22 +137,20 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def remove_unused_code(cls, session=None):
-        """Deletes code that no longer has any DAGs referencing it .
+    def remove_deleted_code(cls, alive_dag_filelocs: List[str], session=None):
+        """Deletes code not included in alive_dag_filelocs.
 
+        :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
-        from airflow.models.dag import DagModel
-
-        alive_dag_filelocs = [fileloc for fileloc, in session.query(DagModel.fileloc).all()]
         alive_fileloc_hashes = [
             cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
         log.debug("Deleting code from %s table ", cls.__tablename__)
 
         session.query(cls).filter(
-            and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
-                 cls.fileloc.notin_(alive_dag_filelocs))).delete(synchronize_session='fetch')
+            cls.fileloc_hash.notin_(alive_fileloc_hashes),
+            cls.fileloc.notin_(alive_dag_filelocs)).delete(synchronize_session='fetch')
 
     @classmethod
     @provide_session

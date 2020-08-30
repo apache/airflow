@@ -33,8 +33,9 @@ def _get_message_attribute(o):
         return {'DataType': 'Number', 'StringValue': str(o)}
     if hasattr(o, '__iter__'):
         return {'DataType': 'String.Array', 'StringValue': json.dumps(o)}
-    raise TypeError('Values in MessageAttributes must be one of bytes, str, int, float, or iterable; '
-                    f'got {type(o)}')
+    raise TypeError(
+        'Values in MessageAttributes must be one of bytes, str, int, float, or iterable; ' f'got {type(o)}'
+    )
 
 
 class AwsSnsHook(AwsBaseHook):
@@ -74,9 +75,7 @@ class AwsSnsHook(AwsBaseHook):
         publish_kwargs = {
             'TargetArn': target_arn,
             'MessageStructure': 'json',
-            'Message': json.dumps({
-                'default': message
-            }),
+            'Message': json.dumps({'default': message}),
         }
 
         # Construct args this way because boto3 distinguishes from missing args and those set to None

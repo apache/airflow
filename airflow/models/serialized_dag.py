@@ -18,6 +18,7 @@
 
 """Serialized DAG table in database."""
 
+import hashlib
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -53,7 +54,7 @@ class SerializedDagModel(Base):
       interval of deleting serialized DAGs in DB when the files are deleted, suggest
       to use a smaller interval such as 60
 
-    It is used by webserver to load dagbags when ``store_serialized_dags=True``.
+    It is used by webserver to load dags when ``store_serialized_dags=True``.
     Because reading from database is lightweight compared to importing from files,
     it solves the webserver scalability issue.
     """
@@ -65,6 +66,7 @@ class SerializedDagModel(Base):
     fileloc_hash = Column(BigInteger, nullable=False)
     data = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     last_updated = Column(UtcDateTime, nullable=False)
+    dag_hash = Column(String(32), nullable=False)
 
     __table_args__ = (
         Index('idx_fileloc_hash', fileloc_hash, unique=False),
@@ -76,6 +78,7 @@ class SerializedDagModel(Base):
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()
+        self.dag_hash = hashlib.md5(json.dumps(self.data, sort_keys=True).encode("utf-8")).hexdigest()
 
     def __repr__(self):
         return f"<SerializedDag: {self.dag_id}>"
@@ -102,9 +105,11 @@ class SerializedDagModel(Base):
                 return
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
-        serialized_dag_from_db: SerializedDagModel = session.query(cls).get(dag.dag_id)
         new_serialized_dag = cls(dag)
-        if serialized_dag_from_db and (serialized_dag_from_db.data == new_serialized_dag.data):
+        serialized_dag_hash_from_db = session.query(
+            cls.dag_hash).filter(cls.dag_id == dag.dag_id).scalar()
+
+        if serialized_dag_hash_from_db == new_serialized_dag.dag_hash:
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return
 
@@ -142,8 +147,7 @@ class SerializedDagModel(Base):
         if isinstance(self.data, dict):
             dag = SerializedDAG.from_dict(self.data)  # type: Any
         else:
-            # noinspection PyTypeChecker
-            dag = SerializedDAG.from_json(self.data)
+            dag = SerializedDAG.from_json(self.data)  # noqa
         return dag
 
     @classmethod
@@ -159,25 +163,22 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def remove_stale_dags(cls, expiration_date, session: Session = None):
-        """
-        Deletes Serialized DAGs that were last touched by the scheduler before
-        the expiration date. These DAGs were likely deleted.
+    def remove_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
+        """Deletes DAGs not included in alive_dag_filelocs.
 
-        :param expiration_date: set inactive DAGs that were touched before this
-            time
-        :type expiration_date: datetime
+        :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
-        :type session: Session
-        :return: None
         """
-        log.debug("Deleting Serialized DAGs that haven't been touched by the "
-                  "scheduler since %s from %s table ", expiration_date, cls.__tablename__)
+        alive_fileloc_hashes = [
+            DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
-        session.execute(
-            # pylint: disable=no-member
-            cls.__table__.delete().where(cls.last_updated < expiration_date)
-        )
+        log.debug("Deleting Serialized DAGs (for which DAG files are deleted) "
+                  "from %s table ", cls.__tablename__)
+
+        # pylint: disable=no-member
+        session.execute(cls.__table__.delete().where(
+            and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
+                 cls.fileloc.notin_(alive_dag_filelocs))))
 
     @classmethod
     @provide_session

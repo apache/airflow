@@ -33,10 +33,9 @@ from airflow.utils.dates import days_ago
 DEFAULT_ARGS = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
-    'email_on_retry': False
+    'email_on_retry': False,
 }
 
 SPARK_STEPS = [
@@ -45,12 +44,8 @@ SPARK_STEPS = [
         'ActionOnFailure': 'CONTINUE',
         'HadoopJarStep': {
             'Jar': 'command-runner.jar',
-            'Args': [
-                '/usr/lib/spark/bin/run-example',
-                'SparkPi',
-                '10'
-            ]
-        }
+            'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+        },
     }
 ]
 
@@ -78,6 +73,7 @@ with DAG(
     dag_id='emr_job_flow_manual_steps_dag',
     default_args=DEFAULT_ARGS,
     dagrun_timeout=timedelta(hours=2),
+    start_date=days_ago(2),
     schedule_interval='0 3 * * *',
     tags=['example'],
 ) as dag:
@@ -87,27 +83,27 @@ with DAG(
         task_id='create_job_flow',
         job_flow_overrides=JOB_FLOW_OVERRIDES,
         aws_conn_id='aws_default',
-        emr_conn_id='emr_default'
+        emr_conn_id='emr_default',
     )
 
     step_adder = EmrAddStepsOperator(
         task_id='add_steps',
         job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
         aws_conn_id='aws_default',
-        steps=SPARK_STEPS
+        steps=SPARK_STEPS,
     )
 
     step_checker = EmrStepSensor(
         task_id='watch_step',
         job_flow_id="{{ task_instance.xcom_pull('create_job_flow', key='return_value') }}",
         step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')[0] }}",
-        aws_conn_id='aws_default'
+        aws_conn_id='aws_default',
     )
 
     cluster_remover = EmrTerminateJobFlowOperator(
         task_id='remove_cluster',
         job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
-        aws_conn_id='aws_default'
+        aws_conn_id='aws_default',
     )
 
     cluster_creator >> step_adder >> step_checker >> cluster_remover

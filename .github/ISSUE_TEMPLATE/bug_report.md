@@ -69,7 +69,7 @@ If you are using kubernetes, please attempt to recreate the issue using minikube
 
 If this is a UI bug, please provide a screenshot of the bug or a link to a youtube video of the bug in action
 
-You can include images using the .md sytle of
+You can include images using the .md style of
 ![alt text](http://url/to/img.png)
 
 To record a screencast, mac users can use QuickTime and then create an unlisted youtube video with the resulting .mov file.

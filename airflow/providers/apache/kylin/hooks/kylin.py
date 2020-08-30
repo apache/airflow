@@ -28,16 +28,18 @@ class KylinHook(BaseHook):
     """
     :param kylin_conn_id: The connection id as configured in Airflow administration.
     :type kylin_conn_id: str
-    :param project: porject name
+    :param project: project name
     :type project: Optional[str]
     :param dsn: dsn
     :type dsn: Optional[str]
     """
-    def __init__(self,
-                 kylin_conn_id: Optional[str] = 'kylin_default',
-                 project: Optional[str] = None,
-                 dsn: Optional[str] = None
-                 ):
+
+    def __init__(
+        self,
+        kylin_conn_id: Optional[str] = 'kylin_default',
+        project: Optional[str] = None,
+        dsn: Optional[str] = None,
+    ):
         super().__init__()
         self.kylin_conn_id = kylin_conn_id
         self.project = project
@@ -49,13 +51,19 @@ class KylinHook(BaseHook):
             return kylinpy.create_kylin(self.dsn)
         else:
             self.project = self.project if self.project else conn.schema
-            return kylinpy.Kylin(conn.host, username=conn.login,
-                                 password=conn.password, port=conn.port,
-                                 project=self.project, **conn.extra_dejson)
+            return kylinpy.Kylin(
+                conn.host,
+                username=conn.login,
+                password=conn.password,
+                port=conn.port,
+                project=self.project,
+                **conn.extra_dejson,
+            )
 
     def cube_run(self, datasource_name, op, **op_args):
         """
-        run CubeSource command whitch in CubeSource.support_invoke_command
+        Run CubeSource command which in CubeSource.support_invoke_command
+
         :param datasource_name:
         :param op: command
         :param op_args: command args
@@ -70,7 +78,8 @@ class KylinHook(BaseHook):
 
     def get_job_status(self, job_id):
         """
-        get job status
+        Get job status
+
         :param job_id: kylin job id
         :return: job status
         """

@@ -26,8 +26,6 @@ from airflow.providers.google.cloud.operators.gcs import GCSSynchronizeBucketsOp
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.dates import days_ago
 
-default_args = {"start_date": days_ago(1)}
-
 BUCKET_1_SRC = os.environ.get("GCP_GCS_BUCKET_1_SRC", "test-gcs-sync-1-src")
 BUCKET_1_DST = os.environ.get("GCP_GCS_BUCKET_1_DST", "test-gcs-sync-1-dst")
 
@@ -41,13 +39,11 @@ OBJECT_1 = os.environ.get("GCP_GCS_OBJECT_1", "test-gcs-to-gcs-1")
 OBJECT_2 = os.environ.get("GCP_GCS_OBJECT_2", "test-gcs-to-gcs-2")
 
 with models.DAG(
-    "example_gcs_to_gcs", default_args=default_args, schedule_interval=None, tags=['example']
+    "example_gcs_to_gcs", start_date=days_ago(1), schedule_interval=None, tags=['example']
 ) as dag:
     # [START howto_synch_bucket]
     sync_bucket = GCSSynchronizeBucketsOperator(
-        task_id="sync_bucket",
-        source_bucket=BUCKET_1_SRC,
-        destination_bucket=BUCKET_1_DST
+        task_id="sync_bucket", source_bucket=BUCKET_1_SRC, destination_bucket=BUCKET_1_DST
     )
     # [END howto_synch_bucket]
 
@@ -57,7 +53,7 @@ with models.DAG(
         source_bucket=BUCKET_1_SRC,
         destination_bucket=BUCKET_1_DST,
         delete_extra_files=True,
-        allow_overwrite=True
+        allow_overwrite=True,
     )
     # [END howto_synch_full_bucket]
 
@@ -66,7 +62,7 @@ with models.DAG(
         task_id="sync_to_subdirectory",
         source_bucket=BUCKET_1_SRC,
         destination_bucket=BUCKET_1_DST,
-        destination_object="subdir/"
+        destination_object="subdir/",
     )
     # [END howto_synch_to_subdir]
 
@@ -75,7 +71,7 @@ with models.DAG(
         task_id="sync_from_subdirectory",
         source_bucket=BUCKET_1_SRC,
         source_object="subdir/",
-        destination_bucket=BUCKET_1_DST
+        destination_bucket=BUCKET_1_DST,
     )
     # [END howto_sync_from_subdir]
 
@@ -85,7 +81,7 @@ with models.DAG(
         source_bucket=BUCKET_1_SRC,
         source_object=OBJECT_1,
         destination_bucket=BUCKET_1_DST,  # If not supplied the source_bucket value will be used
-        destination_object="backup_" + OBJECT_1  # If not supplied the source_object value will be used
+        destination_object="backup_" + OBJECT_1,  # If not supplied the source_object value will be used
     )
     # [END howto_operator_gcs_to_gcs_single_file]
 
@@ -95,7 +91,7 @@ with models.DAG(
         source_bucket=BUCKET_1_SRC,
         source_object="data/*.txt",
         destination_bucket=BUCKET_1_DST,
-        destination_object="backup/"
+        destination_object="backup/",
     )
     # [END howto_operator_gcs_to_gcs_wildcard]
 
@@ -106,7 +102,7 @@ with models.DAG(
         source_object="data/",
         destination_bucket=BUCKET_1_DST,
         destination_object="backup/",
-        delimiter='.txt'
+        delimiter='.txt',
     )
     # [END howto_operator_gcs_to_gcs_delimiter]
 
@@ -116,7 +112,7 @@ with models.DAG(
         source_bucket=BUCKET_1_SRC,
         source_objects=[OBJECT_1, OBJECT_2],  # Instead of files each element could be a wildcard expression
         destination_bucket=BUCKET_1_DST,
-        destination_object="backup/"
+        destination_object="backup/",
     )
     # [END howto_operator_gcs_to_gcs_list]
 
@@ -127,7 +123,7 @@ with models.DAG(
         source_object=OBJECT_1,
         destination_bucket=BUCKET_1_DST,
         destination_object="backup_" + OBJECT_1,
-        move_object=True
+        move_object=True,
     )
     # [END howto_operator_gcs_to_gcs_single_file_move]
 
@@ -137,6 +133,6 @@ with models.DAG(
         source_bucket=BUCKET_1_SRC,
         source_objects=[OBJECT_1, OBJECT_2],
         destination_bucket=BUCKET_1_DST,
-        destination_object="backup/"
+        destination_object="backup/",
     )
     # [END howto_operator_gcs_to_gcs_list_move]

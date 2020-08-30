@@ -26,10 +26,19 @@ from typing import Dict, List
 from airflow import models
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
-    AutoMLBatchPredictOperator, AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator,
-    AutoMLDeleteModelOperator, AutoMLDeployModelOperator, AutoMLGetModelOperator, AutoMLImportDataOperator,
-    AutoMLListDatasetOperator, AutoMLPredictOperator, AutoMLTablesListColumnSpecsOperator,
-    AutoMLTablesListTableSpecsOperator, AutoMLTablesUpdateDatasetOperator, AutoMLTrainModelOperator,
+    AutoMLBatchPredictOperator,
+    AutoMLCreateDatasetOperator,
+    AutoMLDeleteDatasetOperator,
+    AutoMLDeleteModelOperator,
+    AutoMLDeployModelOperator,
+    AutoMLGetModelOperator,
+    AutoMLImportDataOperator,
+    AutoMLListDatasetOperator,
+    AutoMLPredictOperator,
+    AutoMLTablesListColumnSpecsOperator,
+    AutoMLTablesListTableSpecsOperator,
+    AutoMLTablesUpdateDatasetOperator,
+    AutoMLTrainModelOperator,
 )
 from airflow.utils.dates import days_ago
 
@@ -59,7 +68,6 @@ DATASET = {
 
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_DATASET_BUCKET]}}
 
-default_args = {"start_date": days_ago(1)}
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 
@@ -76,8 +84,8 @@ def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
 # Example DAG to create dataset, train model_id and deploy it.
 with models.DAG(
     "example_create_and_deploy",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     user_defined_macros={
         "get_target_column_spec": get_target_column_spec,
         "target": TARGET,
@@ -93,9 +101,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = (
-        "{{ task_instance.xcom_pull('create_dataset_task', key='dataset_id') }}"
-    )
+    dataset_id = "{{ task_instance.xcom_pull('create_dataset_task', key='dataset_id') }}"
     # [END howto_operator_automl_create_dataset]
 
     MODEL["dataset_id"] = dataset_id
@@ -136,18 +142,13 @@ with models.DAG(
     ] = "{{ get_target_column_spec(task_instance.xcom_pull('list_columns_spec_task'), target) }}"
 
     update_dataset_task = AutoMLTablesUpdateDatasetOperator(
-        task_id="update_dataset_task",
-        dataset=update,
-        location=GCP_AUTOML_LOCATION,
+        task_id="update_dataset_task", dataset=update, location=GCP_AUTOML_LOCATION,
     )
     # [END howto_operator_automl_update_dataset]
 
     # [START howto_operator_automl_create_model]
     create_model_task = AutoMLTrainModelOperator(
-        task_id="create_model_task",
-        model=MODEL,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
+        task_id="create_model_task", model=MODEL, location=GCP_AUTOML_LOCATION, project_id=GCP_PROJECT_ID,
     )
 
     model_id = "{{ task_instance.xcom_pull('create_model_task', key='model_id') }}"
@@ -184,8 +185,8 @@ with models.DAG(
 # Example DAG for AutoML datasets operations
 with models.DAG(
     "example_automl_dataset",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     user_defined_macros={"extract_object_id": extract_object_id},
 ) as example_dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
@@ -195,9 +196,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = (
-        '{{ task_instance.xcom_pull("create_dataset_task", key="dataset_id") }}'
-    )
+    dataset_id = '{{ task_instance.xcom_pull("create_dataset_task", key="dataset_id") }}'
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -223,9 +222,7 @@ with models.DAG(
 
     # [START howto_operator_list_dataset]
     list_datasets_task = AutoMLListDatasetOperator(
-        task_id="list_datasets_task",
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
+        task_id="list_datasets_task", location=GCP_AUTOML_LOCATION, project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_list_dataset]
 
@@ -249,15 +246,13 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_get_deploy",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
+    tags=["example"],
 ) as get_deploy_dag:
     # [START howto_operator_get_model]
     get_model_task = AutoMLGetModelOperator(
-        task_id="get_model_task",
-        model_id=MODEL_ID,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
+        task_id="get_model_task", model_id=MODEL_ID, location=GCP_AUTOML_LOCATION, project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_get_model]
 
@@ -273,8 +268,9 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_predict",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
+    tags=["example"],
 ) as predict_dag:
     # [START howto_operator_prediction]
     predict_task = AutoMLPredictOperator(

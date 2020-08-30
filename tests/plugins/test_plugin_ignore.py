@@ -23,8 +23,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from airflow import settings  # type: ignore
-from airflow.utils.file import find_path_from_directory  # type: ignore
+from airflow import settings
+from airflow.utils.file import find_path_from_directory
 
 
 class TestIgnorePluginFile(unittest.TestCase):

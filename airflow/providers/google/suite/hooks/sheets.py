@@ -20,7 +20,7 @@
 This module contains a Google Sheets API hook
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient.discovery import build
 
@@ -30,7 +30,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class GSheetsHook(GoogleBaseHook):
     """
-    Interact with Google Sheets via GCP connection
+    Interact with Google Sheets via Google Cloud connection
     Reading and writing cells in Google Sheet:
     https://developers.google.com/sheets/api/guides/values
 
@@ -38,19 +38,31 @@ class GSheetsHook(GoogleBaseHook):
     :type gcp_conn_id: str
     :param api_version: API Version
     :type api_version: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v4',
-        delegate_to: Optional[str] = None
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+        )
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.delegate_to = delegate_to
@@ -75,7 +87,7 @@ class GSheetsHook(GoogleBaseHook):
         range_: str,
         major_dimension: str = 'DIMENSION_UNSPECIFIED',
         value_render_option: str = 'FORMATTED_VALUE',
-        date_time_render_option: str = 'SERIAL_NUMBER'
+        date_time_render_option: str = 'SERIAL_NUMBER',
     ) -> List:
         """
         Gets values from Google Sheet from a single range
@@ -98,13 +110,19 @@ class GSheetsHook(GoogleBaseHook):
         :rtype: List
         """
         service = self.get_conn()
-        response = service.spreadsheets().values().get(  # pylint: disable=no-member
-            spreadsheetId=spreadsheet_id,
-            range=range_,
-            majorDimension=major_dimension,
-            valueRenderOption=value_render_option,
-            dateTimeRenderOption=date_time_render_option
-        ).execute(num_retries=self.num_retries)
+        # pylint: disable=no-member
+        response = (
+            service.spreadsheets()
+            .values()
+            .get(
+                spreadsheetId=spreadsheet_id,
+                range=range_,
+                majorDimension=major_dimension,
+                valueRenderOption=value_render_option,
+                dateTimeRenderOption=date_time_render_option,
+            )
+            .execute(num_retries=self.num_retries)
+        )
 
         return response['values']
 
@@ -114,7 +132,7 @@ class GSheetsHook(GoogleBaseHook):
         ranges: List,
         major_dimension: str = 'DIMENSION_UNSPECIFIED',
         value_render_option: str = 'FORMATTED_VALUE',
-        date_time_render_option: str = 'SERIAL_NUMBER'
+        date_time_render_option: str = 'SERIAL_NUMBER',
     ) -> Dict:
         """
         Gets values from Google Sheet from a list of ranges
@@ -137,13 +155,19 @@ class GSheetsHook(GoogleBaseHook):
         :rtype: Dict
         """
         service = self.get_conn()
-        response = service.spreadsheets().values().batchGet(  # pylint: disable=no-member
-            spreadsheetId=spreadsheet_id,
-            ranges=ranges,
-            majorDimension=major_dimension,
-            valueRenderOption=value_render_option,
-            dateTimeRenderOption=date_time_render_option
-        ).execute(num_retries=self.num_retries)
+        # pylint: disable=no-member
+        response = (
+            service.spreadsheets()
+            .values()
+            .batchGet(
+                spreadsheetId=spreadsheet_id,
+                ranges=ranges,
+                majorDimension=major_dimension,
+                valueRenderOption=value_render_option,
+                dateTimeRenderOption=date_time_render_option,
+            )
+            .execute(num_retries=self.num_retries)
+        )
 
         return response
 
@@ -156,7 +180,7 @@ class GSheetsHook(GoogleBaseHook):
         value_input_option: str = 'RAW',
         include_values_in_response: bool = False,
         value_render_option: str = 'FORMATTED_VALUE',
-        date_time_render_option: str = 'SERIAL_NUMBER'
+        date_time_render_option: str = 'SERIAL_NUMBER',
     ) -> Dict:
         """
         Updates values from Google Sheet from a single range
@@ -187,20 +211,22 @@ class GSheetsHook(GoogleBaseHook):
         :rtype: Dict
         """
         service = self.get_conn()
-        body = {
-            "range": range_,
-            "majorDimension": major_dimension,
-            "values": values
-        }
-        response = service.spreadsheets().values().update(  # pylint: disable=no-member
-            spreadsheetId=spreadsheet_id,
-            range=range_,
-            valueInputOption=value_input_option,
-            includeValuesInResponse=include_values_in_response,
-            responseValueRenderOption=value_render_option,
-            responseDateTimeRenderOption=date_time_render_option,
-            body=body
-        ).execute(num_retries=self.num_retries)
+        body = {"range": range_, "majorDimension": major_dimension, "values": values}
+        # pylint: disable=no-member
+        response = (
+            service.spreadsheets()
+            .values()
+            .update(
+                spreadsheetId=spreadsheet_id,
+                range=range_,
+                valueInputOption=value_input_option,
+                includeValuesInResponse=include_values_in_response,
+                responseValueRenderOption=value_render_option,
+                responseDateTimeRenderOption=date_time_render_option,
+                body=body,
+            )
+            .execute(num_retries=self.num_retries)
+        )
 
         return response
 
@@ -213,7 +239,7 @@ class GSheetsHook(GoogleBaseHook):
         value_input_option: str = 'RAW',
         include_values_in_response: bool = False,
         value_render_option: str = 'FORMATTED_VALUE',
-        date_time_render_option: str = 'SERIAL_NUMBER'
+        date_time_render_option: str = 'SERIAL_NUMBER',
     ) -> Dict:
         """
         Updates values from Google Sheet for multiple ranges
@@ -247,27 +273,29 @@ class GSheetsHook(GoogleBaseHook):
             raise AirflowException(
                 "'Ranges' and and 'Lists' must be of equal length. \n \
                 'Ranges' is of length: {} and \n \
-                'Values' is of length: {}.".format(str(len(ranges)), str(len(values))))
+                'Values' is of length: {}.".format(
+                    str(len(ranges)), str(len(values))
+                )
+            )
         service = self.get_conn()
         data = []
         for idx, range_ in enumerate(ranges):
-            value_range = {
-                "range": range_,
-                "majorDimension": major_dimension,
-                "values": values[idx]
-            }
+            value_range = {"range": range_, "majorDimension": major_dimension, "values": values[idx]}
             data.append(value_range)
         body = {
             "valueInputOption": value_input_option,
             "data": data,
             "includeValuesInResponse": include_values_in_response,
             "responseValueRenderOption": value_render_option,
-            "responseDateTimeRenderOption": date_time_render_option
+            "responseDateTimeRenderOption": date_time_render_option,
         }
-        response = service.spreadsheets().values().batchUpdate(  # pylint: disable=no-member
-            spreadsheetId=spreadsheet_id,
-            body=body
-        ).execute(num_retries=self.num_retries)
+        # pylint: disable=no-member
+        response = (
+            service.spreadsheets()
+            .values()
+            .batchUpdate(spreadsheetId=spreadsheet_id, body=body)
+            .execute(num_retries=self.num_retries)
+        )
 
         return response
 
@@ -281,7 +309,7 @@ class GSheetsHook(GoogleBaseHook):
         insert_data_option: str = 'OVERWRITE',
         include_values_in_response: bool = False,
         value_render_option: str = 'FORMATTED_VALUE',
-        date_time_render_option: str = 'SERIAL_NUMBER'
+        date_time_render_option: str = 'SERIAL_NUMBER',
     ) -> Dict:
         """
         Append values from Google Sheet from a single range
@@ -315,21 +343,23 @@ class GSheetsHook(GoogleBaseHook):
         :rtype: Dict
         """
         service = self.get_conn()
-        body = {
-            "range": range_,
-            "majorDimension": major_dimension,
-            "values": values
-        }
-        response = service.spreadsheets().values().append(  # pylint: disable=no-member
-            spreadsheetId=spreadsheet_id,
-            range=range_,
-            valueInputOption=value_input_option,
-            insertDataOption=insert_data_option,
-            includeValuesInResponse=include_values_in_response,
-            responseValueRenderOption=value_render_option,
-            responseDateTimeRenderOption=date_time_render_option,
-            body=body
-        ).execute(num_retries=self.num_retries)
+        body = {"range": range_, "majorDimension": major_dimension, "values": values}
+        # pylint: disable=no-member
+        response = (
+            service.spreadsheets()
+            .values()
+            .append(
+                spreadsheetId=spreadsheet_id,
+                range=range_,
+                valueInputOption=value_input_option,
+                insertDataOption=insert_data_option,
+                includeValuesInResponse=include_values_in_response,
+                responseValueRenderOption=value_render_option,
+                responseDateTimeRenderOption=date_time_render_option,
+                body=body,
+            )
+            .execute(num_retries=self.num_retries)
+        )
 
         return response
 
@@ -346,10 +376,13 @@ class GSheetsHook(GoogleBaseHook):
         :rtype: Dict
         """
         service = self.get_conn()
-        response = service.spreadsheets().values().clear(  # pylint: disable=no-member
-            spreadsheetId=spreadsheet_id,
-            range=range_
-        ).execute(num_retries=self.num_retries)
+        # pylint: disable=no-member
+        response = (
+            service.spreadsheets()
+            .values()
+            .clear(spreadsheetId=spreadsheet_id, range=range_)
+            .execute(num_retries=self.num_retries)
+        )
 
         return response
 
@@ -366,13 +399,14 @@ class GSheetsHook(GoogleBaseHook):
         :rtype: Dict
         """
         service = self.get_conn()
-        body = {
-            "ranges": ranges
-        }
-        response = service.spreadsheets().values().batchClear(  # pylint: disable=no-member
-            spreadsheetId=spreadsheet_id,
-            body=body
-        ).execute(num_retries=self.num_retries)
+        body = {"ranges": ranges}
+        # pylint: disable=no-member
+        response = (
+            service.spreadsheets()
+            .values()
+            .batchClear(spreadsheetId=spreadsheet_id, body=body)
+            .execute(num_retries=self.num_retries)
+        )
 
         return response
 
@@ -407,7 +441,8 @@ class GSheetsHook(GoogleBaseHook):
 
         if sheet_filter:
             titles = [
-                sh['properties']['title'] for sh in response['sheets']
+                sh['properties']['title']
+                for sh in response['sheets']
                 if sh['properties']['title'] in sheet_filter
             ]
         else:
@@ -424,11 +459,9 @@ class GSheetsHook(GoogleBaseHook):
         :return: An spreadsheet object.
         """
         self.log.info("Creating spreadsheet: %s", spreadsheet['properties']['title'])
+        # pylint: disable=no-member
         response = (
-            self.get_conn()  # pylint: disable=no-member
-            .spreadsheets()
-            .create(body=spreadsheet)
-            .execute(num_retries=self.num_retries)
+            self.get_conn().spreadsheets().create(body=spreadsheet).execute(num_retries=self.num_retries)
         )
         self.log.info("Spreadsheet: %s created", spreadsheet['properties']['title'])
         return response

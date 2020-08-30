@@ -121,8 +121,7 @@ class ImportFinder(NodeVisitor):
     def process_import(self, import_name: str):
         self.imports.append(import_name)
 
-    # noinspection PyMethodMayBeStatic
-    def get_import_name_from_import_from(self, node: ImportFrom) -> List[str]:
+    def get_import_name_from_import_from(self, node: ImportFrom) -> List[str]:  # noqa
         """
         Retrieves import name from the "from" import.
         :param node: ImportFrom name
@@ -135,12 +134,10 @@ class ImportFinder(NodeVisitor):
             import_names.append(fullname)
         return import_names
 
-    # noinspection PyPep8Naming
     def visit_Import(self, node: Import):  # pylint: disable=invalid-name
         for alias in node.names:
             self.process_import(alias.name)
 
-    # noinspection PyPep8Naming
     def visit_ImportFrom(self, node: ImportFrom):  # pylint: disable=invalid-name
         if node.module == '__future__':
             return

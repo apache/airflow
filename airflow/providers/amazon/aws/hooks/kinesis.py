@@ -45,9 +45,6 @@ class AwsFirehoseHook(AwsBaseHook):
         Write batch records to Kinesis Firehose
         """
 
-        response = self.get_conn().put_record_batch(
-            DeliveryStreamName=self.delivery_stream,
-            Records=records
-        )
+        response = self.get_conn().put_record_batch(DeliveryStreamName=self.delivery_stream, Records=records)
 
         return response

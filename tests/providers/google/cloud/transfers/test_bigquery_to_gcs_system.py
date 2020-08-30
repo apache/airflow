@@ -27,7 +27,6 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
 class BigQueryExampleDagsSystemTest(GoogleSystemTest):
-
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def setUp(self):
         super().setUp()

@@ -28,14 +28,14 @@ from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
 class TestRedshiftToS3Transfer(unittest.TestCase):
-
-    @parameterized.expand([
-        [True, "key/table_"],
-        [False, "key"],
-    ])
+    @parameterized.expand(
+        [[True, "key/table_"], [False, "key"],]
+    )
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
-    def test_execute(self, table_as_file_name, expected_s3_key, mock_run, mock_session,):
+    def test_execute(
+        self, table_as_file_name, expected_s3_key, mock_run, mock_session,
+    ):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
@@ -43,7 +43,9 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         table = "table"
         s3_bucket = "bucket"
         s3_key = "key"
-        unload_options = ['HEADER', ]
+        unload_options = [
+            'HEADER',
+        ]
 
         RedshiftToS3Operator(
             schema=schema,
@@ -56,7 +58,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             table_as_file_name=table_as_file_name,
-            dag=None
+            dag=None,
         ).execute(None)
 
         unload_options = '\n\t\t\t'.join(unload_options)
@@ -67,12 +69,14 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
                     with credentials
                     'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
                     {unload_options};
-                    """.format(select_query=select_query,
-                               s3_bucket=s3_bucket,
-                               s3_key=expected_s3_key,
-                               access_key=access_key,
-                               secret_key=secret_key,
-                               unload_options=unload_options)
+                    """.format(
+            select_query=select_query,
+            s3_bucket=s3_bucket,
+            s3_key=expected_s3_key,
+            access_key=access_key,
+            secret_key=secret_key,
+            unload_options=unload_options,
+        )
 
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)

@@ -20,9 +20,10 @@ import logging
 import os
 import re
 import zipfile
+from pathlib import Path
 from typing import Dict, Generator, List, Optional, Pattern
 
-from airflow.configuration import conf  # type: ignore
+from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
 
@@ -50,14 +51,12 @@ def mkdirs(path, mode):
     :param mode: The mode to give to the directory e.g. 0o755, ignores umask
     :type mode: int
     """
-    try:
-        o_umask = os.umask(0)
-        os.makedirs(path, mode)
-    except OSError:
-        if not os.path.isdir(path):
-            raise
-    finally:
-        os.umask(o_umask)
+    import warnings
+    warnings.warn(
+        f"This function is deprecated. Please use `pathlib.Path({path}).mkdir`",
+        DeprecationWarning, stacklevel=2
+    )
+    Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
 
 
 ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
@@ -159,7 +158,7 @@ def list_py_file_paths(directory: str,
     elif os.path.isdir(directory):
         find_dag_file_paths(directory, file_paths, safe_mode)
     if include_examples:
-        from airflow import example_dags  # type: ignore
+        from airflow import example_dags
         example_dag_folder = example_dags.__path__[0]  # type: ignore
         file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False))
     return file_paths
@@ -170,7 +169,6 @@ def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
 
     for file_path in find_path_from_directory(
             directory, ".airflowignore"):
-        # noinspection PyBroadException
         try:
             if not os.path.isfile(file_path):
                 continue
@@ -181,7 +179,7 @@ def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
                 continue
 
             file_paths.append(file_path)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:  # noqa pylint: disable=broad-except
             log.exception("Error while examining %s", file_path)
 
 

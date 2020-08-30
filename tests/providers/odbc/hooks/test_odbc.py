@@ -73,9 +73,7 @@ class TestOdbcHook:
     def test_dsn_in_extra(self):
         conn_params = dict(extra=json.dumps(dict(DSN='MyDSN', Fake_Param='Fake Param')))
         hook = self.get_hook(conn_params=conn_params)
-        expected = (
-            'DSN=MyDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;Fake_Param=Fake Param;'
-        )
+        expected = 'DSN=MyDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;Fake_Param=Fake Param;'
         assert hook.odbc_connection_string == expected
 
     def test_dsn_in_both(self):
@@ -107,10 +105,7 @@ class TestOdbcHook:
         hook = self.get_hook(
             hook_params=dict(
                 connect_kwargs={
-                    'attrs_before': {
-                        1: 2,
-                        pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,
-                    },
+                    'attrs_before': {1: 2, pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,},
                     'readonly': True,
                     'autocommit': False,
                 }
@@ -126,10 +121,7 @@ class TestOdbcHook:
         extra = json.dumps(
             dict(
                 connect_kwargs={
-                    'attrs_before': {
-                        1: 2,
-                        pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,
-                    },
+                    'attrs_before': {1: 2, pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,},
                     'readonly': True,
                     'autocommit': True,
                 }
@@ -148,9 +140,7 @@ class TestOdbcHook:
         When connect_kwargs in both hook and conn, should be merged properly.
         Hook beats conn.
         """
-        conn_extra = json.dumps(
-            dict(connect_kwargs={'attrs_before': {1: 2, 3: 4}, 'readonly': False})
-        )
+        conn_extra = json.dumps(dict(connect_kwargs={'attrs_before': {1: 2, 3: 4}, 'readonly': False}))
         hook_params = dict(
             connect_kwargs={'attrs_before': {3: 5, pyodbc.SQL_TXN_ISOLATION: 0}, 'readonly': True}
         )

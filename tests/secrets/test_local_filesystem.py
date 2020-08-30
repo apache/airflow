@@ -24,7 +24,7 @@ from unittest import mock
 
 from parameterized import parameterized
 
-from airflow.exceptions import AirflowException, AirflowFileParseException
+from airflow.exceptions import AirflowException, AirflowFileParseException, ConnectionNotUnique
 from airflow.secrets import local_filesystem
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 
@@ -124,16 +124,16 @@ class TestLoadConnection(unittest.TestCase):
         (
             ("CONN_ID=mysql://host_1/", {"CONN_ID": ["mysql://host_1"]}),
             (
-                "CONN_ID=mysql://host_1/\nCONN_ID=mysql://host_2/",
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
+                "CONN_ID1=mysql://host_1/\nCONN_ID2=mysql://host_2/",
+                {"CONN_ID1": ["mysql://host_1"], "CONN_ID2": ["mysql://host_2"]},
             ),
             (
-                "CONN_ID=mysql://host_1/\n # AAAA\nCONN_ID=mysql://host_2/",
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
+                "CONN_ID1=mysql://host_1/\n # AAAA\nCONN_ID2=mysql://host_2/",
+                {"CONN_ID1": ["mysql://host_1"], "CONN_ID2": ["mysql://host_2"]},
             ),
             (
-                "\n\n\n\nCONN_ID=mysql://host_1/\n\n\n\n\nCONN_ID=mysql://host_2/\n\n\n",
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
+                "\n\n\n\nCONN_ID1=mysql://host_1/\n\n\n\n\nCONN_ID2=mysql://host_2/\n\n\n",
+                {"CONN_ID1": ["mysql://host_1"], "CONN_ID2": ["mysql://host_2"]},
             ),
         )
     )
@@ -162,16 +162,8 @@ class TestLoadConnection(unittest.TestCase):
         (
             ({"CONN_ID": "mysql://host_1"}, {"CONN_ID": ["mysql://host_1"]}),
             ({"CONN_ID": ["mysql://host_1"]}, {"CONN_ID": ["mysql://host_1"]}),
-            (
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
-            ),
             ({"CONN_ID": {"uri": "mysql://host_1"}}, {"CONN_ID": ["mysql://host_1"]}),
             ({"CONN_ID": [{"uri": "mysql://host_1"}]}, {"CONN_ID": ["mysql://host_1"]}),
-            (
-                {"CONN_ID": [{"uri": "mysql://host_1"}, {"uri": "mysql://host_2"}]},
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
-            ),
         )
     )
     def test_json_file_should_load_connection(self, file_content, expected_connection_uris):
@@ -211,16 +203,8 @@ class TestLoadConnection(unittest.TestCase):
         (
             ("""CONN_A: 'mysql://host_a'""", {"CONN_A": ["mysql://host_a"]}),
             ("""
-            CONN_B:
-                - 'mysql://host_a'
-                - 'mysql://host_b'
-             """, {"CONN_B": ["mysql://host_a", "mysql://host_b"]}),
-            ("""
             conn_a: mysql://hosta
             conn_b:
-              - mysql://hostb
-              - mysql://hostc
-            conn_c:
                conn_type: scheme
                host: host
                schema: lschema
@@ -231,8 +215,8 @@ class TestLoadConnection(unittest.TestCase):
                  extra__google_cloud_platform__keyfile_dict:
                    a: b
                  extra__google_cloud_platform__keyfile_path: asaa""",
-                {"conn_a": ["mysql://hosta"], "conn_b": ["mysql://hostb", "mysql://hostc"],
-                    "conn_c": [''.join("""scheme://Login:None@host:1234/lschema?
+                {"conn_a": ["mysql://hosta"],
+                    "conn_b": [''.join("""scheme://Login:None@host:1234/lschema?
                         extra__google_cloud_platform__keyfile_dict=%7B%27a%27%3A+%27b%27%7D
                         &extra__google_cloud_platform__keyfile_path=asaa""".split())]}),
         )
@@ -316,6 +300,44 @@ class TestLoadConnection(unittest.TestCase):
             with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
                 local_filesystem.load_connections("a.yaml")
 
+    @parameterized.expand(
+        (
+            "CONN_ID=mysql://host_1/\nCONN_ID=mysql://host_2/",
+        ),
+    )
+    def test_ensure_unique_connection_env(self, file_content):
+        with mock_local_file(file_content):
+            with self.assertRaises(ConnectionNotUnique):
+                local_filesystem.load_connections("a.env")
+
+    @parameterized.expand(
+        (
+            (
+                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
+            ),
+            (
+                {"CONN_ID": [{"uri": "mysql://host_1"}, {"uri": "mysql://host_2"}]},
+            ),
+        )
+    )
+    def test_ensure_unique_connection_json(self, file_content):
+        with mock_local_file(json.dumps(file_content)):
+            with self.assertRaises(ConnectionNotUnique):
+                local_filesystem.load_connections("a.json")
+
+    @parameterized.expand(
+        (
+            ("""
+            conn_a:
+              - mysql://hosta
+              - mysql://hostb"""),
+        ),
+    )
+    def test_ensure_unique_connection_yaml(self, file_content):
+        with mock_local_file(file_content):
+            with self.assertRaises(ConnectionNotUnique):
+                local_filesystem.load_connections("a.yaml")
+
 
 class TestLocalFileBackend(unittest.TestCase):
     def test_should_read_variable(self):
@@ -328,11 +350,11 @@ class TestLocalFileBackend(unittest.TestCase):
 
     def test_should_read_connection(self):
         with NamedTemporaryFile(suffix=".env") as tmp_file:
-            tmp_file.write("CONN_A=mysql://host_a\nCONN_A=mysql://host_b".encode())
+            tmp_file.write("CONN_A=mysql://host_a".encode())
             tmp_file.flush()
             backend = LocalFilesystemBackend(connections_file_path=tmp_file.name)
             self.assertEqual(
-                ["mysql://host_a", "mysql://host_b"],
+                ["mysql://host_a"],
                 [conn.get_uri() for conn in backend.get_connections("CONN_A")],
             )
             self.assertIsNone(backend.get_variable("CONN_B"))

@@ -86,17 +86,14 @@ Content
     executor/index
     dag-run
     plugins
-    security
+    security/index
+    logging-monitoring/index
     timezone
     Using the CLI <usage-cli>
     integration
-    metrics
-    errors
     kubernetes
     lineage
     dag-serialization
-    Using the REST API <stable-rest-api/index>
-    REST API Migration Guide <stable-rest-api/migration>
     changelog
     best-practices
     faq
@@ -111,5 +108,5 @@ Content
     Macros <macros-ref>
     Python API <_api/index>
     Experimental REST API <rest-api-ref>
-    Stable REST API <stable-rest-api/redoc>
+    Stable REST API <stable-rest-api-ref>
     Configurations <configurations-ref>

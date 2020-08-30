@@ -51,8 +51,6 @@ YOUTUBE_VIDEO_PARTS = getenv("YOUTUBE_VIDEO_PARTS", "snippet")
 YOUTUBE_VIDEO_FIELDS = getenv("YOUTUBE_VIDEO_FIELDS", "items(id,snippet(description,publishedAt,tags,title))")
 # [END howto_operator_google_api_to_s3_transfer_advanced_env_variables]
 
-default_args = {"start_date": days_ago(1)}
-
 
 # pylint: disable=unused-argument
 # [START howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
@@ -74,9 +72,9 @@ s3_file_name, _ = s3_file.rsplit('.', 1)
 
 with DAG(
     dag_id="example_google_api_to_s3_transfer_advanced",
-    default_args=default_args,
     schedule_interval=None,
-    tags=['example']
+    start_date=days_ago(1),
+    tags=['example'],
 ) as dag:
     # [START howto_operator_google_api_to_s3_transfer_advanced_task_1]
     task_video_ids_to_s3 = GoogleApiToS3Operator(
@@ -91,21 +89,18 @@ with DAG(
             'publishedAfter': YOUTUBE_VIDEO_PUBLISHED_AFTER,
             'publishedBefore': YOUTUBE_VIDEO_PUBLISHED_BEFORE,
             'type': 'video',
-            'fields': 'items/id/videoId'
+            'fields': 'items/id/videoId',
         },
         google_api_response_via_xcom='video_ids_response',
         s3_destination_key=f'{s3_directory}/youtube_search_{s3_file_name}.json',
-        task_id='video_ids_to_s3'
+        task_id='video_ids_to_s3',
     )
     # [END howto_operator_google_api_to_s3_transfer_advanced_task_1]
     # [START howto_operator_google_api_to_s3_transfer_advanced_task_1_1]
     task_check_and_transform_video_ids = BranchPythonOperator(
         python_callable=_check_and_transform_video_ids,
-        op_args=[
-            task_video_ids_to_s3.google_api_response_via_xcom,
-            task_video_ids_to_s3.task_id
-        ],
-        task_id='check_and_transform_video_ids'
+        op_args=[task_video_ids_to_s3.google_api_response_via_xcom, task_video_ids_to_s3.task_id],
+        task_id='check_and_transform_video_ids',
     )
     # [END howto_operator_google_api_to_s3_transfer_advanced_task_1_1]
     # [START howto_operator_google_api_to_s3_transfer_advanced_task_2]
@@ -117,16 +112,14 @@ with DAG(
         google_api_endpoint_params={
             'part': YOUTUBE_VIDEO_PARTS,
             'maxResults': 50,
-            'fields': YOUTUBE_VIDEO_FIELDS
+            'fields': YOUTUBE_VIDEO_FIELDS,
         },
         google_api_endpoint_params_via_xcom='video_ids',
         s3_destination_key=f'{s3_directory}/youtube_videos_{s3_file_name}.json',
-        task_id='video_data_to_s3'
+        task_id='video_data_to_s3',
     )
     # [END howto_operator_google_api_to_s3_transfer_advanced_task_2]
     # [START howto_operator_google_api_to_s3_transfer_advanced_task_2_1]
-    task_no_video_ids = DummyOperator(
-        task_id='no_video_ids'
-    )
+    task_no_video_ids = DummyOperator(task_id='no_video_ids')
     # [END howto_operator_google_api_to_s3_transfer_advanced_task_2_1]
     task_video_ids_to_s3 >> task_check_and_transform_video_ids >> [task_video_data_to_s3, task_no_video_ids]

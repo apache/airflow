@@ -154,7 +154,6 @@ class LocalExecutor(BaseExecutor):
             self.executor.workers_active = 0
 
         # pylint: disable=unused-argument # pragma: no cover
-        # noinspection PyUnusedLocal
         def execute_async(self,
                           key: TaskInstanceKey,
                           command: CommandType,
@@ -224,7 +223,6 @@ class LocalExecutor(BaseExecutor):
             for worker in self.executor.workers:
                 worker.start()
 
-        # noinspection PyUnusedLocal
         def execute_async(
             self,
             key: TaskInstanceKey,
@@ -287,8 +285,7 @@ class LocalExecutor(BaseExecutor):
         if not self.impl:
             raise AirflowException(NOT_STARTED_MESSAGE)
 
-        if command[0:3] != ["airflow", "tasks", "run"]:
-            raise ValueError('The command must start with ["airflow", "tasks", "run"].')
+        self.validate_command(command)
 
         self.impl.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
 
