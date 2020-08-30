@@ -2745,6 +2745,15 @@ components:
   # Reusable callbacks
   callbacks: {}
 
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+    GoogleOpenIdAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
 # The API will provide support for plugins to support various authorization mechanisms.
 # Detailed information will be available in the plugin specification.
 security: []
