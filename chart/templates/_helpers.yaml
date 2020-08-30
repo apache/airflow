@@ -279,6 +279,10 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
 {{ (printf "%s/dags" .Values.airflowHome) }}
 {{- end }}
 
+{{ define "airflow_pod_template_file" -}}
+{{ (printf "%s/pod_templates" .Values.airflowHome) }}
+{{- end }}
+
 {{ define "airflow_config_path" -}}
 {{ (printf "%s/airflow.cfg" .Values.airflowHome) | quote }}
 {{- end }}

@@ -53,13 +53,10 @@ Ultimately, it allows Airflow to act a job orchestrator - no matter the language
 
 How to use cluster ConfigMaps, Secrets, and Volumes with Pod?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Kubernetes cluster resources such as ConfigMaps, Secrets, and Volumes can be used with a Pod to be launched.
+Kubernetes cluster resources such as Secrets can be used with a Pod to be launched.
 Utilize the Airflow Kubernetes model classes such as:
 :class:`~airflow.kubernetes.secret.Secret`
 or
-:class:`~airflow.kubernetes.volume.Volume`
-or
-:class:`~airflow.kubernetes.volume_mount.VolumeMount`
 to do this (as well as standard Python dictionaries). These can they be specified in the appropriate parameters
 when declaring the Pod task.
 

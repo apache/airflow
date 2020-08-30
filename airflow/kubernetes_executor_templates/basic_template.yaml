@@ -1,0 +1,79 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+kind: Pod
+apiVersion: v1
+metadata:
+  name: dummy-name-dont-delete
+  namespace: dummy-name-dont-delete
+  labels:
+    mylabel: foo
+spec:
+  containers:
+    - name: base
+      image: dummy-name-dont-delete
+      env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: LocalExecutor
+        - name: AIRFLOW_HOME
+          value: /opt/airflow
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: /opt/airflow/dags
+        - name: AIRFLOW__CORE__FERNET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: airflow-fernet-key
+              key: fernet-key
+        - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+          valueFrom:
+            secretKeyRef:
+              name: airflow-airflow-metadata
+              key: connection
+        - name: foo
+          value: bar
+      resources: {}
+      volumeMounts:
+        - name: airflow-logs
+          mountPath: /opt/airflow/logs
+        - name: airflow-config
+          readOnly: true
+          mountPath: /opt/airflow/airflow.cfg
+          subPath: airflow.cfg
+        - name: airflow-config
+          readOnly: true
+          mountPath: /opt/airflow/config/airflow_local_settings.py
+          subPath: airflow_local_settings.py
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      imagePullPolicy: IfNotPresent
+  volumes:
+    - name: airflow-logs
+      emptyDir: {}
+    - name: airflow-config
+      configMap:
+        name: airflow-airflow-config
+        defaultMode: 420
+  restartPolicy: Never
+  terminationGracePeriodSeconds: 30
+  serviceAccountName: airflow-worker-serviceaccount
+  serviceAccount: airflow-worker-serviceaccount
+  securityContext:
+    runAsUser: 50000
+    fsGroup: 50000
+  imagePullSecrets:
+    - name: airflow-registry
+  schedulerName: default-scheduler
