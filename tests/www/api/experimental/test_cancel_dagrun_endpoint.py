@@ -61,7 +61,7 @@ class TestDagRunCancelEndpoint(unittest.TestCase):
         session.close()
         super(TestDagRunCancelEndpoint, self).tearDown()
 
-    def test_get_dag_runs_success(self):
+    def test_cancel_dag_run_success(self):
         with conf_vars(
             {("core", "store_serialized_dags"): self.dag_serialzation}
         ):

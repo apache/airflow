@@ -267,15 +267,14 @@ def cancel_dag_run(dag_id):
     """
     data = request.get_json(force=True)
 
-    run_id = None
-    if 'run_id' in data:
-        run_id = data['run_id']
-    else:
+    if 'run_id' not in data:
         error_message = 'Missing run_id'
         _log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
         return response
+
+    run_id = data['run_id']
 
     try:
        dr = _cancel_dag_run(dag_id, run_id)
