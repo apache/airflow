@@ -672,8 +672,14 @@ class DataprocCreateClusterOperator(BaseOperator):
         return cluster
 
     def execute(self, context) -> dict:
-        self.log.info('Creating cluster: %s', self.cluster_name)
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        self.log.info("Creating cluster: %s", self.cluster_name)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        # Save data required to display extra link no matter what the cluster status will be
+        self.xcom_push(
+            context,
+            key="cluster_conf",
+            value={"cluster_name": self.cluster_name, "region": self.region, "project_id": self.project_id,},
+        )
         try:
             # First try to create a new cluster
             cluster = self._create_cluster(hook)
@@ -836,7 +842,13 @@ class DataprocScaleClusterOperator(BaseOperator):
             "config.secondary_worker_config.num_instances",
         ]
 
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        # Save data required to display extra link no matter what the cluster status will be
+        self.xcom_push(
+            context,
+            key="cluster_conf",
+            value={"cluster_name": self.cluster_name, "region": self.region, "project_id": self.project_id,},
+        )
         operation = hook.update_cluster(
             project_id=self.project_id,
             location=self.region,
@@ -847,11 +859,6 @@ class DataprocScaleClusterOperator(BaseOperator):
         )
         operation.result()
         self.log.info("Cluster scaling finished")
-        self.xcom_push(
-            context,
-            key="cluster_conf",
-            value={"cluster_name": self.cluster_name, "region": self.region, "project_id": self.project_id,},
-        )
 
 
 class DataprocDeleteClusterOperator(BaseOperator):
@@ -1076,7 +1083,7 @@ class DataprocJobBaseOperator(BaseOperator):
             )
             job_id = job_object.reference.job_id
             self.log.info('Job %s submitted successfully.', job_id)
-            # XCom push is referenced by extra links and has to be pushed before polling for job completion
+            # Save data required for extra links no matter what the job status will be
             self.xcom_push(context, key='job_conf', value={
                 'job_id': job_id,
                 'region': self.region,
@@ -2001,7 +2008,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         )
         job_id = job_object.reference.job_id
         self.log.info('Job %s submitted successfully.', job_id)
-        # XCom job_conf is referenced by extra links and has be pushed before we poll for job completion
+        # Save data required by extra links no matter what the job status will be
         self.xcom_push(
             context,
             key="job_conf",
@@ -2114,6 +2121,16 @@ class DataprocUpdateClusterOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        # Save data required by extra links no matter what the cluster status will be
+        self.xcom_push(
+            context,
+            key="cluster_conf",
+            value={
+                "cluster_name": self.cluster_name,
+                "region": self.location,
+                "project_id": self.project_id,
+            },
+        )
         self.log.info("Updating %s cluster.", self.cluster_name)
         operation = hook.update_cluster(
             project_id=self.project_id,
@@ -2129,12 +2146,3 @@ class DataprocUpdateClusterOperator(BaseOperator):
         )
         operation.result()
         self.log.info("Updated %s cluster.", self.cluster_name)
-        self.xcom_push(
-            context,
-            key="cluster_conf",
-            value={
-                "cluster_name": self.cluster_name,
-                "region": self.location,
-                "project_id": self.project_id,
-            },
-        )

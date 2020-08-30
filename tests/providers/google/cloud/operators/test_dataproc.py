@@ -212,10 +212,6 @@ class DataprocTestBase(unittest.TestCase):
         cls.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
         cls.mock_ti = MagicMock()
         cls.mock_context = {"ti": cls.mock_ti}
-        cls.extra_links_expected_calls = [
-            call.ti.xcom_push(execution_date=None, key='job_conf', value=DATAPROC_JOB_CONF_EXPECTED),
-            call.hook().wait_for_job(job_id=TEST_JOB_ID, location=GCP_LOCATION, project_id=GCP_PROJECT),
-        ]
         cls.extra_links_manager_mock = Mock()
         cls.extra_links_manager_mock.attach_mock(cls.mock_ti, 'ti')
 
@@ -223,6 +219,25 @@ class DataprocTestBase(unittest.TestCase):
     def tearDownClass(cls):
         clear_db_runs()
         clear_db_xcom()
+
+
+class DataprocJobTestBase(DataprocTestBase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.extra_links_expected_calls = [
+            call.ti.xcom_push(execution_date=None, key='job_conf', value=DATAPROC_JOB_CONF_EXPECTED),
+            call.hook().wait_for_job(job_id=TEST_JOB_ID, location=GCP_LOCATION, project_id=GCP_PROJECT),
+        ]
+
+
+class DataprocClusterTestBase(DataprocTestBase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.extra_links_expected_calls_base = [
+            call.ti.xcom_push(execution_date=None, key='cluster_conf', value=DATAPROC_CLUSTER_CONF_EXPECTED)
+        ]
 
 
 class TestsClusterGenerator(unittest.TestCase):
@@ -338,7 +353,7 @@ class TestsClusterGenerator(unittest.TestCase):
         assert CONFIG_WITH_CUSTOM_IMAGE_FAMILY == cluster
 
 
-class TestDataprocClusterCreateOperator(DataprocTestBase):
+class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
     def test_deprecation_warning(self):
         with pytest.warns(DeprecationWarning) as warnings:
             op = DataprocCreateClusterOperator(
@@ -369,6 +384,23 @@ class TestDataprocClusterCreateOperator(DataprocTestBase):
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, to_dict_mock):
+        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        mock_hook.return_value.create_cluster.result.return_value = None
+        create_cluster_args = {
+            'region': GCP_LOCATION,
+            'project_id': GCP_PROJECT,
+            'cluster_name': CLUSTER_NAME,
+            'request_id': REQUEST_ID,
+            'retry': RETRY,
+            'timeout': TIMEOUT,
+            'metadata': METADATA,
+            'cluster_config': CONFIG,
+            'labels': LABELS
+        }
+        expected_calls = self.extra_links_expected_calls_base + [
+            call.hook().create_cluster(**create_cluster_args),
+        ]
+
         op = DataprocCreateClusterOperator(
             task_id=TASK_ID,
             region=GCP_LOCATION,
@@ -384,21 +416,15 @@ class TestDataprocClusterCreateOperator(DataprocTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=self.mock_context)
+
+        # Test whether xcom push occurs before create cluster is called
+        self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
+
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.create_cluster.assert_called_once_with(
-            region=GCP_LOCATION,
-            project_id=GCP_PROJECT,
-            cluster_config=CONFIG,
-            labels=LABELS,
-            cluster_name=CLUSTER_NAME,
-            request_id=REQUEST_ID,
-            retry=RETRY,
-            timeout=TIMEOUT,
-            metadata=METADATA,
-        )
         to_dict_mock.assert_called_once_with(mock_hook().create_cluster().result())
+        mock_hook.return_value.create_cluster.assert_called_once_with(**create_cluster_args)
         self.mock_ti.xcom_push.assert_called_once_with(
             key="cluster_conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None,
         )
@@ -589,7 +615,7 @@ class TestDataprocClusterCreateOperator(DataprocTestBase):
         self.assertEqual(op.get_extra_links(datetime(2020, 7, 20), DataprocClusterLink.name), "")
 
 
-class TestDataprocClusterScaleOperator(DataprocTestBase):
+class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
     def test_deprecation_warning(self):
         with pytest.warns(DeprecationWarning) as warnings:
             DataprocScaleClusterOperator(task_id=TASK_ID, cluster_name=CLUSTER_NAME, project_id=GCP_PROJECT)
@@ -597,9 +623,22 @@ class TestDataprocClusterScaleOperator(DataprocTestBase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
+        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        mock_hook.return_value.update_cluster.result.return_value = None
         cluster_update = {
             "config": {"worker_config": {"num_instances": 3}, "secondary_worker_config": {"num_instances": 4}}
         }
+        update_cluster_args = {
+            'project_id': GCP_PROJECT,
+            'location': GCP_LOCATION,
+            'cluster_name': CLUSTER_NAME,
+            'cluster': cluster_update,
+            'graceful_decommission_timeout': {"seconds": 600},
+            'update_mask': UPDATE_MASK,
+        }
+        expected_calls = self.extra_links_expected_calls_base + [
+            call.hook().update_cluster(**update_cluster_args)
+        ]
 
         op = DataprocScaleClusterOperator(
             task_id=TASK_ID,
@@ -614,15 +653,13 @@ class TestDataprocClusterScaleOperator(DataprocTestBase):
         )
         op.execute(context=self.mock_context)
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.update_cluster.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            cluster_name=CLUSTER_NAME,
-            cluster=cluster_update,
-            graceful_decommission_timeout={"seconds": 600},
-            update_mask=UPDATE_MASK,
+        # Test whether xcom push occurs before cluster is updated
+        self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )
+        mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
         self.mock_ti.xcom_push.assert_called_once_with(
             key="cluster_conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None,
         )
@@ -709,7 +746,7 @@ class TestDataprocClusterDeleteOperator(unittest.TestCase):
         )
 
 
-class TestDataprocSubmitJobOperator(DataprocTestBase):
+class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         job = {}
@@ -869,9 +906,28 @@ class TestDataprocSubmitJobOperator(DataprocTestBase):
         self.assertEqual(op.get_extra_links(datetime(2020, 7, 20), DataprocJobLink.name), "")
 
 
-class TestDataprocUpdateClusterOperator(DataprocTestBase):
+class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
+        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        mock_hook.return_value.update_cluster.result.return_value = None
+        cluster_decommission_timeout = {"graceful_decommission_timeout": "600s"}
+        update_cluster_args = {
+            'location': GCP_LOCATION,
+            'project_id': GCP_PROJECT,
+            'cluster_name': CLUSTER_NAME,
+            'cluster': CLUSTER,
+            'update_mask': UPDATE_MASK,
+            'graceful_decommission_timeout': cluster_decommission_timeout,
+            'request_id': REQUEST_ID,
+            'retry': RETRY,
+            'timeout': TIMEOUT,
+            'metadata': METADATA,
+        }
+        expected_calls = self.extra_links_expected_calls_base + [
+            call.hook().update_cluster(**update_cluster_args)
+        ]
+
         op = DataprocUpdateClusterOperator(
             task_id=TASK_ID,
             location=GCP_LOCATION,
@@ -879,7 +935,7 @@ class TestDataprocUpdateClusterOperator(DataprocTestBase):
             cluster=CLUSTER,
             update_mask=UPDATE_MASK,
             request_id=REQUEST_ID,
-            graceful_decommission_timeout={"graceful_decommission_timeout": "600s"},
+            graceful_decommission_timeout=cluster_decommission_timeout,
             project_id=GCP_PROJECT,
             gcp_conn_id=GCP_CONN_ID,
             retry=RETRY,
@@ -888,21 +944,14 @@ class TestDataprocUpdateClusterOperator(DataprocTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=self.mock_context)
+
+        # Test whether the xcom push happens before updating the cluster
+        self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
+
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.update_cluster.assert_called_once_with(
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT,
-            cluster_name=CLUSTER_NAME,
-            cluster=CLUSTER,
-            update_mask=UPDATE_MASK,
-            graceful_decommission_timeout={"graceful_decommission_timeout": "600s"},
-            request_id=REQUEST_ID,
-            retry=RETRY,
-            timeout=TIMEOUT,
-            metadata=METADATA,
-        )
+        mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
         self.mock_ti.xcom_push.assert_called_once_with(
             key="cluster_conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None,
         )
@@ -1239,7 +1288,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
         assert self.job == job
 
 
-class TestDataProcSparkOperator(DataprocTestBase):
+class TestDataProcSparkOperator(DataprocJobTestBase):
     main_class = "org.apache.spark.examples.SparkPi"
     jars = ["file:///usr/lib/spark/examples/jars/spark-examples.jar"]
     job = {
