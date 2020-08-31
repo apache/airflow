@@ -259,7 +259,13 @@ def do_setup_package_providers(provider_package_id: str,
     package_prefix = f'airflow.providers.{provider_package_id}'
     found_packages = find_packages()
     found_packages = [package for package in found_packages if package.startswith(package_prefix)]
-    install_requires = ['apache-airflow~=1.10']
+
+    airflow_dependency = 'apache-airflow~=1.10' if provider_package_id != 'cncf.kubernetes' \
+        else 'apache-airflow>=1.10.12, <2.0.0'
+
+    install_requires = [
+        airflow_dependency
+    ]
     install_requires.extend(package_dependencies)
     setuptools_setup(
         name=package_name,
@@ -1152,8 +1158,7 @@ def get_all_backportable_providers() -> List[str]:
     for Airflow 1.10 anyway.
     :return: list of providers that are considered for backport packages
     """
-    # TODO: Maybe we should fix it and release cncf.kubernetes separately
-    excluded_providers = ["cncf.kubernetes", "papermill"]
+    excluded_providers = ["papermill"]
     return [prov for prov in PROVIDERS_REQUIREMENTS.keys() if prov not in excluded_providers]
 
 
