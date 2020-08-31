@@ -785,7 +785,7 @@ DAGS_COMMANDS = (
         args=(ARG_SUBDIR, ARG_OUTPUT),
     ),
     ActionCommand(
-        name='list_runs',
+        name='list-runs',
         help="List DAG runs given a DAG id",
         description=(
             "List DAG runs given a DAG id. If state option is given, it will only search for all the "
@@ -798,7 +798,7 @@ DAGS_COMMANDS = (
         args=(ARG_DAG_ID_OPT, ARG_NO_BACKFILL, ARG_STATE, ARG_OUTPUT, ARG_START_DATE, ARG_END_DATE),
     ),
     ActionCommand(
-        name='list_jobs',
+        name='list-jobs',
         help="List the jobs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
         args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT,),
@@ -932,7 +932,7 @@ TASKS_COMMANDS = (
         args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
     ),
     ActionCommand(
-        name='failed_deps',
+        name='failed-deps',
         help="Returns the unmet dependencies for a task instance",
         description=(
             "Returns the unmet dependencies for a task instance from the perspective of the scheduler. "
@@ -973,7 +973,7 @@ TASKS_COMMANDS = (
         ),
     ),
     ActionCommand(
-        name='states_for_dag_run',
+        name='states-for-dag-run',
         help="Get the status of all task instances in a dag run",
         func=lazy_load_command('airflow.cli.commands.task_command.task_states_for_dag_run'),
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_OUTPUT),
@@ -1172,13 +1172,13 @@ USERS_COMMANDS = (
         args=(ARG_USERNAME,),
     ),
     ActionCommand(
-        name='add_role',
+        name='add-role',
         help='Add role to a user',
         func=lazy_load_command('airflow.cli.commands.user_command.add_role'),
         args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL, ARG_ROLE),
     ),
     ActionCommand(
-        name='remove_role',
+        name='remove-role',
         help='Remove role from a user',
         func=lazy_load_command('airflow.cli.commands.user_command.remove_role'),
         args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL, ARG_ROLE),
@@ -1333,13 +1333,13 @@ airflow_commands: List[CLICommand] = [
         subcommands=ROLES_COMMANDS,
     ),
     ActionCommand(
-        name='sync_perm',
+        name='sync-perm',
         help="Update permissions for existing roles and DAGs",
         func=lazy_load_command('airflow.cli.commands.sync_perm_command.sync_perm'),
         args=(),
     ),
     ActionCommand(
-        name='rotate_fernet_key',
+        name='rotate-fernet-key',
         func=lazy_load_command('airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key'),
         help='Rotate encrypted connection credentials and variables',
         description=(
