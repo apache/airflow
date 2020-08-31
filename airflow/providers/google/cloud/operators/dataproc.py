@@ -48,7 +48,7 @@ from airflow.utils.decorators import apply_defaults
 DATAPROC_BASE_LINK = "https://console.cloud.google.com/dataproc"
 DATAPROC_JOB_LOG_LINK = DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
 DATAPROC_CLUSTER_LINK = (
-    DATAPROC_BASE_LINK + "/clusters/{cluster_name}/monitoring?" "region={region}&project={project_id}"
+    DATAPROC_BASE_LINK + "/clusters/{cluster_name}/monitoring?region={region}&project={project_id}"
 )
 
 
