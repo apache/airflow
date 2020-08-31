@@ -756,6 +756,7 @@ class ActionCommand(NamedTuple):
     func: Callable
     args: Iterable[Arg]
     description: Optional[str] = None
+    epilog: Optional[str] = None
 
 
 class GroupCommand(NamedTuple):
@@ -764,6 +765,7 @@ class GroupCommand(NamedTuple):
     help: str
     subcommands: Iterable
     description: Optional[str] = None
+    epilog: Optional[str] = None
 
 
 CLICommand = Union[ActionCommand, GroupCommand]
@@ -1150,6 +1152,17 @@ USERS_COMMANDS = (
         args=(
             ARG_ROLE, ARG_USERNAME, ARG_EMAIL, ARG_FIRSTNAME, ARG_LASTNAME, ARG_PASSWORD,
             ARG_USE_RANDOM_PASSWORD
+        ),
+        epilog=(
+            'examples:\n'
+            'To create an user with "Admin" role and username equals to "admin", run:\n'
+            '\n'
+            '    $ airflow users create \\\n'
+            '          --username admin \\\n'
+            '          --firstname FIRST_NAME \\\n'
+            '          --lastname LAST_NAME \\\n'
+            '          --role Admin \\\n'
+            '          --email admin@example.org'
         )
     ),
     ActionCommand(
@@ -1443,7 +1456,7 @@ def _add_command(
     sub: CLICommand
 ) -> None:
     sub_proc = subparsers.add_parser(
-        sub.name, help=sub.help, description=sub.description or sub.help,
+        sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
     )
     sub_proc.formatter_class = RawTextHelpFormatter
 
