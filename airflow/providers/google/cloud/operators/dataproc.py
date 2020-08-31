@@ -155,10 +155,11 @@ class ClusterGenerator:
     """
 
     # pylint: disable=too-many-arguments,too-many-locals
+    @DataprocHook.fallback_to_default_project_id
     def __init__(
         self,
-        project_id: str,
         cluster_name: str,
+        project_id: Optional[str] = None,
         num_workers: Optional[int] = None,
         zone: Optional[str] = None,
         network_uri: Optional[str] = None,
@@ -240,7 +241,7 @@ class ClusterGenerator:
         match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)
         if match:
             if match.group(2) == "s":
-                return {"seconds": self.init_action_timeout}
+                return {"seconds": int(self.init_action_timeout)}
             elif match.group(2) == "m":
                 val = float(match.group(1))
                 return {"seconds": int(timedelta(minutes=val).total_seconds())}
@@ -294,7 +295,9 @@ class ClusterGenerator:
                 '%Y-%m-%dT%H:%M:%S.%fZ'
             )
         elif self.auto_delete_ttl:
-            cluster_data['config']['lifecycle_config']['auto_delete_ttl'] = {"seconds": self.auto_delete_ttl}
+            cluster_data['config']['lifecycle_config']['auto_delete_ttl'] = {
+                "seconds": int(self.auto_delete_ttl)
+            }
 
         return cluster_data
 
@@ -713,7 +716,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         return scale_data
 
     @property
-    def _graceful_decommission_timeout_object(self) -> Optional[Dict]:
+    def _graceful_decommission_timeout_object(self) -> Optional[Dict[str, int]]:
         if not self.graceful_decommission_timeout:
             return None
 
