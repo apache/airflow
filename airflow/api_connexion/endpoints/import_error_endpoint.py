@@ -38,7 +38,10 @@ def get_import_error(import_error_id, session):
     error = session.query(ImportError).filter(ImportError.id == import_error_id).one_or_none()
 
     if error is None:
-        raise NotFound("Import error not found")
+        raise NotFound(
+            "Import error not found",
+            detail=f"The ImportError with import_error_id: `{import_error_id}` was not found",
+        )
     return import_error_schema.dump(error)
 
 

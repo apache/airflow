@@ -173,6 +173,35 @@ info:
     For details on configuring the authentication, see
     [API Authorization](https://airflow.readthedocs.io/en/latest/security/api.html).
 
+    # Errors
+
+    We follow the error response format proposed in [RFC 7807](https://tools.ietf.org/html/rfc7807)
+    also known as Problem Details for HTTP APIs.  As with our normal API responses,
+    your client must be prepared to gracefully handle additional members of the response.
+    ## Unauthenticated
+    This indicates that the request has not been applied because it lacks valid authentication
+    credentials for the target resource. Please check that you have valid credentials.
+    ## PermissionDenied
+    This response means that the server understood the request but refuses to authorize
+    it because it lacks sufficient rights to the resource. It happens when you do not have the
+    necessary permission to execute the action you performed. You need to get the appropriate
+    permissions in other to resolve this error.
+    ## BadRequest
+    This response means that the server cannot or will not process the request due to something
+    that is perceived to be a client error (e.g., malformed request syntax, invalid request message
+    framing, or deceptive request routing). To resolve this, please ensure that your syntax is correct.
+    ## NotFound
+    This client error response indicates that the server cannot find the requested resource.
+    ## NotAcceptable
+    The target resource does not have a current representation that would be acceptable to the user
+    agent, according to the proactive negotiation header fields received in the request, and the
+    server is unwilling to supply a default representation.
+    ## AlreadyExists
+    The request could not be completed due to a conflict with the current state of the target
+    resource, meaning that the resource already exists
+    ## Unknown
+    This means that the server encountered an unexpected condition that prevented it from
+    fulfilling the request.
 
   version: '1.0.0'
   license:
