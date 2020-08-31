@@ -31,13 +31,16 @@ EXTRA = {"extra__dataprep__token": TOKEN}
 
 @pytest.mark.skipif(environ.get("DATAPREP_TOKEN") is None, reason='Dataprep token not present')
 class DataprepExampleDagsTest(GoogleSystemTest):
+    """
+    System tests for Dataprep operators.
+    It uses a real service and requires real data for test.
+    """
+
     def setUp(self):
         super().setUp()
         with create_session() as session:
             dataprep_conn_id = Connection(
-                conn_id="dataprep_default",
-                conn_type="dataprep",
-                extra=json.dumps(EXTRA),
+                conn_id="dataprep_default", conn_type="dataprep", extra=json.dumps(EXTRA),
             )
             session.add(dataprep_conn_id)  # pylint: disable=expression-not-assigned
 
