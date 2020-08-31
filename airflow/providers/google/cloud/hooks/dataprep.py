@@ -71,9 +71,7 @@ class GoogleDataprepHook(BaseHook):
         return response.json()
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
-    def get_job_group(
-        self, job_group_id: int, embed: str, include_deleted: bool
-    ) -> Dict[str, Any]:
+    def get_job_group(self, job_group_id: int, embed: str, include_deleted: bool) -> Dict[str, Any]:
         """
         Get the specified job group.
         A job group is a job that is executed from a specific node in a flow.
@@ -107,9 +105,7 @@ class GoogleDataprepHook(BaseHook):
 
         endpoint_path = "v4/jobGroups"
         url: str = os.path.join(self._base_url, endpoint_path)
-        response = requests.post(
-            url, headers=self._headers, data=json.dumps(body_request)
-        )
+        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
         self._raise_for_status(response)
         return response.json()
 

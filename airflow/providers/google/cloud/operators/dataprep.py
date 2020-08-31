@@ -42,16 +42,16 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
     template_fields = ("job_id",)
 
     @apply_defaults
-    def __init__(
-        self, *, dataprep_conn_id: str = "dataprep_default", job_id: int, **kwargs
-    ) -> None:
+    def __init__(self, *, dataprep_conn_id: str = "dataprep_default", job_id: int, **kwargs) -> None:
         super().__init__(**kwargs)
         self.dataprep_conn_id = (dataprep_conn_id,)
         self.job_id = job_id
 
     def execute(self, context: Dict):
         self.log.info("Fetching data for job with id: %d ...", self.job_id)
-        hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default",)
+        hook = GoogleDataprepHook(
+            dataprep_conn_id="dataprep_default",
+        )
         response = hook.get_jobs_for_job_group(job_id=self.job_id)
         return response
 
@@ -84,7 +84,7 @@ class DataprepGetJobGroupOperator(BaseOperator):
         job_group_id: int,
         embed: str,
         include_deleted: bool,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.dataprep_conn_id: str = dataprep_conn_id
@@ -116,13 +116,7 @@ class DataprepRunJobGroupOperator(BaseOperator):
 
     template_fields = ("body_request",)
 
-    def __init__(
-        self,
-        *,
-        dataprep_conn_id: str = "dataprep_default",
-        body_request: dict,
-        **kwargs
-    ) -> None:
+    def __init__(self, *, dataprep_conn_id: str = "dataprep_default", body_request: dict, **kwargs) -> None:
         super().__init__(**kwargs)
         self.body_request = body_request
         self.dataprep_conn_id = dataprep_conn_id

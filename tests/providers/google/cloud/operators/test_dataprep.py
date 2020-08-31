@@ -18,7 +18,9 @@
 from unittest import TestCase, mock
 
 from airflow.providers.google.cloud.operators.dataprep import (
-    DataprepGetJobGroupOperator, DataprepGetJobsForJobGroupOperator, DataprepRunJobGroupOperator,
+    DataprepGetJobGroupOperator,
+    DataprepGetJobsForJobGroupOperator,
+    DataprepRunJobGroupOperator,
 )
 
 DATAPREP_CONN_ID = "dataprep_default"
@@ -55,9 +57,7 @@ class TestDataprepGetJobsForJobGroupOperator(TestCase):
         )
         op.execute(context={})
         hook_mock.assert_called_once_with(dataprep_conn_id="dataprep_default")
-        hook_mock.return_value.get_jobs_for_job_group.assert_called_once_with(
-            job_id=JOB_ID
-        )
+        hook_mock.return_value.get_jobs_for_job_group.assert_called_once_with(job_id=JOB_ID)
 
 
 class TestDataprepGetJobGroupOperator(TestCase):

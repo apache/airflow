@@ -21,7 +21,9 @@ import os
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dataprep import (
-    DataprepGetJobGroupOperator, DataprepGetJobsForJobGroupOperator, DataprepRunJobGroupOperator,
+    DataprepGetJobGroupOperator,
+    DataprepGetJobsForJobGroupOperator,
+    DataprepRunJobGroupOperator,
 )
 from airflow.utils import dates
 
@@ -54,9 +56,7 @@ with models.DAG(
     start_date=dates.days_ago(1),
 ) as dag:
     # [START how_to_dataprep_run_job_group_operator]
-    run_job_group = DataprepRunJobGroupOperator(
-        task_id="run_job_group", body_request=DATA
-    )
+    run_job_group = DataprepRunJobGroupOperator(task_id="run_job_group", body_request=DATA)
     # [END how_to_dataprep_run_job_group_operator]
 
     # [START how_to_dataprep_get_jobs_for_job_group_operator]
