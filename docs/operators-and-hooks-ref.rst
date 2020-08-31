@@ -176,6 +176,13 @@ Foundation.
        :mod:`airflow.providers.apache.hive.sensors.hive_partition`,
        :mod:`airflow.providers.apache.hive.sensors.metastore_partition`
 
+   * - `Apache Kafka <https://kafka.apache.org/>`__
+     -
+     - :mod:`airflow.providers.apache.kafka.hooks.kafka_producer_hook`,
+       :mod:`airflow.providers.apache.kafka.hooks.kafka_consumer_hook`
+     -
+     - :mod:`airflow.providers.apache.kafka.sensors.kafka_sensor`
+
    * - `Apache Kylin <https://kylin.apache.org/>`__
      -
      - :mod:`airflow.providers.apache.kylin.hooks.kylin`
