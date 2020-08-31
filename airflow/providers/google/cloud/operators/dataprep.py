@@ -43,7 +43,7 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *, dataprep_conn_id: str = "dataprep_conn_id", job_id: int, **kwargs
+        self, *, dataprep_conn_id: str = "dataprep_default", job_id: int, **kwargs
     ) -> None:
         super().__init__(**kwargs)
         self.dataprep_conn_id = (dataprep_conn_id,)
@@ -51,7 +51,7 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
 
     def execute(self, context: Dict):
         self.log.info("Fetching data for job with id: %d ...", self.job_id)
-        hook = GoogleDataprepHook(dataprep_conn_id="dataprep_conn_id",)
+        hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default",)
         response = hook.get_jobs_for_job_group(job_id=self.job_id)
         return response
 
@@ -80,7 +80,7 @@ class DataprepGetJobGroupOperator(BaseOperator):
     def __init__(
         self,
         *,
-        dataprep_conn_id: str = "dataprep_conn_id",
+        dataprep_conn_id: str = "dataprep_default",
         job_group_id: int,
         embed: str,
         include_deleted: bool,
@@ -119,7 +119,7 @@ class DataprepRunJobGroupOperator(BaseOperator):
     def __init__(
         self,
         *,
-        dataprep_conn_id: str = "dataprep_conn_id",
+        dataprep_conn_id: str = "dataprep_default",
         body_request: dict,
         **kwargs
     ) -> None:

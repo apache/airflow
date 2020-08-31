@@ -35,7 +35,7 @@ class DataprepExampleDagsTest(GoogleSystemTest):
         super().setUp()
         with create_session() as session:
             dataprep_conn_id = Connection(
-                conn_id="extra__dataprep__token",
+                conn_id="dataprep_default",
                 conn_type="dataprep",
                 extra=json.dumps(EXTRA),
             )
