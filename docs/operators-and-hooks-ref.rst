@@ -182,6 +182,7 @@ Foundation.
        :mod:`airflow.providers.apache.kafka.hooks.kafka_consumer_hook`
      -
      - :mod:`airflow.providers.apache.kafka.sensors.kafka_sensor`
+     -
 
    * - `Apache Kylin <https://kylin.apache.org/>`__
      -
