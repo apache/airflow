@@ -18,6 +18,7 @@ import unittest
 
 from parameterized import parameterized
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Variable
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -185,7 +186,7 @@ class TestPatchVariable(TestVariableEndpoint):
         assert response.json == {
             "title": "Invalid post body",
             "status": 400,
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "key from request body doesn't match uri parameter",
         }
 
@@ -195,7 +196,7 @@ class TestPatchVariable(TestVariableEndpoint):
         assert response.json == {
             "title": "Invalid Variable schema",
             "status": 400,
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "{'value': ['Missing data for required field.']}",
         }
 
@@ -231,7 +232,7 @@ class TestPostVariables(TestVariableEndpoint):
         assert response.json == {
             "title": "Invalid Variable schema",
             "status": 400,
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "{'value': ['Missing data for required field.'], 'v': ['Unknown field.']}",
         }
 

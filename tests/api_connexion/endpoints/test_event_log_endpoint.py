@@ -19,6 +19,7 @@ import unittest
 from parameterized import parameterized
 
 from airflow import DAG
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Log, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -93,7 +94,7 @@ class TestGetEventLog(TestEventLogEndpoint):
         response = self.client.get("/api/v1/eventLogs/1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         self.assertEqual(
-            {'detail': None, 'status': 404, 'title': 'Event Log not found', 'type': 'about:blank'},
+            {'detail': None, 'status': 404, 'title': 'Event Log not found', 'type': EXCEPTIONS_LINK_MAP[404]},
             response.json,
         )
 
