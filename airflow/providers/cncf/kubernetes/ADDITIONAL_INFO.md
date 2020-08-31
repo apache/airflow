@@ -17,6 +17,8 @@
  under the License.
  -->
 
-This directory should be removed as soon as we release Airflow 1.10.12
-and sufficient time passes for everyone to switch to new way of retrieving
-constraints.
+## Additional limitations
+
+This provider is only usable with Apache Airflow >= 1.10.12 version due to refactorings implemented in
+Apache Airflow 1.10.11 and fixes implemented in 1.10.11. The package has appropriate requirements
+set so you should not be able to install it with Apache Airflow < 1.10.12.

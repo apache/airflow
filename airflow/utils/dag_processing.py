@@ -640,11 +640,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             )
             self._parallelism = 1
 
-        # How often to mark DAGs as inactive and delete their serializations
-        # if they haven't been processed recently.
-        self._dag_cleanup_interval = conf.getint('scheduler', 'dag_cleanup_interval')
-        self._min_serialized_dag_update_interval = conf.getint('core',
-                                                               'min_serialized_dag_update_interval')
         # Parse and schedule each file no faster than this interval.
         self._file_process_interval = conf.getint('scheduler',
                                                   'min_file_process_interval')
@@ -671,8 +666,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self.last_dag_dir_refresh_time = timezone.make_aware(datetime.fromtimestamp(0))
         # Last time stats were printed
         self.last_stat_print_time = timezone.datetime(2000, 1, 1)
-        # Last time we ran DAG cleanup
-        self.last_dag_cleanup_time = timezone.utcnow()
         # TODO: Remove magic number
         self._zombie_query_interval = 10
         # How long to wait before timing out a process to parse a DAG file
@@ -832,7 +825,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                                               all_files_processed,
                                               )
             self._signal_conn.send(dag_parsing_stat)
-            self._cleanup_stale_dags()
 
             if max_runs_reached:
                 self.log.info("Exiting dag parsing loop as all files "
@@ -872,6 +864,16 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 self.clear_nonexistent_import_errors()  # pylint: disable=no-value-for-parameter
             except Exception:  # noqa pylint: disable=broad-except
                 self.log.exception("Error removing old import errors")
+
+            if STORE_SERIALIZED_DAGS:
+                from airflow.models.dag import DagModel
+                from airflow.models.serialized_dag import SerializedDagModel
+                SerializedDagModel.remove_deleted_dags(self._file_paths)
+                DagModel.deactivate_deleted_dags(self._file_paths)
+
+            if self.store_dag_code:
+                from airflow.models.dagcode import DagCode
+                DagCode.remove_deleted_code(self._file_paths)
 
     def _print_stat(self):
         """
@@ -1258,39 +1260,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 self.log.info("Detected zombie job: %s", request)
                 self._add_callback_to_queue(request)
                 Stats.incr('zombies_killed')
-
-    def _cleanup_stale_dags(self):
-        """
-        Clean up any DAGs that we have not loaded recently.  There are
-        two parts to the cleanup:
-          1. Mark DAGs that haven't been seen as inactive
-          2. Delete any DAG serializations for DAGs that haven't been seen
-        """
-
-        if 0 < self._dag_cleanup_interval < (
-                timezone.utcnow() - self.last_dag_cleanup_time).total_seconds():
-            # In the worst case Every DAG should have been processed within
-            # file_process_interval + processor_timeout + min_serialized_dag_update_interval
-            max_processing_time = self._processor_timeout + \
-                timedelta(seconds=self._file_process_interval) + \
-                timedelta(seconds=self._min_serialized_dag_update_interval)
-            min_last_seen_date = timezone.utcnow() - max_processing_time
-
-            self.log.info(
-                "Deactivating DAGs that haven't been touched since %s",
-                min_last_seen_date.isoformat()
-            )
-            airflow.models.DAG.deactivate_stale_dags(min_last_seen_date)
-
-            if STORE_SERIALIZED_DAGS:
-                from airflow.models.serialized_dag import SerializedDagModel
-                SerializedDagModel.remove_stale_dags(min_last_seen_date)
-
-            if self.store_dag_code:
-                from airflow.models.dagcode import DagCode
-                DagCode.remove_unused_code()
-
-            self.last_dag_cleanup_time = timezone.utcnow()
 
     def _kill_timed_out_processors(self):
         """

@@ -39,7 +39,8 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
     :param transfer_config: Data transfer configuration to create.
     :type transfer_config: dict
     :param project_id: The BigQuery project id where the transfer configuration should be
-            created. If set to None or missing, the default project_id from the GCP connection is used.
+            created. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
     :type project_id: str
     :param authorization_code: authorization code to use with this transfer configuration.
         This is required if new credentials are needed.
@@ -53,7 +54,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -128,7 +129,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
     :param transfer_config_id: Id of transfer config to be used.
     :type transfer_config_id: str
     :param project_id: The BigQuery project id where the transfer configuration should be
-        created. If set to None or missing, the default project_id from the GCP connection is used.
+        created. If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
@@ -139,7 +140,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -217,7 +218,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         `~google.cloud.bigquery_datatransfer_v1.types.Timestamp`
     :type requested_run_time: Union[dict, ~google.cloud.bigquery_datatransfer_v1.types.Timestamp]
     :param project_id: The BigQuery project id where the transfer configuration should be
-        created. If set to None or missing, the default project_id from the GCP connection is used.
+        created. If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
@@ -228,7 +229,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

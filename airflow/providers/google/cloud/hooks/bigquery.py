@@ -63,8 +63,7 @@ BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
 # pylint: disable=too-many-public-methods
 class BigQueryHook(GoogleBaseHook, DbApiHook):
     """
-    Interact with BigQuery. This hook uses the Google Cloud Platform
-    connection.
+    Interact with BigQuery. This hook uses the Google Cloud connection.
     """
 
     conn_name_attr = 'gcp_conn_id'  # type: str
@@ -921,7 +920,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type dataset_id: str
         :param fields: The properties of ``dataset`` to change (e.g. "friendly_name").
         :type fields: Sequence[str]
-        :param project_id: The GCP Project ID
+        :param project_id: The Google Cloud Project ID
         :type project_id: str
         :param retry: How to retry the RPC.
         :type retry: google.api_core.retry.Retry
@@ -955,7 +954,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             in request body.
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :type dataset_resource: dict
-        :param project_id: The GCP Project ID
+        :param project_id: The Google Cloud Project ID
         :type project_id: str
         :rtype: dataset
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
@@ -998,7 +997,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         :param dataset_id: The BigQuery Dataset ID
         :type dataset_id: str
-        :param project_id: The GCP Project ID
+        :param project_id: The Google Cloud Project ID
         :type project_id: str
         :param table_prefix: Tables must begin by this prefix to be returned (case sensitive)
         :type table_prefix: str
@@ -1073,7 +1072,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         :param dataset_id: The BigQuery Dataset ID
         :type dataset_id: str
-        :param project_id: The GCP Project ID
+        :param project_id: The Google Cloud Project ID
         :type project_id: str
         :return: dataset_resource
 

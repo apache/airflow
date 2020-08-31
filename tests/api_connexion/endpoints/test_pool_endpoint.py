@@ -18,6 +18,7 @@ import unittest
 
 from parameterized import parameterized
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
 from airflow.www import app
@@ -167,8 +168,8 @@ class TestGetPool(TestBasePoolEndpoints):
             {
                 "detail": "Pool with name:'invalid_pool' not found",
                 "status": 404,
-                "title": "Object not found",
-                "type": "about:blank",
+                "title": "Not Found",
+                "type": EXCEPTIONS_LINK_MAP[404],
             },
             response.json,
         )
@@ -200,8 +201,8 @@ class TestDeletePool(TestBasePoolEndpoints):
             {
                 "detail": "Pool with name:'invalid_pool' not found",
                 "status": 404,
-                "title": "Object not found",
-                "type": "about:blank",
+                "title": "Not Found",
+                "type": EXCEPTIONS_LINK_MAP[404],
             },
             response.json,
         )
@@ -258,8 +259,8 @@ class TestPostPool(TestBasePoolEndpoints):
             {
                 "detail": f"Pool: {pool_name} already exists",
                 "status": 409,
-                "title": "Object already exists",
-                "type": "about:blank",
+                "title": "Conflict",
+                "type": EXCEPTIONS_LINK_MAP[409],
             },
             response.json,
         )
@@ -282,7 +283,12 @@ class TestPostPool(TestBasePoolEndpoints):
         )
         assert response.status_code == 400
         self.assertDictEqual(
-            {"detail": error_detail, "status": 400, "title": "Bad request", "type": "about:blank",},
+            {
+                "detail": error_detail,
+                "status": 400,
+                "title": "Bad Request",
+                "type": EXCEPTIONS_LINK_MAP[400],
+            },
             response.json,
         )
 
@@ -338,7 +344,12 @@ class TestPatchPool(TestBasePoolEndpoints):
         )
         assert response.status_code == 400
         self.assertEqual(
-            {"detail": error_detail, "status": 400, "title": "Bad request", "type": "about:blank",},
+            {
+                "detail": error_detail,
+                "status": 400,
+                "title": "Bad Request",
+                "type": EXCEPTIONS_LINK_MAP[400],
+            },
             response.json,
         )
 
@@ -361,8 +372,8 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
             {
                 "detail": "Default Pool can't be deleted",
                 "status": 400,
-                "title": "Bad request",
-                "type": "about:blank",
+                "title": "Bad Request",
+                "type": EXCEPTIONS_LINK_MAP[400],
             },
             response.json,
         )
@@ -377,8 +388,8 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                 {
                     "detail": "Default Pool's name can't be modified",
                     "status": 400,
-                    "title": "Bad request",
-                    "type": "about:blank",
+                    "title": "Bad Request",
+                    "type": EXCEPTIONS_LINK_MAP[400],
                 },
             ),
             (
@@ -389,8 +400,8 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                 {
                     "detail": "Default Pool's name can't be modified",
                     "status": 400,
-                    "title": "Bad request",
-                    "type": "about:blank",
+                    "title": "Bad Request",
+                    "type": EXCEPTIONS_LINK_MAP[400],
                 },
             ),
             (
@@ -503,13 +514,13 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
             ),
             (
                 "Invalid update mask",
-                "'names' is not a valid Pool field",
+                "Invalid field: names in update mask",
                 "api/v1/pools/test_pool?update_mask=slots, names,",
                 {"name": "test_pool_a", "slots": 2},
             ),
             (
                 "Invalid update mask",
-                "'slot' is not a valid Pool field",
+                "Invalid field: slot in update mask",
                 "api/v1/pools/test_pool?update_mask=slot, name,",
                 {"name": "test_pool_a", "slots": 2},
             ),
@@ -523,8 +534,12 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
         session.commit()
         response = self.client.patch(url, json=patch_json, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 400
-        self.assertEqual
-        (
-            {"detail": error_detail, "status": 400, "title": "Bad Request", "type": "about:blank",},
+        self.assertEqual(
+            {
+                "detail": error_detail,
+                "status": 400,
+                "title": "Bad Request",
+                "type": EXCEPTIONS_LINK_MAP[400],
+            },
             response.json,
         )

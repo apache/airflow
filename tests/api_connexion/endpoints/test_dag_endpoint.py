@@ -21,6 +21,7 @@ from datetime import datetime
 from parameterized import parameterized
 
 from airflow import DAG
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
@@ -329,7 +330,7 @@ class TestPatchDag(TestDagEndpoint):
                 'detail': "Property is read-only - 'schedule_interval'",
                 'status': 400,
                 'title': 'Bad Request',
-                'type': 'about:blank',
+                'type': EXCEPTIONS_LINK_MAP[400],
             },
         )
 

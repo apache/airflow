@@ -269,6 +269,15 @@ def datetime_f(attr_name):
 # pylint: enable=invalid-name
 
 
+def json_f(attr_name):
+    """Returns a formatted string with HTML for given JSON serializable"""
+    def json_(attr):
+        f = attr.get(attr_name)
+        serialized = json.dumps(f)
+        return Markup('<nobr>{}</nobr>').format(serialized)  # noqa
+    return json_
+
+
 def dag_link(attr):
     """Generates a URL to the Graph View for a Dag."""
     dag_id = attr.get('dag_id')

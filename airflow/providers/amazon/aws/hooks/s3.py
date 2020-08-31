@@ -339,7 +339,7 @@ class S3Hook(AwsBaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def read_key(self, key: str, bucket_name: Optional[str] = None) -> S3Transfer:
+    def read_key(self, key: str, bucket_name: Optional[str] = None) -> str:
         """
         Reads a key from S3
 
@@ -348,7 +348,7 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: Name of the bucket in which the file is stored
         :type bucket_name: str
         :return: the content of the key
-        :rtype: boto3.s3.Object
+        :rtype: str
         """
 
         obj = self.get_key(key, bucket_name)

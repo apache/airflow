@@ -18,7 +18,7 @@
 
 # pylint: disable=R0904, C0111
 """
-This module contains various unit tests for GCP DLP Operators
+This module contains various unit tests for Google Cloud DLP Operators
 """
 
 import unittest

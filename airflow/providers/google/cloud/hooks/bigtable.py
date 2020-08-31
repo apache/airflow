@@ -70,9 +70,9 @@ class BigtableHook(GoogleBaseHook):
 
         :param instance_id: The ID of the Cloud Bigtable instance.
         :type instance_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud  project ID where the
             BigTable exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type project_id: str
         """
         instance = self._get_client(project_id=project_id).instance(instance_id)
@@ -87,9 +87,9 @@ class BigtableHook(GoogleBaseHook):
         Raises google.api_core.exceptions.NotFound if the Cloud Bigtable instance does
         not exist.
 
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param instance_id: The ID of the Cloud Bigtable instance.
         :type instance_id: str
@@ -130,9 +130,9 @@ class BigtableHook(GoogleBaseHook):
         :param main_cluster_zone: The zone for main cluster.
             See https://cloud.google.com/bigtable/docs/locations for more details.
         :type project_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type replica_clusters: List[Dict[str, str]]
         :param replica_clusters: (optional) A list of replica clusters for the new
             instance. Each cluster dictionary contains an id and a zone.
@@ -213,9 +213,9 @@ class BigtableHook(GoogleBaseHook):
         :type instance_id: str
         :param instance_id: The ID for the existing instance.
         :type project_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         :type instance_display_name: str
         :param instance_display_name: (optional) Human-readable name of the instance.
         :type instance_type: enums.Instance.Type or enum.IntEnum
@@ -283,9 +283,9 @@ class BigtableHook(GoogleBaseHook):
         :type table_id: str
         :param table_id: The ID of the table in Cloud Bigtable.
         :type project_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
-            the default project_id from the GCP connection is used.
+            the default project_id from the Google Cloud connection is used.
         """
         table = self.get_instance(instance_id=instance_id, project_id=project_id).table(table_id=table_id)
         table.delete()

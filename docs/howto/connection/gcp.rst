@@ -19,16 +19,16 @@
 
 .. _howto/connection:gcp:
 
-Google Cloud Platform Connection
+Google Cloud Connection
 ================================
 
-The Google Cloud Platform connection type enables the :ref:`GCP Integrations
+The Google Cloud connection type enables the :ref:`Google Cloud Integrations
 <GCP>`.
 
-Authenticating to GCP
----------------------
+Authenticating to Google Cloud
+------------------------------
 
-There are three ways to connect to GCP using Airflow.
+There are three ways to connect to Google Cloud using Airflow.
 
 1. Use `Application Default Credentials
    <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_,
@@ -44,7 +44,7 @@ configure multiple connections.
 Default Connection IDs
 ----------------------
 
-All hooks and operators related to Google Cloud Platform use ``google_cloud_default`` by default.
+All hooks and operators related to Google Cloud use ``google_cloud_default`` by default.
 
 Configuring the Connection
 --------------------------

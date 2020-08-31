@@ -19,6 +19,7 @@ from datetime import timedelta
 
 from parameterized import parameterized
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
@@ -118,8 +119,8 @@ class TestDeleteDagRun(TestDagRunEndpoint):
             {
                 "detail": "DAGRun with DAG ID: 'INVALID_DAG_RUN' and DagRun ID: 'INVALID_DAG_RUN' not found",
                 "status": 404,
-                "title": "Object not found",
-                "type": "about:blank",
+                "title": "Not Found",
+                "type": EXCEPTIONS_LINK_MAP[404],
             },
         )
 
@@ -169,7 +170,12 @@ class TestGetDagRun(TestDagRunEndpoint):
             "api/v1/dags/invalid-id/dagRuns/invalid-id", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 404
-        expected_resp = {'detail': None, 'status': 404, 'title': 'DAGRun not found', 'type': 'about:blank'}
+        expected_resp = {
+            'detail': "DAGRun with DAG ID: 'invalid-id' and DagRun ID: 'invalid-id' not found",
+            'status': 404,
+            'title': 'DAGRun not found',
+            'type': EXCEPTIONS_LINK_MAP[404],
+        }
         assert expected_resp == response.json
 
     @provide_session
@@ -708,10 +714,10 @@ class TestPostDagRun(TestDagRunEndpoint):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(
             {
-                "detail": None,
+                "detail": "DAG with dag_id: 'TEST_DAG_ID' not found",
                 "status": 404,
-                "title": "DAG with dag_id: 'TEST_DAG_ID' not found",
-                "type": "about:blank",
+                "title": "DAG not found",
+                "type": EXCEPTIONS_LINK_MAP[404],
             },
             response.json,
         )
@@ -726,7 +732,7 @@ class TestPostDagRun(TestDagRunEndpoint):
                     "detail": "Property is read-only - 'start_date'",
                     "status": 400,
                     "title": "Bad Request",
-                    "type": "about:blank",
+                    "type": EXCEPTIONS_LINK_MAP[400],
                 },
             ),
             (
@@ -737,7 +743,7 @@ class TestPostDagRun(TestDagRunEndpoint):
                     "detail": "Property is read-only - 'state'",
                     "status": 400,
                     "title": "Bad Request",
-                    "type": "about:blank",
+                    "type": EXCEPTIONS_LINK_MAP[400],
                 },
             ),
         ]
@@ -770,8 +776,8 @@ class TestPostDagRun(TestDagRunEndpoint):
                 "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
                 "DAGRun ID: 'TEST_DAG_RUN_ID_1' already exists",
                 "status": 409,
-                "title": "Object already exists",
-                "type": "about:blank",
+                "title": "Conflict",
+                "type": EXCEPTIONS_LINK_MAP[409],
             },
         )
 

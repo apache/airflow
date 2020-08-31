@@ -113,7 +113,8 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         :param transfer_config: Data transfer configuration to create.
         :type transfer_config: Union[dict, google.cloud.bigquery_datatransfer_v1.types.TransferConfig]
         :param project_id: The BigQuery project id where the transfer configuration should be
-                created. If set to None or missing, the default project_id from the GCP connection is used.
+            created. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
         :type project_id: str
         :param authorization_code: authorization code to use with this transfer configuration.
             This is required if new credentials are needed.
@@ -155,7 +156,8 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         :param transfer_config_id: Id of transfer config to be used.
         :type transfer_config_id: str
         :param project_id: The BigQuery project id where the transfer configuration should be
-            created. If set to None or missing, the default project_id from the GCP connection is used.
+            created. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If `None` is
             specified, requests will not be retried.
@@ -201,7 +203,8 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
             `~google.cloud.bigquery_datatransfer_v1.types.Timestamp`
         :type requested_run_time: Union[dict, ~google.cloud.bigquery_datatransfer_v1.types.Timestamp]
         :param project_id: The BigQuery project id where the transfer configuration should be
-            created. If set to None or missing, the default project_id from the GCP connection is used.
+            created. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If `None` is
             specified, requests will not be retried.
@@ -243,7 +246,8 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         :param transfer_config_id: ID of transfer config to be used.
         :type transfer_config_id: str
         :param project_id: The BigQuery project id where the transfer configuration should be
-            created. If set to None or missing, the default project_id from the GCP connection is used.
+            created. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If `None` is
             specified, requests will not be retried.

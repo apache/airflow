@@ -107,11 +107,11 @@ class GCSToBigQueryOperator(BaseOperator):
         operators to use. This can be helpful with incremental loads--during
         future executions, you can pick up from the max ID.
     :type max_id_key: str
-    :param bigquery_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform and
+    :param bigquery_conn_id: (Optional) The connection ID used to connect to Google Cloud and
         interact with the BigQuery service.
     :type bigquery_conn_id: str
     :param google_cloud_storage_conn_id: (Optional) The connection ID used to connect to Google Cloud
-        Platform and interact with the Google Cloud Storage service.
+        and interact with the Google Cloud Storage service.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have

@@ -17,7 +17,7 @@
 # under the License.
 
 """
-This module contains GCP Stackdriver operators.
+This module contains Google Cloud Stackdriver operators.
 """
 
 import json
@@ -35,7 +35,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class StackdriverHook(GoogleBaseHook):
     """
-    Stackdriver Hook for connecting with GCP Stackdriver
+    Stackdriver Hook for connecting with Google Cloud Stackdriver
     """
 
     def __init__(

@@ -131,7 +131,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             :class:`~google.cloud.redis_v1.types.Instance`
         :type instance: Union[Dict, google.cloud.redis_v1.types.Instance]
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -190,8 +190,8 @@ class CloudMemorystoreHook(GoogleBaseHook):
         :type location: str
         :param instance: The logical name of the Redis instance in the customer project.
         :type instance: str
-        :param project_id:  Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -241,7 +241,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             :class:`~google.cloud.redis_v1.types.OutputConfig`
         :type output_config: Union[Dict, google.cloud.redis_v1.types.OutputConfig]
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -285,7 +285,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         :type data_protection_mode: google.cloud.redis_v1.gapic.enums.FailoverInstanceRequest
             .DataProtectionMode
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -327,8 +327,8 @@ class CloudMemorystoreHook(GoogleBaseHook):
         :type location: str
         :param instance: The logical name of the Redis instance in the customer project.
         :type instance: str
-        :param project_id:  Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -372,7 +372,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             :class:`~google.cloud.redis_v1.types.InputConfig`
         :type input_config: Union[Dict, google.cloud.redis_v1.types.InputConfig]
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -416,7 +416,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             streaming is performed per-page, this determines the maximum number of resources in a page.
         :type page_size: int
         :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -470,8 +470,8 @@ class CloudMemorystoreHook(GoogleBaseHook):
         :type location: str
         :param instance_id: The logical name of the Redis instance in the customer project.
         :type instance_id: str
-        :param project_id:  Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.

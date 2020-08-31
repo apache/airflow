@@ -19,7 +19,7 @@
 """
 Example Airflow DAG that creates, gets, lists, updates, purges, pauses, resumes
 and deletes Queues and creates, gets, lists, runs and deletes Tasks in the Google
-Cloud Tasks service in the Google Cloud Platform.
+Cloud Tasks service in the Google Cloud.
 """
 
 

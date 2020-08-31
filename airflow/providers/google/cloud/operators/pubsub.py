@@ -70,8 +70,8 @@ class PubSubCreateTopicOperator(BaseOperator):
     Both ``project`` and ``topic`` are templated so you can use
     variables in them.
 
-    :param project_id: Optional, the GCP project ID where the topic will be created.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Optional, the Google Cloud project ID where the topic will be created.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param topic: the topic to create. Do not include the
         full topic path. In other words, instead of
@@ -79,7 +79,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         ``{topic}``. (templated)
     :type topic: str
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -89,7 +89,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         https://cloud.google.com/pubsub/docs/labels
     :type labels: Dict[str, str]
     :param message_storage_policy: Policy constraining the set
-        of Google Cloud Platform regions where messages published to
+        of Google Cloud regions where messages published to
         the topic may be stored. If not present, then no constraints
         are in effect.
     :type message_storage_policy:
@@ -108,7 +108,7 @@ class PubSubCreateTopicOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]]
-    :param project: (Deprecated) the GCP project ID where the topic will be created
+    :param project: (Deprecated) the Google Cloud project ID where the topic will be created
     :type project: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -203,7 +203,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         :ref:`howto/operator:PubSubCreateSubscriptionOperator`
 
     By default, the subscription will be created in ``topic_project``. If
-    ``subscription_project`` is specified and the GCP credentials allow, the
+    ``subscription_project`` is specified and the Google Cloud credentials allow, the
     Subscription can be created in a different project from its topic.
 
     By default, if the subscription already exists, this operator will
@@ -244,8 +244,8 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
     ``topic_project``, ``topic``, ``subscription``, and
     ``subscription`` are templated so you can use variables in them.
 
-    :param project_id: Optional, the GCP project ID where the topic exists.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Optional, the Google Cloud project ID where the topic exists.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param topic: the topic to create. Do not include the
         full topic path. In other words, instead of
@@ -255,14 +255,14 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
     :param subscription: the Pub/Sub subscription name. If empty, a random
         name will be generated using the uuid module
     :type subscription: str
-    :param subscription_project_id: the GCP project ID where the subscription
+    :param subscription_project_id: the Google Cloud project ID where the subscription
         will be created. If empty, ``topic_project`` will be used.
     :type subscription_project_id: str
     :param ack_deadline_secs: Number of seconds that a subscriber has to
         acknowledge each message pulled from the subscription
     :type ack_deadline_secs: int
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -323,9 +323,9 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]]
-    :param topic_project: (Deprecated) the GCP project ID where the topic exists
+    :param topic_project: (Deprecated) the Google Cloud project ID where the topic exists
     :type topic_project: str
-    :param subscription_project: (Deprecated) the GCP project ID where the subscription
+    :param subscription_project: (Deprecated) the Google Cloud project ID where the subscription
         will be created. If empty, ``topic_project`` will be used.
     :type subscription_project: str
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -482,8 +482,8 @@ class PubSubDeleteTopicOperator(BaseOperator):
     Both ``project`` and ``topic`` are templated so you can use
     variables in them.
 
-    :param project_id: Optional, the GCP project ID in which to work (templated).
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Optional, the Google Cloud project ID in which to work (templated).
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param topic: the topic to delete. Do not include the
         full topic path. In other words, instead of
@@ -494,7 +494,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
         the task
     :type fail_if_not_exists: bool
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -509,7 +509,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]]
-    :param project: (Deprecated) the GCP project ID where the topic will be created
+    :param project: (Deprecated) the Google Cloud project ID where the topic will be created
     :type project: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -615,8 +615,8 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
     ``project``, and ``subscription`` are templated so you can use
     variables in them.
 
-    :param project_id: Optional, the GCP project ID in which to work (templated).
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Optional, the Google Cloud project ID in which to work (templated).
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param subscription: the subscription to delete. Do not include the
         full subscription path. In other words, instead of
@@ -627,7 +627,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         fail the task
     :type fail_if_not_exists: bool
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -642,7 +642,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]]
-    :param project: (Deprecated) the GCP project ID where the topic will be created
+    :param project: (Deprecated) the Google Cloud project ID where the topic will be created
     :type project: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -726,7 +726,7 @@ class PubSubPublishMessageOperator(BaseOperator):
         :ref:`howto/operator:PubSubPublishMessageOperator`
 
     Each Task publishes all provided messages to the same topic
-    in a single GCP project. If the topic does not exist, this
+    in a single Google Cloud project. If the topic does not exist, this
     task will fail. ::
 
         m1 = {'data': b'Hello, World!',
@@ -744,8 +744,8 @@ class PubSubPublishMessageOperator(BaseOperator):
     ``project`` , ``topic``, and ``messages`` are templated so you can use
     variables in them.
 
-    :param project_id: Optional, the GCP project ID in which to work (templated).
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: Optional, the Google Cloud project ID in which to work (templated).
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param topic: the topic to which to publish. Do not include the
         full topic path. In other words, instead of
@@ -762,13 +762,13 @@ class PubSubPublishMessageOperator(BaseOperator):
         https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
     :type messages: list
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param project: (Deprecated) the GCP project ID where the topic will be created
+    :param project: (Deprecated) the Google Cloud project ID where the topic will be created
     :type project: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -854,7 +854,7 @@ class PubSubPullOperator(BaseOperator):
     ``project`` and ``subscription`` are templated so you can use
     variables in them.
 
-    :param project: the GCP project ID for the subscription (templated)
+    :param project: the Google Cloud project ID for the subscription (templated)
     :type project: str
     :param subscription: the Pub/Sub subscription name. Do not include the
         full subscription path.
@@ -866,7 +866,7 @@ class PubSubPullOperator(BaseOperator):
         immediately rather than by any downstream tasks
     :type ack_messages: bool
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have

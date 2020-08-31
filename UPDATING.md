@@ -521,7 +521,7 @@ The following configurations have been moved from `[core]` to the new `[logging]
 #### Remove gcp_service_account_keys option in airflow.cfg file
 
 This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new
-recommended service account keys for the Google Cloud Platform management method is
+recommended service account keys for the Google Cloud management method is
 [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
 
 #### Fernet is enabled by default
@@ -1037,7 +1037,7 @@ have been made to the core (including core operators) as they can affect the int
 of this provider.
 
 This section describes the changes that have been made, and what you need to do to update your if
-you use operators or hooks which integrate with Google services (including Google Cloud Platform - GCP).
+you use operators or hooks which integrate with Google services (including Google Cloud - GCP).
 
 #### Direct impersonation added to operators communicating with Google services
 [Directly impersonating a service account](https://cloud.google.com/iam/docs/understanding-service-accounts#directly_impersonating_a_service_account)
@@ -1045,9 +1045,9 @@ has been made possible for operators communicating with Google services via new 
 (`google_impersonation_chain` in case of operators that also communicate with services of other cloud providers).
 As a result, GCSToS3Operator no longer derivatives from GCSListObjectsOperator.
 
-#### Normalize gcp_conn_id for Google Cloud Platform
+#### Normalize gcp_conn_id for Google Cloud
 
-Previously not all hooks and operators related to Google Cloud Platform use
+Previously not all hooks and operators related to Google Cloud use
 `gcp_conn_id` as parameter for GCP connection. There is currently one parameter
 which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_conn_id``,
 ``google_cloud_storage_conn_id`` and similar have been deprecated. Operators that require two connections are not changed.
@@ -1082,7 +1082,7 @@ Following components were affected by normalization:
 #### Changes to import paths and names of GCP operators and hooks
 
 According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
-operators related to Google Cloud Platform has been moved from contrib to core.
+operators related to Google Cloud has been moved from contrib to core.
 The following table shows changes in import paths.
 
 |                                                     Old path                                                     |                                                 New path                                                                     |
@@ -1265,9 +1265,9 @@ The following table shows changes in import paths.
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor                                  |airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor                                                     |
 |airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor                                                            |airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor                                                                |
 
-#### Unify default conn_id for Google Cloud Platform
+#### Unify default conn_id for Google Cloud
 
-Previously not all hooks and operators related to Google Cloud Platform use
+Previously not all hooks and operators related to Google Cloud use
 ``google_cloud_default`` as a default conn_id. There is currently one default
 variant. Values like ``google_cloud_storage_default``, ``bigquery_default``,
 ``google_cloud_datastore_default`` have been deprecated. The configuration of
@@ -1408,7 +1408,7 @@ Now this parameter requires a value. To restore the previous behavior, configure
 specifying the service account.
 
 Detailed information about connection management is available:
-[Google Cloud Platform Connection](https://airflow.apache.org/howto/connection/gcp.html).
+[Google Cloud Connection](https://airflow.apache.org/howto/connection/gcp.html).
 
 
 #### `airflow.providers.google.cloud.hooks.gcs.GCSHook`
@@ -2053,7 +2053,7 @@ If the `AIRFLOW_CONFIG` environment variable was not set and the
 will discover its config file using the `$AIRFLOW_CONFIG` and `$AIRFLOW_HOME`
 environment variables rather than checking for the presence of a file.
 
-### Changes in Google Cloud Platform related operators
+### Changes in Google Cloud related operators
 
 Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
 the project id configured in
@@ -2080,7 +2080,7 @@ Operators involved:
 
 Other GCP operators are unaffected.
 
-### Changes in Google Cloud Platform related hooks
+### Changes in Google Cloud related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
 than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
@@ -2148,7 +2148,7 @@ gct_hook.create_transfer_job(body)
 ```
 The change results from the unification of all hooks and adjust to
 [the official recommendations](https://lists.apache.org/thread.html/e8534d82be611ae7bcb21ba371546a4278aad117d5e50361fd8f14fe@%3Cdev.airflow.apache.org%3E)
-for the Google Cloud Platform.
+for the Google Cloud.
 
 The signature of `wait_for_transfer_job` method in `GCPTransferServiceHook` has changed.
 
@@ -2765,7 +2765,7 @@ of user-editable configuration properties. See
 All Google Cloud Operators and Hooks are aligned and use the same client library. Now you have a single connection
 type for all kinds of Google Cloud Operators.
 
-If you experience problems connecting with your operator make sure you set the connection type "Google Cloud Platform".
+If you experience problems connecting with your operator make sure you set the connection type "Google Cloud".
 
 Also the old P12 key file type is not supported anymore and only the new JSON key files are supported as a service
 account.
