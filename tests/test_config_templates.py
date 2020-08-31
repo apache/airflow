@@ -39,6 +39,7 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'email',
     'smtp',
     'sentry',
+    'celery_kubernetes_executor',
     'celery',
     'celery_broker_transport_options',
     'dask',
