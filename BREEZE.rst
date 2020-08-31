@@ -686,12 +686,12 @@ The documentation build consists of three steps:
 * building documentation
 * spell checking
 
-You can disable the latter two by providing ``--disable-docs-build`` or ``--disable-spell-check`` after
-extra -- flag.
+You can choose only one stage of the two by providing ``--spellcheck-only`` or ``--docs-only`` after
+extra ``--`` flag.
 
 .. code-block:: bash
 
-     ./breeze build-docs -- --disable-docs-build
+     ./breeze build-docs -- --spellcheck-only
 
 
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
