@@ -72,24 +72,21 @@ CLUSTER = {
         },
         "master_config": {
             "num_instances": 2,
-            "machine_type_uri": "https://www.googleapis.com/compute/v1/projects/"
-            "project_id/zones/zone/machineTypes/master_machine_type",
+            "machine_type_uri": "projects/project_id/zones/zone/machineTypes/master_machine_type",
             "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
             "image_uri": "https://www.googleapis.com/compute/beta/projects/"
             "custom_image_project_id/global/images/custom_image",
         },
         "worker_config": {
             "num_instances": 2,
-            "machine_type_uri": "https://www.googleapis.com/compute/v1/projects/"
-            "project_id/zones/zone/machineTypes/worker_machine_type",
+            "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
             "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
             "image_uri": "https://www.googleapis.com/compute/beta/projects/"
             "custom_image_project_id/global/images/custom_image",
         },
         "secondary_worker_config": {
             "num_instances": 4,
-            "machine_type_uri": "https://www.googleapis.com/compute/v1/projects/"
-            "project_id/zones/zone/machineTypes/worker_machine_type",
+            "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
             "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
             "is_preemptible": True,
         },
@@ -97,11 +94,16 @@ CLUSTER = {
             "properties": {"properties": "data"},
             "optional_components": ["optional_components"],
         },
-        "lifecycle_config": {"idle_delete_ttl": "60s", "auto_delete_time": "2019-09-12T00:00:00.000000Z"},
+        "lifecycle_config": {
+            "idle_delete_ttl": {'seconds': 60},
+            "auto_delete_time": "2019-09-12T00:00:00.000000Z",
+        },
         "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
         "autoscaling_config": {"policy_uri": "autoscaling_policy"},
         "config_bucket": "storage_bucket",
-        "initialization_actions": [{"executable_file": "init_actions_uris", "execution_timeout": "600s"}],
+        "initialization_actions": [
+            {"executable_file": "init_actions_uris", "execution_timeout": {'seconds': 600}}
+        ],
     },
     "labels": {"labels": "data", "airflow-version": AIRFLOW_VERSION},
 }
