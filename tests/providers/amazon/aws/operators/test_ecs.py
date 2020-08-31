@@ -67,6 +67,7 @@ class TestECSOperator(unittest.TestCase):
             'placement_constraints': [
                 {'expression': 'attribute:ecs.instance-type =~ t2.*', 'type': 'memberOf'}
             ],
+            'placement_strategy': [{'field': 'memory', 'type': 'binpack'}],
             'network_configuration': {
                 'awsvpcConfiguration': {'securityGroups': ['sg-123abc'], 'subnets': ['subnet-123456ab']}
             },
@@ -125,6 +126,7 @@ class TestECSOperator(unittest.TestCase):
             taskDefinition='t',
             group='group',
             placementConstraints=[{'expression': 'attribute:ecs.instance-type =~ t2.*', 'type': 'memberOf'}],
+            placementStrategy=[{'field': 'memory', 'type': 'binpack'}],
             networkConfiguration={
                 'awsvpcConfiguration': {'securityGroups': ['sg-123abc'], 'subnets': ['subnet-123456ab']}
             },
@@ -156,6 +158,7 @@ class TestECSOperator(unittest.TestCase):
             taskDefinition='t',
             group='group',
             placementConstraints=[{'expression': 'attribute:ecs.instance-type =~ t2.*', 'type': 'memberOf'}],
+            placementStrategy=[{'field': 'memory', 'type': 'binpack'}],
             networkConfiguration={
                 'awsvpcConfiguration': {'securityGroups': ['sg-123abc'], 'subnets': ['subnet-123456ab'],}
             },
