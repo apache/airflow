@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export VERBOSE=${VERBOSE:="false"}
-
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
@@ -26,7 +24,6 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     echo
     exit
 fi
-
 
 function run_airflow_testing_in_docker() {
     set +u
@@ -76,8 +73,6 @@ function run_airflow_testing_in_docker() {
     return "${EXIT_CODE}"
 }
 
-get_environment_for_builds_on_ci
-
 prepare_ci_build
 
 rebuild_ci_image_if_needed
@@ -121,7 +116,7 @@ if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml")
 fi
 
-if [[ ${INSTALL_AIRFLOW_VERSION} != "" || ${INSTALL_AIRFLOW_REFERENCE} != "" ]]; then
+if [[ -n ${INSTALL_AIRFLOW_VERSION=} || -n ${INSTALL_AIRFLOW_REFERENCE} ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml")
 fi
 

@@ -17,11 +17,13 @@
 # under the License.
 
 
-function initialize_kind_variables(){
+function get_kind_cluster_name(){
     # Name of the KinD cluster to connect to
     export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
+    readonly KIND_CLUSTER_NAME
     # Name of the KinD cluster to connect to when referred to via kubectl
     export KUBECTL_CLUSTER_NAME=kind-${KIND_CLUSTER_NAME}
+    readonly KUBECTL_CLUSTER_NAME
 }
 
 function dump_kind_logs() {
@@ -32,59 +34,56 @@ function dump_kind_logs() {
     echo "EXIT_CODE is ${EXIT_CODE:=}"
 
     local DUMP_DIR_NAME DUMP_DIR
-    DUMP_DIR_NAME=kind_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
+    DUMP_DIR_NAME=kind_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}
     DUMP_DIR="/tmp/${DUMP_DIR_NAME}"
     kind --name "${KIND_CLUSTER_NAME}" export logs "${DUMP_DIR}"
 }
 
 function make_sure_kubernetes_tools_are_installed() {
     SYSTEM=$(uname -s| tr '[:upper:]' '[:lower:]')
-    KIND_VERSION=${KIND_VERSION:=${DEFAULT_KIND_VERSION}}
+
     KIND_URL="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-${SYSTEM}-amd64"
-    KIND_PATH="${BUILD_CACHE_DIR}/bin/kind"
-    HELM_VERSION=${HELM_VERSION:=${DEFAULT_HELM_VERSION}}
-    HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-amd64.tar.gz"
-    HELM_PATH="${BUILD_CACHE_DIR}/bin/helm"
-    KUBECTL_VERSION=${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}
-    KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${SYSTEM}/amd64/kubectl"
-    KUBECTL_PATH="${BUILD_CACHE_DIR}/bin/kubectl"
     mkdir -pv "${BUILD_CACHE_DIR}/bin"
-    if [[ -f "${KIND_PATH}" ]]; then
-        DOWNLOADED_KIND_VERSION=v"$(${KIND_PATH} --version | awk '{ print $3 }')"
+    if [[ -f "${KIND_BINARY_PATH}" ]]; then
+        DOWNLOADED_KIND_VERSION=v"$(${KIND_BINARY_PATH} --version | awk '{ print $3 }')"
         echo "Currently downloaded kind version = ${DOWNLOADED_KIND_VERSION}"
     fi
-    if [[ ! -f "${KIND_PATH}"  || ${DOWNLOADED_KIND_VERSION} != "${KIND_VERSION}" ]]; then
+    if [[ ! -f "${KIND_BINARY_PATH}"  || ${DOWNLOADED_KIND_VERSION} != "${KIND_VERSION}" ]]; then
         echo
         echo "Downloading Kind version ${KIND_VERSION}"
-        curl --fail --location "${KIND_URL}" --output "${KIND_PATH}"
-        chmod a+x "${KIND_PATH}"
+        curl --fail --location "${KIND_URL}" --output "${KIND_BINARY_PATH}"
+        chmod a+x "${KIND_BINARY_PATH}"
     else
         echo "Kind version ok"
         echo
     fi
-    if [[ -f "${KUBECTL_PATH}" ]]; then
-        DOWNLOADED_KUBECTL_VERSION="$(${KUBECTL_PATH} version --client=true --short | awk '{ print $3 }')"
+
+    KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${SYSTEM}/amd64/kubectl"
+    if [[ -f "${KUBECTL_BINARY_PATH}" ]]; then
+        DOWNLOADED_KUBECTL_VERSION="$(${KUBECTL_BINARY_PATH} version --client=true --short | awk '{ print $3 }')"
         echo "Currently downloaded kubectl version = ${DOWNLOADED_KUBECTL_VERSION}"
     fi
-    if [[ ! -f "${KUBECTL_PATH}" || ${DOWNLOADED_KUBECTL_VERSION} != "${KUBECTL_VERSION}" ]]; then
+    if [[ ! -f "${KUBECTL_BINARY_PATH}" || ${DOWNLOADED_KUBECTL_VERSION} != "${KUBECTL_VERSION}" ]]; then
         echo
         echo "Downloading Kubectl version ${KUBECTL_VERSION}"
-        curl --fail --location "${KUBECTL_URL}" --output "${KUBECTL_PATH}"
-        chmod a+x "${KUBECTL_PATH}"
+        curl --fail --location "${KUBECTL_URL}" --output "${KUBECTL_BINARY_PATH}"
+        chmod a+x "${KUBECTL_BINARY_PATH}"
     else
         echo "Kubectl version ok"
         echo
     fi
-    if [[ -f "${HELM_PATH}" ]]; then
-        DOWNLOADED_HELM_VERSION="$(${HELM_PATH} version --template '{{.Version}}')"
+
+    HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-amd64.tar.gz"
+    if [[ -f "${HELM_BINARY_PATH}" ]]; then
+        DOWNLOADED_HELM_VERSION="$(${HELM_BINARY_PATH} version --template '{{.Version}}')"
         echo "Currently downloaded helm version = ${DOWNLOADED_HELM_VERSION}"
     fi
-    if [[ ! -f "${HELM_PATH}" || ${DOWNLOADED_HELM_VERSION} != "${HELM_VERSION}" ]]; then
+    if [[ ! -f "${HELM_BINARY_PATH}" || ${DOWNLOADED_HELM_VERSION} != "${HELM_VERSION}" ]]; then
         echo
         echo "Downloading Helm version ${HELM_VERSION}"
         curl     --location "${HELM_URL}" |
-            tar -xvz -O "${SYSTEM}-amd64/helm" >"${HELM_PATH}"
-        chmod a+x "${HELM_PATH}"
+            tar -xvz -O "${SYSTEM}-amd64/helm" >"${HELM_BINARY_PATH}"
+        chmod a+x "${HELM_BINARY_PATH}"
     else
         echo "Helm version ok"
         echo
@@ -128,7 +127,7 @@ function perform_kind_cluster_operation() {
     ALLOWED_KIND_OPERATIONS="[ start restart stop deploy test shell recreate ]"
 
     set +u
-    if [[ -z "${1}" ]]; then
+    if [[ -z "${1=}" ]]; then
         echo >&2
         echo >&2 "Operation must be provided as first parameter. One of: ${ALLOWED_KIND_OPERATIONS}"
         echo >&2
@@ -179,11 +178,6 @@ function perform_kind_cluster_operation() {
             echo
             echo "Deploying Airflow to KinD"
             echo
-            get_environment_for_builds_on_ci
-            make_sure_kubernetes_tools_are_installed
-            initialize_kind_variables
-            prepare_prod_build
-            build_prod_images
             build_image_for_kubernetes_tests
             load_image_to_kind_cluster
             deploy_airflow_with_helm

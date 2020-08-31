@@ -20,7 +20,6 @@ export REMEMBER_LAST_ANSWER="${2}"
 export PRINT_INFO_FROM_SCRIPTS="false"
 export SKIP_CHECK_REMOTE_IMAGE="true"
 
-
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
