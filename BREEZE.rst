@@ -433,7 +433,7 @@ Those are currently installed CLIs (they are available as aliases to the docker 
 +-----------------------+----------+-------------------------------------------------+-------------------+
 | Microsoft Azure       | az       | mcr.microsoft.com/azure-cli:latest              | .azure            |
 +-----------------------+----------+-------------------------------------------------+-------------------+
-| Google Cloud Platform | bq       | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
+| Google Cloud          | bq       | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
 |                       +----------+-------------------------------------------------+-------------------+
 |                       | gcloud   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
 |                       +----------+-------------------------------------------------+-------------------+
@@ -441,7 +441,7 @@ Those are currently installed CLIs (they are available as aliases to the docker 
 +-----------------------+----------+-------------------------------------------------+-------------------+
 
 For each of the CLIs we have also an accompanying ``*-update`` alias (for example ``aws-update``) which
-will pull the latest image for the tool. Note that all Google Cloud Platform tools are served by one
+will pull the latest image for the tool. Note that all Google Cloud tools are served by one
 image and they are updated together.
 
 Also - in case you run several different Breeze containers in parallel (from different directories,
