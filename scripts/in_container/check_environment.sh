@@ -101,7 +101,7 @@ function resetdb_if_requested() {
 echo "==============================================================================================="
 echo "             Checking integrations and backends"
 echo "==============================================================================================="
-if [[ -n ${BACKEND:=} ]]; then
+if [[ -n ${BACKEND=} ]]; then
     check_db_backend 20
     echo "-----------------------------------------------------------------------------------------------"
 fi
@@ -125,7 +125,7 @@ fi
 
 resetdb_if_requested
 
-if [[ ${DISABLED_INTEGRATIONS} != "" ]]; then
+if [[ -n ${DISABLED_INTEGRATIONS=} ]]; then
     echo
     echo "Disabled integrations:${DISABLED_INTEGRATIONS}"
     echo

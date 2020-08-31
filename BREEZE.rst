@@ -1048,8 +1048,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Usage: breeze [FLAGS] [COMMAND] -- <EXTRA_ARGS>
 
-  By default the script enters IT environment and drops you to bash shell, but you can choose one
-  of the commands to run specific actions instead. Add --help after each command to see details:
+  By default the script enters the  CI container and drops you to bash shell, but you can choose
+  one of the commands to run specific actions instead.
+
+  Add --help after each command to see details:
 
   Commands without arguments:
 
@@ -1799,7 +1801,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Detailed usage for command: static-check
 
 
-  breeze static-check [FLAGS] STATIC_CHECK [-- <EXTRA_ARGS>]
+  breeze static-check [FLAGS] static_check [-- <EXTRA_ARGS>]
 
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
