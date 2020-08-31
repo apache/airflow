@@ -1,0 +1,4 @@
+libkrb5-dev
+python-dev
+libsasl2-dev
+gcc
