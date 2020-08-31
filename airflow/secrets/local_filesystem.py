@@ -21,6 +21,7 @@ Objects relating to retrieving connections and variables from local file
 import json
 import logging
 import os
+import warnings
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
@@ -235,7 +236,18 @@ def load_variables(file_path: str) -> Dict[str, str]:
     return variables
 
 
-def load_connections(file_path: str) -> Dict[str, Any]:
+def load_connections(file_path) -> Dict[str, List[Any]]:
+    """
+    This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.",
+    """
+    warnings.warn(
+        "This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.",
+        DeprecationWarning, stacklevel=2
+    )
+    return {k: [v] for k, v in load_connections_dict(file_path).values()}
+
+
+def load_connections_dict(file_path: str) -> Dict[str, Any]:
     """
     Load connection from text file.
 
@@ -298,7 +310,7 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             self.log.debug("The file for connection is not specified. Skipping")
             # The user may not specify any file.
             return {}
-        return load_connections(self.connections_file)
+        return load_connections_dict(self.connections_file)
 
     def get_connections(self, conn_id: str) -> List[Any]:
         if conn_id in self._local_connections:
