@@ -1155,10 +1155,10 @@ USERS_COMMANDS = (
         ),
         epilog=(
             'examples:\n'
-            'To create an user with "admin" role and username equals to "admin", run:\n'
+            'To create an user with "Admin" role and username equals to "admin", run:\n'
             '\n'
             '    $ airflow users create \\\n'
-            '          --username USERNAME \\\n'
+            '          --username admin \\\n'
             '          --firstname FIRST_NAME \\\n'
             '          --lastname LAST_NAME \\\n'
             '          --role Admin \\\n'
