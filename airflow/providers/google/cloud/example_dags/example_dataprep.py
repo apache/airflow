@@ -25,8 +25,8 @@ from airflow.providers.google.cloud.operators.dataprep import (
 )
 from airflow.utils import dates
 
-DATAPREP_JOB_ID = 1234567
-DATAPREP_JOB_RECIPE_ID = 1234567
+DATAPREP_JOB_ID = int(os.environ.get('DATAPREP_JOB_ID', 12345677))
+DATAPREP_JOB_RECIPE_ID = int(os.environ.get('DATAPREP_JOB_RECIPE_ID', 12345677))
 DATAPREP_BUCKET = os.environ.get("DATAPREP_BUCKET", "gs://afl-sql/name@email.com")
 
 DATA = {
@@ -74,5 +74,4 @@ with models.DAG(
     )
     # [END how_to_dataprep_get_job_group_operator]
 
-    run_job_group >> get_jobs_for_job_group
-    run_job_group >> get_job_group
+    run_job_group >> [get_jobs_for_job_group, get_job_group]

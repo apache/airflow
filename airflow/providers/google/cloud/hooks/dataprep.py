@@ -39,7 +39,7 @@ class GoogleDataprepHook(BaseHook):
 
     """
 
-    def __init__(self, dataprep_conn_id: str = "dataprep_conn_id") -> None:
+    def __init__(self, dataprep_conn_id: str = "dataprep_default") -> None:
         super().__init__()
         self.dataprep_conn_id = dataprep_conn_id
         conn = self.get_connection(self.dataprep_conn_id)

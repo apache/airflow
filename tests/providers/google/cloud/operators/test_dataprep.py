@@ -21,7 +21,7 @@ from airflow.providers.google.cloud.operators.dataprep import (
     DataprepGetJobGroupOperator, DataprepGetJobsForJobGroupOperator, DataprepRunJobGroupOperator,
 )
 
-DATAPREP_CONN_ID = "dataprep_conn_id"
+DATAPREP_CONN_ID = "dataprep_default"
 JOB_ID = 143
 TASK_ID = "dataprep_job"
 INCLUDE_DELETED = False
@@ -54,7 +54,7 @@ class TestDataprepGetJobsForJobGroupOperator(TestCase):
             dataprep_conn_id=DATAPREP_CONN_ID, job_id=JOB_ID, task_id=TASK_ID
         )
         op.execute(context={})
-        hook_mock.assert_called_once_with(dataprep_conn_id="dataprep_conn_id")
+        hook_mock.assert_called_once_with(dataprep_conn_id="dataprep_default")
         hook_mock.return_value.get_jobs_for_job_group.assert_called_once_with(
             job_id=JOB_ID
         )
@@ -71,7 +71,7 @@ class TestDataprepGetJobGroupOperator(TestCase):
             task_id=TASK_ID,
         )
         op.execute(context={})
-        hook_mock.assert_called_once_with(dataprep_conn_id="dataprep_conn_id")
+        hook_mock.assert_called_once_with(dataprep_conn_id="dataprep_default")
         hook_mock.return_value.get_job_group.assert_called_once_with(
             job_group_id=JOB_ID, embed=EMBED, include_deleted=INCLUDE_DELETED
         )
@@ -84,5 +84,5 @@ class TestDataprepRunJobGroupOperator(TestCase):
             dataprep_conn_id=DATAPREP_CONN_ID, body_request=DATA, task_id=TASK_ID
         )
         op.execute(context=None)
-        hook_mock.assert_called_once_with(dataprep_conn_id="dataprep_conn_id")
+        hook_mock.assert_called_once_with(dataprep_conn_id="dataprep_default")
         hook_mock.return_value.run_job_group.assert_called_once_with(body_request=DATA)
