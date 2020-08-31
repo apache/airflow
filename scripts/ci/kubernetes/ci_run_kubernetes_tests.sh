@@ -18,10 +18,10 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-make_sure_kubernetes_tools_are_installed
-get_kind_cluster_name
+kind::make_sure_kubernetes_tools_are_installed
+kind::get_kind_cluster_name
 
-add_trap dump_kind_logs EXIT HUP INT TERM
+traps::add_trap kind::dump_kind_logs EXIT HUP INT TERM
 
 INTERACTIVE="false"
 
