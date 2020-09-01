@@ -133,7 +133,6 @@ Other ways of retrieving source code are "convenience" methods. For example, tag
 
 ## Official Docker images
 
-In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images of Apache Airflow. The production image is a multi-segment image. The first segment "airflow-build-image" contains all the build essentials and related dependencies that allow to install airflow locally. By default the image is build from a released version of Airflow from Github, but by providing some extra arguments you can also build it from local sources.
  This is particularly useful in CI environment where we are using the image to run Kubernetes tests(Helm Chart integration). We will also use released images in the Helm Chart(backward compatibility). You can see DockerHub images at https://hub.docker.com/repository/docker/apache/airflow. In DockerHub there is just a convenience binary and that image can (and often should) be built from the officially released sources. More Details [TODO](#).
 
 The community provides two types of support for the production images:
