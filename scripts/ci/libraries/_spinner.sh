@@ -19,7 +19,7 @@
 # Function to spin ASCII spinner during pull and build in pre-commits to give the user indication that
 # Pull/Build is happening. It only spins if the output log changes, so if pull/build is stalled
 # The spinner will not move.
-function spin() {
+function spinner::spin() {
     local FILE_TO_MONITOR=${1}
     local SPIN=("-" "\\" "|" "/")
     echo -n "

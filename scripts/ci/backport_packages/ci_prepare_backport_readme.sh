@@ -18,8 +18,8 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-prepare_ci_build
+build_images::prepare_ci_build
 
-rebuild_ci_image_if_needed
+build_images::rebuild_ci_image_if_needed
 
-run_prepare_backport_readme "$@"
+runs::run_prepare_backport_readme "$@"

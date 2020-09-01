@@ -78,7 +78,7 @@ export EXTRA_STATIC_CHECK_OPTIONS
 # scripts/ci/libraries/_initialization.sh and breeze-complete script (which sets-up auto-complete).
 #
 #######################################################################################################
-function setup_default_breeze_constants() {
+function breeze::setup_default_breeze_constants() {
     # Indicates that we are inside Breeze environment
     export BREEZE=true
     readonly BREEZE
@@ -183,7 +183,7 @@ function setup_default_breeze_constants() {
 #    OSTYPE
 #
 #######################################################################################################
-function initialize_virtualenv() {
+function breeze::initialize_virtualenv() {
     # Check if we are inside virtualenv
     set +e
     echo -e "import sys\nif not hasattr(sys,'base_prefix'):\n  sys.exit(1)" |
@@ -256,7 +256,7 @@ function initialize_virtualenv() {
 #    OSTYPE
 #
 #######################################################################################################
-function setup_autocomplete() {
+function breeze::setup_autocomplete() {
     echo "Installing bash/zsh completion for local user"
     echo
     "${AIRFLOW_SOURCES}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
@@ -340,7 +340,7 @@ EOF
 #
 # Prints information about the current configuration of Breeze - if you enter breeze interactively
 # and you did not suppress cheatsheet or asciiart, it also prints those. It also prints values
-# of constants set by read_saved_environment_variables() function and other initialization functions.
+# of constants set by breeze::read_saved_environment_variables() function and other initialization functions.
 #
 # Used globals:
 #
@@ -363,7 +363,7 @@ EOF
 #    Prints the information about the build to stdout.
 #
 #######################################################################################################
-function print_badge() {
+function breeze::print_badge() {
     local backend_version=""
     if [[ ${BACKEND} == "postgres" ]]; then
         backend_version="${POSTGRES_VERSION}"
@@ -421,7 +421,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_PROD_IMAGE}
-                               Airflow source version: $(get_airflow_version_from_production_image)
+                               Airflow source version: $(build_images::get_airflow_version_from_production_image)
 EOF
         else
             cat <<EOF
@@ -526,7 +526,7 @@ EOF
 #   Creates the convenience command file that can be run to use the docker command.
 #
 #######################################################################################################
-function prepare_command_file() {
+function breeze::prepare_command_file() {
     local file="${1}"
     local command="${2}"
     local compose_file="${3}"
@@ -588,7 +588,7 @@ EOF
 #     BUILT_CI_IMAGE_FLAG_FILE
 #
 #######################################################################################################
-function prepare_command_files() {
+function breeze::prepare_command_files() {
     local main_ci_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     local main_prod_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
@@ -638,11 +638,11 @@ function prepare_command_files() {
     readonly DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD
 
     # Prepare script for "run docker compose CI command"
-    prepare_command_file "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" \
+    breeze::prepare_command_file "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" \
         "\"\${@}\"" "${compose_ci_file}" "${AIRFLOW_CI_IMAGE}"
 
     # Prepare script for "run docker compose PROD command"
-    prepare_command_file "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}" \
+    breeze::prepare_command_file "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}" \
         "\"\${@}\"" "${compose_prod_file}" "${AIRFLOW_PROD_IMAGE}"
 }
 
@@ -658,25 +658,25 @@ function prepare_command_files() {
 #   Prints detailed help for all commands to stdout.
 #
 #######################################################################################################
-function do_help_all() {
+function breeze::do_help_all() {
     echo
-    print_line
-    usage
-    print_line
+    breeze::print_line
+    breeze::usage
+    breeze::print_line
     echo
     echo
     echo "Detailed usage"
     echo
-    print_line
+    breeze::print_line
     echo
     local subcommand
     for subcommand in ${ALL_BREEZE_COMMANDS}; do
-        detailed_usage "${subcommand}"
-        print_line
+        breeze::detailed_usage "${subcommand}"
+        breeze::print_line
         echo
     done
     echo
-    flags
+    breeze::flags
 }
 
 #######################################################################################################
@@ -684,11 +684,11 @@ function do_help_all() {
 # Parses all arguments that can be passed to Breeze command - that includes command to run and flags.
 #
 # Updated global constants:
-#      By the end of this function, all the constants from `make_constants_read_only` function are set
+#      By the end of this function, all the constants from `initialization::make_constants_read_only` function are set
 #      and they are set as read-only.
 #
 #######################################################################################################
-function parse_arguments() {
+function breeze::parse_arguments() {
     set -u
     local params
     if ! params=$(getopt \
@@ -725,7 +725,7 @@ function parse_arguments() {
             ;;
         -i | --integration)
             local integration=${2}
-            check_and_save_allowed_param "INTEGRATION" "integration" "--integration"
+            parameters::check_and_save_allowed_param "INTEGRATION" "integration" "--integration"
             echo "Integration: ${integration}"
             if [[ ${integration} == "all" ]]; then
                 for integration in ${_BREEZE_ALLOWED_INTEGRATIONS}; do
@@ -1185,15 +1185,15 @@ function parse_arguments() {
             exit 0
             ;;
         help)
-            usage
+            breeze::usage
             exit 0
             ;;
         help-all)
-            do_help_all
+            breeze::do_help_all
             exit 0
             ;;
         *)
-            usage
+            breeze::usage
             echo >&2
             echo >&2 "ERROR: Unknown command ${1}"
             echo >&2
@@ -1207,10 +1207,10 @@ function parse_arguments() {
 
     if [[ ${run_help} == "true" ]]; then
         if [[ ${last_subcommand} == "" ]]; then
-            usage
-            flag_footer
+            breeze::usage
+            breeze::flag_footer
         else
-            detailed_usage "${last_subcommand}"
+            breeze::detailed_usage "${last_subcommand}"
         fi
         exit 0
     fi
@@ -1234,7 +1234,7 @@ function parse_arguments() {
 #       FORMATTED_* constant variables that can be used in Breeze Help output
 #
 #######################################################################################################
-function prepare_formatted_versions() {
+function breeze::prepare_formatted_versions() {
     local indent=15
     local list_prefix
     list_prefix=$(printf "%-${indent}s" " ")
@@ -1310,7 +1310,7 @@ function prepare_formatted_versions() {
 
 # shellcheck disable=SC2034,SC2090,SC2089,SC2155
 
-function prepare_usage() {
+function breeze::prepare_usage() {
     # Note that MacOS uses Bash 3.* and we cannot use associative arrays
     export USAGE_SHELL="[Default] Enters interactive shell in the container"
     readonly USAGE_SHELL
@@ -1397,7 +1397,7 @@ ${CMDNAME} shell [FLAGS] [-- <EXTRA_ARGS>]
             --github-image-id 209845560' - pull/use image with RUN_ID
 
 Flags:
-$(flag_footer)
+$(breeze::flag_footer)
 "
     readonly DETAILED_USAGE_SHELL
     export DETAILED_USAGE_EXEC="
@@ -1437,12 +1437,12 @@ ${CMDNAME} build-image [FLAGS]
       specific COMMIT_SHA tag or RUN_ID.
 
 Flags:
-$(flag_airflow_variants)
-$(flag_choose_different_airflow_version)
-$(flag_production_image)
-$(flag_build_docker_images)
-$(flag_pull_push_docker_images)
-$(flag_verbosity)
+$(breeze::flag_airflow_variants)
+$(breeze::flag_choose_different_airflow_version)
+$(breeze::flag_production_image)
+$(breeze::flag_build_docker_images)
+$(breeze::flag_pull_push_docker_images)
+$(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_BUILD_IMAGE
     export DETAILED_USAGE_CLEANUP_IMAGE="
@@ -1453,9 +1453,9 @@ ${CMDNAME} cleanup-image [FLAGS]
       with --all) to reclaim that space.
 
 Flags:
-$(flag_airflow_variants)
-$(flag_production_image)
-$(flag_verbosity)
+$(breeze::flag_airflow_variants)
+$(breeze::flag_production_image)
+$(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_CLEANUP_IMAGE
     export DETAILED_USAGE_DOCKER_COMPOSE="
@@ -1468,9 +1468,9 @@ ${CMDNAME} docker-compose [FLAGS] COMMAND [-- <EXTRA_ARGS>]
       '${CMDNAME} docker-compose pull -- --ignore-pull-failures'
 
 Flags:
-$(flag_airflow_variants)
-$(flag_backend_variants)
-$(flag_verbosity)
+$(breeze::flag_airflow_variants)
+$(breeze::flag_backend_variants)
+$(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_DOCKER_COMPOSE
     export DETAILED_USAGE_FLAGS="
@@ -1505,7 +1505,7 @@ ${CMDNAME} prepare-backport-packages [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
         '.' for example 'apache.hive'
 
 Flags:
-$(flag_verbosity)
+$(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_PREPARE_BACKPORT_README
     export DETAILED_USAGE_GENERATE_CONSTRAINTS="
@@ -1520,8 +1520,8 @@ ${CMDNAME} generate-constraints [FLAGS]
       CRON job in CI automatically.
 
 Flags:
-$(flag_airflow_variants)
-$(flag_verbosity)
+$(breeze::flag_airflow_variants)
+$(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_GENERATE_CONSTRAINTS
     export DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV="
@@ -1534,7 +1534,7 @@ ${CMDNAME} initialize-local-virtualenv [FLAGS]
       activated before running this command.
 
 Flags:
-$(flag_airflow_variants)
+$(breeze::flag_airflow_variants)
 "
     readonly DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV
     export DETAILED_USAGE_PREPARE_BACKPORT_PACKAGES="
@@ -1562,8 +1562,8 @@ ${CMDNAME} prepare-backport-packages [FLAGS] [PACKAGE_ID ...]
         for example 'apache.hive'
 
 Flags:
-$(flag_version_suffix)
-$(flag_verbosity)
+$(breeze::flag_version_suffix)
+$(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_PREPARE_BACKPORT_PACKAGES
     export DETAILED_USAGE_PUSH_IMAGE="
@@ -1595,8 +1595,8 @@ ${CMDNAME} push_image [FLAGS]
             --github-image-id 209845560' - to push with RUN_ID
 
 Flags:
-$(flag_pull_push_docker_images)
-$(flag_verbosity)
+$(breeze::flag_pull_push_docker_images)
+$(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_PUSH_IMAGE
     export DETAILED_USAGE_KIND_CLUSTER="
@@ -1612,8 +1612,8 @@ ${CMDNAME} kind-cluster [FLAGS] OPERATION
 ${FORMATTED_KIND_OPERATIONS}
 
 Flags:
-$(flag_airflow_variants)
-$(flag_build_docker_images)
+$(breeze::flag_airflow_variants)
+$(breeze::flag_build_docker_images)
 "
     readonly DETAILED_USAGE_KIND_CLUSTER
     export DETAILED_USAGE_SETUP_AUTOCOMPLETE="
@@ -1640,7 +1640,7 @@ ${CMDNAME} restart [FLAGS]
       especially useful if you switch between different versions of Airflow.
 
 Flags:
-$(flag_footer)
+$(breeze::flag_footer)
 "
     readonly DETAILED_USAGE_RESTART
     export DETAILED_USAGE_STATIC_CHECK="
@@ -1675,7 +1675,7 @@ ${CMDNAME} tests [FLAGS] [TEST_TARGET ..] [-- <EXTRA_ARGS>]
       '${CMDNAME} tests tests
 
 Flags:
-$(flag_footer)
+$(breeze::flag_footer)
 "
     readonly DETAILED_USAGE_TESTS
     export DETAILED_USAGE_TOGGLE_SUPPRESS_CHEATSHEET="
@@ -1715,7 +1715,7 @@ ${CMDNAME} help-all
 # Outputs:
 #     Writes the capitalized name of the variable to stdout
 #######################################################################################################
-function get_variable_from_lowercase_name() {
+function breeze::get_variable_from_lowercase_name() {
     local prefix="${1}"
     local name="${2}"
     local suffix
@@ -1730,10 +1730,10 @@ function get_variable_from_lowercase_name() {
 # Arguments:
 #     lowercase command name
 # Outputs:
-#    Usage information for the command.
+#    usage information for the command.
 #######################################################################################################
-function get_usage() {
-    get_variable_from_lowercase_name "USAGE" "${1}"
+function breeze::get_usage() {
+    breeze::get_variable_from_lowercase_name "USAGE" "${1}"
 }
 
 #######################################################################################################
@@ -1744,8 +1744,8 @@ function get_usage() {
 # Outputs:
 #    Detailed usage information for the command.
 #######################################################################################################
-function get_detailed_usage() {
-    get_variable_from_lowercase_name "DETAILED_USAGE" "${1}"
+function breeze::get_detailed_usage() {
+    breeze::get_variable_from_lowercase_name "DETAILED_USAGE" "${1}"
 }
 
 #######################################################################################################
@@ -1761,10 +1761,10 @@ function get_detailed_usage() {
 # Outputs:
 #    General usage information for all commands.
 #######################################################################################################
-function usage() {
+function breeze::usage() {
     echo "
 
-Usage: ${CMDNAME} [FLAGS] [COMMAND] -- <EXTRA_ARGS>
+usage: ${CMDNAME} [FLAGS] [COMMAND] -- <EXTRA_ARGS>
 
 By default the script enters the  CI container and drops you to bash shell, but you can choose
 one of the commands to run specific actions instead.
@@ -1774,19 +1774,19 @@ Add --help after each command to see details:
 Commands without arguments:
 "
     for subcommand in ${BREEZE_COMMANDS}; do
-        printf "  %-40s %s\n" "${subcommand}" "$(get_usage "${subcommand}")"
+        printf "  %-40s %s\n" "${subcommand}" "$(breeze::get_usage "${subcommand}")"
     done
     echo "
 Commands with arguments:
 "
     for subcommand in ${BREEZE_EXTRA_ARG_COMMANDS}; do
-        printf "  %-30s%-10s %s\n" "${subcommand}" "<ARG>" "$(get_usage "${subcommand}")"
+        printf "  %-30s%-10s %s\n" "${subcommand}" "<ARG>" "$(breeze::get_usage "${subcommand}")"
     done
     echo "
 Help commands:
 "
     for subcommand in ${BREEZE_HELP_COMMANDS}; do
-        printf "  %-40s %s\n" "${subcommand}" "$(get_usage "${subcommand}")"
+        printf "  %-40s %s\n" "${subcommand}" "$(breeze::get_usage "${subcommand}")"
     done
     echo
 }
@@ -1802,13 +1802,13 @@ Help commands:
 #    Detailed  usage information for the command
 #######################################################################################################
 # Prints detailed usage for command specified
-function detailed_usage() {
+function breeze::detailed_usage() {
     subcommand=${1}
     echo "
 
 Detailed usage for command: ${subcommand}
 
-$(get_detailed_usage "${subcommand}")
+$(breeze::get_detailed_usage "${subcommand}")
 
 "
 }
@@ -1820,7 +1820,7 @@ $(get_detailed_usage "${subcommand}")
 # Outputs:
 #    Footer common for all commands.
 #######################################################################################################
-function flag_footer() {
+function breeze::flag_footer() {
     echo "
 Run '${CMDNAME} flags' to see all applicable flags.
 "
@@ -1836,7 +1836,7 @@ Run '${CMDNAME} flags' to see all applicable flags.
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_airflow_variants() {
+function breeze::flag_airflow_variants() {
     echo "
 -p, --python <PYTHON_MAJOR_MINOR_VERSION>
         Python version used for the image. This is always major/minor version.
@@ -1862,7 +1862,7 @@ ${FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS}
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_backend_variants() {
+function breeze::flag_backend_variants() {
     echo "
 -b, --backend <BACKEND>
         Backend to use for tests - it determines which database is used.
@@ -1891,7 +1891,7 @@ ${FORMATTED_MYSQL_VERSIONS}
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_production_image() {
+function breeze::flag_production_image() {
     echo "
 -I, --production-image
         Use production image for entering the environment and builds (not for tests).
@@ -1909,7 +1909,7 @@ function flag_production_image() {
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_breeze_actions() {
+function breeze::flag_breeze_actions() {
     echo "
 -d, --db-reset
         Resets the database at entry to the environment. It will drop all the tables
@@ -1942,7 +1942,7 @@ ${FORMATTED_INTEGRATIONS}
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_kubernetes_configuration() {
+function breeze::flag_kubernetes_configuration() {
     echo "
 Configuration for the KinD Kubernetes cluster and tests:
 
@@ -1988,7 +1988,7 @@ ${FORMATTED_HELM_VERSIONS}
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_local_file_mounting() {
+function breeze::flag_local_file_mounting() {
     echo "
 -l, --skip-mounting-local-sources
         Skips mounting local volume with sources - you get exactly what is in the
@@ -2007,7 +2007,7 @@ function flag_local_file_mounting() {
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_choose_different_airflow_version() {
+function breeze::flag_choose_different_airflow_version() {
     echo "
 -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
         If specified, installs Airflow directly from PIP released version. This happens at
@@ -2028,7 +2028,7 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_assume_answers_to_questions() {
+function breeze::flag_assume_answers_to_questions() {
     echo "
 -y, --assume-yes
         Assume 'yes' answer to all questions.
@@ -2048,7 +2048,7 @@ function flag_assume_answers_to_questions() {
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_credentials() {
+function breeze::flag_credentials() {
     echo "
 -f, --forward-credentials
         Forwards host credentials to docker container. Use with care as it will make
@@ -2063,7 +2063,7 @@ function flag_credentials() {
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_verbosity() {
+function breeze::flag_verbosity() {
     echo "
 -v, --verbose
         Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -2082,7 +2082,7 @@ function flag_verbosity() {
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_help() {
+function breeze::flag_help() {
     echo "
 -h, --help
         Shows detailed help message for the command specified.
@@ -2100,7 +2100,7 @@ function flag_help() {
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_build_docker_images() {
+function breeze::flag_build_docker_images() {
     echo "
 -F, --force-build-images
         Forces building of the local docker images. The images are rebuilt
@@ -2183,7 +2183,7 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_pull_push_docker_images() {
+function breeze::flag_pull_push_docker_images() {
     echo "
 -D, --dockerhub-user
         DockerHub user used to pull, push and build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_USER:=}.
@@ -2223,7 +2223,7 @@ function flag_pull_push_docker_images() {
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flag_version_suffix() {
+function breeze::flag_version_suffix() {
     echo "
 -S, --version-suffix-for-pypi
         Adds optional suffix to the version in the generated backport package. It can be used
@@ -2242,67 +2242,67 @@ function flag_version_suffix() {
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function flags() {
+function breeze::flags() {
     echo "
-$(print_line)
+$(breeze::print_line)
 
 Summary of all flags supported by Breeze:
 
-$(print_star_line)
+$(breeze::print_star_line)
  Choose Airflow variant
-$(flag_airflow_variants)
+$(breeze::flag_airflow_variants)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Choose backend to run for Airflow
-$(flag_backend_variants)
+$(breeze::flag_backend_variants)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Enable production image
-$(flag_production_image)
+$(breeze::flag_production_image)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Additional actions executed while entering breeze
-$(flag_breeze_actions)
+$(breeze::flag_breeze_actions)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Kind kubernetes and Kubernetes tests configuration(optional)
-$(flag_kubernetes_configuration)
+$(breeze::flag_kubernetes_configuration)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Manage mounting local files
-$(flag_local_file_mounting)
+$(breeze::flag_local_file_mounting)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Assume answers to questions
-$(flag_assume_answers_to_questions)
+$(breeze::flag_assume_answers_to_questions)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Choose different Airflow version to install or run
-$(flag_choose_different_airflow_version)
+$(breeze::flag_choose_different_airflow_version)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Credentials
-$(flag_credentials)
+$(breeze::flag_credentials)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Flags for building Docker images (both CI and production)
-$(flag_build_docker_images)
+$(breeze::flag_build_docker_images)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Flags for pulling/pushing Docker images (both CI and production)
-$(flag_pull_push_docker_images)
+$(breeze::flag_pull_push_docker_images)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Flags for generation of the backport packages
-$(flag_version_suffix)
+$(breeze::flag_version_suffix)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Increase verbosity of the scripts
-$(flag_verbosity)
+$(breeze::flag_verbosity)
 
-$(print_star_line)
+$(breeze::print_star_line)
  Print detailed help message
-$(flag_help)
+$(breeze::flag_help)
 "
 }
 
@@ -2313,7 +2313,7 @@ $(flag_help)
 # Outputs:
 #    Prints header line.
 #######################################################################################################
-function print_header_line() {
+function breeze::print_header_line() {
     if [ ${VERBOSE:="false"} == "true" ]; then
         echo
         printf '=%.0s' $(seq "${SCREEN_WIDTH}")
@@ -2328,12 +2328,12 @@ function print_header_line() {
 # Outputs:
 #    Prints line.
 #######################################################################################################
-function print_line() {
+function breeze::print_line() {
     printf '#%.0s' $(seq "${SCREEN_WIDTH}")
 }
 
 # Prints star line filling screen indented_screen_width
-function print_star_line() {
+function breeze::print_star_line() {
     printf '*%.0s' $(seq "${SCREEN_WIDTH}")
 }
 
@@ -2365,38 +2365,38 @@ function print_star_line() {
 #
 #######################################################################################################
 
-function read_saved_environment_variables() {
-    BACKEND="${BACKEND:=$(read_from_file BACKEND)}"
+function breeze::read_saved_environment_variables() {
+    BACKEND="${BACKEND:=$(parameters::read_from_file BACKEND)}"
     BACKEND=${BACKEND:-${_BREEZE_DEFAULT_BACKEND}}
 
-    KUBERNETES_MODE="${KUBERNETES_MODE:=$(read_from_file KUBERNETES_MODE)}"
+    KUBERNETES_MODE="${KUBERNETES_MODE:=$(parameters::read_from_file KUBERNETES_MODE)}"
     KUBERNETES_MODE=${KUBERNETES_MODE:=${_BREEZE_DEFAULT_KUBERNETES_MODE}}
 
-    KUBERNETES_VERSION="${KUBERNETES_VERSION:=$(read_from_file KUBERNETES_VERSION)}"
+    KUBERNETES_VERSION="${KUBERNETES_VERSION:=$(parameters::read_from_file KUBERNETES_VERSION)}"
     KUBERNETES_VERSION=${KUBERNETES_VERSION:=${_BREEZE_DEFAULT_KUBERNETES_VERSION}}
 
-    KIND_VERSION="${KIND_VERSION:=$(read_from_file KIND_VERSION)}"
+    KIND_VERSION="${KIND_VERSION:=$(parameters::read_from_file KIND_VERSION)}"
     KIND_VERSION=${KIND_VERSION:=${_BREEZE_DEFAULT_KIND_VERSION}}
 
-    HELM_VERSION="${HELM_VERSION:=$(read_from_file HELM_VERSION)}"
+    HELM_VERSION="${HELM_VERSION:=$(parameters::read_from_file HELM_VERSION)}"
     HELM_VERSION=${HELM_VERSION:=${_BREEZE_DEFAULT_HELM_VERSION}}
 
-    POSTGRES_VERSION="${POSTGRES_VERSION:=$(read_from_file POSTGRES_VERSION)}"
+    POSTGRES_VERSION="${POSTGRES_VERSION:=$(parameters::read_from_file POSTGRES_VERSION)}"
     POSTGRES_VERSION=${POSTGRES_VERSION:=${_BREEZE_DEFAULT_POSTGRES_VERSION}}
 
-    MYSQL_VERSION="${MYSQL_VERSION:=$(read_from_file MYSQL_VERSION)}"
+    MYSQL_VERSION="${MYSQL_VERSION:=$(parameters::read_from_file MYSQL_VERSION)}"
     MYSQL_VERSION=${MYSQL_VERSION:=${_BREEZE_DEFAULT_MYSQL_VERSION}}
 
     # Here you read DockerHub user/account that you use
     # You can populate your own images in DockerHub this way and work with the,
     # You can override it with "--dockerhub-user" option and it will be stored in .build directory
-    DOCKERHUB_USER="${DOCKERHUB_USER:=$(read_from_file DOCKERHUB_USER)}"
+    DOCKERHUB_USER="${DOCKERHUB_USER:=$(parameters::read_from_file DOCKERHUB_USER)}"
     DOCKERHUB_USER="${DOCKERHUB_USER:=${_BREEZE_DEFAULT_DOCKERHUB_USER}}"
 
     # Here you read DockerHub repo that you use
     # You can populate your own images in DockerHub this way and work with them
     # You can override it with "--dockerhub-repo" option and it will be stored in .build directory
-    DOCKERHUB_REPO="${DOCKERHUB_REPO:=$(read_from_file DOCKERHUB_REPO)}"
+    DOCKERHUB_REPO="${DOCKERHUB_REPO:=$(parameters::read_from_file DOCKERHUB_REPO)}"
     DOCKERHUB_REPO="${DOCKERHUB_REPO:=${_BREEZE_DEFAULT_DOCKERHUB_REPO}}"
 }
 
@@ -2427,8 +2427,8 @@ function read_saved_environment_variables() {
 #
 # Output: saved variable files in .build,
 #######################################################################################################
-function check_and_save_all_params() {
-    check_and_save_allowed_param "PYTHON_MAJOR_MINOR_VERSION" "Python version" "--python"
+function breeze::check_and_save_all_params() {
+    parameters::check_and_save_allowed_param "PYTHON_MAJOR_MINOR_VERSION" "Python version" "--python"
 
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
         if [[ ${INSTALL_AIRFLOW_REFERENCE=} == *1_10* ]]; then
@@ -2452,17 +2452,17 @@ function check_and_save_all_params() {
         fi
     fi
 
-    check_and_save_allowed_param "BACKEND" "backend" "--backend"
-    check_and_save_allowed_param "KUBERNETES_MODE" "Kubernetes mode" "--kubernetes-mode"
-    check_and_save_allowed_param "KUBERNETES_VERSION" "Kubernetes version" "--kubernetes-version"
-    check_and_save_allowed_param "KIND_VERSION" "KinD version" "--kind-version"
-    check_and_save_allowed_param "HELM_VERSION" "Helm version" "--helm-version"
-    check_and_save_allowed_param "POSTGRES_VERSION" "Postgres version" "--postgres-version"
-    check_and_save_allowed_param "MYSQL_VERSION" "Mysql version" "--mysql-version"
+    parameters::check_and_save_allowed_param "BACKEND" "backend" "--backend"
+    parameters::check_and_save_allowed_param "KUBERNETES_MODE" "Kubernetes mode" "--kubernetes-mode"
+    parameters::check_and_save_allowed_param "KUBERNETES_VERSION" "Kubernetes version" "--kubernetes-version"
+    parameters::check_and_save_allowed_param "KIND_VERSION" "KinD version" "--kind-version"
+    parameters::check_and_save_allowed_param "HELM_VERSION" "Helm version" "--helm-version"
+    parameters::check_and_save_allowed_param "POSTGRES_VERSION" "Postgres version" "--postgres-version"
+    parameters::check_and_save_allowed_param "MYSQL_VERSION" "Mysql version" "--mysql-version"
 
     # Can't verify those - they can be anything, so let's just save them
-    save_to_file DOCKERHUB_USER
-    save_to_file DOCKERHUB_REPO
+    parameters::save_to_file DOCKERHUB_USER
+    parameters::save_to_file DOCKERHUB_REPO
 }
 
 #######################################################################################################
@@ -2477,17 +2477,17 @@ function check_and_save_all_params() {
 #     MYSQL_HOST_PORT
 #
 #######################################################################################################
-function print_cheatsheet() {
+function breeze::print_cheatsheet() {
     if [[ ! -f ${SUPPRESS_CHEATSHEET_FILE} && ${command_to_run} == "enter_breeze" ]]; then
         echo
         echo
-        print_line
+        breeze::print_line
         echo
         echo "                                  Airflow Breeze CHEATSHEET"
         echo
         set +e
         if ! command -v breeze; then
-            print_line
+            breeze::print_line
             echo
             echo " Adding breeze to your path:"
             echo "    When you exit the environment, you can add sources of Airflow to the path - you can"
@@ -2497,7 +2497,7 @@ function print_cheatsheet() {
             echo
         fi
         set -e
-        print_line
+        breeze::print_line
 
         echo
         echo " Port forwarding:"
@@ -2525,23 +2525,23 @@ function print_cheatsheet() {
 # Used global constants:
 #     CMDNAME
 #######################################################################################################
-function print_setup_instructions() {
+function breeze::print_setup_instructions() {
     if [[ ${command_to_run} == "enter_breeze" ]]; then
         # shellcheck disable=SC2034  # Unused variables left for comp_breeze usage
         if ! typeset -f "_comp_breeze" >/dev/null; then
-            print_line
+            breeze::print_line
             echo
             echo "  You can setup autocomplete by running '${CMDNAME} setup-autocomplete'"
             echo
             echo
         fi
-        print_line
+        breeze::print_line
         echo
         echo "  You can toggle ascii/cheatsheet by running:"
         echo "      * ${CMDNAME} toggle-suppress-cheatsheet"
         echo "      * ${CMDNAME} toggle-suppress-asciiart"
         echo
-        print_line
+        breeze::print_line
         echo
         echo
         echo
@@ -2555,7 +2555,7 @@ function print_setup_instructions() {
 # this is used in case static check command is used.
 #
 #######################################################################################################
-function make_sure_precommit_is_installed() {
+function breeze::make_sure_precommit_is_installed() {
     echo
     echo "Making sure pre-commit is installed"
     echo
@@ -2587,7 +2587,7 @@ function make_sure_precommit_is_installed() {
 #    BUILT_CI_IMAGE_FLAG_FILE
 #
 #######################################################################################################
-function remove_images() {
+function breeze::remove_images() {
     docker rmi "${PYTHON_BASE_IMAGE}"  || true
     docker rmi "${AIRFLOW_CI_IMAGE}"   || true
     docker rmi "${AIRFLOW_PROD_IMAGE}" || true
@@ -2602,7 +2602,7 @@ function remove_images() {
 #   static_check
 #
 #######################################################################################################
-function run_static_checks() {
+function breeze::run_static_checks() {
     if [[ ${static_check} == "all" ]]; then
         echo
         echo "Running: pre-commit run" "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
@@ -2642,49 +2642,49 @@ function run_static_checks() {
 #   command_to_run
 #
 #######################################################################################################
-function run_build_command() {
+function breeze::run_build_command() {
     case "${command_to_run}" in
     run_tests | run_docker_compose)
-        prepare_ci_build
-        rebuild_ci_image_if_needed
+        build_images::prepare_ci_build
+        build_images::rebuild_ci_image_if_needed
         ;;
     enter_breeze)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            prepare_prod_build
+            build_images::prepare_prod_build
         else
-            prepare_ci_build
-            rebuild_ci_image_if_needed
+            build_images::prepare_ci_build
+            build_images::rebuild_ci_image_if_needed
         fi
         ;;
     build_docs | perform_static_checks | perform_generate_constraints | perform_prepare_backport_readme | perform_prepare_backport_packages)
-        prepare_ci_build
-        rebuild_ci_image_if_needed
+        build_images::prepare_ci_build
+        build_images::rebuild_ci_image_if_needed
         ;;
     perform_push_image)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            prepare_prod_build
+            build_images::prepare_prod_build
         else
-            prepare_ci_build
-            rebuild_ci_image_if_needed
+            build_images::prepare_ci_build
+            build_images::rebuild_ci_image_if_needed
         fi
         ;;
     build_image)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            prepare_prod_build
-            build_prod_images
+            build_images::prepare_prod_build
+            build_images::build_prod_images
         else
-            prepare_ci_build
-            calculate_md5sum_for_all_files
-            build_ci_image
-            update_all_md5_files
-            build_ci_image_manifest
+            build_images::prepare_ci_build
+            md5sum::calculate_md5sum_for_all_files
+            build_images::build_ci_image
+            md5sum::update_all_md5
+            build_images::build_ci_image_manifest
         fi
         ;;
     cleanup_image | run_exec)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            prepare_prod_build
+            build_images::prepare_prod_build
         else
-            prepare_ci_build
+            build_images::prepare_ci_build
         fi
         ;;
     perform_initialize_local_virtualenv | perform_setup_autocomplete | toggle_suppress_cheatsheet | toggle_suppress_asciiart ) ;;
@@ -2702,8 +2702,8 @@ function run_build_command() {
             echo "Checks status of KinD cluster"
         elif [[ ${KIND_CLUSTER_OPERATION} == "deploy" ]]; then
             echo "Deploys Airflow to KinD cluster"
-            prepare_prod_build
-            build_prod_images
+            build_images::prepare_prod_build
+            build_images::build_prod_images
         elif [[ ${KIND_CLUSTER_OPERATION} == "test" ]]; then
             echo "Run Kubernetes tests with the KinD cluster "
         elif [[ ${KIND_CLUSTER_OPERATION} == "shell" ]]; then
@@ -2753,7 +2753,7 @@ function run_build_command() {
 # Set Global variables:
 #     RUN_TESTS
 #######################################################################################################
-function run_breeze_command() {
+function breeze::run_breeze_command() {
     set +u
     local dc_run_file
     if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
@@ -2799,43 +2799,43 @@ function run_breeze_command() {
         set -u
         ;;
     perform_static_checks)
-        make_sure_precommit_is_installed
-        run_static_checks "${@}"
+        breeze::make_sure_precommit_is_installed
+        breeze::run_static_checks "${@}"
         ;;
     build_image) ;;
 
     cleanup_image)
-        remove_images
+        breeze::remove_images
         ;;
     perform_generate_constraints)
-        run_generate_constraints
+        runs::run_generate_constraints
         ;;
     perform_prepare_backport_packages)
-        run_prepare_backport_packages "${@}"
+        runs::run_prepare_backport_packages "${@}"
         ;;
     perform_prepare_backport_readme)
-        run_prepare_backport_readme "${@}"
+        runs::run_prepare_backport_readme "${@}"
         ;;
     perform_push_image)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            push_prod_images
+            push_pull_remove_images::push_prod_images
         else
-            push_ci_images
+            push_pull_remove_images::push_ci_images
         fi
         ;;
     perform_initialize_local_virtualenv)
-        initialize_virtualenv
+        breeze::initialize_virtualenv
         ;;
     perform_setup_autocomplete)
-        setup_autocomplete
+        breeze::setup_autocomplete
         ;;
     manage_kind_cluster)
-        make_sure_kubernetes_tools_are_installed
-        get_kind_cluster_name
-        perform_kind_cluster_operation "${KIND_CLUSTER_OPERATION}"
+        kind::make_sure_kubernetes_tools_are_installed
+        kind::get_kind_cluster_name
+        kind::perform_kind_cluster_operation "${KIND_CLUSTER_OPERATION}"
         ;;
     build_docs)
-        run_docs "${@}"
+        runs::run_docs "${@}"
         ;;
     toggle_suppress_cheatsheet)
         if [[ -f "${SUPPRESS_CHEATSHEET_FILE}" ]]; then
@@ -2882,73 +2882,73 @@ function run_breeze_command() {
 #      4. DEFAULT_PYTHON_MAJOR_MINOR_VERSION from scripts/ci/libraries/_initialization.sh
 #
 # Here points 2. and 3. are realised. If result is empty string , the 4. will be set in
-#      the next step (basic_sanity_checks() is called and the version is still not set by then)
+#      the next step (sanity_checks::basic_sanity_checks() is called and the version is still not set by then)
 #      finally, if  --python flag is specified, it will override whatever is set above.
 #
-# We need to run after initialize_common_environment (so that read_from_file function is present)
+# We need to run after initialization::initialize_common_environment (so that parameters::read_from_file function is present)
 # But before we set the default value for Python
 #
 # Used and modified global constants:
 #     PYTHON_MAJOR_MINOR_VERSION
 #######################################################################################################
-function determine_python_version_to_use_in_breeze() {
-    PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION:=$(read_from_file PYTHON_MAJOR_MINOR_VERSION)}"
+function breeze::determine_python_version_to_use_in_breeze() {
+    PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION:=$(parameters::read_from_file PYTHON_MAJOR_MINOR_VERSION)}"
     export PYTHON_MAJOR_MINOR_VERSION
 }
 
 
-setup_default_breeze_constants
+breeze::setup_default_breeze_constants
 
-initialize_common_environment
+initialization::initialize_common_environment
 
-determine_python_version_to_use_in_breeze
+breeze::determine_python_version_to_use_in_breeze
 
-basic_sanity_checks
+sanity_checks::basic_sanity_checks
 
-script_start
+start_end::script_start
 
-trap script_end EXIT
+traps::add_trap start_end::script_end EXIT
 
-prepare_formatted_versions
+breeze::prepare_formatted_versions
 
-prepare_usage
+breeze::prepare_usage
 
 set +u
-parse_arguments "${@}"
+breeze::parse_arguments "${@}"
 
-print_header_line
+breeze::print_header_line
 
-forget_last_answer
+build_images::forget_last_answer
 
-read_saved_environment_variables
+breeze::read_saved_environment_variables
 
-check_and_save_all_params
+breeze::check_and_save_all_params
 
-determine_docker_cache_strategy
+build_images::determine_docker_cache_strategy
 
-get_docker_image_names
+build_images::get_docker_image_names
 
-make_constants_read_only
+initialization::make_constants_read_only
 
-sanitize_mounted_files
+sanity_checks::sanitize_mounted_files
 
-prepare_command_files
+breeze::prepare_command_files
 
-run_build_command
+breeze::run_build_command
 
-print_header_line
+breeze::print_header_line
 
-print_badge
+breeze::print_badge
 
-print_cheatsheet
+breeze::print_cheatsheet
 
-print_setup_instructions
+breeze::print_setup_instructions
 
 set +u # Account for an empty array
-run_breeze_command "${REMAINING_ARGS[@]}"
+breeze::run_breeze_command "${REMAINING_ARGS[@]}"
 
 set +u # Account for an empty array
 if [[ -n ${second_command_to_run} ]]; then
     command_to_run=${second_command_to_run}
-    run_breeze_command "${REMAINING_ARGS[@]}"
+    breeze::run_breeze_command "${REMAINING_ARGS[@]}"
 fi
