@@ -290,13 +290,13 @@ is available on PyPI apart from SVN packages, so everyone should be able to inst
 the release candidate version of Airflow via simply (<VERSION> is 1.10.12 for example, and <X> is
 release candidate number 1,2,3,....).
 
-```
-pip install apache-airflow==VERSIONrcX`
+```bash
+pip install apache-airflow==<VERSION>rc<X>
 ```
 Optionally it can be followed with constraints
 
 ```bash
-pip install apache-airflow-<VERSION>rc<X> \
+pip install apache-airflow==<VERSION>rc<X> \
   --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.6.txt"`
 ```
 
