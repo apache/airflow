@@ -92,3 +92,13 @@ class Client(api_client.Client):
         url = urljoin(self._api_base_url, endpoint)
         pool = self._request(url, method='DELETE')
         return pool['pool'], pool['slots'], pool['description']
+
+   def cancel_dag_run(dag_id, dagrun_run_id): 
+        endpoint = '/api/experimental/dags/{}/cancel_dag_run'.format(dag_id)
+        url = urljoin(self._api_base_url, endpoint)
+        result = self._request(url, method='POST',
+                               json={
+                                   "run_id": dagrun_run_id
+                               }
+        )
+        return result['message']
