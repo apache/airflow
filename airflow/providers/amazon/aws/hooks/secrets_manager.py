@@ -36,7 +36,7 @@ class SecretsManagerHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type='secretsmanager', *args, **kwargs)
 
-    def get_secrets(self, secret_name: str) -> dict:
+    def get_secrets(self, secret_name: str) -> str:
         """
         Create queue using connection object
         :param secret_name: name of the secrets.
@@ -51,4 +51,4 @@ class SecretsManagerHook(AwsBaseHook):
             secret = get_secret_value_response['SecretString']
         else:
             secret = base64.b64decode(get_secret_value_response['SecretBinary'])
-        return json.loads(secret)
+        return secret

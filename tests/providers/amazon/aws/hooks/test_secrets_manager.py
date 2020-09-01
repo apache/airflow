@@ -18,7 +18,7 @@
 #
 
 import unittest
-import ast
+import base64
 
 from airflow.providers.amazon.aws.hooks.secrets_manager import SecretsManagerHook
 
@@ -37,7 +37,7 @@ class TestSecretsManagerHook(unittest.TestCase):
 
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
-    def test_get_secrets(self):
+    def test_get_secrets_string(self):
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value = '{"user": "test"}'
         hook = SecretsManagerHook(aws_conn_id='aws_default')
@@ -50,4 +50,21 @@ class TestSecretsManagerHook(unittest.TestCase):
         hook.get_conn().put_secret_value(**param)
 
         secrets = hook.get_secrets(secret_name)
-        self.assertEqual(secrets, ast.literal_eval(secret_value))
+        self.assertEqual(secrets, secret_value)
+
+    @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
+    @mock_secretsmanager
+    def test_get_secrets_binary(self):
+        secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
+        secret_value_binary = base64.b64encode(b'{"username": "test"}')
+        hook = SecretsManagerHook(aws_conn_id='aws_default')
+
+        param = {
+            'SecretId': secret_name,
+            'SecretBinary': secret_value_binary,
+        }
+
+        hook.get_conn().put_secret_value(**param)
+
+        secrets = hook.get_secrets(secret_name)
+        self.assertEqual(secrets, base64.b64decode(secret_value_binary))
