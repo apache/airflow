@@ -30,7 +30,6 @@ from airflow.utils.state import State
 
 @provide_session
 def cancel_dag_run(dag_id, dagrun_run_id, session=None):
-    # type: (str, str) -> DagRun
     """
     Cancels the targetted dagrun and returns the DagRun object
     that was just cancelled.
