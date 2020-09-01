@@ -44,11 +44,12 @@ def requires_access(permissions: Sequence[Tuple[str, str]]) -> Callable[[T], T]:
     """
     Factory for decorator that checks current user's permissions against required permissions.
     """
+    appbuilder = current_app.appbuilder
+    appbuilder.sm.sync_resource_permissions(permissions)
 
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            appbuilder = current_app.appbuilder
             for permission in permissions:
                 if permission in (('can_read', 'Dag'), ('can_edit', 'Dag')):
                     action = permission[0]
