@@ -37,7 +37,8 @@ def cancel_dag_run(dag_id, dagrun_run_id, session=None):
 
     :param dag_id: String identifier of a DAG
     :param dagrun_run_id: run_id of the dag run
-    :return: DagRun object for the dag just cancelled.
+    :param session: sqalchemy Session object to use for DB updates
+    :return: DagRun object for the dag just cancelled
     """
     check_and_get_dag(dag_id=dag_id)
 
