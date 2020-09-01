@@ -24,18 +24,18 @@ readonly AIRFLOW_SOURCES
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
 . "${AIRFLOW_SOURCES}/scripts/ci/libraries/_all_libs.sh"
 
-initialize_common_environment
+initialization::initialize_common_environment
 
-basic_sanity_checks
+sanity_checks::basic_sanity_checks
 
-script_start
+start_end::script_start
 
-determine_docker_cache_strategy
+build_images::determine_docker_cache_strategy
 
-get_environment_for_builds_on_ci
+initialization::get_environment_for_builds_on_ci
 
-get_docker_image_names
+build_images::get_docker_image_names
 
-make_constants_read_only
+initialization::make_constants_read_only
 
-add_trap script_end EXIT HUP INT TERM
+traps::add_trap start_end::script_end EXIT HUP INT TERM

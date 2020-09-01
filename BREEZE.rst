@@ -1046,7 +1046,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   ####################################################################################################
 
-  Usage: breeze [FLAGS] [COMMAND] -- <EXTRA_ARGS>
+  usage: breeze [FLAGS] [COMMAND] -- <EXTRA_ARGS>
 
   By default the script enters the  CI container and drops you to bash shell, but you can choose
   one of the commands to run specific actions instead.
