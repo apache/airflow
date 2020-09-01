@@ -125,7 +125,7 @@ pip install apache-airflow[postgres,google]==1.10.12 \
 
 ## Official source code
 
-There is only one "official" source code repository for Apache Airflow, like all ASF projects: https://downloads.apache.org. Official releases are cryptographically signed by the release manager and placed in the Apache svn next to the file, with the checksum archived by ASF in case of any legal disputes.
+Looking at the legal side of the software creation process, Apache Airflow is an Apache Sofware Foundation (ASF) project. This means that Apache Airflow project releases are source code releases and follow the [ASF Release Policy](http://www.apache.org/legal/release-policy.html). There is only one official release repository for Apache Airflow, like all ASF projects: [The Distribution Site of ASF](https://downloads.apache.org). Official releases are cryptographically signed by the release manager and officially voted on by the PMC members during the [Release Approval Process](http://www.apache.org/legal/release-policy.html#release-approval).```
 
 Following the ASF rules, the source packages released must be sufficient for a user to build and test the release provided they have access to the appropriate platform and tools. 
 
