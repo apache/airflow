@@ -78,7 +78,7 @@ class GoogleDataprepHook(BaseHook):
 
         :param job_group_id: The ID of the job that will be fetched
         :type job_group_id: int
-        :param embed Comma-separated list of objects to pull in as part of the response
+        :param embed: Comma-separated list of objects to pull in as part of the response
         :type embed: str
         :param include_deleted if set to "true", will include deleted objects
         :type include_deleted: bool
