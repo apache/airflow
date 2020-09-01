@@ -508,7 +508,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        # breakpoint()
         self.log.debug('Start syncing user roles.')
         # Create global all-dag VM
         self.create_perm_vm_for_all_dag()
@@ -525,17 +524,16 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         self.update_admin_perm_view()
         self.clean_perms()
 
-    def sync_resource_permissions(self):
+    def sync_resource_permissions(self, permissions=None):
         """
         Populates resource-based permissions.
         """
-        resources = ['Pool', 'Connection', 'Dag', 'DagBag', 'DagRun',
-                     'DagCode', 'Log', 'Task', 'ImportError', 'Variable', 'XCom']
-        actions = ['can_create', 'can_read', 'can_edit', 'can_delete']
-        for resource in resources:
+        if not permissions:
+            permissions = []
+
+        for action, resource in permissions:
             self.add_view_menu(resource)
-            for action in actions:
-                self.add_permission_view_menu(action, resource)
+            self.add_permission_view_menu(action, resource)
 
     def sync_perm_for_dag(self, dag_id, access_control=None):
         """
