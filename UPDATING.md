@@ -518,6 +518,20 @@ The following configurations have been moved from `[core]` to the new `[logging]
 * `dag_processor_manager_log_location`
 * `task_log_reader`
 
+#### Changes to Elasticsearch logging provider
+
+When JSON output to stdout is enabled, log lines will now contain the `log_id` & `offset` fields, this should make reading task logs from elasticsearch on the webserver work out of the box. Example configuration:
+```ini
+[logging]
+remote_logging = True
+[elasticsearch]
+host = http://es-host:9200
+write_stdout = True
+json_format = True
+```
+
+Note that the webserver expects the log line data itself to be present in the `message` field of the document.
+
 #### Remove gcp_service_account_keys option in airflow.cfg file
 
 This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new
