@@ -86,7 +86,7 @@ All operators are in the following packages:
 
   airflow/providers/apache/hive/transfers/index
 
-  airflow/providers/apache/kafka/operators/index
+  airflow/providers/apache/kafka/hooks/index
 
   airflow/providers/apache/kafka/sensors/index
 
