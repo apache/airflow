@@ -57,7 +57,7 @@ COMMAND_CLASSES = {
     "dbexportcmd": DbExportCommand,
     "dbimportcmd": DbImportCommand,
     "sqlcmd": SqlCommand,
-    "jupytercmd": JupyterNotebookCommand
+    "jupytercmd": JupyterNotebookCommand,
 }
 
 POSITIONAL_ARGS = {'hadoopcmd': ['sub_command'], 'shellcmd': ['parameters'], 'pigcmd': ['parameters']}
@@ -242,7 +242,7 @@ class QuboleHook(BaseHook):
                 elif key == 'tags':
                     self._add_tags(tags, value)
                 elif key == 'notify':
-                    if value is True: # pylint: disable=too-many-nested-blocks
+                    if value is True:  # pylint: disable=too-many-nested-blocks
                         args.append("--notify")
                 else:
                     args.append("--{0}={1}".format(key, value))
