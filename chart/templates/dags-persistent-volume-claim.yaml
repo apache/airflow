@@ -31,11 +31,11 @@ spec:
   resources:
     requests:
       storage: {{ .Values.dags.persistence.size | quote }}
-  {{- if .Values.dags.persistence.storageClass }}
-  {{- if (eq "-" .Values.dags.persistence.storageClass) }}
+  {{- if .Values.dags.persistence.storageClassName }}
+  {{- if (eq "-" .Values.dags.persistence.storageClassName) }}
   storageClassName: ""
   {{- else }}
-  storageClassName: "{{ .Values.dags.persistence.storageClass }}"
+  storageClassName: "{{ .Values.dags.persistence.storageClassName }}"
   {{- end }}
   {{- end }}
 {{- end }}

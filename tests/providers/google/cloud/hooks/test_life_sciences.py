@@ -293,6 +293,6 @@ class TestLifeSciencesHookWithoutProjectId(unittest.TestCase):
 
         self.assertEqual(
             "The project id must be passed either as keyword project_id parameter or as project_id extra in "
-            "GCP connection definition. Both are not set!",
+            "Google Cloud connection definition. Both are not set!",
             str(e.exception),
         )

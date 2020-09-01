@@ -22,6 +22,7 @@ from flask_login import current_user
 from parameterized import parameterized
 
 from airflow.www.app import create_app
+from tests.test_utils.api_connexion_utils import assert_401
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 
@@ -89,12 +90,7 @@ class TestBasicAuth(unittest.TestCase):
             assert response.status_code == 401
             assert response.headers["Content-Type"] == "application/problem+json"
             assert response.headers["WWW-Authenticate"] == "Basic"
-            assert response.json == {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank',
-            }
+            assert_401(response)
 
     @parameterized.expand([
         ("basic " + b64encode(b"test").decode(),),
@@ -110,12 +106,7 @@ class TestBasicAuth(unittest.TestCase):
             assert response.status_code == 401
             assert response.headers["Content-Type"] == "application/problem+json"
             assert response.headers["WWW-Authenticate"] == "Basic"
-            assert response.json == {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank',
-            }
+            assert_401(response)
 
     def test_experimental_api(self):
         with self.app.test_client() as test_client:

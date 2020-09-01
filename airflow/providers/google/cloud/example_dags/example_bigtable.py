@@ -26,7 +26,7 @@ Example Airflow DAG that creates and performs following operations on Cloud Bigt
 
 This DAG relies on the following environment variables:
 
-* GCP_PROJECT_ID - Google Cloud Platform project
+* GCP_PROJECT_ID - Google Cloud project
 * CBT_INSTANCE_ID - desired ID of a Cloud Bigtable instance
 * CBT_INSTANCE_DISPLAY_NAME - desired human-readable display name of the Instance
 * CBT_INSTANCE_TYPE - type of the Instance, e.g. 1 for DEVELOPMENT

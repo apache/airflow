@@ -47,7 +47,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
     :type table_id: str
     :param table_id: The ID of the table to check replication status.
     :type project_id: str
-    :param project_id: Optional, the ID of the GCP project.
+    :param project_id: Optional, the ID of the Google Cloud project.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.

@@ -127,7 +127,7 @@ class GoogleAdsHook(BaseHook):
 
     def _update_config_with_secret(self, secrets_temp: IO[str]) -> None:
         """
-        Gets GCP secret from connection and saves the contents to the temp file
+        Gets Google Cloud secret from connection and saves the contents to the temp file
         Updates google ads config with file path of the temp file containing the secret
         Note, the secret must be passed as a file path for Google Ads API
         """

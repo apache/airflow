@@ -65,7 +65,7 @@ class GKEDeleteClusterOperator(BaseOperator):
     :param location: The name of the Google Compute Engine zone in which the cluster
         resides.
     :type location: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: The api version to use
     :type api_version: str
@@ -168,7 +168,7 @@ class GKECreateClusterOperator(BaseOperator):
     :param body: The Cluster definition to create, can be protobuf or python dict, if
         dict it must match protobuf message Cluster
     :type body: dict or google.cloud.container_v1.types.Cluster
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: The api version to use
     :type api_version: str
@@ -307,7 +307,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             raise AirflowException(
                 "The project id must be passed either as "
                 "keyword project_id parameter or as project_id extra "
-                "in GCP connection definition. Both are not set!"
+                "in Google Cloud connection definition. Both are not set!"
             )
 
         # Write config to a temp file and set the environment variable to point to it.

@@ -43,7 +43,7 @@ function check_service {
             MAX_CHECK=$((MAX_CHECK-1))
         fi
         if [[ ${MAX_CHECK} == 0 ]]; then
-            echo -e " \e[31mERROR!\e[30m"
+            echo -e " \e[31mERROR!\e[0m"
             echo "Maximum number of retries while checking service. Exiting"
             break
         else
@@ -53,6 +53,7 @@ function check_service {
     if [[ ${RES} != 0 ]]; then
         echo "Service could not be started!"
         echo
+        echo "$ ${CALL}"
         echo "${LAST_CHECK_RESULT}"
         echo
         EXIT_CODE=${RES}
@@ -100,7 +101,7 @@ function resetdb_if_requested() {
 echo "==============================================================================================="
 echo "             Checking integrations and backends"
 echo "==============================================================================================="
-if [[ -n ${BACKEND:=} ]]; then
+if [[ -n ${BACKEND=} ]]; then
     check_db_backend 20
     echo "-----------------------------------------------------------------------------------------------"
 fi
@@ -124,7 +125,7 @@ fi
 
 resetdb_if_requested
 
-if [[ ${DISABLED_INTEGRATIONS} != "" ]]; then
+if [[ -n ${DISABLED_INTEGRATIONS=} ]]; then
     echo
     echo "Disabled integrations:${DISABLED_INTEGRATIONS}"
     echo

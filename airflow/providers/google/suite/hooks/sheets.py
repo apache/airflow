@@ -30,7 +30,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class GSheetsHook(GoogleBaseHook):
     """
-    Interact with Google Sheets via GCP connection
+    Interact with Google Sheets via Google Cloud connection
     Reading and writing cells in Google Sheet:
     https://developers.google.com/sheets/api/guides/values
 
