@@ -127,7 +127,9 @@ pip install apache-airflow[postgres,google]==1.10.12 \
 
 There is only one "official" source code repository for Apache Airflow, like all ASF projects: https://downloads.apache.org. Official releases are cryptographically signed by the release manager and placed in the Apache svn next to the file, with the checksum archived by ASF in case of any legal disputes.
 
-Other ways of retrieving source code are just "convenience" methods. For example, tagging in GitHub is a convenient way to mark the git project sources that were used to generate the "official" source package. What is in the Github tag is not a concern, what matters is what goes into the official package.
+Following the ASF rules, the source packages released must be sufficient for a user to build and test the release provided they have access to the appropriate platform and tools. 
+
+Other ways of retrieving source code are "convenience" methods. For example, tagging in GitHub is a convenient way to mark the git project sources that were used to generate the official source packages. We also have binary "convenience" packages how Airflow is distributed: PyPI releases which are a convenient way of installing Apache Airflow using standard python tools or Docker Images published in the [Apache Airflow DockerHub](https://hub.docker.com/repository/docker/apache/airflow). Those are not official releases but they are built using officially released sources.
 
 ## Official Docker images
 
