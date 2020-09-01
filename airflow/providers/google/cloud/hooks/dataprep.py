@@ -76,7 +76,7 @@ class GoogleDataprepHook(BaseHook):
         Get the specified job group.
         A job group is a job that is executed from a specific node in a flow.
 
-        :param job_group_id The ID of the job that will be fetched
+        :param job_group_id: The ID of the job that will be fetched
         :type job_group_id: int
         :param embed Comma-separated list of objects to pull in as part of the response
         :type embed: str
