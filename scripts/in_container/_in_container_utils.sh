@@ -24,7 +24,7 @@
 #      trap to set
 #      .... list of signals to handle
 #######################################################################################################
-function add_trap() {
+function container_utils::add_trap() {
     trap="${1}"
     shift
     for signal in "${@}"
@@ -37,7 +37,12 @@ function add_trap() {
     done
 }
 
-function assert_in_container() {
+#######################################################################################################
+#
+# Asserts and warns the user if this script is called out of the breeze env.
+#
+#######################################################################################################
+function container_utils::assert_in_container() {
     export VERBOSE=${VERBOSE:="false"}
     if [[ ! -f /.dockerenv ]]; then
         echo >&2
@@ -49,14 +54,18 @@ function assert_in_container() {
         exit 1
     fi
 }
-
-function in_container_script_start() {
+#######################################################################################################
+#
+# In container file
+#
+#######################################################################################################
+function container_utils::in_container_script_start() {
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
     fi
 }
 
-function in_container_script_end() {
+function container_utils::in_container_script_end() {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
@@ -80,10 +89,12 @@ function in_container_script_end() {
     fi
 }
 
+#######################################################################################################
 #
 # Cleans up PYC files (in case they come in mounted folders)
 #
-function in_container_cleanup_pyc() {
+#######################################################################################################
+function container_utils::in_container_cleanup_pyc() {
     set +o pipefail
     sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
@@ -95,10 +106,12 @@ function in_container_cleanup_pyc() {
     set -o pipefail
 }
 
+#######################################################################################################
 #
 # Cleans up __pycache__ directories (in case they come in mounted folders)
 #
-function in_container_cleanup_pycache() {
+#######################################################################################################
+function container_utils::in_container_cleanup_pycache() {
     set +o pipefail
     find . \
         -path "./airflow/www/node_modules" -prune -o \
@@ -110,12 +123,14 @@ function in_container_cleanup_pycache() {
     set -o pipefail
 }
 
+#######################################################################################################
 #
 # Fixes ownership of files generated in container - if they are owned by root, they will be owned by
 # The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
 # changed to the Host user via osxfs filesystem
 #
-function in_container_fix_ownership() {
+#######################################################################################################
+function container_utils::in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "Linux" ]]; then
         DIRECTORIES_TO_FIX=(
             "/tmp"
@@ -137,8 +152,12 @@ function in_container_fix_ownership() {
         fi
     fi
 }
-
-function in_container_clear_tmp() {
+#######################################################################################################
+#
+# Cleans up the temp dir in container.
+#
+#######################################################################################################
+function container_utils::in_container_clear_tmp() {
     if [[ ${VERBOSE} == "true" ]]; then
         echo "Cleaning ${AIRFLOW_SOURCES}/tmp from the container"
     fi
@@ -148,21 +167,33 @@ function in_container_clear_tmp() {
     fi
 }
 
-function in_container_go_to_airflow_sources() {
+#######################################################################################################
+#
+# Pushes the airflow sources to the stack for easy access thoroughout the script.
+#
+#######################################################################################################
+function container_utils::in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}"  &>/dev/null || exit 1
 }
 
-function in_container_basic_sanity_check() {
-    assert_in_container
-    in_container_go_to_airflow_sources
-    in_container_cleanup_pyc
-    in_container_cleanup_pycache
+#######################################################################################################
+#
+# Basic sanity which checks if its in the container followed by pushing the AIRFLOW SOURCE onto the
+# stack and then cleaning up pyc and pycache files from the container.
+#
+#######################################################################################################
+function container_utils::in_container_basic_sanity_check() {
+    container_utils::assert_in_container
+    container_utils::in_container_go_to_airflow_sources
+    container_utils::in_container_cleanup_pyc
+    container_utils::in_container_cleanup_pycache
 }
 
-function in_container_refresh_pylint_todo() {
+
+function container_utils::in_container_refresh_pylint_todo() {
     if [[ ${VERBOSE} == "true" ]]; then
         echo
-        echo "Refreshing list of all  non-pylint compliant files. This can take some time."
+        echo "Refreshing list of all non-pylint compliant files. This can take some time."
         echo
 
         echo
@@ -217,8 +248,12 @@ function in_container_refresh_pylint_todo() {
 }
 
 export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
-
-function start_output_heartbeat() {
+#######################################################################################################
+#
+# Starts up the scheduler heartbeat and binds the PID to env variable
+#
+#######################################################################################################
+function container_utils::start_output_heartbeat() {
     MESSAGE=${1:-"Still working!"}
     INTERVAL=${2:=10}
     echo
@@ -234,8 +269,13 @@ EOF
     export HEARTBEAT_PID=$!
 }
 
-function stop_output_heartbeat() {
-    kill "${HEARTBEAT_PID}" || true
+#######################################################################################################
+#
+# Clears the resourses associated with the scheduler heartbeat.
+#
+#######################################################################################################
+function container_utils::stop_output_heartbeat() {
+    kill "${HEARTBEAT_PID}"
     wait "${HEARTBEAT_PID}" || true 2> /dev/null
 }
 
@@ -252,7 +292,8 @@ function dump_airflow_logs() {
     echo "###########################################################################################"
 }
 
-function install_released_airflow_version() {
+
+function container_utils::install_released_airflow_version() {
     pip uninstall -y apache-airflow || true
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --
     if [[ ${1} == "1.10.2" || ${1} == "1.10.1" ]]; then
