@@ -133,7 +133,6 @@ Other ways of retrieving source code are "convenience" methods. For example, tag
 
 ## Official Docker images
 
- This is particularly useful in CI environment where we are using the image to run Kubernetes tests(Helm Chart integration). We will also use released images in the Helm Chart(backward compatibility). You can see DockerHub images at https://hub.docker.com/repository/docker/apache/airflow. In DockerHub there is just a convenience binary and that image can (and often should) be built from the officially released sources. More Details [TODO](#).
 
 The community provides two types of support for the production images:
 - We provide pre-build released version of production image in PyPI build from released sources of Apache Airflow - shortly after release. Those images are available in the DockerHub. You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the version number (for example 1.10.11). Additionally `docker pull apache/airflow` will pull latest stable version of the image with default python version (currently 3.6). Now change to root user(here we use root user) temporarily and install your own dependencies, for example mx. Change back to airflow user and then you can install some pip packages you want. You can add your dags by copying them and then build your own airflow image. You can use this airflow image with your own modifications.
