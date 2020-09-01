@@ -109,7 +109,7 @@ class GoogleDataprepHook(BaseHook):
         self._raise_for_status(response)
         return response.json()
 
-    def _raise_for_status(self, response):
+    def _raise_for_status(self, response: requests.models.Response) -> None:
         try:
             response.raise_for_status()
         except HTTPError:
