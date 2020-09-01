@@ -2746,13 +2746,15 @@ components:
   callbacks: {}
 
   securitySchemes:
-    BasicAuth:
+    Basic:
       type: http
       scheme: basic
-    GoogleOpenIdAuth:
+    GoogleOpenId:
+      type: openIdConnect
+      openIdConnectUrl: https://accounts.google.com/.well-known/openid-configuration
+    Kerberos:
       type: http
-      scheme: bearer
-      bearerFormat: JWT
+      scheme: negotiate
 
 # The API will provide support for plugins to support various authorization mechanisms.
 # Detailed information will be available in the plugin specification.
