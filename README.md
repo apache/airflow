@@ -45,6 +45,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
+- [Official Source Code](#official-source-code)
 - [Official Docker images](#official-docker-images)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
@@ -122,7 +123,14 @@ pip install apache-airflow[postgres,google]==1.10.12 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 ```
 
+## Official source code
+
+There is only one "official" source code repository for Apache Airflow, like all ASF projects: https://downloads.apache.org. Official releases are cryptographically signed by the release manager and placed in the Apache svn next to the file, with the checksum archived by ASF in case of any legal disputes.
+
+Other ways of retrieving source code are just "convenience" methods. For example, tagging in GitHub is a convenience way to mark the git project sources that were used to generate the "official" source package. What is in the Github tag is not a concern, what matters is what goes into the official package.
+
 ## Official Docker images
+
 In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images of Apache Airflow. The production image is a multi-segment image. The first segment "airflow-build-image" contains all the build essentials and related dependencies that allow to install airflow locally. By default the image is build from a released version of Airflow from Github, but by providing some extra arguments you can also build it from local sources.
  This is particularly useful in CI environment where we are using the image to run Kubernetes tests(Helm Chart integration). We will also use released images in the Helm Chart(backward compatibility). You can see DockerHub images at https://hub.docker.com/repository/docker/apache/airflow. In DockerHub there is just a convenience binary and that image can (and often should) be built from the officially released sources. More Details [TODO](#).
 
