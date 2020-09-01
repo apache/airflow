@@ -104,6 +104,20 @@ build_images::prepare_ci_build
 
 build_images::rebuild_ci_image_if_needed
 
+# Test environment
+export BACKEND=${BACKEND:="sqlite"}
+
+# Whether necessary for airflow run local sources are mounted to docker
+export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
+
+# Whether files folder is mounted to docker
+export MOUNT_FILES=${MOUNT_FILES:="true"}
+
+# whether verbose output should be produced
+export VERBOSE=${VERBOSE:="false"}
+
+build_images::rebuild_ci_image_if_needed
+
 DOCKER_COMPOSE_LOCAL=()
 
 if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then

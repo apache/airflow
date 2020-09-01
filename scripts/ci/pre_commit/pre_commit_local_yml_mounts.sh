@@ -35,7 +35,7 @@ tail_marker='      # END automatically generated volumes from LOCAL_MOUNTS in _l
 
 local_mounts::generate_local_mounts_list "      - ../../../"
 
-sed "/$lead_marker/q" "${LOCAL_YML_FILE}" > "${TMP_OUTPUT}"
+sed "/$LEAD/q" "${LOCAL_YML_FILE}" > "${TMP_OUTPUT}"
 
 printf '%s\n' "${LOCAL_MOUNTS[@]}" >> "${TMP_OUTPUT}"
 sed -ne "/$tail_marker/,\$ p" "${LOCAL_YML_FILE}" >> "${TMP_OUTPUT}"

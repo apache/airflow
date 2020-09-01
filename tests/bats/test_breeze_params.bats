@@ -31,7 +31,8 @@ teardown() {
 @test "Test missing value for a parameter" {
   export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
-  assert_output "
+  diff <(echo "${output}") - <<EOF
+
 ERROR:  Allowed Test Param: [ a b c ]. Is: ''.
 
 Switch to supported value with --message flag."
@@ -43,7 +44,12 @@ Switch to supported value with --message flag."
   export TEST_PARAM=x
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+<<<<<<< HEAD
   assert_output "
+=======
+  diff <(echo "${output}") - <<EOF
+
+>>>>>>> Add packages to function names in bash (#10670)
 ERROR:  Allowed Test Param: [ a b c ]. Is: 'x'.
 
 Switch to supported value with --message flag."
@@ -57,7 +63,12 @@ Switch to supported value with --message flag."
   export TEST_PARAM=x
   echo "x" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+<<<<<<< HEAD
   assert_output "
+=======
+  diff <(echo "${output}") - <<EOF
+
+>>>>>>> Add packages to function names in bash (#10670)
 ERROR:  Allowed Test Param: [ a b c ]. Is: 'x'.
 
 Switch to supported value with --message flag.
@@ -72,10 +83,17 @@ Removing ${AIRFLOW_SOURCES}/.build/.TEST_PARAM. Next time you run it, it should 
   export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
   export TEST_PARAM=a
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+<<<<<<< HEAD
   assert_output ""
   assert_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   assert_file_contains "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" "^a$"
   assert_success
+=======
+  diff <(echo "${output}") <(echo "")
+  [ -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
+  diff <(echo "a") <(cat "${AIRFLOW_SOURCES}/.build/.TEST_PARAM")
+  [ "${status}" == "0" ]
+>>>>>>> Add packages to function names in bash (#10670)
 }
 
 @test "Test correct value for a parameter from multi-line values" {
@@ -88,25 +106,45 @@ EOF
   export _BREEZE_ALLOWED_TEST_PARAMS
   export TEST_PARAM=a
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+<<<<<<< HEAD
   assert_output ""
   assert_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   assert_file_contains "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" "^a$"
   assert_success
+=======
+  diff <(echo "${output}") <(echo "")
+  [ -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
+  diff <(echo "a") <(cat "${AIRFLOW_SOURCES}/.build/.TEST_PARAM")
+  [ "${status}" == "0" ]
+>>>>>>> Add packages to function names in bash (#10670)
 }
 
 
 @test "Test read_parameter from missing file" {
   run parameters::read_from_file TEST_PARAM
+<<<<<<< HEAD
   assert [ -z "${TEST_FILE}" ]
   assert_output ""
   assert_not_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   assert_success
+=======
+  [ -z "${TEST_FILE}" ]
+  diff <(echo "${output}") <(echo "")
+  [ ! -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
+  [ "${status}" == "0" ]
+>>>>>>> Add packages to function names in bash (#10670)
 }
 
 @test "Test read_parameter from file" {
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   run parameters::read_from_file TEST_PARAM
+<<<<<<< HEAD
   assert_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   assert_file_contains "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" "^a$"
   assert_success
+=======
+  diff <(echo "${output}") <(echo "a")
+  [ -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
+  [ "${status}" == "0" ]
+>>>>>>> Add packages to function names in bash (#10670)
 }
