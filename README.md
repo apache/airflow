@@ -45,7 +45,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
-- [Official Source Code](#official-source-code)
+- [Official source code](#official-source-code)
 - [Official Docker images](#official-docker-images)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
