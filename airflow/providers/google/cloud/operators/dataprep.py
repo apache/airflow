@@ -64,7 +64,7 @@ class DataprepGetJobGroupOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataprepGetJobGroupOperator`
 
-    :param job_group_id The ID of the job that will be requests
+    :param job_group_id: The ID of the job that will be requests
     :type job_group_id: int
     :param embed Comma-separated list of objects to pull in as part of the response
     :type embed: string
