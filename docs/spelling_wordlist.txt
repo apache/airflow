@@ -1335,6 +1335,7 @@ hmsclient
 httplib
 jaydebeapi
 jupyter
+jupytercmd
 moto
 mypy
 papermill
