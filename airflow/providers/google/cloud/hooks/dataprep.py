@@ -60,7 +60,7 @@ class GoogleDataprepHook(BaseHook):
         """
         Get information about the batch jobs within a Cloud Dataprep job.
 
-        :param job_id The ID of the job that will be fetched
+        :param job_id: The ID of the job that will be fetched
         :type job_id: int
         """
 
