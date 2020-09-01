@@ -18,7 +18,6 @@
 #
 
 import base64
-import json
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
