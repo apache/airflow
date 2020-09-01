@@ -219,7 +219,7 @@ def dag_edges(dag):
 
     For example: A DAG with TaskGroups group1 and group2:
         group1: task1, task2, task3
-        group2, task4, task5, task6
+        group2: task4, task5, task6
 
     group2 is downstream of group1:
         group1 >> group2

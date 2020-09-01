@@ -964,7 +964,8 @@ and then puts both tasks upstream of ``task3``:
 .. note::
    Every task in the same DAG must have a unique ``task_id``. Since tasks in TaskGroups are
    on the same DAG as other tasks, they must all have unique ``task_id`` throughout the DAG.
-   Additionally, ``group_id`` of TaskGroups must not conflict with ``task_id`` of tasks.
+   Additionally, ``group_id`` of TaskGroups must be unique and should not conflict with
+   ``task_id`` of tasks.
 
 Here is a more complicated example DAG with multiple levels of nested TaskGroups:
 

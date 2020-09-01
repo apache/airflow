@@ -1288,9 +1288,18 @@ class DAG(BaseDag, LoggingMixin):
 
         remove_excluded(dag.task_group)
 
+        # Removing upstream/downstream references to tasks and TaskGroups that did not make
+        # the cut.
+        subdag_task_groups = dag.task_group.get_task_group_dict()
+        for group in subdag_task_groups.values():
+            group.upstream_group_ids = group.upstream_group_ids.intersection(subdag_task_groups.keys())
+            group.downstream_group_ids = group.downstream_group_ids.intersection(subdag_task_groups.keys())
+            group.upstream_task_ids = group.upstream_task_ids.intersection(dag.task_dict.keys())
+            group.downstream_task_ids = group.downstream_task_ids.intersection(dag.task_dict.keys())
+
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
-            # made the cut
+            # make the cut
             t._upstream_task_ids = t.upstream_task_ids.intersection(dag.task_dict.keys())
             t._downstream_task_ids = t.downstream_task_ids.intersection(
                 dag.task_dict.keys())

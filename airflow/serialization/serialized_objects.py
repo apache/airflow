@@ -671,9 +671,9 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         """
         if not task_group:
             return None
-        # pylint: disable=protected-access
+
         serialize_group = {
-            "_group_id": task_group._group_id,
+            "_group_id": task_group._group_id,  # pylint: disable=protected-access
             "tooltip": task_group.tooltip,
             "ui_color": task_group.ui_color,
             "ui_fgcolor": task_group.ui_fgcolor,
@@ -689,7 +689,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "downstream_task_ids": cls._serialize(list(task_group.downstream_task_ids)),
 
         }
-        # pylint: enable=protected-access
+
         return serialize_group
 
     @classmethod

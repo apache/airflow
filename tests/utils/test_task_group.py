@@ -190,6 +190,18 @@ def test_build_task_group():
     assert task_group_to_dict(dag.task_group) == EXPECTED_JSON
 
 
+def extract_node_id(node):
+    ret = {"id": node["id"]}
+    if "children" in node:
+        children = []
+        for child in node["children"]:
+            children.append(extract_node_id(child))
+
+        ret["children"] = children
+
+    return ret
+
+
 def test_sub_dag_task_group():
     """
     Tests dag.sub_dag() updates task_group correctly.
@@ -204,81 +216,34 @@ def test_sub_dag_task_group():
                 _ = DummyOperator(task_id="task3")
                 _ = DummyOperator(task_id="task4")
 
+        with TaskGroup("group67") as group6:
+            _ = DummyOperator(task_id="task6")
+
+        task7 = DummyOperator(task_id="task7")
+
         task5 = DummyOperator(task_id="task5")
         task1 >> group234
         group34 >> task5
+        group234 >> group6
+        group234 >> task7
 
     subdag = dag.sub_dag(task_regex="task2", include_upstream=True, include_downstream=False)
 
-    assert task_group_to_dict(subdag.task_group) == {
+    assert extract_node_id(task_group_to_dict(subdag.task_group)) == {
         'id': None,
-        'value': {
-            'label': None,
-            'labelStyle': 'fill:#000;',
-            'style': 'fill:CornflowerBlue',
-            'rx': 5,
-            'ry': 5,
-            'clusterLabelPos': 'top',
-        },
-        'tooltip': '',
         'children': [
-            {
-                'id': 'group234',
-                'value': {
-                    'label': 'group234',
-                    'labelStyle': 'fill:#000;',
-                    'style': 'fill:CornflowerBlue',
-                    'rx': 5,
-                    'ry': 5,
-                    'clusterLabelPos': 'top',
-                },
-                'tooltip': '',
-                'children': [
-                    {
-                        'id': 'task2',
-                        'value': {
-                            'label': 'task2',
-                            'labelStyle': 'fill:#000;',
-                            'style': 'fill:#e8f7e4;',
-                            'rx': 5,
-                            'ry': 5,
-                        },
-                    },
-                    {
-                        'id': 'group234_upstream_join_id',
-                        'value': {
-                            'label': '',
-                            'labelStyle': 'fill:#000;',
-                            'style': 'fill:CornflowerBlue;',
-                            'shape': 'circle',
-                        },
-                    },
-                ],
-            },
-            {
-                'id': 'task1',
-                'value': {
-                    'label': 'task1',
-                    'labelStyle': 'fill:#000;',
-                    'style': 'fill:#e8f7e4;',
-                    'rx': 5,
-                    'ry': 5,
-                },
-            },
+            {'id': 'group234', 'children': [{'id': 'task2',}, {'id': 'group234_upstream_join_id',},],},
+            {'id': 'task1',},
         ],
     }
 
-
-def extract_node_id(node):
-    ret = {"id": node["id"]}
-    if "children" in node:
-        children = []
-        for child in node["children"]:
-            children.append(extract_node_id(child))
-
-        ret["children"] = children
-
-    return ret
+    subdag_task_groups = subdag.task_group.get_task_group_dict()
+    assert subdag_task_groups.keys() == {None, "group234"}
+    for task_group in subdag_task_groups.values():
+        assert task_group.upstream_group_ids.issubset({"group234"})
+        assert task_group.downstream_group_ids.issubset({"group234"})
+        assert task_group.upstream_task_ids.issubset({"task1", "task2"})
+        assert task_group.downstream_task_ids.issubset({"task1", "task2"})
 
 
 def test_dag_edges():
