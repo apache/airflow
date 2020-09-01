@@ -80,7 +80,7 @@ class GoogleDataprepHook(BaseHook):
         :type job_group_id: int
         :param embed: Comma-separated list of objects to pull in as part of the response
         :type embed: str
-        :param include_deleted if set to "true", will include deleted objects
+        :param include_deleted: if set to "true", will include deleted objects
         :type include_deleted: bool
         """
 
