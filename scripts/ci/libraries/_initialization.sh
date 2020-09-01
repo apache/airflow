@@ -21,7 +21,7 @@
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS=()
 
 # Creates directories for Breeze
-function create_directories() {
+function initialization::create_directories() {
     # This folder is mounted to inside the container in /files folder. This is the way how
     # We can exchange DAGs, scripts, packages etc with the container environment
     export FILES_DIR="${AIRFLOW_SOURCES}/files"
@@ -51,7 +51,7 @@ function create_directories() {
     readonly CACHE_TMP_FILE_DIR
 
     if [[ ${SKIP_CACHE_DELETION=} != "true" ]]; then
-        add_trap "rm -rf -- '${CACHE_TMP_FILE_DIR}'" EXIT HUP INT TERM
+        traps::add_trap "rm -rf -- '${CACHE_TMP_FILE_DIR}'" EXIT HUP INT TERM
     fi
 
     OUTPUT_LOG="${CACHE_TMP_FILE_DIR}/out.log"
@@ -60,7 +60,7 @@ function create_directories() {
 }
 
 # Very basic variables that MUST be set
-function initialize_base_variables() {
+function initialization::initialize_base_variables() {
     # Default port numbers for forwarded ports
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
@@ -100,7 +100,7 @@ function initialize_base_variables() {
 }
 
 # Determine current branch
-function initialize_branch_variables() {
+function initialization::initialize_branch_variables() {
     # Default branch used - this will be different in different branches
     export DEFAULT_BRANCH="master"
     export DEFAULT_CONSTRAINTS_BRANCH="constraints-master"
@@ -112,7 +112,7 @@ function initialize_branch_variables() {
 }
 
 # Determine dockerhub user/repo used for push/pull
-function initialize_dockerhub_variables() {
+function initialization::initialize_dockerhub_variables() {
     # You can override DOCKERHUB_USER to use your own DockerHub account and play with your
     # own docker images. In this case you can build images locally and push them
     export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
@@ -123,7 +123,7 @@ function initialize_dockerhub_variables() {
 }
 
 # Determine available integrations
-function initialize_available_integrations() {
+function initialization::initialize_available_integrations() {
     export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
 }
 
@@ -132,7 +132,7 @@ function initialize_available_integrations() {
 FILES_FOR_REBUILD_CHECK=()
 
 # Determine which files trigger rebuild check
-function initialize_files_for_rebuild_check() {
+function initialization::initialize_files_for_rebuild_check() {
     FILES_FOR_REBUILD_CHECK+=(
         "setup.py"
         "setup.cfg"
@@ -161,7 +161,7 @@ FILES_TO_CLEANUP_ON_EXIT=()
 EXTRA_DOCKER_FLAGS=()
 
 # Determine behaviour of mounting sources to the container
-function initialize_mount_variables() {
+function initialization::initialize_mount_variables() {
 
     # Whether necessary for airflow run local sources are mounted to docker
     export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="true"}
@@ -170,20 +170,20 @@ function initialize_mount_variables() {
     export MOUNT_FILES=${MOUNT_FILES:="true"}
 
     if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
-        print_info
-        print_info "Mounting necessary host volumes to Docker"
-        print_info
-        read -r -a EXTRA_DOCKER_FLAGS <<<"$(convert_local_mounts_to_docker_params)"
+        verbosity::print_info
+        verbosity::print_info "Mounting necessary host volumes to Docker"
+        verbosity::print_info
+        read -r -a EXTRA_DOCKER_FLAGS <<<"$(local_mounts::convert_local_mounts_to_docker_params)"
     else
-        print_info
-        print_info "Skip mounting host volumes to Docker"
-        print_info
+        verbosity::print_info
+        verbosity::print_info "Skip mounting host volumes to Docker"
+        verbosity::print_info
     fi
 
     if [[ ${MOUNT_FILES} == "true" ]]; then
-        print_info
-        print_info "Mounting files folder to Docker"
-        print_info
+        verbosity::print_info
+        verbosity::print_info "Mounting files folder to Docker"
+        verbosity::print_info
         EXTRA_DOCKER_FLAGS+=(
             "-v" "${AIRFLOW_SOURCES}/files:/files"
         )
@@ -197,7 +197,7 @@ function initialize_mount_variables() {
 }
 
 # Determine values of force settings
-function initialize_force_variables() {
+function initialization::initialize_force_variables() {
     # Whether necessary for airflow run local sources are mounted to docker
     export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
 
@@ -219,7 +219,7 @@ function initialize_force_variables() {
 }
 
 # Determine information about the host
-function initialize_host_variables() {
+function initialization::initialize_host_variables() {
     # Set host user id to current user. This is used to set the ownership properly when exiting
     # The container on Linux - all files created inside docker are created with root user
     # but they should be restored back to the host user
@@ -252,7 +252,7 @@ function initialize_host_variables() {
 }
 
 # Determine image augmentation parameters
-function initialize_image_build_variables() {
+function initialization::initialize_image_build_variables() {
     # Default extras used for building CI image
     export DEFAULT_CI_EXTRAS="devel_ci"
 
@@ -292,7 +292,7 @@ function initialize_image_build_variables() {
 }
 
 # Determine version suffixes used to build backport packages
-function initialize_version_suffixes_for_package_building() {
+function initialization::initialize_version_suffixes_for_package_building() {
     # Version suffix for PyPI packaging
     export VERSION_SUFFIX_FOR_PYPI=""
     # Artifact name suffix for SVN packaging
@@ -300,7 +300,7 @@ function initialize_version_suffixes_for_package_building() {
 }
 
 # Determine versions of kubernetes cluster and tools used
-function initialize_kubernetes_variables() {
+function initialization::initialize_kubernetes_variables() {
     # By default we assume the kubernetes cluster is not being started
     export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
     # Default Kubernetes version
@@ -331,13 +331,13 @@ function initialize_kubernetes_variables() {
     readonly KUBECTL_BINARY_PATH
 }
 
-function initialize_git_variables() {
+function initialization::initialize_git_variables() {
     # SHA of the commit for the current sources
     COMMIT_SHA="$(git rev-parse HEAD 2>/dev/null || echo "Unknown")"
     export COMMIT_SHA
 }
 
-function initialize_github_variables() {
+function initialization::initialize_github_variables() {
     # Defaults for interacting with GitHub
     export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
 
@@ -358,24 +358,24 @@ function initialize_github_variables() {
 }
 
 # Common environment that is initialized by both Breeze and CI scripts
-function initialize_common_environment() {
-    create_directories
-    initialize_base_variables
-    initialize_branch_variables
-    initialize_available_integrations
-    initialize_files_for_rebuild_check
-    initialize_dockerhub_variables
-    initialize_mount_variables
-    initialize_force_variables
-    initialize_host_variables
-    initialize_image_build_variables
-    initialize_version_suffixes_for_package_building
-    initialize_kubernetes_variables
-    initialize_git_variables
-    initialize_github_variables
+function initialization::initialize_common_environment() {
+    initialization::create_directories
+    initialization::initialize_base_variables
+    initialization::initialize_branch_variables
+    initialization::initialize_available_integrations
+    initialization::initialize_files_for_rebuild_check
+    initialization::initialize_dockerhub_variables
+    initialization::initialize_mount_variables
+    initialization::initialize_force_variables
+    initialization::initialize_host_variables
+    initialization::initialize_image_build_variables
+    initialization::initialize_version_suffixes_for_package_building
+    initialization::initialize_kubernetes_variables
+    initialization::initialize_git_variables
+    initialization::initialize_github_variables
 }
 
-function set_default_python_version_if_empty() {
+function initialization::set_default_python_version_if_empty() {
     # default version of python used to tag the "master" and "latest" images in DockerHub
     export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.6
 
@@ -384,7 +384,7 @@ function set_default_python_version_if_empty() {
 
 }
 
-function summarize_ci_environment() {
+function initialization::summarize_ci_environment() {
     cat <<EOF
 
 Configured build variables:
@@ -476,7 +476,7 @@ EOF
 # (This makes it easy to move between different CI systems)
 # This function maps CI-specific variables into a generic ones (prefixed with CI_) that
 # we used in other scripts
-function get_environment_for_builds_on_ci() {
+function initialization::get_environment_for_builds_on_ci() {
     if [[ ${GITHUB_ACTIONS:=} == "true" ]]; then
         export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
         export CI_TARGET_BRANCH="${GITHUB_BASE_REF:="master"}"
@@ -494,12 +494,12 @@ function get_environment_for_builds_on_ci() {
             BRANCH_EXISTS=$(git ls-remote --heads \
                 "https://github.com/${CI_SOURCE_REPO}.git" "${CI_SOURCE_BRANCH}" || true)
             if [[ -z ${BRANCH_EXISTS=} ]]; then
-                print_info
-                print_info "https://github.com/${CI_SOURCE_REPO}.git Branch ${CI_SOURCE_BRANCH} does not exist"
-                print_info
-                print_info
-                print_info "Fallback to https://github.com/${CI_TARGET_REPO}.git Branch ${CI_TARGET_BRANCH}"
-                print_info
+                verbosity::print_info
+                verbosity::print_info "https://github.com/${CI_SOURCE_REPO}.git Branch ${CI_SOURCE_BRANCH} does not exist"
+                verbosity::print_info
+                verbosity::print_info
+                verbosity::print_info "Fallback to https://github.com/${CI_TARGET_REPO}.git Branch ${CI_TARGET_BRANCH}"
+                verbosity::print_info
                 # Fallback to the target repository if the repo does not exist
                 export CI_SOURCE_REPO="${CI_TARGET_REPO}"
                 export CI_SOURCE_BRANCH="${CI_TARGET_BRANCH}"
@@ -522,7 +522,7 @@ function get_environment_for_builds_on_ci() {
     fi
 
     if [[ ${VERBOSE} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
-        summarize_ci_environment
+        initialization::summarize_ci_environment
     fi
 }
 
@@ -530,7 +530,7 @@ function get_environment_for_builds_on_ci() {
 
 # By the time this method is run, nearly all constants have been already set to the final values
 # so we can set them as readonly.
-function make_constants_read_only() {
+function initialization::make_constants_read_only() {
     # Set the arguments as read-only
     readonly PYTHON_MAJOR_MINOR_VERSION
 

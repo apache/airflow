@@ -31,8 +31,8 @@ function run_test_package_import_all_classes() {
         "--" "/opt/airflow/scripts/in_container/run_test_package_import_all_classes.sh"
 }
 
-prepare_ci_build
+build_images::prepare_ci_build
 
-rebuild_ci_image_if_needed
+build_images::rebuild_ci_image_if_needed
 
 run_test_package_import_all_classes
