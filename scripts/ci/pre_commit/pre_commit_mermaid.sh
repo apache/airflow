@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 set -euo pipefail
-AIRFLOW_SOURCES="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../../../ && pwd )"
 export NO_TERMINAL_OUTPUT_FROM_SCRIPTS="true"
+
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 if ! command -v npm; then
     echo 'You need to have npm installed in order to generate .mermaid graphs automatically.'
@@ -26,8 +28,7 @@ if ! command -v npm; then
     exit 0
 fi
 
-tmp_file=$(mktemp)
-
+tmp_file="${CACHE_TMP_FILE_DIR}/tmp.mermaid"
 cd "${AIRFLOW_SOURCES}"
 
 MERMAID_INSTALLATION_DIR="${AIRFLOW_SOURCES}/.build/mermaid/"
@@ -42,7 +43,7 @@ else
 fi
 
 # shellcheck disable=SC2064
-trap "rm -rf ${tmp_file}" EXIT
+add_trap "rm -rf '${tmp_file}'" EXIT HUP INT TERM
 
 for file in "${@}"
 do
