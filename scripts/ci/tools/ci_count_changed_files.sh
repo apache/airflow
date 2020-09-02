@@ -21,11 +21,8 @@
 # Parameters
 #  $1: Revision to compare
 #  $2: Pattern to match
-
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-
-get_environment_for_builds_on_ci
 
 if [[ ${CI_EVENT_TYPE} == "push" ]]; then
     echo

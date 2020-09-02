@@ -21,7 +21,6 @@
 # Builds or waits for the PROD image in the CI environment
 # Depending on the "USE_GITHUB_REGISTRY" and "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_prod_images_on_ci() {
-    get_environment_for_builds_on_ci
     prepare_prod_build
 
     rm -rf "${BUILD_CACHE_DIR}"

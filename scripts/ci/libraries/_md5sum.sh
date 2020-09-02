@@ -79,7 +79,7 @@ function update_all_md5_files() {
         move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
     done
     mkdir -pv "${BUILD_CACHE_DIR}/${BRANCH_NAME}"
-    touch "${BUILT_IMAGE_FLAG_FILE}"
+    touch "${BUILT_CI_IMAGE_FLAG_FILE}"
 }
 
 
@@ -121,13 +121,13 @@ function check_if_docker_build_is_needed() {
     if [[ ${FORCE_BUILD_IMAGES:=""} == "true" ]]; then
         print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
         calculate_md5sum_for_all_files
-        export NEEDS_DOCKER_BUILD="true"
+        needs_docker_build="true"
     else
         calculate_md5sum_for_all_files
         if [[ ${FILES_MODIFIED} == "true" ]]; then
-            export NEEDS_DOCKER_BUILD="true"
+            needs_docker_build="true"
         fi
-        if [[ ${NEEDS_DOCKER_BUILD} == "true" ]]; then
+        if [[ ${needs_docker_build} == "true" ]]; then
             print_info "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
         else
             print_info "Docker image build is not needed for ${THE_IMAGE_TYPE} image!"
