@@ -2280,7 +2280,11 @@ class SlaMissModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)  # noqa # type: ignore
 
-    base_permissions = ['can_list']
+    class_permission_name = 'SlaMiss'
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = ['can_read']
 
     list_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
     add_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
@@ -2303,7 +2307,13 @@ class XComModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
-    base_permissions = ['can_list', 'can_delete']
+    class_permission_name = 'XCom'
+    method_permission_name = {
+        'list': 'read',
+        'delete': 'delete',
+        'action_muldelete': 'delete',
+    }
+    base_permissions = ['can_read', 'can_delete']
 
     search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
     list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
@@ -2342,6 +2352,14 @@ class ConnectionModelView(AirflowModelView):
     route_base = '/connection'
 
     datamodel = AirflowModelView.CustomSQLAInterface(Connection)  # noqa # type: ignore
+
+    class_permission_name = 'Connection'
+    method_permission_name = {
+        'add': 'create',
+        'list': 'read',
+        'edit': 'edit',
+        'action_muldelete': 'delete',
+    }
 
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
 
@@ -2414,7 +2432,14 @@ class PoolModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Pool)  # noqa # type: ignore
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
+    class_permission_name = 'Pool'
+    method_permission_name = {
+        'add': 'create',
+        'list': 'read',
+        'edit': 'edit',
+        'action_muldelete': 'delete',
+    }
+    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete']
 
     list_columns = ['pool', 'slots', 'running_slots', 'queued_slots']
     add_columns = ['pool', 'slots', 'description']
@@ -2487,7 +2512,17 @@ class VariableModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)  # noqa # type: ignore
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport']
+    class_permission_name = 'Variable'
+    method_permission_name = {
+        'add': 'create',
+        'list': 'read',
+        'edit': 'edit',
+        'delete': 'delete',
+        'action_muldelete': 'delete',
+        'action_varexport': 'read',
+        'varimport': 'create',
+    }
+    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete']
 
     list_columns = ['key', 'val', 'is_encrypted']
     add_columns = ['key', 'val']
@@ -2582,7 +2617,11 @@ class JobModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(BaseJob)  # noqa # type: ignore
 
-    base_permissions = ['can_list']
+    class_permission_name = 'Job'
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = ['can_read']
 
     list_columns = ['id', 'dag_id', 'state', 'job_type', 'start_date',
                     'end_date', 'latest_heartbeat',
@@ -2610,7 +2649,17 @@ class DagRunModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.DagRun)  # noqa # type: ignore
 
-    base_permissions = ['can_list', 'can_add']
+    class_permission_name = 'DagRun'
+    method_permission_name = {
+        'add': 'create',
+        'list': 'read',
+        'edit': 'edit',
+        'action_muldelete': 'delete',
+        'action_set_running': 'edit',
+        'action_set_failed': 'edit',
+        'action_set_success': 'edit',
+    }
+    base_permissions = ['can_create', 'can_read', 'can_edit', 'can_delete']
 
     add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
     list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'run_type', 'external_trigger', 'conf']
@@ -2724,7 +2773,11 @@ class LogModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(Log)  # noqa # type:ignore
 
-    base_permissions = ['can_list']
+    class_permission_name = 'Log'
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = ['can_read']
 
     list_columns = ['id', 'dttm', 'dag_id', 'task_id', 'event', 'execution_date',
                     'owner', 'extra']
@@ -2747,7 +2800,12 @@ class TaskRescheduleModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskReschedule)  # noqa # type: ignore
 
-    base_permissions = ['can_list']
+    class_permission_name = 'TaskReschedule'
+    method_permission_name = {
+        'list': 'read',
+    }
+
+    base_permissions = ['can_read']
 
     list_columns = ['id', 'dag_id', 'task_id', 'execution_date', 'try_number',
                     'start_date', 'end_date', 'duration', 'reschedule_date']
@@ -2784,7 +2842,16 @@ class TaskInstanceModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskInstance)  # noqa # type: ignore
 
-    base_permissions = ['can_list']
+    class_permission_name = 'TaskInstance'
+    method_permission_name = {
+        'list': 'read',
+        'action_clear': 'edit',
+        'action_set_running': 'edit',
+        'action_set_failed': 'edit',
+        'action_set_success': 'edit',
+        'action_set_retry': 'edit',
+    }
+    base_permissions = ['can_read']
 
     page_size = PAGE_SIZE
 
