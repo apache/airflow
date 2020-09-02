@@ -20,7 +20,7 @@
 # Should be run with set +e
 # Parameters:
 #   $1 -> image to pull
-function pull_image_if_not_present_or_forced() {
+function push_pull_remove_images::pull_image_if_not_present_or_forced() {
     local IMAGE_TO_PULL="${1}"
     local IMAGE_HASH
     IMAGE_HASH=$(docker images -q "${IMAGE_TO_PULL}" 2> /dev/null || true)
@@ -46,22 +46,22 @@ function pull_image_if_not_present_or_forced() {
 # Parameters:
 #   $1 -> DockerHub image to pull
 #   $2 -> GitHub image to try to pull first
-function pull_image_github_dockerhub() {
+function push_pull_remove_images::pull_image_github_dockerhub() {
     local DOCKERHUB_IMAGE="${1}"
     local GITHUB_IMAGE="${2}"
 
     set +e
-    if pull_image_if_not_present_or_forced "${GITHUB_IMAGE}"; then
+    if push_pull_remove_images::pull_image_if_not_present_or_forced "${GITHUB_IMAGE}"; then
         # Tag the image to be the DockerHub one
         docker tag "${GITHUB_IMAGE}" "${DOCKERHUB_IMAGE}"
     else
-        pull_image_if_not_present_or_forced "${DOCKERHUB_IMAGE}"
+        push_pull_remove_images::pull_image_if_not_present_or_forced "${DOCKERHUB_IMAGE}"
     fi
     set -e
 }
 
 # Pulls CI image in case caching strategy is "pulled" and the image needs to be pulled
-function pull_ci_images_if_needed() {
+function push_pull_remove_images::pull_ci_images_if_needed() {
 
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         if [[ "${FORCE_PULL_IMAGES}" == "true" ]]; then
@@ -78,23 +78,23 @@ Docker pulling ${PYTHON_BASE_IMAGE}.
                 if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
                     PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
                 fi
-                pull_image_github_dockerhub "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+                push_pull_remove_images::pull_image_github_dockerhub "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
             else
                 docker pull "${PYTHON_BASE_IMAGE}"
             fi
             echo
         fi
         if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-            pull_image_github_dockerhub "${AIRFLOW_CI_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+            push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_CI_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         else
-            pull_image_if_not_present_or_forced "${AIRFLOW_CI_IMAGE}"
+            push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_CI_IMAGE}"
         fi
     fi
 }
 
 
 # Pulls PROD image in case caching strategy is "pulled" and the image needs to be pulled
-function pull_prod_images_if_needed() {
+function push_pull_remove_images::pull_prod_images_if_needed() {
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         if [[ "${FORCE_PULL_IMAGES}" == "true" ]]; then
             echo
@@ -105,7 +105,7 @@ function pull_prod_images_if_needed() {
                 if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
                     PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
                 fi
-                pull_image_github_dockerhub "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+                push_pull_remove_images::pull_image_github_dockerhub "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
             else
                 docker pull "${PYTHON_BASE_IMAGE}"
             fi
@@ -113,18 +113,18 @@ function pull_prod_images_if_needed() {
         fi
         if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
             # "Build" segment of production image
-            pull_image_github_dockerhub "${AIRFLOW_PROD_BUILD_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+            push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PROD_BUILD_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
             # "Main" segment of production image
-            pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+            push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         else
-            pull_image_if_not_present_or_forced "${AIRFLOW_PROD_BUILD_IMAGE}"
-            pull_image_if_not_present_or_forced "${AIRFLOW_PROD_IMAGE}"
+            push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_PROD_BUILD_IMAGE}"
+            push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_PROD_IMAGE}"
         fi
     fi
 }
 
 # Pushes Ci images and the manifest to the registry in DockerHub.
-function push_ci_images_to_dockerhub() {
+function push_pull_remove_images::push_ci_images_to_dockerhub() {
     docker push "${AIRFLOW_CI_IMAGE}"
     docker tag "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     docker push "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
@@ -135,7 +135,7 @@ function push_ci_images_to_dockerhub() {
 }
 
 # Pushes Ci images and their tags to registry in GitHub
-function push_ci_images_to_github() {
+function push_pull_remove_images::push_ci_images_to_github() {
     # Push image to GitHub registry with chosen push tag
     # the PUSH tag might be:
     #     "${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
@@ -159,16 +159,16 @@ function push_ci_images_to_github() {
 
 
 # Pushes Ci image and it's manifest to the registry.
-function push_ci_images() {
+function push_pull_remove_images::push_ci_images() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        push_ci_images_to_github
+        push_pull_remove_images::push_ci_images_to_github
     else
-        push_ci_images_to_dockerhub
+        push_pull_remove_images::push_ci_images_to_dockerhub
     fi
 }
 
 # Pushes PROD image to registry in DockerHub
-function push_prod_images_to_dockerhub () {
+function push_pull_remove_images::push_prod_images_to_dockerhub () {
     # Prod image
     docker push "${AIRFLOW_PROD_IMAGE}"
     if [[ -n ${DEFAULT_PROD_IMAGE=} ]]; then
@@ -181,7 +181,7 @@ function push_prod_images_to_dockerhub () {
 
 
 # Pushes PROD image to and their tags to registry in GitHub
-function push_prod_images_to_github () {
+function push_pull_remove_images::push_prod_images_to_github () {
     # Push image to GitHub registry with chosen push tag
     # the PUSH tag might be:
     #     "${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
@@ -204,16 +204,16 @@ function push_prod_images_to_github () {
 
 # Pushes PROD image to the registry. In case the image was taken from cache registry
 # it is also pushed to the cache, not to the main registry
-function push_prod_images() {
+function push_pull_remove_images::push_prod_images() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        push_prod_images_to_github
+        push_pull_remove_images::push_prod_images_to_github
     else
-        push_prod_images_to_dockerhub
+        push_pull_remove_images::push_prod_images_to_dockerhub
     fi
 }
 
 # Removes airflow CI and base images
-function remove_all_images() {
+function push_pull_remove_images::remove_all_images() {
     echo
     "${AIRFLOW_SOURCES}/confirm" "Removing all local images ."
     echo
@@ -229,7 +229,7 @@ function remove_all_images() {
 }
 
 # waits for an image to be available in the github registry
-function wait_for_github_registry_image() {
+function push_pull_remove_images::wait_for_github_registry_image() {
     GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${GITHUB_REPOSITORY_LOWERCASE}"
     IMAGE_NAME="${1}"
     IMAGE_TAG=${2}

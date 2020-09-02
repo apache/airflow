@@ -21,14 +21,14 @@
 # Builds or waits for the CI image in the CI environment
 # Depending on "USE_GITHUB_REGISTRY" and "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_ci_image_on_ci() {
-    prepare_ci_build
+    build_images::prepare_ci_build
 
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
 
     if [[ ${USE_GITHUB_REGISTRY} == "true" && ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
         # Pretend that the image was build. We already have image with the right sources baked in!
-        calculate_md5sum_for_all_files
+        md5sum::calculate_md5sum_for_all_files
 
         # Tries to wait for the images indefinitely
         # skips further image checks - since we already have the target image
@@ -39,16 +39,16 @@ function build_ci_image_on_ci() {
         fi
         # first we pull base python image. We will need it to re-push it after master build
         # Becoming the new "latest" image for other builds
-        wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
+        build_images::wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
             "${PYTHON_TAG_SUFFIX}" "${PYTHON_BASE_IMAGE}"
 
         # And then the base image
-        wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" \
+        build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" \
             ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_CI_IMAGE}"
 
-        update_all_md5_files
+        md5sum::update_all_md5
     else
-        rebuild_ci_image_if_needed
+        build_images::rebuild_ci_image_if_needed
     fi
 
     # Disable force pulling forced above this is needed for the subsequent scripts so that

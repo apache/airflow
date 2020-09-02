@@ -73,11 +73,11 @@ function run_airflow_testing_in_docker() {
     return "${EXIT_CODE}"
 }
 
-prepare_ci_build
+build_images::prepare_ci_build
 
-rebuild_ci_image_if_needed
+build_images::rebuild_ci_image_if_needed
 
-set_mysql_encoding
+initialization::set_mysql_encoding
 
 # Test environment
 export BACKEND=${BACKEND:="sqlite"}
