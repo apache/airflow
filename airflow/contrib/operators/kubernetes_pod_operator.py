@@ -229,6 +229,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.pod_template_file = pod_template_file
         self.priority_class_name = priority_class_name
         self.name = self._set_name(name)
+        self.client = None
 
     @staticmethod
     def create_labels_for_pod(context):
@@ -263,6 +264,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             else:
                 client = kube_client.get_kube_client(cluster_context=self.cluster_context,
                                                      config_file=self.config_file)
+
+            self.client = client
 
             # Add combination of labels to uniquely identify a running pod
             labels = self.create_labels_for_pod(context)
@@ -444,3 +447,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 'Pod returned a failure: {state}'.format(state=final_state)
             )
         return final_state, result
+
+    def on_kill(self) -> None:
+        if self.pod:
+            pod = self.pod
+            namespace = pod.metadata.namespace
+            name = pod.metadata.name
+            self.client.delete_namespaced_pod(name=name, namespace=namespace, grace_period_seconds=0)
