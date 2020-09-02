@@ -18,7 +18,10 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-add_trap "in_container_fix_ownership" EXIT HUP INT TERM
+# adding trap to exiting trap
+HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
+# shellcheck disable=SC2064
+trap "${HANDLERS}${HANDLERS:+;}in_container_fix_ownership" EXIT
 
 sudo rm -rf "${AIRFLOW_SOURCES}/docs/_build/*"
 sudo rm -rf "${AIRFLOW_SOURCES}/docs/_api/*"

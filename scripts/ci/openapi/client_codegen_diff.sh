@@ -17,6 +17,7 @@
 # under the License.
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+get_environment_for_builds_on_ci
 
 set -e
 TARGET_REMOTE=origin

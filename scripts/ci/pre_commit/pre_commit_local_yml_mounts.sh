@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+set -euo pipefail
 export PRINT_INFO_FROM_SCRIPTS="false"
 export SKIP_CHECK_REMOTE_IMAGE="true"
+
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
@@ -24,16 +26,16 @@ export SKIP_CHECK_REMOTE_IMAGE="true"
 TMP_OUTPUT=$(mktemp)
 
 # Remove temp file if it's hanging around
-traps::add_trap "rm -rf -- '${TMP_OUTPUT}' 2>/dev/null" EXIT HUP INT TERM
+trap 'rm -rf -- "${TMP_OUTPUT}" 2>/dev/null' EXIT
 
 LOCAL_YML_FILE="${AIRFLOW_SOURCES}/scripts/ci/docker-compose/local.yml"
 
 LEAD='      # START automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh'
 TAIL='      # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh'
 
-local_mounts::generate_local_mounts_list "      - ../../../"
+generate_local_mounts_list "      - ../../../"
 
-sed "/$LEAD/q" "${LOCAL_YML_FILE}" > "${TMP_OUTPUT}"
+sed -ne "0,/$LEAD/ p" "${LOCAL_YML_FILE}" > "${TMP_OUTPUT}"
 
 printf '%s\n' "${LOCAL_MOUNTS[@]}" >> "${TMP_OUTPUT}"
 sed -ne "/$TAIL/,\$ p" "${LOCAL_YML_FILE}" >> "${TMP_OUTPUT}"

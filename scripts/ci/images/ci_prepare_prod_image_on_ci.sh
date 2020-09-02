@@ -21,7 +21,8 @@
 # Builds or waits for the PROD image in the CI environment
 # Depending on the "USE_GITHUB_REGISTRY" and "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_prod_images_on_ci() {
-    build_images::prepare_prod_build
+    get_environment_for_builds_on_ci
+    prepare_prod_build
 
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
@@ -31,13 +32,13 @@ function build_prod_images_on_ci() {
         # Tries to wait for the image indefinitely
         # skips further image checks - since we already have the target image
 
-        build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}" \
+        wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}" \
             ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_IMAGE}"
 
-        build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" \
+        wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" \
             ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_BUILD_IMAGE}"
     else
-        build_images::build_prod_images
+        build_prod_images
     fi
 
 

@@ -17,7 +17,7 @@
 # under the License.
 set -euo pipefail
 
-if [[ -n "${FORCE_ANSWER_TO_QUESTIONS=}" ]]; then
+if [[ "${FORCE_ANSWER_TO_QUESTIONS:=""}" != "" ]]; then
     RESPONSE=${FORCE_ANSWER_TO_QUESTIONS}
     echo
     echo "Forcing response '${FORCE_ANSWER_TO_QUESTIONS}' to '${1}?'"

@@ -19,7 +19,7 @@
 # Fixes a file that is expected to be a file. If - for whatever reason - the local file is not created
 # When mounting it to container, docker assumes it is a missing directory and creates it. Such mistakenly
 # Created directories should be removed and replaced with files
-function sanity_checks::sanitize_file() {
+function sanitize_file() {
     if [[ -d "${1}" ]]; then
         rm -rf "${1}"
     fi
@@ -30,10 +30,10 @@ function sanity_checks::sanitize_file() {
 # Those files are mounted into container when run locally
 # .bash_history is preserved and you can modify .bash_aliases and .inputrc
 # according to your liking
-function sanity_checks::sanitize_mounted_files() {
-    sanity_checks::sanitize_file "${AIRFLOW_SOURCES}/.bash_history"
-    sanity_checks::sanitize_file "${AIRFLOW_SOURCES}/.bash_aliases"
-    sanity_checks::sanitize_file "${AIRFLOW_SOURCES}/.inputrc"
+function sanitize_mounted_files() {
+    sanitize_file "${AIRFLOW_SOURCES}/.bash_history"
+    sanitize_file "${AIRFLOW_SOURCES}/.bash_aliases"
+    sanitize_file "${AIRFLOW_SOURCES}/.inputrc"
 
     # When KinD cluster is created, the folder keeps authentication information
     # across sessions
@@ -49,10 +49,29 @@ function sanity_checks::sanitize_mounted_files() {
 #
 # Most useful is out.log file in this directory storing verbose output of the scripts.
 #
+function create_cache_directory() {
+    CACHE_TMP_FILE_DIR=$(mktemp -d)
+    export CACHE_TMP_FILE_DIR
+
+    if [[ ${SKIP_CACHE_DELETION:=} != "true" ]]; then
+        trap 'rm -rf -- "${CACHE_TMP_FILE_DIR}"' INT TERM HUP
+    fi
+
+    OUTPUT_LOG="${CACHE_TMP_FILE_DIR}/out.log"
+    export OUTPUT_LOG
+}
+
+# Removes the cache temporary directory
+function remove_cache_directory() {
+    if [[ -d ${CACHE_TMP_FILE_DIR} ]]; then
+        rm -rf "${CACHE_TMP_FILE_DIR}"
+    fi
+}
+
 #
 # Checks if core utils required in the host system are installed and explain what needs to be done if not
 #
-function sanity_checks::check_if_coreutils_installed() {
+function check_if_coreutils_installed() {
     set +e
     getopt -T >/dev/null
     GETOPT_RETVAL=$?
@@ -71,12 +90,10 @@ function sanity_checks::check_if_coreutils_installed() {
     set -e
 
     CMDNAME="$(basename -- "$0")"
-    export CMDNAME
-    readonly CMDNAME
 
     ####################  Parsing options/arguments
     if [[ ${GETOPT_RETVAL} != 4 || "${STAT_PRESENT}" != "0" || "${MD5SUM_PRESENT}" != "0" ]]; then
-        verbosity::print_info
+        print_info
         if [[ $(uname -s) == 'Darwin' ]] ; then
             echo >&2 "You are running ${CMDNAME} in OSX environment"
             echo >&2 "And you need to install gnu commands"
@@ -105,7 +122,7 @@ function sanity_checks::check_if_coreutils_installed() {
             echo >&2 "Please install latest/GNU version of getopt and coreutils."
             echo >&2 "This can usually be done with 'apt install util-linux coreutils'"
         fi
-        verbosity::print_info
+        print_info
         exit 1
     fi
 }
@@ -113,7 +130,7 @@ function sanity_checks::check_if_coreutils_installed() {
 #
 # Asserts that we are not inside of the container
 #
-function sanity_checks::assert_not_in_container() {
+function assert_not_in_container() {
     if [[ ${SKIP_IN_CONTAINER_CHECK:=} == "true" ]]; then
         return
     fi
@@ -122,28 +139,28 @@ function sanity_checks::assert_not_in_container() {
         echo >&2 "You are inside the Airflow docker container!"
         echo >&2 "You should only run this script from the host."
         echo >&2 "Learn more about how we develop and test airflow in:"
-        echo >&2 "https://github.com/apache/airflow/blob/master/TESTING.rst"
+        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
         echo >&2
         exit 1
     fi
 }
 
 # Changes directory to local sources
-function sanity_checks::go_to_airflow_sources {
-    verbosity::print_info
+function go_to_airflow_sources {
+    print_info
     pushd "${AIRFLOW_SOURCES}" &>/dev/null || exit 1
-    verbosity::print_info
-    verbosity::print_info "Running in host in $(pwd)"
-    verbosity::print_info
+    print_info
+    print_info "Running in host in $(pwd)"
+    print_info
 }
 
 #
 # Performs basic sanity checks common for most of the scripts in this directory
 #
-function sanity_checks::basic_sanity_checks() {
-    sanity_checks::assert_not_in_container
-    initialization::set_default_python_version_if_empty
-    sanity_checks::go_to_airflow_sources
-    sanity_checks::check_if_coreutils_installed
-    sanity_checks::sanitize_mounted_files
+function basic_sanity_checks() {
+    assert_not_in_container
+    go_to_airflow_sources
+    check_if_coreutils_installed
+    create_cache_directory
+    sanitize_mounted_files
 }

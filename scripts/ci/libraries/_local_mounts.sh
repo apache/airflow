@@ -20,7 +20,7 @@
 # By default not the whole airflow sources directory is mounted because there are often
 # artifacts created there (for example .egg-info files) that are breaking the capability
 # of running different python versions in Breeze. So we only mount what is needed by default.
-function local_mounts::generate_local_mounts_list {
+function generate_local_mounts_list {
     local prefix="$1"
     LOCAL_MOUNTS=(
         "$prefix".bash_aliases:/root/.bash_aliases:cached
@@ -59,8 +59,8 @@ function local_mounts::generate_local_mounts_list {
 # Converts the local mounts that we defined above to the right set of -v
 # volume mappings in docker-compose file. This is needed so that we only
 # maintain the volumes in one place (above)
-function local_mounts::convert_local_mounts_to_docker_params() {
-    local_mounts::generate_local_mounts_list "${AIRFLOW_SOURCES}/"
+function convert_local_mounts_to_docker_params() {
+    generate_local_mounts_list "${AIRFLOW_SOURCES}/"
     # Bash can't "return" arrays, so we need to quote any special characters
     printf -- '-v %q ' "${LOCAL_MOUNTS[@]}"
 }

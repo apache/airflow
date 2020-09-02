@@ -17,7 +17,7 @@
 # under the License.
 
 # In case of the pylint checks we filter out some files which are still in pylint_todo.txt list
-function pylint::filter_out_files_from_pylint_todo_list() {
+function filter_out_files_from_pylint_todo_list() {
   FILTERED_FILES=()
   set +e
   for FILE in "$@"

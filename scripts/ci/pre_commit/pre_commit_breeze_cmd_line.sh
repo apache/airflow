@@ -17,37 +17,21 @@
 # under the License.
 set -euo pipefail
 PRE_COMMIT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export PRE_COMMIT_DIR
-readonly PRE_COMMIT_DIR
-
 AIRFLOW_SOURCES=$(cd "${PRE_COMMIT_DIR}/../../../" && pwd);
-export AIRFLOW_SOURCES
-readonly AIRFLOW_SOURCES
-
 cd "${AIRFLOW_SOURCES}" || exit 1
 export PRINT_INFO_FROM_SCRIPTS="false"
 export SKIP_CHECK_REMOTE_IMAGE="true"
 
 TMP_FILE=$(mktemp)
-export TMP_FILE
-readonly TMP_FILE
-
 TMP_OUTPUT=$(mktemp)
-export TMP_OUTPUT
-readonly TMP_OUTPUT
 
 echo "
 .. code-block:: text
 " >"${TMP_FILE}"
 
 export MAX_SCREEN_WIDTH=100
-readonly MAX_SCREEN_WIDTH
-
 export FORCE_SCREEN_WIDTH="true"
-readonly FORCE_SCREEN_WIDTH
-
 export VERBOSE="false"
-readonly VERBOSE
 
 ./breeze help-all | sed 's/^/  /' | sed 's/ *$//' >>"${TMP_FILE}"
 
