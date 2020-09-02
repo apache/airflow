@@ -29,17 +29,37 @@ from parameterized import parameterized
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskInstance
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
-    ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_S3_DATA_SOURCE, BUCKET_NAME, FILTER_JOB_NAMES, GCS_DATA_SINK,
-    GCS_DATA_SOURCE, HTTP_DATA_SOURCE, LIST_URL, NAME, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE,
-    SECRET_ACCESS_KEY, START_TIME_OF_DAY, STATUS, TRANSFER_SPEC,
+    ACCESS_KEY_ID,
+    AWS_ACCESS_KEY,
+    AWS_S3_DATA_SOURCE,
+    BUCKET_NAME,
+    FILTER_JOB_NAMES,
+    GCS_DATA_SINK,
+    GCS_DATA_SOURCE,
+    HTTP_DATA_SOURCE,
+    LIST_URL,
+    NAME,
+    SCHEDULE,
+    SCHEDULE_END_DATE,
+    SCHEDULE_START_DATE,
+    SECRET_ACCESS_KEY,
+    START_TIME_OF_DAY,
+    STATUS,
+    TRANSFER_SPEC,
 )
 from airflow.providers.google.cloud.operators.cloud_storage_transfer_service import (
-    CloudDataTransferServiceCancelOperationOperator, CloudDataTransferServiceCreateJobOperator,
-    CloudDataTransferServiceDeleteJobOperator, CloudDataTransferServiceGCSToGCSOperator,
-    CloudDataTransferServiceGetOperationOperator, CloudDataTransferServiceListOperationsOperator,
-    CloudDataTransferServicePauseOperationOperator, CloudDataTransferServiceResumeOperationOperator,
-    CloudDataTransferServiceS3ToGCSOperator, CloudDataTransferServiceUpdateJobOperator,
-    TransferJobPreprocessor, TransferJobValidator,
+    CloudDataTransferServiceCancelOperationOperator,
+    CloudDataTransferServiceCreateJobOperator,
+    CloudDataTransferServiceDeleteJobOperator,
+    CloudDataTransferServiceGCSToGCSOperator,
+    CloudDataTransferServiceGetOperationOperator,
+    CloudDataTransferServiceListOperationsOperator,
+    CloudDataTransferServicePauseOperationOperator,
+    CloudDataTransferServiceResumeOperationOperator,
+    CloudDataTransferServiceS3ToGCSOperator,
+    CloudDataTransferServiceUpdateJobOperator,
+    TransferJobPreprocessor,
+    TransferJobValidator,
 )
 from airflow.utils import timezone
 
@@ -169,12 +189,15 @@ class TestTransferJobPreprocessor(unittest.TestCase):
     def test_should_set_default_schedule(self):
         body = {}
         TransferJobPreprocessor(body=body, default_schedule=True).process_body()
-        self.assertEqual(body, {
-            SCHEDULE: {
-                SCHEDULE_END_DATE: {'day': 15, 'month': 10, 'year': 2018},
-                SCHEDULE_START_DATE: {'day': 15, 'month': 10, 'year': 2018}
-            }
-        })
+        self.assertEqual(
+            body,
+            {
+                SCHEDULE: {
+                    SCHEDULE_END_DATE: {'day': 15, 'month': 10, 'year': 2018},
+                    SCHEDULE_START_DATE: {'day': 15, 'month': 10, 'year': 2018},
+                }
+            },
+        )
 
 
 class TestTransferJobValidator(unittest.TestCase):
@@ -236,16 +259,12 @@ class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
         body = deepcopy(VALID_TRANSFER_JOB_GCS)
         del body['name']
         op = CloudDataTransferServiceCreateJobOperator(
-            body=body,
-            task_id=TASK_ID,
-            google_impersonation_chain=IMPERSONATION_CHAIN,
+            body=body, task_id=TASK_ID, google_impersonation_chain=IMPERSONATION_CHAIN,
         )
         result = op.execute(None)
 
         mock_hook.assert_called_once_with(
-            api_version='v1',
-            gcp_conn_id='google_cloud_default',
-            impersonation_chain=IMPERSONATION_CHAIN,
+            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         mock_hook.return_value.create_transfer_job.assert_called_once_with(body=VALID_TRANSFER_JOB_GCS_RAW)
@@ -264,17 +283,13 @@ class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
         body = deepcopy(VALID_TRANSFER_JOB_AWS)
         del body['name']
         op = CloudDataTransferServiceCreateJobOperator(
-            body=body,
-            task_id=TASK_ID,
-            google_impersonation_chain=IMPERSONATION_CHAIN,
+            body=body, task_id=TASK_ID, google_impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         result = op.execute(None)
 
         mock_hook.assert_called_once_with(
-            api_version='v1',
-            gcp_conn_id='google_cloud_default',
-            impersonation_chain=IMPERSONATION_CHAIN,
+            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         mock_hook.return_value.create_transfer_job.assert_called_once_with(body=VALID_TRANSFER_JOB_AWS_RAW)
@@ -333,17 +348,12 @@ class TestGcpStorageTransferJobUpdateOperator(unittest.TestCase):
         body = {'transferJob': {'description': 'example-name'}, 'updateTransferJobFieldMask': DESCRIPTION}
 
         op = CloudDataTransferServiceUpdateJobOperator(
-            job_name=JOB_NAME,
-            body=body,
-            task_id=TASK_ID,
-            google_impersonation_chain=IMPERSONATION_CHAIN,
+            job_name=JOB_NAME, body=body, task_id=TASK_ID, google_impersonation_chain=IMPERSONATION_CHAIN,
         )
         result = op.execute(None)
 
         mock_hook.assert_called_once_with(
-            api_version='v1',
-            gcp_conn_id='google_cloud_default',
-            impersonation_chain=IMPERSONATION_CHAIN,
+            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_transfer_job.assert_called_once_with(job_name=JOB_NAME, body=body)
         self.assertEqual(result, VALID_TRANSFER_JOB_GCS)
@@ -383,9 +393,7 @@ class TestGcpStorageTransferJobDeleteOperator(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1',
-            gcp_conn_id='google_cloud_default',
-            impersonation_chain=IMPERSONATION_CHAIN,
+            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_transfer_job.assert_called_once_with(
             job_name=JOB_NAME, project_id=GCP_PROJECT_ID
@@ -433,15 +441,11 @@ class TestGpcStorageTransferOperationsGetOperator(unittest.TestCase):
     def test_operation_get(self, mock_hook):
         mock_hook.return_value.get_transfer_operation.return_value = VALID_OPERATION
         op = CloudDataTransferServiceGetOperationOperator(
-            operation_name=OPERATION_NAME,
-            task_id=TASK_ID,
-            google_impersonation_chain=IMPERSONATION_CHAIN,
+            operation_name=OPERATION_NAME, task_id=TASK_ID, google_impersonation_chain=IMPERSONATION_CHAIN,
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1',
-            gcp_conn_id='google_cloud_default',
-            impersonation_chain=IMPERSONATION_CHAIN,
+            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.get_transfer_operation.assert_called_once_with(operation_name=OPERATION_NAME)
         self.assertEqual(result, VALID_OPERATION)
@@ -482,15 +486,11 @@ class TestGcpStorageTransferOperationListOperator(unittest.TestCase):
     def test_operation_list(self, mock_hook):
         mock_hook.return_value.list_transfer_operations.return_value = [VALID_TRANSFER_JOB_GCS]
         op = CloudDataTransferServiceListOperationsOperator(
-            request_filter=TEST_FILTER,
-            task_id=TASK_ID,
-            google_impersonation_chain=IMPERSONATION_CHAIN,
+            request_filter=TEST_FILTER, task_id=TASK_ID, google_impersonation_chain=IMPERSONATION_CHAIN,
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1',
-            gcp_conn_id='google_cloud_default',
-            impersonation_chain=IMPERSONATION_CHAIN,
+            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list_transfer_operations.assert_called_once_with(request_filter=TEST_FILTER)
         self.assertEqual(result, [VALID_TRANSFER_JOB_GCS])
@@ -527,15 +527,11 @@ class TestGcpStorageTransferOperationsPauseOperator(unittest.TestCase):
     )
     def test_operation_pause(self, mock_hook):
         op = CloudDataTransferServicePauseOperationOperator(
-            operation_name=OPERATION_NAME,
-            task_id='task-id',
-            google_impersonation_chain=IMPERSONATION_CHAIN,
+            operation_name=OPERATION_NAME, task_id='task-id', google_impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1',
-            gcp_conn_id='google_cloud_default',
-            impersonation_chain=IMPERSONATION_CHAIN,
+            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.pause_transfer_operation.assert_called_once_with(operation_name=OPERATION_NAME)
 
@@ -580,15 +576,11 @@ class TestGcpStorageTransferOperationsResumeOperator(unittest.TestCase):
     )
     def test_operation_resume(self, mock_hook):
         op = CloudDataTransferServiceResumeOperationOperator(
-            operation_name=OPERATION_NAME,
-            task_id=TASK_ID,
-            google_impersonation_chain=IMPERSONATION_CHAIN,
+            operation_name=OPERATION_NAME, task_id=TASK_ID, google_impersonation_chain=IMPERSONATION_CHAIN,
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            api_version='v1',
-            gcp_conn_id='google_cloud_default',
-            impersonation_chain=IMPERSONATION_CHAIN,
+            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.resume_transfer_operation.assert_called_once_with(
             operation_name=OPERATION_NAME
@@ -636,15 +628,11 @@ class TestGcpStorageTransferOperationsCancelOperator(unittest.TestCase):
     )
     def test_operation_cancel(self, mock_hook):
         op = CloudDataTransferServiceCancelOperationOperator(
-            operation_name=OPERATION_NAME,
-            task_id=TASK_ID,
-            google_impersonation_chain=IMPERSONATION_CHAIN,
+            operation_name=OPERATION_NAME, task_id=TASK_ID, google_impersonation_chain=IMPERSONATION_CHAIN,
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            api_version='v1',
-            gcp_conn_id='google_cloud_default',
-            impersonation_chain=IMPERSONATION_CHAIN,
+            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.cancel_transfer_operation.assert_called_once_with(
             operation_name=OPERATION_NAME

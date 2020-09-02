@@ -23,8 +23,11 @@ import pendulum
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.google.cloud.sensors.gcs import (
-    GCSObjectExistenceSensor, GCSObjectsWtihPrefixExistenceSensor, GCSObjectUpdateSensor,
-    GCSUploadSessionCompleteSensor, ts_function,
+    GCSObjectExistenceSensor,
+    GCSObjectsWtihPrefixExistenceSensor,
+    GCSObjectUpdateSensor,
+    GCSUploadSessionCompleteSensor,
+    ts_function,
 )
 
 TEST_BUCKET = "TEST_BUCKET"
@@ -43,8 +46,7 @@ TEST_DAG_ID = 'unit_tests_gcs_sensor'
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
-MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10)
-                   for i in range(25)]
+MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10) for i in range(25)]
 
 
 def next_time_side_effect():
@@ -86,17 +88,13 @@ class TestTsFunction(TestCase):
     def test_should_support_datetime(self):
         context = {
             'dag': DAG(dag_id=TEST_DAG_ID, schedule_interval=timedelta(days=5)),
-            'execution_date': datetime(2019, 2, 14, 0, 0)
+            'execution_date': datetime(2019, 2, 14, 0, 0),
         }
         result = ts_function(context)
         self.assertEqual(datetime(2019, 2, 19, 0, 0, tzinfo=timezone.utc), result)
 
     def test_should_support_cron(self):
-        dag = DAG(
-            dag_id=TEST_DAG_ID,
-            start_date=datetime(2019, 2, 19, 0, 0),
-            schedule_interval='@weekly'
-        )
+        dag = DAG(dag_id=TEST_DAG_ID, start_date=datetime(2019, 2, 19, 0, 0), schedule_interval='@weekly')
 
         context = {
             'dag': dag,
@@ -174,7 +172,8 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            poke_interval=0)
+            poke_interval=0,
+        )
         generated_messages = ['test-prefix/obj%s' % i for i in range(5)]
         mock_hook.return_value.list.return_value = generated_messages
 
@@ -191,20 +190,15 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.GCSHook')
     def test_execute_timeout(self, mock_hook):
         task = GCSObjectsWtihPrefixExistenceSensor(
-            task_id="task-id",
-            bucket=TEST_BUCKET,
-            prefix=TEST_PREFIX,
-            poke_interval=0,
-            timeout=1)
+            task_id="task-id", bucket=TEST_BUCKET, prefix=TEST_PREFIX, poke_interval=0, timeout=1
+        )
         mock_hook.return_value.list.return_value = []
         with self.assertRaises(AirflowSensorTimeout):
             task.execute(mock.MagicMock)
-            mock_hook.return_value.list.assert_called_once_with(
-                TEST_BUCKET, prefix=TEST_PREFIX)
+            mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
 
 
 class TestGCSUploadSessionCompleteSensor(TestCase):
-
     def setUp(self):
         args = {
             'owner': 'airflow',
@@ -225,7 +219,7 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            dag=self.dag
+            dag=self.dag,
         )
 
         self.last_mocked_date = datetime(2019, 4, 24, 0, 0, 0)
@@ -256,7 +250,7 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
             poke_interval=10,
             min_objects=1,
             allow_delete=True,
-            dag=self.dag
+            dag=self.dag,
         )
         self.sensor.is_bucket_updated({'a', 'b'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)

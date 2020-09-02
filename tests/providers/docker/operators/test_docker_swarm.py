@@ -27,7 +27,6 @@ from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 
 
 class TestDockerSwarmOperator(unittest.TestCase):
-
     @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     @mock.patch('airflow.providers.docker.operators.docker_swarm.types')
     def test_execute(self, types_mock, client_class_mock):
@@ -57,8 +56,15 @@ class TestDockerSwarmOperator(unittest.TestCase):
         client_class_mock.return_value = client_mock
 
         operator = DockerSwarmOperator(
-            api_version='1.19', command='env', environment={'UNIT': 'TEST'}, image='ubuntu:latest',
-            mem_limit='128m', user='unittest', task_id='unittest', auto_remove=True, tty=True,
+            api_version='1.19',
+            command='env',
+            environment={'UNIT': 'TEST'},
+            image='ubuntu:latest',
+            mem_limit='128m',
+            user='unittest',
+            task_id='unittest',
+            auto_remove=True,
+            tty=True,
         )
         operator.execute(None)
 
@@ -66,8 +72,11 @@ class TestDockerSwarmOperator(unittest.TestCase):
             container_spec=mock_obj, restart_policy=mock_obj, resources=mock_obj
         )
         types_mock.ContainerSpec.assert_called_once_with(
-            image='ubuntu:latest', command='env', user='unittest', tty=True,
-            env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'}
+            image='ubuntu:latest',
+            command='env',
+            user='unittest',
+            tty=True,
+            env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'},
         )
         types_mock.RestartPolicy.assert_called_once_with(condition='none')
         types_mock.Resources.assert_called_once_with(mem_limit='128m')
@@ -84,7 +93,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         self.assertEqual(
             len(csargs), 1, 'create_service called with different number of arguments than expected'
         )
-        self.assertEqual(csargs, (mock_obj, ))
+        self.assertEqual(csargs, (mock_obj,))
         self.assertEqual(cskwargs['labels'], {'name': 'airflow__adhoc_airflow__unittest'})
         self.assertTrue(cskwargs['name'].startswith('airflow-'))
         self.assertEqual(client_mock.tasks.call_count, 5)
@@ -112,8 +121,9 @@ class TestDockerSwarmOperator(unittest.TestCase):
         operator.execute(None)
 
         self.assertEqual(
-            client_mock.remove_service.call_count, 0,
-            'Docker service being removed even when `auto_remove` set to `False`'
+            client_mock.remove_service.call_count,
+            0,
+            'Docker service being removed even when `auto_remove` set to `False`',
         )
 
     @mock.patch('airflow.providers.docker.operators.docker.APIClient')
@@ -170,9 +180,16 @@ class TestDockerSwarmOperator(unittest.TestCase):
         client_class_mock.return_value = client_mock
 
         operator = DockerSwarmOperator(
-            api_version='1.19', command='env', environment={'UNIT': 'TEST'}, image='ubuntu:latest',
-            mem_limit='128m', user='unittest', task_id='unittest', auto_remove=True, tty=True,
-            enable_logging=True
+            api_version='1.19',
+            command='env',
+            environment={'UNIT': 'TEST'},
+            image='ubuntu:latest',
+            mem_limit='128m',
+            user='unittest',
+            task_id='unittest',
+            auto_remove=True,
+            tty=True,
+            enable_logging=True,
         )
         operator.execute(None)
 

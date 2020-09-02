@@ -55,18 +55,27 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('project_id', 'dataset_id', 'table_id', 'impersonation_chain',)
+
+    template_fields = (
+        'project_id',
+        'dataset_id',
+        'table_id',
+        'impersonation_chain',
+    )
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, *,
-                 project_id: str,
-                 dataset_id: str,
-                 table_id: str,
-                 bigquery_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        bigquery_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
 
         super().__init__(**kwargs)
         self.project_id = project_id
@@ -85,9 +94,8 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
         return hook.table_exists(
-            project_id=self.project_id,
-            dataset_id=self.dataset_id,
-            table_id=self.table_id)
+            project_id=self.project_id, dataset_id=self.dataset_id, table_id=self.table_id
+        )
 
 
 class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
@@ -122,20 +130,29 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('project_id', 'dataset_id', 'table_id', 'partition_id',
-                       'impersonation_chain',)
+
+    template_fields = (
+        'project_id',
+        'dataset_id',
+        'table_id',
+        'partition_id',
+        'impersonation_chain',
+    )
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, *,
-                 project_id: str,
-                 dataset_id: str,
-                 table_id: str,
-                 partition_id: str,
-                 bigquery_conn_id: str = 'google_cloud_default',
-                 delegate_to: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        partition_id: str,
+        bigquery_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
 
         super().__init__(**kwargs)
         self.project_id = project_id
@@ -158,5 +175,5 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
             project_id=self.project_id,
             dataset_id=self.dataset_id,
             table_id=self.table_id,
-            partition_id=self.partition_id
+            partition_id=self.partition_id,
         )

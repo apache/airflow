@@ -71,9 +71,9 @@ the following parameters:
 
 * ``connections_prefix``: Specifies the prefix of the secret to read to get Connections. Default: ``"airflow-connections"``
 * ``variables_prefix``: Specifies the prefix of the secret to read to get Variables. Default: ``"airflow-variables"``
-* ``gcp_key_path``: Path to GCP Credential JSON file.
+* ``gcp_key_path``: Path to Google Cloud Service Account Key file (JSON).
 * ``gcp_keyfile_dict``: Dictionary of keyfile parameters.
-* ``gcp_scopes``: Comma-separated string containing GCP scopes.
+* ``gcp_scopes``: Comma-separated string containing OAuth2 scopes.
 * ``sep``: Separator used to concatenate connections_prefix and conn_id. Default: ``"-"``
 * ``project_id``: Project ID to read the secrets from. If not passed, the project ID from credentials will be used.
 

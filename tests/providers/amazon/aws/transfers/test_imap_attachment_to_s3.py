@@ -23,7 +23,6 @@ from airflow.providers.amazon.aws.transfers.imap_attachment_to_s3 import ImapAtt
 
 
 class TestImapAttachmentToS3Operator(unittest.TestCase):
-
     def setUp(self):
         self.kwargs = dict(
             imap_attachment_name='test_file',
@@ -33,7 +32,7 @@ class TestImapAttachmentToS3Operator(unittest.TestCase):
             imap_mail_filter='All',
             s3_overwrite=False,
             task_id='test_task',
-            dag=None
+            dag=None,
         )
 
     @patch('airflow.providers.amazon.aws.transfers.imap_attachment_to_s3.S3Hook')
@@ -49,10 +48,10 @@ class TestImapAttachmentToS3Operator(unittest.TestCase):
             check_regex=self.kwargs['imap_check_regex'],
             latest_only=True,
             mail_folder=self.kwargs['imap_mail_folder'],
-            mail_filter=self.kwargs['imap_mail_filter']
+            mail_filter=self.kwargs['imap_mail_filter'],
         )
         mock_s3_hook.return_value.load_bytes.assert_called_once_with(
             bytes_data=mock_imap_hook.return_value.retrieve_mail_attachments.return_value[0][1],
             key=self.kwargs['s3_key'],
-            replace=self.kwargs['s3_overwrite']
+            replace=self.kwargs['s3_overwrite'],
         )

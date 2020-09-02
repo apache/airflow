@@ -63,9 +63,7 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
         )
         task.execute({})
         gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
@@ -74,9 +72,7 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
         self.assertEqual(kwargs["object_name"], SOURCE_OBJECT_NO_WILDCARD)
 
         args, kwargs = sftp_hook.return_value.store_file.call_args
-        self.assertEqual(
-            args[0], os.path.join(DESTINATION_SFTP, SOURCE_OBJECT_NO_WILDCARD)
-        )
+        self.assertEqual(args[0], os.path.join(DESTINATION_SFTP, SOURCE_OBJECT_NO_WILDCARD))
 
         gcs_hook.return_value.delete.assert_not_called()
 
@@ -96,9 +92,7 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
@@ -107,13 +101,9 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
         self.assertEqual(kwargs["object_name"], SOURCE_OBJECT_NO_WILDCARD)
 
         args, kwargs = sftp_hook.return_value.store_file.call_args
-        self.assertEqual(
-            args[0], os.path.join(DESTINATION_SFTP, SOURCE_OBJECT_NO_WILDCARD)
-        )
+        self.assertEqual(args[0], os.path.join(DESTINATION_SFTP, SOURCE_OBJECT_NO_WILDCARD))
 
-        gcs_hook.return_value.delete.assert_called_once_with(
-            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD
-        )
+        gcs_hook.return_value.delete.assert_called_once_with(TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD)
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
@@ -131,9 +121,7 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
         )
         operator.execute(None)
 
-        gcs_hook.return_value.list.assert_called_with(
-            TEST_BUCKET, delimiter=".txt", prefix="test_object"
-        )
+        gcs_hook.return_value.list.assert_called_with(TEST_BUCKET, delimiter=".txt", prefix="test_object")
 
         call_one, call_two = gcs_hook.return_value.download.call_args_list
         self.assertEqual(call_one[1]["bucket_name"], TEST_BUCKET)
@@ -158,9 +146,7 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
         )
         operator.execute(None)
 
-        gcs_hook.return_value.list.assert_called_with(
-            TEST_BUCKET, delimiter=".txt", prefix="test_object"
-        )
+        gcs_hook.return_value.list.assert_called_with(TEST_BUCKET, delimiter=".txt", prefix="test_object")
 
         call_one, call_two = gcs_hook.return_value.delete.call_args_list
         self.assertEqual(call_one[0], (TEST_BUCKET, "test_object/file1.txt"))

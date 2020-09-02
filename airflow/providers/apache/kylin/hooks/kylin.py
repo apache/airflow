@@ -33,11 +33,13 @@ class KylinHook(BaseHook):
     :param dsn: dsn
     :type dsn: Optional[str]
     """
-    def __init__(self,
-                 kylin_conn_id: Optional[str] = 'kylin_default',
-                 project: Optional[str] = None,
-                 dsn: Optional[str] = None
-                 ):
+
+    def __init__(
+        self,
+        kylin_conn_id: Optional[str] = 'kylin_default',
+        project: Optional[str] = None,
+        dsn: Optional[str] = None,
+    ):
         super().__init__()
         self.kylin_conn_id = kylin_conn_id
         self.project = project
@@ -49,9 +51,14 @@ class KylinHook(BaseHook):
             return kylinpy.create_kylin(self.dsn)
         else:
             self.project = self.project if self.project else conn.schema
-            return kylinpy.Kylin(conn.host, username=conn.login,
-                                 password=conn.password, port=conn.port,
-                                 project=self.project, **conn.extra_dejson)
+            return kylinpy.Kylin(
+                conn.host,
+                username=conn.login,
+                password=conn.password,
+                port=conn.port,
+                project=self.project,
+                **conn.extra_dejson,
+            )
 
     def cube_run(self, datasource_name, op, **op_args):
         """

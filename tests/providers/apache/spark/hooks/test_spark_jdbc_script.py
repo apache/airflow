@@ -19,8 +19,13 @@ import pytest
 from pyspark.sql.readwriter import DataFrameReader, DataFrameWriter
 
 from airflow.providers.apache.spark.hooks.spark_jdbc_script import (
-    SPARK_READ_FROM_JDBC, SPARK_WRITE_TO_JDBC, _create_spark_session, _parse_arguments, _run_spark,
-    spark_read_from_jdbc, spark_write_to_jdbc,
+    SPARK_READ_FROM_JDBC,
+    SPARK_WRITE_TO_JDBC,
+    _create_spark_session,
+    _parse_arguments,
+    _run_spark,
+    spark_read_from_jdbc,
+    spark_write_to_jdbc,
 )
 
 
@@ -32,25 +37,42 @@ def mock_spark_session():
 
 class TestSparkJDBCScrip:
     jdbc_arguments = [
-        '-cmdType', 'spark_to_jdbc',
-        '-url', 'jdbc:postgresql://localhost:5432/default',
-        '-user', 'user',
-        '-password', 'supersecret',
-        '-metastoreTable', 'hiveMcHiveFace',
-        '-jdbcTable', 'tableMcTableFace',
-        '-jdbcDriver', 'org.postgresql.Driver',
-        '-jdbcTruncate', 'false',
-        '-saveMode', 'append',
-        '-saveFormat', 'parquet',
-        '-batchsize', '100',
-        '-fetchsize', '200',
-        '-name', 'airflow-spark-jdbc-script-test',
-        '-numPartitions', '10',
-        '-partitionColumn', 'columnMcColumnFace',
-        '-lowerBound', '10',
-        '-upperBound', '20',
-        '-createTableColumnTypes', 'columnMcColumnFace INTEGER(100), name CHAR(64),'
-                                   'comments VARCHAR(1024)'
+        '-cmdType',
+        'spark_to_jdbc',
+        '-url',
+        'jdbc:postgresql://localhost:5432/default',
+        '-user',
+        'user',
+        '-password',
+        'supersecret',
+        '-metastoreTable',
+        'hiveMcHiveFace',
+        '-jdbcTable',
+        'tableMcTableFace',
+        '-jdbcDriver',
+        'org.postgresql.Driver',
+        '-jdbcTruncate',
+        'false',
+        '-saveMode',
+        'append',
+        '-saveFormat',
+        'parquet',
+        '-batchsize',
+        '100',
+        '-fetchsize',
+        '200',
+        '-name',
+        'airflow-spark-jdbc-script-test',
+        '-numPartitions',
+        '10',
+        '-partitionColumn',
+        'columnMcColumnFace',
+        '-lowerBound',
+        '10',
+        '-upperBound',
+        '20',
+        '-createTableColumnTypes',
+        'columnMcColumnFace INTEGER(100), name CHAR(64),comments VARCHAR(1024)',
     ]
 
     default_arguments = {
@@ -72,7 +94,7 @@ class TestSparkJDBCScrip:
         'lower_bound': '10',
         'upper_bound': '20',
         'create_table_column_types': 'columnMcColumnFace INTEGER(100), name CHAR(64),'
-                                     'comments VARCHAR(1024)'
+        'comments VARCHAR(1024)',
     }
 
     def test_parse_arguments(self):
@@ -87,10 +109,7 @@ class TestSparkJDBCScrip:
     def test_run_spark_write_to_jdbc(self, mock_spark_write_to_jdbc, mock_spark_session):
         # Given
         arguments = _parse_arguments(['-cmdType', SPARK_WRITE_TO_JDBC] + self.jdbc_arguments[2:])
-        spark_session = mock_spark_session.builder \
-            .appName(arguments.name) \
-            .enableHiveSupport() \
-            .getOrCreate()
+        spark_session = mock_spark_session.builder.appName(arguments.name).enableHiveSupport().getOrCreate()
 
         # When
         _run_spark(arguments=arguments)
@@ -115,10 +134,7 @@ class TestSparkJDBCScrip:
     def test_run_spark_read_from_jdbc(self, mock_spark_read_from_jdbc, mock_spark_session):
         # Given
         arguments = _parse_arguments(['-cmdType', SPARK_READ_FROM_JDBC] + self.jdbc_arguments[2:])
-        spark_session = mock_spark_session.builder \
-            .appName(arguments.name) \
-            .enableHiveSupport() \
-            .getOrCreate()
+        spark_session = mock_spark_session.builder.appName(arguments.name).enableHiveSupport().getOrCreate()
 
         # When
         _run_spark(arguments=arguments)
@@ -138,7 +154,7 @@ class TestSparkJDBCScrip:
             arguments.num_partitions,
             arguments.partition_column,
             arguments.lower_bound,
-            arguments.upper_bound
+            arguments.upper_bound,
         )
 
     @pytest.mark.system("spark")

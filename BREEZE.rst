@@ -433,7 +433,7 @@ Those are currently installed CLIs (they are available as aliases to the docker 
 +-----------------------+----------+-------------------------------------------------+-------------------+
 | Microsoft Azure       | az       | mcr.microsoft.com/azure-cli:latest              | .azure            |
 +-----------------------+----------+-------------------------------------------------+-------------------+
-| Google Cloud Platform | bq       | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
+| Google Cloud          | bq       | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
 |                       +----------+-------------------------------------------------+-------------------+
 |                       | gcloud   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
 |                       +----------+-------------------------------------------------+-------------------+
@@ -441,7 +441,7 @@ Those are currently installed CLIs (they are available as aliases to the docker 
 +-----------------------+----------+-------------------------------------------------+-------------------+
 
 For each of the CLIs we have also an accompanying ``*-update`` alias (for example ``aws-update``) which
-will pull the latest image for the tool. Note that all Google Cloud Platform tools are served by one
+will pull the latest image for the tool. Note that all Google Cloud tools are served by one
 image and they are updated together.
 
 Also - in case you run several different Breeze containers in parallel (from different directories,
@@ -686,12 +686,12 @@ The documentation build consists of three steps:
 * building documentation
 * spell checking
 
-You can disable the latter two by providing ``--disable-docs-build`` or ``--disable-spell-check`` after
-extra -- flag.
+You can choose only one stage of the two by providing ``--spellcheck-only`` or ``--docs-only`` after
+extra ``--`` flag.
 
 .. code-block:: bash
 
-     ./breeze build-docs -- --disable-docs-build
+     ./breeze build-docs -- --spellcheck-only
 
 
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
@@ -1046,10 +1046,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   ####################################################################################################
 
-  Usage: breeze [FLAGS] [COMMAND] -- <EXTRA_ARGS>
+  usage: breeze [FLAGS] [COMMAND] -- <EXTRA_ARGS>
 
-  By default the script enters IT environment and drops you to bash shell, but you can choose one
-  of the commands to run specific actions instead. Add --help after each command to see details:
+  By default the script enters the  CI container and drops you to bash shell, but you can choose
+  one of the commands to run specific actions instead.
+
+  Add --help after each command to see details:
 
   Commands without arguments:
 
@@ -1189,8 +1191,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 master
-                 v1-10-test
+                 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
+                 master v1-10-test
 
   -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
           If specified, installs Airflow directly from reference in GitHub. This happens at
@@ -1799,12 +1801,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Detailed usage for command: static-check
 
 
-  breeze static-check [FLAGS] STATIC_CHECK [-- <EXTRA_ARGS>]
+  breeze static-check [FLAGS] static_check [-- <EXTRA_ARGS>]
 
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all all-but-pylint airflow-config-yaml base-operator bat-tests build
+                 all all-but-pylint airflow-config-yaml base-operator bat-tests black build
                  build-providers-dependencies check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-hooks-apply check-integrations
                  check-merge-conflict check-xml consistent-pylint daysago-import-check
@@ -2008,8 +2010,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 master
-                 v1-10-test
+                 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
+                 master v1-10-test
 
   -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
           If specified, installs Airflow directly from reference in GitHub. This happens at

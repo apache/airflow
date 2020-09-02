@@ -36,9 +36,7 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook  # noqa
 from airflow.utils.decorators import apply_defaults
 
-REGEX_REPO_PATH = re.compile(
-    r"^/p/(?P<project_id>[^/]+)/r/(?P<repo_name>[^/]+)"
-)
+REGEX_REPO_PATH = re.compile(r"^/p/(?P<project_id>[^/]+)/r/(?P<repo_name>[^/]+)")
 
 
 class CloudBuildCancelBuildOperator(BaseOperator):
@@ -85,7 +83,7 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.id_ = id_
@@ -162,7 +160,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.build = build
@@ -191,8 +189,10 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         if self.body:
             warnings.warn(
-                "The body parameter has been deprecated. You should pass body using "
-                "the build parameter.", DeprecationWarning, stacklevel=4)
+                "The body parameter has been deprecated. You should pass body using " "the build parameter.",
+                DeprecationWarning,
+                stacklevel=4,
+            )
             if not self.build:
                 self.build = self.body
         build = BuildProcessor(build=self.build).process_body()
@@ -253,7 +253,7 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.trigger = trigger
@@ -318,7 +318,7 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.trigger_id = trigger_id
@@ -384,7 +384,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.id_ = id_
@@ -451,7 +451,7 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.trigger_id = trigger_id
@@ -521,7 +521,7 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id
@@ -593,7 +593,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id
@@ -666,7 +666,7 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.id_ = id_
@@ -742,7 +742,7 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.trigger_id = trigger_id
@@ -817,7 +817,7 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.trigger_id = trigger_id
@@ -860,10 +860,7 @@ class BuildProcessor:
         self.build = deepcopy(build)
 
     def _verify_source(self) -> None:
-        if not (
-            ("storage_source" in self.build["source"])
-            ^ ("repo_source" in self.build["source"])
-        ):
+        if not ("storage_source" in self.build["source"]) ^ ("repo_source" in self.build["source"]):
             raise AirflowException(
                 "The source could not be determined. Please choose one data source from: "
                 "storage_source and repo_source."
@@ -882,9 +879,7 @@ class BuildProcessor:
         if not isinstance(source, str):
             return
 
-        self.build["source"]["repo_source"] = self._convert_repo_url_to_dict(
-            source
-        )
+        self.build["source"]["repo_source"] = self._convert_repo_url_to_dict(source)
 
     def _reformat_storage_source(self) -> None:
         if "storage_source" not in self.build["source"]:
@@ -895,9 +890,7 @@ class BuildProcessor:
         if not isinstance(source, str):
             return
 
-        self.build["source"][
-            "storage_source"
-        ] = self._convert_storage_url_to_dict(source)
+        self.build["source"]["storage_source"] = self._convert_storage_url_to_dict(source)
 
     def process_body(self) -> Build:
         """
@@ -928,11 +921,7 @@ class BuildProcessor:
 
         match = REGEX_REPO_PATH.search(url_parts.path)
 
-        if (
-            url_parts.scheme != "https"
-            or url_parts.hostname != "source.developers.google.com"
-            or not match
-        ):
+        if url_parts.scheme != "https" or url_parts.hostname != "source.developers.google.com" or not match:
             raise AirflowException(
                 "Invalid URL. You must pass the URL in the format: "
                 "https://source.developers.google.com/p/airflow-project/r/airflow-repo#branch-name"
@@ -966,12 +955,7 @@ class BuildProcessor:
         """
         url_parts = urlparse(storage_url)
 
-        if (
-            url_parts.scheme != "gs"
-            or not url_parts.hostname
-            or not url_parts.path
-            or url_parts.path == "/"
-        ):
+        if url_parts.scheme != "gs" or not url_parts.hostname or not url_parts.path or url_parts.path == "/":
             raise AirflowException(
                 "Invalid URL. You must pass the URL in the format: "
                 "gs://bucket-name/object-name.tar.gz#24565443"

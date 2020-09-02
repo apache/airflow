@@ -34,7 +34,7 @@ dag = DAG(
     default_args=args,
     schedule_interval=None,
     start_date=days_ago(1),
-    tags=['example']
+    tags=['example'],
 )
 
 
@@ -49,11 +49,7 @@ def gen_build_time(**kwargs):
     ti.xcom_push(key='date_end', value='1325433600000')
 
 
-gen_build_time_task = PythonOperator(
-    python_callable=gen_build_time,
-    task_id='gen_build_time',
-    dag=dag
-)
+gen_build_time_task = PythonOperator(python_callable=gen_build_time, task_id='gen_build_time', dag=dag)
 
 build_task1 = KylinCubeOperator(
     task_id="kylin_build_1",

@@ -38,6 +38,7 @@ class DatadogHook(BaseHook, LoggingMixin):
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
     :param datadog_conn_id: str
     """
+
     def __init__(self, datadog_conn_id: str = 'datadog_default') -> None:
         super().__init__()
         conn = self.get_connection(datadog_conn_id)
@@ -50,8 +51,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         self.host = conn.host
 
         if self.api_key is None:
-            raise AirflowException("api_key must be specified in the "
-                                   "Datadog connection details")
+            raise AirflowException("api_key must be specified in the " "Datadog connection details")
 
         self.log.info("Setting up api keys for Datadog")
         initialize(api_key=self.api_key, app_key=self.app_key)
@@ -64,11 +64,14 @@ class DatadogHook(BaseHook, LoggingMixin):
             self.log.error("Datadog returned: %s", response)
             raise AirflowException("Error status received from Datadog")
 
-    def send_metric(self, metric_name: str,
-                    datapoint: Union[float, int],
-                    tags: Optional[List[str]] = None,
-                    type_: Optional[str] = None,
-                    interval: Optional[int] = None) -> Dict[str, Any]:
+    def send_metric(
+        self,
+        metric_name: str,
+        datapoint: Union[float, int],
+        tags: Optional[List[str]] = None,
+        type_: Optional[str] = None,
+        interval: Optional[int] = None,
+    ) -> Dict[str, Any]:
         """
         Sends a single datapoint metric to DataDog
 
@@ -84,20 +87,13 @@ class DatadogHook(BaseHook, LoggingMixin):
         :type interval: int
         """
         response = api.Metric.send(
-            metric=metric_name,
-            points=datapoint,
-            host=self.host,
-            tags=tags,
-            type=type_,
-            interval=interval)
+            metric=metric_name, points=datapoint, host=self.host, tags=tags, type=type_, interval=interval
+        )
 
         self.validate_response(response)
         return response
 
-    def query_metric(self,
-                     query: str,
-                     from_seconds_ago: int,
-                     to_seconds_ago: int) -> Dict[str, Any]:
+    def query_metric(self, query: str, from_seconds_ago: int, to_seconds_ago: int) -> Dict[str, Any]:
         """
         Queries datadog for a specific metric, potentially with some
         function applied to it and returns the results.
@@ -111,25 +107,25 @@ class DatadogHook(BaseHook, LoggingMixin):
         """
         now = int(time.time())
 
-        response = api.Metric.query(
-            start=now - from_seconds_ago,
-            end=now - to_seconds_ago,
-            query=query)
+        response = api.Metric.query(start=now - from_seconds_ago, end=now - to_seconds_ago, query=query)
 
         self.validate_response(response)
         return response
 
     # pylint: disable=too-many-arguments
-    def post_event(self, title: str,
-                   text: str,
-                   aggregation_key: Optional[str] = None,
-                   alert_type: Optional[str] = None,
-                   date_happened: Optional[int] = None,
-                   handle: Optional[str] = None,
-                   priority: Optional[str] = None,
-                   related_event_id: Optional[int] = None,
-                   tags: Optional[List[str]] = None,
-                   device_name: Optional[List[str]] = None) -> Dict[str, Any]:
+    def post_event(
+        self,
+        title: str,
+        text: str,
+        aggregation_key: Optional[str] = None,
+        alert_type: Optional[str] = None,
+        date_happened: Optional[int] = None,
+        handle: Optional[str] = None,
+        priority: Optional[str] = None,
+        related_event_id: Optional[int] = None,
+        tags: Optional[List[str]] = None,
+        device_name: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """
         Posts an event to datadog (processing finished, potentially alerts, other issues)
         Think about this as a means to maintain persistence of alerts, rather than
@@ -170,7 +166,8 @@ class DatadogHook(BaseHook, LoggingMixin):
             tags=tags,
             host=self.host,
             device_name=device_name,
-            source_type_name=self.source_type_name)
+            source_type_name=self.source_type_name,
+        )
 
         self.validate_response(response)
         return response

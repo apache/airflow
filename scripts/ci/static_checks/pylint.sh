@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
-
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
@@ -35,14 +33,12 @@ function run_pylint() {
     fi
 }
 
-get_environment_for_builds_on_ci
+build_images::prepare_ci_build
 
-prepare_ci_build
-
-rebuild_ci_image_if_needed
+build_images::rebuild_ci_image_if_needed
 
 if [[ "${#@}" != "0" ]]; then
-    filter_out_files_from_pylint_todo_list "$@"
+    pylint::filter_out_files_from_pylint_todo_list "$@"
 
     if [[ "${#FILTERED_FILES[@]}" == "0" ]]; then
         echo "Filtered out all files. Skipping pylint."

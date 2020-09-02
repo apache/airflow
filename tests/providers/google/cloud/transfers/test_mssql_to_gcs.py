@@ -32,34 +32,28 @@ BUCKET = 'gs://test'
 JSON_FILENAME = 'test_{}.ndjson'
 GZIP = False
 
-ROWS = [
-    ('mock_row_content_1', 42),
-    ('mock_row_content_2', 43),
-    ('mock_row_content_3', 44)
-]
+ROWS = [('mock_row_content_1', 42), ('mock_row_content_2', 43), ('mock_row_content_3', 44)]
 CURSOR_DESCRIPTION = (
     ('some_str', 0, None, None, None, None, None),
-    ('some_num', 3, None, None, None, None, None)
+    ('some_num', 3, None, None, None, None, None),
 )
 NDJSON_LINES = [
     b'{"some_num": 42, "some_str": "mock_row_content_1"}\n',
     b'{"some_num": 43, "some_str": "mock_row_content_2"}\n',
-    b'{"some_num": 44, "some_str": "mock_row_content_3"}\n'
+    b'{"some_num": 44, "some_str": "mock_row_content_3"}\n',
 ]
 SCHEMA_FILENAME = 'schema_test.json'
 SCHEMA_JSON = [
     b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, ',
-    b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}]'
+    b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}]',
 ]
 
 
 @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
 class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
-
     def test_init(self):
         """Test MySqlToGoogleCloudStorageOperator instance is properly initialized."""
-        op = MSSQLToGCSOperator(
-            task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME)
+        op = MSSQLToGCSOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME)
         self.assertEqual(op.task_id, TASK_ID)
         self.assertEqual(op.sql, SQL)
         self.assertEqual(op.bucket, BUCKET)
@@ -70,11 +64,8 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
     def test_exec_success_json(self, gcs_hook_mock_class, mssql_hook_mock_class):
         """Test successful run of execute function for JSON"""
         op = MSSQLToGCSOperator(
-            task_id=TASK_ID,
-            mssql_conn_id=MSSQL_CONN_ID,
-            sql=SQL,
-            bucket=BUCKET,
-            filename=JSON_FILENAME)
+            task_id=TASK_ID, mssql_conn_id=MSSQL_CONN_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME
+        )
 
         mssql_hook_mock = mssql_hook_mock_class.return_value
         mssql_hook_mock.get_conn().cursor().__iter__.return_value = iter(ROWS)
@@ -125,7 +116,8 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
             sql=SQL,
             bucket=BUCKET,
             filename=JSON_FILENAME,
-            approx_max_file_size_bytes=len(expected_upload[JSON_FILENAME.format(0)]))
+            approx_max_file_size_bytes=len(expected_upload[JSON_FILENAME.format(0)]),
+        )
         op.execute(None)
 
     @mock.patch('airflow.providers.google.cloud.transfers.mssql_to_gcs.MsSqlHook')
@@ -146,11 +138,8 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
         gcs_hook_mock.upload.side_effect = _assert_upload
 
         op = MSSQLToGCSOperator(
-            task_id=TASK_ID,
-            sql=SQL,
-            bucket=BUCKET,
-            filename=JSON_FILENAME,
-            schema_filename=SCHEMA_FILENAME)
+            task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME, schema_filename=SCHEMA_FILENAME
+        )
         op.execute(None)
 
         # once for the file and once for the schema

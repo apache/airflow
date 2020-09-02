@@ -64,27 +64,30 @@ class OpsgenieAlertOperator(BaseOperator):
     :param note: Additional note that will be added while creating the alert. (templated)
     :type note: str
     """
+
     template_fields = ('message', 'alias', 'description', 'entity', 'priority', 'note')
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self, *,
-                 message,
-                 opsgenie_conn_id='opsgenie_default',
-                 alias=None,
-                 description=None,
-                 responders=None,
-                 visible_to=None,
-                 actions=None,
-                 tags=None,
-                 details=None,
-                 entity=None,
-                 source=None,
-                 priority=None,
-                 user=None,
-                 note=None,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        *,
+        message,
+        opsgenie_conn_id='opsgenie_default',
+        alias=None,
+        description=None,
+        responders=None,
+        visible_to=None,
+        actions=None,
+        tags=None,
+        details=None,
+        entity=None,
+        source=None,
+        priority=None,
+        user=None,
+        note=None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
 
         self.message = message
@@ -113,9 +116,19 @@ class OpsgenieAlertOperator(BaseOperator):
         payload = {}
 
         for key in [
-            "message", "alias", "description", "responders",
-            "visible_to", "actions", "tags", "details", "entity",
-            "source", "priority", "user", "note"
+            "message",
+            "alias",
+            "description",
+            "responders",
+            "visible_to",
+            "actions",
+            "tags",
+            "details",
+            "entity",
+            "source",
+            "priority",
+            "user",
+            "note",
         ]:
             val = getattr(self, key)
             if val:

@@ -260,7 +260,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ci-images]
     env:
-      INSTALL_AIRFLOW_VERSION: "1.10.10"
+      INSTALL_AIRFLOW_VERSION: "1.10.12"
       PYTHON_MAJOR_MINOR_VERSION: 3.6
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
@@ -773,8 +773,6 @@ jobs:
       - tests-kubernetes
       - constraints-push
       - prepare-backport-packages
-      - push-prod-images-to-github-registry
-      - push-ci-images-to-github-registry
     if: github.event_name == 'schedule' &&  github.repository == 'apache/airflow'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"

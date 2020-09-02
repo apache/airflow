@@ -17,6 +17,5 @@
  under the License.
  -->
 
-This directory should be removed as soon as we release Airflow 1.10.12
-and sufficient time passes for everyone to switch to new way of retrieving
-constraints.
+The dockerfile and build script for pgbouncer-exporter can be found
+in https://github.com/apache/airflow-pgbouncer-exporter

@@ -37,7 +37,7 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
             ClusterIdentifier='test_cluster',
             NodeType='dc1.large',
             MasterUsername='admin',
-            MasterUserPassword='mock_password'
+            MasterUserPassword='mock_password',
         )
         if not client.describe_clusters()['Clusters']:
             raise ValueError('AWS not properly mocked')
@@ -46,24 +46,28 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
     @mock_redshift
     def test_poke(self):
         self._create_cluster()
-        op = AwsRedshiftClusterSensor(task_id='test_cluster_sensor',
-                                      poke_interval=1,
-                                      timeout=5,
-                                      aws_conn_id='aws_default',
-                                      cluster_identifier='test_cluster',
-                                      target_status='available')
+        op = AwsRedshiftClusterSensor(
+            task_id='test_cluster_sensor',
+            poke_interval=1,
+            timeout=5,
+            aws_conn_id='aws_default',
+            cluster_identifier='test_cluster',
+            target_status='available',
+        )
         self.assertTrue(op.poke(None))
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift
     def test_poke_false(self):
         self._create_cluster()
-        op = AwsRedshiftClusterSensor(task_id='test_cluster_sensor',
-                                      poke_interval=1,
-                                      timeout=5,
-                                      aws_conn_id='aws_default',
-                                      cluster_identifier='test_cluster_not_found',
-                                      target_status='available')
+        op = AwsRedshiftClusterSensor(
+            task_id='test_cluster_sensor',
+            poke_interval=1,
+            timeout=5,
+            aws_conn_id='aws_default',
+            cluster_identifier='test_cluster_not_found',
+            target_status='available',
+        )
 
         self.assertFalse(op.poke(None))
 
@@ -71,11 +75,13 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
     @mock_redshift
     def test_poke_cluster_not_found(self):
         self._create_cluster()
-        op = AwsRedshiftClusterSensor(task_id='test_cluster_sensor',
-                                      poke_interval=1,
-                                      timeout=5,
-                                      aws_conn_id='aws_default',
-                                      cluster_identifier='test_cluster_not_found',
-                                      target_status='cluster_not_found')
+        op = AwsRedshiftClusterSensor(
+            task_id='test_cluster_sensor',
+            poke_interval=1,
+            timeout=5,
+            aws_conn_id='aws_default',
+            cluster_identifier='test_cluster_not_found',
+            target_status='cluster_not_found',
+        )
 
         self.assertTrue(op.poke(None))

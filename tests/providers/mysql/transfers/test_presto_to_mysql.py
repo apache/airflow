@@ -24,13 +24,8 @@ from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
 
 
 class TestPrestoToMySqlTransfer(TestHiveEnvironment):
-
     def setUp(self):
-        self.kwargs = dict(
-            sql='sql',
-            mysql_table='mysql_table',
-            task_id='test_presto_to_mysql_transfer',
-        )
+        self.kwargs = dict(sql='sql', mysql_table='mysql_table', task_id='test_presto_to_mysql_transfer',)
         super().setUp()
 
     @patch('airflow.providers.mysql.transfers.presto_to_mysql.MySqlHook')
@@ -40,7 +35,8 @@ class TestPrestoToMySqlTransfer(TestHiveEnvironment):
 
         mock_presto_hook.return_value.get_records.assert_called_once_with(self.kwargs['sql'])
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
-            table=self.kwargs['mysql_table'], rows=mock_presto_hook.return_value.get_records.return_value)
+            table=self.kwargs['mysql_table'], rows=mock_presto_hook.return_value.get_records.return_value
+        )
 
     @patch('airflow.providers.mysql.transfers.presto_to_mysql.MySqlHook')
     @patch('airflow.providers.mysql.transfers.presto_to_mysql.PrestoHook')
@@ -52,11 +48,12 @@ class TestPrestoToMySqlTransfer(TestHiveEnvironment):
         mock_presto_hook.return_value.get_records.assert_called_once_with(self.kwargs['sql'])
         mock_mysql_hook.return_value.run.assert_called_once_with(self.kwargs['mysql_preoperator'])
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
-            table=self.kwargs['mysql_table'], rows=mock_presto_hook.return_value.get_records.return_value)
+            table=self.kwargs['mysql_table'], rows=mock_presto_hook.return_value.get_records.return_value
+        )
 
     @unittest.skipIf(
-        'AIRFLOW_RUNALL_TESTS' not in os.environ,
-        "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+        'AIRFLOW_RUNALL_TESTS' not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set"
+    )
     def test_presto_to_mysql(self):
         op = PrestoToMySqlOperator(
             task_id='presto_to_mysql_check',
@@ -67,6 +64,6 @@ class TestPrestoToMySqlTransfer(TestHiveEnvironment):
                 """,
             mysql_table='test_static_babynames',
             mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
+            dag=self.dag,
+        )
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

@@ -22,14 +22,11 @@ import pytest
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.system_tests_class import SystemTest
 
-HTTP_DAG_FOLDER = os.path.join(
-    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "http", "example_dags"
-)
+HTTP_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "providers", "http", "example_dags")
 
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.system("http")
 class HttpExampleDagsSystemTest(SystemTest):
-
     def test_run_example_dag_http(self):
         self.run_dag('example_http_operator', HTTP_DAG_FOLDER)

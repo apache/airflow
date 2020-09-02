@@ -44,19 +44,22 @@ class EmrAddStepsOperator(BaseOperator):
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     :type do_xcom_push: bool
     """
+
     template_fields = ['job_flow_id', 'job_flow_name', 'cluster_states', 'steps']
     template_ext = ('.json',)
     ui_color = '#f9c915'
 
     @apply_defaults
     def __init__(
-            self, *,
-            job_flow_id=None,
-            job_flow_name=None,
-            cluster_states=None,
-            aws_conn_id='aws_default',
-            steps=None,
-            **kwargs):
+        self,
+        *,
+        job_flow_id=None,
+        job_flow_name=None,
+        cluster_states=None,
+        aws_conn_id='aws_default',
+        steps=None,
+        **kwargs,
+    ):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         if not (job_flow_id is None) ^ (job_flow_name is None):
@@ -74,8 +77,9 @@ class EmrAddStepsOperator(BaseOperator):
 
         emr = emr_hook.get_conn()
 
-        job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(self.job_flow_name,
-                                                                          self.cluster_states)
+        job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(
+            self.job_flow_name, self.cluster_states
+        )
         if not job_flow_id:
             raise AirflowException(f'No cluster found for name: {self.job_flow_name}')
 

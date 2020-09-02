@@ -46,17 +46,19 @@ class S3ToSnowflakeOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
-                 *,
-                 s3_keys,
-                 table,
-                 stage,
-                 file_format,
-                 schema,  # TODO: shouldn't be required, rely on session/user defaults
-                 columns_array=None,
-                 autocommit=True,
-                 snowflake_conn_id='snowflake_default',
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        s3_keys,
+        table,
+        stage,
+        file_format,
+        schema,  # TODO: shouldn't be required, rely on session/user defaults
+        columns_array=None,
+        autocommit=True,
+        snowflake_conn_id='snowflake_default',
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.s3_keys = s3_keys
         self.table = table
@@ -82,27 +84,20 @@ class S3ToSnowflakeOperator(BaseOperator):
                     files={files}
                     file_format={file_format}
                 """.format(
-            stage=self.stage,
-            files=files,
-            file_format=self.file_format
+            stage=self.stage, files=files, file_format=self.file_format
         )
 
         if self.columns_array:
             copy_query = """
                 COPY INTO {schema}.{table}({columns}) {base_sql}
             """.format(
-                schema=self.schema,
-                table=self.table,
-                columns=",".join(self.columns_array),
-                base_sql=base_sql
+                schema=self.schema, table=self.table, columns=",".join(self.columns_array), base_sql=base_sql
             )
         else:
             copy_query = """
                 COPY INTO {schema}.{table} {base_sql}
             """.format(
-                schema=self.schema,
-                table=self.table,
-                base_sql=base_sql
+                schema=self.schema, table=self.table, base_sql=base_sql
             )
 
         self.log.info('Executing COPY command...')

@@ -26,16 +26,10 @@ from airflow.providers.vertica.hooks.vertica import VerticaHook
 
 
 class TestVerticaHookConn(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(
-            login='login',
-            password='password',
-            host='host',
-            schema='vertica',
-        )
+        self.connection = Connection(login='login', password='password', host='host', schema='vertica',)
 
         class UnitTestVerticaHook(VerticaHook):
             conn_name_attr = 'vertica_conn_id'
@@ -47,13 +41,12 @@ class TestVerticaHookConn(unittest.TestCase):
     @patch('airflow.providers.vertica.hooks.vertica.connect')
     def test_get_conn(self, mock_connect):
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(host='host', port=5433,
-                                             database='vertica', user='login',
-                                             password="password")
+        mock_connect.assert_called_once_with(
+            host='host', port=5433, database='vertica', user='login', password="password"
+        )
 
 
 class TestVerticaHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -73,8 +66,7 @@ class TestVerticaHook(unittest.TestCase):
     @patch('airflow.hooks.dbapi_hook.DbApiHook.insert_rows')
     def test_insert_rows(self, mock_insert_rows):
         table = "table"
-        rows = [("hello",),
-                ("world",)]
+        rows = [("hello",), ("world",)]
         target_fields = None
         commit_every = 10
         self.db_hook.insert_rows(table, rows, target_fields, commit_every)

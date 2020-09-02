@@ -27,10 +27,32 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
-    ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_S3_DATA_SOURCE, BUCKET_NAME, DAY, DESCRIPTION, GCS_DATA_SINK,
-    GCS_DATA_SOURCE, HOURS, HTTP_DATA_SOURCE, MINUTES, MONTH, OBJECT_CONDITIONS, PROJECT_ID, SCHEDULE,
-    SCHEDULE_END_DATE, SCHEDULE_START_DATE, SECONDS, SECRET_ACCESS_KEY, START_TIME_OF_DAY, STATUS,
-    TRANSFER_OPTIONS, TRANSFER_SPEC, YEAR, CloudDataTransferServiceHook, GcpTransferJobsStatus,
+    ACCESS_KEY_ID,
+    AWS_ACCESS_KEY,
+    AWS_S3_DATA_SOURCE,
+    BUCKET_NAME,
+    DAY,
+    DESCRIPTION,
+    GCS_DATA_SINK,
+    GCS_DATA_SOURCE,
+    HOURS,
+    HTTP_DATA_SOURCE,
+    MINUTES,
+    MONTH,
+    OBJECT_CONDITIONS,
+    PROJECT_ID,
+    SCHEDULE,
+    SCHEDULE_END_DATE,
+    SCHEDULE_START_DATE,
+    SECONDS,
+    SECRET_ACCESS_KEY,
+    START_TIME_OF_DAY,
+    STATUS,
+    TRANSFER_OPTIONS,
+    TRANSFER_SPEC,
+    YEAR,
+    CloudDataTransferServiceHook,
+    GcpTransferJobsStatus,
 )
 from airflow.utils.decorators import apply_defaults
 
@@ -73,10 +95,7 @@ class TransferJobPreprocessor:
     def _reformat_schedule(self):
         if SCHEDULE not in self.body:
             if self.default_schedule:
-                self.body[SCHEDULE] = {
-                    SCHEDULE_START_DATE: date.today(),
-                    SCHEDULE_END_DATE: date.today()
-                }
+                self.body[SCHEDULE] = {SCHEDULE_START_DATE: date.today(), SCHEDULE_END_DATE: date.today()}
             else:
                 return
         self._reformat_date(SCHEDULE_START_DATE)
@@ -115,6 +134,7 @@ class TransferJobValidator:
     """
     Helper class for validating transfer job body.
     """
+
     def __init__(self, body: dict) -> None:
         if not body:
             raise AirflowException("The required parameter 'body' is empty or None")
@@ -166,7 +186,7 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
         * transfer job `name` has been soft deleted. In this case,
           each new task will receive a unique suffix
 
-        If you run it many times, many transfer jobs will be created in the Google Cloud Platform.
+        If you run it many times, many transfer jobs will be created in the Google Cloud.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -185,8 +205,7 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
     :param aws_conn_id: The connection ID used to retrieve credentials to
         Amazon Web Service.
     :type aws_conn_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud
-        Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1).
     :type api_version: str
@@ -200,19 +219,26 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_transfer_job_create_template_fields]
-    template_fields = ('body', 'gcp_conn_id', 'aws_conn_id', 'google_impersonation_chain',)
+    template_fields = (
+        'body',
+        'gcp_conn_id',
+        'aws_conn_id',
+        'google_impersonation_chain',
+    )
     # [END gcp_transfer_job_create_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         body: dict,
         aws_conn_id: str = 'aws_default',
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.body = deepcopy(body)
@@ -258,8 +284,7 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
     :param aws_conn_id: The connection ID used to retrieve credentials to
         Amazon Web Service.
     :type aws_conn_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud
-        Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1).
     :type api_version: str
@@ -273,21 +298,28 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_transfer_job_update_template_fields]
-    template_fields = ('job_name', 'body', 'gcp_conn_id', 'aws_conn_id',
-                       'google_impersonation_chain',)
+    template_fields = (
+        'job_name',
+        'body',
+        'gcp_conn_id',
+        'aws_conn_id',
+        'google_impersonation_chain',
+    )
     # [END gcp_transfer_job_update_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         job_name: str,
         body: dict,
         aws_conn_id: str = 'aws_default',
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.job_name = job_name
@@ -327,11 +359,10 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
     :param job_name: (Required) Name of the TRANSFER operation
     :type job_name: str
     :param project_id: (Optional) the ID of the project that owns the Transfer
-        Job. If set to None or missing, the default project_id from the GCP
+        Job. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud
-        Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1).
     :type api_version: str
@@ -345,20 +376,27 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_transfer_job_delete_template_fields]
-    template_fields = ('job_name', 'project_id', 'gcp_conn_id', 'api_version',
-                       'google_impersonation_chain',)
+    template_fields = (
+        'job_name',
+        'project_id',
+        'gcp_conn_id',
+        'api_version',
+        'google_impersonation_chain',
+    )
     # [END gcp_transfer_job_delete_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         job_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         project_id: Optional[str] = None,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.job_name = job_name
@@ -408,18 +446,24 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_transfer_operation_get_template_fields]
-    template_fields = ('operation_name', 'gcp_conn_id', 'google_impersonation_chain',)
+    template_fields = (
+        'operation_name',
+        'gcp_conn_id',
+        'google_impersonation_chain',
+    )
     # [END gcp_transfer_operation_get_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.operation_name = operation_name
@@ -469,16 +513,23 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_transfer_operations_list_template_fields]
-    template_fields = ('filter', 'gcp_conn_id', 'google_impersonation_chain',)
+    template_fields = (
+        'filter',
+        'gcp_conn_id',
+        'google_impersonation_chain',
+    )
     # [END gcp_transfer_operations_list_template_fields]
 
-    def __init__(self,
-                 request_filter: Optional[Dict] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 api_version: str = 'v1',
-                 google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        request_filter: Optional[Dict] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1',
+        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if request_filter is None:
@@ -520,7 +571,7 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version:  API version used (e.g. v1).
     :type api_version: str
@@ -534,19 +585,25 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_transfer_operation_pause_template_fields]
-    template_fields = ('operation_name', 'gcp_conn_id', 'api_version',
-                       'google_impersonation_chain',)
+    template_fields = (
+        'operation_name',
+        'gcp_conn_id',
+        'api_version',
+        'google_impersonation_chain',
+    )
     # [END gcp_transfer_operation_pause_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.operation_name = operation_name
@@ -578,7 +635,7 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param api_version: API version used (e.g. v1).
     :type api_version: str
     :type gcp_conn_id: str
@@ -592,19 +649,25 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_transfer_operation_resume_template_fields]
-    template_fields = ('operation_name', 'gcp_conn_id', 'api_version',
-                       'google_impersonation_chain',)
+    template_fields = (
+        'operation_name',
+        'gcp_conn_id',
+        'api_version',
+        'google_impersonation_chain',
+    )
     # [END gcp_transfer_operation_resume_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
@@ -651,19 +714,25 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
+
     # [START gcp_transfer_operation_cancel_template_fields]
-    template_fields = ('operation_name', 'gcp_conn_id', 'api_version',
-                       'google_impersonation_chain',)
+    template_fields = (
+        'operation_name',
+        'gcp_conn_id',
+        'api_version',
+        'google_impersonation_chain',
+    )
     # [END gcp_transfer_operation_cancel_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.operation_name = operation_name
@@ -688,12 +757,12 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
 class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     """
     Synchronizes an S3 bucket with a Google Cloud Storage bucket using the
-    GCP Storage Transfer Service.
+    Google Cloud Storage Transfer Service.
 
     .. warning::
 
         This operator is NOT idempotent. If you run it many times, many transfer
-        jobs will be created in the Google Cloud Platform.
+        jobs will be created in the Google Cloud.
 
     **Example**:
 
@@ -711,7 +780,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     :param gcs_bucket: The destination Google Cloud Storage bucket
         where you want to store the files. (templated)
     :type gcs_bucket: str
-    :param project_id: Optional ID of the Google Cloud Platform Console project that
+    :param project_id: Optional ID of the Google Cloud Console project that
         owns the job
     :type project_id: str
     :param aws_conn_id: The source S3 connection
@@ -755,13 +824,20 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('gcp_conn_id', 's3_bucket', 'gcs_bucket', 'description', 'object_conditions',
-                       'google_impersonation_chain',)
+    template_fields = (
+        'gcp_conn_id',
+        's3_bucket',
+        'gcs_bucket',
+        'description',
+        'object_conditions',
+        'google_impersonation_chain',
+    )
     ui_color = '#e09411'
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self, *,
+        self,
+        *,
         s3_bucket: str,
         gcs_bucket: str,
         project_id: Optional[str] = None,
@@ -775,7 +851,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         wait: bool = True,
         timeout: Optional[float] = None,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
 
         super().__init__(**kwargs)
@@ -835,13 +911,12 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
 
 class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     """
-    Copies objects from a bucket to another using the GCP Storage Transfer
-    Service.
+    Copies objects from a bucket to another using the Google Cloud Storage Transfer Service.
 
     .. warning::
 
         This operator is NOT idempotent. If you run it many times, many transfer
-        jobs will be created in the Google Cloud Platform.
+        jobs will be created in the Google Cloud.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -864,7 +939,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     :param destination_bucket: The destination Google Cloud Storage bucket
         where the object should be. (templated)
     :type destination_bucket: str
-    :param project_id: The ID of the Google Cloud Platform Console project that
+    :param project_id: The ID of the Google Cloud Console project that
         owns the job
     :type project_id: str
     :param gcp_conn_id: Optional connection ID to use when connecting to Google Cloud
@@ -918,7 +993,8 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self, *,
+        self,
+        *,
         source_bucket: str,
         destination_bucket: str,
         project_id: Optional[str] = None,
@@ -931,7 +1007,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         wait: bool = True,
         timeout: Optional[float] = None,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
 
         super().__init__(**kwargs)

@@ -36,10 +36,17 @@ from future.backports.urllib.parse import urlparse
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_build import (
-    CloudBuildCancelBuildOperator, CloudBuildCreateBuildOperator, CloudBuildCreateBuildTriggerOperator,
-    CloudBuildDeleteBuildTriggerOperator, CloudBuildGetBuildOperator, CloudBuildGetBuildTriggerOperator,
-    CloudBuildListBuildsOperator, CloudBuildListBuildTriggersOperator, CloudBuildRetryBuildOperator,
-    CloudBuildRunBuildTriggerOperator, CloudBuildUpdateBuildTriggerOperator,
+    CloudBuildCancelBuildOperator,
+    CloudBuildCreateBuildOperator,
+    CloudBuildCreateBuildTriggerOperator,
+    CloudBuildDeleteBuildTriggerOperator,
+    CloudBuildGetBuildOperator,
+    CloudBuildGetBuildTriggerOperator,
+    CloudBuildListBuildsOperator,
+    CloudBuildListBuildTriggersOperator,
+    CloudBuildRetryBuildOperator,
+    CloudBuildRunBuildTriggerOperator,
+    CloudBuildUpdateBuildTriggerOperator,
 )
 from airflow.utils import dates
 
@@ -174,9 +181,10 @@ with models.DAG(
 
     # [START howto_operator_gcp_create_build_from_yaml_body]
     create_build_from_file = CloudBuildCreateBuildOperator(
-        task_id="create_build_from_file", project_id=GCP_PROJECT_ID,
+        task_id="create_build_from_file",
+        project_id=GCP_PROJECT_ID,
         build=str(CURRENT_FOLDER.joinpath('example_cloud_build.yaml')),
-        params={'name': 'Airflow'}
+        params={'name': 'Airflow'},
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
 
@@ -236,8 +244,7 @@ with models.DAG(
 
     # [START howto_operator_list_build_triggers]
     list_build_triggers = CloudBuildListBuildTriggersOperator(
-        task_id="list_build_triggers",
-        project_id=GCP_PROJECT_ID,
+        task_id="list_build_triggers", project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_list_build_triggers]
 

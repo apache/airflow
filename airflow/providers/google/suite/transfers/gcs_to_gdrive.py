@@ -66,7 +66,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
     :param move_object: When move object is True, the object is moved instead of copied to the new location.
         This is the equivalent of a mv command as opposed to a cp command.
     :type move_object: bool
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -83,13 +83,18 @@ class GCSToGoogleDriveOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("source_bucket", "source_object", "destination_object",
-                       "impersonation_chain",)
+    template_fields = (
+        "source_bucket",
+        "source_object",
+        "destination_object",
+        "impersonation_chain",
+    )
     ui_color = "#f0eee4"
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         source_bucket: str,
         source_object: str,
         destination_object: Optional[str] = None,
@@ -97,7 +102,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
 

@@ -64,21 +64,24 @@ class SparkSqlOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self, *,
-                 sql: str,
-                 conf: Optional[str] = None,
-                 conn_id: str = 'spark_sql_default',
-                 total_executor_cores: Optional[int] = None,
-                 executor_cores: Optional[int] = None,
-                 executor_memory: Optional[str] = None,
-                 keytab: Optional[str] = None,
-                 principal: Optional[str] = None,
-                 master: str = 'yarn',
-                 name: str = 'default-name',
-                 num_executors: Optional[int] = None,
-                 verbose: bool = True,
-                 yarn_queue: str = 'default',
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        sql: str,
+        conf: Optional[str] = None,
+        conn_id: str = 'spark_sql_default',
+        total_executor_cores: Optional[int] = None,
+        executor_cores: Optional[int] = None,
+        executor_memory: Optional[str] = None,
+        keytab: Optional[str] = None,
+        principal: Optional[str] = None,
+        master: str = 'yarn',
+        name: str = 'default-name',
+        num_executors: Optional[int] = None,
+        verbose: bool = True,
+        yarn_queue: str = 'default',
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self._sql = sql
         self._conf = conf
@@ -110,17 +113,18 @@ class SparkSqlOperator(BaseOperator):
 
     def _get_hook(self) -> SparkSqlHook:
         """Get SparkSqlHook"""
-        return SparkSqlHook(sql=self._sql,
-                            conf=self._conf,
-                            conn_id=self._conn_id,
-                            total_executor_cores=self._total_executor_cores,
-                            executor_cores=self._executor_cores,
-                            executor_memory=self._executor_memory,
-                            keytab=self._keytab,
-                            principal=self._principal,
-                            name=self._name,
-                            num_executors=self._num_executors,
-                            master=self._master,
-                            verbose=self._verbose,
-                            yarn_queue=self._yarn_queue
-                            )
+        return SparkSqlHook(
+            sql=self._sql,
+            conf=self._conf,
+            conn_id=self._conn_id,
+            total_executor_cores=self._total_executor_cores,
+            executor_cores=self._executor_cores,
+            executor_memory=self._executor_memory,
+            keytab=self._keytab,
+            principal=self._principal,
+            name=self._name,
+            num_executors=self._num_executors,
+            master=self._master,
+            verbose=self._verbose,
+            yarn_queue=self._yarn_queue,
+        )

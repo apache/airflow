@@ -71,19 +71,21 @@ class RedshiftToS3Operator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self, *,
-            schema: str,
-            table: str,
-            s3_bucket: str,
-            s3_key: str,
-            redshift_conn_id: str = 'redshift_default',
-            aws_conn_id: str = 'aws_default',
-            verify: Optional[Union[bool, str]] = None,
-            unload_options: Optional[List] = None,
-            autocommit: bool = False,
-            include_header: bool = False,
-            table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
-            **kwargs) -> None:
+        self,
+        *,
+        schema: str,
+        table: str,
+        s3_bucket: str,
+        s3_key: str,
+        redshift_conn_id: str = 'redshift_default',
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[bool, str]] = None,
+        unload_options: Optional[List] = None,
+        autocommit: bool = False,
+        include_header: bool = False,
+        table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.schema = schema
         self.table = table
@@ -98,7 +100,9 @@ class RedshiftToS3Operator(BaseOperator):
         self.table_as_file_name = table_as_file_name
 
         if self.include_header and 'HEADER' not in [uo.upper().strip() for uo in self.unload_options]:
-            self.unload_options = list(self.unload_options) + ['HEADER', ]
+            self.unload_options = list(self.unload_options) + [
+                'HEADER',
+            ]
 
     def execute(self, context):
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
@@ -114,12 +118,14 @@ class RedshiftToS3Operator(BaseOperator):
                     with credentials
                     'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
                     {unload_options};
-                    """.format(select_query=select_query,
-                               s3_bucket=self.s3_bucket,
-                               s3_key=s3_key,
-                               access_key=credentials.access_key,
-                               secret_key=credentials.secret_key,
-                               unload_options=unload_options)
+                    """.format(
+            select_query=select_query,
+            s3_bucket=self.s3_bucket,
+            s3_key=s3_key,
+            access_key=credentials.access_key,
+            secret_key=credentials.secret_key,
+            unload_options=unload_options,
+        )
 
         self.log.info('Executing UNLOAD command...')
         postgres_hook.run(unload_query, self.autocommit)

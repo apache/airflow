@@ -17,16 +17,16 @@
 # under the License.
 
 import json
-from typing import Any
+from typing import Any, Optional
 
 from cryptography.fernet import InvalidToken as InvalidFernetToken
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Session, synonym
 
+from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.secrets import get_variable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 
@@ -126,7 +126,7 @@ class Variable(Base, LoggingMixin):
         :param default_var: Default value of the Variable if the Variable doesn't exists
         :param deserialize_json: Deserialize the value to a Python dict
         """
-        var_val = get_variable(key=key)
+        var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
@@ -181,3 +181,17 @@ class Variable(Base, LoggingMixin):
         fernet = get_fernet()
         if self._val and self.is_encrypted:
             self._val = fernet.rotate(self._val.encode('utf-8')).decode()
+
+    @staticmethod
+    def get_variable_from_secrets(key: str) -> Optional[str]:
+        """
+        Get Airflow Variable by iterating over all Secret Backends.
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        for secrets_backend in ensure_secrets_loaded():
+            var_val = secrets_backend.get_variable(key=key)
+            if var_val is not None:
+                return var_val
+        return None

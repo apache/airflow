@@ -27,9 +27,7 @@ from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor
 
 DESCRIBE_CLUSTER_STARTING_RETURN = {
     'Cluster': {
-        'Applications': [
-            {'Name': 'Spark', 'Version': '1.6.1'}
-        ],
+        'Applications': [{'Name': 'Spark', 'Version': '1.6.1'}],
         'AutoTerminate': True,
         'Configurations': [],
         'Ec2InstanceAttributes': {'IamInstanceProfile': 'EMR_EC2_DefaultRole'},
@@ -43,26 +41,19 @@ DESCRIBE_CLUSTER_STARTING_RETURN = {
             'State': 'STARTING',
             'StateChangeReason': {},
             'Timeline': {
-                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
+                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())
+            },
         },
-        'Tags': [
-            {'Key': 'app', 'Value': 'analytics'},
-            {'Key': 'environment', 'Value': 'development'}
-        ],
+        'Tags': [{'Key': 'app', 'Value': 'analytics'}, {'Key': 'environment', 'Value': 'development'}],
         'TerminationProtected': False,
-        'VisibleToAllUsers': True
+        'VisibleToAllUsers': True,
     },
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
-        'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'
-    }
+    'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'},
 }
 
 DESCRIBE_CLUSTER_BOOTSTRAPPING_RETURN = {
     'Cluster': {
-        'Applications': [
-            {'Name': 'Spark', 'Version': '1.6.1'}
-        ],
+        'Applications': [{'Name': 'Spark', 'Version': '1.6.1'}],
         'AutoTerminate': True,
         'Configurations': [],
         'Ec2InstanceAttributes': {'IamInstanceProfile': 'EMR_EC2_DefaultRole'},
@@ -76,26 +67,19 @@ DESCRIBE_CLUSTER_BOOTSTRAPPING_RETURN = {
             'State': 'BOOTSTRAPPING',
             'StateChangeReason': {},
             'Timeline': {
-                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
+                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())
+            },
         },
-        'Tags': [
-            {'Key': 'app', 'Value': 'analytics'},
-            {'Key': 'environment', 'Value': 'development'}
-        ],
+        'Tags': [{'Key': 'app', 'Value': 'analytics'}, {'Key': 'environment', 'Value': 'development'}],
         'TerminationProtected': False,
-        'VisibleToAllUsers': True
+        'VisibleToAllUsers': True,
     },
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
-        'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'
-    }
+    'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'},
 }
 
 DESCRIBE_CLUSTER_RUNNING_RETURN = {
     'Cluster': {
-        'Applications': [
-            {'Name': 'Spark', 'Version': '1.6.1'}
-        ],
+        'Applications': [{'Name': 'Spark', 'Version': '1.6.1'}],
         'AutoTerminate': True,
         'Configurations': [],
         'Ec2InstanceAttributes': {'IamInstanceProfile': 'EMR_EC2_DefaultRole'},
@@ -109,26 +93,19 @@ DESCRIBE_CLUSTER_RUNNING_RETURN = {
             'State': 'RUNNING',
             'StateChangeReason': {},
             'Timeline': {
-                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
+                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())
+            },
         },
-        'Tags': [
-            {'Key': 'app', 'Value': 'analytics'},
-            {'Key': 'environment', 'Value': 'development'}
-        ],
+        'Tags': [{'Key': 'app', 'Value': 'analytics'}, {'Key': 'environment', 'Value': 'development'}],
         'TerminationProtected': False,
-        'VisibleToAllUsers': True
+        'VisibleToAllUsers': True,
     },
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
-        'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'
-    }
+    'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'},
 }
 
 DESCRIBE_CLUSTER_WAITING_RETURN = {
     'Cluster': {
-        'Applications': [
-            {'Name': 'Spark', 'Version': '1.6.1'}
-        ],
+        'Applications': [{'Name': 'Spark', 'Version': '1.6.1'}],
         'AutoTerminate': True,
         'Configurations': [],
         'Ec2InstanceAttributes': {'IamInstanceProfile': 'EMR_EC2_DefaultRole'},
@@ -142,26 +119,19 @@ DESCRIBE_CLUSTER_WAITING_RETURN = {
             'State': 'WAITING',
             'StateChangeReason': {},
             'Timeline': {
-                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
+                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())
+            },
         },
-        'Tags': [
-            {'Key': 'app', 'Value': 'analytics'},
-            {'Key': 'environment', 'Value': 'development'}
-        ],
+        'Tags': [{'Key': 'app', 'Value': 'analytics'}, {'Key': 'environment', 'Value': 'development'}],
         'TerminationProtected': False,
-        'VisibleToAllUsers': True
+        'VisibleToAllUsers': True,
     },
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
-        'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'
-    }
+    'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'},
 }
 
 DESCRIBE_CLUSTER_TERMINATED_RETURN = {
     'Cluster': {
-        'Applications': [
-            {'Name': 'Spark', 'Version': '1.6.1'}
-        ],
+        'Applications': [{'Name': 'Spark', 'Version': '1.6.1'}],
         'AutoTerminate': True,
         'Configurations': [],
         'Ec2InstanceAttributes': {'IamInstanceProfile': 'EMR_EC2_DefaultRole'},
@@ -175,26 +145,19 @@ DESCRIBE_CLUSTER_TERMINATED_RETURN = {
             'State': 'TERMINATED',
             'StateChangeReason': {},
             'Timeline': {
-                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
+                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())
+            },
         },
-        'Tags': [
-            {'Key': 'app', 'Value': 'analytics'},
-            {'Key': 'environment', 'Value': 'development'}
-        ],
+        'Tags': [{'Key': 'app', 'Value': 'analytics'}, {'Key': 'environment', 'Value': 'development'}],
         'TerminationProtected': False,
-        'VisibleToAllUsers': True
+        'VisibleToAllUsers': True,
     },
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
-        'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'
-    }
+    'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'},
 }
 
 DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN = {
     'Cluster': {
-        'Applications': [
-            {'Name': 'Spark', 'Version': '1.6.1'}
-        ],
+        'Applications': [{'Name': 'Spark', 'Version': '1.6.1'}],
         'AutoTerminate': True,
         'Configurations': [],
         'Ec2InstanceAttributes': {'IamInstanceProfile': 'EMR_EC2_DefaultRole'},
@@ -209,22 +172,17 @@ DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN = {
             'StateChangeReason': {
                 'Code': 'BOOTSTRAP_FAILURE',
                 'Message': 'Master instance (i-0663047709b12345c) failed attempting to '
-                           'download bootstrap action 1 file from S3'
+                'download bootstrap action 1 file from S3',
             },
             'Timeline': {
-                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
+                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())
+            },
         },
-        'Tags': [
-            {'Key': 'app', 'Value': 'analytics'},
-            {'Key': 'environment', 'Value': 'development'}
-        ],
+        'Tags': [{'Key': 'app', 'Value': 'analytics'}, {'Key': 'environment', 'Value': 'development'}],
         'TerminationProtected': False,
-        'VisibleToAllUsers': True
+        'VisibleToAllUsers': True,
     },
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
-        'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'
-    }
+    'ResponseMetadata': {'HTTPStatusCode': 200, 'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'},
 }
 
 
@@ -243,14 +201,11 @@ class TestEmrJobFlowSensor(unittest.TestCase):
         self.mock_emr_client.describe_cluster.side_effect = [
             DESCRIBE_CLUSTER_STARTING_RETURN,
             DESCRIBE_CLUSTER_RUNNING_RETURN,
-            DESCRIBE_CLUSTER_TERMINATED_RETURN
+            DESCRIBE_CLUSTER_TERMINATED_RETURN,
         ]
         with patch('boto3.session.Session', self.boto3_session_mock):
             operator = EmrJobFlowSensor(
-                task_id='test_task',
-                poke_interval=0,
-                job_flow_id='j-8989898989',
-                aws_conn_id='aws_default'
+                task_id='test_task', poke_interval=0, job_flow_id='j-8989898989', aws_conn_id='aws_default'
             )
 
             operator.execute(None)
@@ -265,14 +220,11 @@ class TestEmrJobFlowSensor(unittest.TestCase):
     def test_execute_calls_with_the_job_flow_id_until_it_reaches_failed_state_with_exception(self):
         self.mock_emr_client.describe_cluster.side_effect = [
             DESCRIBE_CLUSTER_RUNNING_RETURN,
-            DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN
+            DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN,
         ]
         with patch('boto3.session.Session', self.boto3_session_mock):
             operator = EmrJobFlowSensor(
-                task_id='test_task',
-                poke_interval=0,
-                job_flow_id='j-8989898989',
-                aws_conn_id='aws_default'
+                task_id='test_task', poke_interval=0, job_flow_id='j-8989898989', aws_conn_id='aws_default'
             )
 
             with self.assertRaises(AirflowException):
@@ -299,7 +251,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
                 poke_interval=0,
                 job_flow_id='j-8989898989',
                 aws_conn_id='aws_default',
-                target_states=['RUNNING', 'WAITING']
+                target_states=['RUNNING', 'WAITING'],
             )
 
             operator.execute(None)

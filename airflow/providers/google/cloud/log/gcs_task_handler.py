@@ -27,9 +27,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import get_creden
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-_DEFAULT_SCOPESS = frozenset([
-    "https://www.googleapis.com/auth/devstorage.read_write",
-])
+_DEFAULT_SCOPESS = frozenset(["https://www.googleapis.com/auth/devstorage.read_write",])
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -46,19 +44,21 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     :type gcs_log_folder: str
     :param filename_template: template filename string
     :type filename_template: str
-    :param gcp_key_path: Path to GCP Credential JSON file. Mutually exclusive with gcp_keyfile_dict.
+    :param gcp_key_path: Path to Google Cloud Service Account file (JSON). Mutually exclusive with
+        gcp_keyfile_dict.
         If omitted, authorization based on `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
     :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. Mutually exclusive with gcp_key_path.
     :type gcp_keyfile_dict: dict
-    :param gcp_scopes: Comma-separated string containing GCP scopes
+    :param gcp_scopes: Comma-separated string containing OAuth2 scopes
     :type gcp_scopes: str
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.
     :type project_id: str
     """
+
     def __init__(
         self,
         *,
@@ -89,12 +89,12 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             key_path=self.gcp_key_path,
             keyfile_dict=self.gcp_keyfile_dict,
             scopes=self.scopes,
-            disable_logging=True
+            disable_logging=True,
         )
         return storage.Client(
             credentials=credentials,
             client_info=ClientInfo(client_library_version='airflow_v' + version.version),
-            project=self.project_id if self.project_id else project_id
+            project=self.project_id if self.project_id else project_id,
         )
 
     def set_context(self, ti):
@@ -151,12 +151,10 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             blob = storage.Blob.from_string(remote_loc, self.client)
             remote_log = blob.download_as_string()
-            log = '*** Reading remote log from {}.\n{}\n'.format(
-                remote_loc, remote_log)
+            log = '*** Reading remote log from {}.\n{}\n'.format(remote_loc, remote_log)
             return log, {'end_of_log': True}
         except Exception as e:  # pylint: disable=broad-except
-            log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(
-                remote_loc, str(e))
+            log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(remote_loc, str(e))
             self.log.error(log)
             local_log, metadata = super()._read(ti, try_number)
             log += local_log

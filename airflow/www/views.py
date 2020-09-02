@@ -1625,7 +1625,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         def get_downstream(task):
             for downstream_task in task.downstream_list:
                 edge = {
-                    'source_id': downstream_task.task_id,
+                    'source_id': task.task_id,
                     'target_id': downstream_task.task_id,
                 }
                 if edge not in edges:
@@ -2628,6 +2628,7 @@ class DagRunModelView(AirflowModelView):
         'start_date': wwwutils.datetime_f('start_date'),
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
+        'conf': wwwutils.json_f('conf'),
     }
 
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?",

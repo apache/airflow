@@ -28,16 +28,10 @@ from airflow.providers.presto.hooks.presto import PrestoHook
 
 
 class TestPrestoHookConn(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(
-            login='login',
-            password='password',
-            host='host',
-            schema='hive',
-        )
+        self.connection = Connection(login='login', password='password', host='host', schema='hive',)
 
         class UnitTestPrestoHook(PrestoHook):
             conn_name_attr = 'presto_conn_id'
@@ -50,13 +44,20 @@ class TestPrestoHookConn(unittest.TestCase):
     @patch('airflow.providers.presto.hooks.presto.prestodb.dbapi.connect')
     def test_get_conn(self, mock_connect, mock_basic_auth):
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(catalog='hive', host='host', port=None, http_scheme='http',
-                                             schema='hive', source='airflow', user='login', isolation_level=0,
-                                             auth=mock_basic_auth('login', 'password'))
+        mock_connect.assert_called_once_with(
+            catalog='hive',
+            host='host',
+            port=None,
+            http_scheme='http',
+            schema='hive',
+            source='airflow',
+            user='login',
+            isolation_level=0,
+            auth=mock_basic_auth('login', 'password'),
+        )
 
 
 class TestPrestoHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -79,8 +80,7 @@ class TestPrestoHook(unittest.TestCase):
     @patch('airflow.hooks.dbapi_hook.DbApiHook.insert_rows')
     def test_insert_rows(self, mock_insert_rows):
         table = "table"
-        rows = [("hello",),
-                ("world",)]
+        rows = [("hello",), ("world",)]
         target_fields = None
         commit_every = 10
         self.db_hook.insert_rows(table, rows, target_fields, commit_every)

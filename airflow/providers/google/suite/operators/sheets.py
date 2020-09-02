@@ -50,11 +50,15 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ["spreadsheet", "impersonation_chain", ]
+    template_fields = [
+        "spreadsheet",
+        "impersonation_chain",
+    ]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         spreadsheet: Dict[str, Any],
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,

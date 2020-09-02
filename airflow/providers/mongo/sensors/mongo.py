@@ -38,21 +38,21 @@ class MongoSensor(BaseSensorOperator):
         when connecting to MongoDB.
     :type mongo_conn_id: str
     """
+
     template_fields = ('collection', 'query')
 
     @apply_defaults
-    def __init__(self, *,
-                 collection: str,
-                 query: dict,
-                 mongo_conn_id: str = "mongo_default",
-                 **kwargs) -> None:
+    def __init__(
+        self, *, collection: str, query: dict, mongo_conn_id: str = "mongo_default", **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         self.mongo_conn_id = mongo_conn_id
         self.collection = collection
         self.query = query
 
     def poke(self, context: dict) -> bool:
-        self.log.info("Sensor check existence of the document "
-                      "that matches the following query: %s", self.query)
+        self.log.info(
+            "Sensor check existence of the document " "that matches the following query: %s", self.query
+        )
         hook = MongoHook(self.mongo_conn_id)
         return hook.find(self.collection, self.query, find_one=True) is not None

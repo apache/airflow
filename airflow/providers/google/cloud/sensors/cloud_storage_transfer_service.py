@@ -41,11 +41,10 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
     :type expected_statuses: set[str] or string
     :param project_id: (Optional) the ID of the project that owns the Transfer
-        Job. If set to None or missing, the default project_id from the GCP
+        Job. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud
-        Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -59,18 +58,22 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
     """
 
     # [START gcp_transfer_job_sensor_template_fields]
-    template_fields = ('job_name', 'impersonation_chain',)
+    template_fields = (
+        'job_name',
+        'impersonation_chain',
+    )
     # [END gcp_transfer_job_sensor_template_fields]
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         job_name: str,
         expected_statuses: Union[Set[str], str],
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.job_name = job_name
@@ -83,8 +86,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
 
     def poke(self, context):
         hook = CloudDataTransferServiceHook(
-            gcp_conn_id=self.gcp_cloud_conn_id,
-            impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_cloud_conn_id, impersonation_chain=self.impersonation_chain,
         )
         operations = hook.list_transfer_operations(
             request_filter={'project_id': self.project_id, 'job_names': [self.job_name]}

@@ -33,14 +33,31 @@ from datetime import datetime, timedelta
 
 from airflow import models
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
-    ALREADY_EXISTING_IN_SINK, BUCKET_NAME, DESCRIPTION, FILTER_JOB_NAMES, FILTER_PROJECT_ID, GCS_DATA_SINK,
-    GCS_DATA_SOURCE, PROJECT_ID, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE, START_TIME_OF_DAY, STATUS,
-    TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_OPTIONS, TRANSFER_SPEC, GcpTransferJobsStatus,
+    ALREADY_EXISTING_IN_SINK,
+    BUCKET_NAME,
+    DESCRIPTION,
+    FILTER_JOB_NAMES,
+    FILTER_PROJECT_ID,
+    GCS_DATA_SINK,
+    GCS_DATA_SOURCE,
+    PROJECT_ID,
+    SCHEDULE,
+    SCHEDULE_END_DATE,
+    SCHEDULE_START_DATE,
+    START_TIME_OF_DAY,
+    STATUS,
+    TRANSFER_JOB,
+    TRANSFER_JOB_FIELD_MASK,
+    TRANSFER_OPTIONS,
+    TRANSFER_SPEC,
+    GcpTransferJobsStatus,
     GcpTransferOperationStatus,
 )
 from airflow.providers.google.cloud.operators.cloud_storage_transfer_service import (
-    CloudDataTransferServiceCreateJobOperator, CloudDataTransferServiceDeleteJobOperator,
-    CloudDataTransferServiceGetOperationOperator, CloudDataTransferServiceListOperationsOperator,
+    CloudDataTransferServiceCreateJobOperator,
+    CloudDataTransferServiceDeleteJobOperator,
+    CloudDataTransferServiceGetOperationOperator,
+    CloudDataTransferServiceListOperationsOperator,
     CloudDataTransferServiceUpdateJobOperator,
 )
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import (
@@ -112,15 +129,12 @@ with models.DAG(
         task_id="list_operations",
         request_filter={
             FILTER_PROJECT_ID: GCP_PROJECT_ID,
-            FILTER_JOB_NAMES: [
-                "{{task_instance.xcom_pull('create_transfer')['name']}}"
-            ],
+            FILTER_JOB_NAMES: ["{{task_instance.xcom_pull('create_transfer')['name']}}"],
         },
     )
 
     get_operation = CloudDataTransferServiceGetOperationOperator(
-        task_id="get_operation",
-        operation_name="{{task_instance.xcom_pull('list_operations')[0]['name']}}",
+        task_id="get_operation", operation_name="{{task_instance.xcom_pull('list_operations')[0]['name']}}",
     )
 
     delete_transfer = CloudDataTransferServiceDeleteJobOperator(
@@ -129,5 +143,5 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    create_transfer >> wait_for_transfer >> update_transfer >> \
-        list_operations >> get_operation >> delete_transfer
+    create_transfer >> wait_for_transfer >> update_transfer >> list_operations >> get_operation
+    get_operation >> delete_transfer

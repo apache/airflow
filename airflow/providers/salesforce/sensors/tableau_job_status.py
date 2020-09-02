@@ -46,11 +46,14 @@ class TableauJobStatusSensor(BaseSensorOperator):
     template_fields = ('job_id',)
 
     @apply_defaults
-    def __init__(self, *,
-                 job_id: str,
-                 site_id: Optional[str] = None,
-                 tableau_conn_id: str = 'tableau_default',
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        job_id: str,
+        site_id: Optional[str] = None,
+        tableau_conn_id: str = 'tableau_default',
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.tableau_conn_id = tableau_conn_id
         self.job_id = job_id

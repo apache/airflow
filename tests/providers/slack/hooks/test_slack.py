@@ -26,7 +26,6 @@ from airflow.providers.slack.hooks.slack import SlackHook
 
 
 class TestSlackHook(unittest.TestCase):
-
     def test_get_token_with_token_only(self):
         """tests `__get_token` method when only token is provided """
         # Given
@@ -126,5 +125,4 @@ class TestSlackHook(unittest.TestCase):
         test_api_json = {'channel': 'test_channel'}
 
         slack_hook.call("chat.postMessage", json=test_api_json)
-        mock_slack_api_call.assert_called_once_with(
-            mock_slack_client, "chat.postMessage", json=test_api_json)
+        mock_slack_api_call.assert_called_once_with(mock_slack_client, "chat.postMessage", json=test_api_json)

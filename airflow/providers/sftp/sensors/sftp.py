@@ -34,6 +34,7 @@ class SFTPSensor(BaseSensorOperator):
     :param sftp_conn_id: The connection to run the sensor against
     :type sftp_conn_id: str
     """
+
     template_fields = ('path',)
 
     @apply_defaults

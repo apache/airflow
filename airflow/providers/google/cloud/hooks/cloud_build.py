@@ -24,7 +24,10 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildClient
 from google.cloud.devtools.cloudbuild_v1.types import (
-    Build, BuildTrigger, ListBuildTriggersResponse, RepoSource,
+    Build,
+    BuildTrigger,
+    ListBuildTriggersResponse,
+    RepoSource,
 )
 from google.protobuf.json_format import MessageToDict
 
@@ -63,9 +66,7 @@ class CloudBuildHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._client: Optional[CloudBuildClient] = None
 
@@ -78,8 +79,7 @@ class CloudBuildHook(GoogleBaseHook):
         """
         if not self._client:
             self._client = CloudBuildClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info,
+                credentials=self._get_credentials(), client_info=self.client_info,
             )
         return self._client
 
@@ -116,11 +116,7 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         return client.cancel_build(
-            project_id=project_id,
-            id_=id_,
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
+            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -160,26 +156,18 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         operation = client.create_build(
-            project_id=project_id,
-            build=build,
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
+            project_id=project_id, build=build, retry=retry, timeout=timeout, metadata=metadata,
         )
 
         operation_dict = MessageToDict(operation)
         try:
             id_ = operation_dict["metadata"]["build"]["id"]
         except Exception:
-            raise AirflowException(
-                "Could not retrieve Build ID from Operation."
-            )
+            raise AirflowException("Could not retrieve Build ID from Operation.")
 
         if wait:
             self._wait_for_operation_to_complete(
-                func=self.get_build,
-                id_=id_,
-                project_id=project_id,  # type: ignore
+                func=self.get_build, id_=id_, project_id=project_id,  # type: ignore
             )
         return self.get_build(id_=id_, project_id=project_id)
 
@@ -217,11 +205,7 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         return client.create_build_trigger(
-            project_id=project_id,
-            trigger=trigger,
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
+            project_id=project_id, trigger=trigger, retry=retry, timeout=timeout, metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -255,11 +239,7 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         client.delete_build_trigger(
-            project_id=project_id,
-            trigger_id=trigger_id,
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
+            project_id=project_id, trigger_id=trigger_id, retry=retry, timeout=timeout, metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -295,11 +275,7 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         return client.get_build(
-            project_id=project_id,
-            id_=id_,
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
+            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -335,11 +311,7 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         return client.get_build_trigger(
-            project_id=project_id,
-            trigger_id=trigger_id,
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
+            project_id=project_id, trigger_id=trigger_id, retry=retry, timeout=timeout, metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -401,7 +373,7 @@ class CloudBuildHook(GoogleBaseHook):
         Lists previously requested builds.
 
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param page_size: Optional, number of results to return in the list.
         :type page_size: Optional[int]
@@ -469,20 +441,14 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         operation = client.retry_build(
-            project_id=project_id,
-            id_=id_,
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
+            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata,
         )
 
         operation_dict = MessageToDict(operation)
         try:
             id_ = operation_dict["metadata"]["build"]["id"]
         except Exception:
-            raise AirflowException(
-                "Could not retrieve Build ID from Operation."
-            )
+            raise AirflowException("Could not retrieve Build ID from Operation.")
 
         if wait:
             self._wait_for_operation_to_complete(
@@ -544,15 +510,11 @@ class CloudBuildHook(GoogleBaseHook):
         try:
             id_ = operation_dict["metadata"]["build"]["id"]
         except Exception:
-            raise AirflowException(
-                "Could not retrieve Build ID from Operation."
-            )
+            raise AirflowException("Could not retrieve Build ID from Operation.")
 
         if wait:
             self._wait_for_operation_to_complete(
-                func=self.get_build,
-                id_=id_,
-                project_id=project_id,  # type: ignore
+                func=self.get_build, id_=id_, project_id=project_id,  # type: ignore
             )
         return self.get_build(id_=id_, project_id=project_id)
 
@@ -601,9 +563,7 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-    def _wait_for_operation_to_complete(
-        self, func: Callable, **kwargs: Optional[dict]
-    ) -> dict:
+    def _wait_for_operation_to_complete(self, func: Callable, **kwargs: Optional[dict]) -> dict:
         """
         Waits for the named operation to complete - checks status of the
         asynchronous call.

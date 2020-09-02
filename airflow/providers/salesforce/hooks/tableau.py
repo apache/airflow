@@ -30,6 +30,7 @@ class TableauJobFinishCode(Enum):
     .. seealso:: https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_ref.htm#query_job
 
     """
+
     PENDING = -1
     SUCCESS = 0
     ERROR = 1
@@ -81,9 +82,7 @@ class TableauHook(BaseHook):
 
     def _auth_via_password(self) -> Auth.contextmgr:
         tableau_auth = TableauAuth(
-            username=self.conn.login,
-            password=self.conn.password,
-            site_id=self.site_id
+            username=self.conn.login, password=self.conn.password, site_id=self.site_id
         )
         return self.server.auth.sign_in(tableau_auth)
 
@@ -91,7 +90,7 @@ class TableauHook(BaseHook):
         tableau_auth = PersonalAccessTokenAuth(
             token_name=self.conn.extra_dejson['token_name'],
             personal_access_token=self.conn.extra_dejson['personal_access_token'],
-            site_id=self.site_id
+            site_id=self.site_id,
         )
         return self.server.auth.sign_in_with_personal_access_token(tableau_auth)
 

@@ -26,7 +26,10 @@ import unittest.mock as mock
 from unittest.mock import PropertyMock, patch
 
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
-from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
+from tests.providers.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+    mock_base_gcp_hook_no_default_project_id,
+)
 
 PROJECT_ID = "cloud-build-project"
 BUILD_ID = "test-build-id-9832661"
@@ -50,11 +53,34 @@ OPERATION = {"metadata": {"build": {"id": BUILD_ID}}}
 TRIGGER_ID = "32488e7f-09d6-4fe9-a5fb-4ca1419a6e7a"
 
 
-class TestCloudBuildHook(unittest.TestCase):
+class TestCloudBuildHookDefaultProjectId(unittest.TestCase):
     def setUp(self):
         with patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
+        ):
+            self.cloudbuild_hook_no_default_project_id = CloudBuildHook(gcp_conn_id="test")
+
+    @patch(
+        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.client_info",
+        new_callable=PropertyMock,
+    )
+    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_credentials")
+    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildClient")
+    def test_cloud_build_service_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.cloudbuild_hook_no_default_project_id.get_conn()
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.cloudbuild_hook_no_default_project_id._client, result)
+
+
+class TestCloudBuildHook(unittest.TestCase):
+    def setUp(self):
+        with patch(
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 

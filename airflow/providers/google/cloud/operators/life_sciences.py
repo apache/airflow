@@ -40,7 +40,7 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
     :param project_id: ID of the Google Cloud project if None then
         default project_id is used.
     :param project_id: str
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (for example v2beta).
     :type api_version: str
@@ -55,18 +55,25 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("body", "gcp_conn_id", "api_version", "impersonation_chain",)
+    template_fields = (
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
+    )
 
     @apply_defaults
-    def __init__(self,
-                 *,
-                 body: dict,
-                 location: str,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = "google_cloud_default",
-                 api_version: str = "v2beta",
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        body: dict,
+        location: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v2beta",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.body = body
         self.location = location
@@ -89,6 +96,4 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        return hook.run_pipeline(body=self.body,
-                                 location=self.location,
-                                 project_id=self.project_id)
+        return hook.run_pipeline(body=self.body, location=self.location, project_id=self.project_id)

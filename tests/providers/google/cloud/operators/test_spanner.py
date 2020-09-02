@@ -22,9 +22,12 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.spanner import (
-    SpannerDeleteDatabaseInstanceOperator, SpannerDeleteInstanceOperator,
-    SpannerDeployDatabaseInstanceOperator, SpannerDeployInstanceOperator,
-    SpannerQueryDatabaseInstanceOperator, SpannerUpdateDatabaseInstanceOperator,
+    SpannerDeleteDatabaseInstanceOperator,
+    SpannerDeleteInstanceOperator,
+    SpannerDeployDatabaseInstanceOperator,
+    SpannerDeployInstanceOperator,
+    SpannerQueryDatabaseInstanceOperator,
+    SpannerUpdateDatabaseInstanceOperator,
 )
 
 PROJECT_ID = 'project-id'
@@ -50,19 +53,18 @@ class TestCloudSpanner(unittest.TestCase):
             configuration_name=CONFIG_NAME,
             node_count=int(NODE_COUNT),
             display_name=DISPLAY_NAME,
-            task_id="id"
+            task_id="id",
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.create_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             configuration_name=CONFIG_NAME,
             node_count=int(NODE_COUNT),
-            display_name=DISPLAY_NAME
+            display_name=DISPLAY_NAME,
         )
         mock_hook.return_value.update_instance.assert_not_called()
         self.assertIsNone(result)
@@ -75,19 +77,18 @@ class TestCloudSpanner(unittest.TestCase):
             configuration_name=CONFIG_NAME,
             node_count=int(NODE_COUNT),
             display_name=DISPLAY_NAME,
-            task_id="id"
+            task_id="id",
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.create_instance.assert_called_once_with(
             project_id=None,
             instance_id=INSTANCE_ID,
             configuration_name=CONFIG_NAME,
             node_count=int(NODE_COUNT),
-            display_name=DISPLAY_NAME
+            display_name=DISPLAY_NAME,
         )
         mock_hook.return_value.update_instance.assert_not_called()
         self.assertIsNone(result)
@@ -101,19 +102,18 @@ class TestCloudSpanner(unittest.TestCase):
             configuration_name=CONFIG_NAME,
             node_count=int(NODE_COUNT),
             display_name=DISPLAY_NAME,
-            task_id="id"
+            task_id="id",
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.update_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             configuration_name=CONFIG_NAME,
             node_count=int(NODE_COUNT),
-            display_name=DISPLAY_NAME
+            display_name=DISPLAY_NAME,
         )
         mock_hook.return_value.create_instance.assert_not_called()
         self.assertIsNone(result)
@@ -126,19 +126,18 @@ class TestCloudSpanner(unittest.TestCase):
             configuration_name=CONFIG_NAME,
             node_count=int(NODE_COUNT),
             display_name=DISPLAY_NAME,
-            task_id="id"
+            task_id="id",
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.update_instance.assert_called_once_with(
             project_id=None,
             instance_id=INSTANCE_ID,
             configuration_name=CONFIG_NAME,
             node_count=int(NODE_COUNT),
-            display_name=DISPLAY_NAME
+            display_name=DISPLAY_NAME,
         )
         mock_hook.return_value.create_instance.assert_not_called()
         self.assertIsNone(result)
@@ -152,23 +151,20 @@ class TestCloudSpanner(unittest.TestCase):
             configuration_name=CONFIG_NAME,
             node_count=int(NODE_COUNT),
             display_name=DISPLAY_NAME,
-            task_id="id"
+            task_id="id",
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.create_instance.assert_not_called()
         self.assertIsNone(result)
 
-    @parameterized.expand([
-        ("", INSTANCE_ID, "project_id"),
-        (PROJECT_ID, "", "instance_id"),
-    ])
+    @parameterized.expand(
+        [("", INSTANCE_ID, "project_id"), (PROJECT_ID, "", "instance_id"),]
+    )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
-    def test_instance_create_ex_if_param_missing(self, project_id, instance_id,
-                                                 exp_msg, mock_hook):
+    def test_instance_create_ex_if_param_missing(self, project_id, instance_id, exp_msg, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             SpannerDeployInstanceOperator(
                 project_id=project_id,
@@ -176,7 +172,7 @@ class TestCloudSpanner(unittest.TestCase):
                 configuration_name=CONFIG_NAME,
                 node_count=int(NODE_COUNT),
                 display_name=DISPLAY_NAME,
-                task_id="id"
+                task_id="id",
             )
         err = cm.exception
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
@@ -185,15 +181,10 @@ class TestCloudSpanner(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_instance_delete(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"name": INSTANCE_ID}
-        op = SpannerDeleteInstanceOperator(
-            project_id=PROJECT_ID,
-            instance_id=INSTANCE_ID,
-            task_id="id"
-        )
+        op = SpannerDeleteInstanceOperator(project_id=PROJECT_ID, instance_id=INSTANCE_ID, task_id="id")
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID
@@ -203,51 +194,34 @@ class TestCloudSpanner(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_instance_delete_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"name": INSTANCE_ID}
-        op = SpannerDeleteInstanceOperator(
-            instance_id=INSTANCE_ID,
-            task_id="id"
-        )
+        op = SpannerDeleteInstanceOperator(instance_id=INSTANCE_ID, task_id="id")
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
-            project_id=None,
-            instance_id=INSTANCE_ID
+            project_id=None, instance_id=INSTANCE_ID
         )
         self.assertTrue(result)
 
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
-    def test_instance_delete_aborts_and_succeeds_if_instance_does_not_exist(self,
-                                                                            mock_hook):
+    def test_instance_delete_aborts_and_succeeds_if_instance_does_not_exist(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
-        op = SpannerDeleteInstanceOperator(
-            project_id=PROJECT_ID,
-            instance_id=INSTANCE_ID,
-            task_id="id"
-        )
+        op = SpannerDeleteInstanceOperator(project_id=PROJECT_ID, instance_id=INSTANCE_ID, task_id="id")
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.delete_instance.assert_not_called()
         self.assertTrue(result)
 
-    @parameterized.expand([
-        ("", INSTANCE_ID, "project_id"),
-        (PROJECT_ID, "", "instance_id"),
-    ])
+    @parameterized.expand(
+        [("", INSTANCE_ID, "project_id"), (PROJECT_ID, "", "instance_id"),]
+    )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
-    def test_instance_delete_ex_if_param_missing(self, project_id, instance_id, exp_msg,
-                                                 mock_hook):
+    def test_instance_delete_ex_if_param_missing(self, project_id, instance_id, exp_msg, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            SpannerDeleteInstanceOperator(
-                project_id=project_id,
-                instance_id=instance_id,
-                task_id="id"
-            )
+            SpannerDeleteInstanceOperator(project_id=project_id, instance_id=instance_id, task_id="id")
         err = cm.exception
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
         mock_hook.assert_not_called()
@@ -260,17 +234,14 @@ class TestCloudSpanner(unittest.TestCase):
             instance_id=INSTANCE_ID,
             database_id=DB_ID,
             query=INSERT_QUERY,
-            task_id="id"
+            task_id="id",
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.execute_dml.assert_called_once_with(
-            project_id=PROJECT_ID, instance_id=INSTANCE_ID,
-            database_id=DB_ID,
-            queries=[INSERT_QUERY]
+            project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID, queries=[INSERT_QUERY]
         )
         self.assertIsNone(result)
 
@@ -278,38 +249,36 @@ class TestCloudSpanner(unittest.TestCase):
     def test_instance_query_missing_project_id(self, mock_hook):
         mock_hook.return_value.execute_sql.return_value = None
         op = SpannerQueryDatabaseInstanceOperator(
-            instance_id=INSTANCE_ID,
-            database_id=DB_ID,
-            query=INSERT_QUERY,
-            task_id="id"
+            instance_id=INSTANCE_ID, database_id=DB_ID, query=INSERT_QUERY, task_id="id"
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.execute_dml.assert_called_once_with(
-            project_id=None, instance_id=INSTANCE_ID,
-            database_id=DB_ID, queries=[INSERT_QUERY]
+            project_id=None, instance_id=INSTANCE_ID, database_id=DB_ID, queries=[INSERT_QUERY]
         )
         self.assertIsNone(result)
 
-    @parameterized.expand([
-        ("", INSTANCE_ID, DB_ID, INSERT_QUERY, "project_id"),
-        (PROJECT_ID, "", DB_ID, INSERT_QUERY, "instance_id"),
-        (PROJECT_ID, INSTANCE_ID, "", INSERT_QUERY, "database_id"),
-        (PROJECT_ID, INSTANCE_ID, DB_ID, "", "query"),
-    ])
+    @parameterized.expand(
+        [
+            ("", INSTANCE_ID, DB_ID, INSERT_QUERY, "project_id"),
+            (PROJECT_ID, "", DB_ID, INSERT_QUERY, "instance_id"),
+            (PROJECT_ID, INSTANCE_ID, "", INSERT_QUERY, "database_id"),
+            (PROJECT_ID, INSTANCE_ID, DB_ID, "", "query"),
+        ]
+    )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
-    def test_instance_query_ex_if_param_missing(self, project_id, instance_id,
-                                                database_id, query, exp_msg, mock_hook):
+    def test_instance_query_ex_if_param_missing(
+        self, project_id, instance_id, database_id, query, exp_msg, mock_hook
+    ):
         with self.assertRaises(AirflowException) as cm:
             SpannerQueryDatabaseInstanceOperator(
                 project_id=project_id,
                 instance_id=instance_id,
                 database_id=database_id,
                 query=query,
-                task_id="id"
+                task_id="id",
             )
         err = cm.exception
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
@@ -323,12 +292,11 @@ class TestCloudSpanner(unittest.TestCase):
             instance_id=INSTANCE_ID,
             database_id=DB_ID,
             query=INSERT_QUERY,
-            task_id="id"
+            task_id="id",
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.execute_dml.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID, queries=[INSERT_QUERY]
@@ -342,16 +310,17 @@ class TestCloudSpanner(unittest.TestCase):
             instance_id=INSTANCE_ID,
             database_id=DB_ID,
             query=[INSERT_QUERY, INSERT_QUERY_2],
-            task_id="id"
+            task_id="id",
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.execute_dml.assert_called_once_with(
-            project_id=PROJECT_ID, instance_id=INSTANCE_ID,
-            database_id=DB_ID, queries=[INSERT_QUERY, INSERT_QUERY_2]
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            database_id=DB_ID,
+            queries=[INSERT_QUERY, INSERT_QUERY_2],
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
@@ -362,16 +331,14 @@ class TestCloudSpanner(unittest.TestCase):
             instance_id=INSTANCE_ID,
             database_id=DB_ID,
             ddl_statements=DDL_STATEMENTS,
-            task_id="id"
+            task_id="id",
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.create_database.assert_called_once_with(
-            project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID,
-            ddl_statements=DDL_STATEMENTS
+            project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID, ddl_statements=DDL_STATEMENTS
         )
         mock_hook.return_value.update_database.assert_not_called()
         self.assertTrue(result)
@@ -380,19 +347,14 @@ class TestCloudSpanner(unittest.TestCase):
     def test_database_create_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_database.return_value = None
         op = SpannerDeployDatabaseInstanceOperator(
-            instance_id=INSTANCE_ID,
-            database_id=DB_ID,
-            ddl_statements=DDL_STATEMENTS,
-            task_id="id"
+            instance_id=INSTANCE_ID, database_id=DB_ID, ddl_statements=DDL_STATEMENTS, task_id="id"
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.create_database.assert_called_once_with(
-            project_id=None, instance_id=INSTANCE_ID, database_id=DB_ID,
-            ddl_statements=DDL_STATEMENTS
+            project_id=None, instance_id=INSTANCE_ID, database_id=DB_ID, ddl_statements=DDL_STATEMENTS
         )
         mock_hook.return_value.update_database.assert_not_called()
         self.assertTrue(result)
@@ -405,34 +367,34 @@ class TestCloudSpanner(unittest.TestCase):
             instance_id=INSTANCE_ID,
             database_id=DB_ID,
             ddl_statements=DDL_STATEMENTS,
-            task_id="id"
+            task_id="id",
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.create_database.assert_not_called()
         mock_hook.return_value.update_database.assert_not_called()
         self.assertTrue(result)
 
-    @parameterized.expand([
-        ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
-        (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
-        (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
-    ])
+    @parameterized.expand(
+        [
+            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
+            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
+            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
+        ]
+    )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
-    def test_database_create_ex_if_param_missing(self,
-                                                 project_id, instance_id,
-                                                 database_id, ddl_statements,
-                                                 exp_msg, mock_hook):
+    def test_database_create_ex_if_param_missing(
+        self, project_id, instance_id, database_id, ddl_statements, exp_msg, mock_hook
+    ):
         with self.assertRaises(AirflowException) as cm:
             SpannerDeployDatabaseInstanceOperator(
                 project_id=project_id,
                 instance_id=instance_id,
                 database_id=database_id,
                 ddl_statements=ddl_statements,
-                task_id="id"
+                task_id="id",
             )
         err = cm.exception
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
@@ -446,16 +408,18 @@ class TestCloudSpanner(unittest.TestCase):
             instance_id=INSTANCE_ID,
             database_id=DB_ID,
             ddl_statements=DDL_STATEMENTS,
-            task_id="id"
+            task_id="id",
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.update_database.assert_called_once_with(
-            project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID,
-            ddl_statements=DDL_STATEMENTS, operation_id=None
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            database_id=DB_ID,
+            ddl_statements=DDL_STATEMENTS,
+            operation_id=None,
         )
         self.assertTrue(result)
 
@@ -463,38 +427,39 @@ class TestCloudSpanner(unittest.TestCase):
     def test_database_update_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_database.return_value = {"name": DB_ID}
         op = SpannerUpdateDatabaseInstanceOperator(
-            instance_id=INSTANCE_ID,
-            database_id=DB_ID,
-            ddl_statements=DDL_STATEMENTS,
-            task_id="id"
+            instance_id=INSTANCE_ID, database_id=DB_ID, ddl_statements=DDL_STATEMENTS, task_id="id"
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.update_database.assert_called_once_with(
-            project_id=None, instance_id=INSTANCE_ID, database_id=DB_ID,
-            ddl_statements=DDL_STATEMENTS, operation_id=None
+            project_id=None,
+            instance_id=INSTANCE_ID,
+            database_id=DB_ID,
+            ddl_statements=DDL_STATEMENTS,
+            operation_id=None,
         )
         self.assertTrue(result)
 
-    @parameterized.expand([
-        ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
-        (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
-        (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
-    ])
+    @parameterized.expand(
+        [
+            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
+            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
+            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
+        ]
+    )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
-    def test_database_update_ex_if_param_missing(self, project_id, instance_id,
-                                                 database_id, ddl_statements,
-                                                 exp_msg, mock_hook):
+    def test_database_update_ex_if_param_missing(
+        self, project_id, instance_id, database_id, ddl_statements, exp_msg, mock_hook
+    ):
         with self.assertRaises(AirflowException) as cm:
             SpannerUpdateDatabaseInstanceOperator(
                 project_id=project_id,
                 instance_id=instance_id,
                 database_id=database_id,
                 ddl_statements=ddl_statements,
-                task_id="id"
+                task_id="id",
             )
         err = cm.exception
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
@@ -509,30 +474,28 @@ class TestCloudSpanner(unittest.TestCase):
                 instance_id=INSTANCE_ID,
                 database_id=DB_ID,
                 ddl_statements=DDL_STATEMENTS,
-                task_id="id"
+                task_id="id",
             )
             op.execute(None)
         err = cm.exception
-        self.assertIn("The Cloud Spanner database 'db1' in project 'project-id' and "
-                      "instance 'instance-id' is missing", str(err))
+        self.assertIn(
+            "The Cloud Spanner database 'db1' in project 'project-id' and "
+            "instance 'instance-id' is missing",
+            str(err),
+        )
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_database_delete(self, mock_hook):
         mock_hook.return_value.get_database.return_value = {"name": DB_ID}
         op = SpannerDeleteDatabaseInstanceOperator(
-            project_id=PROJECT_ID,
-            instance_id=INSTANCE_ID,
-            database_id=DB_ID,
-            task_id="id"
+            project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID, task_id="id"
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.delete_database.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID
@@ -542,15 +505,10 @@ class TestCloudSpanner(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_database_delete_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_database.return_value = {"name": DB_ID}
-        op = SpannerDeleteDatabaseInstanceOperator(
-            instance_id=INSTANCE_ID,
-            database_id=DB_ID,
-            task_id="id"
-        )
+        op = SpannerDeleteDatabaseInstanceOperator(instance_id=INSTANCE_ID, database_id=DB_ID, task_id="id")
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.delete_database.assert_called_once_with(
             project_id=None, instance_id=INSTANCE_ID, database_id=DB_ID
@@ -558,39 +516,36 @@ class TestCloudSpanner(unittest.TestCase):
         self.assertTrue(result)
 
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
-    def test_database_delete_exits_and_succeeds_if_database_does_not_exist(self,
-                                                                           mock_hook):
+    def test_database_delete_exits_and_succeeds_if_database_does_not_exist(self, mock_hook):
         mock_hook.return_value.get_database.return_value = None
         op = SpannerDeleteDatabaseInstanceOperator(
-            project_id=PROJECT_ID,
-            instance_id=INSTANCE_ID,
-            database_id=DB_ID,
-            task_id="id"
+            project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID, task_id="id"
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            impersonation_chain=None,
+            gcp_conn_id="google_cloud_default", impersonation_chain=None,
         )
         mock_hook.return_value.delete_database.assert_not_called()
         self.assertTrue(result)
 
-    @parameterized.expand([
-        ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
-        (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
-        (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
-    ])
+    @parameterized.expand(
+        [
+            ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, 'project_id'),
+            (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
+            (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
+        ]
+    )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
-    def test_database_delete_ex_if_param_missing(self, project_id, instance_id,
-                                                 database_id, ddl_statements,
-                                                 exp_msg, mock_hook):
+    def test_database_delete_ex_if_param_missing(
+        self, project_id, instance_id, database_id, ddl_statements, exp_msg, mock_hook
+    ):
         with self.assertRaises(AirflowException) as cm:
             SpannerDeleteDatabaseInstanceOperator(
                 project_id=project_id,
                 instance_id=instance_id,
                 database_id=database_id,
                 ddl_statements=ddl_statements,
-                task_id="id"
+                task_id="id",
             )
         err = cm.exception
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))

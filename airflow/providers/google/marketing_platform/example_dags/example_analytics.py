@@ -21,9 +21,12 @@ import os
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.analytics import (
-    GoogleAnalyticsDataImportUploadOperator, GoogleAnalyticsDeletePreviousDataUploadsOperator,
-    GoogleAnalyticsGetAdsLinkOperator, GoogleAnalyticsListAccountsOperator,
-    GoogleAnalyticsModifyFileHeadersDataImportOperator, GoogleAnalyticsRetrieveAdsLinksListOperator,
+    GoogleAnalyticsDataImportUploadOperator,
+    GoogleAnalyticsDeletePreviousDataUploadsOperator,
+    GoogleAnalyticsGetAdsLinkOperator,
+    GoogleAnalyticsListAccountsOperator,
+    GoogleAnalyticsModifyFileHeadersDataImportOperator,
+    GoogleAnalyticsRetrieveAdsLinksListOperator,
 )
 from airflow.utils import dates
 
@@ -32,9 +35,7 @@ ACCOUNT_ID = os.environ.get("GA_ACCOUNT_ID", "123456789")
 BUCKET = os.environ.get("GMP_ANALYTICS_BUCKET", "test-airflow-analytics-bucket")
 BUCKET_FILENAME = "data.csv"
 WEB_PROPERTY_ID = os.environ.get("GA_WEB_PROPERTY", "UA-12345678-1")
-WEB_PROPERTY_AD_WORDS_LINK_ID = os.environ.get(
-    "GA_WEB_PROPERTY_AD_WORDS_LINK_ID", "rQafFTPOQdmkx4U-fxUfhj"
-)
+WEB_PROPERTY_AD_WORDS_LINK_ID = os.environ.get("GA_WEB_PROPERTY_AD_WORDS_LINK_ID", "rQafFTPOQdmkx4U-fxUfhj")
 DATA_ID = "kjdDu3_tQa6n8Q1kXFtSmg"
 
 with models.DAG(
@@ -78,9 +79,7 @@ with models.DAG(
     )
 
     transform = GoogleAnalyticsModifyFileHeadersDataImportOperator(
-        task_id="transform",
-        storage_bucket=BUCKET,
-        storage_name_object=BUCKET_FILENAME,
+        task_id="transform", storage_bucket=BUCKET, storage_name_object=BUCKET_FILENAME,
     )
 
     upload >> [delete, transform]

@@ -78,9 +78,7 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
         "DataTransferServiceClient.create_transfer_config"
     )
     def test_create_transfer_config(self, service_mock):
-        self.hook.create_transfer_config(
-            transfer_config=TRANSFER_CONFIG, project_id=PROJECT_ID
-        )
+        self.hook.create_transfer_config(transfer_config=TRANSFER_CONFIG, project_id=PROJECT_ID)
         parent = DataTransferServiceClient.project_path(PROJECT_ID)
         expected_config = deepcopy(TRANSFER_CONFIG)
         expected_config.schedule_options.disable_auto_scheduling = True
@@ -98,29 +96,19 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
         "DataTransferServiceClient.delete_transfer_config"
     )
     def test_delete_transfer_config(self, service_mock):
-        self.hook.delete_transfer_config(
-            transfer_config_id=TRANSFER_CONFIG_ID, project_id=PROJECT_ID
-        )
+        self.hook.delete_transfer_config(transfer_config_id=TRANSFER_CONFIG_ID, project_id=PROJECT_ID)
 
-        name = DataTransferServiceClient.project_transfer_config_path(
-            PROJECT_ID, TRANSFER_CONFIG_ID
-        )
-        service_mock.assert_called_once_with(
-            name=name, metadata=None, retry=None, timeout=None
-        )
+        name = DataTransferServiceClient.project_transfer_config_path(PROJECT_ID, TRANSFER_CONFIG_ID)
+        service_mock.assert_called_once_with(name=name, metadata=None, retry=None, timeout=None)
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.bigquery_dts."
         "DataTransferServiceClient.start_manual_transfer_runs"
     )
     def test_start_manual_transfer_runs(self, service_mock):
-        self.hook.start_manual_transfer_runs(
-            transfer_config_id=TRANSFER_CONFIG_ID, project_id=PROJECT_ID
-        )
+        self.hook.start_manual_transfer_runs(transfer_config_id=TRANSFER_CONFIG_ID, project_id=PROJECT_ID)
 
-        parent = DataTransferServiceClient.project_transfer_config_path(
-            PROJECT_ID, TRANSFER_CONFIG_ID
-        )
+        parent = DataTransferServiceClient.project_transfer_config_path(PROJECT_ID, TRANSFER_CONFIG_ID)
         service_mock.assert_called_once_with(
             parent=parent,
             requested_time_range=None,

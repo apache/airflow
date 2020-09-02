@@ -51,25 +51,17 @@ class AzureBaseHook(BaseHook):
             if not key_path.endswith('.json'):
                 raise AirflowException('Unrecognised extension for key file.')
             self.log.info('Getting connection using a JSON key file.')
-            return get_client_from_auth_file(
-                client_class=self.sdk_client,
-                auth_path=key_path
-            )
+            return get_client_from_auth_file(client_class=self.sdk_client, auth_path=key_path)
 
         key_json = conn.extra_dejson.get('key_json')
         if key_json:
             self.log.info('Getting connection using a JSON config.')
-            return get_client_from_json_dict(
-                client_class=self.sdk_client,
-                config_dict=key_json
-            )
+            return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
 
         self.log.info('Getting connection using specific credentials and subscription_id.')
         return self.sdk_client(
             credentials=ServicePrincipalCredentials(
-                client_id=conn.login,
-                secret=conn.password,
-                tenant=conn.extra_dejson.get('tenantId')
+                client_id=conn.login, secret=conn.password, tenant=conn.extra_dejson.get('tenantId')
             ),
-            subscription_id=conn.extra_dejson.get('subscriptionId')
+            subscription_id=conn.extra_dejson.get('subscriptionId'),
         )

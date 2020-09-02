@@ -41,6 +41,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         default timezone.
     :type ensure_utc: bool
     """
+
     ui_color = '#a0e08c'
 
     type_map = {
@@ -62,10 +63,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
     }
 
     @apply_defaults
-    def __init__(self, *,
-                 mysql_conn_id='mysql_default',
-                 ensure_utc=False,
-                 **kwargs):
+    def __init__(self, *, mysql_conn_id='mysql_default', ensure_utc=False, **kwargs):
         super().__init__(**kwargs)
         self.mysql_conn_id = mysql_conn_id
         self.ensure_utc = ensure_utc

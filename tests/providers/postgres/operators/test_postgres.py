@@ -40,6 +40,7 @@ class TestPostgres(unittest.TestCase):
     def tearDown(self):
         tables_to_drop = ['test_postgres_to_postgres', 'test_airflow']
         from airflow.providers.postgres.hooks.postgres import PostgresHook
+
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:
                 for table in tables_to_drop:
@@ -55,14 +56,9 @@ class TestPostgres(unittest.TestCase):
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         autocommit_task = PostgresOperator(
-            task_id='basic_postgres_with_autocommit',
-            sql=sql,
-            dag=self.dag,
-            autocommit=True)
-        autocommit_task.run(
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE,
-            ignore_ti_state=True)
+            task_id='basic_postgres_with_autocommit', sql=sql, dag=self.dag, autocommit=True
+        )
+        autocommit_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_postgres_operator_test_multi(self):
         sql = [
@@ -70,8 +66,7 @@ class TestPostgres(unittest.TestCase):
             "TRUNCATE TABLE test_airflow",
             "INSERT INTO test_airflow VALUES ('X')",
         ]
-        op = PostgresOperator(
-            task_id='postgres_operator_test_multi', sql=sql, dag=self.dag)
+        op = PostgresOperator(task_id='postgres_operator_test_multi', sql=sql, dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_vacuum(self):
@@ -80,11 +75,7 @@ class TestPostgres(unittest.TestCase):
         """
 
         sql = "VACUUM ANALYZE;"
-        op = PostgresOperator(
-            task_id='postgres_operator_test_vacuum',
-            sql=sql,
-            dag=self.dag,
-            autocommit=True)
+        op = PostgresOperator(task_id='postgres_operator_test_vacuum', sql=sql, dag=self.dag, autocommit=True)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_overwrite_schema(self):
@@ -102,8 +93,8 @@ class TestPostgres(unittest.TestCase):
         )
 
         from psycopg2 import OperationalError
+
         try:
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                   ignore_ti_state=True)
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         except OperationalError as e:
             assert 'database "foobar" does not exist' in str(e)

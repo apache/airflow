@@ -31,6 +31,7 @@ class CloudBuildExampleDagsSystemTest(GoogleSystemTest):
 
     It use a real service.
     """
+
     helper = GCPCloudBuildTestHelper()
 
     @provide_gcp_context(GCP_CLOUD_BUILD_KEY, project_id=GoogleSystemTest._project_id())

@@ -23,7 +23,8 @@ from google.cloud.videointelligence_v1 import enums
 from google.cloud.videointelligence_v1.proto.video_intelligence_pb2 import AnnotateVideoResponse
 
 from airflow.providers.google.cloud.operators.video_intelligence import (
-    CloudVideoIntelligenceDetectVideoExplicitContentOperator, CloudVideoIntelligenceDetectVideoLabelsOperator,
+    CloudVideoIntelligenceDetectVideoExplicitContentOperator,
+    CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
 )
 
@@ -52,8 +53,7 @@ class TestCloudVideoIntelligenceOperators(unittest.TestCase):
         ).execute(context={"task_instance": mock.Mock()})
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
@@ -62,7 +62,7 @@ class TestCloudVideoIntelligenceOperators(unittest.TestCase):
             video_context=None,
             location=None,
             retry=None,
-            timeout=None
+            timeout=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceHook")
@@ -79,8 +79,7 @@ class TestCloudVideoIntelligenceOperators(unittest.TestCase):
         ).execute(context={"task_instance": mock.Mock()})
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
@@ -89,7 +88,7 @@ class TestCloudVideoIntelligenceOperators(unittest.TestCase):
             video_context=None,
             location=None,
             retry=None,
-            timeout=None
+            timeout=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceHook")
@@ -106,8 +105,7 @@ class TestCloudVideoIntelligenceOperators(unittest.TestCase):
         ).execute(context={"task_instance": mock.Mock()})
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
@@ -116,5 +114,5 @@ class TestCloudVideoIntelligenceOperators(unittest.TestCase):
             video_context=None,
             location=None,
             retry=None,
-            timeout=None
+            timeout=None,
         )

@@ -47,13 +47,15 @@ class PostgresOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, *,
-            sql: str,
-            postgres_conn_id: str = 'postgres_default',
-            autocommit: bool = False,
-            parameters: Optional[Union[Mapping, Iterable]] = None,
-            database: Optional[str] = None,
-            **kwargs) -> None:
+        self,
+        *,
+        sql: str,
+        postgres_conn_id: str = 'postgres_default',
+        autocommit: bool = False,
+        parameters: Optional[Union[Mapping, Iterable]] = None,
+        database: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
         self.postgres_conn_id = postgres_conn_id
@@ -64,8 +66,7 @@ class PostgresOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info('Executing: %s', self.sql)
-        self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id,
-                                 schema=self.database)
+        self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
         self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
         for output in self.hook.conn.notices:
             self.log.info(output)

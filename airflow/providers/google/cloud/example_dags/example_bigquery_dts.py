@@ -27,16 +27,15 @@ from google.protobuf.json_format import ParseDict
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery_dts import (
-    BigQueryCreateDataTransferOperator, BigQueryDataTransferServiceStartTransferRunsOperator,
+    BigQueryCreateDataTransferOperator,
+    BigQueryDataTransferServiceStartTransferRunsOperator,
     BigQueryDeleteDataTransferConfigOperator,
 )
 from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-BUCKET_URI = os.environ.get(
-    "GCP_DTS_BUCKET_URI", "gs://cloud-ml-tables-data/bank-marketing.csv"
-)
+BUCKET_URI = os.environ.get("GCP_DTS_BUCKET_URI", "gs://cloud-ml-tables-data/bank-marketing.csv")
 GCP_DTS_BQ_DATASET = os.environ.get("GCP_DTS_BQ_DATASET", "test_dts")
 GCP_DTS_BQ_TABLE = os.environ.get("GCP_DTS_BQ_TABLE", "GCS_Test")
 
@@ -77,14 +76,11 @@ with models.DAG(
 ) as dag:
     # [START howto_bigquery_create_data_transfer]
     gcp_bigquery_create_transfer = BigQueryCreateDataTransferOperator(
-        transfer_config=TRANSFER_CONFIG,
-        project_id=GCP_PROJECT_ID,
-        task_id="gcp_bigquery_create_transfer",
+        transfer_config=TRANSFER_CONFIG, project_id=GCP_PROJECT_ID, task_id="gcp_bigquery_create_transfer",
     )
 
     transfer_config_id = (
-        "{{ task_instance.xcom_pull('gcp_bigquery_create_transfer', "
-        "key='transfer_config_id') }}"
+        "{{ task_instance.xcom_pull('gcp_bigquery_create_transfer', key='transfer_config_id') }}"
     )
     # [END howto_bigquery_create_data_transfer]
 
@@ -94,9 +90,7 @@ with models.DAG(
         transfer_config_id=transfer_config_id,
         requested_run_time={"seconds": int(time.time() + 60)},
     )
-    run_id = (
-        "{{ task_instance.xcom_pull('gcp_bigquery_start_transfer', key='run_id') }}"
-    )
+    run_id = "{{ task_instance.xcom_pull('gcp_bigquery_start_transfer', key='run_id') }}"
     # [END howto_bigquery_start_transfer]
 
     # [START howto_bigquery_dts_sensor]

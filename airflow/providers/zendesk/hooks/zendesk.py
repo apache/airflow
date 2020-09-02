@@ -27,6 +27,7 @@ class ZendeskHook(BaseHook):
     """
     A hook to talk to Zendesk
     """
+
     def __init__(self, zendesk_conn_id):
         super().__init__()
         self.__zendesk_conn_id = zendesk_conn_id
@@ -35,20 +36,17 @@ class ZendeskHook(BaseHook):
     def get_conn(self):
         conn = self.get_connection(self.__zendesk_conn_id)
         self.__url = "https://" + conn.host
-        return Zendesk(zdesk_url=self.__url, zdesk_email=conn.login, zdesk_password=conn.password,
-                       zdesk_token=True)
+        return Zendesk(
+            zdesk_url=self.__url, zdesk_email=conn.login, zdesk_password=conn.password, zdesk_token=True
+        )
 
     def __handle_rate_limit_exception(self, rate_limit_exception):
         """
         Sleep for the time specified in the exception. If not specified, wait
         for 60 seconds.
         """
-        retry_after = int(
-            rate_limit_exception.response.headers.get('Retry-After', 60))
-        self.log.info(
-            "Hit Zendesk API rate limit. Pausing for %s seconds",
-            retry_after
-        )
+        retry_after = int(rate_limit_exception.response.headers.get('Retry-After', 60))
+        self.log.info("Hit Zendesk API rate limit. Pausing for %s seconds", retry_after)
         time.sleep(retry_after)
 
     def call(self, path, query=None, get_all_pages=True, side_loading=False):
