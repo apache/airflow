@@ -188,12 +188,12 @@ with models.DAG(
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
 
-    create_build_from_storage >> create_build_from_storage_result  # pylint: disable=pointless-statement
-    create_build_from_storage_result >> list_builds  # pylint: disable=pointless-statement
-    create_build_from_repo >> create_build_from_repo_result  # pylint: disable=pointless-statement
-    create_build_from_repo_result >> list_builds  # pylint: disable=pointless-statement
-    list_builds >> create_build_without_wait >> cancel_build  # pylint: disable=pointless-statement
-    cancel_build >> retry_build >> get_build  # pylint: disable=pointless-statement
+    create_build_from_storage >> create_build_from_storage_result
+    create_build_from_storage_result >> list_builds
+    create_build_from_repo >> create_build_from_repo_result
+    create_build_from_repo_result >> list_builds
+    list_builds >> create_build_without_wait >> cancel_build
+    cancel_build >> retry_build >> get_build
 
 with models.DAG(
     "example_gcp_cloud_build_trigger",

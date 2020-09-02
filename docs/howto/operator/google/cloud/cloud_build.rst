@@ -67,7 +67,8 @@ to be used by other operators.
 CloudBuildCreateBuildOperator
 -----------------------------
 
-Starts a build with the specified configuration.
+Starts a build with the specified configuration. This generated build ID of the created build, as the result of this operator,
+is not idempotent.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
@@ -140,7 +141,8 @@ you can pass wait=False as example shown below.
 CloudBuildCreateBuildTriggerOperator
 ------------------------------------
 
-Creates a new Cloud Build trigger.
+Creates a new Cloud Build trigger. This generated build trigger ID of the created build trigger, as the result of this operator,
+is not idempotent.
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildTriggerOperator`

@@ -18,8 +18,7 @@
 
 """Hook for Google Cloud Build service."""
 
-import time
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildClient
@@ -115,9 +114,16 @@ class CloudBuildHook(GoogleBaseHook):
             raise ValueError("The project_id should be set")
 
         client = self.get_conn()
-        return client.cancel_build(
+
+        self.log.info("Start cancelling build: %s.", id_)
+
+        build = client.cancel_build(
             project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata,
         )
+
+        self.log.info("Build has been cancelled: %s.", id_)
+
+        return build
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_build(
@@ -155,6 +161,9 @@ class CloudBuildHook(GoogleBaseHook):
             raise ValueError("The project_id should be set")
 
         client = self.get_conn()
+
+        self.log.info("Start creating build.")
+
         operation = client.create_build(
             project_id=project_id, build=build, retry=retry, timeout=timeout, metadata=metadata,
         )
@@ -165,10 +174,13 @@ class CloudBuildHook(GoogleBaseHook):
         except Exception:
             raise AirflowException("Could not retrieve Build ID from Operation.")
 
-        if wait:
-            self._wait_for_operation_to_complete(
-                func=self.get_build, id_=id_, project_id=project_id,  # type: ignore
-            )
+        if not wait:
+            return None
+
+        operation.result()
+
+        self.log.info("Build has been created: %s.", id_)
+
         return self.get_build(id_=id_, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -204,9 +216,16 @@ class CloudBuildHook(GoogleBaseHook):
             raise ValueError("The project_id should be set")
 
         client = self.get_conn()
-        return client.create_build_trigger(
+
+        self.log.info("Start creating build trigger.")
+
+        trigger = client.create_build_trigger(
             project_id=project_id, trigger=trigger, retry=retry, timeout=timeout, metadata=metadata,
         )
+
+        self.log.info("Build trigger has been created.")
+
+        return trigger
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_build_trigger(
@@ -238,9 +257,14 @@ class CloudBuildHook(GoogleBaseHook):
             raise ValueError("The project_id should be set")
 
         client = self.get_conn()
+
+        self.log.info("Start deleting build trigger: %s.", trigger_id)
+
         client.delete_build_trigger(
             project_id=project_id, trigger_id=trigger_id, retry=retry, timeout=timeout, metadata=metadata,
         )
+
+        self.log.info("Build trigger has been deleted: %s.", trigger_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_build(
@@ -274,9 +298,16 @@ class CloudBuildHook(GoogleBaseHook):
             raise ValueError("The project_id should be set")
 
         client = self.get_conn()
-        return client.get_build(
+
+        self.log.info("Start retrieving build: %s.", id_)
+
+        build = client.get_build(
             project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata,
         )
+
+        self.log.info("Build has been retrieved: %s.", id_)
+
+        return build
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_build_trigger(
@@ -310,9 +341,16 @@ class CloudBuildHook(GoogleBaseHook):
             raise ValueError("The project_id should be set")
 
         client = self.get_conn()
-        return client.get_build_trigger(
+
+        self.log.info("Start retrieving build trigger: %s.", trigger_id)
+
+        trigger = client.get_build_trigger(
             project_id=project_id, trigger_id=trigger_id, retry=retry, timeout=timeout, metadata=metadata,
         )
+
+        self.log.info("Build trigger has been retrieved: %s.", trigger_id)
+
+        return trigger
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_build_triggers(
@@ -350,7 +388,10 @@ class CloudBuildHook(GoogleBaseHook):
             raise ValueError("The project_id should be set")
 
         client = self.get_conn()
-        return client.list_build_triggers(
+
+        self.log.info("Start retrieving build triggers.")
+
+        triggers = client.list_build_triggers(
             project_id=project_id,
             page_size=page_size,
             page_token=page_token,
@@ -358,6 +399,10 @@ class CloudBuildHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+
+        self.log.info("Build triggers have been retrieved.")
+
+        return triggers
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_builds(
@@ -394,6 +439,9 @@ class CloudBuildHook(GoogleBaseHook):
             raise ValueError("The project_id should be set")
 
         client = self.get_conn()
+
+        self.log.info("Start retrieving builds.")
+
         builds = client.list_builds(
             project_id=project_id,
             page_size=page_size,
@@ -402,6 +450,9 @@ class CloudBuildHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+
+        self.log.info("Builds have been retrieved.")
+
         return list(builds)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -440,6 +491,9 @@ class CloudBuildHook(GoogleBaseHook):
             raise ValueError("The project_id should be set")
 
         client = self.get_conn()
+
+        self.log.info("Start retrying build: %s.", id_)
+
         operation = client.retry_build(
             project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata,
         )
@@ -450,12 +504,13 @@ class CloudBuildHook(GoogleBaseHook):
         except Exception:
             raise AirflowException("Could not retrieve Build ID from Operation.")
 
-        if wait:
-            self._wait_for_operation_to_complete(
-                func=self.get_build,
-                id_=id_,  # type: ignore
-                project_id=project_id,  # type: ignore
-            )
+        if not wait:
+            return None
+
+        operation.result()
+
+        self.log.info("Build has been retried: %s.", id_)
+
         return self.get_build(id_=id_, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -497,6 +552,9 @@ class CloudBuildHook(GoogleBaseHook):
             raise ValueError("The project_id should be set")
 
         client = self.get_conn()
+
+        self.log.info("Start running build trigger: %s.", trigger_id)
+
         operation = client.run_build_trigger(
             project_id=project_id,
             trigger_id=trigger_id,
@@ -512,10 +570,13 @@ class CloudBuildHook(GoogleBaseHook):
         except Exception:
             raise AirflowException("Could not retrieve Build ID from Operation.")
 
-        if wait:
-            self._wait_for_operation_to_complete(
-                func=self.get_build, id_=id_, project_id=project_id,  # type: ignore
-            )
+        if not wait:
+            return None
+
+        operation.result()
+
+        self.log.info("Build trigger has been run: %s.", trigger_id)
+
         return self.get_build(id_=id_, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -554,7 +615,10 @@ class CloudBuildHook(GoogleBaseHook):
             raise ValueError("The project_id should be set")
 
         client = self.get_conn()
-        return client.update_build_trigger(
+
+        self.log.info("Start updating build trigger: %s.", trigger_id)
+
+        trigger = client.update_build_trigger(
             project_id=project_id,
             trigger_id=trigger_id,
             trigger=trigger,
@@ -563,32 +627,6 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-    def _wait_for_operation_to_complete(self, func: Callable, **kwargs: Optional[dict]) -> dict:
-        """
-        Waits for the named operation to complete - checks status of the
-        asynchronous call.
+        self.log.info("Build trigger has been updated: %s.", trigger_id)
 
-        :param func: The function that needs to be called.
-        :type func: Callable
-        :param kwargs: dict of function keyword arguments
-        :type kwargs: dict
-        :return: The response returned by the operation.
-        :rtype: dict
-        :exception: AirflowException in case error is returned.
-        """
-        while True:
-            operation = func(**kwargs)
-            operation_dict = MessageToDict(operation)
-            status = operation_dict["status"]
-            if status:
-                if status == "SUCCESS":
-                    return operation_dict
-                elif status in [
-                    "FAILURE",
-                    "INTERNAL_ERROR",
-                    "TIMEOUT",
-                    "CANCELLED",
-                    "EXPIRED",
-                ]:
-                    raise AirflowException(str(operation_dict))
-            time.sleep(TIME_TO_SLEEP_IN_SECONDS)
+        return trigger

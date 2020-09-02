@@ -125,7 +125,7 @@ class TestCloudBuildOperator(TestCase):
             )
             operator.prepare_template()
             expected_body = {'steps': [{'name': 'ubuntu', 'args': ['echo', 'Hello {{ params.name }}!']}]}
-            self.assertEqual(expected_body, operator.body)
+            self.assertEqual(expected_body, operator.build)
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
     def test_create_build_trigger(self, mock_hook):

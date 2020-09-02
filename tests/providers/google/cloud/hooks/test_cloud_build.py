@@ -22,7 +22,6 @@ functions in CloudBuildHook
 """
 
 import unittest
-import unittest.mock as mock
 from unittest.mock import PropertyMock, patch
 
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
@@ -119,11 +118,10 @@ class TestCloudBuildHook(unittest.TestCase):
             build=BUILD, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None
         )
 
-        get_conn.return_value.get_build.assert_has_calls(
-            [
-                mock.call(id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None),
-                mock.call(id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None),
-            ]
+        get_conn.return_value.create_build.return_value.result.assert_called_once_with()
+
+        get_conn.return_value.get_build.assert_called_once_with(
+            id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None
         )
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.MessageToDict")
@@ -135,10 +133,6 @@ class TestCloudBuildHook(unittest.TestCase):
 
         get_conn.return_value.create_build.assert_called_once_with(
             build=BUILD, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None
-        )
-
-        get_conn.return_value.get_build.assert_called_once_with(
-            id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None
         )
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
@@ -202,11 +196,10 @@ class TestCloudBuildHook(unittest.TestCase):
             id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None
         )
 
-        get_conn.return_value.get_build.assert_has_calls(
-            [
-                mock.call(id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None),
-                mock.call(id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None),
-            ]
+        get_conn.return_value.retry_build.return_value.result.assert_called_once_with()
+
+        get_conn.return_value.get_build.assert_called_once_with(
+            id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None
         )
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.MessageToDict")
@@ -217,10 +210,6 @@ class TestCloudBuildHook(unittest.TestCase):
         self.hook.retry_build(id_=BUILD_ID, project_id=PROJECT_ID, wait=False)
 
         get_conn.return_value.retry_build.assert_called_once_with(
-            id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None
-        )
-
-        get_conn.return_value.get_build.assert_called_once_with(
             id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None
         )
 
@@ -242,11 +231,10 @@ class TestCloudBuildHook(unittest.TestCase):
             metadata=None,
         )
 
-        get_conn.return_value.get_build.assert_has_calls(
-            [
-                mock.call(id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None),
-                mock.call(id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None),
-            ]
+        get_conn.return_value.run_build_trigger.return_value.result.assert_called_once_with()
+
+        get_conn.return_value.get_build.assert_called_once_with(
+            id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None
         )
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.MessageToDict")
@@ -267,10 +255,6 @@ class TestCloudBuildHook(unittest.TestCase):
             metadata=None,
         )
 
-        get_conn.return_value.get_build.assert_called_once_with(
-            id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None
-        )
-
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_update_build_trigger(self, get_conn):
         self.hook.update_build_trigger(trigger_id=TRIGGER_ID, trigger=BUILD_TRIGGER, project_id=PROJECT_ID)
@@ -282,17 +266,4 @@ class TestCloudBuildHook(unittest.TestCase):
             retry=None,
             timeout=None,
             metadata=None,
-        )
-
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.MessageToDict")
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
-    def test__wait_for_operation_to_complete(self, get_conn, mock_message_to_dict):
-        mock_message_to_dict.return_value = BUILD
-
-        self.hook._wait_for_operation_to_complete(
-            func=self.hook.get_build, id_=BUILD_ID, project_id=PROJECT_ID
-        )
-
-        get_conn.return_value.get_build.assert_called_once_with(
-            id_=BUILD_ID, project_id=PROJECT_ID, retry=None, timeout=None, metadata=None
         )

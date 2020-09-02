@@ -76,6 +76,7 @@ class CloudBuildCancelBuildOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         id_: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -151,6 +152,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         build: Union[Dict, Build, str],
         body: Optional[Dict] = None,
         project_id: Optional[str] = None,
@@ -166,7 +168,6 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         self.build = build
         # Not template fields to keep original value
         self.build_raw = build
-        self.body = body
         self.project_id = project_id
         self.wait = wait
         self.retry = retry
@@ -175,26 +176,28 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def prepare_template(self) -> None:
-        # if no file is specified, skip
-        if not isinstance(self.build_raw, str):
-            return
-        with open(self.build_raw, 'r') as file:
-            if any(self.build_raw.endswith(ext) for ext in ['.yaml', '.yml']):
-                self.body = yaml.load(file.read(), Loader=yaml.FullLoader)
-            if self.build_raw.endswith('.json'):
-                self.body = json.loads(file.read())
-
-    def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        if self.body:
+        if body:
             warnings.warn(
                 "The body parameter has been deprecated. You should pass body using " "the build parameter.",
                 DeprecationWarning,
                 stacklevel=4,
             )
             if not self.build:
-                self.build = self.body
+                self.build = self.build_raw = body
+
+    def prepare_template(self) -> None:
+        # if no file is specified, skip
+        if not isinstance(self.build_raw, str):
+            return
+        with open(self.build_raw, 'r') as file:
+            if any(self.build_raw.endswith(ext) for ext in ['.yaml', '.yml']):
+                self.build = yaml.load(file.read(), Loader=yaml.FullLoader)
+            if self.build_raw.endswith('.json'):
+                self.build = json.loads(file.read())
+
+    def execute(self, context):
+        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+
         build = BuildProcessor(build=self.build).process_body()
 
         result = hook.create_build(
@@ -246,6 +249,7 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         trigger: Union[dict, BuildTrigger],
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -311,6 +315,7 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         trigger_id: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -377,6 +382,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         id_: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -444,6 +450,7 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         trigger_id: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -513,6 +520,7 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
@@ -585,6 +593,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         filter_: Optional[str] = None,
@@ -658,6 +667,7 @@ class CloudBuildRetryBuildOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         id_: str,
         project_id: Optional[str] = None,
         wait: bool = True,
@@ -733,6 +743,7 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         trigger_id: str,
         source: Union[dict, RepoSource],
         project_id: Optional[str] = None,
@@ -809,6 +820,7 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         trigger_id: str,
         trigger: Union[dict, BuildTrigger],
         project_id: Optional[str] = None,
