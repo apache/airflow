@@ -47,10 +47,10 @@ echo
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
 source "${AIRFLOW_SOURCES}/scripts/ci/libraries/_all_libs.sh"
 
-initialize_common_environment
+initialization::initialize_common_environment
 
 for PYTHON_MAJOR_MINOR_VERSION in "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}"
 do
     export AIRFLOW_CI_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
-    wait_for_github_registry_image "${AIRFLOW_CI_IMAGE_NAME}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+    push_pull_remove_images::wait_for_github_registry_image "${AIRFLOW_CI_IMAGE_NAME}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
 done
