@@ -73,9 +73,9 @@ function run_airflow_testing_in_docker() {
     return "${EXIT_CODE}"
 }
 
-build_images::prepare_ci_build
+prepare_ci_build
 
-build_images::rebuild_ci_image_if_needed
+rebuild_ci_image_if_needed
 
 # Test environment
 export BACKEND=${BACKEND:="sqlite"}

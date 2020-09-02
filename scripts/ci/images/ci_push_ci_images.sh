@@ -18,6 +18,6 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-build_images::prepare_ci_build
+prepare_ci_build
 
-push_pull_remove_images::push_ci_images
+push_ci_images

@@ -33,12 +33,12 @@ function run_pylint() {
     fi
 }
 
-build_images::prepare_ci_build
+prepare_ci_build
 
-build_images::rebuild_ci_image_if_needed
+rebuild_ci_image_if_needed
 
 if [[ "${#@}" != "0" ]]; then
-    pylint::filter_out_files_from_pylint_todo_list "$@"
+    filter_out_files_from_pylint_todo_list "$@"
 
     if [[ "${#FILTERED_FILES[@]}" == "0" ]]; then
         echo "Filtered out all files. Skipping pylint."

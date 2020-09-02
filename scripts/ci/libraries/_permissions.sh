@@ -32,28 +32,28 @@
 # Since we can't (easily) tell what dockerignore would restrict, we'll just to
 # it to "all" files in the git repo, making sure to exclude the www/static/docs
 # symlink which is broken until the docs are built.
-function permissions::filterout_deleted_files {
+function filterout_deleted_files {
   # Take NUL-separated stdin, return only files that exist on stdout NUL-separated
   # This is to cope with users deleting files or folders locally but not doing `git rm`
   xargs -0 "$STAT_BIN" --printf '%n\0' 2>/dev/null || true;
 }
 
-# Fixes permissions for groups for all the files that are quickly filtered using the permissions::filterout_deleted_files
-function permissions::fix_group_permissions() {
+# Fixes permissions for groups for all the files that are quickly filtered using the filterout_deleted_files
+function fix_group_permissions() {
     if [[ ${PERMISSIONS_FIXED:=} == "true" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Permissions already fixed"
-        verbosity::print_info
+        print_info
+        print_info "Permissions already fixed"
+        print_info
         return
     fi
-    verbosity::print_info
+    print_info
     pushd "${AIRFLOW_SOURCES}" >/dev/null  || exit 1
     # This deals with files
-    git ls-files -z -- ./ | permissions::filterout_deleted_files | xargs -0 chmod og-w
+    git ls-files -z -- ./ | filterout_deleted_files | xargs -0 chmod og-w
     # and this deals with directories
-    git ls-tree -z -r -d --name-only HEAD | permissions::filterout_deleted_files | xargs -0 chmod og-w,og+x
+    git ls-tree -z -r -d --name-only HEAD | filterout_deleted_files | xargs -0 chmod og-w,og+x
     popd >/dev/null || exit 1
-    verbosity::print_info "Fixed group permissions"
-    verbosity::print_info
+    print_info "Fixed group permissions"
+    print_info
     export PERMISSIONS_FIXED="true"
 }

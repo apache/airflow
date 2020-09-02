@@ -24,7 +24,7 @@
 #      trap to set
 #      .... list of signals to handle
 #######################################################################################################
-function traps::add_trap() {
+function add_trap() {
     trap="${1}"
     shift
     for signal in "${@}"

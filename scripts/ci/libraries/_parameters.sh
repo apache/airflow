@@ -17,12 +17,12 @@
 # under the License.
 
 # Reads environment variable passed as first parameter from the .build cache file
-function parameters::read_from_file {
+function read_from_file {
     cat "${BUILD_CACHE_DIR}/.$1" 2>/dev/null || true
 }
 
 # Saves environment variable passed as first parameter to the .build cache file
-function parameters::save_to_file {
+function save_to_file {
     # shellcheck disable=SC2005
     echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
 }
@@ -31,7 +31,7 @@ function parameters::save_to_file {
 # and if it is, it saves it to .build cache file. In case the parameter is wrong, the
 # saved variable is removed (so that bad value is not used again in case it comes from there)
 # and exits with an error
-function parameters::check_and_save_allowed_param {
+function check_and_save_allowed_param {
     _VARIABLE_NAME="${1}"
     _VARIABLE_DESCRIPTIVE_NAME="${2}"
     _FLAG="${3}"
@@ -54,5 +54,5 @@ function parameters::check_and_save_allowed_param {
         fi
         exit 1
     fi
-    parameters::save_to_file "${_VARIABLE_NAME}"
+    save_to_file "${_VARIABLE_NAME}"
 }

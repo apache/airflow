@@ -43,7 +43,7 @@ else
 fi
 
 # shellcheck disable=SC2064
-traps::add_trap "rm -rf '${tmp_file}'" EXIT HUP INT TERM
+add_trap "rm -rf '${tmp_file}'" EXIT HUP INT TERM
 
 for file in "${@}"
 do

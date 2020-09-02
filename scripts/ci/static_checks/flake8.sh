@@ -34,8 +34,8 @@ function run_flake8() {
     fi
 }
 
-build_images::prepare_ci_build
+prepare_ci_build
 
-build_images::rebuild_ci_image_if_needed
+rebuild_ci_image_if_needed
 
 run_flake8 "$@"

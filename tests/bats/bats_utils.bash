@@ -28,6 +28,6 @@ export SKIP_IN_CONTAINER_CHECK="true"
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
 source "scripts/ci/libraries/_all_libs.sh"
 
-initialization::initialize_common_environment
+initialize_common_environment
 
-sanity_checks::basic_sanity_checks
+basic_sanity_checks
