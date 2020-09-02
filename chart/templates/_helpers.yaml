@@ -178,7 +178,7 @@
 {{- end }}
 
 {{ define "flower_image" -}}
-{{ printf "%s:%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.airflow.tag | default .Values.defaultAirflowTag) }}
+{{ printf "%s:%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.images.flower.tag | default .Values.defaultAirflowTag) }}
 {{- end }}
 
 {{ define "statsd_image" -}}
