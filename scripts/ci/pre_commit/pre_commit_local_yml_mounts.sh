@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+set -euo pipefail
 export PRINT_INFO_FROM_SCRIPTS="false"
 export SKIP_CHECK_REMOTE_IMAGE="true"
+
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
@@ -24,7 +26,7 @@ export SKIP_CHECK_REMOTE_IMAGE="true"
 TMP_OUTPUT=$(mktemp)
 
 # Remove temp file if it's hanging around
-add_trap "rm -rf -- '${TMP_OUTPUT}' 2>/dev/null" EXIT HUP INT TERM
+trap 'rm -rf -- "${TMP_OUTPUT}" 2>/dev/null' EXIT
 
 LOCAL_YML_FILE="${AIRFLOW_SOURCES}/scripts/ci/docker-compose/local.yml"
 

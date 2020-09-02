@@ -79,4 +79,5 @@ function script_end {
         print_info "Exit code ${EXIT_CODE}"
         print_info
     fi
+    remove_cache_directory
 }
