@@ -56,11 +56,13 @@ class S3ToRedshiftOperator(BaseOperator):
     :type verify: bool or str
     :param copy_options: reference to a list of COPY options
     :type copy_options: list
+    :param truncate_table: whether or not to truncate the destination table before the copy
+    :type truncate_table: bool
     """
 
-    template_fields = ('s3_key',)
+    template_fields = ('s3_key', 'table',)
     template_ext = ()
-    ui_color = '#ededed'
+    ui_color = '#99e699'
 
     @apply_defaults
     def __init__(
@@ -75,6 +77,7 @@ class S3ToRedshiftOperator(BaseOperator):
         verify: Optional[Union[bool, str]] = None,
         copy_options: Optional[List] = None,
         autocommit: bool = False,
+        truncate_table: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -87,14 +90,19 @@ class S3ToRedshiftOperator(BaseOperator):
         self.verify = verify
         self.copy_options = copy_options or []
         self.autocommit = autocommit
+        self.truncate_table = truncate_table
+        self._s3_hook = None
+        self._postgres_hook = None
 
-    def execute(self, context) -> None:
-        postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
-        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        credentials = s3_hook.get_credentials()
+    def execute(self, context):
+        self._postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
+        self._s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        credentials = self._s3_hook.get_credentials()
         copy_options = '\n\t\t\t'.join(self.copy_options)
 
-        copy_query = """
+        truncate_statement = f'TRUNCATE TABLE {schema}.{table};' if self.truncate_table else ''
+
+        copy_statement = """
             COPY {schema}.{table}
             FROM 's3://{s3_bucket}/{s3_key}'
             with credentials
@@ -110,6 +118,12 @@ class S3ToRedshiftOperator(BaseOperator):
             copy_options=copy_options,
         )
 
+        transaction = f"""BEGIN;
+        {truncate_statement}
+        {copy_statement}
+        COMMIT
+        """
+
         self.log.info('Executing COPY command...')
-        postgres_hook.run(copy_query, self.autocommit)
+        self._postgres_hook.run(transaction, self.autocommit)
         self.log.info("COPY command complete...")
