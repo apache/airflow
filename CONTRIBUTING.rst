@@ -645,6 +645,76 @@ snowflake                  slack
 
   .. END PACKAGE DEPENDENCIES HERE
 
+Contributing to the Scheduler
+=============================
+
+The scheduler is the core of Airflow and needs to be the most understood section. We believe this writeup will remove the mysticism around the scheduler section in the code so that it can be improved further by your contributions. Before diving into further details, we suggest you read up on the `scheduler <https://airflow.apache.org/docs/stable/scheduler.html>`_ section from the documentation.
+
+A DAG consists of Tasks and obviously you need those tasks to run. To do that we schedule the dag to make it into a DagRun. This means that a DagRun is an instantiation of a DAG in time. Then we need to process the tasks of the current active dagruns. We simply loop over the available tasks and see if they are runnable. If a task is runnable it will get sent to the executor.
+
+.. code-block:: python
+
+  def _do_dags(self, dagbag, dags, tis_out):
+      """
+      Iterates over the dags and schedules and processes them
+      """
+      for dag in dags:
+          self.logger.debug("Scheduling {}".format(dag.dag_id))
+          dag = dagbag.get_dag(dag.dag_id)
+          if not dag:
+              continue
+          try:
+              self.schedule_dag(dag)
+              self.process_dag(dag, tis_out)
+              self.manage_slas(dag)
+          except Exception as e:
+              self.logger.exception(e)
+
+Now it is a bit more messy at the moment. That is due to the fact that DagRuns are not yet first class citizens. In the past Airflow only had a notion of DagRun: it mentioned them in the code but they did not really exist, instead DAGs were instantiated into "Tasks in Time": TaskInstances. This creates architectural issues but also real life ones. Some of the issues in the current scheduler with "depend_on_past" stem from this, because a Task is not really able to answer "which task instance is the first in time?". It is also the reason why scheduler loops start to increase over time if DAGs get more complex (many tasks). The good news is work is underway to improve this.
+TODO: Add link to roadmap
+
+States and race conditions
+--------------------------
+States are used in Airflow to understand what the different tasks and dagruns are doing. We currently know the following states.
+
+NONE = None   # Newly created TaskInstance
+QUEUED = "queued"   # Task is waiting for a slot in the executor
+SCHEDULED = "scheduled"
+REMOVED = "removed"
+RUNNING = "running"
+SUCCESS = "success"
+SHUTDOWN = "shutdown"  # External request to shut down
+FAILED = "failed"
+UP_FOR_RETRY = "up_for_retry"   # Task that failed before but needs to be retried
+UPSTREAM_FAILED = "upstream_failed"
+SKIPPED = "skipped"
+
+Please refer to the `Task lifecycle <https://airflow.apache.org/docs/stable/concepts.html#task-lifecycle>`_ for further details.
+
+The scheduler processes tasks that have a state of NONE, SCHEDULED, QUEUED, and UP_FOR_RETRY. If the task has a state of NONE it will be set to SCHEDULED if the scheduler determines that it needs to run. Tasks in the SCHEDULED state are sent to the executor, at which point it is put into the QUEUED state until it actually runs.
+
+Unfortunately a race condition remains for UP_FOR_RETRY tasks as another scheduler can pick those up. To eliminate this the check for UP_FOR_RETRY needs to migrate from the TI to the scheduler. However, was it not for that fact that we have backfills.
+
+Multiprocess Scheduling
+-----------------------
+In previous versions of the scheduler, user-supplied DAG definitions were parsed and loaded in the same process as the scheduler. Unfortunately, this made it possible for bad user code to adversely affect the scheduler process. For example, if a user DAG definition includes a ``system.exit(-1)``, parsing the DAG definition would cause the scheduler process to exit.
+
+To help mitigate such cases, the scheduler processes DAGs in a child processes. This gives it better isolation and faster performance. TODO: Reference scheduler docs
+
+Better state handling (Work In Progress)
+----------------------------------------
+
+In order to remove race conditions and to be able to kill any of airflows components and still be able to continue where we left off, better state handling needs to be done. This means that at handover to a different process only certain states can get set by each process. For example the scheduler should only have an outgoing state of "SCHEDULED". The executor should set a state of "LAUNCHED". A task instance can set UP_FOR_RETRY, RUNNING, UPSTREAM_FAILED, SUCCEEDED but only handles LAUNCHED.
+
+Queues for workers should be handled in the worker, for pools most likely in the scheduler
+
+Backfills
+---------
+
+Backfills are a bit of an awkward duck in the pond. They do not know about DagRuns, won't create them, and don't keep to the schedule so they can break ``depend_on_past``. They execute outside the scheduler and can therefore oversubscribe workers (using more resources than assigned). Backfills just create TaskInstances and start running them.
+
+In order to fix the scheduler and the race condition, first the scheduler and the backfills need to become aware of each other. This will make depend_on_past work and keep things in a consistent state. Avoiding oversubscribing the backfills should be managed by the scheduler.
+
 Documentation
 =============
 

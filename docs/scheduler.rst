@@ -22,37 +22,31 @@ The scheduler is the core component in Airflow that is responsible for monitorin
 
 Scheduling in airflow involves the 3 following components.
 
-1. ``DAGFileProcessor`` - Responsible for parsing the DAG definition in a file and creating the necessary DAG runs and TaskInstances
+1. ``SchedulerJob``
+    Responsibilities include starting the executor, creating new process for managing and updating DAG definitions from the file, transitioning the task instances from one state to another and executing them via a configured executor
 
-2. ``DAGFileProcessorManager`` - Responsible for listing the files in the DagBag and creating new DAGFileProcessors when required
+2. ``DAGFileProcessorManager``
+    Responsibilities include listing the files in the DagBag and creating new DAGFileProcessors for parsing DAG definitions on demand
 
-3. ``SchedulerJob`` - Responsible for sending the TaskInstances to the executor
+3. ``DAGFileProcessor``
+    Responsibilities include parsing the DAG definition in a file, creating the necessary DAG runs and TaskInstances
 
 Logic behind scheduling is as follows:
 
-1. Airflow kicks off DAGFileProcessorManager along with the SchedulerJob. The DAGFileProcessorManager enumerates all the files in the DAG directory.
+1. Airflow kicks off the SchedulerJob which in turn creates a DAGFileProcessorManager. The DAGFileProcessorManager enumerates all the files in the DAG directory.
 
-2. The DAGFileProcessorManager spawns child processes known as DAGFileProcessor which is responsible for creating the necessary DAG Runs and TaskInstances. When it determines that task instances should run, it updates their state to ``SCHEDULED``. The number of DAGFileProcessor to spawn is configurable via ``num_runs`` in ``airflow.cfg``. TODO: Check if the configuration is correct
+2. The DAGFileProcessorManager creates child processes known as DAGFileProcessor which is responsible for creating the necessary DAG Runs and TaskInstances. When it determines that task instances should run, it updates their state to ``SCHEDULED``. The number of DAGFileProcessor to create is configurable via ``max_threads`` in ``airflow.cfg``.
 
-3. If any of the DAGFileProcessor have finished, another process is spawned to work on the next file in the series.
+3. If any of the DAGFileProcessor have finished, another process is created to work on the next file in the series.
 
 4. The cycle is repeated for all the files in the DAG Bag. If the process to parse DAG file is still running when the file's turn comes up in the next cycle, the file is skipped and the next file in the series will be assigned for the new processor. This isolation provides a non-blocking DAG parsing functionality.
 
-To illustrate better,
 
-.. image:: img/scheduler_flow.png
+TODO: Add sequence diagram. Requires Rebase from upstream
 
-TODO: Do we add missing task instance states in the TaskInstance document
+The reason that the task instances are created in the ``SCHEDULED`` state, but then are set to the ``QUEUED`` state once it is sent to the executor, is to ensure that a task instance isn't repeatedly send to the executor if the executor is slow and a DAG definition file is processed multiple times before the executor has a chance to run the task. When the DAGFileProcessor examines a DAG for potential tasks to put into the ``SCHEDULED`` state, it skips those task instances in the ``QUEUED`` state.
 
-If the task instance has a state of NONE it will be set to SCHEDULED if the scheduler determines that it needs to run.
-Tasks in the SCHEDULED state are sent to the executor, at which point it is put into the QUEUED state until it actually runs. TODO: Add links to TaskInstance in the documentation. The reason that the task instances are created in the ``SCHEDULED`` state, but then are set to the ``QUEUED`` state once it is sent to the executor, is to ensure that a task instance isn't repeatedly send to the executor if the executor is slow and a DAG definition file is processed multiple times before the executor has a chance to run the task. When the DAGFileProcessor examines a DAG for potential tasks to put into the ``SCHEDULED`` state, it skips those task instances in the ``QUEUED`` state.
-
-Since the scheduler can run indefinitely, it's necessary to periodically refresh the list of files in the DAG definition directory. The refresh interval is controlled with the ``dag_dir_list_interval`` configuration parameter. In cases where there are only a small number of DAG definition files, the loop could potentially process the DAG definition files many times a minute. To control the rate of DAG file processing, the ``min_file_process_interval`` can be set to a higher value. This parameter ensures that a DAG definition file is not processed more often than once every ``min_file_process_interval`` seconds.
-
-TODO: I don't understand this line of another scheduler. Also do we need to add this here as this looks like a note to contributors.
-Unfortunately a race condition remains for UP_FOR_RETRY tasks as another scheduler can pick those up.
-To eliminate this, the check for UP_FOR_RETRY needs to migrate from the TI to the scheduler.
-However, was it not for that fact that we have backfills... (see below)
+Since the scheduler can run indefinitely, it's necessary to periodically refresh the list of files in the DAG definition directory. The refresh interval is controlled with the ``dag_dir_list_interval`` option in ``[scheduler]`` section. In cases where there are only a small number of DAG definition files, the loop could potentially process the DAG definition files many times a minute. To control the rate of DAG file processing, the ``min_file_process_interval`` option in ``[scheduler]`` section can be set to a higher value. This parameter ensures that a DAG definition file is not processed more often than once every ``min_file_process_interval`` seconds.
 
 The Airflow scheduler is designed to run as a persistent service in an
 Airflow production environment. To kick it off, all you need to do is
@@ -99,10 +93,3 @@ If you want to use 'external trigger' to run future-dated execution dates, set `
 This only has effect if your DAG has no ``schedule_interval``.
 If you keep default ``allow_trigger_in_future = False`` and try ``external trigger`` to run future-dated execution dates,
 the scheduler won't execute it now but the scheduler will execute it in the future once the current date rolls over to the execution date.
-
-Backfills
----------
-
-Backfills are a bit of an awkward duck in the pond. They do not know about DagRuns, won't create them, and don't keep to the schedule so they can break ``depend_on_past``. They execute outside the scheduler and can therefore oversubscribe workers (using more resources than assigned). Backfills just create TaskInstances and start running them.
-TODO: The race condition section?
-In order to fix the scheduler and the race condition, first the scheduler and the backfills need to become aware of each other. This will make depend_on_past work and keep things in a consistent state. Avoiding oversubscribing the backfills should be managed by the scheduler.
