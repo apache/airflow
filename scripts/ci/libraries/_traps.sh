@@ -15,11 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-prepare_ci_build
-
-rebuild_ci_image_if_needed
-
-run_docs "${@}"
+#######################################################################################################
+#
+# Adds trap to the traps already set.
+#
+# Arguments:
+#      trap to set
+#      .... list of signals to handle
+#######################################################################################################
+function add_trap() {
+    trap="${1}"
+    shift
+    for signal in "${@}"
+    do
+        # adding trap to exiting trap
+        local handlers
+        handlers="$( trap -p "${signal}" | cut -f2 -d \' )"
+        # shellcheck disable=SC2064
+        trap "${trap};${handlers}" "${signal}"
+    done
+}

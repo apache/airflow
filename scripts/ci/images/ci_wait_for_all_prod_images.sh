@@ -15,17 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# This is hook build used by DockerHub. We are also using it
-# on CI to potentially rebuild (and refresh layers that
-# are not cached) Docker images that are used to run CI jobs
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+export AIRFLOW_SOURCES="${AIRFLOW_SOURCES:=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../.." && pwd )}"
+echo
+echo "Airflow sources: ${AIRFLOW_SOURCES}"
+echo
 
 if [[ ${USE_GITHUB_REGISTRY} != "true" ||  ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} != "true" ]]; then
     echo
-    echo "This script should not be called!"
-    echo "USE_GITHUB_REGISTRY = ${USE_GITHUB_REGISTRY} and GITHUB_REGISTRY_WAIT_FOR_IMAGE =${GITHUB_REGISTRY_WAIT_FOR_IMAGE}"
+    echo "This script should not be called"
+    echo "It need both USE_GITHUB_REGISTRY and GITHUB_REGISTRY_WAIT_FOR_IMAGE to true!"
+    echo
+    echo "USE_GITHUB_REGISTRY = ${USE_GITHUB_REGISTRY}"
+    echo "GITHUB_REGISTRY_WAIT_FOR_IMAGE =${GITHUB_REGISTRY_WAIT_FOR_IMAGE}"
     echo
     exit 1
 fi
@@ -37,9 +38,17 @@ echo
 echo
 echo "Check if jq is installed"
 echo
-command -v jq
+command -v jq >/dev/null || (echo "ERROR! You must have 'jq' tool installed!" && exit 1)
 
-jq --version
+echo
+echo "The jq version $(jq --version)"
+echo
+
+# shellcheck source=scripts/ci/libraries/_all_libs.sh
+source "${AIRFLOW_SOURCES}/scripts/ci/libraries/_all_libs.sh"
+
+initialize_common_environment
+
 for PYTHON_MAJOR_MINOR_VERSION in "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}"
 do
     export AIRFLOW_PROD_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"

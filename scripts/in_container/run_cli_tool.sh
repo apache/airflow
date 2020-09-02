@@ -18,19 +18,19 @@
 # under the License.
 set -euo pipefail
 
-if [ -z "${AIRFLOW_CI_IMAGE}" ]; then
+if [ -z "${AIRFLOW_CI_IMAGE=}" ]; then
     >&2 echo "Missing environment variable AIRFLOW_CI_IMAGE"
     exit 1
 fi
-if [ -z "${HOST_AIRFLOW_SOURCES}" ]; then
+if [ -z "${HOST_AIRFLOW_SOURCES=}" ]; then
     >&2 echo "Missing environment variable HOST_AIRFLOW_SOURCES"
     exit 1
 fi
-if [ -z "${HOST_USER_ID}" ]; then
+if [ -z "${HOST_USER_ID=}" ]; then
     >&2 echo "Missing environment variable HOST_USER_ID"
     exit 1
 fi
-if [ -z "${HOST_GROUP_ID}" ]; then
+if [ -z "${HOST_GROUP_ID=}" ]; then
     >&2 echo "Missing environment variable HOST_GROUP_ID"
     exit 1
 fi
@@ -65,7 +65,7 @@ env > "${ENV_TMP_FILE}"
 cleanup() {
     rm "${ENV_TMP_FILE}"
 }
-trap cleanup EXIT
+trap cleanup EXIT HUP INT TERM
 
 CONTAINER_ID="$(head -n 1 < /proc/self/cgroup | cut -d ":" -f 3 | cut -d "/" -f 3)"
 
