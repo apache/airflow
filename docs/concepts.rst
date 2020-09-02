@@ -962,10 +962,12 @@ and then puts both tasks upstream of ``task3``:
     group1 >> task3
 
 .. note::
-   Every task in the same DAG must have a unique ``task_id``. Since tasks in TaskGroups are
-   on the same DAG as other tasks, they must all have unique ``task_id`` throughout the DAG.
-   Additionally, ``group_id`` of TaskGroups must be unique and should not conflict with
-   ``task_id`` of tasks.
+   By default, child tasks and TaskGroups have their task_id and group_id prefixed with the
+   group_id of their parent TaskGroup. This ensures uniqueness of group_id and task_id throughout
+   the DAG. To disable the prefixing, pass ``prefix_group_id=False`` when creating the TaskGroup.
+   This then gives the user full control over the actual group_id and task_id. They have to ensure
+   group_id and task_id are unique throughout the DAG. The option ``prefix_group_id=False`` is
+   mainly useful for putting tasks on existing DAGs into TaskGroup without altering their task_id.
 
 Here is a more complicated example DAG with multiple levels of nested TaskGroups:
 

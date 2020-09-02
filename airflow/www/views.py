@@ -157,7 +157,7 @@ def task_group_to_dict(task_group):
         return {
             'id': task_group.task_id,
             'value': {
-                'label': task_group.task_id,
+                'label': task_group.label,
                 'labelStyle': f"fill:{task_group.ui_fgcolor};",
                 'style': f"fill:{task_group.ui_color};",
                 'rx': 5,
@@ -166,8 +166,7 @@ def task_group_to_dict(task_group):
         }
 
     children = [task_group_to_dict(child) for child in
-                sorted(task_group.children.values(),
-                       key=lambda t: t.task_id if isinstance(t, BaseOperator) else t.group_id)]
+                sorted(task_group.children.values(), key=lambda t: t.label)]
 
     if task_group.upstream_group_ids or task_group.upstream_task_ids:
         children.append({
@@ -195,7 +194,7 @@ def task_group_to_dict(task_group):
     return {
         "id": task_group.group_id,
         'value': {
-            'label': task_group.group_id,
+            'label': task_group.label,
             'labelStyle': f"fill:{task_group.ui_fgcolor};",
             'style': f"fill:{task_group.ui_color}",
             'rx': 5,

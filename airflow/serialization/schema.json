@@ -129,6 +129,7 @@
         "_task_module": { "type": "string" },
         "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
+        "label": { "type": "string" },
         "owner": { "type": "string" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
@@ -166,6 +167,7 @@
       "type": "object",
       "required": [
         "_group_id",
+        "prefix_group_id",
         "children",
         "tooltip",
         "ui_color",
@@ -177,6 +179,7 @@
       ],
       "properties": {
         "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
+        "prefix_group_id": { "type": "boolean" },
         "children":  { "$ref": "#/definitions/dict" },
         "tooltip": { "type": "string" },
         "ui_color": { "type": "string" },

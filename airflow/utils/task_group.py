@@ -33,11 +33,32 @@ class TaskGroup:
     """
     A collection of tasks. When set_downstream() or set_upstream() are called on the
     TaskGroup, it is applied across all tasks within the group if necessary.
+
+    :param group_id: a unique, meaningful id for the TaskGroup. group_id must not conflict
+        with group_id of TaskGroup or task_id of tasks in the DAG. Root TaskGroup has group_id
+        set to None.
+    :type group_id: str
+    :param prefix_group_id: If set to True, child task_id and group_id will be prefixed with
+        this TaskGroup's group_id. If set to False, child task_id and group_id are not prefixed.
+        Default is True.
+    :type prerfix_group_id: bool
+    :param parent_group: The parent TaskGroup of this TaskGroup. parent_group is set to None
+        for the root TaskGroup.
+    :type parent_group: TaskGroup
+    :param dag: The DAG that this TaskGroup belongs to.
+    :type dag: airflow.models.DAG
+    :param tooltip: The tooltip of the TaskGroup node when displayed in the UI
+    :type tooltip: str
+    :param ui_color: The fill color of the TaskGroup node when displayed in the UI
+    :type ui_color: str
+    :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
+    :type ui_fgcolor: str
     """
 
     def __init__(
         self,
         group_id: Optional[str],
+        prefix_group_id: bool = True,
         parent_group: Optional["TaskGroup"] = None,
         dag: Optional["DAG"] = None,
         tooltip: str = "",
@@ -46,6 +67,8 @@ class TaskGroup:
     ):
         from airflow.models.dag import DagContext
 
+        self.prefix_group_id = prefix_group_id
+
         if group_id is None:
             # This creates a root TaskGroup.
             if parent_group:
@@ -53,6 +76,7 @@ class TaskGroup:
             # used_group_ids is shared across all TaskGroups in the same DAG to keep track
             # of used group_id to avoid duplication.
             self.used_group_ids: Set[Optional[str]] = set()
+            self._parent_group = None
         else:
             if not isinstance(group_id, str):
                 raise ValueError("group_id must be str")
@@ -64,18 +88,20 @@ class TaskGroup:
             if not parent_group and not dag:
                 raise AirflowException("TaskGroup can only be used inside a dag")
 
-            parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
-            self.used_group_ids = parent_group.used_group_ids  # type: ignore
+            self._parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
+            if not self._parent_group:
+                raise AirflowException("TaskGroup must have a parent_group except for the root TaskGroup")
+            self.used_group_ids = self._parent_group.used_group_ids
 
-        if group_id in self.used_group_ids:
-            raise DuplicateTaskIdFound(f"group_id '{group_id}' has already been added to the DAG")
         self._group_id = group_id
-        self.used_group_ids.add(self._group_id)
+        if self.group_id in self.used_group_ids:
+            raise DuplicateTaskIdFound(f"group_id '{self.group_id}' has already been added to the DAG")
+        self.used_group_ids.add(self.group_id)
         self.used_group_ids.add(self.downstream_join_id)
         self.used_group_ids.add(self.upstream_join_id)
         self.children: Dict[str, Union["BaseOperator", "TaskGroup"]] = {}
-        if parent_group:
-            parent_group.add(self)
+        if self._parent_group:
+            self._parent_group.add(self)
 
         self.tooltip = tooltip
         self.ui_color = ui_color
@@ -129,6 +155,16 @@ class TaskGroup:
     def group_id(self) -> Optional[str]:
         """
         group_id of this TaskGroup.
+        """
+        if self._parent_group and self._parent_group.prefix_group_id and self._parent_group.group_id:
+            return self._parent_group.child_id(self._group_id)
+
+        return self._group_id
+
+    @property
+    def label(self):
+        """
+        group_id excluding parent's group_id used as the node label in UI.
         """
         return self._group_id
 
@@ -258,6 +294,16 @@ class TaskGroup:
         self.__rshift__(other)
         return self
 
+    def child_id(self, label):
+        """
+        Prefix label with group_id if prefix_group_id is True. Otherwise return the label
+        as-is.
+        """
+        if self.prefix_group_id and self.group_id:
+            return f"{self.group_id}.{label}"
+
+        return label
+
     @property
     def upstream_join_id(self):
         """
@@ -265,7 +311,7 @@ class TaskGroup:
         upstream_join_id will be created in Graph View to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """
-        return f"{self.group_id}_upstream_join_id"
+        return f"{self.group_id}.upstream_join_id"
 
     @property
     def downstream_join_id(self):
@@ -274,7 +320,7 @@ class TaskGroup:
         downstream_join_id will be created in Graph View to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """
-        return f"{self.group_id}_downstream_join_id"
+        return f"{self.group_id}.downstream_join_id"
 
     def get_task_group_dict(self) -> Dict[str, "TaskGroup"]:
         """
@@ -293,6 +339,12 @@ class TaskGroup:
 
         build_map(self)
         return task_group_map
+
+    def get_child_by_label(self, label):
+        """
+        Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)
+        """
+        return self.children[self.child_id(label)]
 
 
 class TaskGroupContext:

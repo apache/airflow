@@ -379,6 +379,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Extra Operator Links defined in Plugins
         op_extra_links_from_plugin = {}
 
+        if "label" not in encoded_op:
+            # Handle deserialization of old data before the introduction of TaskGroup
+            encoded_op["label"] = encoded_op["task_id"]
+
         for ope in plugins_manager.operator_extra_links:
             for operator in ope.operators:
                 if operator.__name__ == encoded_op["_task_type"] and \
@@ -674,6 +678,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
 
         serialize_group = {
             "_group_id": task_group._group_id,  # pylint: disable=protected-access
+            "prefix_group_id": task_group.prefix_group_id,
             "tooltip": task_group.tooltip,
             "ui_color": task_group.ui_color,
             "ui_fgcolor": task_group.ui_fgcolor,
@@ -707,7 +712,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         group_id = cls._deserialize(encoded_group["_group_id"])
         kwargs = {
             key: cls._deserialize(encoded_group[key])
-            for key in ["tooltip", "ui_color", "ui_fgcolor"]
+            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
         group = SerializedTaskGroup(
             group_id=group_id,
