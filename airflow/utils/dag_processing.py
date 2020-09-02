@@ -58,18 +58,17 @@ class SimpleDagBag(BaseDagBag):
     A collection of SimpleDag objects with some convenience methods.
     """
 
-    def __init__(self, simple_dags: List[dict]):
+    def __init__(self, serialized_dags: List[SerializedDAG]):
         """
         Constructor.
 
-        :param simple_dags: SimpleDag objects that should be in this
-        :type simple_dags: list[dict]
+        :param serialized_dags: SimpleDag objects that should be in this
+        :type serialized_dags: list[dict]
         """
-        self.simple_dags = simple_dags
+        self.serialized_dags = serialized_dags
         self.dag_id_to_simple_dag: Dict[str, SerializedDAG] = {}
 
-        for simple_dag in simple_dags:
-            serialized_dag = SerializedDAG.from_dict(simple_dag)
+        for serialized_dag in serialized_dags:
             self.dag_id_to_simple_dag[serialized_dag.dag_id] = serialized_dag
 
     @property
@@ -324,7 +323,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             self._parent_signal_conn.send(DagParsingSignal.AGENT_RUN_ONCE)
         except ConnectionError:
             # If this died cos of an error then we will noticed and restarted
-            # when harvest_simple_dags calls _heartbeat_manager.
+            # when harvest_serialized_dags calls _heartbeat_manager.
             pass
 
     def send_callback_to_execute(
@@ -351,7 +350,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             self._parent_signal_conn.send(request)
         except ConnectionError:
             # If this died cos of an error then we will noticed and restarted
-            # when harvest_simple_dags calls _heartbeat_manager.
+            # when harvest_serialized_dags calls _heartbeat_manager.
             pass
 
     def wait_until_finished(self) -> None:
@@ -413,11 +412,11 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
         processor_manager.start()
 
-    def harvest_simple_dags(self) -> List[dict]:
+    def harvest_serialized_dags(self) -> List[SerializedDAG]:
         """
         Harvest DAG parsing results from result queue and sync metadata from stat queue.
 
-        :return: List of parsing result in SimpleDag format.
+        :return: List of parsing result in SerializedDAG format.
         """
         if not self._parent_signal_conn:
             raise ValueError("Process not started.")
@@ -428,20 +427,20 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             except (EOFError, ConnectionError):
                 break
             self._process_message(result)
-        simple_dags = self._collected_dag_buffer
+        serialized_dags = self._collected_dag_buffer
         self._collected_dag_buffer = []
 
         # If it died unexpectedly restart the manager process
         self._heartbeat_manager()
 
-        return simple_dags
+        return serialized_dags
 
     def _process_message(self, message):
         self.log.debug("Received message of type %s", type(message).__name__)
         if isinstance(message, DagParsingStat):
             self._sync_metadata(message)
         else:
-            self._collected_dag_buffer.append(message)
+            self._collected_dag_buffer.append(SerializedDAG.from_dict(message))
 
     def _heartbeat_manager(self):
         """
@@ -703,11 +702,11 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 if not processor:
                     continue
 
-                simple_dags = self._collect_results_from_processor(processor)
+                serialized_dags = self._collect_results_from_processor(processor)
                 self.waitables.pop(sentinel)
                 self._processors.pop(processor.file_path)
-                for simple_dag in simple_dags:
-                    self._signal_conn.send(simple_dag)
+                for serialized_dag in serialized_dags:
+                    self._signal_conn.send(serialized_dag)
 
             self._refresh_dag_dir()
             self._find_zombies()  # pylint: disable=no-value-for-parameter
@@ -735,9 +734,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 self.wait_until_finished()
 
             # Collect anything else that has finished, but don't kick off any more processors
-            simple_dags = self.collect_results()
-            for simple_dag in simple_dags:
-                self._signal_conn.send(simple_dag)
+            serialized_dags = self.collect_results()
+            for serialized_dag in serialized_dags:
+                self._signal_conn.send(serialized_dag)
 
             self._print_stat()
 
@@ -1048,12 +1047,12 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
         Collect the result from any finished DAG processors
 
-        :return: a list of SimpleDags that were produced by processors that
+        :return: a list of dicts that were produced by processors that
             have finished since the last time this was called
         :rtype: list[dict]
         """
         # Collect all the DAGs that were found in the processed files
-        simple_dags = []
+        serialized_dags = []
 
         ready = multiprocessing.connection.wait(self.waitables.keys() - [self._signal_conn], timeout=0)
 
@@ -1061,7 +1060,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             processor = self.waitables[sentinel]
             self.waitables.pop(processor.waitable_handle)
             self._processors.pop(processor.file_path)
-            simple_dags += self._collect_results_from_processor(processor)
+            serialized_dags += self._collect_results_from_processor(processor)
 
         self.log.debug("%s/%s DAG parsing processes running",
                        len(self._processors), self._parallelism)
@@ -1069,7 +1068,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self.log.debug("%s file paths queued for processing",
                        len(self._file_path_queue))
 
-        return simple_dags
+        return serialized_dags
 
     def start_new_processes(self):
         """
@@ -1199,7 +1198,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                     file_path, processor.pid, processor.start_time.isoformat())
                 Stats.decr('dag_processing.processes')
                 Stats.incr('dag_processing.processor_timeouts')
-                # TODO: Remove ater Airflow 2.0
+                # TODO: Remove after Airflow 2.0
                 Stats.incr('dag_file_processor_timeouts')
                 processor.kill()
 

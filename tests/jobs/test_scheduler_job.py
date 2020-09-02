@@ -1160,14 +1160,17 @@ class TestDagFileProcessor(unittest.TestCase):
                 .update({DagModel.is_paused: True}, synchronize_session=False)
             )
 
-        simple_dags, import_errors_count = dag_file_processor.process_file(
+        serialized_dags, import_errors_count = dag_file_processor.process_file(
             file_path=dag_file, failure_callback_requests=[]
         )
+
+        dags = [SerializedDAG.from_dict(serialized_dag) for serialized_dag in serialized_dags]
+
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
         self.assertEqual(0, import_errors_count)
-        self.assertEqual(['test_multiple_dags__dag_2'], list(SimpleDagBag(simple_dags).dag_ids))
+        self.assertEqual(['test_multiple_dags__dag_2'], list(SimpleDagBag(dags).dag_ids))
         self.assertEqual({'test_multiple_dags__dag_2'}, {ti.dag_id for ti in tis})
 
     def test_should_mark_dummy_task_as_success(self):
@@ -1182,14 +1185,17 @@ class TestDagFileProcessor(unittest.TestCase):
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         dagbag.sync_to_db()
 
-        simple_dags, import_errors_count = dag_file_processor.process_file(
+        serialized_dags, import_errors_count = dag_file_processor.process_file(
             file_path=dag_file, failure_callback_requests=[]
         )
+
+        dags = [SerializedDAG.from_dict(serialized_dag) for serialized_dag in serialized_dags]
+
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
         self.assertEqual(0, import_errors_count)
-        self.assertEqual(['test_only_dummy_tasks'], list(SimpleDagBag(simple_dags).dag_ids))
+        self.assertEqual(['test_only_dummy_tasks'], list(SimpleDagBag(dags).dag_ids))
         self.assertEqual(5, len(tis))
         self.assertEqual({
             ('test_task_a', 'success'),
@@ -1415,7 +1421,7 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.run()
 
     def _make_simple_dag_bag(self, dags):
-        return SimpleDagBag(DagFileProcessor._prepare_simple_dags(dags))
+        return SimpleDagBag([SerializedDAG.from_dict(SerializedDAG.to_dict(dag)) for dag in dags])
 
     def test_no_orphan_process_will_be_left(self):
         empty_dir = mkdtemp()
@@ -2371,7 +2377,8 @@ class TestSchedulerJob(unittest.TestCase):
         executor.queued_tasks
         scheduler.executor = executor
         processor = mock.MagicMock()
-        processor.harvest_simple_dags.return_value = [SerializedDAG.to_dict(dag)]
+        processor.harvest_serialized_dags.return_value = [
+            SerializedDAG.from_dict(SerializedDAG.to_dict(dag))]
         processor.done = True
         scheduler.processor_agent = processor
 
@@ -3049,8 +3056,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag_id = 'exit_test_dag'
         dag_ids = [dag_id]
         dag_directory = os.path.join(settings.DAGS_FOLDER, "..", "dags_with_system_exit")
-        dag_file = os.path.join(dag_directory,
-                                'b_test_scheduler_dags.py')
+        dag_file = os.path.join(dag_directory, 'b_test_scheduler_dags.py')
 
         dagbag = DagBag(dag_folder=dag_file)
         for dag_id in dag_ids:
@@ -3604,8 +3610,8 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
                     ti.set_state(state=State.SCHEDULED)
 
             mock_agent = mock.MagicMock()
-            mock_agent.harvest_simple_dags.return_value = [
-                SerializedDAG.to_dict(d) for d in dagbag.dags.values()]
+            mock_agent.harvest_serialized_dags.return_value = [
+                SerializedDAG.from_dict(SerializedDAG.to_dict(d)) for d in dagbag.dags.values()]
 
             job = SchedulerJob(subdir=PERF_DAGS_FOLDER)
             job.executor = MockExecutor()
@@ -3646,7 +3652,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
                     ti.set_state(state=State.SCHEDULED)
 
             mock_agent = mock.MagicMock()
-            mock_agent.harvest_simple_dags.return_value = []
+            mock_agent.harvest_serialized_dags.return_value = []
 
             job = SchedulerJob(subdir=PERF_DAGS_FOLDER)
             job.executor = MockExecutor()

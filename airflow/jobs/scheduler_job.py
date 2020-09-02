@@ -843,7 +843,7 @@ class DagFileProcessor(LoggingMixin):
         5. Kill (in ORM) any task instances belonging to the DAGs that haven't
         issued a heartbeat in a while.
 
-        Returns a list of SimpleDag objects that represent the DAGs found in
+        Returns a list of serialized_dag dicts that represent the DAGs found in
         the file
 
         :param file_path: the path to the Python file that should be executed
@@ -889,7 +889,7 @@ class DagFileProcessor(LoggingMixin):
             dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids
         ]
 
-        simple_dags = self._prepare_simple_dags(unpaused_dags)
+        serialized_dags = self._prepare_serialized_dags(unpaused_dags)
 
         dags = self._find_dags_to_process(unpaused_dags)
 
@@ -903,7 +903,7 @@ class DagFileProcessor(LoggingMixin):
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Error logging import errors!")
 
-        return simple_dags, len(dagbag.import_errors)
+        return serialized_dags, len(dagbag.import_errors)
 
     @provide_session
     def _schedule_task_instances(
@@ -965,19 +965,20 @@ class DagFileProcessor(LoggingMixin):
         session.commit()
 
     @classmethod
-    def _prepare_simple_dags(cls, dags: List[DAG]) -> List[dict]:
+    def _prepare_serialized_dags(cls, dags: List[DAG]) -> List[dict]:
         """
-        Convert DAGS to  SimpleDags. If necessary, it also Pickle the DAGs
+        Convert DAGS to SimpleDags. If necessary, it also Pickle the DAGs
 
         :param dags: List of DAGs
         :return: List of SimpleDag
         :rtype: List[dict]
         """
-        simple_dags: List[dict] = []
-        # Pickle the DAGs (if necessary) and put them into a SimpleDag
+        serialized_dags: List[dict] = []
+        # Pickle the DAGs (if necessary) and put them into a SimpleDagBag
+        # TODO: add pickling again
         for dag in dags:
-            simple_dags.append(SerializedDAG.to_dict(dag))
-        return simple_dags
+            serialized_dags.append(SerializedDAG.to_dict(dag))
+        return serialized_dags
 
 
 class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
@@ -1276,7 +1277,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 # Check to make sure that the task concurrency of the DAG hasn't been
                 # reached.
                 dag_id = task_instance.dag_id
-                simple_dag = simple_dag_bag.get_dag(dag_id)
+                serialized_dag = simple_dag_bag.get_dag(dag_id)
 
                 current_dag_concurrency = dag_concurrency_map[dag_id]
                 dag_concurrency_limit = simple_dag_bag.get_dag(dag_id).concurrency
@@ -1293,8 +1294,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     continue
 
                 task_concurrency_limit: Optional[int] = None
-                if simple_dag.has_task(task_instance.task_id):
-                    task_concurrency_limit = simple_dag.get_task(
+                if serialized_dag.has_task(task_instance.task_id):
+                    task_concurrency_limit = serialized_dag.get_task(
                         task_instance.task_id).task_concurrency
 
                 if task_concurrency_limit is not None:
@@ -1412,7 +1413,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         """
         # actually enqueue them
         for simple_task_instance in simple_task_instances:
-            simple_dag = simple_dag_bag.get_dag(simple_task_instance.dag_id)
+            serialized_dag = simple_dag_bag.get_dag(simple_task_instance.dag_id)
             command = TI.generate_command(
                 simple_task_instance.dag_id,
                 simple_task_instance.task_id,
@@ -1424,8 +1425,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 ignore_task_deps=False,
                 ignore_ti_state=False,
                 pool=simple_task_instance.pool,
-                file_path=simple_dag.full_filepath,
-                pickle_id=simple_dag.pickle_id,
+                file_path=serialized_dag.full_filepath,
+                pickle_id=serialized_dag.pickle_id,
             )
 
             priority = simple_task_instance.priority_weight
@@ -1558,9 +1559,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 msg = "Executor reports task instance %s finished (%s) although the " \
                       "task says its %s. (Info: %s) Was the task killed externally?"
                 self.log.error(msg, ti, state, ti.state, info)
-                simple_dag = simple_dag_bag.get_dag(ti.dag_id)
+                serialized_dag = simple_dag_bag.get_dag(ti.dag_id)
                 self.processor_agent.send_callback_to_execute(
-                    full_filepath=simple_dag.full_filepath,
+                    full_filepath=serialized_dag.full_filepath,
                     task_instance=ti,
                     msg=msg % (ti, state, ti.state, info),
                 )
@@ -1675,12 +1676,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 self.log.debug("Waiting for processors to finish since we're using sqlite")
                 self.processor_agent.wait_until_finished()
 
-            simple_dags = self.processor_agent.harvest_simple_dags()
+            serialized_dags = self.processor_agent.harvest_serialized_dags()
 
-            self.log.debug("Harvested %d SimpleDAGs", len(simple_dags))
+            self.log.debug("Harvested %d SimpleDAGs", len(serialized_dags))
 
             # Send tasks for execution if available
-            simple_dag_bag = SimpleDagBag(simple_dags)
+            simple_dag_bag = SimpleDagBag(serialized_dags)
 
             if not self._validate_and_run_task_instances(simple_dag_bag=simple_dag_bag):
                 continue
@@ -1704,7 +1705,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 break
 
     def _validate_and_run_task_instances(self, simple_dag_bag: SimpleDagBag) -> bool:
-        if simple_dag_bag.simple_dags:
+        if simple_dag_bag.serialized_dags:
             try:
                 self._process_and_execute_tasks(simple_dag_bag)
             except Exception as e:  # pylint: disable=broad-except
