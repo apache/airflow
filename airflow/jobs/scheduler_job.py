@@ -889,7 +889,7 @@ class DagFileProcessor(LoggingMixin):
             dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids
         ]
 
-        serialized_dags = self._prepare_serialized_dags(unpaused_dags)
+        serialized_dags = self._prepare_serialized_dags(unpaused_dags, pickle_dags, session)
 
         dags = self._find_dags_to_process(unpaused_dags)
 
