@@ -827,7 +827,7 @@ class DagFileProcessor(LoggingMixin):
         self,
         file_path: str,
         failure_callback_requests: List[FailureCallbackRequest],
-        pickle_dags: bool = False,  # pylint: disable=unused-argument
+        pickle_dags: bool = False,
         session: Session = None
     ) -> Tuple[List[dict], int]:
         """
