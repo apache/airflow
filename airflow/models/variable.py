@@ -174,14 +174,11 @@ class Variable(Base, LoggingMixin):
         else:
             stored_value = str(value)
 
-        fernet = get_fernet()
-        stored_value = fernet.encrypt(bytes(stored_value, 'utf-8')).decode()
         Variable.delete(key, session=session)
         session.add(Variable(
             key=key,
             val=stored_value,
             is_curve_template=is_curve_template,
-            is_encrypted=fernet.is_encrypted
         ))  # type: ignore
         session.flush()
 
