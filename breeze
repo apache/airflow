@@ -668,8 +668,8 @@ function breeze::prepare_command_files() {
 # Prints detailed help for all commands and flags. Used to generate documentation added to BREEZE.rst
 # automatically.
 #
-# Used globals:
-#    ALL_BREEZE_COMMANDS
+# Used global variables:
+#    _breeze_all_commands
 #
 # Outputs:
 #   Prints detailed help for all commands to stdout.
@@ -687,7 +687,8 @@ function breeze::do_help_all() {
     breeze::print_line
     echo
     local subcommand
-    for subcommand in ${ALL_BREEZE_COMMANDS}; do
+    # shellcheck disable=SC2154
+    for subcommand in ${_breeze_all_commands}; do
         breeze::detailed_usage "${subcommand}"
         breeze::print_line
         echo
@@ -700,17 +701,22 @@ function breeze::do_help_all() {
 #
 # Parses all arguments that can be passed to Breeze command - that includes command to run and flags.
 #
+# Used global variables:
+#   _breeze_getopt_short_options
+#   _breeze_getopt_long_options
+#   _breeze_allowed_integrations
+#
 # Updated global constants:
-#      By the end of this function, all the constants from `initialization::make_constants_read_only` function are set
-#      and they are set as read-only.
+#      By the end of this function, all the constants from `initialization::make_constants_read_only`
+#      function are set and they are set as read-only.
 #
 #######################################################################################################
 function breeze::parse_arguments() {
     set -u
     local params
     if ! params=$(getopt \
-        -o "${_BREEZE_GETOPT_SHORT_OPTIONS:=}" \
-        -l "${_BREEZE_GETOPT_LONG_OPTIONS:=}" \
+        -o "${_breeze_getopt_short_options:=}" \
+        -l "${_breeze_getopt_long_options:=}" \
         --name "$CMDNAME" -- "$@"); then
         breeze::flags
         exit 1
@@ -745,7 +751,8 @@ function breeze::parse_arguments() {
             parameters::check_and_save_allowed_param "INTEGRATION" "integration" "--integration"
             echo "Integration: ${INTEGRATION}"
             if [[ ${INTEGRATION} == "all" ]]; then
-                for INTEGRATION in ${_BREEZE_ALLOWED_INTEGRATIONS}; do
+                # shellcheck disable=SC2154
+                for INTEGRATION in ${_breeze_allowed_integrations}; do
                     if [[ ${INTEGRATION} != "all" ]]; then
                         echo "${INTEGRATION}"
                         INTEGRATIONS+=("${INTEGRATION}")
@@ -1137,7 +1144,7 @@ function breeze::parse_arguments() {
                     echo
                     echo "One of :"
                     echo
-                    echo "${_BREEZE_ALLOWED_STATIC_CHECKS:=}"
+                    echo "${_breeze_allowed_static_checks:=}"
                     echo
                     echo "For example:"
                     echo
@@ -1253,6 +1260,9 @@ function breeze::parse_arguments() {
 # It is used in help command to print the lists in a readable format and fold the lists
 # so that they fit the screen indented_screen_width.
 #
+# Used global variables:
+#    _breeze_allowed_*
+#
 # Updated global constants:
 #       FORMATTED_* constant variables that can be used in Breeze Help output
 #
@@ -1263,51 +1273,51 @@ function breeze::prepare_formatted_versions() {
     list_prefix=$(printf "%-${indent}s" " ")
     local indented_screen_width=$((SCREEN_WIDTH - indent))
 
-    FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS=$(echo "${_BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS=""}" | tr '\n' ' ' |
+    FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS=$(echo "${_breeze_allowed_python_major_minor_versions=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS
 
-    FORMATTED_BACKENDS=$(echo "${_BREEZE_ALLOWED_BACKENDS=""}" | tr '\n' ' ' |
+    FORMATTED_BACKENDS=$(echo "${_breeze_allowed_backends=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_BACKENDS
 
-    FORMATTED_STATIC_CHECKS=$(echo "${_BREEZE_ALLOWED_STATIC_CHECKS=""}" | tr '\n' ' ' |
+    FORMATTED_STATIC_CHECKS=$(echo "${_breeze_allowed_static_checks=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_STATIC_CHECKS
 
-    FORMATTED_INTEGRATIONS=$(echo "${_BREEZE_ALLOWED_INTEGRATIONS=""}" | tr '\n' ' ' |
+    FORMATTED_INTEGRATIONS=$(echo "${_breeze_allowed_integrations=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_INTEGRATIONS
 
-    FORMATTED_KUBERNETES_MODES=$(echo "${_BREEZE_ALLOWED_KUBERNETES_MODES=""}" | tr '\n' ' ' |
+    FORMATTED_KUBERNETES_MODES=$(echo "${_breeze_allowed_kubernetes_modes=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_KUBERNETES_MODES
 
-    FORMATTED_KUBERNETES_VERSIONS=$(echo "${_BREEZE_ALLOWED_KUBERNETES_VERSIONS=""}" | tr '\n' ' ' |
+    FORMATTED_KUBERNETES_VERSIONS=$(echo "${_breeze_allowed_kubernetes_versions=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_KUBERNETES_VERSIONS
 
-    FORMATTED_KIND_VERSIONS=$(echo "${_BREEZE_ALLOWED_KIND_VERSIONS=""}" | tr '\n' ' ' |
+    FORMATTED_KIND_VERSIONS=$(echo "${_breeze_allowed_kind_versions=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_KIND_VERSIONS
 
-    FORMATTED_HELM_VERSIONS=$(echo "${_BREEZE_ALLOWED_HELM_VERSIONS=""}" | tr '\n' ' ' |
+    FORMATTED_HELM_VERSIONS=$(echo "${_breeze_allowed_helm_versions=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_HELM_VERSIONS
 
-    FORMATTED_KIND_OPERATIONS=$(echo "${_BREEZE_ALLOWED_KIND_OPERATIONS=""}" | tr '\n' ' ' |
+    FORMATTED_KIND_OPERATIONS=$(echo "${_breeze_allowed_kind_operations=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_KIND_OPERATIONS
 
-    FORMATTED_INSTALL_AIRFLOW_VERSIONS=$(echo "${_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=""}" |
+    FORMATTED_INSTALL_AIRFLOW_VERSIONS=$(echo "${_breeze_allowed_install_airflow_versions=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_INSTALL_AIRFLOW_VERSIONS
 
-    FORMATTED_POSTGRES_VERSIONS=$(echo "${_BREEZE_ALLOWED_POSTGRES_VERSIONS=""}" |
+    FORMATTED_POSTGRES_VERSIONS=$(echo "${_breeze_allowed_postgres_versions=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_POSTGRES_VERSIONS
 
-    FORMATTED_MYSQL_VERSIONS=$(echo "${_BREEZE_ALLOWED_MYSQL_VERSIONS=""}" |
+    FORMATTED_MYSQL_VERSIONS=$(echo "${_breeze_allowed_mysql_versions=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_MYSQL_VERSIONS
 
@@ -1777,9 +1787,9 @@ function breeze::get_detailed_usage() {
 #
 # Globals used:
 #    CMDNAME
-#    BREEZE_COMMANDS
-#    BREEZE_EXTRA_ARG_COMMANDS
-#    BREEZE_HELP_COMMANDS
+#    _breeze_commands
+#    _breeze_extra_arg_commands
+#    _breeze_help_commands
 #
 # Outputs:
 #    General usage information for all commands.
@@ -1796,19 +1806,21 @@ Add --help after each command to see details:
 
 Commands without arguments:
 "
-    for subcommand in ${BREEZE_COMMANDS}; do
+    for subcommand in ${_breeze_commands}; do
         printf "  %-40s %s\n" "${subcommand}" "$(breeze::get_usage "${subcommand}")"
     done
     echo "
 Commands with arguments:
 "
-    for subcommand in ${BREEZE_EXTRA_ARG_COMMANDS}; do
+    # shellcheck disable=SC2154
+    for subcommand in ${_breeze_extra_arg_commands}; do
         printf "  %-30s%-10s %s\n" "${subcommand}" "<ARG>" "$(breeze::get_usage "${subcommand}")"
     done
     echo "
 Help commands:
 "
-    for subcommand in ${BREEZE_HELP_COMMANDS}; do
+    # shellcheck disable=SC2154
+    for subcommand in ${_breeze_help_commands}; do
         printf "  %-40s %s\n" "${subcommand}" "$(breeze::get_usage "${subcommand}")"
     done
     echo
@@ -1893,7 +1905,7 @@ function breeze::flag_backend_variants() {
 
 ${FORMATTED_BACKENDS}
 
-        Default: ${_BREEZE_DEFAULT_BACKEND:=}
+        Default: ${_breeze_default_backend:=}
 
 --postgres-version <POSTGRES_VERSION>
         Postgres version used. One of:
@@ -1981,7 +1993,7 @@ Configuration for the KinD Kubernetes cluster and tests:
 
 ${FORMATTED_KUBERNETES_MODES}
 
-        Default: ${_BREEZE_DEFAULT_KUBERNETES_MODE:=}
+        Default: ${_breeze_default_kubernetes_mode:=}
 
 -V, --kubernetes-version <KUBERNETES_VERSION>
         Kubernetes version - only used in case one of kind-cluster commands is used.
@@ -1989,7 +2001,7 @@ ${FORMATTED_KUBERNETES_MODES}
 
 ${FORMATTED_KUBERNETES_VERSIONS}
 
-        Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
+        Default: ${_breeze_default_kubernetes_version:=}
 
 --kind-version <KIND_VERSION>
         Kind version - only used in case one of kind-cluster commands is used.
@@ -1997,7 +2009,7 @@ ${FORMATTED_KUBERNETES_VERSIONS}
 
 ${FORMATTED_KIND_VERSIONS}
 
-        Default: ${_BREEZE_DEFAULT_KIND_VERSION:=}
+        Default: ${_breeze_default_kind_version:=}
 
 --helm-version <HELM_VERSION>
         Helm version - only used in case one of kind-cluster commands is used.
@@ -2005,7 +2017,7 @@ ${FORMATTED_KIND_VERSIONS}
 
 ${FORMATTED_HELM_VERSIONS}
 
-        Default: ${_BREEZE_DEFAULT_HELM_VERSION:=}
+        Default: ${_breeze_default_helm_version:=}
 
 "
 }
@@ -2204,10 +2216,10 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 # Prints flags controlling docker pull and push process
 #
 # Global constants used:
-#       _BREEZE_DEFAULT_DOCKERHUB_USER
-#       _BREEZE_DEFAULT_DOCKERHUB_REPO
-#       _BREEZE_DEFAULT_GITHUB_REPOSITORY
-#       _BREEZE_DEFAULT_GITHUB_IMAGE_ID
+#       _breeze_default_dockerhub_user
+#       _breeze_default_dockerhub_repo
+#       _breeze_default_github_repository
+#       _breeze_default_github_image_id
 #
 # Outputs:
 #    Flag information.
@@ -2215,10 +2227,10 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 function breeze::flag_pull_push_docker_images() {
     echo "
 -D, --dockerhub-user
-        DockerHub user used to pull, push and build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_USER:=}.
+        DockerHub user used to pull, push and build images. Default: ${_breeze_default_dockerhub_user:=}.
 
 -H, --dockerhub-repo
-        DockerHub repository used to pull, push, build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_REPO:=}.
+        DockerHub repository used to pull, push, build images. Default: ${_breeze_default_dockerhub_repo:=}.
 
 -c, --github-registry
         If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
@@ -2227,7 +2239,7 @@ function breeze::flag_pull_push_docker_images() {
 
 -g, --github-repository
         GitHub repository used to pull, push images when cache is used.
-        Default: ${_BREEZE_DEFAULT_GITHUB_REPOSITORY:=}.
+        Default: ${_breeze_default_github_repository:=}.
 
         If you use this flag, automatically --github-registry flag is enabled.
 
@@ -2240,7 +2252,7 @@ function breeze::flag_pull_push_docker_images() {
 
         If you use this flag, automatically --github-registry is enabled.
 
-        Default: ${_BREEZE_DEFAULT_GITHUB_IMAGE_ID:=}.
+        Default: ${_breeze_default_github_image_id:=}.
 
 "
 }
@@ -2378,7 +2390,7 @@ function breeze::print_star_line() {
 # to determine the right images to use and set several variables that depend on the Python version
 #
 # Uses:
-#   _BREEZE_DEFAULT_* corresponding defaults for variables it reads
+#   _breeze_default_* corresponding defaults for variables it reads
 #
 # Modified and used global constants:
 #
@@ -2396,37 +2408,37 @@ function breeze::print_star_line() {
 
 function breeze::read_saved_environment_variables() {
     BACKEND="${BACKEND:=$(parameters::read_from_file BACKEND)}"
-    BACKEND=${BACKEND:-${_BREEZE_DEFAULT_BACKEND}}
+    BACKEND=${BACKEND:-${_breeze_default_backend}}
 
     KUBERNETES_MODE="${KUBERNETES_MODE:=$(parameters::read_from_file KUBERNETES_MODE)}"
-    KUBERNETES_MODE=${KUBERNETES_MODE:=${_BREEZE_DEFAULT_KUBERNETES_MODE}}
+    KUBERNETES_MODE=${KUBERNETES_MODE:=${_breeze_default_kubernetes_mode}}
 
     KUBERNETES_VERSION="${KUBERNETES_VERSION:=$(parameters::read_from_file KUBERNETES_VERSION)}"
-    KUBERNETES_VERSION=${KUBERNETES_VERSION:=${_BREEZE_DEFAULT_KUBERNETES_VERSION}}
+    KUBERNETES_VERSION=${KUBERNETES_VERSION:=${_breeze_default_kubernetes_version}}
 
     KIND_VERSION="${KIND_VERSION:=$(parameters::read_from_file KIND_VERSION)}"
-    KIND_VERSION=${KIND_VERSION:=${_BREEZE_DEFAULT_KIND_VERSION}}
+    KIND_VERSION=${KIND_VERSION:=${_breeze_default_kind_version}}
 
     HELM_VERSION="${HELM_VERSION:=$(parameters::read_from_file HELM_VERSION)}"
-    HELM_VERSION=${HELM_VERSION:=${_BREEZE_DEFAULT_HELM_VERSION}}
+    HELM_VERSION=${HELM_VERSION:=${_breeze_default_helm_version}}
 
     POSTGRES_VERSION="${POSTGRES_VERSION:=$(parameters::read_from_file POSTGRES_VERSION)}"
-    POSTGRES_VERSION=${POSTGRES_VERSION:=${_BREEZE_DEFAULT_POSTGRES_VERSION}}
+    POSTGRES_VERSION=${POSTGRES_VERSION:=${_breeze_default_postgres_version}}
 
     MYSQL_VERSION="${MYSQL_VERSION:=$(parameters::read_from_file MYSQL_VERSION)}"
-    MYSQL_VERSION=${MYSQL_VERSION:=${_BREEZE_DEFAULT_MYSQL_VERSION}}
+    MYSQL_VERSION=${MYSQL_VERSION:=${_breeze_default_mysql_version}}
 
     # Here you read DockerHub user/account that you use
     # You can populate your own images in DockerHub this way and work with the,
     # You can override it with "--dockerhub-user" option and it will be stored in .build directory
     DOCKERHUB_USER="${DOCKERHUB_USER:=$(parameters::read_from_file DOCKERHUB_USER)}"
-    DOCKERHUB_USER="${DOCKERHUB_USER:=${_BREEZE_DEFAULT_DOCKERHUB_USER}}"
+    DOCKERHUB_USER="${DOCKERHUB_USER:=${_breeze_default_dockerhub_user}}"
 
     # Here you read DockerHub repo that you use
     # You can populate your own images in DockerHub this way and work with them
     # You can override it with "--dockerhub-repo" option and it will be stored in .build directory
     DOCKERHUB_REPO="${DOCKERHUB_REPO:=$(parameters::read_from_file DOCKERHUB_REPO)}"
-    DOCKERHUB_REPO="${DOCKERHUB_REPO:=${_BREEZE_DEFAULT_DOCKERHUB_REPO}}"
+    DOCKERHUB_REPO="${DOCKERHUB_REPO:=${_breeze_default_dockerhub_repo}}"
 }
 
 #######################################################################################################

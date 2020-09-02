@@ -1810,7 +1810,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all all-but-pylint airflow-config-yaml base-operator bat-tests black build
+                 all all-but-pylint airflow-config-yaml base-operator bats-tests black build
                  build-providers-dependencies check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-hooks-apply check-integrations
                  check-merge-conflict check-xml consistent-pylint daysago-import-check

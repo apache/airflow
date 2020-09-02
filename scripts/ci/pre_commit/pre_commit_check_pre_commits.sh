@@ -24,7 +24,7 @@ export PRINT_INFO_FROM_SCRIPTS="false"
 
 cd "${AIRFLOW_SOURCES}"
 
-. breeze-complete
+. ./breeze-complete
 
 PRE_COMMIT_CONFIG_FILE="${AIRFLOW_SOURCES}/.pre-commit-config.yaml"
 readonly PRE_COMMIT_CONFIG_FILE
@@ -44,12 +44,12 @@ do
         >&2 echo "FIX: Please add ${pre_commit} in the table in the 'Pre-commit hooks' chapter in ${STATIC_CODE_CHECKS_FILE}"
         >&2 echo
     fi
-    if [[ ! ${_BREEZE_ALLOWED_STATIC_CHECKS} == *${pre_commit}* ]]; then
+    if [[ ! ${_breeze_allowed_static_checks} == *${pre_commit}* ]]; then
         error="true"
         >&2 echo
-        >&2 echo "ERROR: Pre-commit ${pre_commit} is missing in _BREEZE_ALLOWED_STATIC_CHECKS variable in breeze-complete"
+        >&2 echo "ERROR: Pre-commit ${pre_commit} is missing in _breeze_allowed_static_checks variable in breeze-complete"
         >&2 echo
-        >&2 echo "FIX: Please add ${pre_commit} in the table in the '_BREEZE_ALLOWED_STATIC_CHECKS' constant in ${AIRFLOW_SOURCES}/breeze-complete"
+        >&2 echo "FIX: Please add ${pre_commit} in the table in the '_breeze_allowed_static_checks' constant in ${AIRFLOW_SOURCES}/breeze-complete"
         >&2 echo
     fi
 done
