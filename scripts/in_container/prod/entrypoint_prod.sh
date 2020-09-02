@@ -44,7 +44,7 @@ function verify_db_connection {
 
         echo DB_BACKEND="${DB_BACKEND:=${DETECTED_DB_BACKEND}}"
 
-        if [[ -z "${DETECTED_DB_PORT}" ]]; then
+        if [[ -z "${DETECTED_DB_PORT=}" ]]; then
             if [[ ${DB_BACKEND} == "postgres"* ]]; then
                 DETECTED_DB_PORT=5432
             elif [[ ${DB_BACKEND} == "mysql"* ]]; then
@@ -106,7 +106,7 @@ verify_db_connection "${AIRFLOW__CORE__SQL_ALCHEMY_CONN}"
 
 AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL:=}
 
-if [[ -n ${AIRFLOW__CELERY__BROKER_URL} ]] && \
+if [[ -n ${AIRFLOW__CELERY__BROKER_URL=} ]] && \
         [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|worker|flower)$ ]]; then
     verify_db_connection "${AIRFLOW__CELERY__BROKER_URL}"
 fi

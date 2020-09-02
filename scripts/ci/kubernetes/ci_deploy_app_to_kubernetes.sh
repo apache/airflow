@@ -19,18 +19,10 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 set -euo pipefail
 
-export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
-export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
-export KUBERNETES_MODE=${KUBERNETES_MODE:="image"}
+add_trap "dump_kind_logs" EXIT HUP INT TERM
 
-# adding trap to exiting trap
-HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
-# shellcheck disable=SC2064
-trap "${HANDLERS}${HANDLERS:+;}dump_kind_logs" EXIT
-
-get_environment_for_builds_on_ci
-initialize_kind_variables
 make_sure_kubernetes_tools_are_installed
+get_kind_cluster_name
 prepare_prod_build
 build_prod_images
 build_image_for_kubernetes_tests

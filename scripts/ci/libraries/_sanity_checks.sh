@@ -49,25 +49,6 @@ function sanitize_mounted_files() {
 #
 # Most useful is out.log file in this directory storing verbose output of the scripts.
 #
-function create_cache_directory() {
-    CACHE_TMP_FILE_DIR=$(mktemp -d)
-    export CACHE_TMP_FILE_DIR
-
-    if [[ ${SKIP_CACHE_DELETION:=} != "true" ]]; then
-        trap 'rm -rf -- "${CACHE_TMP_FILE_DIR}"' INT TERM HUP
-    fi
-
-    OUTPUT_LOG="${CACHE_TMP_FILE_DIR}/out.log"
-    export OUTPUT_LOG
-}
-
-# Removes the cache temporary directory
-function remove_cache_directory() {
-    if [[ -d ${CACHE_TMP_FILE_DIR} ]]; then
-        rm -rf "${CACHE_TMP_FILE_DIR}"
-    fi
-}
-
 #
 # Checks if core utils required in the host system are installed and explain what needs to be done if not
 #
@@ -90,6 +71,8 @@ function check_if_coreutils_installed() {
     set -e
 
     CMDNAME="$(basename -- "$0")"
+    export CMDNAME
+    readonly CMDNAME
 
     ####################  Parsing options/arguments
     if [[ ${GETOPT_RETVAL} != 4 || "${STAT_PRESENT}" != "0" || "${MD5SUM_PRESENT}" != "0" ]]; then
@@ -139,7 +122,7 @@ function assert_not_in_container() {
         echo >&2 "You are inside the Airflow docker container!"
         echo >&2 "You should only run this script from the host."
         echo >&2 "Learn more about how we develop and test airflow in:"
-        echo >&2 "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
+        echo >&2 "https://github.com/apache/airflow/blob/master/TESTING.rst"
         echo >&2
         exit 1
     fi
@@ -159,8 +142,8 @@ function go_to_airflow_sources {
 #
 function basic_sanity_checks() {
     assert_not_in_container
+    set_default_python_version_if_empty
     go_to_airflow_sources
     check_if_coreutils_installed
-    create_cache_directory
     sanitize_mounted_files
 }
