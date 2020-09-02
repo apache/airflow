@@ -26,8 +26,8 @@ function refresh_pylint_todo() {
         /opt/airflow/scripts/in_container/refresh_pylint_todo.sh
 }
 
-prepare_ci_build
+build_images::prepare_ci_build
 
-rebuild_ci_image_if_needed
+build_images::rebuild_ci_image_if_needed
 
 refresh_pylint_todo
