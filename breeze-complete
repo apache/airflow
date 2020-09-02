@@ -28,6 +28,23 @@ _BREEZE_ALLOWED_MYSQL_VERSIONS="5.7 8"
 _BREEZE_ALLOWED_POSTGRES_VERSIONS="9.6 10"
 _BREEZE_ALLOWED_KIND_OPERATIONS="start stop restart status deploy test shell"
 
+# Default values for the flags used
+
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_BACKEND="sqlite"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_KUBERNETES_MODE="image"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_KUBERNETES_VERSION="v1.18.6"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_KIND_VERSION="v0.8.0"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_HELM_VERSION="v3.2.4"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_MYSQL_VERSION="5.7"
+
 _BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=$(cat <<-EOF
 1.10.12
 1.10.11
@@ -185,9 +202,6 @@ function _get_known_values_breeze() {
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_HELM_VERSIONS}
         ;;
     static-check)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS}
-        ;;
-    static-check-all-files)
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS}
         ;;
     -A | --install-airflow-version)
