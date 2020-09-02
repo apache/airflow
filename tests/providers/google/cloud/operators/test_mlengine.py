@@ -365,7 +365,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             'acceleratorConfig': {'count': 1, 'type': 'NVIDIA_TESLA_P4'},
         }
 
-        success_response = self.TRAINING_INPUT.copy()
+        success_response = training_input.copy()
         success_response['state'] = 'SUCCEEDED'
         hook_instance = mock_hook.return_value
         hook_instance.create_job.return_value = success_response
