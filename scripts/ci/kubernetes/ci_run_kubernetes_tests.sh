@@ -18,10 +18,10 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-kind::make_sure_kubernetes_tools_are_installed
-kind::get_kind_cluster_name
-
-traps::add_trap kind::dump_kind_logs EXIT HUP INT TERM
+# adding trap to exiting trap
+HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
+# shellcheck disable=SC2064
+trap "${HANDLERS}${HANDLERS:+;}dump_kind_logs" EXIT
 
 INTERACTIVE="false"
 
@@ -69,6 +69,9 @@ else
         )
 
 fi
+
+get_environment_for_builds_on_ci
+initialize_kind_variables
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 

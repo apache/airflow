@@ -55,17 +55,17 @@ if [[ ${DOCKER_TAG} == *python*-ci ]]; then
     echo "Building CI image"
     echo
     rm -rf "${BUILD_CACHE_DIR}"
-    build_images::prepare_ci_build
-    build_images::rebuild_ci_image_if_needed
-    push_pull_remove_images::push_ci_images
+    prepare_ci_build
+    rebuild_ci_image_if_needed
+    push_ci_images
 elif [[ ${DOCKER_TAG} == *python* ]]; then
     echo
     echo "Building prod image"
     echo
     rm -rf "${BUILD_CACHE_DIR}"
-    build_images::prepare_prod_build
-    build_images::build_prod_images
-    push_pull_remove_images::push_prod_images
+    prepare_prod_build
+    build_prod_images
+    push_prod_images
 else
     echo
     echo "Skipping the build in Dockerhub. The tag is not good: ${DOCKER_TAG}"

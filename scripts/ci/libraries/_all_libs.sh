@@ -17,17 +17,11 @@
 # under the License.
 
 LIBRARIES_DIR=$(dirname "${BASH_SOURCE[0]}")
-export LIBRARIES_DIR
-readonly LIBRARIES_DIR
 
-SCRIPTS_CI_DIR=$(cd "${LIBRARIES_DIR}/.." && pwd)
-export SCRIPTS_CI_DIR
-readonly SCRIPTS_CI_DIR
-
-# shellcheck source=scripts/ci/libraries/_traps.sh
-. "${LIBRARIES_DIR}"/_traps.sh
 # shellcheck source=scripts/ci/libraries/_initialization.sh
 . "${LIBRARIES_DIR}"/_initialization.sh
+
+
 # shellcheck source=scripts/ci/libraries/_sanity_checks.sh
 . "${LIBRARIES_DIR}"/_sanity_checks.sh
 # shellcheck source=scripts/ci/libraries/_build_images.sh

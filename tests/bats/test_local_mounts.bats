@@ -21,7 +21,9 @@
 @test "convert volume list to docker params" {
   load bats_utils
 
-  read -r -a RES <<< "$(local_mounts::convert_local_mounts_to_docker_params)"
+  initialize_common_environment
+
+  read -r -a RES <<< "$(convert_local_mounts_to_docker_params)"
 
   [[ ${#RES[@]} -gt 0 ]] # Array should be non-zero length
   [[ $((${#RES[@]} % 2)) == 0 ]] # Array should be even length

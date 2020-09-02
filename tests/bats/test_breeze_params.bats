@@ -25,12 +25,14 @@ setup() {
 }
 
 teardown() {
+  load bats_utils
   rm -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
 }
 
 @test "Test missing value for a parameter" {
+  load bats_utils
   export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
-  run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   diff <(echo "${output}") - <<EOF
 
 ERROR:  Allowed Test Param: [ a b c ]. Is: ''.
@@ -41,10 +43,14 @@ EOF
 }
 
 @test "Test wrong value for a parameter but proper stored in the .build/PARAM" {
+  load bats_utils
+
+  initialize_common_environment
+
   export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
   export TEST_PARAM=x
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
-  run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   diff <(echo "${output}") - <<EOF
 
 ERROR:  Allowed Test Param: [ a b c ]. Is: 'x'.
@@ -57,10 +63,14 @@ EOF
 }
 
 @test "Test wrong value for a parameter stored in the .build/PARAM" {
+  load bats_utils
+
+  initialize_common_environment
+
   export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
   export TEST_PARAM=x
   echo "x" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
-  run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   diff <(echo "${output}") - <<EOF
 
 ERROR:  Allowed Test Param: [ a b c ]. Is: 'x'.
@@ -75,9 +85,13 @@ EOF
 
 
 @test "Test correct value for a parameter" {
+  load bats_utils
+
+  initialize_common_environment
+
   export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
   export TEST_PARAM=a
-  run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   diff <(echo "${output}") <(echo "")
   [ -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
   diff <(echo "a") <(cat "${AIRFLOW_SOURCES}/.build/.TEST_PARAM")
@@ -85,6 +99,10 @@ EOF
 }
 
 @test "Test correct value for a parameter from multi-line values" {
+  load bats_utils
+
+  initialize_common_environment
+
   _BREEZE_ALLOWED_TEST_PARAMS=$(cat <<-EOF
 a
 b
@@ -93,7 +111,7 @@ EOF
 )
   export _BREEZE_ALLOWED_TEST_PARAMS
   export TEST_PARAM=a
-  run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   diff <(echo "${output}") <(echo "")
   [ -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
   diff <(echo "a") <(cat "${AIRFLOW_SOURCES}/.build/.TEST_PARAM")
@@ -102,7 +120,11 @@ EOF
 
 
 @test "Test read_parameter from missing file" {
-  run parameters::read_from_file TEST_PARAM
+  load bats_utils
+
+  initialize_common_environment
+
+  run read_from_file TEST_PARAM
   [ -z "${TEST_FILE}" ]
   diff <(echo "${output}") <(echo "")
   [ ! -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
@@ -110,8 +132,12 @@ EOF
 }
 
 @test "Test read_parameter from file" {
+  load bats_utils
+
+  initialize_common_environment
+
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
-  run parameters::read_from_file TEST_PARAM
+  run read_from_file TEST_PARAM
   diff <(echo "${output}") <(echo "a")
   [ -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
   [ "${status}" == "0" ]

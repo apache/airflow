@@ -18,24 +18,23 @@
 
 set -euo pipefail
 
-export AIRFLOW_SOURCES="${AIRFLOW_SOURCES:=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../.." && pwd )}"
-readonly AIRFLOW_SOURCES
+_CURRENT_DIR=$(dirname "${BASH_SOURCE[0]}")
+
+SCRIPTS_CI_DIR="$(cd "${_CURRENT_DIR}"/.. && pwd)"
+export SCRIPTS_CI_DIR
+
+# Sets to where airflow sources are located
+AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${SCRIPTS_CI_DIR}/../../" && pwd)}
+export AIRFLOW_SOURCES
+
 
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
-. "${AIRFLOW_SOURCES}/scripts/ci/libraries/_all_libs.sh"
+. "${SCRIPTS_CI_DIR}"/libraries/_all_libs.sh
 
-initialization::initialize_common_environment
+initialize_common_environment
 
-sanity_checks::basic_sanity_checks
+basic_sanity_checks
 
-start_end::script_start
+script_start
 
-build_images::determine_docker_cache_strategy
-
-initialization::get_environment_for_builds_on_ci
-
-build_images::get_docker_image_names
-
-initialization::make_constants_read_only
-
-traps::add_trap start_end::script_end EXIT HUP INT TERM
+trap script_end EXIT

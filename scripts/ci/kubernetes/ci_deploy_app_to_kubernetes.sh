@@ -19,14 +19,22 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 set -euo pipefail
 
-traps::add_trap "kind::dump_kind_logs" EXIT HUP INT TERM
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
+export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
+export KUBERNETES_MODE=${KUBERNETES_MODE:="image"}
 
-kind::make_sure_kubernetes_tools_are_installed
-kind::get_kind_cluster_name
-build_images::prepare_prod_build
-build_images::build_prod_images
-kind::build_image_for_kubernetes_tests
-kind::load_image_to_kind_cluster
-kind::deploy_airflow_with_helm
-kind::forward_port_to_kind_webserver
-kind::deploy_test_kubernetes_resources
+# adding trap to exiting trap
+HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
+# shellcheck disable=SC2064
+trap "${HANDLERS}${HANDLERS:+;}dump_kind_logs" EXIT
+
+get_environment_for_builds_on_ci
+initialize_kind_variables
+make_sure_kubernetes_tools_are_installed
+prepare_prod_build
+build_prod_images
+build_image_for_kubernetes_tests
+load_image_to_kind_cluster
+deploy_airflow_with_helm
+forward_port_to_kind_webserver
+deploy_test_kubernetes_resources

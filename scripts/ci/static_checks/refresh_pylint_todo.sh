@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export FORCE_ANSWER_TO_QUESTIONS="quit"
+export FORCE_ANSWER_TO_QUESTIONS=quit
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
@@ -26,8 +26,10 @@ function refresh_pylint_todo() {
         /opt/airflow/scripts/in_container/refresh_pylint_todo.sh
 }
 
-build_images::prepare_ci_build
+get_environment_for_builds_on_ci
 
-build_images::rebuild_ci_image_if_needed
+prepare_ci_build
+
+rebuild_ci_image_if_needed
 
 refresh_pylint_todo

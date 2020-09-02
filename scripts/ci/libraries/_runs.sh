@@ -17,7 +17,7 @@
 # under the License.
 
 # Docker command to build documentation
-function runs::run_docs() {
+function run_docs() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
@@ -26,7 +26,7 @@ function runs::run_docs() {
 
 
 # Docker command to generate constraint files.
-function runs::run_generate_constraints() {
+function run_generate_constraints() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         "${AIRFLOW_CI_IMAGE}" \
@@ -34,7 +34,7 @@ function runs::run_generate_constraints() {
 }
 
 # Docker command to prepare backport packages
-function runs::run_prepare_backport_packages() {
+function run_prepare_backport_packages() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         -t \
@@ -44,7 +44,7 @@ function runs::run_prepare_backport_packages() {
 }
 
 # Docker command to generate release notes for backport packages
-function runs::run_prepare_backport_readme() {
+function run_prepare_backport_readme() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         -t \

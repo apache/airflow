@@ -20,6 +20,8 @@
 @test "empty test" {
   load bats_utils
 
+  initialize_common_environment
+
   run pwd
   [ "${status}" == 0 ]
 }

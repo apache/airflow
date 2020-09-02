@@ -20,7 +20,11 @@
 
 LIST_OF_DIRS_FILE=$(mktemp)
 
-add_trap "in_container_fix_ownership" EXIT HUP INT TERM
+# adding trap to exiting trap
+HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
+# shellcheck disable=SC2064
+trap "${HANDLERS}${HANDLERS:+;}in_container_fix_ownership" EXIT
+
 cd "${AIRFLOW_SOURCES}/airflow/providers" || exit 1
 
 find . -type d | sed 's/.\///; s/\//\./g' | grep -E 'hooks|operators|sensors|secrets' \
@@ -153,7 +157,7 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 
 pushd dist
 
-if [[ -n ${VERSION_SUFFIX_FOR_SVN=} ]]; then
+if [[ ${VERSION_SUFFIX_FOR_SVN} != "" ]]; then
     for FILE in *.tar.gz
     do
         mv "${FILE}" "${FILE//\.tar\.gz/${VERSION_SUFFIX_FOR_SVN}-bin.tar.gz}"

@@ -17,17 +17,12 @@
 
 AIRFLOW_SOURCES=$(pwd)
 export AIRFLOW_SOURCES
-readonly AIRFLOW_SOURCES
+export SCRIPTS_CI_DIR=${AIRFLOW_SOURCES}/scripts/ci
 
-export DOCKER_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/docker.sh
-export KUBECTL_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/kubectl.sh
-export KIND_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/kind.sh
-export HELM_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/helm.sh
-export SKIP_IN_CONTAINER_CHECK="true"
+export DOCKER_BINARY=${AIRFLOW_SOURCES}/tests/bats/mock/docker.sh
+export KUBECTL_BINARY=${AIRFLOW_SOURCES}/tests/bats/mock/kubectl.sh
+export KIND_BINARY=${AIRFLOW_SOURCES}/tests/bats/mock/kind.sh
+export HELM_BINARY=${AIRFLOW_SOURCES}/tests/bats/mock/helm.sh
 
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
-source "scripts/ci/libraries/_all_libs.sh"
-
-initialization::initialize_common_environment
-
-sanity_checks::basic_sanity_checks
+source "${SCRIPTS_CI_DIR}/libraries/_all_libs.sh"
