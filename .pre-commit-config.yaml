@@ -155,7 +155,9 @@ repos:
       - id: black
         files: api_connexion/.*\.py|.*providers.*\.py
         exclude: .*kubernetes_pod\.py|.*google/common/hooks/base_google\.py$
-        args: [--config=./pyproject.toml]
+        args:
+          - --skip-string-normalization
+          - --line-length 110
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
     hooks:
