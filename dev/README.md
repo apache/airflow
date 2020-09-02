@@ -21,7 +21,6 @@
 **Table of contents**
 
 - [Development Tools](#development-tools)
-  - [Airflow Pull Request Tool](#airflow-pull-request-tool)
   - [Airflow release signing tool](#airflow-release-signing-tool)
 - [Verifying the release candidate by PMCs (legal)](#verifying-the-release-candidate-by-pmcs-legal)
   - [PMC voting](#pmc-voting)
