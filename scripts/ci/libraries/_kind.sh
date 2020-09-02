@@ -17,7 +17,7 @@
 # under the License.
 
 
-function get_kind_cluster_name(){
+function kind::get_kind_cluster_name(){
     # Name of the KinD cluster to connect to
     export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
     readonly KIND_CLUSTER_NAME
@@ -26,7 +26,7 @@ function get_kind_cluster_name(){
     readonly KUBECTL_CLUSTER_NAME
 }
 
-function dump_kind_logs() {
+function kind::dump_kind_logs() {
     echo "###########################################################################################"
     echo "                   Dumping logs from KIND"
     echo "###########################################################################################"
@@ -39,7 +39,7 @@ function dump_kind_logs() {
     kind --name "${KIND_CLUSTER_NAME}" export logs "${DUMP_DIR}"
 }
 
-function make_sure_kubernetes_tools_are_installed() {
+function kind::make_sure_kubernetes_tools_are_installed() {
     SYSTEM=$(uname -s| tr '[:upper:]' '[:lower:]')
 
     KIND_URL="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-${SYSTEM}-amd64"
@@ -91,7 +91,7 @@ function make_sure_kubernetes_tools_are_installed() {
     PATH=${PATH}:${BUILD_CACHE_DIR}/bin
 }
 
-function create_cluster() {
+function kind::create_cluster() {
     if [[ "${TRAVIS:="false"}" == "true" ]]; then
         # Travis CI does not handle the nice output of Kind well, so we need to capture it
         # And display only if kind fails to start
@@ -115,7 +115,7 @@ function create_cluster() {
     echo
 }
 
-function delete_cluster() {
+function kind::delete_cluster() {
     kind delete cluster --name "${KIND_CLUSTER_NAME}"
     echo
     echo "Deleted cluster ${KIND_CLUSTER_NAME}"
@@ -123,7 +123,7 @@ function delete_cluster() {
     rm -rf "${HOME}/.kube/*"
 }
 
-function perform_kind_cluster_operation() {
+function kind::perform_kind_cluster_operation() {
     ALLOWED_KIND_OPERATIONS="[ start restart stop deploy test shell recreate ]"
 
     set +u
@@ -146,7 +146,7 @@ function perform_kind_cluster_operation() {
             echo
             echo "Cluster name: ${KIND_CLUSTER_NAME}"
             echo
-            kind get nodes --name "${KIND_CLUSTER_NAME}"
+            kind::check_cluster_ready_for_airflow
             echo
             exit
         else
@@ -166,23 +166,23 @@ function perform_kind_cluster_operation() {
             echo
             echo "Recreating cluster"
             echo
-            delete_cluster
-            create_cluster
+            kind::delete_cluster
+            kind::create_cluster
         elif [[ ${OPERATION} == "stop" ]]; then
             echo
             echo "Deleting cluster"
             echo
-            delete_cluster
+            kind::delete_cluster
             exit
         elif [[ ${OPERATION} == "deploy" ]]; then
             echo
             echo "Deploying Airflow to KinD"
             echo
-            build_image_for_kubernetes_tests
-            load_image_to_kind_cluster
-            deploy_airflow_with_helm
-            forward_port_to_kind_webserver
-            deploy_test_kubernetes_resources
+            kind::build_image_for_kubernetes_tests
+            kind::load_image_to_kind_cluster
+            kind::deploy_airflow_with_helm
+            kind::forward_port_to_kind_webserver
+            kind::deploy_test_kubernetes_resources
         elif [[ ${OPERATION} == "test" ]]; then
             echo
             echo "Testing with KinD"
@@ -204,13 +204,13 @@ function perform_kind_cluster_operation() {
             echo
             echo "Creating cluster"
             echo
-            create_cluster
+            kind::create_cluster
         elif [[ ${OPERATION} == "recreate" ]]; then
             echo
             echo "Cluster ${KIND_CLUSTER_NAME} does not exist. Creating rather than recreating"
             echo "Creating cluster"
             echo
-            create_cluster
+            kind::create_cluster
         elif [[ ${OPERATION} == "stop" || ${OPERATION} == "deploy" || \
                 ${OPERATION} == "test" || ${OPERATION} == "shell" ]]; then
             echo >&2
@@ -226,7 +226,7 @@ function perform_kind_cluster_operation() {
     fi
 }
 
-function check_cluster_ready_for_airflow() {
+function kind::check_cluster_ready_for_airflow() {
     kubectl cluster-info --cluster "${KUBECTL_CLUSTER_NAME}"
     kubectl get nodes --cluster "${KUBECTL_CLUSTER_NAME}"
     echo
@@ -244,7 +244,7 @@ function check_cluster_ready_for_airflow() {
 }
 
 
-function build_image_for_kubernetes_tests() {
+function kind::build_image_for_kubernetes_tests() {
     cd "${AIRFLOW_SOURCES}" || exit 1
     docker build --tag "${AIRFLOW_PROD_IMAGE_KUBERNETES}" . -f - <<EOF
 FROM ${AIRFLOW_PROD_IMAGE}
@@ -259,14 +259,14 @@ EOF
     echo "The ${AIRFLOW_PROD_IMAGE_KUBERNETES} is prepared for test kubernetes deployment."
 }
 
-function load_image_to_kind_cluster() {
+function kind::load_image_to_kind_cluster() {
     echo
     echo "Loading ${AIRFLOW_PROD_IMAGE_KUBERNETES} to ${KIND_CLUSTER_NAME}"
     echo
     kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_PROD_IMAGE_KUBERNETES}"
 }
 
-function forward_port_to_kind_webserver() {
+function kind::forward_port_to_kind_webserver() {
     num_tries=0
     set +e
     while ! curl http://localhost:8080/health -s | grep -q healthy; do
@@ -287,7 +287,7 @@ function forward_port_to_kind_webserver() {
     set -e
 }
 
-function deploy_airflow_with_helm() {
+function kind::deploy_airflow_with_helm() {
     echo
     echo "Deploying Airflow with Helm"
     echo
@@ -310,7 +310,7 @@ function deploy_airflow_with_helm() {
 }
 
 
-function deploy_test_kubernetes_resources() {
+function kind::deploy_test_kubernetes_resources() {
     echo
     echo "Deploying Custom kubernetes resources"
     echo
@@ -318,7 +318,7 @@ function deploy_test_kubernetes_resources() {
 }
 
 
-function dump_kubernetes_logs() {
+function kind::dump_kubernetes_logs() {
     POD=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' \
         --cluster "${KUBECTL_CLUSTER_NAME}" | grep airflow | head -1)
     echo "------- pod description -------"

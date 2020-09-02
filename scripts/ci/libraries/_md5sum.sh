@@ -21,7 +21,7 @@
 # The md5sum files are stored in .build directory - you can delete this directory
 # If you want to rebuild everything from the scratch
 #
-function calculate_file_md5sum {
+function md5sum::calculate_file_md5sum {
     local FILE="${1}"
     local MD5SUM
     local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${BRANCH_NAME}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
@@ -34,13 +34,13 @@ function calculate_file_md5sum {
     echo "${MD5SUM}" > "${MD5SUM_FILE_NEW}"
     local RET_CODE=0
     if [[ ! -f "${MD5SUM_FILE}" ]]; then
-        print_info "Missing md5sum for ${FILE#${AIRFLOW_SOURCES}} (${MD5SUM_FILE#${AIRFLOW_SOURCES}})"
+        verbosity::print_info "Missing md5sum for ${FILE#${AIRFLOW_SOURCES}} (${MD5SUM_FILE#${AIRFLOW_SOURCES}})"
         RET_CODE=1
     else
         diff "${MD5SUM_FILE_NEW}" "${MD5SUM_FILE}" >/dev/null
         RES=$?
         if [[ "${RES}" != "0" ]]; then
-            print_info "The md5sum changed for ${FILE}"
+            verbosity::print_info "The md5sum changed for ${FILE}"
             RET_CODE=1
         fi
     fi
@@ -51,7 +51,7 @@ function calculate_file_md5sum {
 # Moves md5sum file from it's temporary location in CACHE_TMP_FILE_DIR to
 # BUILD_CACHE_DIR - thus updating stored MD5 sum fo the file
 #
-function move_file_md5sum {
+function md5sum::move_file_md5sum {
     local FILE="${1}"
     local MD5SUM_FILE
     local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${BRANCH_NAME}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
@@ -61,7 +61,7 @@ function move_file_md5sum {
     MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "${FILE}").md5sum.new
     if [[ -f "${MD5SUM_FILE_NEW}" ]]; then
         mv "${MD5SUM_FILE_NEW}" "${MD5SUM_FILE}"
-        print_info "Updated md5sum file ${MD5SUM_FILE} for ${FILE}."
+        verbosity::print_info "Updated md5sum file ${MD5SUM_FILE} for ${FILE}."
     fi
 }
 
@@ -70,25 +70,25 @@ function move_file_md5sum {
 # records that we built the images locally so that next time we use
 # it from the local docker cache rather than pull (unless forced)
 #
-function update_all_md5_files() {
-    print_info
-    print_info "Updating md5sum files"
-    print_info
+function md5sum::update_all_md5() {
+    verbosity::print_info
+    verbosity::print_info "Updating md5sum files"
+    verbosity::print_info
     for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
     do
-        move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
+        md5sum::move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
     done
     mkdir -pv "${BUILD_CACHE_DIR}/${BRANCH_NAME}"
     touch "${BUILT_CI_IMAGE_FLAG_FILE}"
 }
 
 
-function calculate_md5sum_for_all_files() {
+function md5sum::calculate_md5sum_for_all_files() {
     FILES_MODIFIED="false"
     set +e
     for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
     do
-        if ! calculate_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
+        if ! md5sum::calculate_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
             FILES_MODIFIED="true"
         fi
     done
@@ -114,24 +114,24 @@ function calculate_md5sum_for_all_files() {
 #
 # As result of this check - most of the static checks will start pretty much immediately.
 #
-function check_if_docker_build_is_needed() {
-    print_info
-    print_info "Checking if image build is needed for ${THE_IMAGE_TYPE} image."
-    print_info
+function md5sum::check_if_docker_build_is_needed() {
+    verbosity::print_info
+    verbosity::print_info "Checking if image build is needed for ${THE_IMAGE_TYPE} image."
+    verbosity::print_info
     if [[ ${FORCE_BUILD_IMAGES:=""} == "true" ]]; then
-        print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
-        calculate_md5sum_for_all_files
+        verbosity::print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
+        md5sum::calculate_md5sum_for_all_files
         needs_docker_build="true"
     else
-        calculate_md5sum_for_all_files
+        md5sum::calculate_md5sum_for_all_files
         if [[ ${FILES_MODIFIED} == "true" ]]; then
             needs_docker_build="true"
         fi
         if [[ ${needs_docker_build} == "true" ]]; then
-            print_info "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
+            verbosity::print_info "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
         else
-            print_info "Docker image build is not needed for ${THE_IMAGE_TYPE} image!"
+            verbosity::print_info "Docker image build is not needed for ${THE_IMAGE_TYPE} image!"
         fi
     fi
-    print_info
+    verbosity::print_info
 }

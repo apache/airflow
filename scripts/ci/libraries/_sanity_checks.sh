@@ -19,7 +19,7 @@
 # Fixes a file that is expected to be a file. If - for whatever reason - the local file is not created
 # When mounting it to container, docker assumes it is a missing directory and creates it. Such mistakenly
 # Created directories should be removed and replaced with files
-function sanitize_file() {
+function sanity_checks::sanitize_file() {
     if [[ -d "${1}" ]]; then
         rm -rf "${1}"
     fi
@@ -30,10 +30,10 @@ function sanitize_file() {
 # Those files are mounted into container when run locally
 # .bash_history is preserved and you can modify .bash_aliases and .inputrc
 # according to your liking
-function sanitize_mounted_files() {
-    sanitize_file "${AIRFLOW_SOURCES}/.bash_history"
-    sanitize_file "${AIRFLOW_SOURCES}/.bash_aliases"
-    sanitize_file "${AIRFLOW_SOURCES}/.inputrc"
+function sanity_checks::sanitize_mounted_files() {
+    sanity_checks::sanitize_file "${AIRFLOW_SOURCES}/.bash_history"
+    sanity_checks::sanitize_file "${AIRFLOW_SOURCES}/.bash_aliases"
+    sanity_checks::sanitize_file "${AIRFLOW_SOURCES}/.inputrc"
 
     # When KinD cluster is created, the folder keeps authentication information
     # across sessions
@@ -52,7 +52,7 @@ function sanitize_mounted_files() {
 #
 # Checks if core utils required in the host system are installed and explain what needs to be done if not
 #
-function check_if_coreutils_installed() {
+function sanity_checks::check_if_coreutils_installed() {
     set +e
     getopt -T >/dev/null
     GETOPT_RETVAL=$?
@@ -76,7 +76,7 @@ function check_if_coreutils_installed() {
 
     ####################  Parsing options/arguments
     if [[ ${GETOPT_RETVAL} != 4 || "${STAT_PRESENT}" != "0" || "${MD5SUM_PRESENT}" != "0" ]]; then
-        print_info
+        verbosity::print_info
         if [[ $(uname -s) == 'Darwin' ]] ; then
             echo >&2 "You are running ${CMDNAME} in OSX environment"
             echo >&2 "And you need to install gnu commands"
@@ -105,7 +105,7 @@ function check_if_coreutils_installed() {
             echo >&2 "Please install latest/GNU version of getopt and coreutils."
             echo >&2 "This can usually be done with 'apt install util-linux coreutils'"
         fi
-        print_info
+        verbosity::print_info
         exit 1
     fi
 }
@@ -113,7 +113,7 @@ function check_if_coreutils_installed() {
 #
 # Asserts that we are not inside of the container
 #
-function assert_not_in_container() {
+function sanity_checks::assert_not_in_container() {
     if [[ ${SKIP_IN_CONTAINER_CHECK:=} == "true" ]]; then
         return
     fi
@@ -129,21 +129,21 @@ function assert_not_in_container() {
 }
 
 # Changes directory to local sources
-function go_to_airflow_sources {
-    print_info
+function sanity_checks::go_to_airflow_sources {
+    verbosity::print_info
     pushd "${AIRFLOW_SOURCES}" &>/dev/null || exit 1
-    print_info
-    print_info "Running in host in $(pwd)"
-    print_info
+    verbosity::print_info
+    verbosity::print_info "Running in host in $(pwd)"
+    verbosity::print_info
 }
 
 #
 # Performs basic sanity checks common for most of the scripts in this directory
 #
-function basic_sanity_checks() {
-    assert_not_in_container
-    set_default_python_version_if_empty
-    go_to_airflow_sources
-    check_if_coreutils_installed
-    sanitize_mounted_files
+function sanity_checks::basic_sanity_checks() {
+    sanity_checks::assert_not_in_container
+    initialization::set_default_python_version_if_empty
+    sanity_checks::go_to_airflow_sources
+    sanity_checks::check_if_coreutils_installed
+    sanity_checks::sanitize_mounted_files
 }

@@ -21,24 +21,24 @@
 # If VERBOSE_COMMANDS variable is set to true, it enables verbose output of commands executed
 # Also prints some useful diagnostics information at start of the script if VERBOSE is set to true
 #
-function script_start {
-    print_info
-    print_info "Running $(basename "$0")"
-    print_info
-    print_info "Log is redirected to ${OUTPUT_LOG}"
-    print_info
+function start_end::script_start {
+    verbosity::print_info
+    verbosity::print_info "Running $(basename "$0")"
+    verbosity::print_info
+    verbosity::print_info "Log is redirected to ${OUTPUT_LOG}"
+    verbosity::print_info
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
-        print_info
-        print_info "Variable VERBOSE_COMMANDS Set to \"true\""
-        print_info "You will see a lot of output"
-        print_info
+        verbosity::print_info
+        verbosity::print_info "Variable VERBOSE_COMMANDS Set to \"true\""
+        verbosity::print_info "You will see a lot of output"
+        verbosity::print_info
         set -x
     else
-        print_info "You can increase verbosity by running 'export VERBOSE_COMMANDS=\"true\""
+        verbosity::print_info "You can increase verbosity by running 'export VERBOSE_COMMANDS=\"true\""
         if [[ ${SKIP_CACHE_DELETION:=} != "true" ]]; then
-            print_info "And skip deleting the output file with 'export SKIP_CACHE_DELETION=\"true\""
+            verbosity::print_info "And skip deleting the output file with 'export SKIP_CACHE_DELETION=\"true\""
         fi
-        print_info
+        verbosity::print_info
         set +x
     fi
     START_SCRIPT_TIME=$(date +%s)
@@ -50,7 +50,7 @@ function script_start {
 # command verbosity and in case the script was not run from Breeze (so via ci scripts) it displays
 # total time spent in the script so that we can easily see it.
 #
-function script_end {
+function start_end::script_end {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
@@ -58,9 +58,9 @@ function script_end {
         if [[ -f "${OUTPUT_LOG}" ]]; then
             cat "${OUTPUT_LOG}"
         fi
-        print_info "###########################################################################################"
-        print_info "                   EXITING WITH STATUS CODE ${EXIT_CODE}"
-        print_info "###########################################################################################"
+        verbosity::print_info "###########################################################################################"
+        verbosity::print_info "                   EXITING WITH STATUS CODE ${EXIT_CODE}"
+        verbosity::print_info "###########################################################################################"
     fi
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set +x
@@ -73,10 +73,10 @@ function script_end {
     END_SCRIPT_TIME=$(date +%s)
     RUN_SCRIPT_TIME=$((END_SCRIPT_TIME-START_SCRIPT_TIME))
     if [[ ${BREEZE:=} != "true" ]]; then
-        print_info
-        print_info "Finished the script $(basename "$0")"
-        print_info "Elapsed time spent in the script: ${RUN_SCRIPT_TIME} seconds"
-        print_info "Exit code ${EXIT_CODE}"
-        print_info
+        verbosity::print_info
+        verbosity::print_info "Finished the script $(basename "$0")"
+        verbosity::print_info "Elapsed time spent in the script: ${RUN_SCRIPT_TIME} seconds"
+        verbosity::print_info "Exit code ${EXIT_CODE}"
+        verbosity::print_info
     fi
 }

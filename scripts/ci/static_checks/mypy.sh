@@ -31,8 +31,8 @@ function run_mypy() {
         "--" "/opt/airflow/scripts/in_container/run_mypy.sh" "${FILES[@]}"
 }
 
-prepare_ci_build
+build_images::prepare_ci_build
 
-rebuild_ci_image_if_needed
+build_images::rebuild_ci_image_if_needed
 
 run_mypy "$@"
