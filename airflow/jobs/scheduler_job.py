@@ -964,8 +964,10 @@ class DagFileProcessor(LoggingMixin):
         # commit batch
         session.commit()
 
-    @classmethod
-    def _prepare_serialized_dags(cls, dags: List[DAG]) -> List[dict]:
+    @provide_session
+    def _prepare_serialized_dags(
+        self, dags: List[DAG], pickle_dags: bool, session: Session = None
+    ) -> List[dict]:
         """
         Convert DAGS to SimpleDags. If necessary, it also Pickle the DAGs
 
@@ -975,8 +977,9 @@ class DagFileProcessor(LoggingMixin):
         """
         serialized_dags: List[dict] = []
         # Pickle the DAGs (if necessary) and put them into a SimpleDagBag
-        # TODO: add pickling again
         for dag in dags:
+            if pickle_dags:
+                dag.pickle(session)
             serialized_dags.append(SerializedDAG.to_dict(dag))
         return serialized_dags
 
