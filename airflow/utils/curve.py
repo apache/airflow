@@ -87,12 +87,14 @@ def get_curve_mode(final_state, error_tag):
     return None
 
 
-def generate_bolt_number(controller_name, program, batch_count=None):
-    if not controller_name or program is None or batch_count is None or batch_count is '':
+def generate_bolt_number(controller_name, program, batch_count, pset):
+    if not controller_name or program is None \
+            or batch_count is None or batch_count is '' \
+            or pset is None or pset is '':
         raise BaseException(u'{}参数未正确定义'.format('generateBoltNumber'))
     if not isinstance(program, str):
         program = str(program)
-    return '_'.join([controller_name, program, str(batch_count)])
+    return '_'.join([controller_name, program, str(batch_count), str(pset)])
 
 
 def generate_curve_name(nut_no):
