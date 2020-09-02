@@ -1170,7 +1170,7 @@ class TestDagFileProcessor(unittest.TestCase):
             tis = session.query(TaskInstance).all()
 
         self.assertEqual(0, import_errors_count)
-        self.assertEqual(['test_multiple_dags__dag_2'], list(SimpleDagBag(dags).dag_ids))
+        self.assertEqual(['test_multiple_dags__dag_2'], [dag.dag_id for dag in dags])
         self.assertEqual({'test_multiple_dags__dag_2'}, {ti.dag_id for ti in tis})
 
     def test_should_mark_dummy_task_as_success(self):
@@ -1195,7 +1195,7 @@ class TestDagFileProcessor(unittest.TestCase):
             tis = session.query(TaskInstance).all()
 
         self.assertEqual(0, import_errors_count)
-        self.assertEqual(['test_only_dummy_tasks'], list(SimpleDagBag(dags).dag_ids))
+        self.assertEqual(['test_only_dummy_tasks'], [dag.dag_id for dag in dags])
         self.assertEqual(5, len(tis))
         self.assertEqual({
             ('test_task_a', 'success'),
