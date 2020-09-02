@@ -18,6 +18,7 @@
 #
 
 import base64
+from typing import Union
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -35,7 +36,7 @@ class SecretsManagerHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type='secretsmanager', *args, **kwargs)
 
-    def get_secrets(self, secret_name: str) -> str:
+    def get_secrets(self, secret_name: str) -> Union[str, bytes]:
         """
         Create queue using connection object
         :param secret_name: name of the secrets.
