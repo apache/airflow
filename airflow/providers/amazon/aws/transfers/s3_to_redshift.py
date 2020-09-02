@@ -60,7 +60,10 @@ class S3ToRedshiftOperator(BaseOperator):
     :type truncate_table: bool
     """
 
-    template_fields = ('s3_key', 'table',)
+    template_fields = (
+        's3_key',
+        'table',
+    )
     template_ext = ()
     ui_color = '#99e699'
 
