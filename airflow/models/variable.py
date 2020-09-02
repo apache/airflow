@@ -57,9 +57,9 @@ class Variable(Base, LoggingMixin):
                 log.error("Can't decrypt _val for key={}, invalid token "
                           "or value".format(self.key))
                 return None
-            except Exception:
+            except Exception as e:
                 log.error("Can't decrypt _val for key={}, FERNET_KEY "
-                          "configuration missing".format(self.key))
+                          "configuration missing: {}".format(self.key, repr(e)))
                 return None
         else:
             return self._val
@@ -173,8 +173,16 @@ class Variable(Base, LoggingMixin):
             stored_value = json.dumps(value, indent=2, separators=(',', ': '), ensure_ascii=False)
         else:
             stored_value = str(value)
+
+        fernet = get_fernet()
+        stored_value = fernet.encrypt(bytes(stored_value, 'utf-8')).decode()
         Variable.delete(key, session=session)
-        session.add(Variable(key=key, val=stored_value, is_curve_template=is_curve_template))  # type: ignore
+        session.add(Variable(
+            key=key,
+            val=stored_value,
+            is_curve_template=is_curve_template,
+            is_encrypted=fernet.is_encrypted
+        ))  # type: ignore
         session.flush()
 
     @classmethod
