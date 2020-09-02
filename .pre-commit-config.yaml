@@ -150,11 +150,12 @@ repos:
     hooks:
       - id: check-hooks-apply
   - repo: https://github.com/psf/black
-    rev: stable
+    rev: 19.10b0
     hooks:
       - id: black
         files: api_connexion/.*\.py|.*providers.*\.py
         exclude: .*kubernetes_pod\.py|.*google/common/hooks/base_google\.py$
+        args: [--config=pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
     hooks:
