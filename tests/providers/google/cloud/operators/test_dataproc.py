@@ -87,10 +87,7 @@ CONFIG = {
         "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
         "is_preemptible": True,
     },
-    "software_config": {
-        "properties": {"properties": "data"},
-        "optional_components": ["optional_components"],
-    },
+    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
     "lifecycle_config": {
         "idle_delete_ttl": {'seconds': 60},
         "auto_delete_time": "2019-09-12T00:00:00.000000Z",
@@ -107,12 +104,7 @@ LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION}
 
 LABELS.update({'airflow-version': 'v' + airflow_version.replace('.', '-').replace('+', '-')})
 
-CLUSTER = {
-    "project_id": "project_id",
-    "cluster_name": CLUSTER_NAME,
-    "config": CONFIG,
-    "labels": LABELS,
-}
+CLUSTER = {"project_id": "project_id", "cluster_name": CLUSTER_NAME, "config": CONFIG, "labels": LABELS}
 
 UPDATE_MASK = {
     "paths": ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]

@@ -63,10 +63,7 @@ class DataProcJobBuilder:
         self.job_type = job_type
         self.job = {
             "job": {
-                "reference": {
-                    "project_id": project_id,
-                    "job_id": name,
-                },
+                "reference": {"project_id": project_id, "job_id": name},
                 "placement": {"cluster_name": cluster_name},
                 "labels": {'airflow-version': 'v' + airflow_version.replace('.', '-').replace('+', '-')},
                 job_type: {},
