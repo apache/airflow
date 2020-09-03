@@ -35,8 +35,9 @@ class RedshiftHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(client_type='redshift', *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = "redshift"
+        super().__init__(*args, **kwargs)
 
     # TODO: Wrap create_cluster_snapshot
     def cluster_status(self, cluster_identifier: str) -> str:
