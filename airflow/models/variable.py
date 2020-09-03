@@ -178,7 +178,7 @@ class Variable(Base, LoggingMixin):
         session.add(Variable(
             key=key,
             val=stored_value,
-            is_curve_template=is_curve_template,
+            is_curve_template=is_curve_template
         ))  # type: ignore
         session.flush()
 

@@ -411,7 +411,7 @@ def do_remove_curve_from_curve_template(bolt_no=None, craft_type=None, version=N
     curve_template.update({
         'version': template_version + 1
     })
-    Variable.update(key, curve_template, serialize_json=True)
+    Variable.set(key, curve_template, serialize_json=True, is_curve_template=True)
     dag_id = 'load_all_curve_tmpls'
     conf = {
         'template_names': [template_name]
