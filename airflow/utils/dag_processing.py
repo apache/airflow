@@ -18,6 +18,7 @@
 """Processes DAGs."""
 import enum
 import importlib
+import inspect
 import logging
 import multiprocessing
 import os
@@ -633,6 +634,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         Helper method to clean up DAG file processors to avoid leaving orphan processes.
         """
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
+        self.log.debug("Current Stacktrace is: %s", '\n'.join(map(str, inspect.stack())))
         self.terminate()
         self.end()
         self.log.debug("Finished terminating DAG processors.")
