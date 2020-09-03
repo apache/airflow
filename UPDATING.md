@@ -235,6 +235,7 @@ you have to run the help command: ``airflow celery --help``.
 | ``airflow list_dag_runs``     | ``airflow dags list-runs``         |    ``dags``        |
 | ``airflow pause``             | ``airflow dags pause``             |    ``dags``        |
 | ``airflow unpause``           | ``airflow dags unpause``           |    ``dags``        |
+| ``airflow next_execution``    | ``airflow dags next-execution``    |    ``dags``        |
 | ``airflow test``              | ``airflow tasks test``             |    ``tasks``       |
 | ``airflow clear``             | ``airflow tasks clear``            |    ``tasks``       |
 | ``airflow list_tasks``        | ``airflow tasks list``             |    ``tasks``       |

@@ -810,7 +810,7 @@ DAGS_COMMANDS = (
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
     ),
     ActionCommand(
-        name='next_execution',
+        name='next-execution',
         help="Get the next execution datetimes of a DAG",
         description=(
             "Get the next execution datetimes of a DAG. It returns one execution unless the "
