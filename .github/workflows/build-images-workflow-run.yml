@@ -101,7 +101,7 @@ jobs:
           jobNameRegexps: >
             ["^Pylint$", "^Static checks: except pylint$",
              "^Build docs$", "^Spell check docs$", "^Backport packages$",
-             "^Checks: Helm tests$", "^Test OpenAPI*"]
+             "^Checks: Helm tests$", "^Test OpenAPI.*$"]
       - name: "Extract canceled failed runs"
 
         # We use this step to build regexp that will be used to match the Source Run id in
