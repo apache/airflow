@@ -33,7 +33,7 @@ function add_trap() {
         local handlers
         handlers="$( trap -p "${signal}" | cut -f2 -d \' )"
         # shellcheck disable=SC2064
-        trap "${handlers}${handlers:+;}${trap}" "${signal}"
+        trap "${trap};${handlers}" "${signal}"
     done
 }
 
