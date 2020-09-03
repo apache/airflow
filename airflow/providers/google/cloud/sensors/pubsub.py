@@ -53,7 +53,7 @@ class PubSubPullSensor(BaseSensorOperator):
     ``project`` and ``subscription`` are templated so you can use
     variables in them.
 
-    :param project: the GCP project ID for the subscription (templated)
+    :param project: the Google Cloud project ID for the subscription (templated)
     :type project: str
     :param subscription: the Pub/Sub subscription name. Do not include the
         full subscription path.
@@ -75,7 +75,7 @@ class PubSubPullSensor(BaseSensorOperator):
         immediately rather than by any downstream tasks
     :type ack_messages: bool
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have

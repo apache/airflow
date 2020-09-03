@@ -17,7 +17,7 @@
 # under the License.
 
 """
-This module contains various GCP Cloud Tasks operators
+This module contains various Google Cloud Tasks operators
 which allow you to perform basic operations using
 Cloud Tasks queues/tasks.
 """
@@ -46,8 +46,8 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         Queue's name cannot be the same as an existing queue.
         If a dict is provided, it must be of the same form as the protobuf message Queue.
     :type task_queue: dict or google.cloud.tasks_v2.types.Queue
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param queue_name: (Optional) The queue's name.
         If provided, it will be used to construct the full queue path.
@@ -61,7 +61,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -144,8 +144,8 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         This method creates the queue if it does not exist and updates the queue if
         it does exist. The queue's name must be specified.
     :type task_queue: dict or google.cloud.tasks_v2.types.Queue
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param location: (Optional) The location name in which the queue will be updated.
         If provided, it will be used to construct the full queue path.
@@ -166,7 +166,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -242,8 +242,8 @@ class CloudTasksQueueGetOperator(BaseOperator):
     :type location: str
     :param queue_name: The queue's name.
     :type queue_name: str
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -254,7 +254,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -320,8 +320,8 @@ class CloudTasksQueuesListOperator(BaseOperator):
 
     :param location: The location name in which the queues were created.
     :type location: str
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param results_filter: (Optional) Filter used to specify a subset of queues.
     :type results_filter: str
@@ -337,7 +337,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -407,8 +407,8 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
     :type location: str
     :param queue_name: The queue's name.
     :type queue_name: str
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -419,7 +419,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -484,8 +484,8 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
     :type location: str
     :param queue_name: The queue's name.
     :type queue_name: str
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -496,7 +496,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -564,8 +564,8 @@ class CloudTasksQueuePauseOperator(BaseOperator):
     :type location: str
     :param queue_name: The queue's name.
     :type queue_name: str
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -576,7 +576,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -644,8 +644,8 @@ class CloudTasksQueueResumeOperator(BaseOperator):
     :type location: str
     :param queue_name: The queue's name.
     :type queue_name: str
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -656,7 +656,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -727,8 +727,8 @@ class CloudTasksTaskCreateOperator(BaseOperator):
     :param task: The task to add.
         If a dict is provided, it must be of the same form as the protobuf message Task.
     :type task: dict or google.cloud.tasks_v2.types.Task
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param task_name: (Optional) The task's name.
         If provided, it will be used to construct the full task path.
@@ -745,7 +745,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -826,8 +826,8 @@ class CloudTasksTaskGetOperator(BaseOperator):
     :type queue_name: str
     :param task_name: The task's name.
     :type task_name: str
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param response_view: (Optional) This field specifies which subset of the Task will
         be returned.
@@ -841,7 +841,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -916,8 +916,8 @@ class CloudTasksTasksListOperator(BaseOperator):
     :type location: str
     :param queue_name: The queue's name.
     :type queue_name: str
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param response_view: (Optional) This field specifies which subset of the Task will
         be returned.
@@ -934,7 +934,7 @@ class CloudTasksTasksListOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1010,8 +1010,8 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
     :type queue_name: str
     :param task_name: The task's name.
     :type task_name: str
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -1022,7 +1022,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1093,8 +1093,8 @@ class CloudTasksTaskRunOperator(BaseOperator):
     :type queue_name: str
     :param task_name: The task's name.
     :type task_name: str
-    :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-        If set to None or missing, the default project_id from the GCP connection is used.
+    :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
     :param response_view: (Optional) This field specifies which subset of the Task will
         be returned.
@@ -1108,7 +1108,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

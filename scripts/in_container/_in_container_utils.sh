@@ -16,6 +16,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
+#######################################################################################################
+#
+# Adds trap to the traps already set.
+#
+# Arguments:
+#      trap to set
+#      .... list of signals to handle
+#######################################################################################################
+function add_trap() {
+    trap="${1}"
+    shift
+    for signal in "${@}"
+    do
+        # adding trap to exiting trap
+        local handlers
+        handlers="$( trap -p "${signal}" | cut -f2 -d \' )"
+        # shellcheck disable=SC2064
+        trap "${trap};${handlers}" "${signal}"
+    done
+}
+
 function assert_in_container() {
     export VERBOSE=${VERBOSE:="false"}
     if [[ ! -f /.dockerenv ]]; then
@@ -40,7 +61,7 @@ function in_container_script_end() {
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
         if [[ "${PRINT_INFO_FROM_SCRIPTS=="true"}" == "true" ]] ;then
-            if [[ -n ${OUT_FILE_PRINTED_ON_ERROR:=} ]]; then
+            if [[ -n ${OUT_FILE_PRINTED_ON_ERROR=} ]]; then
                 echo "  ERROR ENCOUNTERED!"
                 echo
                 echo "  Output:"
@@ -250,7 +271,7 @@ function setup_kerberos() {
 }
 
 function dump_airflow_logs() {
-    DUMP_FILE=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}.log.tar.gz
+    DUMP_FILE=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
     echo "###########################################################################################"

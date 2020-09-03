@@ -79,7 +79,7 @@ class MLEngineHook(GoogleBaseHook):
         Launches a MLEngine job and wait for it to reach a terminal state.
 
         :param project_id: The Google Cloud project id within which MLEngine
-            job will be launched. If set to None or missing, the default project_id from the GCP
+            job will be launched. If set to None or missing, the default project_id from the Google Cloud
             connection is used.
         :type project_id: str
         :param job: MLEngine Job object that should be provided to the MLEngine
@@ -141,7 +141,7 @@ class MLEngineHook(GoogleBaseHook):
         Cancels a MLEngine job.
 
         :param project_id: The Google Cloud project id within which MLEngine
-            job will be cancelled. If set to None or missing, the default project_id from the GCP
+            job will be cancelled. If set to None or missing, the default project_id from the Google Cloud
             connection is used.
         :type project_id: str
         :param job_id: A unique id for the want-to-be cancelled Google MLEngine training job.
@@ -172,8 +172,8 @@ class MLEngineHook(GoogleBaseHook):
         """
         Gets a MLEngine job based on the job id.
 
-        :param project_id: The project in which the Job is located.
-            If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        :param project_id: The project in which the Job is located. If set to None or missing, the default
+            project_id from the Google Cloud connection is used. (templated)
         :type project_id: str
         :param job_id: A unique id for the Google MLEngine job. (templated)
         :type job_id: str
@@ -202,8 +202,8 @@ class MLEngineHook(GoogleBaseHook):
         This method will periodically check the job state until the job reach
         a terminal state.
 
-        :param project_id: The project in which the Job is located.
-            If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        :param project_id: The project in which the Job is located. If set to None or missing, the default
+            project_id from the Google Cloud connection is used. (templated)
         :type project_id: str
         :param job_id: A unique id for the Google MLEngine job. (templated)
         :type job_id: str
@@ -232,7 +232,7 @@ class MLEngineHook(GoogleBaseHook):
             (templated)
         :type model_name: str
         :param project_id: The Google Cloud project name to which MLEngine model belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
             (templated)
         :type project_id: str
         :return: If the version was created successfully, returns the operation.
@@ -266,8 +266,8 @@ class MLEngineHook(GoogleBaseHook):
         :type model_name: str
         :param version_name: A name to use for the version being operated upon. (templated)
         :type version_name: str
-        :param project_id: The Google Cloud project name to which MLEngine model belongs.
-            If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        :param project_id: The Google Cloud project name to which MLEngine model belongs. If set to None
+            or missing, the default project_id from the Google Cloud connection is used. (templated)
         :type project_id: str
         :return: If successful, return an instance of Version.
             Otherwise raises an error.
@@ -295,8 +295,8 @@ class MLEngineHook(GoogleBaseHook):
         :param model_name: The name of the Google Cloud ML Engine model that the version
             belongs to. (templated)
         :type model_name: str
-        :param project_id: The Google Cloud project name to which MLEngine model belongs.
-            If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        :param project_id: The Google Cloud project name to which MLEngine model belongs. If set to None or
+            missing, the default project_id from the Google Cloud connection is used. (templated)
         :type project_id: str
         :return: return an list of instance of Version.
         :rtype: List[Dict]
@@ -358,8 +358,8 @@ class MLEngineHook(GoogleBaseHook):
 
         :param model: A dictionary containing the information about the model.
         :type model: dict
-        :param project_id: The Google Cloud project name to which MLEngine model belongs.
-            If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        :param project_id: The Google Cloud project name to which MLEngine model belongs. If set to None or
+            missing, the default project_id from the Google Cloud connection is used. (templated)
         :type project_id: str
         :return: If the version was created successfully, returns the instance of Model.
             Otherwise raises an error.
@@ -406,8 +406,8 @@ class MLEngineHook(GoogleBaseHook):
 
         :param model_name: The name of the model.
         :type model_name: str
-        :param project_id: The Google Cloud project name to which MLEngine model belongs.
-            If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        :param project_id: The Google Cloud project name to which MLEngine model belongs. If set to None
+            or missing, the default project_id from the Google Cloud connection is used. (templated)
         :type project_id: str
         :return: If the model exists, returns the instance of Model.
             Otherwise return None.
@@ -438,8 +438,8 @@ class MLEngineHook(GoogleBaseHook):
             Will delete all version (if any) in the dataset if set to True.
             The default value is False.
         :type delete_contents: bool
-        :param project_id: The Google Cloud project name to which MLEngine model belongs.
-            If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        :param project_id: The Google Cloud project name to which MLEngine model belongs. If set to None
+            or missing, the default project_id from the Google Cloud connection is used. (templated)
         :type project_id: str
         :raises: googleapiclient.errors.HttpError
         """

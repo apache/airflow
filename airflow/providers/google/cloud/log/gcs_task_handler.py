@@ -44,14 +44,15 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     :type gcs_log_folder: str
     :param filename_template: template filename string
     :type filename_template: str
-    :param gcp_key_path: Path to GCP Credential JSON file. Mutually exclusive with gcp_keyfile_dict.
+    :param gcp_key_path: Path to Google Cloud Service Account file (JSON). Mutually exclusive with
+        gcp_keyfile_dict.
         If omitted, authorization based on `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
     :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. Mutually exclusive with gcp_key_path.
     :type gcp_keyfile_dict: dict
-    :param gcp_scopes: Comma-separated string containing GCP scopes
+    :param gcp_scopes: Comma-separated string containing OAuth2 scopes
     :type gcp_scopes: str
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.

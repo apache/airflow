@@ -158,6 +158,41 @@ The components communicate with each other in many places
 * [10] **Scheduler** --> **Celery's result backend** - Gets information about the status of completed tasks
 * [11] **Scheduler** --> **Celery's broker** - Put the commands to be executed
 
+Task execution process
+----------------------
+
+.. figure:: ../img/run_task_on_celery_executor.png
+    :scale: 50 %
+
+    Sequence diagram - task execution process
+
+Initially, two processes are running:
+
+- SchedulerProcess - process the tasks and run using CeleryExecutor
+- WorkerProcess - observes the queue waiting for new tasks to appear
+- WorkerChildProcess - waits for new tasks
+
+Two databases are also available:
+
+- QueueBroker
+- ResultBackend
+
+During this process, two 2 process are created:
+
+- LocalTaskJobProcess - It logic is described by LocalTaskJob. It is monitoring RawTaskProcess. New processes are started using TaskRunner.
+- RawTaskProcess - It is process with the user code e.g. :meth:`~airflow.models.BaseOperator.execute`.
+
+| [1] **SchedulerProcess** processes the tasks and when it finds a task that needs to be done, sends it to the **QueueBroker**.
+| [2] **QueueBroker** also begins to periodically query **ResultBackend** for the status of the task.
+| [3] **QueueBroker**, when it becomes aware of the task, sends information about it to one WorkerProcess.
+| [4] **WorkerProcess** assigns a single task to a one **WorkerChildProcess**.
+| [5] **WorkerChildProcess** performs the proper task handling functions - :meth:`~airflow.executor.celery_executor.execute_command`. It creates a new process - **LocalTaskJobProcess**.
+| [6] LocalTaskJobProcess logic is described by :class:`~airflow.jobs.local_task_job.LocalTaskJob` class. It starts new process using TaskRunner.
+| [7][8] Process **RawTaskProcess** and **LocalTaskJobProcess** is stopped when they have finished their work.
+| [10][12] **WorkerChildProcess** notifies the main process - **WorkerProcess** about the end of the task and the availability of subsequent tasks.
+| [11] **WorkerProcess** saves status information in **ResultBackend**.
+| [13] When **SchedulerProcess** asks **ResultBackend** again about the status, it will get information about the status of the task.
+
 Queues
 ------
 

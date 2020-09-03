@@ -127,7 +127,8 @@ class TestCloudSecretManagerBackend(TestCase):
             self.assertIsNone(secrets_manager_backend.get_conn_uri(conn_id=CONN_ID))
             self.assertEqual([], secrets_manager_backend.get_connections(conn_id=CONN_ID))
             self.assertRegex(
-                log_output.output[0], f"GCP API Call Error \\(NotFound\\): Secret ID {secret_id} not found"
+                log_output.output[0],
+                f"Google Cloud API Call Error \\(NotFound\\): Secret ID {secret_id} not found",
             )
 
     @parameterized.expand(["airflow-variables", "variables", "airflow"])
@@ -182,5 +183,6 @@ class TestCloudSecretManagerBackend(TestCase):
         with self.assertLogs(secrets_manager_backend.client.log, level="ERROR") as log_output:
             self.assertIsNone(secrets_manager_backend.get_variable(VAR_KEY))
             self.assertRegex(
-                log_output.output[0], f"GCP API Call Error \\(NotFound\\): Secret ID {secret_id} not found"
+                log_output.output[0],
+                f"Google Cloud API Call Error \\(NotFound\\): Secret ID {secret_id} not found",
             )

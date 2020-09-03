@@ -32,9 +32,9 @@ SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
 class _SecretManagerClient(LoggingMixin):
     """
-    Retrieves Secrets object from GCP Secrets Manager. This is a common class reused between SecretsManager
-    and Secrets Hook that provides the shared authentication and verification mechanisms. This class should
-    not be used directly, use SecretsManager or SecretsHook instead
+    Retrieves Secrets object from Google Cloud Secrets Manager. This is a common class reused between
+    SecretsManager and Secrets Hook that provides the shared authentication and verification mechanisms.
+    This class should not be used directly, use SecretsManager or SecretsHook instead
 
 
     :param credentials: Credentials used to authenticate to GCP
@@ -84,11 +84,11 @@ class _SecretManagerClient(LoggingMixin):
             value = response.payload.data.decode('UTF-8')
             return value
         except NotFound:
-            self.log.error("GCP API Call Error (NotFound): Secret ID %s not found.", secret_id)
+            self.log.error("Google Cloud API Call Error (NotFound): Secret ID %s not found.", secret_id)
             return None
         except PermissionDenied:
             self.log.error(
-                """GCP API Call Error (PermissionDenied): No access for Secret ID %s.
+                """Google Cloud API Call Error (PermissionDenied): No access for Secret ID %s.
                 Did you add 'secretmanager.versions.access' permission?""",
                 secret_id,
             )

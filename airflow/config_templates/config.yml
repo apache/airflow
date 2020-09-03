@@ -623,8 +623,8 @@
       default: ""
     - name: google_key_path
       description: |
-        Path to GCP Credential JSON file. If omitted, authorization based on `the Application Default
-        Credentials
+        Path to Google Cloud Service Account key file (JSON). If omitted, authorization based on
+        `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
       type: string
@@ -1466,14 +1466,6 @@
       type: string
       example: ~
       default: "30"
-    - name: dag_cleanup_interval
-      description: |
-        How often unseen Dags should be marked inactive and their serializations deleted.
-        Setting to 0 will disable DAG cleanup. Defaults to 5 minutes
-      version_added: ~
-      type: string
-      example: ~
-      default: "300"
     - name: scheduler_health_check_threshold
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold

@@ -18,7 +18,7 @@
 
 """
 This module contains a CloudTasksHook
-which allows you to connect to GCP Cloud Tasks service,
+which allows you to connect to Google Cloud Tasks service,
 performing actions to queues or tasks.
 """
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -69,9 +69,9 @@ class CloudTasksHook(GoogleBaseHook):
 
     def get_conn(self):
         """
-        Provides a client for interacting with the Cloud Tasks API.
+        Provides a client for interacting with the Google Cloud Tasks API.
 
-        :return: GCP Cloud Tasks API Client
+        :return: Google Cloud Tasks API Client
         :rtype: google.cloud.tasks_v2.CloudTasksClient
         """
         if not self._client:
@@ -98,8 +98,8 @@ class CloudTasksHook(GoogleBaseHook):
             Queue's name cannot be the same as an existing queue.
             If a dict is provided, it must be of the same form as the protobuf message Queue.
         :type task_queue: dict or google.cloud.tasks_v2.types.Queue
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param queue_name: (Optional) The queue's name.
             If provided, it will be used to construct the full queue path.
@@ -150,8 +150,8 @@ class CloudTasksHook(GoogleBaseHook):
             This method creates the queue if it does not exist and updates the queue if
             it does exist. The queue's name must be specified.
         :type task_queue: dict or google.cloud.tasks_v2.types.Queue
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param location: (Optional) The location name in which the queue will be updated.
             If provided, it will be used to construct the full queue path.
@@ -206,8 +206,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -242,8 +242,8 @@ class CloudTasksHook(GoogleBaseHook):
 
         :param location: The location name in which the queues were created.
         :type location: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param results_filter: (Optional) Filter used to specify a subset of queues.
         :type results_filter: str
@@ -292,8 +292,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -328,8 +328,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -365,8 +365,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -402,8 +402,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -445,8 +445,8 @@ class CloudTasksHook(GoogleBaseHook):
         :param task: The task to add.
             If a dict is provided, it must be of the same form as the protobuf message Task.
         :type task: dict or google.cloud.tasks_v2.types.Task
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param task_name: (Optional) The task's name.
             If provided, it will be used to construct the full task path.
@@ -507,8 +507,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type queue_name: str
         :param task_name: The task's name.
         :type task_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
@@ -551,8 +551,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
@@ -604,8 +604,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type queue_name: str
         :param task_name: The task's name.
         :type task_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -644,8 +644,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type queue_name: str
         :param task_name: The task's name.
         :type task_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.

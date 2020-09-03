@@ -99,7 +99,7 @@ jobs:
           cancelMode: failedJobs
           sourceRunId: ${{ github.event.workflow_run.id }}
           jobNameRegexps: >
-            ["^Static checks.*", "^Build docs$", "^Spell check docs$", "^Backport packages$",
+            ["^Pylint$", "^Static checks$", "^Build docs$", "^Spell check docs$", "^Backport packages$",
              "^Checks: Helm tests$", "^Test OpenAPI*"]
       - name: "Extract canceled failed runs"
 

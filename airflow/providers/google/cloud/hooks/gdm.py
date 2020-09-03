@@ -27,7 +27,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-method
     """
-    Interact with Google Cloud Deployment Manager using the Google Cloud Platform connection.
+    Interact with Google Cloud Deployment Manager using the Google Cloud connection.
     This allows for scheduled and programatic inspection and deletion fo resources managed by GDM.
     """
 

@@ -178,7 +178,7 @@ class DataFusionHook(GoogleBaseHook):
         :type instance_name: str
         :param location: The Cloud Data Fusion location in which to handle the request.
         :type location: str
-        :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
+        :param project_id: The ID of the Google Cloud project that the instance belongs to.
         :type project_id: str
         """
         operation = (
@@ -200,7 +200,7 @@ class DataFusionHook(GoogleBaseHook):
         :type instance_name: str
         :param location: The Cloud Data Fusion location in which to handle the request.
         :type location: str
-        :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
+        :param project_id: The ID of the Google Cloud project that the instance belongs to.
         :type project_id: str
         """
         operation = (
@@ -227,7 +227,7 @@ class DataFusionHook(GoogleBaseHook):
         :type instance: Dict[str, Any]
         :param location: The Cloud Data Fusion location in which to handle the request.
         :type location: str
-        :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
+        :param project_id: The ID of the Google Cloud project that the instance belongs to.
         :type project_id: str
         """
         operation = (
@@ -249,7 +249,7 @@ class DataFusionHook(GoogleBaseHook):
         :type instance_name: str
         :param location: The Cloud Data Fusion location in which to handle the request.
         :type location: str
-        :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
+        :param project_id: The ID of the Google Cloud project that the instance belongs to.
         :type project_id: str
         """
         instance = (
@@ -283,7 +283,7 @@ class DataFusionHook(GoogleBaseHook):
         :type update_mask: str
         :param location: The Cloud Data Fusion location in which to handle the request.
         :type location: str
-        :param project_id: The ID of the Google Cloud Platform project that the instance belongs to.
+        :param project_id: The ID of the Google Cloud project that the instance belongs to.
         :type project_id: str
         """
         operation = (

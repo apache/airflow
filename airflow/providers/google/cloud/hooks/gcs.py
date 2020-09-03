@@ -109,7 +109,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
 class GCSHook(GoogleBaseHook):
     """
-    Interact with Google Cloud Storage. This hook uses the Google Cloud Platform
+    Interact with Google Cloud Storage. This hook uses the Google Cloud
     connection.
     """
 
@@ -690,7 +690,7 @@ class GCSHook(GoogleBaseHook):
                 https://developers.google.com/storage/docs/bucket-locations
 
         :type location: str
-        :param project_id: The ID of the GCP Project.
+        :param project_id: The ID of the Google Cloud Project.
         :type project_id: str
         :param labels: User-provided labels, in key/value pairs.
         :type labels: dict

@@ -41,7 +41,7 @@ TIME_TO_SLEEP_IN_SECONDS = 10
 
 class GcpTransferJobsStatus:
     """
-    Class with GCP Transfer jobs statuses.
+    Class with Google Cloud Transfer jobs statuses.
     """
 
     ENABLED = "ENABLED"
@@ -51,7 +51,7 @@ class GcpTransferJobsStatus:
 
 class GcpTransferOperationStatus:
     """
-    Class with GCP Transfer operations statuses.
+    Class with Google Cloud Transfer operations statuses.
     """
 
     IN_PROGRESS = "IN_PROGRESS"
@@ -208,7 +208,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :param job_name: (Required) Name of the job to be fetched
         :type job_name: str
         :param project_id: (Optional) the ID of the project that owns the Transfer
-            Job. If set to None or missing, the default project_id from the GCP
+            Job. If set to None or missing, the default project_id from the Google Cloud
             connection is used.
         :type project_id: str
         :return: Transfer Job
@@ -265,7 +265,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :param job_name: (Required) Name of the job to be updated
         :type job_name: str
         :param project_id: (Optional) the ID of the project that owns the Transfer
-            Job. If set to None or missing, the default project_id from the GCP
+            Job. If set to None or missing, the default project_id from the Google Cloud
             connection is used.
         :type project_id: str
         :return: If successful, TransferJob.
@@ -316,7 +316,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :param job_name: (Required) Name of the job to be deleted
         :type job_name: str
         :param project_id: (Optional) the ID of the project that owns the Transfer
-            Job. If set to None or missing, the default project_id from the GCP
+            Job. If set to None or missing, the default project_id from the Google Cloud
             connection is used.
         :type project_id: str
         :rtype: None
@@ -489,7 +489,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         if not body.get(target_key):
             raise AirflowException(
                 "The project id must be passed either as `{}` key in `{}` parameter or as project_id "
-                "extra in GCP connection definition. Both are not set!".format(target_key, param_name)
+                "extra in Google Cloud connection definition. Both are not set!".format(
+                    target_key, param_name
+                )
             )
         return body
 

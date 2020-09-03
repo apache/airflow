@@ -1,0 +1,77 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/**
+ * This file contains source code of run_task_on_celery_executor.png image.
+ *
+ * If you want regenerate this image, you should follow instructions here:
+ * https://plantuml.com/starting
+ */
+
+@startuml
+autonumber
+
+box Scheduler
+    participant SchedulerProcess order 10
+endbox
+database QueueBroker order 20
+database ResultBackend order 30
+box Worker
+    participant WorkerProcess order 40
+    participant WorkerChildProcess order 50
+    participant LocalTaskJobProcess order 60
+    participant RawTaskProcess order 70
+endbox
+
+activate SchedulerProcess
+activate WorkerChildProcess
+
+SchedulerProcess->>QueueBroker: Send task
+activate QueueBroker
+SchedulerProcess->ResultBackend: Pool celery \ntask state
+deactivate SchedulerProcess
+WorkerChildProcess->QueueBroker: Pool task
+QueueBroker->WorkerChildProcess: Send task
+deactivate QueueBroker
+activate WorkerChildProcess
+create LocalTaskJobProcess
+WorkerChildProcess->LocalTaskJobProcess: Start process
+deactivate
+create RawTaskProcess
+activate LocalTaskJobProcess
+LocalTaskJobProcess->RawTaskProcess: Start process
+deactivate LocalTaskJobProcess
+activate RawTaskProcess
+RawTaskProcess->RawTaskProcess: Execute user code
+RawTaskProcess-->LocalTaskJobProcess: Finish process
+destroy RawTaskProcess
+activate LocalTaskJobProcess
+LocalTaskJobProcess-->WorkerChildProcess: Finish process
+destroy LocalTaskJobProcess
+activate WorkerChildProcess
+WorkerChildProcess-->WorkerProcess: Report task result
+deactivate WorkerChildProcess
+activate WorkerProcess
+WorkerProcess-->ResultBackend: Save Celery task state
+deactivate WorkerProcess
+activate ResultBackend
+ResultBackend-->SchedulerProcess: Send celery task state
+deactivate ResultBackend
+
+@enduml

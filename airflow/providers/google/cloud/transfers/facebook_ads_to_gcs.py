@@ -50,7 +50,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     :type bucket: str
     :param obj: GCS path to save the object. Must be the full file path (ex. `path/to/file.txt`)
     :type obj: str
-    :param gcp_conn_id: Airflow Google Cloud Platform connection ID
+    :param gcp_conn_id: Airflow Google Cloud connection ID
     :type gcp_conn_id: str
     :param facebook_conn_id: Airflow Facebook Ads connection ID
     :type facebook_conn_id: str

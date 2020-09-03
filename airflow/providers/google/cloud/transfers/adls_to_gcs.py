@@ -46,10 +46,10 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
     :param azure_data_lake_conn_id: The connection ID to use when
         connecting to Azure Data Lake Storage.
     :type azure_data_lake_conn_id: str
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
-        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have

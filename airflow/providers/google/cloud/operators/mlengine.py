@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains GCP MLEngine operators.
+This module contains Google Cloud MLEngine operators.
 """
 import logging
 import re
@@ -142,7 +142,8 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         to use for this job.
     :type signature_name: str
     :param project_id: The Google Cloud project name where the prediction job is submitted.
-        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :type project_id: str
     :param gcp_conn_id: The connection ID used for connection to Google
         Cloud Platform.
@@ -317,7 +318,8 @@ class MLEngineManageModelOperator(BaseOperator):
         * ``get``: Gets a particular model where the name is specified in `model`.
     :type operation: str
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
@@ -397,7 +399,8 @@ class MLEngineCreateModelOperator(BaseOperator):
     :param model: A dictionary containing the information about the model.
     :type model: dict
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
@@ -462,7 +465,8 @@ class MLEngineGetModelOperator(BaseOperator):
     :param model_name: The name of the model.
     :type model_name: str
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
@@ -531,7 +535,8 @@ class MLEngineDeleteModelOperator(BaseOperator):
         The default value is False.
     :type delete_contents: bool
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
@@ -632,7 +637,8 @@ class MLEngineManageVersionOperator(BaseOperator):
             parameter.
     :type operation: str
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
@@ -738,7 +744,8 @@ class MLEngineCreateVersionOperator(BaseOperator):
     :param version: A dictionary containing the information about the version. (templated)
     :type version: dict
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
@@ -821,7 +828,8 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
     :param version_name: A name to use for the version being operated upon. (templated)
     :type version_name: str
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
@@ -904,7 +912,8 @@ class MLEngineListVersionsOperator(BaseOperator):
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
-        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -1102,7 +1111,8 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         outputs and other data needed for training. (templated)
     :type job_dir: str
     :param project_id: The Google Cloud project name within which MLEngine training job should run.
-        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
@@ -1276,7 +1286,8 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
         training job. (templated)
     :type job_id: str
     :param project_id: The Google Cloud project name within which MLEngine training job should run.
-        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :type project_id: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
