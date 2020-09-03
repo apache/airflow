@@ -145,9 +145,11 @@ class TestCliDags(unittest.TestCase):
             dag_command.generate_pod_yaml(self.parser.parse_args([
                 'kubernetes', 'generate-dag-yaml',
                 'example_bash_operator', "2020-11-03", "--output-path", directory]))
-            self.assertEqual(len(os.listdir(directory)), 6)
-            self.assertTrue(os.path.isfile(directory + file_name))
-            self.assertGreater(os.stat(directory + file_name).st_size, 0)
+            self.assertEqual(len(os.listdir(directory)), 1)
+            out_dir = directory + "/airflow_yaml_output/"
+            self.assertEqual(len(os.listdir(out_dir)), 6)
+            self.assertTrue(os.path.isfile(out_dir + file_name))
+            self.assertGreater(os.stat(out_dir + file_name).st_size, 0)
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
     def test_show_dag_dave(self, mock_render_dag):
