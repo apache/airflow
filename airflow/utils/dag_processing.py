@@ -277,12 +277,15 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._parent_signal_conn: Optional[MultiprocessingConnection] = None
         self._collected_dag_buffer: List = []
 
+        self._last_parsing_stat_recieved_at: float = time.monotonic()
+
     def start(self) -> None:
         """
         Launch DagFileProcessorManager processor and start DAG parsing loop in manager.
         """
         mp_start_method = self._get_multiprocessing_start_method()
         context = multiprocessing.get_context(mp_start_method)
+        self._last_parsing_stat_recieved_at = time.monotonic()
 
         self._parent_signal_conn, child_signal_conn = context.Pipe()
         process = context.Process(
@@ -366,6 +369,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             if isinstance(result, DagParsingStat):
                 # In sync mode we don't send this message from the Manager
                 # until all the running processors have finished
+                self._sync_metadata(result)
                 return
 
     @staticmethod
@@ -457,12 +461,25 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
                 )
                 self.start()
 
+        if self.done:
+            return
+
+        parsing_stat_age = time.monotonic() - self._last_parsing_stat_recieved_at
+        if parsing_stat_age > self._processor_timeout.total_seconds():
+            Stats.incr('dag_processing.manager_stalls')
+            self.log.error(
+                "DagFileProcessorManager (PID=%d) last sent a heartbeat %.2f seconds ago! Restarting it",
+                self._process.pid, parsing_stat_age)
+            reap_process_group(self._process.pid, logger=self.log)
+            self.start()
+
     def _sync_metadata(self, stat):
         """
         Sync metadata from stat queue and only keep the latest stat.
         """
         self._done = stat.done
         self._all_files_processed = stat.all_files_processed
+        self._last_parsing_stat_recieved_at = time.monotonic()
 
     @property
     def done(self) -> bool:
