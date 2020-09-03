@@ -20,7 +20,6 @@
 from airflow.api_connexion import security
 
 
-@security.requires_authentication
 @security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "TaskInstance")])
 def get_task_instance():
     """
@@ -29,7 +28,6 @@ def get_task_instance():
     raise NotImplementedError("Not implemented yet.")
 
 
-@security.requires_authentication
 @security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "TaskInstance")])
 def get_task_instances():
     """
@@ -38,7 +36,6 @@ def get_task_instances():
     raise NotImplementedError("Not implemented yet.")
 
 
-@security.requires_authentication
 @security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "TaskInstance")])
 def get_task_instances_batch():
     """
@@ -47,7 +44,6 @@ def get_task_instances_batch():
     raise NotImplementedError("Not implemented yet.")
 
 
-@security.requires_authentication
 @security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_edit", "TaskInstance")])
 def post_clear_task_instances():
     """

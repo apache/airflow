@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.api_connexion import security
 from airflow.api_connexion.schemas.health_schema import health_schema
 from airflow.jobs.scheduler_job import SchedulerJob
 
@@ -21,6 +22,7 @@ HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
 
 
+@security.requires_access([("can_read", "Health")])
 def get_health():
     """
     Return the health of the airflow scheduler and metadatabase
@@ -40,7 +42,10 @@ def get_health():
 
     payload = {
         "metadatabase": {"status": metadatabase_status},
-        "scheduler": {"status": scheduler_status, "latest_scheduler_heartbeat": latest_scheduler_heartbeat,},
+        "scheduler": {
+            "status": scheduler_status,
+            "latest_scheduler_heartbeat": latest_scheduler_heartbeat,
+        },
     }
 
     return health_schema.dump(payload)

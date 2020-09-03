@@ -20,6 +20,7 @@ from typing import NamedTuple, Optional
 
 import airflow
 from airflow.api_connexion.schemas.version_schema import version_info_schema
+from airflow.api_connexion import security
 from airflow.utils.platform import get_airflow_git_version
 
 log = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ class VersionInfo(NamedTuple):
     git_version: Optional[str]
 
 
+@security.requires_access([("can_read", "Version")])
 def get_version():
     """Get version information"""
     airflow_version = airflow.__version__

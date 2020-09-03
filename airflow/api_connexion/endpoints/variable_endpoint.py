@@ -28,7 +28,6 @@ from airflow.models import Variable
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
 @security.requires_access([("can_delete", "Variable")])
 def delete_variable(variable_key: str) -> Response:
     """
@@ -39,7 +38,6 @@ def delete_variable(variable_key: str) -> Response:
     return Response(status=204)
 
 
-@security.requires_authentication
 @security.requires_access([("can_read", "Variable")])
 def get_variable(variable_key: str) -> Response:
     """
@@ -52,7 +50,6 @@ def get_variable(variable_key: str) -> Response:
     return variable_schema.dump({"key": variable_key, "val": var})
 
 
-@security.requires_authentication
 @security.requires_access([("can_read", "Variable")])
 @format_parameters({'limit': check_limit})
 @provide_session
@@ -75,7 +72,6 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
     )
 
 
-@security.requires_authentication
 @security.requires_access([("can_edit", "Variable")])
 def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -> Response:
     """
@@ -99,7 +95,6 @@ def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -
     return Response(status=204)
 
 
-@security.requires_authentication
 @security.requires_access([("can_create", "Variable")])
 def post_variables() -> Response:
     """

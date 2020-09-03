@@ -34,7 +34,7 @@ class TestXComEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
+
         create_role(
             cls.app,  # type: ignore
             name="Test",
