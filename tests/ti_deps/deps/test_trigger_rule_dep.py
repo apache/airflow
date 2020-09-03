@@ -539,6 +539,8 @@ class TestTriggerRuleDep(unittest.TestCase):
         ti_op4.set_state(state=State.SUCCESS, session=session)
         ti_op5.set_state(state=State.SUCCESS, session=session)
 
+        session.commit()
+
         # check handling with cases that tasks are triggered from backfill with no finished tasks
         finished_tasks = DepContext().ensure_finished_tasks(ti_op2.task.dag, ti_op2.execution_date, session)
         self.assertEqual(get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op2),
