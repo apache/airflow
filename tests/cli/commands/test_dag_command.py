@@ -257,7 +257,7 @@ class TestCliDags(unittest.TestCase):
 
         # Test None output
         args = self.parser.parse_args(['dags',
-                                       'next_execution',
+                                       'next-execution',
                                        dag_ids[0]])
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_next_execution(args)
@@ -289,7 +289,7 @@ class TestCliDags(unittest.TestCase):
 
             # Test num-executions = 1 (default)
             args = self.parser.parse_args(['dags',
-                                           'next_execution',
+                                           'next-execution',
                                            dag_id])
             with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
                 dag_command.dag_next_execution(args)
@@ -298,7 +298,7 @@ class TestCliDags(unittest.TestCase):
 
             # Test num-executions = 2
             args = self.parser.parse_args(['dags',
-                                           'next_execution',
+                                           'next-execution',
                                            dag_id,
                                            '--num-executions',
                                            '2'])

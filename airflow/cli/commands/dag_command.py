@@ -271,7 +271,7 @@ def dag_state(args):
 def dag_next_execution(args):
     """
     Returns the next execution datetime of a DAG at the command line.
-    >>> airflow dags next_execution tutorial
+    >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
     """
     dag = get_dag(args.subdir, args.dag_id)
