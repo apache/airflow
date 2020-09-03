@@ -1,5 +1,3 @@
-#!/usr/bin/env bats
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,10 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-@test "empty test" {
-  load bats_utils
-
-  run pwd
-  assert_success
-}
+# shellcheck disable=SC1091
+source "/opt/bats/lib/bats-support/load.bash"
+# shellcheck disable=SC1091
+source "/opt/bats/lib/bats-assert/load.bash"
+# shellcheck disable=SC1091
+source "/opt/bats/lib/bats-file/load.bash"
