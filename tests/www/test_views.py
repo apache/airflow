@@ -2549,6 +2549,25 @@ class TestExtraLinks(TestBase):
 
         self.app.dag_bag = mock.MagicMock(**{'get_dag.return_value': self.dag})
         super().setUp()
+        self.logout()
+        self.login()
+
+    def login(self):
+        role_viewer = self.appbuilder.sm.find_role('Viewer')
+        test_viewer = self.appbuilder.sm.find_user(username='test_viewer')
+        if not test_viewer:
+            self.appbuilder.sm.add_user(
+                username='test_viewer',
+                first_name='test_viewer',
+                last_name='test_viewer',
+                email='test_viewer@fab.org',
+                role=role_viewer,
+                password='test_viewer')
+
+        return self.client.post('/login/', data=dict(
+            username='test_viewer',
+            password='test_viewer'
+        ))
 
     def test_extra_links_works(self):
         response = self.client.get(
