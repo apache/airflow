@@ -23,6 +23,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import create_role, create_user, delete_user
+from tests.test_utils.config import conf_vars
 
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
@@ -32,7 +34,18 @@ class TestHealthTestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
+            cls.app = app.create_app(testing=True)  # type:ignore
+        create_role(
+            cls.app,  # type: ignore
+            name="Test",
+            permissions=[
+                ("can_read", "Health"),
+            ],
+        )
+        create_user(cls.app, username="test", role="Test")  # type: ignore
+        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
+        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -43,6 +56,13 @@ class TestHealthTestBase(unittest.TestCase):
         super().tearDown()
         with create_session() as session:
             session.query(BaseJob).delete()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
+        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
 
 
 class TestGetHeath(TestHealthTestBase):
@@ -57,7 +77,7 @@ class TestGetHeath(TestHealthTestBase):
             )
         )
         session.commit()
-        resp_json = self.client.get("/api/v1/health").json
+        resp_json = self.client.get("/api/v1/health", environ_overrides={'REMOTE_USER': "test"}).json
         self.assertEqual("healthy", resp_json["metadatabase"]["status"])
         self.assertEqual("healthy", resp_json["scheduler"]["status"])
         self.assertEqual(
@@ -76,7 +96,7 @@ class TestGetHeath(TestHealthTestBase):
             )
         )
         session.commit()
-        resp_json = self.client.get("/api/v1/health").json
+        resp_json = self.client.get("/api/v1/health", environ_overrides={'REMOTE_USER': "test"}).json
         self.assertEqual("healthy", resp_json["metadatabase"]["status"])
         self.assertEqual("unhealthy", resp_json["scheduler"]["status"])
         self.assertEqual(
@@ -85,7 +105,7 @@ class TestGetHeath(TestHealthTestBase):
         )
 
     def test_unhealthy_scheduler_no_job(self):
-        resp_json = self.client.get("/api/v1/health").json
+        resp_json = self.client.get("/api/v1/health", environ_overrides={'REMOTE_USER': "test"}).json
         self.assertEqual("healthy", resp_json["metadatabase"]["status"])
         self.assertEqual("unhealthy", resp_json["scheduler"]["status"])
         self.assertIsNone(resp_json["scheduler"]["latest_scheduler_heartbeat"])
@@ -96,3 +116,8 @@ class TestGetHeath(TestHealthTestBase):
         resp_json = self.client.get("/api/v1/health").json
         self.assertEqual("unhealthy", resp_json["metadatabase"]["status"])
         self.assertIsNone(resp_json["scheduler"]["latest_scheduler_heartbeat"])
+
+    def test_should_response_403_unauthorized(self):
+        response = self.client.get("/api/v1/health", environ_overrides={'REMOTE_USER': "test_no_permissions"})
+
+        self.assertEqual(403, response.status_code)

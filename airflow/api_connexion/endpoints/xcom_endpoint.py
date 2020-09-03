@@ -33,7 +33,6 @@ from airflow.models import DagRun as DR, XCom
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
 @security.requires_access(
     [("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")])
 @format_parameters({'limit': check_limit})
@@ -66,7 +65,6 @@ def get_xcom_entries(
     return xcom_collection_schema.dump(XComCollection(xcom_entries=query.all(), total_entries=total_entries))
 
 
-@security.requires_authentication
 @security.requires_access(
     [("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")])
 @provide_session
