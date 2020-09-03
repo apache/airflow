@@ -1170,7 +1170,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         region: str,
         scale_tier: Optional[str] = None,
         master_type: Optional[str] = None,
-        master_config: Optional[dict] = None,
+        master_config: Optional[Dict] = None,
         runtime_version: Optional[str] = None,
         python_version: Optional[str] = None,
         job_dir: Optional[str] = None,

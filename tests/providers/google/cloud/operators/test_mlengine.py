@@ -353,7 +353,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
     @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_create_training_job_with_master_config(self, mock_hook):
         custom_training_default_args: dict = self.TRAINING_DEFAULT_ARGS.copy()
-        custom_training_default_args.pop('scaleTier')
+        custom_training_default_args['scaleTier'] = 'CUSTOM'
 
         training_input = copy.deepcopy(self.TRAINING_INPUT)
         training_input['trainingInput']['runtimeVersion'] = '1.6'
@@ -374,9 +374,8 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             runtime_version='1.6',
             python_version='3.5',
             job_dir='gs://some-bucket/jobs/test_training',
-            scale_tier='CUSTOM',
             master_type='n1-standard-4',
-            master_config={'acceleratorConfig': {'count': 1, 'type': 'NVIDIA_TESLA_P4'},},
+            master_config={'acceleratorConfig': {'count': '1', 'type': 'NVIDIA_TESLA_P4'},},
             **custom_training_default_args,
         )
         training_op.execute(MagicMock())
