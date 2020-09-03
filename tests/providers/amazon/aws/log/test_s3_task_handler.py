@@ -151,12 +151,21 @@ class TestS3TaskHandler(unittest.TestCase):
         self.assertIn('*** Log file does not exist:', log[0])
         self.assertEqual({'end_of_log': True}, metadata[0])
 
+    def test_s3_read_when_log_missing(self):
+        handler = self.s3_task_handler
+        url = 's3://bucket/foo'
+        with mock.patch.object(handler.log, 'error') as mock_error:
+            result = handler.s3_read(url, return_error=True)
+            msg = f'Could not read logs from {url} with error: An error occurred (404) when calling the HeadObject operation: Not Found'
+            self.assertEqual(result, msg)
+            mock_error.assert_called_once_with(msg, exc_info=True)
+
     def test_read_raises_return_error(self):
         handler = self.s3_task_handler
         url = 's3://nonexistentbucket/foo'
         with mock.patch.object(handler.log, 'error') as mock_error:
             result = handler.s3_read(url, return_error=True)
-            msg = 'Could not read logs from %s' % url
+            msg = f'Could not read logs from {url} with error: An error occurred (NoSuchBucket) when calling the HeadObject operation: The specified bucket does not exist'
             self.assertEqual(result, msg)
             mock_error.assert_called_once_with(msg, exc_info=True)
 
