@@ -143,8 +143,8 @@ class TestCliDags(unittest.TestCase):
         with tempfile.TemporaryDirectory("airflow_dry_run_test/") as directory:
             file_name = "example_bash_operator_run_after_loop_2020-11-03T00_00_00_plus_00_00.yml"
             dag_command.generate_pod_yaml(self.parser.parse_args([
-                'kubernetes', 'generate_kubernetes_pod_yaml',
-                "--output-path", directory, "--exec-date", "2020-11-03", 'example_bash_operator']))
+                'kubernetes', 'generate-dag-yaml',
+                'example_bash_operator', "2020-11-03", "--output-path", directory]))
             self.assertEqual(len(os.listdir(directory)), 6)
             self.assertTrue(os.path.isfile(directory + file_name))
             self.assertGreater(os.stat(directory + file_name).st_size, 0)
