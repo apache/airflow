@@ -70,6 +70,7 @@ jobs:
           docker build --build-arg AIRFLOW_WHEEL_NAME=$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME) -t docker.pkg.github.com/masami10/airflow/airflow-base:latest --no-cache .
           docker tag docker.pkg.github.com/masami10/airflow/airflow-base:latest docker.pkg.github.com/masami10/airflow/airflow-base:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
           docker push docker.pkg.github.com/masami10/airflow/airflow-base:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
+          docker push docker.pkg.github.com/masami10/airflow/airflow-base:latest
       - name: Build airflow
         run: |
           cd $GITHUB_WORKSPACE/curve
@@ -77,5 +78,6 @@ jobs:
           docker build -t docker.pkg.github.com/masami10/airflow/airflow:latest --no-cache .
           docker tag docker.pkg.github.com/masami10/airflow/airflow:latest docker.pkg.github.com/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
           docker push docker.pkg.github.com/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
+          docker push docker.pkg.github.com/masami10/airflow/airflow:latest
 
 
