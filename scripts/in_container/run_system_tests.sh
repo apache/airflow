@@ -25,9 +25,9 @@ IN_CONTAINER_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 # shellcheck source=scripts/in_container/_in_container_utils.sh
 . "${IN_CONTAINER_DIR}/_in_container_utils.sh"
 
-in_container_basic_sanity_check
+container_utils::in_container_basic_sanity_check
 
-in_container_script_start
+container_utils::in_container_script_start
 
 # any argument received is overriding the default nose execution arguments:
 PYTEST_ARGS=( "$@" )

@@ -56,7 +56,7 @@ function container_utils::assert_in_container() {
 }
 #######################################################################################################
 #
-# In container file
+# Prints more verbose output of the scripts
 #
 #######################################################################################################
 function container_utils::in_container_script_start() {
@@ -64,7 +64,11 @@ function container_utils::in_container_script_start() {
         set -x
     fi
 }
-
+#######################################################################################################
+#
+#
+#
+#######################################################################################################
 function container_utils::in_container_script_end() {
     #shellcheck disable=2181
     EXIT_CODE=$?
@@ -189,7 +193,11 @@ function container_utils::in_container_basic_sanity_check() {
     container_utils::in_container_cleanup_pycache
 }
 
-
+#######################################################################################################
+#
+# Sets up the pylint
+#
+#######################################################################################################
 function container_utils::in_container_refresh_pylint_todo() {
     if [[ ${VERBOSE} == "true" ]]; then
         echo

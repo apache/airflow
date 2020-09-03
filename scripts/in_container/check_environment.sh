@@ -23,12 +23,12 @@ EXIT_CODE=0
 
 DISABLED_INTEGRATIONS=""
 
-function check_service {
-    LABEL=$1
+function check_environment::check_service {
+    INTEGRATION_NAME=$1
     CALL=$2
     MAX_CHECK=${3:=1}
 
-    echo -n "${LABEL}: "
+    echo -n "${INTEGRATION_NAME}: "
     while true
     do
         set +e
@@ -60,7 +60,7 @@ function check_service {
     fi
 }
 
-function check_integration {
+function check_environment::check_integration {
     INTEGRATION_LABEL=$1
     INTEGRATION_NAME=$2
     CALL=$3
@@ -74,13 +74,13 @@ function check_integration {
     check_service "${INTEGRATION_LABEL}" "${CALL}" "${MAX_CHECK}"
 }
 
-function check_db_backend {
+function check_environment::check_db_backend {
     MAX_CHECK=${1:=1}
 
     if [[ ${BACKEND} == "postgres" ]]; then
-        check_service "PostgresSQL" "nc -zvv postgres 5432" "${MAX_CHECK}"
+        check_environment::check_service "PostgresSQL" "nc -zvv postgres 5432" "${MAX_CHECK}"
     elif [[ ${BACKEND} == "mysql" ]]; then
-        check_service "MySQL" "nc -zvv mysql 3306" "${MAX_CHECK}"
+        check_environment::check_service "MySQL" "nc -zvv mysql 3306" "${MAX_CHECK}"
     elif [[ ${BACKEND} == "sqlite" ]]; then
         return
     else
@@ -89,7 +89,7 @@ function check_db_backend {
     fi
 }
 
-function resetdb_if_requested() {
+function check_environment::resetdb_if_requested() {
     if [[ ${DB_RESET:="false"} == "true" ]]; then
         if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
             airflow resetdb -y
@@ -128,18 +128,18 @@ echo "==========================================================================
 echo "             Checking integrations and backends"
 echo "==============================================================================================="
 if [[ -n ${BACKEND=} ]]; then
-    check_db_backend 20
+    check_environment::check_db_backend 20
     echo "-----------------------------------------------------------------------------------------------"
 fi
-check_integration "Kerberos" "kerberos" "nc -zvv kdc-server-example-com 88" 30
-check_integration "MongoDB" "mongo" "nc -zvv mongo 27017" 20
-check_integration "Redis" "redis" "nc -zvv redis 6379" 20
-check_integration "RabbitMQ" "rabbitmq" "nc -zvv rabbitmq 5672" 20
-check_integration "Cassandra" "cassandra" "nc -zvv cassandra 9042" 20
-check_integration "OpenLDAP" "openldap" "nc -zvv openldap 389" 20
-check_integration "Presto (HTTP)" "presto" "nc -zvv presto 8080" 40
-check_integration "Presto (HTTPS)" "presto" "nc -zvv presto 7778" 40
-check_integration "Presto (API)" "presto" \
+check_environment::check_integration "Kerberos" "kerberos" "nc -zvv kdc-server-example-com 88" 30
+check_environment::check_integration "MongoDB" "mongo" "nc -zvv mongo 27017" 20
+check_environment::check_integration "Redis" "redis" "nc -zvv redis 6379" 20
+check_environment::check_integration "RabbitMQ" "rabbitmq" "nc -zvv rabbitmq 5672" 20
+check_environment::check_integration "Cassandra" "cassandra" "nc -zvv cassandra 9042" 20
+check_environment::check_integration "OpenLDAP" "openldap" "nc -zvv openldap 389" 20
+check_environment::check_integration "Presto (HTTP)" "presto" "nc -zvv presto 8080" 40
+check_environment::check_integration "Presto (HTTPS)" "presto" "nc -zvv presto 7778" 40
+check_environment::check_integration "Presto (API)" "presto" \
     "curl --max-time 1 http://presto:8080/v1/info/ | grep '\"starting\":false'" 20
 echo "-----------------------------------------------------------------------------------------------"
 

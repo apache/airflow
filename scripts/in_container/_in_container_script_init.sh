@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,15 +19,16 @@
 set -euo pipefail
 
 # This should only be sourced from in_container directory!
-readonly IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Avoid using readonly for IN_CONTAINER_DIR as it is also set in run_system_test
+IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # shellcheck source=scripts/in_container/_in_container_utils.sh
 . "${IN_CONTAINER_DIR}/_in_container_utils.sh"
 
-in_container_basic_sanity_check
+container_utils::in_container_basic_sanity_check
 
-in_container_script_start
+container_utils::in_container_script_start
 
-add_trap "in_container_script_end" EXIT HUP INT TERM
-add_trap "in_container_clear_tmp" EXIT HUP INT TERM
-add_trap "in_container_fix_ownership" EXIT HUP INT TERM
+container_utils::add_trap "container_utils::in_container_script_end" EXIT HUP INT TERM
+container_utils::add_trap "container_utils::in_container_clear_tmp" EXIT HUP INT TERM
+container_utils::add_trap "container_utils::in_container_fix_ownership" EXIT HUP INT TERM
