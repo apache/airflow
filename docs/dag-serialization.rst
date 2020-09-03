@@ -80,7 +80,7 @@ Add the following settings in ``airflow.cfg``:
 *   ``min_serialized_dag_fetch_interval``: This option controls how often a SerializedDAG will be re-fetched
     from the DB when it's already loaded in the DagBag in the Webserver. Setting this higher will reduce
     load on the DB, but at the expense of displaying a possibly stale cached version of the DAG.
-*   ``max_num_rendered_ti_fields_per_task``: This options controls maximum number of Rendered Task Instance
+*   ``max_num_rendered_ti_fields_per_task``: This option controls maximum number of Rendered Task Instance
     Fields (Template Fields) per task to store in the Database.
 
 If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
