@@ -196,6 +196,7 @@ JobRunning
 JobTrigger
 Json
 Jupyter
+jupytercmd
 KYLIN
 Kalibrr
 Kamil
