@@ -209,9 +209,9 @@ repos:
         entry: koalaman/shellcheck:stable -x -a
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
       - id: lint-openapi
-        name: Lint OpenAPI using speccy
+        name: Lint OpenAPI using spectral
         language: docker_image
-        entry: wework/speccy lint -r default -r ./scripts/ci/speccy_rules/connexion.yml
+        entry: stoplight/spectral lint -r ./scripts/ci/spectral_rules/connexion.yml
         files: ^airflow/api_connexion/openapi/
       - id: lint-openapi
         name: Lint OpenAPI using openapi-spec-validator
