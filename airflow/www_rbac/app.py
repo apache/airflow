@@ -22,6 +22,8 @@ import socket
 from datetime import timedelta
 from typing import Any
 
+import flask
+import flask_login
 import six
 import pendulum
 from flask import Flask, session as flask_session
@@ -267,7 +269,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
             if _force_log_out_after > 0:
                 flask.session.permanent = True
-                app.permanent_session_lifetime = datetime.timedelta(minutes=_force_log_out_after)
+                app.permanent_session_lifetime = timedelta(minutes=_force_log_out_after)
                 flask.session.modified = True
                 flask.g.user = flask_login.current_user
 
