@@ -113,8 +113,10 @@ class ClusterGenerator:
     :type worker_disk_type: str
     :param worker_disk_size: Disk size for the worker nodes
     :type worker_disk_size: int
-    :param num_preemptible_workers: The # of preemptible worker nodes to spin up
-    :type num_preemptible_workers: int
+    :param num_secondary_workers: The number of secondary worker nodes to spin up
+    :type num_secondary_workers: int
+    :param secondary_workers_preemptibility: Specifies the preemptibility of the secondary workers.
+    :type secondary_workers_preemptibility: str
     :param labels: dict of labels to add to the cluster
     :type labels: dict
     :param zone: The zone where the cluster will be located. Set to None to auto-zone. (templated)
@@ -182,7 +184,8 @@ class ClusterGenerator:
         worker_machine_type: str = 'n1-standard-4',
         worker_disk_type: str = 'pd-standard',
         worker_disk_size: int = 1024,
-        num_preemptible_workers: int = 0,
+        num_secondary_workers: int = 0,
+        secondary_workers_preemptibility: Optional[str] = None,
         labels: Optional[Dict] = None,
         region: Optional[str] = None,
         service_account: Optional[str] = None,
@@ -199,7 +202,8 @@ class ClusterGenerator:
         self.region = region
         self.num_masters = num_masters
         self.num_workers = num_workers
-        self.num_preemptible_workers = num_preemptible_workers
+        self.num_secondary_workers = num_secondary_workers
+        self.secondary_workers_preemptibility = secondary_workers_preemptibility
         self.storage_bucket = storage_bucket
         self.init_actions_uris = init_actions_uris
         self.init_action_timeout = init_action_timeout
@@ -233,8 +237,8 @@ class ClusterGenerator:
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
 
-        if self.single_node and self.num_preemptible_workers > 0:
-            raise ValueError("Single node cannot have preemptible workers.")
+        if self.single_node and self.num_secondary_workers > 0:
+            raise ValueError("Single node cannot have secondary workers.")
 
     def _get_init_action_timeout(self):
         match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)
@@ -340,16 +344,17 @@ class ClusterGenerator:
                 'autoscaling_config': {},
             },
         }
-        if self.num_preemptible_workers > 0:
+        if self.num_secondary_workers > 0:
             cluster_data['config']['secondary_worker_config'] = {
-                'num_instances': self.num_preemptible_workers,
+                'num_instances': self.num_secondary_workers,
                 'machine_type_uri': worker_type_uri,
                 'disk_config': {
                     'boot_disk_type': self.worker_disk_type,
                     'boot_disk_size_gb': self.worker_disk_size,
-                },
-                'is_preemptible': True,
+                }
             }
+            if self.secondary_workers_preemptibility:
+                cluster_data['config']['secondary_worker_config']['preemptibility'] = self.secondary_workers_preemptibility
 
         cluster_data['labels'] = self.labels or {}
 
@@ -642,7 +647,7 @@ class DataprocScaleClusterOperator(BaseOperator):
                 project_id='my-project',
                 cluster_name='cluster-1',
                 num_workers=10,
-                num_preemptible_workers=10,
+                num_secondary_workers=10,
                 graceful_decommission_timeout='1h',
                 dag=dag)
 
@@ -659,8 +664,8 @@ class DataprocScaleClusterOperator(BaseOperator):
     :type region: str
     :param num_workers: The new number of workers
     :type num_workers: int
-    :param num_preemptible_workers: The new number of preemptible workers
-    :type num_preemptible_workers: int
+    :param num_secondary_workers: The new number of secondary workers
+    :type num_secondary_workers: int
     :param graceful_decommission_timeout: Timeout for graceful YARN decomissioning.
         Maximum value is 1d
     :type graceful_decommission_timeout: str
@@ -692,7 +697,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         project_id: Optional[str] = None,
         region: str = 'global',
         num_workers: int = 2,
-        num_preemptible_workers: int = 0,
+        num_secondary_workers: int = 0,
         graceful_decommission_timeout: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -703,7 +708,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         self.region = region
         self.cluster_name = cluster_name
         self.num_workers = num_workers
-        self.num_preemptible_workers = num_preemptible_workers
+        self.num_secondary_workers = num_secondary_workers
         self.graceful_decommission_timeout = graceful_decommission_timeout
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -721,7 +726,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         scale_data = {
             'config': {
                 'worker_config': {'num_instances': self.num_workers},
-                'secondary_worker_config': {'num_instances': self.num_preemptible_workers},
+                'secondary_worker_config': {'num_instances': self.num_secondary_workers},
             }
         }
         return scale_data
