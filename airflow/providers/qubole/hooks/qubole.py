@@ -233,7 +233,7 @@ class QuboleHook(BaseHook):
         tags = {self.dag_id, self.task_id, context['run_id']}
         positional_args_list = flatten_list(POSITIONAL_ARGS.values())
 
-        for key, value in self.kwargs.items(): # pylint: disable=too-many-nested-blocks
+        for key, value in self.kwargs.items():  # pylint: disable=too-many-nested-blocks
             if key in COMMAND_ARGS[cmd_type]:
                 if key in HYPHEN_ARGS:
                     args.append("--{0}={1}".format(key.replace('_', '-'), value))
