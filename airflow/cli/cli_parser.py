@@ -66,6 +66,21 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if value == 'celery' and executor != ExecutorLoader.CELERY_EXECUTOR:
             message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
             raise ArgumentError(action, message)
+        if value == 'kubernetes':
+            if executor != ExecutorLoader.KUBERNETES_EXECUTOR:
+                message = f'kubernetes subcommand works only with KubernetesExecutor, ' \
+                          f'your current executor: {executor}'
+                raise ArgumentError(action, message)
+            try:
+                from kubernetes.client import models
+                if not models:
+                    message = 'kubernetes subcommand requires that ' \
+                              'you pip install the kubernetes python client'
+                    raise ArgumentError(action, message)
+            except Exception:  # pylint: disable=W0703
+                message = 'kubernetes subcommand requires that you pip install the kubernetes python client'
+                raise ArgumentError(action, message)
+
         if action.choices is not None and value not in action.choices:
             check_legacy_command(action, value)
 
@@ -783,12 +798,6 @@ DAGS_COMMANDS = (
         args=(ARG_SUBDIR, ARG_OUTPUT),
     ),
     ActionCommand(
-        name='generate_kubernetes_pod_yaml',
-        help="Generate YAML files for all tasks in DAG",
-        func=lazy_load_command('airflow.cli.commands.dag_command.generate_pod_yaml'),
-        args=(ARG_SUBDIR, ARG_DAG_ID, ARG_OUTPUT_PATH, ARG_EXEC_DATE),
-    ),
-    ActionCommand(
         name='report',
         help='Show DagBag loading report',
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_report'),
@@ -1264,11 +1273,26 @@ CONFIG_COMMANDS = (
     ),
 )
 
+KUBERNETES_COMMANDS = (
+    ActionCommand(
+        name='generate_kubernetes_pod_yaml',
+        help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
+             "launching into a cluster",
+        func=lazy_load_command('airflow.cli.commands.dag_command.generate_pod_yaml'),
+        args=(ARG_SUBDIR, ARG_DAG_ID, ARG_OUTPUT_PATH, ARG_EXEC_DATE),
+    ),
+)
+
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
         help='Manage DAGs',
         subcommands=DAGS_COMMANDS,
+    ),
+    GroupCommand(
+        name="kubernetes",
+        help='tools to help run the KubernetesExecutor',
+        subcommands=KUBERNETES_COMMANDS
     ),
     GroupCommand(
         name='tasks',
