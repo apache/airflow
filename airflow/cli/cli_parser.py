@@ -142,6 +142,11 @@ ARG_END_DATE = Arg(
     ("-e", "--end-date"),
     help="Override end_date YYYY-MM-DD",
     type=parsedate)
+ARG_OUTPUT_PATH = Arg(
+    ("-o", "--output-path",),
+    help="The output for generated yaml files",
+    type=argparse.FileType('w')
+    default="/tmp/airflow_yaml_output/")
 ARG_DRY_RUN = Arg(
     ("-n", "--dry-run"),
     help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
@@ -777,6 +782,12 @@ DAGS_COMMANDS = (
         help="List all the DAGs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dags'),
         args=(ARG_SUBDIR, ARG_OUTPUT),
+    ),
+    ActionCommand(
+        name='generate_kubernetes_pod_yaml',
+        help="Generate YAML files for all tasks in DAG",
+        func=lazy_load_command('airflow.cli.commands.dag_command.generate_pod_yaml'),
+        args=(ARG_SUBDIR, ARG_DAG_ID, ARG_OUTPUT_PATH, ARG_EXEC_DATE),
     ),
     ActionCommand(
         name='report',

@@ -18,6 +18,7 @@
 import contextlib
 import io
 import os
+import shutil
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -138,6 +139,19 @@ class TestCliDags(unittest.TestCase):
         self.assertIn("label=example_bash_operator", out)
         self.assertIn("graph [label=example_bash_operator labelloc=t rankdir=LR]", out)
         self.assertIn("runme_2 -> run_after_loop", out)
+
+    def test_generate_dag_yaml(self):
+
+        directory = "/tmp/airflow_dry_run_test/"
+        file_name = "example_bash_operator_run_after_loop_2020-11-03T00_00_00.yml"
+        if os.path.exists(directory):
+            shutil.rmtree(directory)
+        dag_command.generate_pod_yaml(self.parser.parse_args([
+            'dags', 'generate_kubernetes_pod_yaml',
+            "--output-path", directory, 'example_bash_operator']))
+        self.assertEqual(len(os.listdir(directory)), 6)
+        self.assertTrue(os.path.isfile(directory + file_name))
+        self.assertGreater(os.stat(directory + file_name).st_size, 0)
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
     def test_show_dag_dave(self, mock_render_dag):
