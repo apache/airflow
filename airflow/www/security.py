@@ -50,7 +50,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'Config',
         'DAG Runs',
         'DagRunModelView',
-        'Health',
         'Task Instances',
         'TaskInstanceModelView',
         'SLA Misses',
