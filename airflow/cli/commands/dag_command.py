@@ -384,11 +384,14 @@ def dag_list_dag_runs(args, dag=None):
 def generate_pod_yaml(args):
     """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor"""
 
+    from kubernetes.client.api_client import ApiClient
+
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig
     from airflow.kubernetes import pod_generator
     from airflow.kubernetes.pod_generator import PodGenerator
     from airflow.kubernetes.worker_configuration import WorkerConfiguration
     from airflow.settings import pod_mutation_hook
+
     execution_date = args.exec_date or timezone.utcnow()
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path or "/tmp/airflow_generated_yaml/"
@@ -409,8 +412,6 @@ def generate_pod_yaml(args):
             worker_config=WorkerConfiguration(kube_config=kube_config).as_pod()
         )
         pod_mutation_hook(pod)
-
-        from kubernetes.client.api_client import ApiClient
         api_client = ApiClient()
         date_string = pod_generator.datetime_to_label_safe_datestring(execution_date)
         yaml_file_name = f"{args.dag_id}_{ti.task_id}_{date_string}.yml"

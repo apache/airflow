@@ -145,7 +145,7 @@ ARG_END_DATE = Arg(
 ARG_OUTPUT_PATH = Arg(
     ("-o", "--output-path",),
     help="The output for generated yaml files",
-    type=argparse.FileType('w')
+    type=argparse.FileType('w'),
     default="/tmp/airflow_yaml_output/")
 ARG_DRY_RUN = Arg(
     ("-n", "--dry-run"),
