@@ -30,6 +30,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
+from tests.test_utils.db import clear_db_runs
 
 
 class TestTriggerRuleDep(unittest.TestCase):
@@ -521,6 +522,7 @@ class TestTriggerRuleDep(unittest.TestCase):
             op4.set_upstream([op3, op2])  # op3, op2 >> op4
             op5.set_upstream([op2, op3, op4])  # (op2, op3, op4) >> op5
 
+        clear_db_runs()
         dag.clear()
         dr = dag.create_dagrun(run_id='test_dagrun_with_pre_tis',
                                state=State.RUNNING,
