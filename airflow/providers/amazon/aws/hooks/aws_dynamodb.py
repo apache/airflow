@@ -43,11 +43,7 @@ class AwsDynamoDBHook(AwsBaseHook):
     """
 
     def __init__(
-        self,
-        *args,
-        table_keys: Optional[List] = None,
-        table_name: Optional[str] = None,
-        **kwargs
+        self, *args, table_keys: Optional[List] = None, table_name: Optional[str] = None, **kwargs
     ) -> None:
         self.table_keys = table_keys
         self.table_name = table_name
@@ -67,7 +63,5 @@ class AwsDynamoDBHook(AwsBaseHook):
             return True
         except Exception as general_error:
             raise AirflowException(
-                "Failed to insert items in dynamodb, error: {error}".format(
-                    error=str(general_error)
-                )
+                "Failed to insert items in dynamodb, error: {error}".format(error=str(general_error))
             )

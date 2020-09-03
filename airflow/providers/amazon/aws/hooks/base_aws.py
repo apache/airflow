@@ -323,10 +323,7 @@ class AwsBaseHook(BaseHook):
         return session, None
 
     def get_client_type(
-        self,
-        client_type: str,
-        region_name: Optional[str] = None,
-        config: Optional[Config] = None,
+        self, client_type: str, region_name: Optional[str] = None, config: Optional[Config] = None,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
@@ -339,10 +336,7 @@ class AwsBaseHook(BaseHook):
         return session.client(client_type, endpoint_url=endpoint_url, config=config, verify=self.verify)
 
     def get_resource_type(
-        self,
-        resource_type: str,
-        region_name: Optional[str] = None,
-        config: Optional[Config] = None,
+        self, resource_type: str, region_name: Optional[str] = None, config: Optional[Config] = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
@@ -388,10 +382,7 @@ class AwsBaseHook(BaseHook):
         session, _ = self._get_credentials(region_name)
         return session
 
-    def get_credentials(
-        self,
-        region_name: Optional[str] = None
-    ) -> Tuple[Optional[str], Optional[str]]:
+    def get_credentials(self, region_name: Optional[str] = None) -> Tuple[Optional[str], Optional[str]]:
         """
         Get the underlying `botocore.Credentials` object.
 
@@ -418,9 +409,8 @@ class AwsBaseHook(BaseHook):
 
 
 def _parse_s3_config(
-        config_file_name: str,
-        config_format: Optional[str] = "boto",
-        profile: Optional[str] = None) -> Tuple[Optional[str], Optional[str]]:
+    config_file_name: str, config_format: Optional[str] = "boto", profile: Optional[str] = None
+) -> Tuple[Optional[str], Optional[str]]:
     """
     Parses a config file for s3 credentials. Can currently
     parse boto, s3cmd.conf and AWS SDK config formats
