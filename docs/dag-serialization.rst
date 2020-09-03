@@ -33,7 +33,8 @@ With **DAG Serialization** we aim to decouple the webserver from DAG parsing
 which would make the Webserver very light-weight.
 
 As shown in the image above, when using the this feature,
-the Scheduler parses the DAG files, serializes them in JSON format and saves them in the Metadata DB.
+the Scheduler parses the DAG files, serializes them in JSON format and saves them in the Metadata DB
+as :class:`airflow.models.serialized_dag.SerializedDagModel` model.
 
 The Webserver now instead of having to parse the DAG file again, reads the
 serialized DAGs in JSON, de-serializes them and create the DagBag and uses it
@@ -44,9 +45,15 @@ instead of loading an entire DagBag when the WebServer starts we only load each 
 Serialized Dag table. This helps reduce Webserver startup time and memory. The reduction is notable
 when you have large number of DAGs.
 
-Below is the screenshot of the ``serialized_dag`` table in Metadata DB:
+You can enable the source code to be stored in the database to make it completely independent from DAG files.
+This is not necessary if your files are embedded in an Docker image or you can otherwise provide
+them to the webserver. The data is stored in the :class:`airflow.models.dagcode.DagCode` model.
 
-.. image:: img/serialized_dag_table.png
+The last element is rendering template fields. When serialization is enabled, templates are not rendered
+to requests, but a copy of the field contents is saved before the task is executed on worker.
+The data is stored in the :class:`airflow.models.renderedtifields.RenderedTaskInstanceFields` model.
+To limit the excessive growth of the database, only the most recent entries are kept and older entries
+are purged.
 
 Enable Dag Serialization
 ------------------------
@@ -62,16 +69,19 @@ Add the following settings in ``airflow.cfg``:
     # You can also update the following default configurations based on your needs
     min_serialized_dag_update_interval = 30
     min_serialized_dag_fetch_interval = 10
+    max_num_rendered_ti_fields_per_task = 30
 
-*   ``store_serialized_dags``: This flag decides whether to serialise DAGs and persist them in DB.
+*   ``store_serialized_dags``: This option decides whether to serialise DAGs and persist them in DB.
     If set to True, Webserver reads from DB instead of parsing DAG files
-*   ``store_dag_code``: This flag decides whether to persist DAG files code in DB.
+*   ``store_dag_code``: This option decides whether to persist DAG files code in DB.
     If set to True, Webserver reads file contents from DB instead of trying to access files in a DAG folder.
 *   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
     the serialized DAG in DB should be updated. This helps in reducing database write rate.
-*   ``min_serialized_dag_fetch_interval``: This flag controls how often a SerializedDAG will be re-fetched
+*   ``min_serialized_dag_fetch_interval``: This option controls how often a SerializedDAG will be re-fetched
     from the DB when it's already loaded in the DagBag in the Webserver. Setting this higher will reduce
     load on the DB, but at the expense of displaying a possibly stale cached version of the DAG.
+*   ``max_num_rendered_ti_fields_per_task``: This option controls maximum number of Rendered Task Instance
+    Fields (Template Fields) per task to store in the Database.
 
 If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
 
