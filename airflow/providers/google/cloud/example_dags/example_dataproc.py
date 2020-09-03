@@ -29,6 +29,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,
 )
+from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
 from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
@@ -170,6 +171,20 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
         task_id="spark_task", job=SPARK_JOB, location=REGION, project_id=PROJECT_ID
     )
 
+    # [START cloud_dataproc_async_submit_sensor]
+    spark_task_async = DataprocSubmitJobOperator(
+        task_id="spark_task_async", job=SPARK_JOB, location=REGION, project_id=PROJECT_ID, asynchronous=True
+    )
+
+    spark_task_async_sensor = DataprocJobSensor(
+        task_id='spark_task_async_sensor_task',
+        location=REGION,
+        project_id=PROJECT_ID,
+        dataproc_job_id="{{task_instance.xcom_pull(task_ids='spark_task_async')}}",
+        poke_interval=10,
+    )
+    # [END cloud_dataproc_async_submit_sensor]
+
     # [START how_to_cloud_dataproc_submit_job_to_cluster_operator]
     pyspark_task = DataprocSubmitJobOperator(
         task_id="pyspark_task", job=PYSPARK_JOB, location=REGION, project_id=PROJECT_ID
@@ -199,6 +214,7 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
     scale_cluster >> pig_task >> delete_cluster
     scale_cluster >> spark_sql_task >> delete_cluster
     scale_cluster >> spark_task >> delete_cluster
+    scale_cluster >> spark_task_async >> spark_task_async_sensor >> delete_cluster
     scale_cluster >> pyspark_task >> delete_cluster
     scale_cluster >> sparkr_task >> delete_cluster
     scale_cluster >> hadoop_task >> delete_cluster

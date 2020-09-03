@@ -764,7 +764,7 @@ These integrations allow you to perform various operations within the Google Clo
      - :doc:`How to use <howto/operator/google/cloud/dataproc>`
      - :mod:`airflow.providers.google.cloud.hooks.dataproc`
      - :mod:`airflow.providers.google.cloud.operators.dataproc`
-     -
+     - :mod:`airflow.providers.google.cloud.sensors.dataproc`
 
    * - `Datastore <https://cloud.google.com/datastore/>`__
      - :doc:`How to use <howto/operator/google/cloud/datastore>`
