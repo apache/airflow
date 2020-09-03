@@ -156,7 +156,8 @@ ARG_END_DATE = Arg(
 ARG_OUTPUT_PATH = Arg(
     ("-o", "--output-path",),
     help="The output for generated yaml files",
-    default="/tmp/airflow_yaml_output/")
+    type=str,
+    default=os.getcwd())
 ARG_DRY_RUN = Arg(
     ("-n", "--dry-run"),
     help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
