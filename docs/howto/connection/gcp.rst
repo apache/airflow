@@ -32,7 +32,13 @@ There are three ways to connect to Google Cloud using Airflow.
 
 1. Use `Application Default Credentials
    <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_,
-   such as via the metadata server when running on Google Compute Engine.
+   such as via the metadata server when running on Google Compute Engine or the GKE metadata server
+   when running on GKE which allows mapping Kubernetes Service Accounts to GCP service accounts
+   `Workload Identity
+   <https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity>`_. This can be useful
+   when managing minimum permissions for multiple Airflow deployments on a single GKE cluster which
+   each have a different IAM footprint. It has the benefit of not storing google service account
+   keys on disk nor in the Airflow database.
 2. Use a `service account
    <https://cloud.google.com/docs/authentication/#service_accounts>`_ key
    file (JSON format) on disk - ``Keyfile Path``.
