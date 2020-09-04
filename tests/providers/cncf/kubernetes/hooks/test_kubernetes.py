@@ -27,10 +27,12 @@ import kubernetes
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.utils import db
+from tests.test_utils.db import clear_db_connections
 
 
 class TestKubernetesHook(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls) -> None:
         db.merge_conn(
             Connection(
                 conn_id='kubernetes_in_cluster',
@@ -46,6 +48,13 @@ class TestKubernetesHook(unittest.TestCase):
             )
         )
         db.merge_conn(
+            Connection(
+                conn_id='kubernetes_kube_config_path',
+                conn_type='kubernetes',
+                extra=json.dumps({'extra__kubernetes__kube_config_path': 'path/to/file'}),
+            )
+        )
+        db.merge_conn(
             Connection(conn_id='kubernetes_default_kube_config', conn_type='kubernetes', extra=json.dumps({}))
         )
         db.merge_conn(
@@ -56,11 +65,24 @@ class TestKubernetesHook(unittest.TestCase):
             )
         )
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        clear_db_connections()
+
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader")
     def test_in_cluster_connection(self, mock_kube_config_loader):
         kubernetes_hook = KubernetesHook(conn_id='kubernetes_in_cluster')
         api_conn = kubernetes_hook.get_conn()
         mock_kube_config_loader.assert_called_once()
+        self.assertIsInstance(api_conn, kubernetes.client.api_client.ApiClient)
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_kube_config_path(self, mock_kube_config_loader, mock_kube_config_merger):
+        kubernetes_hook = KubernetesHook(conn_id='kubernetes_kube_config_path')
+        api_conn = kubernetes_hook.get_conn()
+        mock_kube_config_loader.assert_called_once_with("path/to/file")
+        mock_kube_config_merger.assert_called_once()
         self.assertIsInstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")

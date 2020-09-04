@@ -38,11 +38,15 @@ class KubernetesHook(BaseHook):
     """
     Creates Kubernetes API connection.
 
-    - use in cluster configuration by using `extra__kubernetes__in_cluster` in connection
+    - use in cluster configuration by using ``extra__kubernetes__in_cluster`` in connection
     - use custom configuration either by providing content of kubeconfig file via
-     `extra__kubernetes__kube_config` in connection
-    - use custom config by provideing path to the file using `extra__kubernetes__kube_config_path`
+     ``extra__kubernetes__kube_config`` in connection
+    - use custom config by provideing path to the file using ``extra__kubernetes__kube_config_path``
     - use default config by providing no extras
+
+    .. seealso::
+        For more information about Kubernetes connection:
+        :ref:`howto/connection:kubernetes`
 
     :param conn_id: the connection to Kubernetes cluster
     :type conn_id: str
