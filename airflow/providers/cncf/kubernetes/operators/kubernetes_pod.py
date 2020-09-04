@@ -147,7 +147,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
     :param termination_grace_period: Termination grace period if task killed in UI,
-    defaults to kubernetes default
+        defaults to kubernetes default
     :type termination_grace_period: int
     """
     template_fields: Iterable[str] = (
