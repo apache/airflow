@@ -353,7 +353,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
     @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_create_training_job_with_master_config(self, mock_hook):
         custom_training_default_args: dict = copy.deepcopy(self.TRAINING_DEFAULT_ARGS)
-        custom_training_default_args['scaleTier'] = 'CUSTOM'
+        custom_training_default_args['scale_tier'] = 'CUSTOM'
 
         training_input = copy.deepcopy(self.TRAINING_INPUT)
         training_input['trainingInput']['runtimeVersion'] = '1.6'
