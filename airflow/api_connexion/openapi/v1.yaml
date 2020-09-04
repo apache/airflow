@@ -2745,6 +2745,17 @@ components:
   # Reusable callbacks
   callbacks: {}
 
+  securitySchemes:
+    Basic:
+      type: http
+      scheme: basic
+    GoogleOpenId:
+      type: openIdConnect
+      openIdConnectUrl: https://accounts.google.com/.well-known/openid-configuration
+    Kerberos:
+      type: http
+      scheme: negotiate
+
 # The API will provide support for plugins to support various authorization mechanisms.
 # Detailed information will be available in the plugin specification.
 security: []
