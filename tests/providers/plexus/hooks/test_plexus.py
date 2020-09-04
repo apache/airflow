@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import arrow
 import mock
 import pytest
@@ -6,8 +23,8 @@ from airflow.providers.plexus.hooks.plexus import PlexusHook
 from mock import Mock
 from requests.exceptions import Timeout
 
-class TestPlexusHook:
 
+class TestPlexusHook:
     @mock.patch('airflow.providers.plexus.hooks.plexus.PlexusHook._generate_token')
     def test_get_token(self, mock_generate_token):
         """test get token"""
@@ -18,7 +35,6 @@ class TestPlexusHook:
         hook.__token_exp = arrow.now().shift(minutes=-5)
         mock_generate_token.return_value = 'new_token'
         assert hook.token == 'new_token'
-
 
     @mock.patch('airflow.providers.plexus.hooks.plexus.jwt')
     @mock.patch('airflow.providers.plexus.hooks.plexus.requests')
@@ -36,7 +52,6 @@ class TestPlexusHook:
         with pytest.raises(AirflowException):
             hook._generate_token()
 
-        
         mock_creds.get.side_effect = ['email', 'pwd']
         mock_request.post.return_value = Mock(ok=False)
         with pytest.raises(AirflowException):

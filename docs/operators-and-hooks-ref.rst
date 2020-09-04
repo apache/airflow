@@ -1269,6 +1269,12 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.opsgenie.operators.opsgenie_alert`
      -
 
+   * - `Plexus <https://plexus.corescientific.com/>`__
+     -
+     - :mod:`airflow.providers.plexus.operators.job`,
+       :mod:`airflow.providers.plexus.hooks.plexus`
+     -
+
    * - `Qubole <https://www.qubole.com/>`__
      -
      - :mod:`airflow.providers.qubole.hooks.qubole`,

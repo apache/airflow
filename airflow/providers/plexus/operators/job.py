@@ -74,15 +74,15 @@ class PlexusJobOperator(BaseOperator):
         logger.info("creating job w/ following params: %s", params)
         jobs_endpoint = hook.host + "jobs/"
         headers = {"Authorization": "Bearer {}".format(hook.token)}
-        create_job = requests.post(jobs_endpoint, headers=headers, data=params, timeout=10)
+        create_job = requests.post(jobs_endpoint, headers=headers, data=params, timeout=5)
         if create_job.ok:
             job = create_job.json()
             jid = job["id"]
             state = job["last_state"]
             while state != end_state:
-                time.sleep(5)
+                time.sleep(3)
                 jid_endpoint = jobs_endpoint + "{}/".format(jid)
-                get_job = requests.get(jid_endpoint, headers=headers)
+                get_job = requests.get(jid_endpoint, headers=headers, timeout=5)
                 if not get_job.ok:
                     raise AirflowException(
                         "Could not retrieve job status. Status Code: [{0}]. "
@@ -118,11 +118,10 @@ class PlexusJobOperator(BaseOperator):
             v = results[0][key]
         else:
             for dct in results:
-                if dct[mapping[0]] == mapping[1] and param == 'app':
+                if dct[mapping[0]] == mapping[1]:
                     v = dct[key]
+                if param == 'app':
                     self.is_service = dct['is_service']
-                elif dct[mapping[0]] == mapping[1] and param != 'app':
-                    v = dct[key]
         if v is None:
             raise AirflowException(
                 "Could not locate value for param:{} at endpoint: {}".format(key, endpoint)

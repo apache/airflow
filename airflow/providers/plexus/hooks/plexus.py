@@ -28,9 +28,7 @@ class PlexusHook(BaseHook):
     Used for jwt token generation and storage to
     make Plexus API calls. Requires email and password
     Airflow variables be created.
-    Examples:
-
-        #create an email variable
+    Example:
         export AIRFLOW_VAR_EMAIL = user@corescientific.com
         export AIRFLOW_VAR_PASSWORD = *******
     """
@@ -48,7 +46,7 @@ class PlexusHook(BaseHook):
         if login is None or pwd is None:
             raise AirflowException("No valid email/password supplied.")
         token_endpoint = self.host + "sso/jwt-token/"
-        response = requests.post(token_endpoint, data={"email": login, "password": pwd})
+        response = requests.post(token_endpoint, data={"email": login, "password": pwd}, timeout=5)
         if not response.ok:
             raise AirflowException(
                 "Could not retrieve JWT Token. Status Code: [{}]. "
@@ -70,5 +68,3 @@ class PlexusHook(BaseHook):
         else:
             self.__token = self._generate_token()
             return self.__token
-
-        raise AirflowException("Could not retrieve valid Plexus token.")
