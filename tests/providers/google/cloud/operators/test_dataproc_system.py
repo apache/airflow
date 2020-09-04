@@ -57,7 +57,7 @@ class DataprocExampleDagsTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_DATAPROC_KEY)
     def tearDown(self):
-        # self.delete_gcs_bucket(BUCKET)
+        self.delete_gcs_bucket(BUCKET)
         super().tearDown()
 
     @provide_gcp_context(GCP_DATAPROC_KEY)
