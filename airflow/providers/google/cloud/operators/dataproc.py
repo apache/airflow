@@ -232,10 +232,10 @@ class ClusterGenerator:
     def _get_init_action_timeout(self):
         match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)
         if match:
+            val = float(match.group(1))
             if match.group(2) == "s":
-                return {"seconds": int(self.init_action_timeout)}
+                return {"seconds": int(val)}
             elif match.group(2) == "m":
-                val = float(match.group(1))
                 return {"seconds": int(timedelta(minutes=val).total_seconds())}
 
         raise AirflowException(
