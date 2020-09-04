@@ -30,7 +30,7 @@ Airflow Test Infrastructure
   marked as integration tests but soon they will be separated by ``pytest`` annotations.
 
 * **System tests** are automatic tests that use external systems like
-  Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
+  Google Cloud. These tests are intended for an end-to-end DAG execution.
   The tests can be executed on both the current version of Apache Airflow and any of the older
   versions from 1.10.* series.
 
@@ -612,7 +612,7 @@ visible to anything that you have installed inside the Docker container.
 Currently forwarded credentials are:
   * credentials stored in ``${HOME}/.aws`` for the aws Amazon Web Services client
   * credentials stored in ``${HOME}/.azure`` for the az Microsoft Azure client
-  * credentials stored in ``${HOME}/.config`` for gcloud Google Cloud Platform client (among others)
+  * credentials stored in ``${HOME}/.config`` for gcloud Google Cloud client (among others)
   * credentials stored in ``${HOME}/.docker`` for docker client
 
 Adding a New System Test
@@ -878,7 +878,7 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
 Setup VM on GCP with SSH forwarding
 -----------------------------------
 
-Below are the steps you need to take to set up your virtual machine in the Google Cloud Platform.
+Below are the steps you need to take to set up your virtual machine in the Google Cloud.
 
 1. The next steps will assume that you have configured environment variables with the name of the network and
    a virtual machine, project ID and the zone where the virtual machine will be created

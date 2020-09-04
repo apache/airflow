@@ -75,7 +75,7 @@ class PubSubPullSensor(BaseSensorOperator):
         immediately rather than by any downstream tasks
     :type ack_messages: bool
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have

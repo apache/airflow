@@ -701,9 +701,9 @@ The PROD image entrypoint works as follows:
       info                Show information about current Airflow and environment
       kerberos            Start a kerberos ticket renewer
       plugins             Dump information about loaded plugins
-      rotate_fernet_key   Rotate encrypted connection credentials and variables
+      rotate-fernet-key   Rotate encrypted connection credentials and variables
       scheduler           Start a scheduler instance
-      sync_perm           Update permissions for existing roles and DAGs
+      sync-perm           Update permissions for existing roles and DAGs
       version             Show the version
       webserver           Start a Airflow webserver instance
 

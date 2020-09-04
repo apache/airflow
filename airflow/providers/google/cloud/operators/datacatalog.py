@@ -69,8 +69,8 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -188,8 +188,8 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -304,8 +304,8 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -437,8 +437,8 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -554,8 +554,8 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -666,8 +666,8 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -761,8 +761,8 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -854,8 +854,8 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -955,8 +955,8 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1052,8 +1052,8 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1151,8 +1151,8 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1247,8 +1247,8 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1338,8 +1338,8 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1431,8 +1431,8 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1507,14 +1507,14 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
     r"""
     Get an entry by target resource name.
 
-    This method allows clients to use the resource name from the source Google Cloud Platform service
+    This method allows clients to use the resource name from the source Google Cloud service
     to get the Data Catalog Entry.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDataCatalogLookupEntryOperator`
 
-    :param linked_resource: The full name of the Google Cloud Platform resource the Data Catalog entry
+    :param linked_resource: The full name of the Google Cloud resource the Data Catalog entry
         represents. See: https://cloud.google.com/apis/design/resource\_names#full\_resource\_name. Full
         names are case-sensitive.
     :type linked_resource: str
@@ -1528,8 +1528,8 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1620,8 +1620,8 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1743,8 +1743,8 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1847,8 +1847,8 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1958,8 +1958,8 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
     :type timeout: float
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -2076,8 +2076,8 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -2192,8 +2192,8 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

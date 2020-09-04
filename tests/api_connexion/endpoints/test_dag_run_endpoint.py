@@ -19,6 +19,7 @@ from datetime import timedelta
 
 from parameterized import parameterized
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
@@ -130,8 +131,8 @@ class TestDeleteDagRun(TestDagRunEndpoint):
             {
                 "detail": "DAGRun with DAG ID: 'INVALID_DAG_RUN' and DagRun ID: 'INVALID_DAG_RUN' not found",
                 "status": 404,
-                "title": "Object not found",
-                "type": "about:blank",
+                "title": "Not Found",
+                "type": EXCEPTIONS_LINK_MAP[404],
             },
         )
 
@@ -140,9 +141,7 @@ class TestDeleteDagRun(TestDagRunEndpoint):
         session.add_all(self._create_test_dag_run())
         session.commit()
 
-        response = self.client.delete(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
-        )
+        response = self.client.delete("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",)
 
         assert_401(response)
 
@@ -190,7 +189,12 @@ class TestGetDagRun(TestDagRunEndpoint):
             "api/v1/dags/invalid-id/dagRuns/invalid-id", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 404
-        expected_resp = {'detail': None, 'status': 404, 'title': 'DAGRun not found', 'type': 'about:blank'}
+        expected_resp = {
+            'detail': "DAGRun with DAG ID: 'invalid-id' and DagRun ID: 'invalid-id' not found",
+            'status': 404,
+            'title': 'DAGRun not found',
+            'type': EXCEPTIONS_LINK_MAP[404],
+        }
         assert expected_resp == response.json
 
     @provide_session
@@ -270,10 +274,7 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
     @parameterized.expand(
         [
             ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=1", ["TEST_DAG_RUN_ID1"]),
-            (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?limit=2",
-                ["TEST_DAG_RUN_ID1", "TEST_DAG_RUN_ID2"],
-            ),
+            ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=2", ["TEST_DAG_RUN_ID1", "TEST_DAG_RUN_ID2"],),
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?offset=5",
                 [
@@ -301,10 +302,7 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
             ),
             ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=1&offset=5", ["TEST_DAG_RUN_ID6"]),
             ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=1&offset=1", ["TEST_DAG_RUN_ID2"]),
-            (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?limit=2&offset=2",
-                ["TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],
-            ),
+            ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=2&offset=2", ["TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],),
         ]
     )
     def test_handle_limit_and_offset(self, url, expected_dag_run_ids):
@@ -550,10 +548,7 @@ class TestGetDagRunBatchPagination(TestDagRunEndpoint):
             ),
             ({"page_offset": 5, "page_limit": 1}, ["TEST_DAG_RUN_ID6"]),
             ({"page_offset": 1, "page_limit": 1}, ["TEST_DAG_RUN_ID2"]),
-            (
-                {"page_offset": 2, "page_limit": 2},
-                ["TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],
-            ),
+            ({"page_offset": 2, "page_limit": 2}, ["TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],),
         ]
     )
     def test_handle_limit_and_offset(self, payload, expected_dag_run_ids):
@@ -676,10 +671,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 
     @parameterized.expand(
         [
-            (
-                {"end_date_gte": f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}"},
-                [],
-            ),
+            ({"end_date_gte": f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}"}, [],),
             (
                 {"end_date_lte": f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}"},
                 ["TEST_DAG_RUN_ID_1"],
@@ -702,10 +694,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         [
             (
                 "All fields present",
-                {
-                    "dag_run_id": "TEST_DAG_RUN",
-                    "execution_date": "2020-06-11T18:00:00+00:00",
-                },
+                {"dag_run_id": "TEST_DAG_RUN", "execution_date": "2020-06-11T18:00:00+00:00",},
             ),
             ("dag_run_id missing", {"execution_date": "2020-06-11T18:00:00+00:00"}),
             ("dag_run_id and execution_date missing", {}),
@@ -744,10 +733,10 @@ class TestPostDagRun(TestDagRunEndpoint):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(
             {
-                "detail": None,
+                "detail": "DAG with dag_id: 'TEST_DAG_ID' not found",
                 "status": 404,
-                "title": "DAG with dag_id: 'TEST_DAG_ID' not found",
-                "type": "about:blank",
+                "title": "DAG not found",
+                "type": EXCEPTIONS_LINK_MAP[404],
             },
             response.json,
         )
@@ -757,15 +746,12 @@ class TestPostDagRun(TestDagRunEndpoint):
             (
                 "start_date in request json",
                 "api/v1/dags/TEST_DAG_ID/dagRuns",
-                {
-                    "start_date": "2020-06-11T18:00:00+00:00",
-                    "execution_date": "2020-06-12T18:00:00+00:00",
-                },
+                {"start_date": "2020-06-11T18:00:00+00:00", "execution_date": "2020-06-12T18:00:00+00:00",},
                 {
                     "detail": "Property is read-only - 'start_date'",
                     "status": 400,
                     "title": "Bad Request",
-                    "type": "about:blank",
+                    "type": EXCEPTIONS_LINK_MAP[400],
                 },
             ),
             (
@@ -776,7 +762,7 @@ class TestPostDagRun(TestDagRunEndpoint):
                     "detail": "Property is read-only - 'state'",
                     "status": 400,
                     "title": "Bad Request",
-                    "type": "about:blank",
+                    "type": EXCEPTIONS_LINK_MAP[400],
                 },
             ),
         ]
@@ -799,10 +785,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         session.commit()
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
-            json={
-                "dag_run_id": "TEST_DAG_RUN_ID_1",
-                "execution_date": self.default_time,
-            },
+            json={"dag_run_id": "TEST_DAG_RUN_ID_1", "execution_date": self.default_time,},
             environ_overrides={'REMOTE_USER': "test"},
         )
         self.assertEqual(response.status_code, 409, response.data)
@@ -812,18 +795,15 @@ class TestPostDagRun(TestDagRunEndpoint):
                 "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
                 "DAGRun ID: 'TEST_DAG_RUN_ID_1' already exists",
                 "status": 409,
-                "title": "Object already exists",
-                "type": "about:blank",
+                "title": "Conflict",
+                "type": EXCEPTIONS_LINK_MAP[409],
             },
         )
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
-            json={
-                "dag_run_id": "TEST_DAG_RUN_ID_1",
-                "execution_date": self.default_time,
-            },
+            json={"dag_run_id": "TEST_DAG_RUN_ID_1", "execution_date": self.default_time,},
         )
 
         assert_401(response)

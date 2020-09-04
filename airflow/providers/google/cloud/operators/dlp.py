@@ -24,7 +24,7 @@ Cloud DLP.
 """
 from typing import Dict, Optional, Sequence, Tuple, Union
 
-from google.api_core.exceptions import AlreadyExists, NotFound
+from google.api_core.exceptions import AlreadyExists, NotFound, InvalidArgument
 from google.api_core.retry import Retry
 from google.cloud.dlp_v2.types import (
     ByteContentItem,
@@ -57,7 +57,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
 
     :param dlp_job_id: ID of the DLP job resource to be cancelled.
     :type dlp_job_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default project_id
         from the Google Cloud connection is used.
     :type project_id: str
@@ -70,7 +70,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -135,7 +135,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -152,7 +152,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -235,7 +235,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDLPCreateDLPJobOperator`
 
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -257,7 +257,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
     :param wait_until_finished: (Optional) If true, it will keep polling the job state
         until it is set to DONE.
     :type wait_until_finished: bool
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -345,7 +345,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -362,7 +362,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -445,7 +445,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDLPCreateJobTriggerOperator`
 
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -462,7 +462,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -520,7 +520,9 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        except AlreadyExists:
+        except InvalidArgument as e:
+            if "already in use" not in e.message:
+                raise
             trigger = hook.get_job_trigger(
                 project_id=self.project_id,
                 job_trigger_id=self.trigger_id,
@@ -542,7 +544,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -559,7 +561,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -621,7 +623,9 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        except AlreadyExists:
+        except InvalidArgument as e:
+            if "already exists" not in e.message:
+                raise
             info = hook.get_stored_info_type(
                 organization_id=self.organization_id,
                 project_id=self.project_id,
@@ -642,7 +646,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDLPDeidentifyContentOperator`
 
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -671,7 +675,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -756,7 +760,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -769,7 +773,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -840,7 +844,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
 
     :param dlp_job_id: The ID of the DLP job resource to be cancelled.
     :type dlp_job_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -853,7 +857,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -922,7 +926,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -935,7 +939,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1005,7 +1009,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
 
     :param job_trigger_id: The ID of the DLP job trigger to be deleted.
     :type job_trigger_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -1018,7 +1022,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1087,7 +1091,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -1100,7 +1104,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1173,7 +1177,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -1186,7 +1190,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1256,7 +1260,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
 
     :param dlp_job_id: The ID of the DLP job resource to be read.
     :type dlp_job_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -1269,7 +1273,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1338,7 +1342,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -1351,7 +1355,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1421,7 +1425,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
 
     :param job_trigger_id: The ID of the DLP job trigger to be read.
     :type job_trigger_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -1434,7 +1438,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1503,7 +1507,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -1516,7 +1520,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1585,7 +1589,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDLPInspectContentOperator`
 
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -1606,7 +1610,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1681,7 +1685,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -1700,7 +1704,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1770,7 +1774,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDLPListDLPJobsOperator`
 
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -1793,7 +1797,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1880,7 +1884,7 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1946,7 +1950,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -1965,7 +1969,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -2035,7 +2039,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDLPListJobTriggersOperator`
 
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -2056,7 +2060,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -2128,7 +2132,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -2147,7 +2151,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -2218,7 +2222,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDLPRedactImageOperator`
 
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -2243,7 +2247,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -2319,7 +2323,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDLPReidentifyContentOperator`
 
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -2346,7 +2350,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -2431,7 +2435,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -2448,7 +2452,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -2529,7 +2533,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -2546,7 +2550,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -2624,7 +2628,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
 
     :param job_trigger_id: The ID of the DLP job trigger to be updated.
     :type job_trigger_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
     :type project_id: str
@@ -2641,7 +2645,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -2718,7 +2722,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
     :type organization_id: str
-    :param project_id: (Optional) Google Cloud Platform project ID where the
+    :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
     :type project_id: str
@@ -2736,7 +2740,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

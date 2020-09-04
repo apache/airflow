@@ -22,7 +22,7 @@ Google Cloud Storage to Google Drive Transfer Operators
 Google has two services that store data. The `Google Cloud Storage <https://cloud.google.com/storage/>`__ is
 used to store large data from various applications. The `Google Drive <https://www.google.com/drive/>`__ is
 used to store daily use data, including documents and photos. Google Cloud Storage has strong integration
-with Google Cloud Platform services. Google Drive has built-in mechanisms to facilitate group work e.g.
+with Google Cloud services. Google Drive has built-in mechanisms to facilitate group work e.g.
 document editor, file sharing mechanisms.
 
 

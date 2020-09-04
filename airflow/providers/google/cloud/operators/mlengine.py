@@ -1102,6 +1102,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     :param master_type: Cloud ML Engine machine name.
         Must be set when scale_tier is CUSTOM. (templated)
     :type master_type: str
+    :param master_config: Cloud ML Engine master config.
+        master_type must be set if master_config is provided. (templated)
+    :type master_type: dict
     :param runtime_version: The Google Cloud ML runtime version to use for
         training. (templated)
     :type runtime_version: str
@@ -1147,6 +1150,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         '_region',
         '_scale_tier',
         '_master_type',
+        '_master_config',
         '_runtime_version',
         '_python_version',
         '_job_dir',
@@ -1166,6 +1170,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         region: str,
         scale_tier: Optional[str] = None,
         master_type: Optional[str] = None,
+        master_config: Optional[Dict] = None,
         runtime_version: Optional[str] = None,
         python_version: Optional[str] = None,
         job_dir: Optional[str] = None,
@@ -1186,6 +1191,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._region = region
         self._scale_tier = scale_tier
         self._master_type = master_type
+        self._master_config = master_config
         self._runtime_version = runtime_version
         self._python_version = python_version
         self._job_dir = job_dir
@@ -1209,6 +1215,8 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
             raise AirflowException('Google Compute Engine region is required.')
         if self._scale_tier is not None and self._scale_tier.upper() == "CUSTOM" and not self._master_type:
             raise AirflowException('master_type must be set when scale_tier is CUSTOM')
+        if self._master_config and not self._master_type:
+            raise AirflowException('master_type must be set when master_config is provided')
 
     def execute(self, context):
         job_id = _normalize_mlengine_job_id(self._job_id)
@@ -1236,6 +1244,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
         if self._scale_tier is not None and self._scale_tier.upper() == "CUSTOM":
             training_request['trainingInput']['masterType'] = self._master_type
+
+            if self._master_config:
+                training_request['trainingInput']['masterConfig'] = self._master_config
 
         if self._mode == 'DRY_RUN':
             self.log.info('In dry_run mode.')

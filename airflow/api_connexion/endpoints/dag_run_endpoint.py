@@ -52,7 +52,10 @@ def get_dag_run(dag_id, dag_run_id, session):
     """
     dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     if dag_run is None:
-        raise NotFound("DAGRun not found")
+        raise NotFound(
+            "DAGRun not found",
+            detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
+        )
     return dagrun_schema.dump(dag_run)
 
 
@@ -195,7 +198,7 @@ def post_dag_run(dag_id, session):
     Trigger a DAG.
     """
     if not session.query(DagModel).filter(DagModel.dag_id == dag_id).first():
-        raise NotFound(f"DAG with dag_id: '{dag_id}' not found")
+        raise NotFound(title="DAG not found", detail=f"DAG with dag_id: '{dag_id}' not found")
 
     post_body = dagrun_schema.load(request.json, session=session)
     dagrun_instance = (

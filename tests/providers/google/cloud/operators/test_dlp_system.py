@@ -25,11 +25,29 @@ import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DLP_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+from airflow.providers.google.cloud.example_dags.example_dlp import OUTPUT_BUCKET, OUTPUT_FILENAME
+
+
+@pytest.fixture(scope="class")
+def helper():
+    GoogleSystemTest.create_gcs_bucket(OUTPUT_BUCKET)
+    GoogleSystemTest.upload_content_to_gcs("aaaa\nbbbb", OUTPUT_BUCKET, f"tmp/{OUTPUT_FILENAME}")
+    yield
+    GoogleSystemTest.delete_gcs_bucket(OUTPUT_BUCKET)
 
 
 @pytest.mark.backend("mysql", "postgres")
+@pytest.mark.usefixtures("helper")
 @pytest.mark.credential_file(GCP_DLP_KEY)
 class GcpDLPExampleDagsSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_DLP_KEY)
-    def test_run_example_dag_function(self):
+    def test_run_example_dag(self):
         self.run_dag('example_gcp_dlp', CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_DLP_KEY)
+    def test_run_example_info_types(self):
+        self.run_dag('example_gcp_dlp_info_types', CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_DLP_KEY)
+    def test_run_example_dlp_job(self):
+        self.run_dag('example_gcp_dlp_job', CLOUD_DAG_FOLDER)

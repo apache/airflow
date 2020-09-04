@@ -351,6 +351,45 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         )
 
     @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    def test_success_create_training_job_with_master_config(self, mock_hook):
+        custom_training_default_args: dict = copy.deepcopy(self.TRAINING_DEFAULT_ARGS)
+        custom_training_default_args['scale_tier'] = 'CUSTOM'
+
+        training_input = copy.deepcopy(self.TRAINING_INPUT)
+        training_input['trainingInput']['runtimeVersion'] = '1.6'
+        training_input['trainingInput']['pythonVersion'] = '3.5'
+        training_input['trainingInput']['jobDir'] = 'gs://some-bucket/jobs/test_training'
+        training_input['trainingInput']['scaleTier'] = 'CUSTOM'
+        training_input['trainingInput']['masterType'] = 'n1-standard-4'
+        training_input['trainingInput']['masterConfig'] = {
+            'acceleratorConfig': {'count': '1', 'type': 'NVIDIA_TESLA_P4'},
+        }
+
+        success_response = training_input.copy()
+        success_response['state'] = 'SUCCEEDED'
+        hook_instance = mock_hook.return_value
+        hook_instance.create_job.return_value = success_response
+
+        training_op = MLEngineStartTrainingJobOperator(
+            runtime_version='1.6',
+            python_version='3.5',
+            job_dir='gs://some-bucket/jobs/test_training',
+            master_type='n1-standard-4',
+            master_config={'acceleratorConfig': {'count': '1', 'type': 'NVIDIA_TESLA_P4'},},
+            **custom_training_default_args,
+        )
+        training_op.execute(MagicMock())
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id='google_cloud_default', delegate_to=None, impersonation_chain=None,
+        )
+        # Make sure only 'create_job' is invoked on hook instance
+        self.assertEqual(len(hook_instance.mock_calls), 1)
+        hook_instance.create_job.assert_called_once_with(
+            project_id='test-project', job=training_input, use_existing_job_fn=ANY
+        )
+
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_create_training_job_with_optional_args(self, mock_hook):
         training_input = copy.deepcopy(self.TRAINING_INPUT)
         training_input['trainingInput']['runtimeVersion'] = '1.6'

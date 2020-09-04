@@ -19,6 +19,7 @@ import unittest
 from parameterized import parameterized
 
 from airflow import DAG
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Log, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -60,10 +61,7 @@ class TestEventLogEndpoint(unittest.TestCase):
             start_date=timezone.parse(self.default_time),
             end_date=timezone.parse(self.default_time),
         )
-        op1 = DummyOperator(
-            task_id="TEST_TASK_ID",
-            owner="airflow",
-        )
+        op1 = DummyOperator(task_id="TEST_TASK_ID", owner="airflow",)
         dag.add_task(op1)
         ti = TaskInstance(task=op1, execution_date=timezone.parse(self.default_time))
         return ti
@@ -72,10 +70,7 @@ class TestEventLogEndpoint(unittest.TestCase):
 class TestGetEventLog(TestEventLogEndpoint):
     @provide_session
     def test_should_response_200(self, session):
-        log_model = Log(
-            event='TEST_EVENT',
-            task_instance=self._create_task_instance(),
-        )
+        log_model = Log(event='TEST_EVENT', task_instance=self._create_task_instance(),)
         log_model.dttm = timezone.parse(self.default_time)
         session.add(log_model)
         session.commit()
@@ -102,16 +97,13 @@ class TestGetEventLog(TestEventLogEndpoint):
         response = self.client.get("/api/v1/eventLogs/1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         self.assertEqual(
-            {'detail': None, 'status': 404, 'title': 'Event Log not found', 'type': 'about:blank'},
+            {'detail': None, 'status': 404, 'title': 'Event Log not found', 'type': EXCEPTIONS_LINK_MAP[404]},
             response.json,
         )
 
     @provide_session
     def test_should_raises_401_unauthenticated(self, session):
-        log_model = Log(
-            event='TEST_EVENT',
-            task_instance=self._create_task_instance(),
-        )
+        log_model = Log(event='TEST_EVENT', task_instance=self._create_task_instance(),)
         log_model.dttm = timezone.parse(self.default_time)
         session.add(log_model)
         session.commit()
@@ -131,14 +123,8 @@ class TestGetEventLog(TestEventLogEndpoint):
 class TestGetEventLogs(TestEventLogEndpoint):
     @provide_session
     def test_should_response_200(self, session):
-        log_model_1 = Log(
-            event='TEST_EVENT_1',
-            task_instance=self._create_task_instance(),
-        )
-        log_model_2 = Log(
-            event='TEST_EVENT_2',
-            task_instance=self._create_task_instance(),
-        )
+        log_model_1 = Log(event='TEST_EVENT_1', task_instance=self._create_task_instance(),)
+        log_model_2 = Log(event='TEST_EVENT_2', task_instance=self._create_task_instance(),)
         log_model_1.dttm = timezone.parse(self.default_time)
         log_model_2.dttm = timezone.parse(self.default_time_2)
         session.add_all([log_model_1, log_model_2])
@@ -176,14 +162,8 @@ class TestGetEventLogs(TestEventLogEndpoint):
 
     @provide_session
     def test_should_raises_401_unauthenticated(self, session):
-        log_model_1 = Log(
-            event='TEST_EVENT_1',
-            task_instance=self._create_task_instance(),
-        )
-        log_model_2 = Log(
-            event='TEST_EVENT_2',
-            task_instance=self._create_task_instance(),
-        )
+        log_model_1 = Log(event='TEST_EVENT_1', task_instance=self._create_task_instance(),)
+        log_model_2 = Log(event='TEST_EVENT_2', task_instance=self._create_task_instance(),)
         log_model_1.dttm = timezone.parse(self.default_time)
         log_model_2.dttm = timezone.parse(self.default_time_2)
         session.add_all([log_model_1, log_model_2])
@@ -201,13 +181,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
             ("api/v1/eventLogs?limit=2", ["TEST_EVENT_1", "TEST_EVENT_2"]),
             (
                 "api/v1/eventLogs?offset=5",
-                [
-                    "TEST_EVENT_6",
-                    "TEST_EVENT_7",
-                    "TEST_EVENT_8",
-                    "TEST_EVENT_9",
-                    "TEST_EVENT_10",
-                ],
+                ["TEST_EVENT_6", "TEST_EVENT_7", "TEST_EVENT_8", "TEST_EVENT_9", "TEST_EVENT_10",],
             ),
             (
                 "api/v1/eventLogs?offset=0",
@@ -226,10 +200,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
             ),
             ("api/v1/eventLogs?limit=1&offset=5", ["TEST_EVENT_6"]),
             ("api/v1/eventLogs?limit=1&offset=1", ["TEST_EVENT_2"]),
-            (
-                "api/v1/eventLogs?limit=2&offset=2",
-                ["TEST_EVENT_3", "TEST_EVENT_4"],
-            ),
+            ("api/v1/eventLogs?limit=2&offset=2", ["TEST_EVENT_3", "TEST_EVENT_4"],),
         ]
     )
     @provide_session

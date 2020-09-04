@@ -79,7 +79,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         ``{topic}``. (templated)
     :type topic: str
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -89,7 +89,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         https://cloud.google.com/pubsub/docs/labels
     :type labels: Dict[str, str]
     :param message_storage_policy: Policy constraining the set
-        of Google Cloud Platform regions where messages published to
+        of Google Cloud regions where messages published to
         the topic may be stored. If not present, then no constraints
         are in effect.
     :type message_storage_policy:
@@ -262,7 +262,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         acknowledge each message pulled from the subscription
     :type ack_deadline_secs: int
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -494,7 +494,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
         the task
     :type fail_if_not_exists: bool
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -627,7 +627,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         fail the task
     :type fail_if_not_exists: bool
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -762,7 +762,7 @@ class PubSubPublishMessageOperator(BaseOperator):
         https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
     :type messages: list
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -866,7 +866,7 @@ class PubSubPullOperator(BaseOperator):
         immediately rather than by any downstream tasks
     :type ack_messages: bool
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have

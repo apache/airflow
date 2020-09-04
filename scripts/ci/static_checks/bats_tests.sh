@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,9 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-rules:
-  - name: operation-x-openapi-router-controller
-    object: operation
-    description: operation should have a x-openapi-router-controller attribute
-    truthy: x-openapi-router-controller
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+function run_bats_tests() {
+    FILES=("$@")
+    if [[ "${#FILES[@]}" == "0" ]]; then
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            apache/airflow:bats-2020.09.03-1.2.1 --tap -r /airflow/tests/bats
+    else
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            apache/airflow:bats-2020.09.03-1.2.1 --tap "${FILES[@]}"
+    fi
+}
+
+run_bats_tests "$@"

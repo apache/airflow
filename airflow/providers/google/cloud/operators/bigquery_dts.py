@@ -54,7 +54,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -140,7 +140,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -229,7 +229,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

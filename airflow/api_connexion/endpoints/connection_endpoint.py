@@ -41,7 +41,10 @@ def delete_connection(connection_id, session):
     """
     connection = session.query(Connection).filter_by(conn_id=connection_id).one_or_none()
     if connection is None:
-        raise NotFound('Connection not found')
+        raise NotFound(
+            'Connection not found',
+            detail=f"The Connection with connection_id: `{connection_id}` was not found",
+        )
     session.delete(connection)
     return NoContent, 204
 
@@ -54,7 +57,10 @@ def get_connection(connection_id, session):
     """
     connection = session.query(Connection).filter(Connection.conn_id == connection_id).one_or_none()
     if connection is None:
-        raise NotFound("Connection not found")
+        raise NotFound(
+            "Connection not found",
+            detail=f"The Connection with connection_id: `{connection_id}` was not found",
+        )
     return connection_collection_item_schema.dump(connection)
 
 
@@ -87,9 +93,12 @@ def patch_connection(connection_id, session, update_mask=None):
     non_update_fields = ['connection_id', 'conn_id']
     connection = session.query(Connection).filter_by(conn_id=connection_id).first()
     if connection is None:
-        raise NotFound("Connection not found")
+        raise NotFound(
+            "Connection not found",
+            detail=f"The Connection with connection_id: `{connection_id}` was not found",
+        )
     if data.get('conn_id', None) and connection.conn_id != data['conn_id']:
-        raise BadRequest("The connection_id cannot be updated.")
+        raise BadRequest(detail="The connection_id cannot be updated.")
     if update_mask:
         update_mask = [i.strip() for i in update_mask]
         data_ = {}
@@ -97,7 +106,7 @@ def patch_connection(connection_id, session, update_mask=None):
             if field in data and field not in non_update_fields:
                 data_[field] = data[field]
             else:
-                raise BadRequest(f"'{field}' is unknown or cannot be updated.")
+                raise BadRequest(detail=f"'{field}' is unknown or cannot be updated.")
         data = data_
     for key in data:
         setattr(connection, key, data[key])
@@ -125,4 +134,4 @@ def post_connection(session):
         session.add(connection)
         session.commit()
         return connection_schema.dump(connection)
-    raise AlreadyExists("Connection already exist. ID: %s" % conn_id)
+    raise AlreadyExists(detail="Connection already exist. ID: %s" % conn_id)

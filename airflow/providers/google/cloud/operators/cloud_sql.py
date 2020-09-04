@@ -195,10 +195,10 @@ class CloudSQLBaseOperator(BaseOperator):
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
-    :param project_id: Optional, Google Cloud Platform Project ID.  f set to None or missing,
+    :param project_id: Optional, Google Cloud Project ID.  f set to None or missing,
             the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
@@ -280,10 +280,10 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
     :type body: dict
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
-    :param project_id: Optional, Google Cloud Platform Project ID. If set to None or missing,
+    :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
@@ -384,10 +384,10 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
     :type body: dict
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
-    :param project_id: Optional, Google Cloud Platform Project ID.  If set to None or missing,
+    :param project_id: Optional, Google Cloud Project ID.  If set to None or missing,
             the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
@@ -465,10 +465,10 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
-    :param project_id: Optional, Google Cloud Platform Project ID. If set to None or missing,
+    :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
@@ -539,10 +539,10 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
     :param body: The request body, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body
     :type body: dict
-    :param project_id: Optional, Google Cloud Platform Project ID. If set to None or missing,
+    :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
@@ -648,9 +648,9 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
     :param body: The request body, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/patch#request-body
     :type body: dict
-    :param project_id: Optional, Google Cloud Platform Project ID.
+    :param project_id: Optional, Google Cloud Project ID.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
@@ -751,10 +751,10 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
     :type instance: str
     :param database: Name of the database to be deleted in the instance.
     :type database: str
-    :param project_id: Optional, Google Cloud Platform Project ID. If set to None or missing,
+    :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
@@ -842,10 +842,10 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
     :param body: The request body, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
     :type body: dict
-    :param project_id: Optional, Google Cloud Platform Project ID. If set to None or missing,
+    :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
@@ -947,10 +947,10 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
     :param body: The request body, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
     :type body: dict
-    :param project_id: Optional, Google Cloud Platform Project ID. If set to None or missing,
+    :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
@@ -1043,7 +1043,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
     :type autocommit: bool
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform for
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud for
         cloud-sql-proxy authentication.
     :type gcp_conn_id: str
     :param gcp_cloudsql_conn_id: The connection ID used to connect to Google Cloud SQL

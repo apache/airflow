@@ -18,6 +18,7 @@ import unittest
 
 from parameterized import parameterized
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.errors import ImportError  # pylint: disable=redefined-builtin
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -94,10 +95,10 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         assert response.status_code == 404
         self.assertEqual(
             {
-                "detail": None,
+                "detail": "The ImportError with import_error_id: `2` was not found",
                 "status": 404,
                 "title": "Import error not found",
-                "type": "about:blank",
+                "type": EXCEPTIONS_LINK_MAP[404],
             },
             response.json,
         )

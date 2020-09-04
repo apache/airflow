@@ -18,6 +18,7 @@ import unittest
 
 from parameterized import parameterized
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Variable
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -130,31 +131,20 @@ class TestGetVariables(TestVariableEndpoint):
             (
                 "/api/v1/variables?limit=2&offset=0",
                 {
-                    "variables": [
-                        {"key": "var1", "value": "1"},
-                        {"key": "var2", "value": "foo"},
-                    ],
+                    "variables": [{"key": "var1", "value": "1"}, {"key": "var2", "value": "foo"},],
                     "total_entries": 3,
                 },
             ),
             (
                 "/api/v1/variables?limit=2&offset=1",
                 {
-                    "variables": [
-                        {"key": "var2", "value": "foo"},
-                        {"key": "var3", "value": "[100, 101]"},
-                    ],
+                    "variables": [{"key": "var2", "value": "foo"}, {"key": "var3", "value": "[100, 101]"},],
                     "total_entries": 3,
                 },
             ),
             (
                 "/api/v1/variables?limit=1&offset=2",
-                {
-                    "variables": [
-                        {"key": "var3", "value": "[100, 101]"},
-                    ],
-                    "total_entries": 3,
-                },
+                {"variables": [{"key": "var3", "value": "[100, 101]"},], "total_entries": 3,},
             ),
         ]
     )
@@ -195,10 +185,7 @@ class TestPatchVariable(TestVariableEndpoint):
         Variable.set("var1", "foo")
         response = self.client.patch(
             "/api/v1/variables/var1",
-            json={
-                "key": "var1",
-                "value": "updated",
-            },
+            json={"key": "var1", "value": "updated",},
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 204
@@ -212,44 +199,31 @@ class TestPatchVariable(TestVariableEndpoint):
         Variable.set("var1", "foo")
         response = self.client.patch(
             "/api/v1/variables/var1",
-            json={
-                "key": "var2",
-                "value": "updated",
-            },
+            json={"key": "var2", "value": "updated",},
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 400
         assert response.json == {
             "title": "Invalid post body",
             "status": 400,
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "key from request body doesn't match uri parameter",
         }
 
         response = self.client.patch(
-            "/api/v1/variables/var1",
-            json={
-                "key": "var2",
-            },
-            environ_overrides={'REMOTE_USER': "test"},
+            "/api/v1/variables/var1", json={"key": "var2",}, environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.json == {
             "title": "Invalid Variable schema",
             "status": 400,
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "{'value': ['Missing data for required field.']}",
         }
 
     def test_should_raises_401_unauthenticated(self):
         Variable.set("var1", "foo")
 
-        response = self.client.patch(
-            "/api/v1/variables/var1",
-            json={
-                "key": "var1",
-                "value": "updated",
-            },
-        )
+        response = self.client.patch("/api/v1/variables/var1", json={"key": "var1", "value": "updated",},)
 
         assert_401(response)
 
@@ -258,10 +232,7 @@ class TestPostVariables(TestVariableEndpoint):
     def test_should_create_variable(self):
         response = self.client.post(
             "/api/v1/variables",
-            json={
-                "key": "var_create",
-                "value": "{}",
-            },
+            json={"key": "var_create", "value": "{}",},
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
@@ -274,27 +245,18 @@ class TestPostVariables(TestVariableEndpoint):
     def test_should_reject_invalid_request(self):
         response = self.client.post(
             "/api/v1/variables",
-            json={
-                "key": "var_create",
-                "v": "{}",
-            },
+            json={"key": "var_create", "v": "{}",},
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 400
         assert response.json == {
             "title": "Invalid Variable schema",
             "status": 400,
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "{'value': ['Missing data for required field.'], 'v': ['Unknown field.']}",
         }
 
     def test_should_raises_401_unauthenticated(self):
-        response = self.client.post(
-            "/api/v1/variables",
-            json={
-                "key": "var_create",
-                "value": "{}",
-            },
-        )
+        response = self.client.post("/api/v1/variables", json={"key": "var_create", "value": "{}",},)
 
         assert_401(response)

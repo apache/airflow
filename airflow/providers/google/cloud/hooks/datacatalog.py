@@ -782,10 +782,10 @@ class CloudDataCatalogHook(GoogleBaseHook):
         r"""
         Get an entry by target resource name.
 
-        This method allows clients to use the resource name from the source Google Cloud Platform service
+        This method allows clients to use the resource name from the source Google Cloud service
         to get the Data Catalog Entry.
 
-        :param linked_resource: The full name of the Google Cloud Platform resource the Data Catalog entry
+        :param linked_resource: The full name of the Google Cloud resource the Data Catalog entry
             represents. See: https://cloud.google.com/apis/design/resource\_names#full\_resource\_name. Full
             names are case-sensitive.
 

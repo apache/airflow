@@ -18,6 +18,7 @@ import unittest
 
 from parameterized import parameterized
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Connection
 from airflow.utils.session import provide_session
 from airflow.www import app
@@ -87,7 +88,12 @@ class TestDeleteConnection(TestConnectionEndpoint):
         assert response.status_code == 404
         self.assertEqual(
             response.json,
-            {'detail': None, 'status': 404, 'title': 'Connection not found', 'type': 'about:blank'},
+            {
+                'detail': "The Connection with connection_id: `test-connection` was not found",
+                'status': 404,
+                'title': 'Connection not found',
+                'type': EXCEPTIONS_LINK_MAP[404],
+            },
         )
 
     def test_should_raises_401_unauthenticated(self):
@@ -139,7 +145,12 @@ class TestGetConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 404
         self.assertEqual(
-            {'detail': None, 'status': 404, 'title': 'Connection not found', 'type': 'about:blank'},
+            {
+                'detail': "The Connection with connection_id: `invalid-connection` was not found",
+                'status': 404,
+                'title': 'Connection not found',
+                'type': EXCEPTIONS_LINK_MAP[404],
+            },
             response.json,
         )
 
@@ -199,13 +210,7 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
             ("/api/v1/connections?limit=2", ['TEST_CONN_ID1', "TEST_CONN_ID2"]),
             (
                 "/api/v1/connections?offset=5",
-                [
-                    "TEST_CONN_ID6",
-                    "TEST_CONN_ID7",
-                    "TEST_CONN_ID8",
-                    "TEST_CONN_ID9",
-                    "TEST_CONN_ID10",
-                ],
+                ["TEST_CONN_ID6", "TEST_CONN_ID7", "TEST_CONN_ID8", "TEST_CONN_ID9", "TEST_CONN_ID10",],
             ),
             (
                 "/api/v1/connections?offset=0",
@@ -224,10 +229,7 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
             ),
             ("/api/v1/connections?limit=1&offset=5", ["TEST_CONN_ID6"]),
             ("/api/v1/connections?limit=1&offset=1", ["TEST_CONN_ID2"]),
-            (
-                "/api/v1/connections?limit=2&offset=2",
-                ["TEST_CONN_ID3", "TEST_CONN_ID4"],
-            ),
+            ("/api/v1/connections?limit=2&offset=2", ["TEST_CONN_ID3", "TEST_CONN_ID4"],),
         ]
     )
     @provide_session
@@ -388,7 +390,7 @@ class TestPatchConnection(TestConnectionEndpoint):
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 400
-        self.assertEqual(response.json['title'], error_message)
+        self.assertEqual(response.json['detail'], error_message)
 
     @parameterized.expand(
         [
@@ -435,7 +437,12 @@ class TestPatchConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 404
         self.assertEqual(
-            {'detail': None, 'status': 404, 'title': 'Connection not found', 'type': 'about:blank'},
+            {
+                'detail': "The Connection with connection_id: `test-connection-id` was not found",
+                'status': 404,
+                'title': 'Connection not found',
+                'type': EXCEPTIONS_LINK_MAP[404],
+            },
             response.json,
         )
 
@@ -476,8 +483,8 @@ class TestPostConnection(TestConnectionEndpoint):
             {
                 'detail': "{'conn_type': ['Missing data for required field.']}",
                 'status': 400,
-                'title': 'Bad request',
-                'type': 'about:blank',
+                'title': 'Bad Request',
+                'type': EXCEPTIONS_LINK_MAP[400],
             },
         )
 
@@ -495,10 +502,10 @@ class TestPostConnection(TestConnectionEndpoint):
         self.assertEqual(
             response.json,
             {
-                'detail': None,
+                'detail': 'Connection already exist. ID: test-connection-id',
                 'status': 409,
-                'title': 'Connection already exist. ID: test-connection-id',
-                'type': 'about:blank',
+                'title': 'Conflict',
+                'type': EXCEPTIONS_LINK_MAP[409],
             },
         )
 

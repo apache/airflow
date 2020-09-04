@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+
 
 def create_user(app, username, role_name, permissions=None):
     appbuilder = app.appbuilder
@@ -67,5 +69,5 @@ def assert_401(response):
         'detail': None,
         'status': 401,
         'title': 'Unauthorized',
-        'type': 'about:blank'
+        'type': EXCEPTIONS_LINK_MAP[401]
     }
