@@ -2341,7 +2341,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(ti.state, State.NONE)
 
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
-        self.assertEqual(ti2.state, State.SCHEDULED)
+        self.assertEqual(ti2.state, State.SCHEDULED, "Tasks run by Backfill Jobs should not be reset")
 
     @parameterized.expand([
         [State.UP_FOR_RETRY, State.FAILED],
@@ -3320,8 +3320,7 @@ class TestSchedulerJob(unittest.TestCase):
         """Try with nothing. """
         scheduler = SchedulerJob()
         session = settings.Session()
-        self.assertEqual(
-            0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
+        self.assertEqual(0, scheduler.reset_state_for_orphaned_tasks(session=session))
 
     def test_reset_orphaned_tasks_external_triggered_dag(self):
         dag_id = 'test_reset_orphaned_tasks_external_triggered_dag'
@@ -3342,8 +3341,8 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(dr1)
         session.commit()
 
-        reset_tis = scheduler.reset_state_for_orphaned_tasks(session=session)
-        self.assertEqual(1, len(reset_tis))
+        num_reset_tis = scheduler.reset_state_for_orphaned_tasks(session=session)
+        self.assertEqual(1, num_reset_tis)
 
     def test_reset_orphaned_tasks_backfill_dag(self):
         dag_id = 'test_reset_orphaned_tasks_backfill_dag'
@@ -3354,6 +3353,8 @@ class TestSchedulerJob(unittest.TestCase):
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         scheduler = SchedulerJob()
         session = settings.Session()
+        session.add(scheduler)
+        session.flush()
 
         dr1 = dag_file_processor.create_dag_run(dag, session=session)
         ti = dr1.get_task_instances(session=session)[0]
@@ -3362,43 +3363,11 @@ class TestSchedulerJob(unittest.TestCase):
         dr1.run_type = DagRunType.BACKFILL_JOB.value
         session.merge(ti)
         session.merge(dr1)
-        session.commit()
+        session.flush()
 
         self.assertTrue(dr1.is_backfill)
-        self.assertEqual(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
-
-    def test_reset_orphaned_tasks_specified_dagrun(self):
-        """Try to reset when we specify a dagrun and ensure nothing else is."""
-        dag_id = 'test_reset_orphaned_tasks_specified_dagrun'
-        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
-        task_id = dag_id + '_task'
-        DummyOperator(task_id=task_id, dag=dag)
-
-        scheduler = SchedulerJob()
-        session = settings.Session()
-        # make two dagruns, only reset for one
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dr1 = dag_file_processor.create_dag_run(dag)
-        dr2 = dag_file_processor.create_dag_run(dag)
-        dr1.state = State.SUCCESS
-        dr2.state = State.RUNNING
-        ti1 = dr1.get_task_instances(session=session)[0]
-        ti2 = dr2.get_task_instances(session=session)[0]
-        ti1.state = State.SCHEDULED
-        ti2.state = State.SCHEDULED
-
-        session.merge(ti1)
-        session.merge(ti2)
-        session.merge(dr1)
-        session.merge(dr2)
-        session.commit()
-
-        reset_tis = scheduler.reset_state_for_orphaned_tasks(filter_by_dag_run=dr2, session=session)
-        self.assertEqual(1, len(reset_tis))
-        ti1.refresh_from_db(session=session)
-        ti2.refresh_from_db(session=session)
-        self.assertEqual(State.SCHEDULED, ti1.state)
-        self.assertEqual(State.NONE, ti2.state)
+        self.assertEqual(0, scheduler.reset_state_for_orphaned_tasks(session=session))
+        session.rollback()
 
     def test_reset_orphaned_tasks_nonexistent_dagrun(self):
         """Make sure a task in an orphaned state is not reset if it has no dagrun. """
@@ -3412,14 +3381,15 @@ class TestSchedulerJob(unittest.TestCase):
 
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         session.add(ti)
-        session.commit()
+        session.flush()
 
         ti.refresh_from_db()
         ti.state = State.SCHEDULED
         session.merge(ti)
-        session.commit()
+        session.flush()
 
-        self.assertEqual(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
+        self.assertEqual(0, scheduler.reset_state_for_orphaned_tasks(session=session))
+        session.rollback()
 
     def test_reset_orphaned_tasks_no_orphans(self):
         dag_id = 'test_reset_orphaned_tasks_no_orphans'
@@ -3430,16 +3400,19 @@ class TestSchedulerJob(unittest.TestCase):
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         scheduler = SchedulerJob()
         session = settings.Session()
+        session.add(scheduler)
+        session.flush()
 
-        dr1 = dag_file_processor.create_dag_run(dag)
+        dr1 = dag_file_processor.create_dag_run(dag, session=session)
         dr1.state = State.RUNNING
         tis = dr1.get_task_instances(session=session)
         tis[0].state = State.RUNNING
+        tis[0].queued_by_job_id = scheduler.id
         session.merge(dr1)
         session.merge(tis[0])
-        session.commit()
+        session.flush()
 
-        self.assertEqual(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
+        self.assertEqual(0, scheduler.reset_state_for_orphaned_tasks(session=session))
         tis[0].refresh_from_db()
         self.assertEqual(State.RUNNING, tis[0].state)
 
@@ -3453,90 +3426,62 @@ class TestSchedulerJob(unittest.TestCase):
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         scheduler = SchedulerJob()
         session = settings.Session()
+        session.add(scheduler)
+        session.flush()
 
-        dr1 = dag_file_processor.create_dag_run(dag)
+        dr1 = dag_file_processor.create_dag_run(dag, session=session)
         dr1.state = State.SUCCESS
         tis = dr1.get_task_instances(session=session)
         self.assertEqual(1, len(tis))
         tis[0].state = State.SCHEDULED
+        tis[0].queued_by_job_id = scheduler.id
         session.merge(dr1)
         session.merge(tis[0])
-        session.commit()
+        session.flush()
 
-        self.assertEqual(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
+        self.assertEqual(0, scheduler.reset_state_for_orphaned_tasks(session=session))
+        session.rollback()
 
-    def test_reset_orphaned_tasks_with_orphans(self):
-        """Create dagruns and esnure only ones with correct states are reset."""
-        prefix = 'scheduler_job_test_test_reset_orphaned_tasks'
-        states = [State.QUEUED, State.SCHEDULED, State.NONE, State.RUNNING, State.SUCCESS]
-        states_to_reset = [State.QUEUED, State.SCHEDULED, State.NONE]
+    def test_reset_orphaned_tasks_stale_scheduler_jobs(self):
+        dag_id = 'test_reset_orphaned_tasks_external_triggered_dag'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
+        DummyOperator(task_id='task1', dag=dag)
+        DummyOperator(task_id='task2', dag=dag)
 
-        dag = DAG(dag_id=prefix,
-                  start_date=DEFAULT_DATE,
-                  schedule_interval="@daily")
-        tasks = []
-        for i in range(len(states)):
-            task_id = "{}_task_{}".format(prefix, i)
-            task = DummyOperator(task_id=task_id, dag=dag)
-            tasks.append(task)
-
-        scheduler = SchedulerJob()
-
-        session = settings.Session()
-
-        # create dagruns
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dr1 = dag_file_processor.create_dag_run(dag)
-        dr2 = dag_file_processor.create_dag_run(dag)
+        scheduler = SchedulerJob()
+        session = settings.Session()
+        scheduler.state = State.RUNNING
+        scheduler.latest_heartbeat = timezone.utcnow()
+        session.add(scheduler)
+
+        old_job = SchedulerJob()
+        old_job.state = State.RUNNING
+        old_job.latest_heartbeat = timezone.utcnow() - timedelta(minutes=15)
+        session.add(old_job)
+        session.flush()
+
+        dr1 = dag_file_processor.create_dag_run(dag, session=session)
+        ti1, ti2 = dr1.get_task_instances(session=session)
         dr1.state = State.RUNNING
-        dr2.state = State.SUCCESS
+        ti1.state = State.SCHEDULED
+        ti1.queued_by_job_id = old_job.id
         session.merge(dr1)
-        session.merge(dr2)
-        session.commit()
+        session.merge(ti1)
 
-        # create taskinstances and set states
-        dr1_tis = []
-        dr2_tis = []
-        for i, (task, state) in enumerate(zip(tasks, states)):
-            ti1 = TaskInstance(task, dr1.execution_date)
-            ti2 = TaskInstance(task, dr2.execution_date)
-            ti1.refresh_from_db()
-            ti2.refresh_from_db()
-            ti1.state = state
-            ti2.state = state
-            dr1_tis.append(ti1)
-            dr2_tis.append(ti2)
-            session.merge(ti1)
-            session.merge(ti2)
-            session.commit()
+        ti2.state = State.SCHEDULED
+        ti2.queued_by_job_id = scheduler.id
+        session.merge(ti2)
+        session.flush()
 
-        self.assertEqual(2, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
+        num_reset_tis = scheduler.reset_state_for_orphaned_tasks(session=session)
+        self.assertEqual(1, num_reset_tis)
 
-        for ti in dr1_tis + dr2_tis:
-            ti.refresh_from_db()
-
-        # running dagrun should be reset
-        for state, ti in zip(states, dr1_tis):
-            if state in states_to_reset:
-                self.assertIsNone(ti.state)
-            else:
-                self.assertEqual(state, ti.state)
-
-        # otherwise not
-        for state, ti in zip(states, dr2_tis):
-            self.assertEqual(state, ti.state)
-
-        for state, ti in zip(states, dr1_tis):
-            ti.state = state
-        session.commit()
-
-        scheduler.reset_state_for_orphaned_tasks(filter_by_dag_run=dr1, session=session)
-
-        # check same for dag_run version
-        for state, ti in zip(states, dr2_tis):
-            self.assertEqual(state, ti.state)
-
-        session.close()
+        session.refresh(ti1)
+        self.assertEqual(None, ti1.state)
+        session.refresh(ti2)
+        self.assertEqual(State.SCHEDULED, ti2.state)
+        session.rollback()
 
 
 def test_task_with_upstream_skip_process_task_instances():

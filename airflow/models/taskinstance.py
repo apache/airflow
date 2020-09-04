@@ -219,6 +219,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     priority_weight = Column(Integer)
     operator = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
+    queued_by_job_id = Column(Integer)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
     # If adding new fields here then remember to add them to
@@ -1926,3 +1927,15 @@ class SimpleTaskInstance:
         else:
             ti = qry.first()
         return ti
+
+
+STATICA_HACK = True
+globals()['kcah_acitats'[::-1].upper()] = False
+if STATICA_HACK:  # pragma: no cover
+    # Let pylint know about these relationships, without introducing an import cycle
+    from sqlalchemy.orm import relationship
+
+    from airflow.job.base_job import BaseJob
+    from airflow.models.dagrun import DagRun
+    TaskInstance.dag_run = relationship(DagRun)
+    TaskInstance.queued_by_job = relationship(BaseJob)
