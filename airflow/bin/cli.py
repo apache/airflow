@@ -31,6 +31,7 @@ import subprocess
 import textwrap
 import random
 import string
+import yaml
 from collections import OrderedDict
 from importlib import import_module
 
@@ -1251,6 +1252,41 @@ def _serve_logs(env, skip_serve_logs=False):
 
 
 @cli_utils.action_logging
+def kubernetes_generate_dag_yaml(args):
+    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig
+    from airflow.kubernetes.pod_generator import PodGenerator
+    from airflow.kubernetes.worker_configuration import WorkerConfiguration
+    from kubernetes.client.api_client import ApiClient
+    dag = get_dag(args)
+    yaml_output_path = args.output_path
+    kube_config = KubeConfig()
+    for task in dag.tasks:
+        ti = TaskInstance(task, args.execution_date)
+        pod = PodGenerator.construct_pod(
+            dag_id=args.dag_id,
+            task_id=ti.task_id,
+            pod_id=AirflowKubernetesScheduler._create_pod_id(  # pylint: disable=W0212
+                args.dag_id, ti.task_id),
+            try_number=ti.try_number,
+            date=ti.execution_date,
+            command=ti.command_as_list(),
+            kube_executor_config=PodGenerator.from_obj(ti.executor_config),
+            worker_uuid="worker-config",
+            namespace=kube_config.executor_namespace,
+            worker_config=WorkerConfiguration(kube_config=kube_config).as_pod()
+        )
+        api_client = ApiClient()
+        date_string = AirflowKubernetesScheduler._datetime_to_label_safe_datestring(  # pylint: disable=W0212
+            args.execution_date)
+        yaml_file_name = "{}_{}_{}.yml".format(args.dag_id, ti.task_id, date_string)
+        os.makedirs(os.path.dirname(yaml_output_path + "/airflow_yaml_output/"), exist_ok=True)
+        with open(yaml_output_path + "/airflow_yaml_output/" + yaml_file_name, "w") as output:
+            sanitized_pod = api_client.sanitize_for_serialization(pod)
+            output.write(yaml.dump(sanitized_pod))
+    print("YAML output can be found at {}/airflow_yaml_output/".format(yaml_output_path))
+
+
+@cli_utils.action_logging
 def worker(args):
     env = os.environ.copy()
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
@@ -2187,6 +2223,11 @@ class CLIFactory(object):
         'execution_date': Arg(
             ("execution_date",), help="The execution date of the DAG",
             type=parsedate),
+        'output_path': Arg(
+            ('-o', '--output-path'),
+            help="output path for yaml file",
+            default=os.getcwd()
+        ),
         'task_regex': Arg(
             ("-t", "--task_regex"),
             "The regex to filter specific task_ids to backfill (optional)"),
@@ -2709,6 +2750,16 @@ class CLIFactory(object):
             'func': list_tasks,
             'help': "List the tasks within a DAG",
             'args': ('dag_id', 'tree', 'subdir'),
+        }, {
+            'func': kubernetes_generate_dag_yaml,
+            'help': "List dag runs given a DAG id. If state option is given, it will only"
+                    "search for all the dagruns with the given state. "
+                    "If no_backfill option is given, it will filter out"
+                    "all backfill dagruns for given dag id.",
+            'args': (
+                'dag_id', 'output_path', 'subdir', 'execution_date'
+            )
+
         }, {
             'func': clear,
             'help': "Clear a set of task instance, as if they never ran",
