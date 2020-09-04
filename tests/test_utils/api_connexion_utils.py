@@ -17,19 +17,22 @@
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 
 
-def create_user(app, username, role):
+def create_user(app, username, role_name, permissions=None):
     appbuilder = app.appbuilder
-    role_admin = appbuilder.sm.find_role(role)
-    tester = appbuilder.sm.find_user(username=username)
-    if not tester:
-        appbuilder.sm.add_user(
-            username=username,
-            first_name=username,
-            last_name=username,
-            email=f"{username}@fab.org",
-            role=role_admin,
-            password=username,
-        )
+
+    # Removes user and role so each test has isolated test data.
+    delete_user(app, username)
+    delete_role(app, role_name)
+    role = create_role(app, role_name, permissions)
+
+    appbuilder.sm.add_user(
+        username=username,
+        first_name=username,
+        last_name=username,
+        email=f"{username}@fab.org",
+        role=role,
+        password=username,
+    )
 
 
 def create_role(app, name, permissions=None):
@@ -45,11 +48,19 @@ def create_role(app, name, permissions=None):
     return role
 
 
+def delete_role(app, name):
+    if app.appbuilder.sm.find_role(name):
+        app.appbuilder.sm.delete_role(name)
+
+
 def delete_user(app, username):
     appbuilder = app.appbuilder
-    user = next(u for u in appbuilder.sm.get_all_users() if u.username == username)
-
-    appbuilder.sm.del_register_user(user)
+    for user in appbuilder.sm.get_all_users():
+        if user.username == username:
+            for role in user.roles:
+                delete_role(app, role.name)
+            appbuilder.sm.del_register_user(user)
+            break
 
 
 def assert_401(response):
