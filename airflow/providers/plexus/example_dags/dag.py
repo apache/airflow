@@ -17,17 +17,20 @@
 
 from airflow import DAG
 from airflow.providers.plexus.operators.job import PlexusJobOperator
+from airflow.utils.dates import days_ago
 
 HOME = '/home/acc'
 T3_PRERUN_SCRIPT = 'cp {home}/imdb/run_scripts/mlflow.sh {home}/ && chmod +x mlflow.sh'.format(home=HOME)
 
-args = {
-    'owner': 'core scientific',
-    'retries': 1,
-}
+args = {'owner': 'core scientific', 'retries': 1}
 
 dag = DAG(
-    'test', default_args=args, description='testing plexus operator', schedule_interval='@once', catchup=False
+    'test',
+    default_args=args,
+    description='testing plexus operator',
+    start_date=days_ago(1),
+    schedule_interval='@once',
+    catchup=False,
 )
 
 t1 = PlexusJobOperator(

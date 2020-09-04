@@ -15,42 +15,50 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import arrow
 import mock
 import pytest
-from airflow.exceptions import AirflowException
-from airflow.providers.plexus.operators.job import PlexusJobOperator
 from mock import Mock
 from requests.exceptions import Timeout
-
-
-@pytest.fixture
-def valid_job_params():
-    return {
-        'task_id': 'test',
-        'job_params': {'name': 'test', 'app': 'pipeline', 'queue': 'queue', 'num_nodes': 1, 'num_cores': 1},
-    }
-
-
-@pytest.fixture
-def invalid_job_params(request):
-    job_params = {'name': 'test', 'app': 'pipeline', 'queue': 'queue', 'num_nodes': 1, 'num_cores': 1}
-    job_params.pop(request.param, None)
-    return {'task_id': 'test', 'job_params': job_params}
-
-
-@pytest.fixture
-def invalid_lookups():
-    return {
-        'task_id': 'test',
-        'job_params': {'name': 'test', 'app': '_pipeline', 'queue': '_queue', 'num_nodes': 1, 'num_cores': 1},
-    }
+from airflow.exceptions import AirflowException
+from airflow.providers.plexus.operators.job import PlexusJobOperator
 
 
 class TestPlexusOperator:
+    @pytest.fixture
+    def valid_job_params(self):
+        return {
+            'task_id': 'test',
+            'job_params': {
+                'name': 'test',
+                'app': 'pipeline',
+                'queue': 'queue',
+                'num_nodes': 1,
+                'num_cores': 1,
+            },
+        }
+
+    @pytest.fixture
+    def invalid_job_params(self, request):
+        job_params = {'name': 'test', 'app': 'pipeline', 'queue': 'queue', 'num_nodes': 1, 'num_cores': 1}
+        job_params.pop(request.param, None)
+        return {'task_id': 'test', 'job_params': job_params}
+
+    @pytest.fixture
+    def invalid_lookups(self):
+        return {
+            'task_id': 'test',
+            'job_params': {
+                'name': 'test',
+                'app': '_pipeline',
+                'queue': '_queue',
+                'num_nodes': 1,
+                'num_cores': 1,
+            },
+        }
+
     def test_valid_job_params(self, valid_job_params):
         """test params are initialized correctly"""
-        UPDATED_JOB_PARAMS = {
+        expected_job_params = {
             'name': 'test',
             'app': 'pipeline',
             'queue': 'queue',
@@ -59,8 +67,8 @@ class TestPlexusOperator:
             'billing_account_id': None,
         }
         plexus_job_operator = PlexusJobOperator(**valid_job_params)
-        assert plexus_job_operator.job_params == UPDATED_JOB_PARAMS
-        assert plexus_job_operator.is_service == None
+        assert plexus_job_operator.job_params == expected_job_params
+        assert plexus_job_operator.is_service is None
 
     @pytest.mark.parametrize(
         "invalid_job_params", ['name', 'app', 'queue', 'num_nodes', 'num_cores'], indirect=True
