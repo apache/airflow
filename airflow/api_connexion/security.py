@@ -25,7 +25,7 @@ from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def check_authentication():
+def check_authentication() -> None:
     """Checks that the request has valid authorization information."""
     response = current_app.api_auth.requires_authentication(Response)()
     if response.status_code != 200:
@@ -36,7 +36,7 @@ def check_authentication():
 
 def check_authorization(
     permissions: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[int] = None
-):
+) -> None:
     """Checks that the logged in user has the specified permissions."""
 
     if not permissions:
