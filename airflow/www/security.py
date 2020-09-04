@@ -529,7 +529,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         Populates resource-based permissions.
         """
         if not permissions:
-            permissions = []
+            return
 
         for action, resource in permissions:
             self.add_view_menu(resource)

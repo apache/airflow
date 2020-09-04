@@ -34,11 +34,13 @@ def check_authentication():
         raise Unauthenticated(headers=response.headers)
 
 
-def check_authorization(permissions=None, dag_id=None):
+def check_authorization(
+    permissions: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[int] = None
+):
     """Checks that the logged in user has the specified permissions."""
 
     if not permissions:
-        permissions = []
+        return
 
     appbuilder = current_app.appbuilder
     for permission in permissions:
