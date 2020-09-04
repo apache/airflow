@@ -1,5 +1,4 @@
-#!/usr/bin/env bats
-
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,10 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+set -euo pipefail
+DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
+DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
+BATS_VERSION="1.2.1"
+BATS_ASSERT_VERSION="2.0.0"
+BATS_SUPPORT_VERSION="0.3.0"
+BATS_FILE_VERSION="0.3.0"
 
-@test "empty test" {
-  load bats_utils
+AIRFLOW_BATS_VERSION="2020.09.03"
 
-  run pwd
-  assert_success
-}
+COMMIT_SHA=$(git rev-parse HEAD)
+
+cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
+
+TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:bats-${AIRFLOW_BATS_VERSION}-${BATS_VERSION}"
+
+docker build . \
+    --pull \
+    --build-arg "BATS_VERSION=${BATS_VERSION}" \
+    --build-arg "BATS_SUPPORT_VERSION=${BATS_SUPPORT_VERSION}" \
+    --build-arg "BATS_FILE_VERSION=${BATS_FILE_VERSION}" \
+    --build-arg "BATS_ASSERT_VERSION=${BATS_ASSERT_VERSION}" \
+    --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
+    --tag "${TAG}"
+
+docker push "${TAG}"

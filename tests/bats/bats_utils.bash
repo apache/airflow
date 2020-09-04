@@ -30,4 +30,5 @@ source "scripts/ci/libraries/_all_libs.sh"
 
 initialization::initialize_common_environment
 
-sanity_checks::basic_sanity_checks
+# shellcheck disable=SC1091
+source "/opt/bats/lib/load.bash"
