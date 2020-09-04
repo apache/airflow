@@ -20,13 +20,9 @@ from typing import List
 
 from airflow.upgrade.formatters import BaseFormatter
 from airflow.upgrade.problem import RuleStatus
-from airflow.upgrade.rules.base_rule import BaseRule
-from airflow.upgrade.rules.conn_type_is_not_nullable import ConnTypeIsNotNullableRule
+from airflow.upgrade.rules.base_rule import BaseRule, RULES
 
-# TODO: Add auto-discoverable for rules
-ALL_RULES = [
-    ConnTypeIsNotNullableRule()
-]  # type: List[BaseRule]
+ALL_RULES = [cls() for cls in RULES]  # type: List[BaseRule]
 
 
 def check_upgrade(formatter):
@@ -34,8 +30,7 @@ def check_upgrade(formatter):
     formatter.start_checking(ALL_RULES)
     all_rule_statuses = []  # List[RuleStatus]
     for rule in ALL_RULES:
-        messages = rule.check()
-        rule_status = RuleStatus(rule=rule, messages=list(messages))
+        rule_status = RuleStatus.from_rule(rule)
         all_rule_statuses.append(rule_status)
         formatter.on_next_rule_status(rule_status)
     formatter.end_checking(all_rule_statuses)

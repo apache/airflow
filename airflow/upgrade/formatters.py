@@ -57,9 +57,9 @@ class ConsoleFormatter(BaseFormatter):
                 print("Found {} problem.".format(messages_count))
             else:
                 print("Found {} problems.".format(messages_count))
-            print
+            print()
             header("RECOMMENDATIONS", "=")
-            print
+            print()
 
             self.display_recommendations(rule_statuses)
         else:
@@ -75,9 +75,10 @@ class ConsoleFormatter(BaseFormatter):
             print("-" * len(rule.title))
             print(rule.description)
             print("")
-            print("Problems:")
-            for message_no, message in enumerate(rule_status.messages, 1):
-                print('{:>3}.  {}'.format(message_no, message))
+            if rule_status.messages:
+                print("Problems:")
+                for message_no, message in enumerate(rule_status.messages, 1):
+                    print('{:>3}.  {}'.format(message_no, message))
 
     def on_next_rule_status(self, rule_status):
         status = "SUCCESS" if rule_status.is_success else "FAIL"

@@ -32,3 +32,9 @@ class RuleStatus(NamedTuple(
     @property
     def is_success(self):
         return bool(self.messages)
+
+    @classmethod
+    def from_rule(cls, rule):
+        # type: (BaseRule) -> RuleStatus
+        messages = rule.check()
+        return cls(rule=rule, messages=list(messages))

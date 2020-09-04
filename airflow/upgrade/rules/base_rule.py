@@ -17,19 +17,33 @@
 
 from abc import ABCMeta, abstractmethod
 
+from six import add_metaclass
 
+RULES = []
+
+
+class BaseRuleMeta(ABCMeta):
+    def __new__(cls, clsname, bases, attrs):
+        clazz = super(BaseRuleMeta, cls).__new__(cls, clsname, bases, attrs)
+        if clsname != "BaseRule":
+            RULES.append(clazz)
+        return clazz
+
+
+@add_metaclass(BaseRuleMeta)
 class BaseRule(object):
-    __metaclass__ = ABCMeta
 
     @property
     @abstractmethod
     def title(self):
+        # type: () -> str
         """Short one-line summary"""
         pass
 
     @property
     @abstractmethod
     def description(self):
+        # type: () -> str
         """A long description explaining the problem in detail. This can be an entry from UPDATING.md file."""
         pass
 
