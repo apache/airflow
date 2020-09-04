@@ -33,7 +33,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 
-@security.requires_access([("can_delete", "DagRun")])
+@security.requires_access([("can_edit", "DagRun"), ("can_delete", "DagRun")])
 @provide_session
 def delete_dag_run(dag_id, dag_run_id, session):
     """
@@ -44,7 +44,7 @@ def delete_dag_run(dag_id, dag_run_id, session):
     return NoContent, 204
 
 
-@security.requires_access([("can_read", "DagRun")])
+@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
 @provide_session
 def get_dag_run(dag_id, dag_run_id, session):
     """
@@ -59,16 +59,18 @@ def get_dag_run(dag_id, dag_run_id, session):
     return dagrun_schema.dump(dag_run)
 
 
-@security.requires_access([("can_read", "DagRun")])
-@format_parameters({
-    'start_date_gte': format_datetime,
-    'start_date_lte': format_datetime,
-    'execution_date_gte': format_datetime,
-    'execution_date_lte': format_datetime,
-    'end_date_gte': format_datetime,
-    'end_date_lte': format_datetime,
-    'limit': check_limit
-})
+@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
+@format_parameters(
+    {
+        'start_date_gte': format_datetime,
+        'start_date_lte': format_datetime,
+        'execution_date_gte': format_datetime,
+        'execution_date_lte': format_datetime,
+        'end_date_gte': format_datetime,
+        'end_date_lte': format_datetime,
+        'limit': check_limit,
+    }
+)
 @provide_session
 def get_dag_runs(
     session,
@@ -156,7 +158,7 @@ def _apply_date_filters_to_query(
     return query
 
 
-@security.requires_access([("can_read", "DagRun")])
+@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
 @provide_session
 def get_dag_runs_batch(session):
     """
@@ -189,7 +191,7 @@ def get_dag_runs_batch(session):
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
 
 
-@security.requires_access([("can_create", "DagRun")])
+@security.requires_access([("can_read", "Dag"), ("can_create", "DagRun")])
 @provide_session
 def post_dag_run(dag_id, session):
     """

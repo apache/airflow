@@ -43,6 +43,7 @@ class TestDagRunEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
+                ("can_read", "Dag"),
                 ("can_create", "DagRun"),
                 ("can_read", "DagRun"),
                 ("can_edit", "DagRun"),
