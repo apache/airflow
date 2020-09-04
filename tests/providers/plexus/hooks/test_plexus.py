@@ -18,10 +18,10 @@
 import arrow
 import mock
 import pytest
-from airflow.exceptions import AirflowException
-from airflow.providers.plexus.hooks.plexus import PlexusHook
 from mock import Mock
 from requests.exceptions import Timeout
+from airflow.exceptions import AirflowException
+from airflow.providers.plexus.hooks.plexus import PlexusHook
 
 
 class TestPlexusHook:
