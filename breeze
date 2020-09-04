@@ -2588,9 +2588,18 @@ function breeze::make_sure_precommit_is_installed() {
 #
 #######################################################################################################
 function breeze::remove_images() {
-    docker rmi "${PYTHON_BASE_IMAGE}"  || true
-    docker rmi "${AIRFLOW_CI_IMAGE}"   || true
-    docker rmi "${AIRFLOW_PROD_IMAGE}" || true
+    set +e
+    docker rmi "${PYTHON_BASE_IMAGE}"  2>/dev/null >/dev/null
+    docker rmi "${AIRFLOW_CI_IMAGE}"   2>/dev/null >/dev/null
+    docker rmi "${AIRFLOW_PROD_IMAGE}" 2>/dev/null >/dev/null
+    set -e
+    echo
+    echo "###################################################################"
+    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
+    echo "       But the disk space in docker will be reclaimed only after"
+    echo "       running 'docker system prune' command."
+    echo "###################################################################"
+    echo
     rm -f "${BUILT_CI_IMAGE_FLAG_FILE}"
 }
 

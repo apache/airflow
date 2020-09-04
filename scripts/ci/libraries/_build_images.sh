@@ -206,20 +206,20 @@ function build_images::get_local_image_info() {
     TMP_MANIFEST_LOCAL_SHA=$(mktemp)
     set +e
     # Remove the container just in case
-    docker rm --force "local-airflow-manifest"
+    docker rm --force "local-airflow-manifest" 2>/dev/null >/dev/null
     # Create manifest from the local manifest image
-    if ! docker create --name "local-airflow-manifest" "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}"; then
+    if ! docker create --name "local-airflow-manifest" "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" 2>/dev/null; then
         echo
         echo "Local manifest image not available"
         echo
         LOCAL_MANIFEST_IMAGE_UNAVAILABLE="true"
         return
     fi
-    set -e
     # Create manifest from the local manifest image
     docker cp "local-airflow-manifest:${AIRFLOW_CI_BASE_TAG}.json" "${TMP_MANIFEST_LOCAL_JSON}"
     sed 's/ *//g' "${TMP_MANIFEST_LOCAL_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_LOCAL_SHA}"
-    docker rm --force "local-airflow-manifest"
+    docker rm --force "local-airflow-manifest" 2>/dev/null >/dev/null
+    set -e
 }
 
 #
@@ -233,7 +233,7 @@ function build_images::get_local_image_info() {
 function build_images::get_remote_image_info() {
     set +e
     # Pull remote manifest image
-    if ! docker pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"; then
+    if ! docker pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null; then
         echo >&2
         echo >&2 "Remote docker registry unreachable"
         echo >&2
@@ -250,14 +250,12 @@ function build_images::get_remote_image_info() {
     TMP_MANIFEST_REMOTE_JSON=$(mktemp)
     TMP_MANIFEST_REMOTE_SHA=$(mktemp)
     # Create container out of the manifest image without running it
-    docker create --cidfile "${TMP_CONTAINER_ID}" \
-        "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+    docker create --cidfile "${TMP_CONTAINER_ID}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null
     # Extract manifest and store it in local file
-    docker cp "$(cat "${TMP_CONTAINER_ID}"):${AIRFLOW_CI_BASE_TAG}.json" \
-        "${TMP_MANIFEST_REMOTE_JSON}"
+    docker cp "$(cat "${TMP_CONTAINER_ID}"):${AIRFLOW_CI_BASE_TAG}.json" "${TMP_MANIFEST_REMOTE_JSON}"
     # Filter everything except SHAs of image layers
     sed 's/ *//g' "${TMP_MANIFEST_REMOTE_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_REMOTE_SHA}"
-    docker rm --force "$(cat "${TMP_CONTAINER_ID}")"
+    docker rm --force "$(cat "${TMP_CONTAINER_ID}")" 2>/dev/null >/dev/null
 }
 
 # The Number determines the cut-off between local building time and pull + build time.
@@ -722,7 +720,9 @@ function build_images::wait_for_image_tag() {
     echo "Waiting for image ${IMAGE_TO_WAIT_FOR}"
     echo
     while true; do
-        docker pull "${IMAGE_TO_WAIT_FOR}" || true
+        set +e
+        docker pull "${IMAGE_TO_WAIT_FOR}" 2>/dev/null >/dev/null
+        set -e
         if [[ -z "$(docker images -q "${IMAGE_TO_WAIT_FOR}" 2>/dev/null || true)" ]]; then
             echo
             echo "The image ${IMAGE_TO_WAIT_FOR} is not yet available. Waiting"
