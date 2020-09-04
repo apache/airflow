@@ -22,7 +22,7 @@ from airflow.models.errors import ImportError  # pylint: disable=redefined-built
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.www import app
-from tests.test_utils.api_connexion_utils import assert_401, create_role, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_import_errors
 
@@ -33,18 +33,18 @@ class TestBaseImportError(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_role(cls.app, name="Test", permissions=[('can_read', 'ImportError')])  # type: ignore
-        create_user(cls.app, username="test", role="Test")  # type: ignore
-        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
-        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[('can_read', 'ImportError')],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
         delete_user(cls.app, username="test_no_permissions")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
 
     def setUp(self) -> None:
         super().setUp()

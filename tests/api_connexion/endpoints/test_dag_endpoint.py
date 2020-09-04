@@ -26,7 +26,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.session import provide_session
 from airflow.www import app
-from tests.test_utils.api_connexion_utils import assert_401, create_role, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -46,10 +46,10 @@ class TestDagEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_role(
+        create_user(
             cls.app,  # type: ignore
-            name="Test",
+            username="test",
+            role_name="Test",
             permissions=[
                 ("can_create", "Dag"),
                 ("can_read", "Dag"),
@@ -57,11 +57,10 @@ class TestDagEndpoint(unittest.TestCase):
                 ("can_delete", "Dag"),
             ],
         )
-        create_user(cls.app, username="test", role="Test")  # type: ignore
-        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
-        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
-        create_role(cls.app, name="TestGranularDag")  # type: ignore
-        create_user(cls.app, username="test_granular_permissions", role="TestGranularDag")  # type: ignore
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+        create_user(
+            cls.app, username="test_granular_permissions", role_name="TestGranularDag"  # type: ignore
+        )
         cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
             "TEST_DAG_1", access_control={'TestGranularDag': ['can_edit', 'can_read']}
         )
@@ -77,11 +76,8 @@ class TestDagEndpoint(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
         delete_user(cls.app, username="test_no_permissions")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
         delete_user(cls.app, username="test_granular_permissions")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("TestGranularDag")  # type: ignore  # pylint: disable=no-member
 
     def setUp(self) -> None:
         self.clean_db()
@@ -184,7 +180,6 @@ class TestGetDagDetails(TestDagEndpoint):
         # Create empty app with empty dagbag to check if DAG is read from db
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             app_serialized = app.create_app(testing=True)
-        create_user(app_serialized, username="test", role="Test")
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         app_serialized.dag_bag = dag_bag
         client = app_serialized.test_client()

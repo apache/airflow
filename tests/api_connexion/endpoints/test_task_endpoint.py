@@ -23,7 +23,7 @@ from airflow.models import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.www import app
-from tests.test_utils.api_connexion_utils import assert_401, create_role, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -43,15 +43,13 @@ class TestTaskEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_role(
+        create_user(
             cls.app,  # type: ignore
-            name="Test",
+            username="test",
+            role_name="Test",
             permissions=[('can_read', 'Dag'), ('can_read', 'DagRun'), ('can_read', 'Task')],
         )
-        create_user(cls.app, username="test", role="Test")  # type: ignore
-        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
-        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
@@ -64,9 +62,7 @@ class TestTaskEndpoint(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
         delete_user(cls.app, username="test_no_permissions")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
 
     def setUp(self) -> None:
         self.clean_db()

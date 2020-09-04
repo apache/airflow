@@ -20,7 +20,7 @@ import textwrap
 from mock import patch
 
 from airflow.www import app
-from tests.test_utils.api_connexion_utils import assert_401, create_role, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 
 MOCK_CONF = {
@@ -39,20 +39,17 @@ class TestGetConfig:
     def setup_class(cls) -> None:
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission
-        create_role(cls.app, name="Test", permissions=[('can_read', 'Config')])  # type: ignore
-        create_user(cls.app, username="test", role="Test")  # type: ignore
-        create_role(cls.app, name="TestNoPermissions")  # type: ignore
-        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
+        create_user(
+            cls.app, username="test", role_name="Test", permissions=[('can_read', 'Config')]  # type: ignore
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
         cls.client = None
 
     @classmethod
     def teardown_class(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
         delete_user(cls.app, username="test_no_permissions")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
 
     def setup_method(self) -> None:
         self.client = self.app.test_client()  # type:ignore
