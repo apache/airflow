@@ -146,6 +146,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type pod_template_file: str
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
+    :param termination_grace_period: Termination grace period if task killed in UI,
+        defaults to kubernetes default
+    :type termination_grace_period: int
     """
     template_fields: Iterable[str] = (
         'image', 'cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
@@ -191,6 +194,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  do_xcom_push: bool = False,
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
+                 termination_grace_period: Optional[int] = None,
                  **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
@@ -235,6 +239,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
         self.name = self._set_name(name)
+        self.termination_grace_period = termination_grace_period
         self.client = None
 
     @staticmethod
@@ -450,4 +455,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             pod: k8s.V1Pod = self.pod
             namespace = pod.metadata.namespace
             name = pod.metadata.name
-            self.client.delete_namespaced_pod(name=name, namespace=namespace, grace_period_seconds=0)
+            kwargs = {}
+            if self.termination_grace_period is not None:
+                kwargs = {"grace_period_seconds": self.termination_grace_period}
+            self.client.delete_namespaced_pod(name=name, namespace=namespace, **kwargs)

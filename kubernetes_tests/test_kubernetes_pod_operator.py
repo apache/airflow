@@ -894,6 +894,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             task_id=name,
             in_cluster=False,
             do_xcom_push=False,
+            termination_grace_period=0,
         )
         context = create_context(k)
         monitor_mock.return_value = (State.SUCCESS, None)
@@ -903,7 +904,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.assertEqual(pod.status.phase, "Running")
         k.on_kill()
         with self.assertRaises(ApiException):
-            # pod should be deleted
-            client.read_namespaced_pod(name=name, namespace=namespace)
+            pod = client.read_namespaced_pod(name=name, namespace=namespace)
 
 # pylint: enable=unused-argument
