@@ -32,13 +32,15 @@ class PlexusJobOperator(BaseOperator):
     Submits a Plexus job.
 
     :param job_params: parameters required to launch a job.
-        Required parameters are the following:
-            - "name": job name created by user
-            - "app": name of the application to run. found in Plexus UI.
-            - "queue": public cluster name. found in Plexus UI.
-            - "num_nodes": number of nodes
-            - "num_cores":  number of cores per node
     :type job_params: dict
+
+    Required job parameters are the following
+        - "name": job name created by user.
+        - "app": name of the application to run. found in Plexus UI.
+        - "queue": public cluster name. found in Plexus UI.
+        - "num_nodes": number of nodes.
+        - "num_cores":  number of cores per node.
+
     """
 
     @apply_defaults

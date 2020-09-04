@@ -1271,8 +1271,8 @@ These integrations allow you to perform various operations within various servic
 
    * - `Plexus <https://plexus.corescientific.com/>`__
      -
-     - :mod:`airflow.providers.plexus.operators.job`,
-       :mod:`airflow.providers.plexus.hooks.plexus`
+     - :mod:`airflow.providers.plexus.hooks.plexus`
+     - :mod:`airflow.providers.plexus.operators.job`
      -
 
    * - `Qubole <https://www.qubole.com/>`__
