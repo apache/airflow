@@ -181,7 +181,6 @@ class ClusterGenerator:
         worker_disk_type: str = 'pd-standard',
         worker_disk_size: int = 1024,
         num_preemptible_workers: int = 0,
-        region: Optional[str] = None,
         service_account: Optional[str] = None,
         service_account_scopes: Optional[List[str]] = None,
         idle_delete_ttl: Optional[int] = None,
@@ -192,7 +191,6 @@ class ClusterGenerator:
     ) -> None:
 
         self.project_id = project_id
-        self.region = region
         self.num_masters = num_masters
         self.num_workers = num_workers
         self.num_preemptible_workers = num_preemptible_workers
@@ -454,6 +452,15 @@ class DataprocCreateClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
+    template_fields = (
+        'project_id',
+        'region',
+        'cluster_config',
+        'cluster_name',
+        'labels',
+        'impersonation_chain',
+    )
+
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -516,15 +523,6 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.delete_on_error = delete_on_error
         self.use_if_exists = use_if_exists
         self.impersonation_chain = impersonation_chain
-
-    template_fields = (
-        'project_id',
-        'region',
-        'cluster_config',
-        'cluster_name',
-        'labels',
-        'impersonation_chain',
-    )
 
     def _create_cluster(self, hook: DataprocHook):
         operation = hook.create_cluster(

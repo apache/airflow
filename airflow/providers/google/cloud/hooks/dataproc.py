@@ -225,6 +225,27 @@ class DataprocHook(GoogleBaseHook):
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
+    @cached_property
+    def get_template_client(self) -> WorkflowTemplateServiceClient:
+        """
+        Returns WorkflowTemplateServiceClient.
+        """
+        return WorkflowTemplateServiceClient(
+            credentials=self._get_credentials(), client_info=self.client_info
+        )
+
+    def get_job_client(self, location: Optional[str] = None) -> JobControllerClient:
+        """
+        Returns JobControllerClient.
+        """
+        client_options = (
+            {'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)} if location else None
+        )
+
+        return JobControllerClient(
+            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
+        )
+
     @GoogleBaseHook.fallback_to_default_project_id
     def create_cluster(
         self,
@@ -290,27 +311,6 @@ class DataprocHook(GoogleBaseHook):
             metadata=metadata,
         )
         return result
-
-    @cached_property
-    def get_template_client(self) -> WorkflowTemplateServiceClient:
-        """
-        Returns WorkflowTemplateServiceClient.
-        """
-        return WorkflowTemplateServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info
-        )
-
-    def get_job_client(self, location: Optional[str] = None) -> JobControllerClient:
-        """
-        Returns JobControllerClient.
-        """
-        client_options = (
-            {'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)} if location else None
-        )
-
-        return JobControllerClient(
-            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
-        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_cluster(
