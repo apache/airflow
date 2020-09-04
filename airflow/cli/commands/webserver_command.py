@@ -382,7 +382,7 @@ def webserver(args):
         if args.error_logfile:
             run_args += ['--error-logfile', str(args.error_logfile)]
 
-        if args.access_logformat:
+        if args.access_logformat and args.access_logformat.strip():
             run_args += ['--access-logformat', str(args.access_logformat)]
 
         if args.daemon:
