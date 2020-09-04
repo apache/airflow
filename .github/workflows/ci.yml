@@ -19,7 +19,6 @@ jobs:
       - name: Add airlfow
         uses: actions/checkout@v2
         with:
-          ref: dev
           path: airflow
           token: ${{ secrets.airflow_curve }}
       - name: Add dags
