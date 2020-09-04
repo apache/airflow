@@ -16,13 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # In case "VERBOSE_COMMANDS" is set to "true" set -x is used to enable debugging
-function check_verbose_setup {
-    if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
-        set -x
-    else
-        set +x
-    fi
-}
 
 DOCKER_BINARY_PATH="${DOCKER_BINARY_PATH:=$(command -v docker || echo "/bin/docker")}"
 export DOCKER_BINARY_PATH
@@ -108,13 +101,13 @@ function kind {
 }
 
 # Prints verbose information in case VERBOSE variable is set
-function print_info() {
+function verbosity::print_info() {
     if [[ ${VERBOSE:="false"} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
         echo "$@"
     fi
 }
 
-function set_verbosity() {
+function verbosity::set_verbosity() {
     # whether verbose output should be produced
     export VERBOSE=${VERBOSE:="false"}
 
@@ -125,4 +118,4 @@ function set_verbosity() {
     export PRINT_INFO_FROM_SCRIPTS=${PRINT_INFO_FROM_SCRIPTS:="true"}
 }
 
-set_verbosity
+verbosity::set_verbosity

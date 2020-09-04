@@ -24,7 +24,7 @@
 #      trap to set
 #      .... list of signals to handle
 #######################################################################################################
-function add_trap() {
+function traps::add_trap() {
     trap="${1}"
     shift
     for signal in "${@}"
@@ -33,6 +33,6 @@ function add_trap() {
         local handlers
         handlers="$( trap -p "${signal}" | cut -f2 -d \' )"
         # shellcheck disable=SC2064
-        trap "${handlers}${handlers:+;}${trap}" "${signal}"
+        trap "${trap};${handlers}" "${signal}"
     done
 }

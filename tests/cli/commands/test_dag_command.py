@@ -139,6 +139,18 @@ class TestCliDags(unittest.TestCase):
         self.assertIn("graph [label=example_bash_operator labelloc=t rankdir=LR]", out)
         self.assertIn("runme_2 -> run_after_loop", out)
 
+    def test_generate_dag_yaml(self):
+        with tempfile.TemporaryDirectory("airflow_dry_run_test/") as directory:
+            file_name = "example_bash_operator_run_after_loop_2020-11-03T00_00_00_plus_00_00.yml"
+            dag_command.generate_pod_yaml(self.parser.parse_args([
+                'kubernetes', 'generate-dag-yaml',
+                'example_bash_operator', "2020-11-03", "--output-path", directory]))
+            self.assertEqual(len(os.listdir(directory)), 1)
+            out_dir = directory + "/airflow_yaml_output/"
+            self.assertEqual(len(os.listdir(out_dir)), 6)
+            self.assertTrue(os.path.isfile(out_dir + file_name))
+            self.assertGreater(os.stat(out_dir + file_name).st_size, 0)
+
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
     def test_show_dag_dave(self, mock_render_dag):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
@@ -257,7 +269,7 @@ class TestCliDags(unittest.TestCase):
 
         # Test None output
         args = self.parser.parse_args(['dags',
-                                       'next_execution',
+                                       'next-execution',
                                        dag_ids[0]])
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_next_execution(args)
@@ -289,7 +301,7 @@ class TestCliDags(unittest.TestCase):
 
             # Test num-executions = 1 (default)
             args = self.parser.parse_args(['dags',
-                                           'next_execution',
+                                           'next-execution',
                                            dag_id])
             with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
                 dag_command.dag_next_execution(args)
@@ -298,7 +310,7 @@ class TestCliDags(unittest.TestCase):
 
             # Test num-executions = 2
             args = self.parser.parse_args(['dags',
-                                           'next_execution',
+                                           'next-execution',
                                            dag_id,
                                            '--num-executions',
                                            '2'])
@@ -340,7 +352,7 @@ class TestCliDags(unittest.TestCase):
         dag_command.dag_trigger(self.parser.parse_args([
             'dags', 'trigger', 'example_bash_operator', ]))
         args = self.parser.parse_args(['dags',
-                                       'list_runs',
+                                       'list-runs',
                                        '--dag-id',
                                        'example_bash_operator',
                                        '--no-backfill',
@@ -351,7 +363,7 @@ class TestCliDags(unittest.TestCase):
         dag_command.dag_list_dag_runs(args)
 
     def test_cli_list_jobs_with_args(self):
-        args = self.parser.parse_args(['dags', 'list_jobs', '--dag-id',
+        args = self.parser.parse_args(['dags', 'list-jobs', '--dag-id',
                                        'example_bash_operator',
                                        '--state', 'success',
                                        '--limit', '100',
@@ -415,7 +427,7 @@ class TestCliDags(unittest.TestCase):
             self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
 
     def test_cli_list_jobs(self):
-        args = self.parser.parse_args(['dags', 'list_jobs'])
+        args = self.parser.parse_args(['dags', 'list-jobs'])
         dag_command.dag_list_jobs(args)
 
     def test_dag_state(self):
