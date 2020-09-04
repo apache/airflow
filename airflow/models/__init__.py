@@ -36,6 +36,7 @@ from airflow.models.taskinstance import TaskInstance, clear_task_instances  # no
 from airflow.models.taskreschedule import TaskReschedule  # noqa: F401
 from airflow.models.variable import Variable  # noqa: F401
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom  # noqa: F401
+from airflow.models.tightening_controller import TighteningController  # noqa: F401
 
 try:
     from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier  # noqa: F401

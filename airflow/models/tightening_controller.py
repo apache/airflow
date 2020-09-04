@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from airflow.models.base import Base
 from airflow.utils.db import provide_session
-from flask_babel import lazy_gettext
 
 
 class TighteningController(Base):
@@ -39,3 +38,21 @@ class TighteningController(Base):
             'work_center_code': obj.work_center_code,
             'work_center_name': obj.work_center_name
         }
+
+    @classmethod
+    @provide_session
+    def list_controllers(cls, session=None):
+        controllers = list(session.query(cls).all())
+        return controllers
+
+    @classmethod
+    @provide_session
+    def add_controller(cls, controller_name, line_code, work_center_code, line_name=None, work_center_name=None,
+                       session=None):
+        session.add(TighteningController(
+            controller_name=controller_name,
+            line_code=line_code,
+            work_center_code=work_center_code,
+            line_name=line_name,
+            work_center_name=work_center_name
+        ))

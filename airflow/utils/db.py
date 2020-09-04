@@ -30,6 +30,7 @@ import json
 from airflow import settings
 from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.load_controller_from_csv import get_controllers
 
 log = LoggingMixin().log
 
@@ -140,120 +141,22 @@ def create_default_error_tags(session=None):
 
 @provide_session
 def create_default_nd_line_controller_map_var(session=None):
-    from airflow.models import Variable
-    val = {
-        "1T1": [
-            "CON001@1T101/内饰1工位"
-        ],
-        "T1": [
-            "T1-06M1@T1-06M1/内饰一1工位",
-            "T1-007L@T1-007L/内饰一2工位",
-            "T1-007R@T1-007R/内饰一3工位",
-            "T1-016M1@T1-016M1/内饰一4工位",
-            "T1-006L2@T1-006L2/内饰一5工位",
-            "T1-006R2@T1-006R2/内饰一6工位",
-            "T1-022L@T1-022L/内饰一7工位",
-            "T1-012L@T1-012L/内饰一8工位",
-            "T1-012R@T1-012R/内饰一9工位"
-        ],
-        "T2": [
-            "T2-004L@T2-004L/内饰二1工位",
-            "T2-004R@T2-004R/内饰二2工位",
-            "T2-010M1@T2-010M1/内饰二3工位",
-            "T2-019L2@T2-019L2/内饰二4工位",
-            "T2-019R2@T2-019R2/内饰二5工位"
-        ],
-        "C1": [
-            "C1-005L@C1-005L/底盘一1工位",
-            "C1-006L@C1-006L/底盘一2工位",
-            "C1-005R@C1-005R/底盘一3工位"
-        ],
-        "C2": [
-            "C2-001L@C2-001L/底盘二1工位",
-            "C2-001R1@C2-001R1/底盘二2工位",
-            "C2-01RJ@C2-01机器人工位/底盘二3工位",
-            "C2-004L@C2-004L/底盘二4工位",
-            "C2-004R@C2-004R/底盘二5工位",
-            "C2-005L@C2-005L/底盘二6工位",
-            "C2-005R@C2-005R/底盘二7工位",
-            "C2-006R-EFDS80-450@C2-006R/底盘二8工位",
-            "C2-006R-EAD440-250@C2-006R/底盘二9工位",
-            "C2-007M1@C2-007M1/底盘二10工位",
-            "C2-008M3@C2-008M3/底盘二11工位",
-            "C2-015L2@C2-015L2/底盘二12工位",
-            "C2-015R2@C2-015R2/底盘二13工位",
-            "C2-016L@C2-016L/底盘二14工位",
-            "C2-016R@C2-016R/底盘二15工位",
-            "C2-016R1@C2-016R1/底盘二16工位",
-            "C2-016L1@C2-016L1/底盘二17工位",
-            "C2-020L@C2-020L/底盘二18工位",
-            "C2-020R@C2-020R/底盘二19工位",
-            "C2-023R@C2-023R/底盘二20工位",
-            "C2-024L@C2-024L/底盘二21工位",
-            "C2-025L@C2-025L/底盘二22工位",
-            "C2-025R@C2-025R/底盘二23工位"
-        ],
-        "W1": [
-            "W1-017L@W1-017L/外装一1工位",
-            "W1-012L@W1-012L/外装一2工位",
-            "W1-007L@W1-007L/外装一3工位",
-            "W1-021L@W1-021L/外装一4工位",
-            "W1-021R@W1-021R/外装一5工位",
-            "W1-020L1@W1-020L1/外装一6工位",
-            "W1-020R1@W1-020R1/外装一7工位"
-        ],
-        "W2": [
-            "W2-008L@W2-008L/外装二1工位"
-        ],
-        "FL": [
-            "FL-013R@FL-013R/最终线1工位"
-        ],
-        "E0": [
-            "E0-012R-EAD80-650@E0-012R/发动机1工位",
-            "E0-012R-EAD280-370@E0-012R/发动机2工位",
-            "E0-013R@E0-013R/发动机3工位",
-            "E0-014R@E0-014R/发动机4工位"
-        ],
-        "E1": [
-            "E1-004R@E1-004R/发动机5工位",
-            "E1-005R@E1-005R/发动机6工位",
-            "E1-005L@E1-005L/发动机7工位",
-            "E1-007R@E1-007R/发动机8工位"
-        ],
-        "CA": [
-            "CA-004L-EAD160-430@CA-004L/底盘模块1工位",
-            "CA-005L@CA-005L/底盘模块2工位",
-            "CA-007L-EAD70-700-HAD@CA-007L/底盘模块3工位",
-            "CA-007R-EAD70-700-HAD@CA-007R/底盘模块4工位",
-            "CA-007L-EAD160-430-HAD@CA-007L/底盘模块5工位",
-            "CA-007R-EAD160-430-HAD@CA-007R/底盘模块6工位",
-            "CA-008L-EAD160-430@CA-008L/底盘模块7工位",
-            "CA-008R-EAD160-430@CA-008R/底盘模块8工位",
-            "CA-008L-EAD160-430-HAD@CA-008L/底盘模块9工位",
-            "CA-08L-EAD105-500@CA-08L/底盘模块10工位",
-            "CA-008R-EAD160-430-HAD@CA-008R/底盘模块11工位",
-            "CA-010L-EAD105-500@CA-010L/底盘模块12工位",
-            "CA-010R@CA-010R/底盘模块13工位"
-        ],
-        "D1": [
-            "D1-008L@D1-008L/门线1工位",
-            "D1-008R@D1-008R/门线2工位",
-            "D1-007L@D1-007L/门线3工位",
-            "D1-007R@D1-007R/门线4工位"
-        ],
-        "IP": [
-            "IP-005R1@IP-005R1/仪表线1工位",
-            "IP-015R@IP-015R/仪表线2工位",
-            "IP-011R@IP-011R/仪表线3工位"
-        ],
-        "MFE": [
-            "MFE-006R@MFE-006R/前装模块线1工位"
-        ]
-    }
-    line_code_controllers_map = Variable.get('line_code_controllers_map', {}, deserialize_json=True)
-    if not line_code_controllers_map:
-        # 不存在时候才进行设定
-        Variable.set(key='line_code_controllers_map', value=val, serialize_json=True)
+    log.info("Loading default controllers")
+    from airflow.models import TighteningController
+    val = get_controllers('./default_controllers.csv')
+    controllers = TighteningController.list_controllers(session=session)
+    if len(controllers) > 0:
+        log.info("Controllers already exists, skipping")
+        return
+    for controller in val:
+        TighteningController.add_controller(
+            controller_name=controller.get('controller_name', None),
+            line_code=controller.get('line_code', None),
+            work_center_code=controller.get('work_center_code', None),
+            line_name=controller.get('line_name', None),
+            work_center_name=controller.get('work_center_name', None),
+            session=session
+        )
 
 
 @provide_session
