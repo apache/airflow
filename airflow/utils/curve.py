@@ -1,5 +1,5 @@
 from airflow import models
-from airflow.utils.db import create_session
+from airflow.utils.db import create_session, get_connection
 from airflow.utils.logger import generate_logger
 import os
 from airflow.models.variable import Variable
@@ -50,7 +50,7 @@ def get_cas_analysis_base_url():
     connection_model = models.connection.Connection
     with create_session() as session:
         url = session.query(connection_model).filter(
-            connection_model.conn_id == 'cas_analysis_base_url').first()
+            connection_model.conn_id == 'cas_analysis').first()
     if not url:
         url = CAS_ANALYSIS_BASE_URL  # 从环境变量中获取URL配置
     return url.get_uri() if isinstance(url, connection_model) else url
@@ -60,7 +60,7 @@ def get_cas_training_base_url():
     connection_model = models.connection.Connection
     with create_session() as session:
         url = session.query(connection_model).filter(
-            connection_model.conn_id == 'cas_training_base_url').first()
+            connection_model.conn_id == 'cas_training').first()
     if not url:
         url = CAS_TRAINING_BASE_URL  # 从环境变量中获取URL配置
     return url.get_uri() if isinstance(url, connection_model) else url
@@ -89,8 +89,8 @@ def get_curve_mode(final_state, error_tag):
 
 def generate_bolt_number(controller_name, program, batch_count, pset):
     if not controller_name or program is None \
-            or batch_count is None or batch_count is '' \
-            or pset is None or pset is '':
+        or batch_count is None or batch_count is '' \
+        or pset is None or pset is '':
         raise BaseException(u'{}参数未正确定义'.format('generateBoltNumber'))
     if not isinstance(program, str):
         program = str(program)
@@ -125,24 +125,26 @@ def get_task_params(task_instance, entity_id):
 
 
 def get_result_args():
+    influxdb = get_connection('qcos_influxdb')
+    extra = influxdb.extra_dejson() if influxdb else {}
     return {
-        "bucket": 'desoutter',
-        "url": Variable.get('influxdb_url', '127.0.0.1:9999'),
-        "ou": 'desoutter',
-        "token": Variable.get('influxdb_token',
-                              'PP4zVtAxld9oOISOTeWx0uuVXUQfvHi8hnFe47U-pef70eh8eaKzfxlVv0dUuggoXe4-3WOnedV3u-xp2-5sQ=='),
-        # "token": Variable.get('influxdb_token', 'token'),
+        "bucket": extra.get('bucket', 'desoutter'),
+        "url": '{}:{}'.format(influxdb.host, influxdb.port) if influxdb else None,
+        "ou": extra.get('ou', 'desoutter'),
+        "token": influxdb.get_password() if influxdb else None,
         'write_options': write_options
     }
 
 
 def get_curve_args():
+    oss = get_connection('qcos_minio')
+    extra = oss.extra_dejson() if oss else {}
     return {
-        "bucket": "desoutter",
-        "endpoint": Variable.get('oss_url', '127.0.0.1:9000'),
-        "access_key": Variable.get('oss_key', 'minio'),
-        "secret_key": Variable.get('oss_secret', 'minio123'),
-        "secure": False
+        "bucket": extra.get('bucket', 'desoutter'),
+        "endpoint": '{}:{}'.format(oss.host, oss.port) if oss else None,
+        "access_key": oss.login if oss else None,
+        "secret_key": oss.get_password() if oss else None,
+        "secure": extra.get('secure', False),
     }
 
 

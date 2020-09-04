@@ -26,7 +26,7 @@ from functools import wraps
 
 import os
 import contextlib
-
+import json
 from airflow import settings
 from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -108,19 +108,25 @@ def add_default_pool_if_not_exists(session=None):
 
 
 default_error_tags = {
-    '100': '提前松手',
-    '101': '螺栓放偏',
-    '102': '螺栓空转，没办法旋入',
-    '103': '螺栓被错误的预拧紧',
-    '104': '螺纹胶涂胶识别有无',
-    '105': '螺纹胶涂覆位置错误-前后',
-    '106': '螺钉太长',
-    '107': '螺钉太短',
-    '108': '工件开裂',
-    '109': '尖叫螺栓',
-    '110': '提前进入屈服阶段',
-    '111': '转角法监控扭矩小于下限值',
-    '112': '转角法监控扭矩大于上限值-或者临界上限值'
+    '1': '曲线异常（未知原因）',
+    '101': '螺栓粘滑',
+    '102': '扭矩异常下落',
+    '103': '重复拧紧',
+    '104': '提前松手',
+    '105': '角度过大',
+    # '100': '提前松手',
+    # '101': '螺栓放偏',
+    # '102': '螺栓空转，没办法旋入',
+    # '103': '螺栓被错误的预拧紧',
+    # '104': '螺纹胶涂胶识别有无',
+    # '105': '螺纹胶涂覆位置错误-前后',
+    # '106': '螺钉太长',
+    # '107': '螺钉太短',
+    # '108': '工件开裂',
+    # '109': '尖叫螺栓',
+    # '110': '提前进入屈服阶段',
+    # '111': '转角法监控扭矩小于下限值',
+    # '112': '转角法监控扭矩大于上限值-或者临界上限值'
 }
 
 
@@ -468,6 +474,14 @@ def create_default_connections(session=None):
             host='', password=''), session)
 
 
+def get_connection(conn_id):
+    from airflow.models import Connection
+    with create_session() as session:
+        conn = session.query(Connection).filter(
+            Connection.conn_id == conn_id).first()
+        return conn
+
+
 def initdb(rbac=False):
     from airflow.models import Connection
     session = settings.Session()
@@ -486,11 +500,42 @@ def initdb(rbac=False):
 
     merge_conn(
         Connection(
-            conn_id='rabbitmq_default', conn_type='rabbitmq',
-            login='guest',
+            conn_id='qcos_rabbitmq', conn_type='rabbitmq',
+            login='admin',
+            password='admin',
             schema='amqp',
-            extra='{"user_id": "guest", "vhost": "/", heartbeat: 0 }',
-            host='localhost', port=5672))
+            extra=json.dumps({
+                'vhost': '/',
+                'heartbeat': '0',
+                'exchange': ''
+            }),
+            host='172.17.0.1', port=5672))
+
+    merge_conn(
+        Connection(
+            conn_id='qcos_redis', conn_type='redis',
+            host='172.17.0.1', port=6379,
+            extra='{"db": 0}'), session)
+
+    merge_conn(
+        Connection(
+            conn_id='qcos_influxdb', conn_type='http',
+            host='172.17.0.1', port=9999, password=""
+        ), session)
+
+    merge_conn(
+        Connection(
+            conn_id='qcos_mino', conn_type='http',
+            host='172.17.0.1', port=9000,
+            login='minio',
+            password='minio123'
+        ), session)
+
+    merge_conn(
+        Connection(
+            conn_id='qcos_report', conn_type='http',
+            host='172.17.0.1', port=8686
+        ), session)
 
     # Known event types
     KET = models.KnownEventType

@@ -22,8 +22,8 @@ class ClsRedisConnection(ClsEntity):
     def __init__(self):
         super(ClsEntity, self).__init__()
         self.msg_type = 'pmessage'  # for pmessage 模式匹配
-        self.redis_conn_id = 'redis_default'
-        self._redis: Redis = RedisHook(redis_conn_id='redis_default').get_conn()
+        self.redis_conn_id = 'qcos_redis'
+        self._redis: Redis = RedisHook(redis_conn_id=self.redis_conn_id).get_conn()
         self._pubsub = self._redis.pubsub()
         self.end = False
         self.poke_interval = 5
