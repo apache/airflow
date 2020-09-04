@@ -15,8 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
+
 rules:
-  - name: operation-x-openapi-router-controller
-    object: operation
+  operation-x-openapi-router-controller:
     description: operation should have a x-openapi-router-controller attribute
-    truthy: x-openapi-router-controller
+    given: $.paths[*][get,post,put,patch,delete,head,options,trace]
+    severity: error
+    then:
+      field: x-openapi-router-controller
+      function: truthy

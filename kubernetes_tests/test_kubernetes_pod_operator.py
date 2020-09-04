@@ -877,5 +877,33 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 do_xcom_push=False,
             )
 
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    def test_on_kill(self,
+                     monitor_mock):  # pylint: disable=unused-argument
+        from airflow.utils.state import State
+        client = kube_client.get_kube_client(in_cluster=False)
+        name = "test"
+        namespace = "default"
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["sleep 1000"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id=name,
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        context = create_context(k)
+        monitor_mock.return_value = (State.SUCCESS, None)
+        k.execute(context)
+        name = k.pod.metadata.name
+        pod = client.read_namespaced_pod(name=name, namespace=namespace)
+        self.assertEqual(pod.status.phase, "Running")
+        k.on_kill()
+        with self.assertRaises(ApiException):
+            # pod should be deleted
+            client.read_namespaced_pod(name=name, namespace=namespace)
 
 # pylint: enable=unused-argument

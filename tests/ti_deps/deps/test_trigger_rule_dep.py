@@ -30,6 +30,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
+from tests.test_utils.db import clear_db_runs
 
 
 class TestTriggerRuleDep(unittest.TestCase):
@@ -521,6 +522,7 @@ class TestTriggerRuleDep(unittest.TestCase):
             op4.set_upstream([op3, op2])  # op3, op2 >> op4
             op5.set_upstream([op2, op3, op4])  # (op2, op3, op4) >> op5
 
+        clear_db_runs()
         dag.clear()
         dr = dag.create_dagrun(run_id='test_dagrun_with_pre_tis',
                                state=State.RUNNING,
@@ -538,6 +540,8 @@ class TestTriggerRuleDep(unittest.TestCase):
         ti_op3.set_state(state=State.SUCCESS, session=session)
         ti_op4.set_state(state=State.SUCCESS, session=session)
         ti_op5.set_state(state=State.SUCCESS, session=session)
+
+        session.commit()
 
         # check handling with cases that tasks are triggered from backfill with no finished tasks
         finished_tasks = DepContext().ensure_finished_tasks(ti_op2.task.dag, ti_op2.execution_date, session)

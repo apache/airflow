@@ -222,35 +222,39 @@ For a complete list of updated CLI commands, see https://airflow.apache.org/cli.
 You can learn about the commands by running ``airflow --help``. For example to get help about the ``celery`` group command,
 you have to run the help command: ``airflow celery --help``.
 
-| Old command                 | New command                        |     Group          |
-|-----------------------------|------------------------------------|--------------------|
-| ``airflow worker``          | ``airflow celery worker``          |    ``celery``      |
-| ``airflow flower``          | ``airflow celery flower``          |    ``celery``      |
-| ``airflow trigger_dag``     | ``airflow dags trigger``           |    ``dags``        |
-| ``airflow delete_dag``      | ``airflow dags delete``            |    ``dags``        |
-| ``airflow show_dag``        | ``airflow dags show``              |    ``dags``        |
-| ``airflow list_dag``        | ``airflow dags list``              |    ``dags``        |
-| ``airflow dag_status``      | ``airflow dags status``            |    ``dags``        |
-| ``airflow backfill``        | ``airflow dags backfill``          |    ``dags``        |
-| ``airflow list_dag_runs``   | ``airflow dags list_runs``         |    ``dags``        |
-| ``airflow pause``           | ``airflow dags pause``             |    ``dags``        |
-| ``airflow unpause``         | ``airflow dags unpause``           |    ``dags``        |
-| ``airflow test``            | ``airflow tasks test``             |    ``tasks``       |
-| ``airflow clear``           | ``airflow tasks clear``            |    ``tasks``       |
-| ``airflow list_tasks``      | ``airflow tasks list``             |    ``tasks``       |
-| ``airflow task_failed_deps``| ``airflow tasks failed_deps``      |    ``tasks``       |
-| ``airflow task_state``      | ``airflow tasks state``            |    ``tasks``       |
-| ``airflow run``             | ``airflow tasks run``              |    ``tasks``       |
-| ``airflow render``          | ``airflow tasks render``           |    ``tasks``       |
-| ``airflow initdb``          | ``airflow db init``                |     ``db``         |
-| ``airflow resetdb``         | ``airflow db reset``               |     ``db``         |
-| ``airflow upgradedb``       | ``airflow db upgrade``             |     ``db``         |
-| ``airflow checkdb``         | ``airflow db check``               |     ``db``         |
-| ``airflow shell``           | ``airflow db shell``               |     ``db``         |
-| ``airflow pool``            | ``airflow pools``                  |     ``pools``      |
-| ``airflow create_user``     | ``airflow users create``           |     ``users``      |
-| ``airflow delete_user``     | ``airflow users delete``           |     ``users``      |
-| ``airflow list_users``      | ``airflow users list``             |     ``users``      |
+| Old command                   | New command                        |     Group          |
+|-------------------------------|------------------------------------|--------------------|
+| ``airflow worker``            | ``airflow celery worker``          |    ``celery``      |
+| ``airflow flower``            | ``airflow celery flower``          |    ``celery``      |
+| ``airflow trigger_dag``       | ``airflow dags trigger``           |    ``dags``        |
+| ``airflow delete_dag``        | ``airflow dags delete``            |    ``dags``        |
+| ``airflow show_dag``          | ``airflow dags show``              |    ``dags``        |
+| ``airflow list_dag``          | ``airflow dags list``              |    ``dags``        |
+| ``airflow dag_status``        | ``airflow dags status``            |    ``dags``        |
+| ``airflow backfill``          | ``airflow dags backfill``          |    ``dags``        |
+| ``airflow list_dag_runs``     | ``airflow dags list-runs``         |    ``dags``        |
+| ``airflow pause``             | ``airflow dags pause``             |    ``dags``        |
+| ``airflow unpause``           | ``airflow dags unpause``           |    ``dags``        |
+| ``airflow next_execution``    | ``airflow dags next-execution``    |    ``dags``        |
+| ``airflow test``              | ``airflow tasks test``             |    ``tasks``       |
+| ``airflow clear``             | ``airflow tasks clear``            |    ``tasks``       |
+| ``airflow list_tasks``        | ``airflow tasks list``             |    ``tasks``       |
+| ``airflow task_failed_deps``  | ``airflow tasks failed-deps``      |    ``tasks``       |
+| ``airflow task_state``        | ``airflow tasks state``            |    ``tasks``       |
+| ``airflow run``               | ``airflow tasks run``              |    ``tasks``       |
+| ``airflow render``            | ``airflow tasks render``           |    ``tasks``       |
+| ``airflow initdb``            | ``airflow db init``                |     ``db``         |
+| ``airflow resetdb``           | ``airflow db reset``               |     ``db``         |
+| ``airflow upgradedb``         | ``airflow db upgrade``             |     ``db``         |
+| ``airflow checkdb``           | ``airflow db check``               |     ``db``         |
+| ``airflow shell``             | ``airflow db shell``               |     ``db``         |
+| ``airflow pool``              | ``airflow pools``                  |     ``pools``      |
+| ``airflow create_user``       | ``airflow users create``           |     ``users``      |
+| ``airflow delete_user``       | ``airflow users delete``           |     ``users``      |
+| ``airflow list_users``        | ``airflow users list``             |     ``users``      |
+| ``airflow rotate_fernet_key`` | ``airflow rotate-fernet-key``      |                    |
+| ``airflow sync_perm``         | ``airflow sync-perm``              |                    |
+
 
 
 Example Usage for the ``users`` group:
@@ -517,6 +521,20 @@ The following configurations have been moved from `[core]` to the new `[logging]
 * `log_processor_filename_template`
 * `dag_processor_manager_log_location`
 * `task_log_reader`
+
+#### Changes to Elasticsearch logging provider
+
+When JSON output to stdout is enabled, log lines will now contain the `log_id` & `offset` fields, this should make reading task logs from elasticsearch on the webserver work out of the box. Example configuration:
+```ini
+[logging]
+remote_logging = True
+[elasticsearch]
+host = http://es-host:9200
+write_stdout = True
+json_format = True
+```
+
+Note that the webserver expects the log line data itself to be present in the `message` field of the document.
 
 #### Remove gcp_service_account_keys option in airflow.cfg file
 

@@ -17,19 +17,56 @@
 """
 Example Airflow DAG that shows how to use Google Dataprep.
 """
+import os
 
 from airflow import models
-from airflow.providers.google.cloud.operators.dataprep import DataprepGetJobsForJobGroupOperator
+from airflow.providers.google.cloud.operators.dataprep import (
+    DataprepGetJobGroupOperator,
+    DataprepGetJobsForJobGroupOperator,
+    DataprepRunJobGroupOperator,
+)
 from airflow.utils import dates
 
-JOB_ID = 6269792
+DATAPREP_JOB_ID = int(os.environ.get('DATAPREP_JOB_ID', 12345677))
+DATAPREP_JOB_RECIPE_ID = int(os.environ.get('DATAPREP_JOB_RECIPE_ID', 12345677))
+DATAPREP_BUCKET = os.environ.get("DATAPREP_BUCKET", "gs://afl-sql/name@email.com")
+
+DATA = {
+    "wrangledDataset": {"id": DATAPREP_JOB_RECIPE_ID},
+    "overrides": {
+        "execution": "dataflow",
+        "profiler": False,
+        "writesettings": [
+            {
+                "path": DATAPREP_BUCKET,
+                "action": "create",
+                "format": "csv",
+                "compression": "none",
+                "header": False,
+                "asSingleFile": False,
+            }
+        ],
+    },
+}
+
 
 with models.DAG(
-    "example_dataprep", schedule_interval=None, start_date=dates.days_ago(1)  # Override to match your needs
+    "example_dataprep", schedule_interval=None, start_date=dates.days_ago(1),  # Override to match your needs
 ) as dag:
+    # [START how_to_dataprep_run_job_group_operator]
+    run_job_group = DataprepRunJobGroupOperator(task_id="run_job_group", body_request=DATA)
+    # [END how_to_dataprep_run_job_group_operator]
 
     # [START how_to_dataprep_get_jobs_for_job_group_operator]
     get_jobs_for_job_group = DataprepGetJobsForJobGroupOperator(
-        task_id="get_jobs_for_job_group", job_id=JOB_ID
+        task_id="get_jobs_for_job_group", job_id=DATAPREP_JOB_ID
     )
     # [END how_to_dataprep_get_jobs_for_job_group_operator]
+
+    # [START how_to_dataprep_get_job_group_operator]
+    get_job_group = DataprepGetJobGroupOperator(
+        task_id="get_job_group", job_group_id=DATAPREP_JOB_ID, embed="", include_deleted=False,
+    )
+    # [END how_to_dataprep_get_job_group_operator]
+
+    run_job_group >> [get_jobs_for_job_group, get_job_group]

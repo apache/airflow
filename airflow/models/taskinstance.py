@@ -596,24 +596,20 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         return TaskInstanceKey(self.dag_id, self.task_id, self.execution_date, self.try_number)
 
     @provide_session
-    def set_state(self, state: str, session=None, commit: bool = True):
+    def set_state(self, state: str, session=None):
         """
-        Set TaskInstance state
+        Set TaskInstance state.
 
         :param state: State to set for the TI
         :type state: str
         :param session: SQLAlchemy ORM Session
         :type session: Session
-        :param commit: Whether or not to commit session
-        :type commit: bool
         """
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
         self.start_date = timezone.utcnow()
         self.end_date = timezone.utcnow()
         session.merge(self)
-        if commit:
-            session.commit()
 
     @property
     def is_premature(self):
