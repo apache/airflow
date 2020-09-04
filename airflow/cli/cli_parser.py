@@ -66,6 +66,17 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if value == 'celery' and executor != ExecutorLoader.CELERY_EXECUTOR:
             message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
             raise ArgumentError(action, message)
+        if value == 'kubernetes':
+            try:
+                from kubernetes.client import models
+                if not models:
+                    message = "kubernetes subcommand requires that ' \
+                              'you run pip install 'apache-airflow[cncf.kubernetes]'"
+                    raise ArgumentError(action, message)
+            except Exception:  # pylint: disable=W0703
+                message = 'kubernetes subcommand requires that you pip install the kubernetes python client'
+                raise ArgumentError(action, message)
+
         if action.choices is not None and value not in action.choices:
             check_legacy_command(action, value)
 
@@ -142,6 +153,11 @@ ARG_END_DATE = Arg(
     ("-e", "--end-date"),
     help="Override end_date YYYY-MM-DD",
     type=parsedate)
+ARG_OUTPUT_PATH = Arg(
+    ("-o", "--output-path",),
+    help="The output for generated yaml files",
+    type=str,
+    default=os.getcwd())
 ARG_DRY_RUN = Arg(
     ("-n", "--dry-run"),
     help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
@@ -1254,11 +1270,26 @@ CONFIG_COMMANDS = (
     ),
 )
 
+KUBERNETES_COMMANDS = (
+    ActionCommand(
+        name='generate-dag-yaml',
+        help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
+             "launching into a cluster",
+        func=lazy_load_command('airflow.cli.commands.dag_command.generate_pod_yaml'),
+        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH),
+    ),
+)
+
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
         help='Manage DAGs',
         subcommands=DAGS_COMMANDS,
+    ),
+    GroupCommand(
+        name="kubernetes",
+        help='tools to help run the KubernetesExecutor',
+        subcommands=KUBERNETES_COMMANDS
     ),
     GroupCommand(
         name='tasks',
