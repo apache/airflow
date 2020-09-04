@@ -143,7 +143,8 @@ def create_default_error_tags(session=None):
 def create_default_nd_line_controller_map_var(session=None):
     log.info("Loading default controllers")
     from airflow.models import TighteningController
-    val = get_controllers('./default_controllers.csv')
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    val = get_controllers(os.path.join(current_dir, 'default_controllers.csv'))
     controllers = TighteningController.list_controllers(session=session)
     if len(controllers) > 0:
         log.info("Controllers already exists, skipping")
@@ -386,12 +387,10 @@ def get_connection(conn_id):
 
 
 def initdb(rbac=False):
-    from airflow.models import Connection
-    session = settings.Session()
-
-    from airflow import models
     upgradedb()
-
+    from airflow.models import Connection
+    from airflow import models
+    session = settings.Session()
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS', fallback=True):
         create_default_connections()
 
