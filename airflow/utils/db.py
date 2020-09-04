@@ -30,7 +30,8 @@ import json
 from airflow import settings
 from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.load_controller_from_csv import get_controllers
+from airflow.utils.load_data_from_csv import load_data_from_csv
+from airflow.www_rbac.app import cached_appbuilder
 
 log = LoggingMixin().log
 
@@ -144,7 +145,13 @@ def create_default_nd_line_controller_map_var(session=None):
     log.info("Loading default controllers")
     from airflow.models import TighteningController
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    val = get_controllers(os.path.join(current_dir, 'default_controllers.csv'))
+    val = load_data_from_csv(os.path.join(current_dir, 'default_controllers.csv'), {
+        'controller_name': '控制器名称',
+        'line_code': '工段编号',
+        'work_center_code': '工位编号',
+        'line_name': '工段名称',
+        'work_center_name': '工位名称'
+    })
     controllers = TighteningController.list_controllers(session=session)
     if len(controllers) > 0:
         log.info("Controllers already exists, skipping")
@@ -386,6 +393,34 @@ def get_connection(conn_id):
         return conn
 
 
+def create_default_users():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    default_users = load_data_from_csv(os.path.join(current_dir, 'default_users.csv'), {
+        'username': 'username',
+        'email': 'email',
+        'lastname': 'lastname',
+        'firstname': 'firstname',
+        'password': 'password',
+        'role': 'role'
+    })
+    appbuilder = cached_appbuilder()
+    for user in default_users:
+        role = appbuilder.sm.find_role(user['role'])
+        if not role:
+            raise SystemExit('{} is not a valid role.'.format(user['role']))
+        user_created = appbuilder.sm.add_user(
+            user['username'],
+            user['firstname'],
+            user['lastname'],
+            user['email'],
+            role,
+            user['password'])
+        if user_created:
+            log.info('{} user {} created.'.format(user['role'], user['username']))
+        else:
+            raise SystemExit('Failed to create user.')
+
+
 def initdb(rbac=False):
     upgradedb()
     from airflow.models import Connection
@@ -438,6 +473,8 @@ def initdb(rbac=False):
             conn_id='qcos_report', conn_type='http',
             host='172.17.0.1', port=8686
         ), session)
+
+    create_default_users()
 
     # Known event types
     KET = models.KnownEventType
