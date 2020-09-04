@@ -399,7 +399,7 @@ def initdb(rbac=False):
         create_default_error_tags()
 
     if os.environ.get('FACTORY_CODE', '') in ['nd', '7200']:
-        create_default_nd_line_controller_map_var()
+        create_default_nd_line_controller_map_var(session)
 
     merge_conn(
         Connection(
@@ -412,7 +412,7 @@ def initdb(rbac=False):
                 'heartbeat': '0',
                 'exchange': ''
             }),
-            host='172.17.0.1', port=5672))
+            host='172.17.0.1', port=5672), session)
 
     merge_conn(
         Connection(
