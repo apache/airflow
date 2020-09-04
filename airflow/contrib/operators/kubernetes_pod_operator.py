@@ -141,6 +141,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type do_xcom_push: bool
     :param pod_template_file: path to pod template file
     :type pod_template_file: str
+    :param priority_class_name: priority class name for the launched Pod
+    :type priority_class_name: str
+    :param termination_grace_period: Termination grace period if task killed in UI,
+        defaults to kubernetes default
+    :type termination_grace_period: int
     """
     template_fields = ('image', 'cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
 
@@ -184,6 +189,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  do_xcom_push=False,
                  pod_template_file=None,
                  priority_class_name=None,
+                 termination_grace_period=None,
                  *args,
                  **kwargs):
         if kwargs.get('xcom_push') is not None:
@@ -211,7 +217,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
-        self.resources = self._set_resources(resources)
+        self.resources = self._set_resources(resources)  # noqa
         self.config_file = config_file
         self.image_pull_secrets = image_pull_secrets
         self.service_account_name = service_account_name
@@ -229,6 +235,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.pod_template_file = pod_template_file
         self.priority_class_name = priority_class_name
         self.name = self._set_name(name)
+        self.termination_grace_period = termination_grace_period
         self.client = None
 
     @staticmethod
@@ -453,4 +460,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             pod = self.pod
             namespace = pod.metadata.namespace
             name = pod.metadata.name
-            self.client.delete_namespaced_pod(name=name, namespace=namespace, grace_period_seconds=0)
+            kwargs = {}
+            if self.termination_grace_period is not None:
+                kwargs = {"grace_period_seconds": self.termination_grace_period}
+            self.client.delete_namespaced_pod(name=name, namespace=namespace, **kwargs)
