@@ -20,10 +20,10 @@ function run_bats_tests() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
         docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            bats/bats:latest --tap -r /airflow/tests/bats
+            apache/airflow:bats-2020.09.03-1.2.1 --tap -r /airflow/tests/bats
     else
         docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            bats/bats:latest --tap -r "${FILES[@]}"
+            apache/airflow:bats-2020.09.03-1.2.1 --tap "${FILES[@]}"
     fi
 }
 
