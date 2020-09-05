@@ -223,7 +223,7 @@ repos:
         name: Lint dockerfile
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh"
-        files: ^Dockerfile.*$
+        files: Dockerfile.*$
         pass_filenames: true
       - id: setup-order
         name: Checks for an order of dependencies in setup.py

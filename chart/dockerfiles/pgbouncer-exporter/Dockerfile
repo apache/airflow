@@ -28,6 +28,8 @@ LABEL org.apache.airflow.airflow_pgbouncer_exporter.version="${AIRFLOW_PGBOUNCER
 LABEL org.apache.airflow.commit_sha="${COMMIT_SHA}"
 LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
+# We want to make sure this one includes latest security fixes.
+# "Pin versions in apk add" https://github.com/hadolint/hadolint/wiki/DL3018
 # hadolint ignore=DL3018
 RUN apk --no-cache add libressl libressl-dev
 
