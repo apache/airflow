@@ -95,3 +95,11 @@ DAG Level Role
 ``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
 is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
 allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.
+
+
+Permissions
+'''''''''''
+
+Resource-Based permissions
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+Starting with version 2.0, permissions are based on individual resources and a small subset of actions on those resources. Resources match standard Airflow concepts, such as ``Dag``, ``DagRun``, ``Task``, and ``Connection``. Actions include ``can_create``, ``can_read``, ``can_edit``, and ``can_delete``. Permissions (each consistint of a resource + action pair) are then added to roles.
