@@ -48,6 +48,8 @@ require Breeze Docker images to be installed locally:
 =================================== ================================================================ ============
 ``base-operator``                     Checks that BaseOperator is imported properly
 ----------------------------------- ---------------------------------------------------------------- ------------
+``black``                             Runs Black (the uncompromising Python code formatter)
+----------------------------------- ---------------------------------------------------------------- ------------
 ``build``                             Builds image for mypy, pylint, flake8.                               *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-apache-license``              Checks compatibility with Apache License requirements.
