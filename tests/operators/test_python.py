@@ -1429,3 +1429,42 @@ class TestCurrentContextRuntime:
         with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS):
             op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
+
+
+@pytest.mark.parametrize(
+    "choice,expected_states",
+    [
+        ("task1", [State.SUCCESS, State.SUCCESS, State.SUCCESS]),
+        ("join", [State.SUCCESS, State.SKIPPED, State.SUCCESS]),
+    ]
+)
+def test_empty_branch(choice, expected_states):
+    """
+    Tests that BranchPythonOperator handles empty branches properly.
+    """
+    with DAG(
+        'test_empty_branch',
+        start_date=DEFAULT_DATE,
+    ) as dag:
+        branch = BranchPythonOperator(task_id='branch', python_callable=lambda: choice)
+        task1 = DummyOperator(task_id='task1')
+        join = DummyOperator(task_id='join', trigger_rule="none_failed_or_skipped")
+
+        branch >> [task1, join]
+        task1 >> join
+
+    dag.clear(start_date=DEFAULT_DATE)
+
+    task_ids = ["branch", "task1", "join"]
+
+    tis = {}
+    for task_id in task_ids:
+        task_instance = TI(dag.get_task(task_id), execution_date=DEFAULT_DATE)
+        tis[task_id] = task_instance
+        task_instance.run()
+
+    def get_state(ti):
+        ti.refresh_from_db()
+        return ti.state
+
+    assert [get_state(tis[task_id]) for task_id in task_ids] == expected_states
