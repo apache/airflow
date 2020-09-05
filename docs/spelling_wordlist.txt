@@ -486,6 +486,7 @@ basph
 batchGet
 bc
 bcc
+bdist
 behaviour
 behaviours
 bigquery
@@ -668,6 +669,7 @@ dttm
 dtypes
 durations
 dynamodb
+dynload
 eRevalue
 ec
 ecb
@@ -1110,6 +1112,7 @@ rfc
 ricard
 rideable
 romeoandjuliet
+rootcss
 rowid
 rpc
 rshift
@@ -1304,6 +1307,7 @@ useLegacySQL
 useQueryCache
 userId
 userpass
+usr
 utc
 utcnow
 utf
@@ -1332,6 +1336,7 @@ webserver
 webservers
 webservice
 whitespace
+whl
 wil
 winrm
 workgroup
