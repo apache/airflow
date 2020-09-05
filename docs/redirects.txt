@@ -73,6 +73,7 @@ howto/operator/http/index.rst howto/operator/http.rst
 # Security
 howto/use-alternative-secrets-backend.rst security/secrets/secrets-backend/index.rst
 security.rst security/index.rst
+howto/add-new-role.rst security/access-control.rst
 
 # Logging & Monitoring
 howto/check-health.rst logging-monitoring/check-health.rst
