@@ -39,7 +39,7 @@ The volumes are optional and depend on your configuration. There are two volumes
   - Another option is to use S3/GCS/etc to store logs
 
 To troubleshoot issue with KubernetesExecutor, you can use ``airflow kubernetes generate-dag-yaml`` command.
-This command dumps generates the pods as they will be launched in Kubernetes and dumps them into yaml files for you to inspect.
+This command generates the pods as they will be launched in Kubernetes and dumps them into yaml files for you to inspect.
 
 KubernetesExecutor Architecture
 ################################
