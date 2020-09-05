@@ -18,7 +18,7 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
+if [[ -f "${BUILD_CACHE_DIR}/.skip_tests" ]]; then
     echo
     echo "Skip tests"
     echo
@@ -35,8 +35,8 @@ python -m pip install pre-commit \
 if [[ $# == "0" ]]; then
     pre-commit run --all-files --show-diff-on-failure --color always
 else
-    for PRE_COMMIT in "${@}"
+    for pre_commit_check in "${@}"
     do
-        pre-commit run "${PRE_COMMIT}" --all-files --show-diff-on-failure --color always
+        pre-commit run "${pre_commit_check}" --all-files --show-diff-on-failure --color always
     done
 fi
