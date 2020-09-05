@@ -506,27 +506,27 @@ class CloudMemorystoreHook(GoogleBaseHook):
 
 class CloudMemorystoreMemcachedHook(GoogleBaseHook):
     """
-        Hook for Google Cloud Memorystore for Memcached service APIs.
+    Hook for Google Cloud Memorystore for Memcached service APIs.
 
-        All the methods in the hook where project_id is used must be called with
-        keyword arguments rather than positional.
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
 
-        :param gcp_conn_id: The connection ID to use when fetching connection info.
-        :type gcp_conn_id: str
-        :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-            if any. For this to work, the service account making the request must have
-            domain-wide delegation enabled.
-        :type delegate_to: str
-        :param impersonation_chain: Optional service account to impersonate using short-term
-            credentials, or chained list of accounts required to get the access_token
-            of the last account in the list, which will be impersonated in the request.
-            If set as a string, the account must grant the originating account
-            the Service Account Token Creator IAM role.
-            If set as a sequence, the identities from the list must grant
-            Service Account Token Creator IAM role to the directly preceding identity, with first
-            account from the list granting this role to the originating account.
-        :type impersonation_chain: Union[str, Sequence[str]]
-        """
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
 
     def __init__(
         self,
@@ -535,13 +535,11 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
         self._client = None  # type: Optional[CloudMemcacheClient]
 
-    def get_conn(self, ):
+    def get_conn(self,):
         """
         Retrieves client library object that allow access to Cloud Memorystore Memcached service.
 
@@ -590,8 +588,8 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
         :type location: str
-        :param instance_id: Required. The logical name of the Memcached instance in the customer project with the
-            following restrictions:
+        :param instance_id: Required. The logical name of the Memcached instance in the customer project
+            with the following restrictions:
 
             -  Must contain only lowercase letters, numbers, and hyphens.
             -  Must start with a letter.
@@ -618,9 +616,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         """
         client = self.get_conn()
         parent = path_template.expand(
-            "projects/{project}/locations/{location}",
-            project=project_id,
-            location=location
+            "projects/{project}/locations/{location}", project=project_id, location=location
         )
         instance_name = CloudMemcacheClient.instance_path(project_id, location, instance_id)
         try:
@@ -642,7 +638,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         result = client.create_instance(
             parent=parent,
             instance_id=instance_id,
-            instance=instance,
+            resource=instance,
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -732,7 +728,6 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
     def list_instances(
         self,
         location: str,
-        page_size: int,
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -747,10 +742,6 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
                 If it is specified as ``-`` (wildcard), then all regions available to the project are
                 queried, and the results are aggregated.
         :type location: str
-        :param page_size: The maximum number of resources contained in the underlying API response. If page
-            streaming is performed per- resource, this parameter does not affect the return value. If page
-            streaming is performed per-page, this determines the maximum number of resources in a page.
-        :type page_size: int
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
@@ -765,12 +756,8 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         """
         client = self.get_conn()
         parent = path_template.expand(
-            "projects/{project}/locations/{location}",
-            project=project_id,
-            location=location
+            "projects/{project}/locations/{location}", project=project_id, location=location
         )
-        result = client.list_instances(
-            parent=parent, page_size=page_size, retry=retry, timeout=timeout, metadata=metadata
-        )
+        result = client.list_instances(parent=parent, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info("Fetched instances")
         return result

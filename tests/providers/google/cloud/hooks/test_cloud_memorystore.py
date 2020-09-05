@@ -25,7 +25,10 @@ from mock import PropertyMock
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.cloud_memorystore import CloudMemorystoreHook, CloudMemorystoreMemcachedHook
+from airflow.providers.google.cloud.hooks.cloud_memorystore import (
+    CloudMemorystoreHook,
+    CloudMemorystoreMemcachedHook,
+)
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
     mock_base_gcp_hook_default_project_id,
@@ -438,7 +441,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.get_conn"
@@ -461,7 +464,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.get_conn"
@@ -502,7 +505,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.get_conn"
@@ -522,7 +525,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.get_conn"
@@ -542,22 +545,17 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.get_conn"
     )
     def test_list_instances(self, mock_get_conn, mock_project_id):
         self.hook.list_instances(  # pylint: disable=no-value-for-parameter
-            location=TEST_LOCATION,
-            page_size=TEST_PAGE_SIZE,
-            retry=TEST_RETRY,
-            timeout=TEST_TIMEOUT,
-            metadata=TEST_METADATA,
+            location=TEST_LOCATION, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.list_instances.assert_called_once_with(
             parent=TEST_PARENT_DEFAULT_PROJECT_ID,
-            page_size=TEST_PAGE_SIZE,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,

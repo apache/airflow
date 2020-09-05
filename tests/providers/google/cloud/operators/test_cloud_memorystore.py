@@ -35,7 +35,7 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreUpdateInstanceOperator,
     CloudMemorystoreMemcachedCreateInstanceOperator,
     CloudMemorystoreMemcachedDeleteInstanceOperator,
-    CloudMemorystoreMemcachedGetInstanceOperator
+    CloudMemorystoreMemcachedGetInstanceOperator,
 )
 
 TEST_GCP_CONN_ID = "test-gcp-conn-id"

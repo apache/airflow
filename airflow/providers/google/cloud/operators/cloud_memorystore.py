@@ -25,7 +25,10 @@ from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, Output
 from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.cloud_memorystore import CloudMemorystoreHook, CloudMemorystoreMemcachedHook
+from airflow.providers.google.cloud.hooks.cloud_memorystore import (
+    CloudMemorystoreHook,
+    CloudMemorystoreMemcachedHook,
+)
 from airflow.utils.decorators import apply_defaults
 
 
@@ -1176,7 +1179,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
@@ -1242,7 +1245,7 @@ class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location

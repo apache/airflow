@@ -38,7 +38,7 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreScaleInstanceOperator,
     CloudMemorystoreUpdateInstanceOperator,
     CloudMemorystoreMemcachedCreateInstanceOperator,
-    CloudMemorystoreMemcachedDeleteInstanceOperator
+    CloudMemorystoreMemcachedDeleteInstanceOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSBucketCreateAclEntryOperator
 from airflow.utils import dates
@@ -249,6 +249,9 @@ with models.DAG(
 
     # [START howto_operator_delete_instance_memcached]
     delete_instance_3 = CloudMemorystoreMemcachedDeleteInstanceOperator(
-        task_id="delete-instance-3", location="europe-north1", instance=INSTANCE_NAME_4, project_id=GCP_PROJECT_ID
+        task_id="delete-instance-3",
+        location="europe-north1",
+        instance=INSTANCE_NAME_4,
+        project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_delete_instance_memcached]
