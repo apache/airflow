@@ -156,6 +156,44 @@ Example DAG with functional abstraction
         html_content=email_info['body']
     )
 
+.. _concepts:executor_config:
+
+executor_config
+===============
+
+The executor_config is an argument placed into operators that allow airflow users to override tasks
+before launch. Currently this is primarily used by the :class:`KubernetesExecutor`, but will soon be available
+for other overrides.
+
+.. _concepts:pod_override:
+
+pod_override
+------------
+
+When using the KubernetesExecutor, Airflow offers the ability to override system defaults on a per-task basis.
+To utilize this functionality, create a Kubernetes V1pod object and fill in your desired overrides.
+Please note that the scheduler will override the ``metadata.name`` of the V1pod before launching it.
+
+To overwrite the base container of the pod launched by the KubernetesExecutor,
+create a V1pod with a single container, and overwrite the fields as follows:
+
+.. exampleinclude:: /../airflow/example_dags/example_kubernetes_executor_config.py
+    :language: python
+    :start-after: [START task_with_volume]
+    :end-before: [END task_with_volume]
+
+Note that volume mounts environment variables, ports, and devices will all be extended instead of overwritten.
+
+To add a sidecar container to the launched pod, create a V1pod with an empty first container with the
+name ``base`` and a second container containing your desired sidecar.
+
+.. exampleinclude:: /../airflow/example_dags/example_kubernetes_executor_config.py
+    :language: python
+    :start-after: [START task_with_sidecar]
+    :end-before: [END task_with_sidecar]
+
+In the following example, we create a sidecar container that shares a volume_mount for data sharing.
+
 .. _concepts:dagruns:
 
 DAG Runs

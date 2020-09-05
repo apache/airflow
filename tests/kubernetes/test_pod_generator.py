@@ -270,7 +270,47 @@ class TestPodGenerator(unittest.TestCase):
                 ],
             }
         })
+
+        result_from_pod = PodGenerator.from_obj(
+            {"pod_override":
+                k8s.V1Pod(
+                    metadata=k8s.V1ObjectMeta(
+                        annotations={"test": "annotation"}
+                    ),
+                    spec=k8s.V1PodSpec(
+                        containers=[
+                            k8s.V1Container(
+                                name="base",
+                                volume_mounts=[
+                                    k8s.V1VolumeMount(
+                                        name="example-kubernetes-test-volume",
+                                        mount_path="/foo/"
+                                    )
+                                ]
+                            )
+                        ],
+                        volumes=[
+                            k8s.V1Volume(
+                                name="example-kubernetes-test-volume",
+                                host_path="/tmp/"
+                            )
+                        ]
+                    )
+                )
+             }
+        )
+
         result = self.k8s_client.sanitize_for_serialization(result)
+        result_from_pod = self.k8s_client.sanitize_for_serialization(result_from_pod)
+        expected_from_pod = {'metadata': {'annotations': {'test': 'annotation'}},
+                             'spec': {'containers': [
+                                 {'name': 'base',
+                                  'volumeMounts': [{'mountPath': '/foo/',
+                                                    'name': 'example-kubernetes-test-volume'}]}],
+                                 'volumes': [{'hostPath': '/tmp/',
+                                              'name': 'example-kubernetes-test-volume'}]}}
+        self.assertEqual(result_from_pod, expected_from_pod, "There was a discrepency"
+                                                             " between KubernetesExecutor and pod_override")
 
         self.assertEqual({
             'apiVersion': 'v1',
