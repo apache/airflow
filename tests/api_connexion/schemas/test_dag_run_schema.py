@@ -81,6 +81,10 @@ class TestDAGRunSchema(TestDAGRunBase):
                 {"dag_run_id": "my-dag-run", "execution_date": DEFAULT_TIME, "conf": {"start": "stop"},},
                 {"run_id": "my-dag-run", "execution_date": parse(DEFAULT_TIME), "conf": {"start": "stop"},},
             ),
+            (
+                {"dag_run_id": "my-dag-run", "execution_date": DEFAULT_TIME, "conf": '{"start": "stop"}',},
+                {"run_id": "my-dag-run", "execution_date": parse(DEFAULT_TIME), "conf": {"start": "stop"},},
+            ),
         ]
     )
     def test_deserialize(self, serialized_dagrun, expected_result):
