@@ -94,6 +94,7 @@ Content
     kubernetes
     lineage
     dag-serialization
+    modules_management
     changelog
     best-practices
     faq

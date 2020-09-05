@@ -20,20 +20,23 @@
 Modules Management
 ==================
 
-Airflow allows you to use your own Python modules in the DAG and in the Airflow configuration. The following article
-will describe how you can create your own module so that Airflow can load it correctly, as well as diagnose problems
-when modules are not loaded properly.
+Airflow allows you to use your own Python modules in the DAG and in the
+Airflow configuration. The following article will describe how you can
+create your own module so that Airflow can load it correctly, as well as
+diagnose problems when modules are not loaded properly.
 
 
 Packages Loading in Python
 --------------------------
 
-The list of directories from which Python tries to load the module is given by the variable :any:`sys.path`. Python
-really tries to `intelligently determine the contents of <https://stackoverflow.com/a/38403654>`_ of this variable,
-including depending on the operating system and how Python is installed and which Python version is used.
+The list of directories from which Python tries to load the module is given
+by the variable ``sys.path``. Python really tries to
+`intelligently determine the contents of <https://stackoverflow.com/a/38403654>`_
+of this variable, including depending on the operating system and how Python
+is installed and which Python version is used.
 
-You can check the contents of this variable for the current Python environment by running an interactive terminal as in
-the example below:
+You can check the contents of this variable for the current Python environment
+by running an interactive terminal as in the example below:
 
 .. code-block:: pycon
 
@@ -46,18 +49,23 @@ the example below:
      '/home/arch/.pyenv/versions/3.7.4/lib/python3.7/lib-dynload',
      '/home/arch/venvs/airflow/lib/python3.7/site-packages']
 
-``sys.path`` is initialized during program startup. The first precedence is given to the current directory,
-i.e, ``path[0]`` is the directory containing the current script that was used to invoke or an empty string in case
-it was an interactive shell. Second precedence is given to the ``PYTHONPATH`` if provided, followed by installation-dependent
-default paths which is managed by `site <https://docs.python.org/3/library/site.html#module-site>`_ module.
+``sys.path`` is initialized during program startup. The first precedence is
+given to the current directory, i.e, ``path[0]`` is the directory containing
+the current script that was used to invoke or an empty string in case it was
+an interactive shell. Second precedence is given to the ``PYTHONPATH`` if provided,
+followed by installation-dependent default paths which is managed by
+`site <https://docs.python.org/3/library/site.html#module-site>`_ module.
 
 ``sys.path`` can also be modified during a Python session by simply using append
-(for example, ``sys.path.append("/path/to/custom/package")``). Python will start searching for packages in the newer
-paths once they're added. Airflow makes use of this feature as described in the further sections.
+(for example, ``sys.path.append("/path/to/custom/package")``). Python will start
+searching for packages in the newer paths once they're added. Airflow makes use
+of this feature as described in the section :ref:`Additional modules in Airflow <additional-modules-in-airflow>`.
 
-In the variable ``sys.path`` there is a directory ``site-packages`` which contains the installed **external packages**,
-which means you can install packages with ``pip`` or ``anaconda`` and you can use them in Airflow. In the next section,
-you will learn how to create your own simple installable package and how to specify additional directories to be added
+In the variable ``sys.path`` there is a directory ``site-packages`` which
+contains the installed **external packages**, which means you can install
+packages with ``pip`` or ``anaconda`` and you can use them in Airflow.
+In the next section, you will learn how to create your own simple
+installable package and how to specify additional directories to be added
 to ``sys.path`` using the environment variable :envvar:`PYTHONPATH`.
 
 
@@ -66,17 +74,21 @@ Creating a package in Python
 
 1. Before starting, install the following packages:
 
-``setuptools``: setuptools is a package development process library designed for creating and distributing Python packages.
+``setuptools``: setuptools is a package development process library designed
+for creating and distributing Python packages.
 
-``wheel``: The wheel package provides a bdist_wheel command for setuptools. It creates .whl file which is directly
-installable through the ``pip install`` command. We can then upload the same file to pypi.org.
+``wheel``: The wheel package provides a bdist_wheel command for setuptools. It
+creates .whl file which is directly installable through the ``pip install``
+command. We can then upload the same file to pypi.org.
 
 .. code-block:: bash
+
     pip install --upgrade pip setuptools wheel
 
 2. Create the package directory - in our case, we will call it ``airflow_operators``.
 
 .. code-block:: bash
+
     mkdir airflow_operators
 
 3. Create the file ``__init__.py`` inside the package and add following code:
@@ -103,7 +115,8 @@ When we import this package, it should print the above message.
 
     python setup.py bdist_wheel
 
-This will create a few directories in the project and the overall structure will look like following:
+This will create a few directories in the project and the overall structure will
+look like following:
 
 .. code-block:: bash
 
@@ -149,8 +162,9 @@ see `Packaging Python Projects <https://packaging.python.org/tutorials/packaging
 Adding directories to the path
 ------------------------------
 
-You can specify additional directories to be added to ``sys.path`` using the environment variable :envvar:`PYTHONPATH`.
-Start the python shell by providing the path to root of your project using the following command:
+You can specify additional directories to be added to ``sys.path`` using the
+environment variable :envvar:`PYTHONPATH`. Start the python shell by providing
+the path to root of your project using the following command:
 
 .. code-block:: bash
 
@@ -170,7 +184,8 @@ The ``sys.path`` variable will look like below:
      '/home/arch/.pyenv/versions/3.7.4/lib/python3.7/lib-dynload',
      '/home/arch/venvs/airflow/lib/python3.7/site-packages']
 
-As we can see that our provided directory is now added to the path, let's try to import the package now:
+As we can see that our provided directory is now added to the path, let's
+try to import the package now:
 
 .. code-block:: pycon
 
@@ -178,33 +193,38 @@ As we can see that our provided directory is now added to the path, let's try to
     Hello from airflow_operators
     >>>
 
-We can also use :envvar:`PYTHONPATH` variable with the airflow commands. For example, if we run the following airflow
-command:
+We can also use :envvar:`PYTHONPATH` variable with the airflow commands.
+For example, if we run the following airflow command:
 
 .. code-block:: bash
 
     PYTHONPATH=/home/arch/projects/airflow_operators airflow info
 
-We'll see the ``Python PATH`` updated with our mentioned :envvar:`PYTHONPATH` value as shown below:
+We'll see the ``Python PATH`` updated with our mentioned :envvar:`PYTHONPATH`
+value as shown below:
 
 .. code-block:: none
 
     Python PATH: [/home/arch/venv/bin:/home/arch/projects/airflow_operators:/usr/lib/python38.zip:/usr/lib/python3.8:/usr/lib/python3.8/lib-dynload:/home/arch/venv/lib/python3.8/site-packages:/home/arch/airflow/dags:/home/arch/airflow/config:/home/arch/airflow/plugins]
 
 
+.. _additional-modules-in-airflow:
+
 Additional modules in Airflow
 -----------------------------
+
 Airflow adds three additional directories to the ``sys.path``:
 
 - DAGS folder: It is configured with option ``dags_folder`` in section ``[core]``.
 - Config folder: It is configured by setting ``AIRFLOW_HOME`` variable (``{AIRFLOW_HOME}/config``) by default.
 - Plugins Folder: It is configured with option ``plugins_folder`` in section ``[core]``.
 
-You can also see the exact paths using the ``airflow info`` command, and use them similar to directories
-specified with the environment variable :envvar:`PYTHONPATH`. An example of the contents of the sys.path variable
+You can also see the exact paths using the ``airflow info`` command,
+and use them similar to directories specified with the environment variable
+:envvar:`PYTHONPATH`. An example of the contents of the sys.path variable
 specified by this command may be as follows:
 
-Python PATH: [/home/rootcss/venvs/airflow/bin:/bakwaas/path:/usr/lib/python38.zip:/usr/lib/python3.8:/usr/lib/python3.8/lib-dynload:/home/rootcss/venvs/airflow/lib/python3.8/site-packages:/home/rootcss/airflow/dags:/home/rootcss/airflow/config:/home/rootcss/airflow/plugins]
+Python PATH: [/home/rootcss/venvs/airflow/bin:/usr/lib/python38.zip:/usr/lib/python3.8:/usr/lib/python3.8/lib-dynload:/home/rootcss/venvs/airflow/lib/python3.8/site-packages:/home/rootcss/airflow/dags:/home/rootcss/airflow/config:/home/rootcss/airflow/plugins]
 
 Below is the sample output of the ``airflow info`` command:
 
@@ -228,7 +248,7 @@ Below is the sample output of the ``airflow info`` command:
 
     Airflow Home: [/home/rootcss/airflow]
     System PATH: [/home/rootcss/venvs/airflow/bin:/home/rootcss/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/rootcss/.rvm/bin:/usr/local/go/bin:/home/rootcss/.rvm/bin]
-    Python PATH: [/home/rootcss/venvs/airflow/bin:/bakwaas/path:/usr/lib/python38.zip:/usr/lib/python3.8:/usr/lib/python3.8/lib-dynload:/home/rootcss/venvs/airflow/lib/python3.8/site-packages:/home/rootcss/airflow/dags:/home/rootcss/airflow/config:/home/rootcss/airflow/plugins]
+    Python PATH: [/home/rootcss/venvs/airflow/bin:/usr/lib/python38.zip:/usr/lib/python3.8:/usr/lib/python3.8/lib-dynload:/home/rootcss/venvs/airflow/lib/python3.8/site-packages:/home/rootcss/airflow/dags:/home/rootcss/airflow/config:/home/rootcss/airflow/plugins]
     airflow on PATH: [True]
 
     Executor: [SequentialExecutor]
