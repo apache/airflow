@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterable, Set, Union
+from typing import Iterable, Union
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -122,7 +122,9 @@ class SkipMixin(LoggingMixin):
         """
         self.log.info("Following branch %s", branch_task_ids)
         if isinstance(branch_task_ids, str):
-            branch_task_ids = [branch_task_ids]
+            branch_task_ids = {branch_task_ids}
+
+        branch_task_ids = set(branch_task_ids)
 
         dag_run = ti.get_dagrun()
         task = ti.task
@@ -131,11 +133,20 @@ class SkipMixin(LoggingMixin):
         downstream_tasks = task.downstream_list
 
         if downstream_tasks:
-            # Also check downstream tasks of the branch task. In case the task to skip
-            # is also a downstream task of the branch task, we exclude it from skipping.
-            branch_downstream_task_ids = set()  # type: Set[str]
-            for branch_task_id in branch_task_ids:
-                branch_downstream_task_ids.update(
+            # For a branching workflow that looks like this, when "branch" does skip_all_except("task1"),
+            # we intuitively expect both "task1" and "join" to execute even though strictly speaking,
+            # "join" is also immediately downstream of "branch" and should have been skipped. Therefore,
+            # we need a special case here for such empty branches: Check downstream tasks of branch_task_ids.
+            # In case the task to skip is also downstream of branch_task_ids, we add it to branch_task_ids and
+            # exclude it from skipping.
+            #
+            # branch  ----->  join
+            #   \            ^
+            #     v        /
+            #       task1
+            #
+            for branch_task_id in list(branch_task_ids):
+                branch_task_ids.update(
                     dag.get_task(branch_task_id).get_flat_relative_ids(upstream=False)
                 )
 
@@ -143,8 +154,8 @@ class SkipMixin(LoggingMixin):
                 t
                 for t in downstream_tasks
                 if t.task_id not in branch_task_ids
-                and t.task_id not in branch_downstream_task_ids
             ]
+            follow_task_ids = [t.task_id for t in downstream_tasks if t.task_id in branch_task_ids]
 
             self.log.info("Skipping tasks %s", [t.task_id for t in skip_tasks])
             with create_session() as session:
@@ -152,5 +163,5 @@ class SkipMixin(LoggingMixin):
                     dag_run, ti.execution_date, skip_tasks, session=session
                 )
                 ti.xcom_push(
-                    key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: branch_task_ids}
+                    key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids}
                 )
