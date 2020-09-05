@@ -78,6 +78,7 @@ Follow the steps below to enable custom logging config class:
 
 #. Restart the application.
 
+See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 
 Before you begin
 ''''''''''''''''
