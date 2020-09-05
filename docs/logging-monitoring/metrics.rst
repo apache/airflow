@@ -67,6 +67,8 @@ your PYTHONPATH.
     [scheduler]
     statsd_custom_client_path = x.y.customclient
 
+See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+
 Counters
 --------
 

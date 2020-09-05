@@ -747,6 +747,8 @@ to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter 
 deserialization mechanism the custom class should override ``serialize_value`` and ``deserialize_value``
 methods.
 
+See :doc:`modules_management` for details on how Python and Airflow manage modules.
+
 .. _concepts:variables:
 
 Variables
@@ -1196,6 +1198,8 @@ Where to put ``airflow_local_settings.py``?
 
 Add a ``airflow_local_settings.py`` file to your ``$PYTHONPATH``
 or to ``$AIRFLOW_HOME/config`` folder.
+
+See :doc:`modules_management` for details on how Python and Airflow manage modules.
 
 
 Documentation & Notes

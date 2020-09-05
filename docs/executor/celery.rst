@@ -87,6 +87,8 @@ Some caveats:
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions
 
+See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+
 Architecture
 ------------
 
