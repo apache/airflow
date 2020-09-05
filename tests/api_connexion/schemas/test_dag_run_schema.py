@@ -44,7 +44,7 @@ class TestDAGRunBase(unittest.TestCase):
 
 class TestDAGRunSchema(TestDAGRunBase):
     @provide_session
-    def test_serialze(self, session):
+    def test_serialize(self, session):
         dagrun_model = DagRun(
             run_id="my-dag-run",
             run_type=DagRunType.MANUAL.value,
