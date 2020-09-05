@@ -2628,6 +2628,7 @@ class DagRunModelView(AirflowModelView):
         'start_date': wwwutils.datetime_f('start_date'),
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
+        'conf': wwwutils.json_f('conf'),
     }
 
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?",

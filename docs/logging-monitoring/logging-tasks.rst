@@ -78,6 +78,7 @@ Follow the steps below to enable custom logging config class:
 
 #. Restart the application.
 
+See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 
 Before you begin
 ''''''''''''''''
@@ -197,7 +198,7 @@ example:
 
 #. By default Application Default Credentials are used to obtain credentials. You can also
    set ``google_key_path`` option in ``[logging]`` section, if you want to use your own service account.
-#. Make sure a Google Cloud Platform account have read and write access to the Google Cloud Storage bucket defined above in ``remote_base_log_folder``.
+#. Make sure a Google Cloud account have read and write access to the Google Cloud Storage bucket defined above in ``remote_base_log_folder``.
 #. Install the ``google`` package, like so: ``pip install 'apache-airflow[google]'``.
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
 #. Verify that logs are showing up for newly executed tasks in the bucket you've defined.

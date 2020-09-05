@@ -133,7 +133,7 @@ class ClusterGenerator:
     :type tags: list[str]
     :param region: leave as 'global', might become relevant in the future. (templated)
     :type region: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param service_account: The service account of the dataproc instances.
     :type service_account: str
@@ -454,7 +454,7 @@ class DataprocCreateClusterOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -664,7 +664,7 @@ class DataprocScaleClusterOperator(BaseOperator):
     :param graceful_decommission_timeout: Timeout for graceful YARN decomissioning.
         Maximum value is 1d
     :type graceful_decommission_timeout: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -781,7 +781,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
     """
     Deletes a cluster in a project.
 
-    :param project_id: Required. The ID of the Google Cloud Platform project that the cluster belongs to.
+    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
     :type project_id: str
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :type region: str
@@ -802,7 +802,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -878,7 +878,7 @@ class DataprocJobBaseOperator(BaseOperator):
     :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
         MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
     :type dataproc_jars: list
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -906,6 +906,10 @@ class DataprocJobBaseOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param asynchronous: Flag to return after submitting the job to the Dataproc API.
+        This is useful for submitting long running jobs and
+        waiting on them asynchronously using the DataprocJobSensor
+    :type asynchronous: bool
 
     :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
         This is useful for identifying or linking to the job in the Google Cloud Console
@@ -930,6 +934,7 @@ class DataprocJobBaseOperator(BaseOperator):
         region: str = 'global',
         job_error_states: Optional[Set[str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        asynchronous: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -949,6 +954,7 @@ class DataprocJobBaseOperator(BaseOperator):
         self.job_template = None
         self.job = None
         self.dataproc_job_id = None
+        self.asynchronous = asynchronous
 
     def create_job_template(self):
         """
@@ -980,8 +986,13 @@ class DataprocJobBaseOperator(BaseOperator):
                 project_id=self.project_id, job=self.job["job"], location=self.region,
             )
             job_id = job_object.reference.job_id
-            self.hook.wait_for_job(job_id=job_id, location=self.region, project_id=self.project_id)
-            self.log.info('Job executed correctly.')
+            self.log.info('Job %s submitted successfully.', job_id)
+
+            if not self.asynchronous:
+                self.log.info('Waiting for job %s to complete', job_id)
+                self.hook.wait_for_job(job_id=job_id, location=self.region, project_id=self.project_id)
+                self.log.info('Job %s completed successfully.', job_id)
+            return job_id
         else:
             raise AirflowException("Create a job template before")
 
@@ -1583,7 +1594,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1688,7 +1699,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1753,7 +1764,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     """
     Submits a job to a cluster.
 
-    :param project_id: Required. The ID of the Google Cloud Platform project that the job belongs to.
+    :param project_id: Required. The ID of the Google Cloud project that the job belongs to.
     :type project_id: str
     :param location: Required. The Cloud Dataproc region in which to handle the request.
     :type location: str
@@ -1785,6 +1796,10 @@ class DataprocSubmitJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param asynchronous: Flag to return after submitting the job to the Dataproc API.
+        This is useful for submitting long running jobs and
+        waiting on them asynchronously using the DataprocJobSensor
+    :type asynchronous: bool
     """
 
     template_fields = (
@@ -1807,6 +1822,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        asynchronous: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1819,6 +1835,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.asynchronous = asynchronous
 
     def execute(self, context: Dict):
         self.log.info("Submitting job")
@@ -1833,16 +1850,21 @@ class DataprocSubmitJobOperator(BaseOperator):
             metadata=self.metadata,
         )
         job_id = job_object.reference.job_id
-        self.log.info("Waiting for job %s to complete", job_id)
-        hook.wait_for_job(job_id=job_id, project_id=self.project_id, location=self.location)
-        self.log.info("Job completed successfully.")
+        self.log.info('Job %s submitted successfully.', job_id)
+
+        if not self.asynchronous:
+            self.log.info('Waiting for job %s to complete', job_id)
+            hook.wait_for_job(job_id=job_id, location=self.location, project_id=self.project_id)
+            self.log.info('Job %s completed successfully.', job_id)
+
+        return job_id
 
 
 class DataprocUpdateClusterOperator(BaseOperator):
     """
     Updates a cluster in a project.
 
-    :param project_id: Required. The ID of the Google Cloud Platform project the cluster belongs to.
+    :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :type project_id: str
     :param location: Required. The Cloud Dataproc region in which to handle the request.
     :type location: str
@@ -1877,7 +1899,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
     :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

@@ -44,7 +44,7 @@ class TestDAGRunBase(unittest.TestCase):
 
 class TestDAGRunSchema(TestDAGRunBase):
     @provide_session
-    def test_serialze(self, session):
+    def test_serialize(self, session):
         dagrun_model = DagRun(
             run_id="my-dag-run",
             run_type=DagRunType.MANUAL.value,
@@ -79,6 +79,10 @@ class TestDAGRunSchema(TestDAGRunBase):
             ),
             (
                 {"dag_run_id": "my-dag-run", "execution_date": DEFAULT_TIME, "conf": {"start": "stop"},},
+                {"run_id": "my-dag-run", "execution_date": parse(DEFAULT_TIME), "conf": {"start": "stop"},},
+            ),
+            (
+                {"dag_run_id": "my-dag-run", "execution_date": DEFAULT_TIME, "conf": '{"start": "stop"}',},
                 {"run_id": "my-dag-run", "execution_date": parse(DEFAULT_TIME), "conf": {"start": "stop"},},
             ),
         ]

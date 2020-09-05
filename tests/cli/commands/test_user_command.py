@@ -219,7 +219,7 @@ class TestCliUsers(unittest.TestCase):
         )
 
         args = self.parser.parse_args([
-            'users', 'add_role', '--username', 'test4', '--role', 'Op'
+            'users', 'add-role', '--username', 'test4', '--role', 'Op'
         ])
         user_command.users_manage_role(args, remove=False)
 
@@ -242,7 +242,7 @@ class TestCliUsers(unittest.TestCase):
         )
 
         args = self.parser.parse_args([
-            'users', 'remove_role', '--username', 'test4', '--role', 'Viewer'
+            'users', 'remove-role', '--username', 'test4', '--role', 'Viewer'
         ])
         user_command.users_manage_role(args, remove=True)
 

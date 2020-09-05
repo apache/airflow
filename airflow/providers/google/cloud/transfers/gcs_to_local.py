@@ -53,10 +53,10 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         the contents of the downloaded file to XCom with the key set in this
         parameter. If not set, the downloaded data will not be pushed to XCom. (templated)
     :type store_to_xcom_key: str
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
-        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have

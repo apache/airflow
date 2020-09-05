@@ -89,7 +89,7 @@ class GKEHook(GoogleBaseHook):
 
         :param operation: The Operation to wait for
         :type operation: google.cloud.container_V1.gapic.enums.Operation
-        :param project_id: Google Cloud Platform project ID
+        :param project_id: Google Cloud project ID
         :type project_id: str
         :return: A new, updated operation fetched from Google Cloud
         """
@@ -110,7 +110,7 @@ class GKEHook(GoogleBaseHook):
 
         :param operation_name: Name of operation to fetch
         :type operation_name: str
-        :param project_id: Google Cloud Platform project ID
+        :param project_id: Google Cloud project ID
         :type project_id: str
         :return: The new, updated operation from Google Cloud
         """
@@ -153,7 +153,7 @@ class GKEHook(GoogleBaseHook):
 
         :param name: The name of the cluster to delete
         :type name: str
-        :param project_id: Google Cloud Platform project ID
+        :param project_id: Google Cloud project ID
         :type project_id: str
         :param retry: Retry object used to determine when/if to retry requests.
             If None is specified, requests will not be retried.
@@ -190,7 +190,7 @@ class GKEHook(GoogleBaseHook):
             be of the same form as the protobuf message
             :class:`google.cloud.container_v1.types.Cluster`
         :type cluster: dict or google.cloud.container_v1.types.Cluster
-        :param project_id: Google Cloud Platform project ID
+        :param project_id: Google Cloud project ID
         :type project_id: str
         :param retry: A retry object (``google.api_core.retry.Retry``) used to
             retry requests.
@@ -237,7 +237,7 @@ class GKEHook(GoogleBaseHook):
 
         :param name: The name of the cluster to retrieve
         :type name: str
-        :param project_id: Google Cloud Platform project ID
+        :param project_id: Google Cloud project ID
         :type project_id: str
         :param retry: A retry object used to retry requests. If None is specified,
             requests will not be retried.

@@ -258,13 +258,13 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
 
     :param partial_keys: a list of partial keys.
     :type partial_keys: list
-    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :param project_id: Google Cloud project ID against which to make the request.
     :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -320,13 +320,13 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
 
     :param transaction_options: Options for a new transaction.
     :type transaction_options: Dict[str, Any]
-    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :param project_id: Google Cloud project ID against which to make the request.
     :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -384,13 +384,13 @@ class CloudDatastoreCommitOperator(BaseOperator):
 
     :param body: the body of the commit request.
     :type body: dict
-    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :param project_id: Google Cloud project ID against which to make the request.
     :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -446,13 +446,13 @@ class CloudDatastoreRollbackOperator(BaseOperator):
 
     :param transaction: the transaction to roll back.
     :type transaction: str
-    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :param project_id: Google Cloud project ID against which to make the request.
     :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -509,13 +509,13 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
 
     :param body: the body of the query request.
     :type body: dict
-    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :param project_id: Google Cloud project ID against which to make the request.
     :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -571,7 +571,7 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -625,7 +625,7 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

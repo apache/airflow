@@ -26,5 +26,5 @@ else
     PARAMS=("${@}")
 fi
 
-# shellcheck source=scripts/ci/static_checks/bat_tests.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/bat_tests.sh" "${PARAMS[@]}"
+# shellcheck source=scripts/ci/static_checks/bats_tests.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/bats_tests.sh" "${PARAMS[@]}"

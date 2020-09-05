@@ -109,7 +109,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
 class GCSHook(GoogleBaseHook):
     """
-    Interact with Google Cloud Storage. This hook uses the Google Cloud Platform
+    Interact with Google Cloud Storage. This hook uses the Google Cloud
     connection.
     """
 

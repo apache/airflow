@@ -53,7 +53,7 @@ class SFTPToGCSOperator(BaseOperator):
         If a wildcard is supplied in the destination_path argument, this is the
         prefix that will be prepended to the final destination objects' paths.
     :type destination_path: str
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.

@@ -31,7 +31,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class DatastoreHook(GoogleBaseHook):
     """
-    Interact with Google Cloud Datastore. This hook uses the Google Cloud Platform connection.
+    Interact with Google Cloud Datastore. This hook uses the Google Cloud connection.
 
     This object is not threads safe. If you want to make multiple requests
     simultaneously, you will need to create a hook per thread.
@@ -87,7 +87,7 @@ class DatastoreHook(GoogleBaseHook):
 
         :param partial_keys: a list of partial keys.
         :type partial_keys: list
-        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :param project_id: Google Cloud project ID against which to make the request.
         :type project_id: str
         :return: a list of full keys.
         :rtype: list
@@ -110,7 +110,7 @@ class DatastoreHook(GoogleBaseHook):
         .. seealso::
             https://cloud.google.com/datastore/docs/reference/rest/v1/projects/beginTransaction
 
-        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :param project_id: Google Cloud project ID against which to make the request.
         :type project_id: str
         :param transaction_options: Options for a new transaction.
         :type transaction_options: Dict[str, Any]
@@ -137,7 +137,7 @@ class DatastoreHook(GoogleBaseHook):
 
         :param body: the body of the commit request.
         :type body: dict
-        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :param project_id: Google Cloud project ID against which to make the request.
         :type project_id: str
         :return: the response body of the commit request.
         :rtype: dict
@@ -173,7 +173,7 @@ class DatastoreHook(GoogleBaseHook):
         :type read_consistency: str
         :param transaction: the transaction to use, if any.
         :type transaction: str
-        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :param project_id: Google Cloud project ID against which to make the request.
         :type project_id: str
         :return: the response body of the lookup request.
         :rtype: dict
@@ -203,7 +203,7 @@ class DatastoreHook(GoogleBaseHook):
 
         :param transaction: the transaction to roll back.
         :type transaction: str
-        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :param project_id: Google Cloud project ID against which to make the request.
         :type project_id: str
         """
         conn = self.get_conn()  # type: Any
@@ -222,7 +222,7 @@ class DatastoreHook(GoogleBaseHook):
 
         :param body: the body of the query request.
         :type body: dict
-        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :param project_id: Google Cloud project ID against which to make the request.
         :type project_id: str
         :return: the batch of query results.
         :rtype: dict
@@ -332,7 +332,7 @@ class DatastoreHook(GoogleBaseHook):
         :type entity_filter: dict
         :param labels: Client-assigned labels.
         :type labels: dict of str
-        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :param project_id: Google Cloud project ID against which to make the request.
         :type project_id: str
         :return: a resource operation instance.
         :rtype: dict
@@ -386,7 +386,7 @@ class DatastoreHook(GoogleBaseHook):
         :type entity_filter: dict
         :param labels: Client-assigned labels.
         :type labels: dict of str
-        :param project_id: Google Cloud Platform project ID against which to make the request.
+        :param project_id: Google Cloud project ID against which to make the request.
         :type project_id: str
         :return: a resource operation instance.
         :rtype: dict

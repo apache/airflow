@@ -52,9 +52,9 @@ class BigQueryToGCSOperator(BaseOperator):
     :type field_delimiter: str
     :param print_header: Whether to print a header for a CSV file extract.
     :type print_header: bool
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
+    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,

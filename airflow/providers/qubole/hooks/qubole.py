@@ -35,6 +35,7 @@ from qds_sdk.commands import (
     ShellCommand,
     SparkCommand,
     SqlCommand,
+    JupyterNotebookCommand,
 )
 from qds_sdk.qubole import Qubole
 
@@ -56,6 +57,7 @@ COMMAND_CLASSES = {
     "dbexportcmd": DbExportCommand,
     "dbimportcmd": DbImportCommand,
     "sqlcmd": SqlCommand,
+    "jupytercmd": JupyterNotebookCommand,
 }
 
 POSITIONAL_ARGS = {'hadoopcmd': ['sub_command'], 'shellcmd': ['parameters'], 'pigcmd': ['parameters']}
@@ -231,7 +233,7 @@ class QuboleHook(BaseHook):
         tags = {self.dag_id, self.task_id, context['run_id']}
         positional_args_list = flatten_list(POSITIONAL_ARGS.values())
 
-        for key, value in self.kwargs.items():
+        for key, value in self.kwargs.items():  # pylint: disable=too-many-nested-blocks
             if key in COMMAND_ARGS[cmd_type]:
                 if key in HYPHEN_ARGS:
                     args.append("--{0}={1}".format(key.replace('_', '-'), value))
@@ -239,11 +241,11 @@ class QuboleHook(BaseHook):
                     inplace_args = value
                 elif key == 'tags':
                     self._add_tags(tags, value)
+                elif key == 'notify':
+                    if value is True:
+                        args.append("--notify")
                 else:
                     args.append("--{0}={1}".format(key, value))
-
-            if key == 'notify' and value is True:
-                args.append("--notify")
 
         args.append("--tags={0}".format(','.join(filter(None, tags))))
 

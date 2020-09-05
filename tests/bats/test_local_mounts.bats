@@ -21,20 +21,18 @@
 @test "convert volume list to docker params" {
   load bats_utils
 
-  initialize_common_environment
+  read -r -a RES <<< "$(local_mounts::convert_local_mounts_to_docker_params)"
 
-  read -r -a RES <<< "$(convert_local_mounts_to_docker_params)"
-
-  [[ ${#RES[@]} -gt 0 ]] # Array should be non-zero length
-  [[ $((${#RES[@]} % 2)) == 0 ]] # Array should be even length
+  assert [ "${#RES[@]}" -gt 0 ] # Array should be non-zero length
+  assert [ "$((${#RES[@]} % 2))" == 0 ] # Array should be even length
 
   for i in "${!RES[@]}"; do
     if [[ $((i % 2)) == 0 ]]; then
       # Every other value should be `-v`
-      [[ ${RES[$i]} == "-v" ]]
+      assert [ "${RES[$i]}" == "-v" ]
     else
       # And the options should be of form <src>:<dest>:cached
-      [[ ${RES[$i]} = *:*:cached ]]
+      assert bash -c "[[ ${RES[$i]} == *:*:cached ]]"
     fi
   done
 }

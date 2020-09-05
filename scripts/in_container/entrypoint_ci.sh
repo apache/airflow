@@ -35,7 +35,7 @@ echo
 echo "Airflow home: ${AIRFLOW_HOME}"
 echo "Airflow sources: ${AIRFLOW_SOURCES}"
 echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
-if [[ -n "${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS:=}" ]]; then
+if [[ -n "${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS=}" ]]; then
     echo "Airflow collation for IDs: ${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS}"
 fi
 
@@ -57,7 +57,7 @@ else
     export RUN_AIRFLOW_1_10="false"
 fi
 
-if [[ ${INSTALL_AIRFLOW_VERSION} == "" ]]; then
+if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
         echo
         echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
@@ -192,7 +192,7 @@ if [[ ${#@} -gt 0 && -n "$1" ]]; then
     TESTS_TO_RUN=("${@}")
 fi
 
-if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
+if [[ -n ${RUN_INTEGRATION_TESTS=} ]]; then
     # Integration tests
     for INT in ${RUN_INTEGRATION_TESTS}
     do

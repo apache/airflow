@@ -91,7 +91,7 @@ following types:
   ranges of values), booleans or any other types of fields.
 * API version: (key="api_version") if API version is specified, then the field will only
   be validated when api_version used at field validator initialization matches exactly the
-  the version specified. If you want to declare fields that are available in several
+  version specified. If you want to declare fields that are available in several
   versions of the APIs, you should specify the field as many times as many API versions
   should be supported (each time with different API version).
 * if none of the keys ("type", "regexp", "custom_validation" - the field is not validated

@@ -63,7 +63,7 @@ class CloudDLPHook(GoogleBaseHook):
     Information (PII) and other privacy-sensitive data in user-supplied,
     unstructured data streams, like text blocks or images. The service also
     includes methods for sensitive data redaction and scheduling of data scans
-    on Google Cloud Platform based data sets.
+    on Google Cloud based data sets.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
@@ -118,7 +118,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param dlp_job_id: ID of the DLP job resource to be cancelled.
         :type dlp_job_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default project_id
             from the Google Cloud connection is used.
         :type project_id: str
@@ -158,7 +158,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -214,7 +214,7 @@ class CloudDLPHook(GoogleBaseHook):
         """
         Creates a new job to inspect storage or calculate risk metrics.
 
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -301,7 +301,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -356,7 +356,7 @@ class CloudDLPHook(GoogleBaseHook):
         Creates a job trigger to run DLP actions such as scanning storage for sensitive
         information on a set schedule.
 
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -404,7 +404,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -462,7 +462,7 @@ class CloudDLPHook(GoogleBaseHook):
         De-identifies potentially sensitive info from a content item. This method has limits
         on input size and output size.
 
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -520,7 +520,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -567,7 +567,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param dlp_job_id: The ID of the DLP job resource to be cancelled.
         :type dlp_job_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -607,7 +607,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -653,7 +653,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param job_trigger_id: The ID of the DLP job trigger to be deleted.
         :type job_trigger_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -693,7 +693,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -742,7 +742,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -789,7 +789,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param dlp_job_id: The ID of the DLP job resource to be read.
         :type dlp_job_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -830,7 +830,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -877,7 +877,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param job_trigger_id: The ID of the DLP job trigger to be read.
         :type job_trigger_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -918,7 +918,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -966,7 +966,7 @@ class CloudDLPHook(GoogleBaseHook):
         Finds potentially sensitive info in content. This method has limits on input size,
         processing time, and output size.
 
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -1019,7 +1019,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -1079,7 +1079,7 @@ class CloudDLPHook(GoogleBaseHook):
         """
         Lists DLP jobs that match the specified filter in the request.
 
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -1175,7 +1175,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -1233,7 +1233,7 @@ class CloudDLPHook(GoogleBaseHook):
         """
         Lists job triggers.
 
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -1287,7 +1287,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -1349,7 +1349,7 @@ class CloudDLPHook(GoogleBaseHook):
         Redacts potentially sensitive info from an image. This method has limits on
         input size, processing time, and output size.
 
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -1407,7 +1407,7 @@ class CloudDLPHook(GoogleBaseHook):
         """
         Re-identifies content that has been de-identified.
 
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -1471,7 +1471,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -1534,7 +1534,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str
@@ -1593,7 +1593,7 @@ class CloudDLPHook(GoogleBaseHook):
 
         :param job_trigger_id: The ID of the DLP job trigger to be updated.
         :type job_trigger_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
             project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -1647,7 +1647,7 @@ class CloudDLPHook(GoogleBaseHook):
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
         :type organization_id: str
-        :param project_id: (Optional) Google Cloud Platform project ID where the
+        :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organization.
         :type project_id: str

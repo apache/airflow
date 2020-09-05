@@ -91,6 +91,14 @@ class TestQuboleOperator(unittest.TestCase):
 
         self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[0], "--note-id=123")
 
+    def test_notify(self):
+        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
+
+        with dag:
+            task = QuboleOperator(task_id=TASK_ID, command_type='sparkcmd', notify=True, dag=dag)
+
+        self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[0], "--notify")
+
     def test_position_args_parameters(self):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
 

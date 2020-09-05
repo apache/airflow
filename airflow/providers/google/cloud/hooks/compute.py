@@ -81,11 +81,11 @@ class ComputeEngineHook(GoogleBaseHook):
         Starts an existing instance defined by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
 
-        :param zone: Google Cloud Platform zone where the instance exists
+        :param zone: Google Cloud zone where the instance exists
         :type zone: str
         :param resource_id: Name of the Compute Engine instance resource
         :type resource_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -112,11 +112,11 @@ class ComputeEngineHook(GoogleBaseHook):
         Stops an instance defined by project_id, zone and resource_id
         Must be called with keyword arguments rather than positional.
 
-        :param zone: Google Cloud Platform zone where the instance exists
+        :param zone: Google Cloud zone where the instance exists
         :type zone: str
         :param resource_id: Name of the Compute Engine instance resource
         :type resource_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -143,7 +143,7 @@ class ComputeEngineHook(GoogleBaseHook):
         Sets machine type of an instance defined by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
 
-        :param zone: Google Cloud Platform zone where the instance exists.
+        :param zone: Google Cloud zone where the instance exists.
         :type zone: str
         :param resource_id: Name of the Compute Engine instance resource
         :type resource_id: str
@@ -151,7 +151,7 @@ class ComputeEngineHook(GoogleBaseHook):
             as described in
             https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType
         :type body: dict
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -183,7 +183,7 @@ class ComputeEngineHook(GoogleBaseHook):
 
         :param resource_id: Name of the instance template
         :type resource_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -216,7 +216,7 @@ class ComputeEngineHook(GoogleBaseHook):
             with the same request id will not create a new instance template again)
             It should be in UUID format as defined in RFC 4122
         :type request_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -243,11 +243,11 @@ class ComputeEngineHook(GoogleBaseHook):
         Retrieves Instance Group Manager by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
 
-        :param zone: Google Cloud Platform zone where the Instance Group Manager exists
+        :param zone: Google Cloud zone where the Instance Group Manager exists
         :type zone: str
         :param resource_id: Name of the Instance Group Manager
         :type resource_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -272,7 +272,7 @@ class ComputeEngineHook(GoogleBaseHook):
         Patches Instance Group Manager with the specified body.
         Must be called with keyword arguments rather than positional.
 
-        :param zone: Google Cloud Platform zone where the Instance Group Manager exists
+        :param zone: Google Cloud zone where the Instance Group Manager exists
         :type zone: str
         :param resource_id: Name of the Instance Group Manager
         :type resource_id: str
@@ -285,7 +285,7 @@ class ComputeEngineHook(GoogleBaseHook):
             with the same request id will not create a new instance template again).
             It should be in UUID format as defined in RFC 4122
         :type request_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str

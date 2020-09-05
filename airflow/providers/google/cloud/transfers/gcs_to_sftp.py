@@ -56,7 +56,7 @@ class GCSToSFTPOperator(BaseOperator):
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :type move_object: bool
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.

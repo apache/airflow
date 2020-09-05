@@ -21,6 +21,7 @@ from urllib.parse import quote_plus
 from parameterized import parameterized
 
 from airflow import DAG
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.baseoperator import BaseOperatorLink
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCom
@@ -114,7 +115,12 @@ class TestGetExtraLinks(unittest.TestCase):
 
         self.assertEqual(404, response.status_code)
         self.assertEqual(
-            {"detail": expected_detail, "status": 404, "title": expected_title, "type": "about:blank"},
+            {
+                "detail": expected_detail,
+                "status": 404,
+                "title": expected_title,
+                "type": EXCEPTIONS_LINK_MAP[404],
+            },
             response.json,
         )
 

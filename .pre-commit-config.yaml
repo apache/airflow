@@ -58,8 +58,8 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all JS/CSS files
-        files: \.(js|css)$
+        name: Add license for all JS/CSS/PUML files
+        files: \.(js|css|puml)$
         exclude: ^\.github/.*$
         args:
           - --comment-style
@@ -150,7 +150,7 @@ repos:
     hooks:
       - id: check-hooks-apply
   - repo: https://github.com/psf/black
-    rev: stable
+    rev: 19.10b0
     hooks:
       - id: black
         files: api_connexion/.*\.py|.*providers.*\.py
@@ -199,7 +199,7 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D104,D105,D106,D107,D200,D202,D204,D205,D207,D208,D400,D401
+          - --add-ignore=D100,D102,D104,D105,D107,D200,D202,D204,D205,D400,D401
         exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
   - repo: local
     hooks:
@@ -209,9 +209,9 @@ repos:
         entry: koalaman/shellcheck:stable -x -a
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
       - id: lint-openapi
-        name: Lint OpenAPI using speccy
+        name: Lint OpenAPI using spectral
         language: docker_image
-        entry: wework/speccy lint -r default -r ./scripts/ci/speccy_rules/connexion.yml
+        entry: stoplight/spectral lint -r ./scripts/ci/spectral_rules/connexion.yml
         files: ^airflow/api_connexion/openapi/
       - id: lint-openapi
         name: Lint OpenAPI using openapi-spec-validator

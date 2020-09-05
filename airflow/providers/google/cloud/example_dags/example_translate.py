@@ -18,7 +18,7 @@
 
 """
 Example Airflow DAG that translates text in Google Cloud Translate
-service in the Google Cloud Platform.
+service in the Google Cloud.
 
 """
 

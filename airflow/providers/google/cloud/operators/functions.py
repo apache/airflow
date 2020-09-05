@@ -106,7 +106,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudFunctionDeployFunctionOperator`
 
-    :param location: Google Cloud Platform region where the function should be created.
+    :param location: Google Cloud region where the function should be created.
     :type location: str
     :param body: Body of the Cloud Functions definition. The body must be a
         Cloud Functions dictionary as described in:
@@ -114,11 +114,11 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
         . Different API versions require different variants of the Cloud Functions
         dictionary.
     :type body: dict or google.cloud.functions.v1.CloudFunction
-    :param project_id: (Optional) Google Cloud Platform project ID where the function
+    :param project_id: (Optional) Google Cloud project ID where the function
         should be created.
     :type project_id: str
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud
-         Platform - default 'google_cloud_default'.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+        Default 'google_cloud_default'.
     :type gcp_conn_id: str
     :param api_version: (Optional) API version used (for example v1 - default -  or
         v1beta1).
@@ -340,7 +340,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
     :param name: A fully-qualified function name, matching
         the pattern: `^projects/[^/]+/locations/[^/]+/functions/[^/]+$`
     :type name: str
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (for example v1 or v1beta1).
     :type api_version: str

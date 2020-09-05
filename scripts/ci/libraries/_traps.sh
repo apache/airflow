@@ -15,20 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-initialize_common_environment
-
-function run_bats_tests() {
-    FILES=("$@")
-    if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            bats/bats:latest --tap -r /airflow/tests/bats
-    else
-        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            bats/bats:latest --tap -r "${FILES[@]}"
-    fi
+#######################################################################################################
+#
+# Adds trap to the traps already set.
+#
+# Arguments:
+#      trap to set
+#      .... list of signals to handle
+#######################################################################################################
+function traps::add_trap() {
+    trap="${1}"
+    shift
+    for signal in "${@}"
+    do
+        # adding trap to exiting trap
+        local handlers
+        handlers="$( trap -p "${signal}" | cut -f2 -d \' )"
+        # shellcheck disable=SC2064
+        trap "${trap};${handlers}" "${signal}"
+    done
 }
-
-run_bats_tests "$@"
