@@ -34,27 +34,28 @@ class SalesforceToGcsOperator(BaseOperator):
         :ref:`howto/operator:SalesforceToGcsOperator`
 
     :param query: The query to make to Salesforce.
-        :type query: str
+    :type query: str
     :param bucket_name: The bucket to upload to.
-        :type bucket_name: str
+    :type bucket_name: str
     :param object_name: The object name to set when uploading the file.
-        :type object_name: str
+    :type object_name: str
     :param salesforce_conn_id: the name of the connection that has the parameters
         we need to connect to Salesforce. The connection should be type `http` and
         include a user's security token in the `Extras` field.
-        :type conn_id: str
+    :type conn_id: str
     :param include_deleted: True if the query should include deleted records.
-        :type include_deleted: bool
+    :type include_deleted: bool
     :param query_params: Additional optional arguments
-        :type query_params: dict
+    :type query_params: dict
     :param gzip: Option to compress local file or file data for upload
-        :type gzip: bool
+    :type gzip: bool
     :param gcp_conn_id: the name of the connection that has the parameters we need to connect to GCS.
-        :type conn_id: str
+    :type conn_id: str
     """
 
     def __init__(
         self,
+        *,
         query: str,
         bucket_name: str,
         object_name: str,
