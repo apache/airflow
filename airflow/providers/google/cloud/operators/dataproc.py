@@ -906,6 +906,10 @@ class DataprocJobBaseOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param asynchronous: Flag to return after submitting the job to the Dataproc API.
+        This is useful for submitting long running jobs and
+        waiting on them asynchronously using the DataprocJobSensor
+    :type asynchronous: bool
 
     :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
         This is useful for identifying or linking to the job in the Google Cloud Console
@@ -930,6 +934,7 @@ class DataprocJobBaseOperator(BaseOperator):
         region: str = 'global',
         job_error_states: Optional[Set[str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        asynchronous: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -949,6 +954,7 @@ class DataprocJobBaseOperator(BaseOperator):
         self.job_template = None
         self.job = None
         self.dataproc_job_id = None
+        self.asynchronous = asynchronous
 
     def create_job_template(self):
         """
@@ -980,8 +986,13 @@ class DataprocJobBaseOperator(BaseOperator):
                 project_id=self.project_id, job=self.job["job"], location=self.region,
             )
             job_id = job_object.reference.job_id
-            self.hook.wait_for_job(job_id=job_id, location=self.region, project_id=self.project_id)
-            self.log.info('Job executed correctly.')
+            self.log.info('Job %s submitted successfully.', job_id)
+
+            if not self.asynchronous:
+                self.log.info('Waiting for job %s to complete', job_id)
+                self.hook.wait_for_job(job_id=job_id, location=self.region, project_id=self.project_id)
+                self.log.info('Job %s completed successfully.', job_id)
+            return job_id
         else:
             raise AirflowException("Create a job template before")
 
@@ -1785,6 +1796,10 @@ class DataprocSubmitJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param asynchronous: Flag to return after submitting the job to the Dataproc API.
+        This is useful for submitting long running jobs and
+        waiting on them asynchronously using the DataprocJobSensor
+    :type asynchronous: bool
     """
 
     template_fields = (
@@ -1807,6 +1822,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        asynchronous: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1819,6 +1835,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.asynchronous = asynchronous
 
     def execute(self, context: Dict):
         self.log.info("Submitting job")
@@ -1833,9 +1850,14 @@ class DataprocSubmitJobOperator(BaseOperator):
             metadata=self.metadata,
         )
         job_id = job_object.reference.job_id
-        self.log.info("Waiting for job %s to complete", job_id)
-        hook.wait_for_job(job_id=job_id, project_id=self.project_id, location=self.location)
-        self.log.info("Job completed successfully.")
+        self.log.info('Job %s submitted successfully.', job_id)
+
+        if not self.asynchronous:
+            self.log.info('Waiting for job %s to complete', job_id)
+            hook.wait_for_job(job_id=job_id, location=self.location, project_id=self.project_id)
+            self.log.info('Job %s completed successfully.', job_id)
+
+        return job_id
 
 
 class DataprocUpdateClusterOperator(BaseOperator):
