@@ -452,6 +452,42 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             job_id=job_id, project_id=GCP_PROJECT, location=GCP_LOCATION
         )
 
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_async(self, mock_hook):
+        job = {}
+        job_id = "job_id"
+        mock_hook.return_value.wait_for_job.return_value = None
+        mock_hook.return_value.submit_job.return_value.reference.job_id = job_id
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job=job,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            asynchronous=True,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            job=job,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.wait_for_job.assert_not_called()
+
 
 class TestDataprocUpdateClusterOperator(unittest.TestCase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
