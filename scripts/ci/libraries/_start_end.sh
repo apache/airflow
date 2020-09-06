@@ -54,8 +54,9 @@ function start_end::script_end {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
-        # Cat output log in case we exit with error
-        if [[ -f "${OUTPUT_LOG}" ]]; then
+        # Cat output log in case we exit with error but only if we do not PRINT_INFO_FROM_SCRIPTS
+        # Because it will be printed immediately by "tee"
+        if [[ -f "${OUTPUT_LOG}" && ${PRINT_INFO_FROM_SCRIPTS} == "false" ]]; then
             cat "${OUTPUT_LOG}"
         fi
         verbosity::print_info "###########################################################################################"
