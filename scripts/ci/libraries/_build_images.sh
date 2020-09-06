@@ -206,7 +206,7 @@ function build_images::get_local_image_info() {
     TMP_MANIFEST_LOCAL_SHA=$(mktemp)
     set +e
     # Remove the container just in case
-    docker rm --force "local-airflow-manifest"
+    docker rm --force "local-airflow-manifest" || true
     # Create manifest from the local manifest image
     if ! docker create --name "local-airflow-manifest" "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}"; then
         echo
