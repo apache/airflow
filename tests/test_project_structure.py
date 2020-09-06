@@ -20,6 +20,7 @@ import itertools
 import mmap
 import os
 import unittest
+from typing import Set
 
 from parameterized import parameterized
 
@@ -27,9 +28,7 @@ ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)
 )
 
-MISSING_TEST_FILES = {
-    'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py',
-}
+MISSING_TEST_FILES: Set[str] = set()  # add missing test files in providers package here.
 
 
 class TestProjectStructure(unittest.TestCase):
