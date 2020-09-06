@@ -20,6 +20,7 @@ from unittest import TestCase, mock
 
 from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
+from google.cloud.memcache_v1beta2.types import Instance as MemcachedInstance
 from google.cloud.redis_v1.types import Instance
 from mock import PropertyMock
 
@@ -447,11 +448,11 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.get_conn"
     )
     def test_create_instance_when_exists(self, mock_get_conn, mock_project_id):
-        mock_get_conn.return_value.get_instance.return_value = Instance(name=TEST_NAME)
+        mock_get_conn.return_value.get_instance.return_value = MemcachedInstance(name=TEST_NAME)
         result = self.hook.create_instance(  # pylint: disable=no-value-for-parameter
             location=TEST_LOCATION,
             instance_id=TEST_INSTANCE_ID,
-            instance=Instance(name=TEST_NAME),
+            instance=MemcachedInstance(name=TEST_NAME),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -459,7 +460,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
         mock_get_conn.return_value.get_instance.assert_called_once_with(
             name=TEST_NAME_DEFAULT_PROJECT_ID, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
         )
-        self.assertEqual(Instance(name=TEST_NAME), result)
+        self.assertEqual(MemcachedInstance(name=TEST_NAME), result)
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -472,13 +473,13 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
     def test_create_instance_when_not_exists(self, mock_get_conn, mock_project_id):
         mock_get_conn.return_value.get_instance.side_effect = [
             NotFound("Instance not found"),
-            Instance(name=TEST_NAME),
+            MemcachedInstance(name=TEST_NAME),
         ]
-        mock_get_conn.return_value.create_instance.return_value.result.return_value = Instance(name=TEST_NAME)
+        mock_get_conn.return_value.create_instance.return_value.result.return_value = MemcachedInstance(name=TEST_NAME)
         result = self.hook.create_instance(  # pylint: disable=no-value-for-parameter
             location=TEST_LOCATION,
             instance_id=TEST_INSTANCE_ID,
-            instance=Instance(name=TEST_NAME),
+            instance=MemcachedInstance(name=TEST_NAME),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -490,7 +491,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
             ]
         )
         mock_get_conn.return_value.create_instance.assert_called_once_with(
-            instance=Instance(
+            resource=MemcachedInstance(
                 name=TEST_NAME,
                 labels={"airflow-version": "v" + version.version.replace(".", "-").replace("+", "-")},
             ),
@@ -500,7 +501,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
         )
-        self.assertEqual(Instance(name=TEST_NAME), result)
+        self.assertEqual(MemcachedInstance(name=TEST_NAME), result)
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',

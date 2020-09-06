@@ -630,7 +630,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
 
         if isinstance(instance, dict):
             instance = ParseDict(instance, MemcachedInstance())
-        elif not isinstance(instance, Instance):
+        elif not isinstance(instance, MemcachedInstance):
             raise AirflowException("instance is not instance of Instance type or python dict")
 
         self._append_label(instance, "airflow-version", "v" + version.version)
