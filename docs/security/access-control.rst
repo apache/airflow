@@ -95,3 +95,22 @@ DAG Level Role
 ``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
 is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
 allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.
+
+Add a new role
+''''''''''''''
+
+To configure a new role, go to **Security** tab and click **List Roles** in the new UI.
+
+.. image:: /img/add-role.png
+.. image:: /img/new-role.png
+
+The image shows the creation of a role which can only write to
+``example_python_operator``. You can also create roles via the CLI
+using the ``airflow roles create`` command, e.g.:
+
+.. code-block:: bash
+
+  airflow roles create Role1 Role2
+
+And we could assign the given role to a new user using the ``airflow
+users add-role`` CLI command.
