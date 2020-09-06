@@ -2285,7 +2285,7 @@ def upgrade_check(args):
         formatter = ConsoleFormatter()
     all_problems = check_upgrade(formatter)
     if all_problems:
-        exit(1)
+        sys.exit(1)
 
 
 class Arg(object):
