@@ -695,7 +695,7 @@ function breeze::parse_arguments() {
         -o "${_BREEZE_GETOPT_SHORT_OPTIONS:=}" \
         -l "${_BREEZE_GETOPT_LONG_OPTIONS:=}" \
         --name "$CMDNAME" -- "$@"); then
-        flags
+        breeze::flags
         exit 1
     fi
 
@@ -999,7 +999,7 @@ function breeze::parse_arguments() {
             break
             ;;
         *)
-            flags
+            breeze::flags
             echo >&2
             echo >&2 "ERROR: Unknown flag ${1}"
             echo >&2
@@ -1181,7 +1181,7 @@ function breeze::parse_arguments() {
             command_to_run="toggle_suppress_asciiart"
             ;;
         flags)
-            flags
+            breeze::flags
             exit 0
             ;;
         help)
