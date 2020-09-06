@@ -64,15 +64,16 @@ if (( MAX_LEN > MAX_SCREEN_WIDTH + 2 )); then
 fi
 
 BREEZE_RST_FILE="${AIRFLOW_SOURCES}/BREEZE.rst"
+readonly BREEZE_RST_FILE
 
-LEAD='^ \.\. START BREEZE HELP MARKER$'
-TAIL='^ \.\. END BREEZE HELP MARKER$'
+lead_marker='^ \.\. START BREEZE HELP MARKER$'
+tail_marker='^ \.\. END BREEZE HELP MARKER$'
 
-BEGIN_GEN=$(grep -n "${LEAD}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
-END_GEN=$(grep -n "${TAIL}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
-cat <(head -n "${BEGIN_GEN}" "${BREEZE_RST_FILE}") \
+beginning_of_generated_help_line_number=$(grep -n "${lead_marker}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
+end_beginning_of_generated_help_line_number=$(grep -n "${tail_marker}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
+cat <(head -n "${beginning_of_generated_help_line_number}" "${BREEZE_RST_FILE}") \
     "${TMP_FILE}" \
-    <(tail -n +"${END_GEN}" "${BREEZE_RST_FILE}") \
+    <(tail -n +"${end_beginning_of_generated_help_line_number}" "${BREEZE_RST_FILE}") \
     >"${TMP_OUTPUT}"
 
 mv "${TMP_OUTPUT}" "${BREEZE_RST_FILE}"
