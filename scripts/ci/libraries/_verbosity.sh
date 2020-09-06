@@ -20,10 +20,26 @@
 DOCKER_BINARY_PATH="${DOCKER_BINARY_PATH:=$(command -v docker || echo "/bin/docker")}"
 export DOCKER_BINARY_PATH
 
+function verbosity::store_exit_on_error_status() {
+    exit_on_error="false"
+    # If 'set -e' is set before entering the function, remember it, so you can restore before return!
+    if [[ $- == *e* ]]; then
+        exit_on_error="true"
+    fi
+    set +e
+}
+
+function verbosity::restore_exit_on_error_status() {
+    if [[ ${exit_on_error} == "true" ]]; then
+        set -e
+    fi
+    unset exit_on_error
+}
+
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
 # printed before execution
 function docker {
-    set +e
+    verbosity::store_exit_on_error_status
     if [[ ${VERBOSE:="false"} == "true" && \
         # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
         ${VERBOSE_COMMANDS:=} != "true" && \
@@ -34,15 +50,16 @@ function docker {
     if [[ ${PRINT_INFO_FROM_SCRIPTS} == "false" ]]; then
         ${DOCKER_BINARY_PATH} "${@}" >>"${OUTPUT_LOG}" 2>&1
     else
-        ${DOCKER_BINARY_PATH} "${@}" 2>&1 | tee -a "${OUTPUT_LOG}"
+        ${DOCKER_BINARY_PATH} "${@}" 1> >(tee -a "${OUTPUT_LOG}") 2> >(tee -a "${OUTPUT_LOG}" >&2)
     fi
     res="$?"
-    if [[ ${res} == "0" ]]; then
-        # No matter if "set -e" is used the log will be removed on success.
+    if [[ ${res} == "0" || ${exit_on_error} == "false" ]]; then
+        # The log is removed on success or when exit_on_error is set to false
         # This way in the output log we only see the most recent failed command and what was echoed before
+        # But if we expect that the command might fail, we also will not print it's output
         rm -f "${OUTPUT_LOG}"
     fi
-    set -e
+    verbosity::restore_exit_on_error_status
     return ${res}
 }
 
@@ -52,17 +69,17 @@ export HELM_BINARY_PATH
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all helm commands run will be
 # printed before execution
 function helm {
-    set +e
+    verbosity::store_exit_on_error_status
     if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
        # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
         >&2 echo "helm" "${@}"
     fi
-    ${HELM_BINARY_PATH} "${@}" | tee -a "${OUTPUT_LOG}"
+    ${HELM_BINARY_PATH} "${@}" > >(tee -a "${OUTPUT_LOG}") 2> >(tee -a "${OUTPUT_LOG}" >&2)
     local res="$?"
-    if [[ ${res} == "0" ]]; then
+    if [[ ${res} == "0" || ${exit_on_error} == "false" ]]; then
         rm -f "${OUTPUT_LOG}"
     fi
-    set -e
+    verbosity::restore_exit_on_error_status
     return ${res}
 }
 
@@ -72,17 +89,17 @@ export KUBECTL_BINARY_PATH
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all kubectl commands run will be
 # printed before execution
 function kubectl {
-    set +e
+    verbosity::store_exit_on_error_status
     if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
        # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
         >&2 echo "kubectl" "${@}"
     fi
-    ${KUBECTL_BINARY_PATH} "${@}" | tee -a "${OUTPUT_LOG}"
+    ${KUBECTL_BINARY_PATH} "${@}" > >(tee -a "${OUTPUT_LOG}") 2> >(tee -a "${OUTPUT_LOG}" >&2)
     local res="$?"
-    if [[ ${res} == "0" ]]; then
+    if [[ ${res} == "0" || ${exit_on_error} == "false" ]]; then
         rm -f "${OUTPUT_LOG}"
     fi
-    set -e
+    verbosity::restore_exit_on_error_status
     return ${res}
 }
 

@@ -212,22 +212,6 @@ function push_pull_remove_images::push_prod_images() {
     fi
 }
 
-# Removes airflow CI and base images
-function push_pull_remove_images::remove_all_images() {
-    echo
-    "${AIRFLOW_SOURCES}/confirm" "Removing all local images ."
-    echo
-    docker rmi "${PYTHON_BASE_IMAGE}" || true
-    docker rmi "${AIRFLOW_CI_IMAGE}" || true
-    echo
-    echo "###################################################################"
-    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
-    echo "       But the disk space in docker will be reclaimed only after"
-    echo "       running 'docker system prune' command."
-    echo "###################################################################"
-    echo
-}
-
 # waits for an image to be available in the github registry
 function push_pull_remove_images::wait_for_github_registry_image() {
     GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${GITHUB_REPOSITORY_LOWERCASE}"
@@ -247,9 +231,6 @@ function push_pull_remove_images::wait_for_github_registry_image() {
         fi
         sleep 10
     done
-    echo
-    echo
-    echo "Found ${IMAGE_NAME}:${IMAGE_TAG} image"
-    echo "Digest: '${digest}'"
-    echo
+    verbosity::print_info "Found ${IMAGE_NAME}:${IMAGE_TAG} image"
+    verbosity::print_info "Digest: '${digest}'"
 }
