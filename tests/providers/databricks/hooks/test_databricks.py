@@ -457,9 +457,7 @@ class TestDatabricksHookToken(unittest.TestCase):
 class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken):
     @provide_session
     def setUp(self, session=None):
-        conn = session.query(Connection) \
-            .filter(Connection.conn_id == DEFAULT_CONN_ID) \
-            .first()
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.extra = json.dumps({'token': TOKEN})
 
         session.commit()
