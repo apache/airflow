@@ -1241,7 +1241,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 self.assertIsNone(duration)
 
 
-@pytest.mark.quarantined
+@pytest.mark.heisentests
 class TestDagFileProcessorQueriesCount(unittest.TestCase):
     """
     These tests are designed to detect changes in the number of queries for different DAG files.
@@ -2154,7 +2154,6 @@ class TestSchedulerJob(unittest.TestCase):
             self.assertEqual(State.QUEUED, ti.state)
 
     @pytest.mark.quarantined
-    @pytest.mark.xfail(condition=True, reason="The test is flaky with nondeterministic result")
     def test_change_state_for_tis_without_dagrun(self):
         dag1 = DAG(dag_id='test_change_state_for_tis_without_dagrun', start_date=DEFAULT_DATE)
 
@@ -2937,7 +2936,6 @@ class TestSchedulerJob(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(State.SUCCESS, ti.state)
 
-    @pytest.mark.quarantined
     def test_retry_still_in_executor(self):
         """
         Checks if the scheduler does not put a task in limbo, when a task is retried
@@ -3025,7 +3023,6 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(ti.state, State.SUCCESS)
 
     @pytest.mark.quarantined
-    @pytest.mark.xfail(condition=True, reason="This test is failing!")
     def test_retry_handling_job(self):
         """
         Integration test of the scheduler not accidentally resetting
