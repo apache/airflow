@@ -41,8 +41,9 @@ Logic behind scheduling is as follows:
 
 4. The cycle is repeated for all the files in the DAG Bag. If the process to parse DAG file is still running when the file's turn comes up in the next cycle, the file is skipped and the next file in the series will be assigned for the new processor. This isolation provides a non-blocking DAG parsing functionality.
 
-
-TODO: Add sequence diagram. Requires Rebase from upstream
+.. image:: images/ci/scheduler_flow.png
+    :align: center
+    :alt: Scheduler Workflow
 
 The reason that the task instances are created in the ``SCHEDULED`` state, but then are set to the ``QUEUED`` state once it is sent to the executor, is to ensure that a task instance isn't repeatedly send to the executor if the executor is slow and a DAG definition file is processed multiple times before the executor has a chance to run the task. When the DAGFileProcessor examines a DAG for potential tasks to put into the ``SCHEDULED`` state, it skips those task instances in the ``QUEUED`` state.
 
