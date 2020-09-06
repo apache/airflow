@@ -111,6 +111,7 @@ class TestConfigInfoLogging(unittest.TestCase):
             self.assertIn("StackdriverTaskHandler", text)
 
     def tearDown(self) -> None:
+        importlib.reload(airflow_local_settings)
         configure_logging()
 
 
