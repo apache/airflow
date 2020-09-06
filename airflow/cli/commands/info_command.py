@@ -284,6 +284,9 @@ class ConfigInfo:
 
     def __init__(self, anonymizer: Anonymizer):
         self.executor = configuration.conf.get("core", "executor")
+        self.sql_alchemy_conn = anonymizer.process_url(
+            configuration.conf.get("core", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
+        )
         self.dags_folder = anonymizer.process_path(
             configuration.conf.get("core", "dags_folder", fallback="NOT AVAILABLE")
         )
@@ -293,18 +296,23 @@ class ConfigInfo:
         self.base_log_folder = anonymizer.process_path(
             configuration.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
         )
-        self.base_log_folder = anonymizer.process_path(
-            configuration.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
+        self.remote_base_log_folder = anonymizer.process_path(
+            configuration.conf.get("logging", "remote_base_log_folder", fallback="NOT AVAILABLE")
         )
-        self.sql_alchemy_conn = anonymizer.process_url(
-            configuration.conf.get("core", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
-        )
+
+    @property
+    def task_logging_handler(self):
+        try:
+            return ", ".join([type(handler).__name__ for handler in logging.getLogger('airflow.task').handlers])
+        except Exception:  # noqa pylint: disable=broad-except
+            return "NOT AVAILABLE"
 
     def __str__(self):
         return (
             textwrap.dedent(
                 """\
                 Executor: [{executor}]
+                Task Logging Handlers: [{task_logging_handler}]
                 SQL Alchemy Conn: [{sql_alchemy_conn}]
                 DAGS Folder: [{dags_folder}]
                 Plugins Folder: [{plugins_folder}]
@@ -314,6 +322,7 @@ class ConfigInfo:
             .strip()
             .format(
                 executor=self.executor,
+                task_logging_handler=self.task_logging_handler,
                 sql_alchemy_conn=self.sql_alchemy_conn,
                 dags_folder=self.dags_folder,
                 plugins_folder=self.plugins_folder,
