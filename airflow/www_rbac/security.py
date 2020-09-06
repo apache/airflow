@@ -112,6 +112,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'can_rendered',
         'can_pickle_info',
         'can_version',
+        'can_extra_links'
     }
 
     USER_PERMS = {
