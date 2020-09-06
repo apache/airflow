@@ -19,7 +19,6 @@ import os
 
 from airflow import models
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-id")
@@ -33,13 +32,8 @@ BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 with models.DAG(
     "example_gcs_to_local", start_date=days_ago(1), schedule_interval=None, tags=['example'],
 ) as dag:
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file", src=PATH_TO_UPLOAD_FILE, dst=BUCKET_FILE_LOCATION, bucket=BUCKET,
-    )
     # [START howto_operator_gcs_download_file_task]
     download_file = GCSToLocalFilesystemOperator(
         task_id="download_file", object_name=BUCKET_FILE_LOCATION, bucket=BUCKET, filename=PATH_TO_SAVED_FILE,
     )
     # [END howto_operator_gcs_download_file_task]
-
-    upload_file >> download_file
