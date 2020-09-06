@@ -289,6 +289,15 @@ class TestDataprocHook(unittest.TestCase):
             metadata=None,
         )
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
+    def test_cancel_job_deprecation_warning(self, mock_client):
+        with self.assertWarns(DeprecationWarning):
+            self.hook.cancel_job(job_id=JOB_ID, project_id=GCP_PROJECT)
+        mock_client.assert_called_once_with(location='global')
+        mock_client.return_value.cancel_job.assert_called_once_with(
+            region='global', job_id=JOB_ID, project_id=GCP_PROJECT, retry=None, timeout=None, metadata=None,
+        )
+
 
 class TestDataProcJobBuilder(unittest.TestCase):
     def setUp(self) -> None:
