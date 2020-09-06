@@ -40,8 +40,7 @@ class SalesforceToGcsOperator(BaseOperator):
     :param object_name: The object name to set when uploading the file.
     :type object_name: str
     :param salesforce_conn_id: the name of the connection that has the parameters
-        we need to connect to Salesforce. The connection should be type `http` and
-        include a user's security token in the `Extras` field.
+        we need to connect to Salesforce.
     :type conn_id: str
     :param include_deleted: True if the query should include deleted records.
     :type include_deleted: bool
