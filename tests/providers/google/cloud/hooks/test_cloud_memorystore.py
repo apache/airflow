@@ -475,7 +475,9 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
             NotFound("Instance not found"),
             MemcachedInstance(name=TEST_NAME),
         ]
-        mock_get_conn.return_value.create_instance.return_value.result.return_value = MemcachedInstance(name=TEST_NAME)
+        mock_get_conn.return_value.create_instance.return_value.result.return_value = MemcachedInstance(
+            name=TEST_NAME
+        )
         result = self.hook.create_instance(  # pylint: disable=no-value-for-parameter
             location=TEST_LOCATION,
             instance_id=TEST_INSTANCE_ID,
