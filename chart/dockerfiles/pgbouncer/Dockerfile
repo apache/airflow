@@ -15,19 +15,25 @@
 # specific language governing permissions and limitations
 # under the License.
 ARG ALPINE_VERSION="3.12"
-
 FROM alpine:${ALPINE_VERSION} AS builder
+SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
 ARG PGBOUNCER_VERSION
 ARG AIRFLOW_PGBOUNCER_VERSION
 
 ARG PGBOUNCER_SHA256="a0c13d10148f557e36ff7ed31793abb7a49e1f8b09aa2d4695d1c28fa101fee7"
 
+# Those are build deps only but still we want the latest versions of those
+# "Pin versions in apk add" https://github.com/hadolint/hadolint/wiki/DL3018
+# hadolint ignore=DL3018
 RUN apk --no-cache add make pkgconfig build-base libtool wget gcc g++ libevent-dev libressl-dev c-ares-dev ca-certificates
-RUN wget https://github.com/pgbouncer/pgbouncer/releases/download/pgbouncer_$(echo ${PGBOUNCER_VERSION} | sed s/\\./_/g)/pgbouncer-${PGBOUNCER_VERSION}.tar.gz
+# We are not using Dash so we can safely ignore the "Dash warning"
+# "In dash, something is not supported." https://github.com/koalaman/shellcheck/wiki/SC2169
+# hadolint ignore=SC2169
+RUN wget "https://github.com/pgbouncer/pgbouncer/releases/download/pgbouncer_${PGBOUNCER_VERSION//\./_}/pgbouncer-${PGBOUNCER_VERSION}.tar.gz"
 RUN echo "${PGBOUNCER_SHA256}  pgbouncer-${PGBOUNCER_VERSION}.tar.gz" | sha256sum -c -
 RUN tar -xzvf pgbouncer-$PGBOUNCER_VERSION.tar.gz
-WORKDIR pgbouncer-$PGBOUNCER_VERSION
+WORKDIR /pgbouncer-$PGBOUNCER_VERSION
 RUN ./configure --prefix=/usr --disable-debug && make && make install
 RUN mkdir /etc/pgbouncer
 RUN cp ./etc/pgbouncer.ini /etc/pgbouncer/
@@ -48,9 +54,11 @@ LABEL org.apache.airflow.component="pgbouncer"
 LABEL org.apache.airflow.pgbouncer.version="${PGBOUNCER_VERSION}"
 LABEL org.apache.airflow.airflow_pgbouncer.version="${AIRFLOW_PGBOUNCER_VERSION}"
 LABEL org.apache.airflow.commit_sha="${COMMIT_SHA}"
+LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
-MAINTAINER "Apache Airflow Community <dev@airflow.apache.org>"
-
+# We want to make sure this one includes latest security fixes.
+# "Pin versions in apk add" https://github.com/hadolint/hadolint/wiki/DL3018
+# hadolint ignore=DL3018
 RUN apk --no-cache add libevent libressl c-ares
 
 COPY --from=builder /etc/pgbouncer /etc/pgbouncer
