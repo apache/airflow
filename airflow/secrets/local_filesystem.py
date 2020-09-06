@@ -21,6 +21,7 @@ Objects relating to retrieving connections and variables from local file
 import json
 import logging
 import os
+import warnings
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
@@ -235,33 +236,44 @@ def load_variables(file_path: str) -> Dict[str, str]:
     return variables
 
 
-def load_connections(file_path: str):
+def load_connections(file_path) -> Dict[str, List[Any]]:
+    """
+    This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.",
+    """
+    warnings.warn(
+        "This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.",
+        DeprecationWarning, stacklevel=2
+    )
+    return {k: [v] for k, v in load_connections_dict(file_path).values()}
+
+
+def load_connections_dict(file_path: str) -> Dict[str, Any]:
     """
     Load connection from text file.
 
     Both ``JSON`` and ``.env`` files are supported.
 
     :return: A dictionary where the key contains a connection ID and the value contains a list of connections.
-    :rtype: Dict[str, List[airflow.models.connection.Connection]]
+    :rtype: Dict[str, airflow.models.connection.Connection]
     """
     log.debug("Loading connection")
 
     secrets: Dict[str, Any] = _parse_secret_file(file_path)
-    connections_by_conn_id = defaultdict(list)
+    connection_by_conn_id = {}
     for key, secret_values in list(secrets.items()):
         if isinstance(secret_values, list):
+            if len(secret_values) > 1:
+                raise ConnectionNotUnique(f"Found multiple values for {key} in {file_path}.")
+
             for secret_value in secret_values:
-                connections_by_conn_id[key].append(_create_connection(key, secret_value))
+                connection_by_conn_id[key] = _create_connection(key, secret_value)
         else:
-            connections_by_conn_id[key].append(_create_connection(key, secret_values))
+            connection_by_conn_id[key] = _create_connection(key, secret_values)
 
-        if len(connections_by_conn_id[key]) > 1:
-            raise ConnectionNotUnique(f"Found multiple values for {key} in {file_path}")
-
-    num_conn = sum(map(len, connections_by_conn_id.values()))
+    num_conn = len(connection_by_conn_id)
     log.debug("Loaded %d connections", num_conn)
 
-    return connections_by_conn_id
+    return connection_by_conn_id
 
 
 class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
@@ -298,10 +310,12 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             self.log.debug("The file for connection is not specified. Skipping")
             # The user may not specify any file.
             return {}
-        return load_connections(self.connections_file)
+        return load_connections_dict(self.connections_file)
 
     def get_connections(self, conn_id: str) -> List[Any]:
-        return self._local_connections.get(conn_id) or []
+        if conn_id in self._local_connections:
+            return [self._local_connections[conn_id]]
+        return []
 
     def get_variable(self, key: str) -> Optional[str]:
         return self._local_variables.get(key)
