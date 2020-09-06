@@ -24,7 +24,7 @@ from google.api_core.exceptions import NotFound
 from google.api_core import path_template
 from google.api_core.retry import Retry
 from google.cloud.memcache_v1beta2 import CloudMemcacheClient
-from google.cloud.memcache_v1beta2.types import Instance as MemcachedInstance
+from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import CloudRedisClient
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
 from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, OutputConfig
@@ -537,19 +537,18 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         super().__init__(
             gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
         )
-        self._client = None  # type: Optional[CloudMemcacheClient]
+        self._client: Optional[CloudMemcacheClient] = None
 
     def get_conn(self,):
         """
         Retrieves client library object that allow access to Cloud Memorystore Memcached service.
-
         """
         if not self._client:
             self._client = CloudMemcacheClient(credentials=self._get_credentials())
         return self._client
 
     @staticmethod
-    def _append_label(instance: MemcachedInstance, key: str, val: str) -> MemcachedInstance:
+    def _append_label(instance: cloud_memcache.Instance, key: str, val: str) -> cloud_memcache.Instance:
         """
         Append labels to provided Instance type
 
@@ -574,7 +573,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         self,
         location: str,
         instance_id: str,
-        instance: Union[Dict, MemcachedInstance],
+        instance: Union[Dict, cloud_memcache.Instance],
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -629,8 +628,8 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             self.log.info("Instance not exists.")
 
         if isinstance(instance, dict):
-            instance = ParseDict(instance, MemcachedInstance())
-        elif not isinstance(instance, MemcachedInstance):
+            instance = ParseDict(instance, cloud_memcache.Instance())
+        elif not isinstance(instance, cloud_memcache.Instance):
             raise AirflowException("instance is not instance of Instance type or python dict")
 
         self._append_label(instance, "airflow-version", "v" + version.version)
@@ -761,3 +760,66 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         result = client.list_instances(parent=parent, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info("Fetched instances")
         return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_instance(
+        self,
+        update_mask: Union[Dict, cloud_memcache.field_mask.FieldMask],
+        instance: Union[Dict, cloud_memcache.Instance],
+        project_id: str,
+        location: Optional[str] = None,
+        instance_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ):
+        """
+        Updates the metadata and configuration of a specific Memcached instance.
+
+        :param update_mask: Required. Mask of fields to update. At least one path must be supplied in this
+            field. The elements of the repeated paths field may only include these fields from ``Instance``:
+
+            -  ``displayName``
+
+            If a dict is provided, it must be of the same form as the protobuf message
+            :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMask`
+        :type update_mask:
+            Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMask]
+        :param instance: Required. Update description. Only fields specified in ``update_mask`` are updated.
+
+            If a dict is provided, it must be of the same form as the protobuf message
+            :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.Instance`
+        :type instance: Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.Instance]
+        :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
+        :param instance_id: The logical name of the Memcached instance in the customer project.
+        :type instance_id: str
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
+        :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+            retried.
+        :type retry: google.api_core.retry.Retry
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
+        """
+        client = self.get_conn()
+
+        if isinstance(instance, dict):
+            instance = ParseDict(instance, cloud_memcache.Instance())
+        elif not isinstance(instance, cloud_memcache.Instance):
+            raise AirflowException("instance is not instance of Instance type or python dict")
+
+        if location and instance_id:
+            name = CloudMemcacheClient.instance_path(project_id, location, instance_id)
+            instance.name = name
+
+        self.log.info("Updating instances: %s", instance.name)
+        result = client.update_instance(
+            update_mask=update_mask, resource=instance, retry=retry, timeout=timeout, metadata=metadata
+        )
+        result.result()
+        self.log.info("Instance updated: %s", instance.name)

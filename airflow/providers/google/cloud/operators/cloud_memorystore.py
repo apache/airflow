@@ -19,7 +19,7 @@
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
-from google.cloud.memcache_v1beta2.types import Instance as MemcachedInstance
+from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
 from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, OutputConfig
 from google.protobuf.json_format import MessageToDict
@@ -1172,7 +1172,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
         self,
         location: str,
         instance_id: str,
-        instance: Union[Dict, MemcachedInstance],
+        instance: Union[Dict, cloud_memcache.Instance],
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -1274,7 +1274,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudMemorystoreGetInstanceOperator`  # TODO update
+        :ref:`howto/operator:CloudMemorystoreMemcachedGetInstanceOperator`
 
     :param location: The location of the Cloud Memorystore instance (for example europe-west1)
     :type location: str
@@ -1351,3 +1351,193 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
             metadata=self.metadata,
         )
         return MessageToDict(result)
+
+
+class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
+    """
+    Lists all Memecached instances owned by a project in either the specified location (region) or all
+        locations.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudMemorystoreMemcachedListInstancesOperator`
+
+    :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        If it is specified as ``-`` (wildcard), then all regions available to the project are
+        queried, and the results are aggregated.
+    :type location: str
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the Google Cloud connection is used.
+    :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+        retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+        ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
+
+    template_fields = (
+        "location",
+        "project_id",
+        "retry",
+        "timeout",
+        "metadata",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        location: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.location = location
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Dict):
+        hook = CloudMemorystoreMemcachedHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+        result = hook.list_instances(
+            location=self.location,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        instances = [MessageToDict(a) for a in result]
+        return instances
+
+
+class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
+    """
+    Updates the metadata and configuration of a specific Memcached instance.
+
+    :param update_mask: Required. Mask of fields to update. At least one path must be supplied in this field.
+        The elements of the repeated paths field may only include these fields from ``Instance``:
+
+        -  ``displayName``
+
+        If a dict is provided, it must be of the same form as the protobuf message
+        :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMas`
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudMemorystoreMemcachedUpdateInstanceOperator`
+
+    :type update_mask: Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMask]
+    :param instance: Required. Update description. Only fields specified in update_mask are updated.
+
+        If a dict is provided, it must be of the same form as the protobuf message
+        :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.Instance`
+    :type instance: Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.Instance]
+    :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+    :type location: str
+    :param instance_id: The logical name of the Memcached instance in the customer project.
+    :type instance_id: str
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: str
+    :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+        retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+        ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
+
+    template_fields = (
+        "update_mask",
+        "instance",
+        "location",
+        "instance_id",
+        "project_id",
+        "retry",
+        "timeout",
+        "metadata",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        update_mask: Union[Dict, cloud_memcache.field_mask.FieldMask],
+        instance: Union[Dict, cloud_memcache.Instance],
+        location: Optional[str] = None,
+        instance_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.update_mask = update_mask
+        self.instance = instance
+        self.location = location
+        self.instance_id = instance_id
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Dict):
+        hook = CloudMemorystoreMemcachedHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+        hook.update_instance(
+            update_mask=self.update_mask,
+            instance=self.instance,
+            location=self.location,
+            instance_id=self.instance_id,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )

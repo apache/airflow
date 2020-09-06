@@ -39,6 +39,9 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreUpdateInstanceOperator,
     CloudMemorystoreMemcachedCreateInstanceOperator,
     CloudMemorystoreMemcachedDeleteInstanceOperator,
+    CloudMemorystoreMemcachedGetInstanceOperator,
+    CloudMemorystoreMemcachedListInstancesOperator,
+    CloudMemorystoreMemcachedUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSBucketCreateAclEntryOperator
 from airflow.utils import dates
@@ -255,3 +258,29 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_delete_instance_memcached]
+
+    # [START howto_operator_get_instance_memcached]
+    get_instance = CloudMemorystoreMemcachedGetInstanceOperator(
+        task_id="get-instance",
+        location="europe-north1",
+        instance=INSTANCE_NAME,
+        project_id=GCP_PROJECT_ID,
+    )
+    # [END howto_operator_get_instance_memcached]
+
+    # [START howto_operator_list_instances_memcached]
+    list_instances = CloudMemorystoreMemcachedListInstancesOperator(
+        task_id="list-instances", location="-", project_id=GCP_PROJECT_ID
+    )
+    # [END howto_operator_list_instances_memcached]
+
+    # [START howto_operator_update_instance_memcached]
+    update_instance = CloudMemorystoreMemcachedUpdateInstanceOperator(
+        task_id="update-instance",
+        location="europe-north1",
+        instance_id=INSTANCE_NAME,
+        project_id=GCP_PROJECT_ID,
+        update_mask={"displayName": "New Name"},
+        instance={"memory_size_gb": 2},
+    )
+    # [END howto_operator_update_instance_memcached]

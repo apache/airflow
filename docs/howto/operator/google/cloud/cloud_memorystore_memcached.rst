@@ -83,6 +83,70 @@ operator.
     :end-before: [END howto_operator_delete_instance_memcached]
 
 
+.. _howto/operator:CloudMemorystoreMemcachedGetInstanceOperator:
+
+Get instance
+^^^^^^^^^^^^
+
+Get an instance is performed with the
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedGetInstanceOperator`
+operator.
+
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_get_instance_memcached]
+    :end-before: [END howto_operator_get_instance_memcached]
+
+
+.. _howto/operator:CloudMemorystoreMemcachedListInstancesOperator:
+
+List instances
+^^^^^^^^^^^^^^
+
+List instances is performed with the
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedListInstancesOperator`
+operator.
+
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_list_instances_memcached]
+    :end-before: [END howto_operator_list_instances_memcached]
+
+
+.. _howto/operator:CloudMemorystoreMemcachedUpdateInstanceOperator:
+
+Update instance
+^^^^^^^^^^^^^^^
+
+Updating an instance is performed with the
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedUpdateInstanceOperator`
+operator.
+
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_update_instance_memcached]
+    :end-before: [END howto_operator_update_instance_memcached]
+
+
+.. _howto/operator:CloudMemorystoreMemcachedDeleteInstanceOperator: TODO
+
+Apply params and update TODO
+^^^^^^^^^^^^
+
+Get an instance is performed with the
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedDeleteInstanceOperator`
+operator.
+
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_delete_instance_memcached]
+    :end-before: [END howto_operator_delete_instance_memcached]
+
+
 Reference
 ^^^^^^^^^
 
