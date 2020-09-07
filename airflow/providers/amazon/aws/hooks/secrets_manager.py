@@ -18,6 +18,7 @@
 #
 
 import base64
+import json
 from typing import Union
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -41,8 +42,8 @@ class SecretsManagerHook(AwsBaseHook):
         Create queue using connection object
         :param secret_name: name of the secrets.
         :type secret_name: str
-        :return: dict with the information about the secrets
-        :rtype: dict
+        :return: Union[str, bytes] with the information about the secrets
+        :rtype: Union[str, bytes]
         """
         # Depending on whether the secret is a string or binary, one of
         # these fields will be populated.
@@ -51,4 +52,21 @@ class SecretsManagerHook(AwsBaseHook):
             secret = get_secret_value_response['SecretString']
         else:
             secret = base64.b64decode(get_secret_value_response['SecretBinary'])
+        return secret
+
+    def get_secrets_as_dict(self, secret_name: str) -> dict:
+        """
+        Create queue using connection object
+        :param secret_name: name of the secrets.
+        :type secret_name: str
+        :return: dict with the information about the secrets
+        :rtype: dict
+        """
+        # Depending on whether the secret is a string or binary, one of
+        # these fields will be populated.
+        secret = None
+        try:
+            secret = json.loads(self.get_secrets(secret_name))
+        except json.JSONDecodeError:
+            self.log.debug('Unable to parse secrets as a dict: %s', secret_name)
         return secret

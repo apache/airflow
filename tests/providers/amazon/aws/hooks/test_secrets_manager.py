@@ -19,6 +19,7 @@
 
 import unittest
 import base64
+import json
 
 from airflow.providers.amazon.aws.hooks.secrets_manager import SecretsManagerHook
 
@@ -51,6 +52,23 @@ class TestSecretsManagerHook(unittest.TestCase):
 
         secrets = hook.get_secrets(secret_name)
         self.assertEqual(secrets, secret_value)
+
+    @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
+    @mock_secretsmanager
+    def test_get_secrets_dict(self):
+        secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
+        secret_value = '{"user": "test"}'
+        hook = SecretsManagerHook(aws_conn_id='aws_default')
+
+        param = {
+            'SecretId': secret_name,
+            'SecretString': secret_value,
+        }
+
+        hook.get_conn().put_secret_value(**param)
+
+        secrets = hook.get_secrets_as_dict(secret_name)
+        self.assertEqual(secrets, json.loads(secret_value))
 
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
