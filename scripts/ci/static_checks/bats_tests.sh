@@ -17,13 +17,12 @@
 # under the License.
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 function run_bats_tests() {
-    FILES=("$@")
-    if [[ "${#FILES[@]}" == "0" ]]; then
+    if [[ "${#@}" == "0" ]]; then
         docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
             apache/airflow:bats-2020.09.05-1.2.1 --tap -r /airflow/tests/bats
     else
         docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            apache/airflow:bats-2020.09.05-1.2.1 --tap "${FILES[@]}"
+            apache/airflow:bats-2020.09.05-1.2.1 --tap "${@}"
     fi
 }
 
