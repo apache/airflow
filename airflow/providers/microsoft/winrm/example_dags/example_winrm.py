@@ -38,13 +38,13 @@ from airflow.utils.dates import days_ago
 
 default_args = {
     'owner': 'airflow',
-    'start_date': days_ago(2)
 }
 
 with DAG(
     dag_id='POC_winrm_parallel',
     default_args=default_args,
     schedule_interval='0 0 * * *',
+    start_date=days_ago(2),
     dagrun_timeout=timedelta(minutes=60),
     tags=['example'],
 ) as dag:
@@ -54,22 +54,10 @@ with DAG(
 
     winRMHook = WinRMHook(ssh_conn_id='ssh_POC1')
 
-    t1 = WinRMOperator(
-        task_id="wintask1",
-        command='ls -altr',
-        winrm_hook=winRMHook
-    )
+    t1 = WinRMOperator(task_id="wintask1", command='ls -altr', winrm_hook=winRMHook)
 
-    t2 = WinRMOperator(
-        task_id="wintask2",
-        command='sleep 60',
-        winrm_hook=winRMHook
-    )
+    t2 = WinRMOperator(task_id="wintask2", command='sleep 60', winrm_hook=winRMHook)
 
-    t3 = WinRMOperator(
-        task_id="wintask3",
-        command='echo \'luke test\' ',
-        winrm_hook=winRMHook
-    )
+    t3 = WinRMOperator(task_id="wintask3", command='echo \'luke test\' ', winrm_hook=winRMHook)
 
     [t1, t2, t3] >> run_this_last

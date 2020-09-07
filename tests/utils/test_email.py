@@ -26,7 +26,7 @@ import mock
 
 from airflow import utils
 from airflow.configuration import conf
-from airflow.utils.email import get_email_address_list
+from airflow.utils.email import build_mime_message, get_email_address_list
 from tests.test_utils.config import conf_vars
 
 EMAILS = ['test1@example.com', 'test2@example.com']
@@ -96,11 +96,31 @@ class TestEmail(unittest.TestCase):
             cc=None, bcc=None, mime_charset='utf-8', mime_subtype='mixed')
         self.assertFalse(mock_send_email.called)
 
+    def test_build_mime_message(self):
+        mail_from = 'from@example.com'
+        mail_to = 'to@example.com'
+        subject = 'test subject'
+        html_content = '<html>Test</html>'
+        custom_headers = {'Reply-To': 'reply_to@example.com'}
 
+        msg, recipients = build_mime_message(
+            mail_from=mail_from,
+            to=mail_to,
+            subject=subject,
+            html_content=html_content,
+            custom_headers=custom_headers,
+        )
+
+        self.assertIn('From', msg)
+        self.assertIn('To', msg)
+        self.assertIn('Subject', msg)
+        self.assertIn('Reply-To', msg)
+        self.assertListEqual([mail_to], recipients)
+        self.assertEqual(msg['To'], ','.join(recipients))
+
+
+@conf_vars({('smtp', 'SMTP_SSL'): 'False'})
 class TestEmailSmtp(unittest.TestCase):
-    def setUp(self):
-        conf.set('smtp', 'SMTP_SSL', 'False')
-
     @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_smtp(self, mock_send_mime):
         attachment = tempfile.NamedTemporaryFile()

@@ -23,6 +23,7 @@ from typing import Optional  # noqa: W0611
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+
 # Please keep these variables in alphabetical order.
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.utils.logging_command_executor import LoggingCommandExecutor
@@ -35,6 +36,7 @@ GCP_CLOUD_BUILD_KEY = 'gcp_cloud_build.json'
 GCP_CLOUDSQL_KEY = 'gcp_cloudsql.json'
 GCP_COMPUTE_KEY = 'gcp_compute.json'
 GCP_DATAFLOW_KEY = 'gcp_dataflow.json'
+GCP_DATAFUSION_KEY = 'gcp_datafusion.json'
 GCP_DATAPROC_KEY = 'gcp_dataproc.json'
 GCP_DATASTORE_KEY = 'gcp_datastore.json'
 GCP_DLP_KEY = 'gcp_dlp.json'
@@ -42,9 +44,12 @@ GCP_FUNCTION_KEY = 'gcp_function.json'
 GCP_GCS_KEY = 'gcp_gcs.json'
 GCP_GCS_TRANSFER_KEY = 'gcp_gcs_transfer.json'
 GCP_GKE_KEY = "gcp_gke.json"
+GCP_LIFE_SCIENCES_KEY = 'gcp_life_sciences.json'
 GCP_MEMORYSTORE = 'gcp_memorystore.json'
 GCP_PUBSUB_KEY = "gcp_pubsub.json"
+GCP_SECRET_MANAGER_KEY = 'gcp_secret_manager.json'
 GCP_SPANNER_KEY = 'gcp_spanner.json'
+GCP_STACKDDRIVER = 'gcp_stackdriver.json'
 GCP_TASKS_KEY = 'gcp_tasks.json'
 GMP_KEY = 'gmp.json'
 G_FIREBASE_KEY = 'g_firebase.json'
@@ -168,7 +173,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         Authenticate with service account specified via key name.
         """
         self._validate_key_set()
-        self.log.info("Setting the GCP key to %s", self.full_key_path)
+        self.log.info("Setting the Google Cloud key to %s", self.full_key_path)
         # Checking if we can authenticate using service account credentials provided
         self.execute_cmd(
             [
@@ -222,4 +227,4 @@ class GcpAuthenticator(LoggingCommandExecutor):
                 ]
             )
         else:
-            self.log.info("Not restoring the original GCP account: it is not set")
+            self.log.info("Not restoring the original Google Cloud account: it is not set")

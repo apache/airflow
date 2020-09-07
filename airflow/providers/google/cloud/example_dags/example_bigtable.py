@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# noinspection LongLine
 """
 Example Airflow DAG that creates and performs following operations on Cloud Bigtable:
 - creates an Instance
@@ -27,7 +26,7 @@ Example Airflow DAG that creates and performs following operations on Cloud Bigt
 
 This DAG relies on the following environment variables:
 
-* GCP_PROJECT_ID - Google Cloud Platform project
+* GCP_PROJECT_ID - Google Cloud project
 * CBT_INSTANCE_ID - desired ID of a Cloud Bigtable instance
 * CBT_INSTANCE_DISPLAY_NAME - desired human-readable display name of the Instance
 * CBT_INSTANCE_TYPE - type of the Instance, e.g. 1 for DEVELOPMENT
@@ -50,8 +49,12 @@ from os import getenv
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigtable import (
-    BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
-    BigtableDeleteTableOperator, BigtableUpdateClusterOperator,
+    BigtableCreateInstanceOperator,
+    BigtableCreateTableOperator,
+    BigtableDeleteInstanceOperator,
+    BigtableDeleteTableOperator,
+    BigtableUpdateClusterOperator,
+    BigtableUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 from airflow.utils.dates import days_ago
@@ -59,8 +62,13 @@ from airflow.utils.dates import days_ago
 GCP_PROJECT_ID = getenv('GCP_PROJECT_ID', 'example-project')
 CBT_INSTANCE_ID = getenv('CBT_INSTANCE_ID', 'some-instance-id')
 CBT_INSTANCE_DISPLAY_NAME = getenv('CBT_INSTANCE_DISPLAY_NAME', 'Human-readable name')
+CBT_INSTANCE_DISPLAY_NAME_UPDATED = getenv(
+    "CBT_INSTANCE_DISPLAY_NAME_UPDATED", "Human-readable name - updated"
+)
 CBT_INSTANCE_TYPE = getenv('CBT_INSTANCE_TYPE', '2')
+CBT_INSTANCE_TYPE_PROD = getenv('CBT_INSTANCE_TYPE_PROD', '1')
 CBT_INSTANCE_LABELS = getenv('CBT_INSTANCE_LABELS', '{}')
+CBT_INSTANCE_LABELS_UPDATED = getenv('CBT_INSTANCE_LABELS', '{"env": "prod"}')
 CBT_CLUSTER_ID = getenv('CBT_CLUSTER_ID', 'some-cluster-id')
 CBT_CLUSTER_ZONE = getenv('CBT_CLUSTER_ZONE', 'europe-west1-b')
 CBT_CLUSTER_NODES = getenv('CBT_CLUSTER_NODES', '3')
@@ -69,14 +77,11 @@ CBT_CLUSTER_STORAGE_TYPE = getenv('CBT_CLUSTER_STORAGE_TYPE', '2')
 CBT_TABLE_ID = getenv('CBT_TABLE_ID', 'some-table-id')
 CBT_POKE_INTERVAL = getenv('CBT_POKE_INTERVAL', '60')
 
-default_args = {
-    'start_date': days_ago(1)
-}
 
 with models.DAG(
     'example_gcp_bigtable_operators',
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     # [START howto_operator_gcp_bigtable_instance_create]
@@ -89,7 +94,7 @@ with models.DAG(
         instance_type=int(CBT_INSTANCE_TYPE),
         instance_labels=json.loads(CBT_INSTANCE_LABELS),
         cluster_nodes=int(CBT_CLUSTER_NODES),
-        cluster_storage_type=int(CBT_CLUSTER_STORAGE_TYPE),
+        cluster_storage_type=CBT_CLUSTER_STORAGE_TYPE,
         task_id='create_instance_task',
     )
     create_instance_task2 = BigtableCreateInstanceOperator(
@@ -105,6 +110,16 @@ with models.DAG(
     )
     create_instance_task >> create_instance_task2
     # [END howto_operator_gcp_bigtable_instance_create]
+
+    # [START howto_operator_gcp_bigtable_instance_update]
+    update_instance_task = BigtableUpdateInstanceOperator(
+        instance_id=CBT_INSTANCE_ID,
+        instance_display_name=CBT_INSTANCE_DISPLAY_NAME_UPDATED,
+        instance_type=int(CBT_INSTANCE_TYPE_PROD),
+        instance_labels=json.loads(CBT_INSTANCE_LABELS_UPDATED),
+        task_id='update_instance_task',
+    )
+    # [END howto_operator_gcp_bigtable_instance_update]
 
     # [START howto_operator_gcp_bigtable_cluster_update]
     cluster_update_task = BigtableUpdateClusterOperator(
@@ -125,27 +140,19 @@ with models.DAG(
 
     # [START howto_operator_gcp_bigtable_instance_delete]
     delete_instance_task = BigtableDeleteInstanceOperator(
-        project_id=GCP_PROJECT_ID,
-        instance_id=CBT_INSTANCE_ID,
-        task_id='delete_instance_task',
+        project_id=GCP_PROJECT_ID, instance_id=CBT_INSTANCE_ID, task_id='delete_instance_task',
     )
     delete_instance_task2 = BigtableDeleteInstanceOperator(
-        instance_id=CBT_INSTANCE_ID,
-        task_id='delete_instance_task2',
+        instance_id=CBT_INSTANCE_ID, task_id='delete_instance_task2',
     )
     # [END howto_operator_gcp_bigtable_instance_delete]
 
     # [START howto_operator_gcp_bigtable_table_create]
     create_table_task = BigtableCreateTableOperator(
-        project_id=GCP_PROJECT_ID,
-        instance_id=CBT_INSTANCE_ID,
-        table_id=CBT_TABLE_ID,
-        task_id='create_table',
+        project_id=GCP_PROJECT_ID, instance_id=CBT_INSTANCE_ID, table_id=CBT_TABLE_ID, task_id='create_table',
     )
     create_table_task2 = BigtableCreateTableOperator(
-        instance_id=CBT_INSTANCE_ID,
-        table_id=CBT_TABLE_ID,
-        task_id='create_table_task2',
+        instance_id=CBT_INSTANCE_ID, table_id=CBT_TABLE_ID, task_id='create_table_task2',
     )
     create_table_task >> create_table_task2
     # [END howto_operator_gcp_bigtable_table_create]
@@ -176,9 +183,7 @@ with models.DAG(
         task_id='delete_table_task',
     )
     delete_table_task2 = BigtableDeleteTableOperator(
-        instance_id=CBT_INSTANCE_ID,
-        table_id=CBT_TABLE_ID,
-        task_id='delete_table_task2',
+        instance_id=CBT_INSTANCE_ID, table_id=CBT_TABLE_ID, task_id='delete_table_task2',
     )
     # [END howto_operator_gcp_bigtable_table_delete]
 
@@ -186,15 +191,9 @@ with models.DAG(
     wait_for_table_replication_task2 >> delete_table_task
     wait_for_table_replication_task >> delete_table_task2
     wait_for_table_replication_task2 >> delete_table_task2
-    create_instance_task \
-        >> create_table_task \
-        >> cluster_update_task \
-        >> delete_table_task
-    create_instance_task2 \
-        >> create_table_task2 \
-        >> cluster_update_task2 \
-        >> delete_table_task2
+    create_instance_task >> create_table_task >> cluster_update_task
+    cluster_update_task >> update_instance_task >> delete_table_task
+    create_instance_task2 >> create_table_task2 >> cluster_update_task2 >> delete_table_task2
 
     # Only delete instances after all tables are deleted
-    [delete_table_task, delete_table_task2] >> \
-        delete_instance_task >> delete_instance_task2
+    [delete_table_task, delete_table_task2] >> delete_instance_task >> delete_instance_task2

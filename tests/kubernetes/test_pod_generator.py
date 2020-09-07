@@ -14,18 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import sys
 import unittest
-import unittest.mock as mock
 import uuid
+from unittest import mock
 
-import kubernetes.client.models as k8s
-from kubernetes.client import ApiClient
+from dateutil import parser
+from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod import Resources
-from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator, extend_object_field, merge_objects
+from airflow.kubernetes.pod_generator import (
+    PodDefaults, PodGenerator, datetime_to_label_safe_datestring, extend_object_field, merge_objects,
+)
 from airflow.kubernetes.secret import Secret
 
 
@@ -64,19 +66,31 @@ class TestPodGenerator(unittest.TestCase):
             Secret('env', 'TARGET', 'secret_b', 'source_b'),
         ]
 
+        self.execution_date = parser.parse('2020-08-24 00:00:00.000000')
+        self.execution_date_label = datetime_to_label_safe_datestring(self.execution_date)
+        self.dag_id = 'dag_id'
+        self.task_id = 'task_id'
+        self.try_number = 3
         self.labels = {
             'airflow-worker': 'uuid',
-            'dag_id': 'dag_id',
-            'execution_date': 'date',
-            'task_id': 'task_id',
-            'try_number': '3',
+            'dag_id': self.dag_id,
+            'execution_date': self.execution_date_label,
+            'task_id': self.task_id,
+            'try_number': str(self.try_number),
             'airflow_version': mock.ANY,
             'kubernetes_executor': 'True'
+        }
+        self.annotations = {
+            'dag_id': self.dag_id,
+            'task_id': self.task_id,
+            'execution_date': self.execution_date.isoformat(),
+            'try_number': str(self.try_number),
         }
         self.metadata = {
             'labels': self.labels,
             'name': 'pod_id-' + self.static_uuid.hex,
-            'namespace': 'namespace'
+            'namespace': 'namespace',
+            'annotations': self.annotations,
         }
 
         self.resources = Resources('1Gi', 1, '2Gi', '2Gi', 2, 1, '4Gi')
@@ -330,6 +344,7 @@ class TestPodGenerator(unittest.TestCase):
                 'hostPath': {'path': '/tmp/'},
                 'name': 'example-kubernetes-test-volume1'
             }],
+            labels={"foo": "bar"},
             volume_mounts=[{
                 'mountPath': '/foo/',
                 'name': 'example-kubernetes-test-volume1'
@@ -340,6 +355,7 @@ class TestPodGenerator(unittest.TestCase):
             envs={'key2': 'val2'},
             image='',
             name='name2',
+            labels={"bar": "baz"},
             cmds=['/bin/command2.sh', 'arg2'],
             volumes=[{
                 'hostPath': {'path': '/tmp/'},
@@ -356,7 +372,8 @@ class TestPodGenerator(unittest.TestCase):
         self.assertEqual({
             'apiVersion': 'v1',
             'kind': 'Pod',
-            'metadata': {'name': 'name2-' + self.static_uuid.hex},
+            'metadata': {'name': 'name2-' + self.static_uuid.hex,
+                         'labels': {'foo': 'bar', "bar": "baz"}},
             'spec': {
                 'containers': [{
                     'args': [],
@@ -413,11 +430,11 @@ class TestPodGenerator(unittest.TestCase):
         worker_config = k8s.V1Pod()
 
         result = PodGenerator.construct_pod(
-            'dag_id',
-            'task_id',
+            self.dag_id,
+            self.task_id,
             'pod_id',
-            3,
-            'date',
+            self.try_number,
+            self.execution_date,
             ['command'],
             executor_config,
             worker_config,
@@ -473,11 +490,11 @@ class TestPodGenerator(unittest.TestCase):
         executor_config = None
 
         result = PodGenerator.construct_pod(
-            'dag_id',
-            'task_id',
+            self.dag_id,
+            self.task_id,
             'pod_id',
-            3,
-            'date',
+            self.try_number,
+            self.execution_date,
             ['command'],
             executor_config,
             worker_config,
@@ -556,11 +573,11 @@ class TestPodGenerator(unittest.TestCase):
         )
 
         result = PodGenerator.construct_pod(
-            'dag_id',
-            'task_id',
+            self.dag_id,
+            self.task_id,
             'pod_id',
-            3,
-            'date',
+            self.try_number,
+            self.execution_date,
             ['command'],
             executor_config,
             worker_config,
@@ -569,12 +586,13 @@ class TestPodGenerator(unittest.TestCase):
         )
         sanitized_result = self.k8s_client.sanitize_for_serialization(result)
 
-        self.metadata.update({'annotations': {'should': 'stay'}})
+        expected_metadata = dict(self.metadata)
+        expected_metadata['annotations'].update({'should': 'stay'})
 
         self.assertEqual({
             'apiVersion': 'v1',
             'kind': 'Pod',
-            'metadata': self.metadata,
+            'metadata': expected_metadata,
             'spec': {
                 'containers': [{
                     'args': [],
@@ -729,7 +747,8 @@ class TestPodGenerator(unittest.TestCase):
         self.assertEqual(client_spec, res)
 
     def test_deserialize_model_file(self):
-        fixture = 'tests/kubernetes/pod.yaml'
+
+        fixture = sys.path[0] + '/tests/kubernetes/pod.yaml'
         result = PodGenerator.deserialize_model_file(fixture)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         self.assertEqual(sanitized_res, self.deserialize_result)

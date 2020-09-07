@@ -4,6 +4,7 @@
 .github/*
 .gitignore
 .gitattributes
+.gitrepo
 .airflow_db_initialised
 .airflowignore
 .coverage
@@ -30,6 +31,7 @@ metastore_db
 .*sql
 .*svg
 .*csv
+.*md5
 CHANGELOG.txt
 .*zip
 .*lock
@@ -48,6 +50,9 @@ _images/*
 .buildinfo
 searchindex.js
 _api/*
+
+# the word list for checking spellings
+spelling_wordlist.txt
 
 # Apache Rat does not detect BSD-2 clause properly
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
@@ -75,9 +80,7 @@ rat-results.txt
 apache-airflow-.*\+source.tar.gz.*
 apache-airflow-.*\+bin.tar.gz.*
 PULL_REQUEST_TEMPLATE.md
-
-# vendored modules
-_vendor/*
+PROVIDERS_CHANGES*.md
 
 # Temporary list of files to make compatible with Pylint
 pylint_todo.txt
@@ -90,3 +93,7 @@ pylint_todo.txt
 
 # the example notebook is ASF 2 licensed but RAT cannot read this
 input_notebook.ipynb
+
+# .git might be a file in case of worktree
+.git
+tmp

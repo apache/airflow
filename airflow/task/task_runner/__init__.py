@@ -20,6 +20,7 @@
 import logging
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
@@ -48,11 +49,16 @@ def get_task_runner(local_task_job):
     """
     if _TASK_RUNNER_NAME in CORE_TASK_RUNNERS:
         log.debug("Loading core task runner: %s", _TASK_RUNNER_NAME)
-        task_runner_class_name = CORE_TASK_RUNNERS[_TASK_RUNNER_NAME]
+        task_runner_class = import_string(CORE_TASK_RUNNERS[_TASK_RUNNER_NAME])
     else:
         log.debug("Loading task runner from custom path: %s", _TASK_RUNNER_NAME)
-        task_runner_class_name = _TASK_RUNNER_NAME
+        try:
+            task_runner_class = import_string(_TASK_RUNNER_NAME)
+        except ImportError:
+            raise AirflowConfigException(
+                f'The task runner could not be loaded. Please check "executor" key in "core" section. '
+                f'Current value: "{_TASK_RUNNER_NAME}".'
+            )
 
-    task_runner_class = import_string(task_runner_class_name)
     task_runner = task_runner_class(local_task_job)
     return task_runner

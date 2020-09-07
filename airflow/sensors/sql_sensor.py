@@ -40,7 +40,7 @@ class SqlSensor(BaseSensorOperator):
         that contains a non-zero / empty string value.
     :type sql: str
     :param parameters: The parameters to render the SQL query with (optional).
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     :param success: Success criteria for the sensor is a Callable that takes first_cell
         as the only argument, and returns a boolean (optional).
     :type: success: Optional<Callable[[Any], bool]>
@@ -51,27 +51,27 @@ class SqlSensor(BaseSensorOperator):
     :type: fail_on_empty: bool
     """
 
-    template_fields = ('sql',)  # type: Iterable[str]
-    template_ext = ('.hql', '.sql',)  # type: Iterable[str]
+    template_fields: Iterable[str] = ('sql',)
+    template_ext: Iterable[str] = ('.hql', '.sql',)
     ui_color = '#7c7287'
 
     @apply_defaults
-    def __init__(self, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False,
-                 *args, **kwargs):
+    def __init__(self, *, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False,
+                 **kwargs):
         self.conn_id = conn_id
         self.sql = sql
         self.parameters = parameters
         self.success = success
         self.failure = failure
         self.fail_on_empty = fail_on_empty
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _get_hook(self):
         conn = BaseHook.get_connection(self.conn_id)
 
         allowed_conn_type = {'google_cloud_platform', 'jdbc', 'mssql',
                              'mysql', 'odbc', 'oracle', 'postgres',
-                             'presto', 'sqlite', 'vertica'}
+                             'presto', 'snowflake', 'sqlite', 'vertica'}
         if conn.conn_type not in allowed_conn_type:
             raise AirflowException("The connection type is not supported by SqlSensor. " +
                                    "Supported connection types: {}".format(list(allowed_conn_type)))

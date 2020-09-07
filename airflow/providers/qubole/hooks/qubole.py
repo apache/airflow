@@ -24,8 +24,18 @@ import pathlib
 import time
 
 from qds_sdk.commands import (
-    Command, DbExportCommand, DbImportCommand, DbTapQueryCommand, HadoopCommand, HiveCommand, PigCommand,
-    PrestoCommand, ShellCommand, SparkCommand, SqlCommand,
+    Command,
+    DbExportCommand,
+    DbImportCommand,
+    DbTapQueryCommand,
+    HadoopCommand,
+    HiveCommand,
+    PigCommand,
+    PrestoCommand,
+    ShellCommand,
+    SparkCommand,
+    SqlCommand,
+    JupyterNotebookCommand,
 )
 from qds_sdk.qubole import Qubole
 
@@ -46,14 +56,11 @@ COMMAND_CLASSES = {
     "dbtapquerycmd": DbTapQueryCommand,
     "dbexportcmd": DbExportCommand,
     "dbimportcmd": DbImportCommand,
-    "sqlcmd": SqlCommand
+    "sqlcmd": SqlCommand,
+    "jupytercmd": JupyterNotebookCommand,
 }
 
-POSITIONAL_ARGS = {
-    'hadoopcmd': ['sub_command'],
-    'shellcmd': ['parameters'],
-    'pigcmd': ['parameters']
-}
+POSITIONAL_ARGS = {'hadoopcmd': ['sub_command'], 'shellcmd': ['parameters'], 'pigcmd': ['parameters']}
 
 
 def flatten_list(list_of_lists):
@@ -100,6 +107,7 @@ COMMAND_ARGS, HYPHEN_ARGS = build_command_args()
 
 class QuboleHook(BaseHook):
     """Hook for Qubole communication"""
+
     def __init__(self, *args, **kwargs):  # pylint: disable=unused-argument
         super().__init__()
         conn = self.get_connection(kwargs['qubole_conn_id'])
@@ -121,8 +129,9 @@ class QuboleHook(BaseHook):
             cmd = Command.find(cmd_id)
             if cmd is not None:
                 if cmd.status == 'done':
-                    log.info('Command ID: %s has been succeeded, hence marking this '
-                             'TI as Success.', cmd_id)
+                    log.info(
+                        'Command ID: %s has been succeeded, hence marking this ' 'TI as Success.', cmd_id
+                    )
                     ti.state = State.SUCCESS
                 elif cmd.status == 'running':
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
@@ -134,10 +143,7 @@ class QuboleHook(BaseHook):
         self.cmd = self.cls.create(**args)
         self.task_instance = context['task_instance']
         context['task_instance'].xcom_push(key='qbol_cmd_id', value=self.cmd.id)
-        self.log.info(
-            "Qubole command created with Id: %s and Status: %s",
-            self.cmd.id, self.cmd.status
-        )
+        self.log.info("Qubole command created with Id: %s and Status: %s", self.cmd.id, self.cmd.status)
 
         while not Command.is_done(self.cmd.status):
             time.sleep(Qubole.poll_interval)
@@ -148,8 +154,9 @@ class QuboleHook(BaseHook):
             self.log.info("Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log())
 
         if self.cmd.status != 'done':
-            raise AirflowException('Command Id: {0} failed with Status: {1}'.format(
-                                   self.cmd.id, self.cmd.status))
+            raise AirflowException(
+                'Command Id: {0} failed with Status: {1}'.format(self.cmd.id, self.cmd.status)
+            )
 
     def kill(self, ti):
         """
@@ -182,9 +189,7 @@ class QuboleHook(BaseHook):
         """
         if fp is None:
             iso = datetime.datetime.utcnow().isoformat()
-            logpath = os.path.expanduser(
-                conf.get('logging', 'BASE_LOG_FOLDER')
-            )
+            logpath = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
             resultpath = logpath + '/' + self.dag_id + '/' + self.task_id + '/results'
             pathlib.Path(resultpath).mkdir(parents=True, exist_ok=True)
             fp = open(resultpath + '/' + iso, 'wb')
@@ -228,7 +233,7 @@ class QuboleHook(BaseHook):
         tags = {self.dag_id, self.task_id, context['run_id']}
         positional_args_list = flatten_list(POSITIONAL_ARGS.values())
 
-        for key, value in self.kwargs.items():
+        for key, value in self.kwargs.items():  # pylint: disable=too-many-nested-blocks
             if key in COMMAND_ARGS[cmd_type]:
                 if key in HYPHEN_ARGS:
                     args.append("--{0}={1}".format(key.replace('_', '-'), value))
@@ -236,11 +241,11 @@ class QuboleHook(BaseHook):
                     inplace_args = value
                 elif key == 'tags':
                     self._add_tags(tags, value)
+                elif key == 'notify':
+                    if value is True:
+                        args.append("--notify")
                 else:
                     args.append("--{0}={1}".format(key, value))
-
-            if key == 'notify' and value is True:
-                args.append("--notify")
 
         args.append("--tags={0}".format(','.join(filter(None, tags))))
 
@@ -254,4 +259,4 @@ class QuboleHook(BaseHook):
         if isinstance(value, str):
             tags.add(value)
         elif isinstance(value, (list, tuple)):
-            tags.extend(value)
+            tags.update(value)

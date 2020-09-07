@@ -17,15 +17,37 @@
 # specific language governing permissions and limitations
 # under the License.
 
-_BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS="3.6 3.7"
+_BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS="2.7 3.5 3.6 3.7 3.8"
 _BREEZE_ALLOWED_BACKENDS="sqlite mysql postgres"
 _BREEZE_ALLOWED_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis all"
-_BREEZE_ALLOWED_KUBERNETES_MODES="persistent_mode git_mode"
-_BREEZE_ALLOWED_KUBERNETES_VERSIONS="v1.15.3 v1.16.2"
+_BREEZE_ALLOWED_KUBERNETES_MODES="image git"
+_BREEZE_ALLOWED_KUBERNETES_VERSIONS="v1.18.6 v1.17.5 v1.16.9"
+_BREEZE_ALLOWED_HELM_VERSIONS="v3.2.4"
+_BREEZE_ALLOWED_KIND_VERSIONS="v0.8.0"
 _BREEZE_ALLOWED_MYSQL_VERSIONS="5.7 8"
 _BREEZE_ALLOWED_POSTGRES_VERSIONS="9.6 10"
+_BREEZE_ALLOWED_KIND_OPERATIONS="start stop restart status deploy test shell"
+
+# Default values for the flags used
+
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_BACKEND="sqlite"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_KUBERNETES_MODE="image"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_KUBERNETES_VERSION="v1.18.6"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_KIND_VERSION="v0.8.0"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_HELM_VERSION="v3.2.4"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
+# shellcheck disable=SC2034
+_BREEZE_DEFAULT_MYSQL_VERSION="5.7"
 
 _BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=$(cat <<-EOF
+1.10.12
+1.10.11
 1.10.10
 1.10.9
 1.10.8
@@ -43,51 +65,83 @@ EOF
 _BREEZE_ALLOWED_STATIC_CHECKS=$(cat <<-EOF
 all
 all-but-pylint
+airflow-config-yaml
+base-operator
 bat-tests
+black
+build
+build-providers-dependencies
 check-apache-license
+check-builtin-literals
 check-executables-have-shebangs
 check-hooks-apply
+check-integrations
 check-merge-conflict
 check-xml
+consistent-pylint
+daysago-import-check
 debug-statements
-doctoc
 detect-private-key
+doctoc
+dont-use-safe-filter
 end-of-file-fixer
+fix-encoding-pragma
 flake8
 forbid-tabs
+incorrect-use-of-LoggingMixin
 insert-license
+isort
+language-matters
 lint-dockerfile
+lint-openapi
 mixed-line-ending
 mypy
+provide-create-sessions
+pydevd
+pydocstyle
 pylint
-pylint-test
+pylint-tests
+python-no-log-warn
+rst-backticks
 setup-order
 shellcheck
+stylelint
+trailing-whitespace
+update-breeze-file
+update-extras
+update-local-yml-file
+update-setup-cfg-file
+yamllint
 EOF
 )
 
 _BREEZE_DEFAULT_DOCKERHUB_USER="apache"
 _BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
+_BREEZE_DEFAULT_GITHUB_REPOSITORY="apache/airflow"
+_BREEZE_DEFAULT_GITHUB_IMAGE_ID="latest"
 
 _BREEZE_SHORT_OPTIONS="
 h p: b: i:
 K: V:
-s x r
 l a: t: d:
 v y n q f
-F P I E: C L
-D: R: u
+F P I E: C r
+L U X
+D: R: c g: s:
+S: N:
 "
 
 _BREEZE_LONG_OPTIONS="
 help python: backend: integration:
-kubernetes-mode: kubernetes-version:
-kind-cluster-start kind-cluster-stop kind-cluster-recreate
+kubernetes-mode: kubernetes-version: helm-version: kind-version:
 skip-mounting-local-sources install-airflow-version: install-airflow-reference: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials
-force-build-images force-pull-images production-image extras: force-clean-images use-local-cache
-dockerhub-user: dockerhub-repo: push-images
+force-build-images force-pull-images production-image extras: force-clean-images skip-rebuild-check
+build-cache-local build-cache-pulled build-cache-disabled
+dockerhub-user: dockerhub-repo: github-registry github-repository: github-image-id:
 postgres-version: mysql-version:
+version-suffix-for-pypi: version-suffix-for-svn:
+additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps:
 "
 
 export BREEZE_COMMANDS="
@@ -96,7 +150,8 @@ build-docs
 build-image
 cleanup-image
 exec
-generate-requirements
+generate-constraints
+push-image
 initialize-local-virtualenv
 setup-autocomplete
 stop
@@ -106,10 +161,11 @@ toggle-suppress-asciiart"
 
 export BREEZE_EXTRA_ARG_COMMANDS="
 docker-compose
-execute-command
+kind-cluster
+prepare-backport-readme
+prepare-backport-packages
 static-check
-static-check-all-files
-test-target"
+tests"
 
 export BREEZE_HELP_COMMANDS="
 flags
@@ -139,10 +195,13 @@ function _get_known_values_breeze() {
     -V | --kubernetes-version)
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_VERSIONS}
         ;;
-    static-check)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS}
+    --kind-version)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KIND_VERSIONS}
         ;;
-    static-check-all-files)
+    --helm-version)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_HELM_VERSIONS}
+        ;;
+    static-check)
         _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS}
         ;;
     -A | --install-airflow-version)
@@ -166,6 +225,15 @@ function _get_known_values_breeze() {
         ;;
     -R | --dockerhub-repo)
         _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}"
+        ;;
+    -g | --github-repository)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_GITHUB_REPOSITORY}"
+        ;;
+    -s | --github-image-id)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_GITHUB_IMAGE_ID}"
+        ;;
+    kind-cluster)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_ALLOWED_KIND_OPERATIONS}"
         ;;
     *)
         _BREEZE_KNOWN_VALUES=""

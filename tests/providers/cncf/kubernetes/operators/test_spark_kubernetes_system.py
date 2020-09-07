@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -26,20 +25,22 @@ from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.system_tests_class import SystemTest
 
 KUBERNETES_DAG_FOLDER = os.path.join(
-    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "cncf", "kubernetes", "example_dags")
+    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "cncf", "kubernetes", "example_dags"
+)
 
 SPARK_OPERATOR_VERSION = "v1beta2-1.1.1-2.4.5"
 
-MANIFEST_BASE_URL = \
-    f'https://raw.githubusercontent.com/GoogleCloudPlatform/spark-on-k8s-operator/' \
+MANIFEST_BASE_URL = (
+    f'https://raw.githubusercontent.com/GoogleCloudPlatform/spark-on-k8s-operator/'
     f'{SPARK_OPERATOR_VERSION}/manifest/'
+)
 
 SPARK_OPERATOR_MANIFESTS = [
     f"{MANIFEST_BASE_URL}crds/sparkoperator.k8s.io_sparkapplications.yaml",
     f"{MANIFEST_BASE_URL}crds/sparkoperator.k8s.io_scheduledsparkapplications.yaml",
     f"{MANIFEST_BASE_URL}spark-operator-rbac.yaml",
     f"{MANIFEST_BASE_URL}spark-operator.yaml",
-    f"{MANIFEST_BASE_URL}spark-rbac.yaml"
+    f"{MANIFEST_BASE_URL}spark-rbac.yaml",
 ]
 
 
@@ -55,18 +56,13 @@ def kubectl_delete_list(manifests):
         subprocess.run(command, check=True)
 
 
-@pytest.mark.runtime("kubernetes")
 @pytest.mark.system("cncf.kubernetes")
 class SparkKubernetesExampleDagsSystemTest(SystemTest):
-
     def setUp(self):
         super().setUp()
         kubectl_apply_list(SPARK_OPERATOR_MANIFESTS)
         if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-            db.merge_conn(
-                Connection(
-                    conn_id='kubernetes_default', conn_type='kubernetes'
-                ))
+            db.merge_conn(Connection(conn_id='kubernetes_default', conn_type='kubernetes'))
 
     def tearDown(self):
         super().tearDown()

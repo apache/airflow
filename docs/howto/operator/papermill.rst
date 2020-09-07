@@ -41,19 +41,16 @@ passed in at execution time. Papermill will add a new cell tagged with injected-
 with input parameters in order to overwrite the values in parameters. If no cell is
 tagged with parameters the injected cell will be inserted at the top of the notebook.
 
-Note that Jupyter notebook has out of the box support for tags but you need to install
-the celltags extension for Jupyter Lab: ``jupyter labextension install @jupyterlab/celltags``
-
 Make sure that you save your notebook somewhere so that Airflow can access it. Papermill
 supports S3, GCS, Azure and Local. HDFS is *not* supported.
 
 Example DAG
 '''''''''''
 
-Use the :class:`~airflow.contrib.operators.papermill_operator.PapermillOperator`
+Use the :class:`~airflow.providers.papermill.operators.papermill.PapermillOperator`
 to execute a jupyter notebook:
 
-.. exampleinclude:: ../../../airflow/providers/papermill/example_dags/example_papermill.py
+.. exampleinclude:: /../airflow/providers/papermill/example_dags/example_papermill.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_papermill]

@@ -18,10 +18,10 @@
 
 from collections import Counter
 
-import airflow
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule as TR
 
 
 class TriggerRuleDep(BaseTIDep):
@@ -50,7 +50,6 @@ class TriggerRuleDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        TR = airflow.utils.trigger_rule.TriggerRule
         # Checking that all upstream dependencies have succeeded
         if not ti.task.upstream_list:
             yield self._passing_status(
@@ -110,8 +109,6 @@ class TriggerRuleDep(BaseTIDep):
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
-
-        TR = airflow.utils.trigger_rule.TriggerRule
 
         task = ti.task
         upstream = len(task.upstream_task_ids)
@@ -189,7 +186,7 @@ class TriggerRuleDep(BaseTIDep):
                 yield self._failing_status(
                     reason="Task's trigger rule '{0}' requires all upstream "
                     "tasks to have completed, but found {1} task(s) that "
-                    "weren't done. upstream_tasks_state={2}, "
+                    "were not done. upstream_tasks_state={2}, "
                     "upstream_task_ids={3}"
                     .format(trigger_rule, upstream_done, upstream_tasks_state,
                             task.upstream_task_ids))

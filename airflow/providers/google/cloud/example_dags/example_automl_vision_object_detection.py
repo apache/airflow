@@ -24,8 +24,11 @@ import os
 from airflow import models
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
-    AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator, AutoMLDeleteModelOperator,
-    AutoMLImportDataOperator, AutoMLTrainModelOperator,
+    AutoMLCreateDatasetOperator,
+    AutoMLDeleteDatasetOperator,
+    AutoMLDeleteModelOperator,
+    AutoMLImportDataOperator,
+    AutoMLTrainModelOperator,
 )
 from airflow.utils.dates import days_ago
 
@@ -53,15 +56,14 @@ DATASET = {
 
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_DETECTION_BUCKET]}}
 
-default_args = {"start_date": days_ago(1)}
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 
 # Example DAG for AutoML Vision Object Detection
 with models.DAG(
     "example_automl_vision_detection",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     user_defined_macros={"extract_object_id": extract_object_id},
     tags=['example'],
 ) as example_dag:
@@ -69,9 +71,7 @@ with models.DAG(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
     )
 
-    dataset_id = (
-        '{{ task_instance.xcom_pull("create_dataset_task", key="dataset_id") }}'
-    )
+    dataset_id = '{{ task_instance.xcom_pull("create_dataset_task", key="dataset_id") }}'
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -82,9 +82,7 @@ with models.DAG(
 
     MODEL["dataset_id"] = dataset_id
 
-    create_model = AutoMLTrainModelOperator(
-        task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION
-    )
+    create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
 
     model_id = "{{ task_instance.xcom_pull('create_model', key='model_id') }}"
 
@@ -102,5 +100,4 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    create_dataset_task >> import_dataset_task >> create_model >> \
-        delete_model_task >> delete_datasets_task
+    create_dataset_task >> import_dataset_task >> create_model >> delete_model_task >> delete_datasets_task

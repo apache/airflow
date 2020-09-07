@@ -19,7 +19,6 @@
 """Unit tests for SerializedDagModel."""
 
 import unittest
-from unittest import mock
 
 from airflow import DAG, example_dags as example_dags_module
 from airflow.models import DagBag
@@ -76,6 +75,35 @@ class SerializedDagModelTest(unittest.TestCase):
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
 
+    def test_serialized_dag_is_updated_only_if_dag_is_changed(self):
+        """Test Serialized DAG is updated if DAG is changed"""
+
+        example_dags = make_example_dags(example_dags_module)
+        example_bash_op_dag = example_dags.get("example_bash_operator")
+        SDM.write_dag(dag=example_bash_op_dag)
+
+        with create_session() as session:
+            s_dag = session.query(SDM).get(example_bash_op_dag.dag_id)
+
+            # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
+            # column is not updated
+            SDM.write_dag(dag=example_bash_op_dag)
+            s_dag_1 = session.query(SDM).get(example_bash_op_dag.dag_id)
+
+            self.assertEqual(s_dag_1.dag_hash, s_dag.dag_hash)
+            self.assertEqual(s_dag.last_updated, s_dag_1.last_updated)
+
+            # Update DAG
+            example_bash_op_dag.tags += ["new_tag"]
+            self.assertCountEqual(example_bash_op_dag.tags, ["example", "new_tag"])
+
+            SDM.write_dag(dag=example_bash_op_dag)
+            s_dag_2 = session.query(SDM).get(example_bash_op_dag.dag_id)
+
+            self.assertNotEqual(s_dag.last_updated, s_dag_2.last_updated)
+            self.assertNotEqual(s_dag.dag_hash, s_dag_2.dag_hash)
+            self.assertEqual(s_dag_2.data["dag"]["tags"], ["example", "new_tag"])
+
     def test_read_dags(self):
         """DAGs can be read from database."""
         example_dags = self._write_example_dags()
@@ -112,10 +140,9 @@ class SerializedDagModelTest(unittest.TestCase):
         SDM.remove_deleted_dags(example_dag_files)
         self.assertFalse(SDM.has_dag(dag_removed_by_file.dag_id))
 
-    @mock.patch('airflow.models.serialized_dag.STORE_SERIALIZED_DAGS', True)
     def test_bulk_sync_to_db(self):
         dags = [
-            DAG(f"dag_1"), DAG(f"dag_2"), DAG(f"dag_3"),
+            DAG("dag_1"), DAG("dag_2"), DAG("dag_3"),
         ]
-        with assert_queries_count(7):
+        with assert_queries_count(10):
             SDM.bulk_sync_to_db(dags)

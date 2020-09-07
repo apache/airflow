@@ -75,6 +75,24 @@ class TestPodLauncher(unittest.TestCase):
             mock.sentinel
         )
 
+    def test_read_pod_logs_successfully_with_tail_lines(self):
+        mock.sentinel.metadata = mock.MagicMock()
+        self.mock_kube_client.read_namespaced_pod_log.side_effect = [
+            mock.sentinel.logs
+        ]
+        logs = self.pod_launcher.read_pod_logs(mock.sentinel, 100)
+        self.assertEqual(mock.sentinel.logs, logs)
+        self.mock_kube_client.read_namespaced_pod_log.assert_has_calls([
+            mock.call(
+                _preload_content=False,
+                container='base',
+                follow=True,
+                name=mock.sentinel.metadata.name,
+                namespace=mock.sentinel.metadata.namespace,
+                tail_lines=100
+            ),
+        ])
+
     def test_read_pod_events_successfully_returns_events(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.list_namespaced_event.return_value = mock.sentinel.events

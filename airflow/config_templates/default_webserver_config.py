@@ -34,7 +34,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 SQLALCHEMY_DATABASE_URI = conf.get('core', 'SQL_ALCHEMY_CONN')
 
 # Flask-WTF flag for CSRF
-CSRF_ENABLED = True
+WTF_CSRF_ENABLED = True
 
 # ----------------------------------------------------
 # AUTHENTICATION CONFIG
@@ -67,19 +67,18 @@ AUTH_TYPE = AUTH_DB
 # Google OAuth example:
 # OAUTH_PROVIDERS = [{
 #   'name':'google',
-#     'whitelist': ['@YOU_COMPANY_DOMAIN'],  # optional
 #     'token_key':'access_token',
 #     'icon':'fa-google',
 #         'remote_app': {
-#             'base_url':'https://www.googleapis.com/oauth2/v2/',
-#             'request_token_params':{
+#             'api_base_url':'https://www.googleapis.com/oauth2/v2/',
+#             'client_kwargs':{
 #                 'scope': 'email profile'
 #             },
 #             'access_token_url':'https://accounts.google.com/o/oauth2/token',
 #             'authorize_url':'https://accounts.google.com/o/oauth2/auth',
 #             'request_token_url': None,
-#             'consumer_key': CONSUMER_KEY,
-#             'consumer_secret': SECRET_KEY,
+#             'client_id': GOOGLE_KEY,
+#             'client_secret': GOOGLE_SECRET_KEY,
 #         }
 # }]
 

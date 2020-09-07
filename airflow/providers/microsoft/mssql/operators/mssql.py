@@ -39,7 +39,7 @@ class MsSqlOperator(BaseOperator):
     :param mssql_conn_id: reference to a specific mssql database
     :type mssql_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
     :type autocommit: bool
@@ -54,14 +54,15 @@ class MsSqlOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         sql: str,
         mssql_conn_id: str = 'mssql_default',
         parameters: Optional[Union[Mapping, Iterable]] = None,
         autocommit: bool = False,
         database: Optional[str] = None,
-        *args, **kwargs
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id
         self.sql = sql
         self.parameters = parameters

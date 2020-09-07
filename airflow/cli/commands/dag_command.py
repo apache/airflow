@@ -19,11 +19,13 @@
 import errno
 import json
 import logging
+import os
 import signal
 import subprocess
 import sys
 from typing import List
 
+import yaml
 from graphviz.dot import Dot
 from tabulate import tabulate
 
@@ -39,10 +41,11 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag
 from airflow.utils.session import create_session, provide_session
+from airflow.utils.state import State
 
 
 def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt: str = "fancy_grid") -> str:
-    tabulat_data = (
+    tabulate_data = (
         {
             'ID': dag_run.id,
             'Run ID': dag_run.run_id,
@@ -54,13 +57,13 @@ def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt: str = "fancy_grid") -> 
         } for dag_run in dag_runs
     )
     return tabulate(
-        tabular_data=tabulat_data,
+        tabular_data=tabulate_data,
         tablefmt=tablefmt
     )
 
 
 def _tabulate_dags(dags: List[DAG], tablefmt: str = "fancy_grid") -> str:
-    tabulat_data = (
+    tabulate_data = (
         {
             'DAG ID': dag.dag_id,
             'Filepath': dag.filepath,
@@ -68,7 +71,7 @@ def _tabulate_dags(dags: List[DAG], tablefmt: str = "fancy_grid") -> str:
         } for dag in sorted(dags, key=lambda d: d.dag_id)
     )
     return tabulate(
-        tabular_data=tabulat_data,
+        tabular_data=tabulate_data,
         tablefmt=tablefmt,
         headers='keys'
     )
@@ -123,6 +126,7 @@ def dag_backfill(args, dag=None):
                 end_date=args.end_date,
                 confirm_prompt=not args.yes,
                 include_subdags=True,
+                dag_run_state=State.NONE,
             )
 
         dag.run(
@@ -174,7 +178,7 @@ def dag_delete(args):
         except OSError as err:
             raise AirflowException(err)
     else:
-        print("Bail.")
+        print("Cancelled")
 
 
 @cli_utils.action_logging
@@ -259,23 +263,23 @@ def dag_state(args):
         dag = get_dag_by_file_location(args.dag_id)
     dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
     out = dr[0].state if dr else None
-    confout = ''
+    conf_out = ''
     if out and dr[0].conf:
-        confout = ', ' + json.dumps(dr[0].conf)
-    print(str(out) + confout)
+        conf_out = ', ' + json.dumps(dr[0].conf)
+    print(str(out) + conf_out)
 
 
 @cli_utils.action_logging
 def dag_next_execution(args):
     """
     Returns the next execution datetime of a DAG at the command line.
-    >>> airflow dags next_execution tutorial
+    >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
     """
     dag = get_dag(args.subdir, args.dag_id)
 
     if dag.get_is_paused():
-        print("[INFO] Please be reminded this DAG is PAUSED now.")
+        print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
 
     latest_execution_date = dag.get_latest_execution_date()
     if latest_execution_date:
@@ -283,11 +287,16 @@ def dag_next_execution(args):
 
         if next_execution_dttm is None:
             print("[WARN] No following schedule can be found. " +
-                  "This DAG may have schedule interval '@once' or `None`.")
+                  "This DAG may have schedule interval '@once' or `None`.", file=sys.stderr)
+            print(None)
+        else:
+            print(next_execution_dttm)
 
-        print(next_execution_dttm)
+            for _ in range(1, args.num_executions):
+                next_execution_dttm = dag.following_schedule(next_execution_dttm)
+                print(next_execution_dttm)
     else:
-        print("[WARN] Only applicable when there is execution record found for the DAG.")
+        print("[WARN] Only applicable when there is execution record found for the DAG.", file=sys.stderr)
         print(None)
 
 
@@ -371,12 +380,54 @@ def dag_list_dag_runs(args, dag=None):
     print(table)
 
 
+@cli_utils.action_logging
+def generate_pod_yaml(args):
+    """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor"""
+
+    from kubernetes.client.api_client import ApiClient
+
+    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig
+    from airflow.kubernetes import pod_generator
+    from airflow.kubernetes.pod_generator import PodGenerator
+    from airflow.kubernetes.worker_configuration import WorkerConfiguration
+    from airflow.settings import pod_mutation_hook
+
+    execution_date = args.execution_date
+    dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
+    yaml_output_path = args.output_path
+    kube_config = KubeConfig()
+    for task in dag.tasks:
+        ti = TaskInstance(task, execution_date)
+        pod = PodGenerator.construct_pod(
+            dag_id=args.dag_id,
+            task_id=ti.task_id,
+            pod_id=AirflowKubernetesScheduler._create_pod_id(  # pylint: disable=W0212
+                args.dag_id, ti.task_id),
+            try_number=ti.try_number,
+            date=ti.execution_date,
+            command=ti.command_as_list(),
+            kube_executor_config=PodGenerator.from_obj(ti.executor_config),
+            worker_uuid="worker-config",
+            namespace=kube_config.executor_namespace,
+            worker_config=WorkerConfiguration(kube_config=kube_config).as_pod()
+        )
+        pod_mutation_hook(pod)
+        api_client = ApiClient()
+        date_string = pod_generator.datetime_to_label_safe_datestring(execution_date)
+        yaml_file_name = f"{args.dag_id}_{ti.task_id}_{date_string}.yml"
+        os.makedirs(os.path.dirname(yaml_output_path + "/airflow_yaml_output/"), exist_ok=True)
+        with open(yaml_output_path + "/airflow_yaml_output/" + yaml_file_name, "w") as output:
+            sanitized_pod = api_client.sanitize_for_serialization(pod)
+            output.write(yaml.dump(sanitized_pod))
+    print(f"YAML output can be found at {yaml_output_path}/airflow_yaml_output/")
+
+
 @provide_session
 @cli_utils.action_logging
 def dag_test(args, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.clear(start_date=args.execution_date, end_date=args.execution_date, reset_dag_runs=True)
+    dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=State.NONE)
     try:
         dag.run(executor=DebugExecutor(), start_date=args.execution_date, end_date=args.execution_date)
     except BackfillUnfinished as e:

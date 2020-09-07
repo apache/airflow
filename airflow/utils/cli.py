@@ -32,16 +32,19 @@ import threading
 import traceback
 from argparse import Namespace
 from datetime import datetime
-from typing import Optional
+from typing import Callable, Optional, TypeVar, cast
 
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagBag, DagModel, DagPickle, Log
 from airflow.utils import cli_action_loggers
+from airflow.utils.platform import is_terminal_support_colors
 from airflow.utils.session import provide_session
 
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
-def action_logging(f):
+
+def action_logging(f: T) -> T:
     """
     Decorates function to execute function at the same time submitting action_logging
     but in CLI context. It will call action logger callbacks twice,
@@ -88,7 +91,7 @@ def action_logging(f):
             metrics['end_datetime'] = datetime.utcnow()
             cli_action_loggers.on_post_execution(**metrics)
 
-    return wrapper
+    return cast(T, wrapper)
 
 
 def _build_metrics(func_name, namespace):
@@ -234,24 +237,6 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
             if line:
                 code.append("  {}".format(line.strip()))
     print("\n".join(code))
-
-
-def is_terminal_support_colors() -> bool:
-    """"
-    Try to determine if the current terminal supports colors.
-    """
-    if sys.platform == 'win32':
-        return False
-    if not hasattr(sys.stdout, 'isatty'):
-        return False
-    if not sys.stdout.isatty():
-        return False
-    if 'COLORTERM' in os.environ:
-        return True
-    term = os.environ.get('TERM', 'dumb').lower()
-    if term in ('xterm', 'linux') or 'color' in term:
-        return True
-    return False
 
 
 class ColorMode:

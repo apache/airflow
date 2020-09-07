@@ -18,13 +18,13 @@
 """File logging handler for tasks."""
 import logging
 import os
+from pathlib import Path
 from typing import Optional
 
 import requests
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.models import TaskInstance
-from airflow.utils.file import mkdirs
 from airflow.utils.helpers import parse_template_string
 
 
@@ -107,6 +107,30 @@ class FileTaskHandler(logging.Handler):
             except Exception as e:  # pylint: disable=broad-except
                 log = "*** Failed to load local log file: {}\n".format(location)
                 log += "*** {}\n".format(str(e))
+        elif conf.get('core', 'executor') == 'KubernetesExecutor':
+            log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n\n'\
+                .format(ti.hostname)
+
+            try:
+                from airflow.kubernetes.kube_client import get_kube_client
+
+                kube_client = get_kube_client()
+                res = kube_client.read_namespaced_pod_log(
+                    name=ti.hostname,
+                    namespace=conf.get('kubernetes', 'namespace'),
+                    container='base',
+                    follow=False,
+                    tail_lines=100,
+                    _preload_content=False
+                )
+
+                for line in res:
+                    log += line.decode()
+
+            except Exception as f:  # pylint: disable=broad-except
+                log += '*** Unable to fetch logs from worker pod {} ***\n{}\n\n'.format(
+                    ti.hostname, str(f)
+                )
         else:
             url = os.path.join(
                 "http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path
@@ -199,10 +223,7 @@ class FileTaskHandler(logging.Handler):
         # operator is not compatible with impersonation (e.g. if a Celery executor is used
         # for a SubDag operator and the SubDag operator has a different owner than the
         # parent DAG)
-        if not os.path.exists(directory):
-            # Create the directory as globally writable using custom mkdirs
-            # as os.makedirs doesn't set mode properly.
-            mkdirs(directory, 0o777)
+        Path(directory).mkdir(mode=0o777, parents=True, exist_ok=True)
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()

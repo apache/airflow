@@ -22,6 +22,7 @@ from mock import patch
 from sqlalchemy.pool import NullPool
 
 from airflow import settings
+from airflow.exceptions import AirflowConfigException
 from tests.test_utils.config import conf_vars
 
 SQL_ALCHEMY_CONNECT_ARGS = {
@@ -100,6 +101,6 @@ class TestSqlAlchemySettings(unittest.TestCase):
             ('core', 'sql_alchemy_connect_args'): 'does.not.exist',
             ('core', 'sql_alchemy_pool_enabled'): 'False'
         }
-        with self.assertRaises(ImportError):
+        with self.assertRaises(AirflowConfigException):
             with conf_vars(config):
                 settings.configure_orm()

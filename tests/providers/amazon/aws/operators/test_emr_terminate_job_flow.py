@@ -21,11 +21,7 @@ from unittest.mock import MagicMock, patch
 
 from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import EmrTerminateJobFlowOperator
 
-TERMINATE_SUCCESS_RETURN = {
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200
-    }
-}
+TERMINATE_SUCCESS_RETURN = {'ResponseMetadata': {'HTTPStatusCode': 200}}
 
 
 class TestEmrTerminateJobFlowOperator(unittest.TestCase):
@@ -43,9 +39,7 @@ class TestEmrTerminateJobFlowOperator(unittest.TestCase):
     def test_execute_terminates_the_job_flow_and_does_not_error(self):
         with patch('boto3.session.Session', self.boto3_session_mock):
             operator = EmrTerminateJobFlowOperator(
-                task_id='test_task',
-                job_flow_id='j-8989898989',
-                aws_conn_id='aws_default'
+                task_id='test_task', job_flow_id='j-8989898989', aws_conn_id='aws_default'
             )
 
             operator.execute(None)

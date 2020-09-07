@@ -22,6 +22,8 @@ from typing import Optional
 
 import daemon
 import psutil
+import sqlalchemy.exc
+from celery import maybe_patch_concurrency
 from celery.bin import worker as worker_bin
 from daemon.pidfile import TimeoutPIDLockFile
 from flower.command import FlowerCommand
@@ -111,6 +113,22 @@ def worker(args):
         log=args.log_file,
     )
 
+    if hasattr(celery_app.backend, 'ResultSession'):
+        # Pre-create the database tables now, otherwise SQLA via Celery has a
+        # race condition where one of the subprocesses can die with "Table
+        # already exists" error, because SQLA checks for which tables exist,
+        # then issues a CREATE TABLE, rather than doing CREATE TABLE IF NOT
+        # EXISTS
+        try:
+            session = celery_app.backend.ResultSession()
+            session.close()
+        except sqlalchemy.exc.IntegrityError:
+            # At least on postgres, trying to create a table that already exist
+            # gives a unique constraint violation or the
+            # "pg_type_typname_nsp_index" table. If this happens we can ignore
+            # it, we raced to create the tables and lost.
+            pass
+
     # Setup Celery worker
     worker_instance = worker_bin.worker(app=celery_app)
     options = {
@@ -125,7 +143,14 @@ def worker(args):
     }
 
     if conf.has_option("celery", "pool"):
-        options["pool"] = conf.get("celery", "pool")
+        pool = conf.get("celery", "pool")
+        options["pool"] = pool
+        # Celery pools of type eventlet and gevent use greenlets, which
+        # requires monkey patching the app:
+        # https://eventlet.net/doc/patching.html#monkey-patch
+        # Otherwise task instances hang on the workers and are never
+        # executed.
+        maybe_patch_concurrency(['-P', pool])
 
     if args.daemon:
         # Run Celery worker as daemon

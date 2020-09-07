@@ -17,30 +17,47 @@
 # under the License.
 #
 import json
+import re
 import unittest
 from copy import deepcopy
 
 import mock
-from mock import PropertyMock
+from googleapiclient.errors import HttpError
+from mock import MagicMock, PropertyMock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
-    DESCRIPTION, FILTER_JOB_NAMES, FILTER_PROJECT_ID, METADATA, OPERATIONS, PROJECT_ID, STATUS,
-    TIME_TO_SLEEP_IN_SECONDS, TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_JOBS,
-    CloudDataTransferServiceHook, GcpTransferJobsStatus, GcpTransferOperationStatus,
+    DESCRIPTION,
+    FILTER_JOB_NAMES,
+    FILTER_PROJECT_ID,
+    METADATA,
+    OPERATIONS,
+    PROJECT_ID,
+    STATUS,
+    TIME_TO_SLEEP_IN_SECONDS,
+    TRANSFER_JOB,
+    TRANSFER_JOB_FIELD_MASK,
+    TRANSFER_JOBS,
+    CloudDataTransferServiceHook,
+    GcpTransferJobsStatus,
+    GcpTransferOperationStatus,
+    gen_job_name,
 )
 from tests.providers.google.cloud.utils.base_gcp_mock import (
-    GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
+    GCP_PROJECT_ID_HOOK_UNIT_TEST,
+    mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
 )
 
 NAME = "name"
 
 TEST_PROJECT_ID = 'project-id'
+TEST_TRANSFER_JOB_NAME = "transfer-job"
+TEST_CLEAR_JOB_NAME = "jobNames/transfer-job-clear"
+
 TEST_BODY = {DESCRIPTION: 'AAA', PROJECT_ID: TEST_PROJECT_ID}
 
-TEST_TRANSFER_JOB_NAME = "transfer-job"
 TEST_TRANSFER_OPERATION_NAME = "transfer-operation"
 
 TEST_TRANSFER_JOB = {NAME: TEST_TRANSFER_JOB_NAME}
@@ -57,11 +74,88 @@ TEST_UPDATE_TRANSFER_JOB_BODY = {
     TRANSFER_JOB_FIELD_MASK: 'description',
 }
 
+TEST_HTTP_ERR_CODE = 409
+TEST_HTTP_ERR_CONTENT = b'Conflict'
+
+TEST_RESULT_STATUS_ENABLED = {STATUS: GcpTransferJobsStatus.ENABLED}
+TEST_RESULT_STATUS_DISABLED = {STATUS: GcpTransferJobsStatus.DISABLED}
+TEST_RESULT_STATUS_DELETED = {STATUS: GcpTransferJobsStatus.DELETED}
+
 
 def _without_key(body, key):
     obj = deepcopy(body)
     del obj[key]
     return obj
+
+
+def _with_name(body, job_name):
+    obj = deepcopy(body)
+    obj[NAME] = job_name
+    return obj
+
+
+class GCPRequestMock:
+
+    status = TEST_HTTP_ERR_CODE
+
+
+class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
+    def setUp(self):
+        with mock.patch(
+            'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__',
+            new=mock_base_gcp_hook_no_default_project_id,
+        ):
+            self.gct_hook = CloudDataTransferServiceHook(gcp_conn_id='test')
+
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
+        '.CloudDataTransferServiceHook.enable_transfer_job'
+    )
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
+        '.CloudDataTransferServiceHook.get_transfer_job'
+    )
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=None,
+    )
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
+        '.CloudDataTransferServiceHook.get_conn'
+    )
+    # pylint: disable=unused-argument
+    def test_pass_name_on_create_job(
+        self,
+        get_conn: MagicMock,
+        project_id: PropertyMock,
+        get_transfer_job: MagicMock,
+        enable_transfer_job: MagicMock,
+    ):
+        body = _with_name(TEST_BODY, TEST_CLEAR_JOB_NAME)
+        get_conn.side_effect = HttpError(GCPRequestMock(), TEST_HTTP_ERR_CONTENT)
+
+        with self.assertRaises(HttpError):
+
+            # check status DELETED generates new job name
+            get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
+            self.gct_hook.create_transfer_job(body=body)
+
+        # check status DISABLED changes to status ENABLED
+        get_transfer_job.return_value = TEST_RESULT_STATUS_DISABLED
+        enable_transfer_job.return_value = TEST_RESULT_STATUS_ENABLED
+
+        res = self.gct_hook.create_transfer_job(body=body)
+        self.assertEqual(res, TEST_RESULT_STATUS_ENABLED)
+
+
+class TestJobNames(unittest.TestCase):
+    def setUp(self) -> None:
+        self.re_suffix = re.compile("^[0-9]{10}$")
+
+    def test_new_suffix(self):
+        for job_name in ["jobNames/new_job", "jobNames/new_job_h", "jobNames/newJob"]:
+            self.assertIsNotNone(self.re_suffix.match(gen_job_name(job_name).split("_")[-1]))
 
 
 class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
@@ -88,7 +182,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -120,7 +214,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -148,7 +242,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -215,7 +309,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -267,11 +361,13 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.time.sleep')
-    @mock.patch('airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.'
-                'CloudDataTransferServiceHook.list_transfer_operations')
+    @mock.patch(
+        'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.'
+        'CloudDataTransferServiceHook.list_transfer_operations'
+    )
     def test_wait_for_transfer_job(self, mock_list, mock_sleep, mock_project_id):
         mock_list.side_effect = [
             [{METADATA: {STATUS: GcpTransferOperationStatus.IN_PROGRESS}}],
@@ -283,7 +379,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
 
         calls = [
             mock.call(request_filter={FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [job_name]}),
-            mock.call(request_filter={FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [job_name]})
+            mock.call(request_filter={FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [job_name]}),
         ]
         mock_list.assert_has_calls(calls, any_order=True)
 
@@ -292,16 +388,14 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.time.sleep')
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
         '.CloudDataTransferServiceHook.get_conn'
     )
-    def test_wait_for_transfer_job_failed(
-        self, mock_get_conn, mock_sleep, mock_project_id
-    ):
+    def test_wait_for_transfer_job_failed(self, mock_get_conn, mock_sleep, mock_project_id):
         list_method = mock_get_conn.return_value.transferOperations.return_value.list
         list_execute_method = list_method.return_value.execute
         list_execute_method.return_value = {
@@ -319,7 +413,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.time.sleep')
     @mock.patch(
@@ -406,8 +500,9 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     def test_operations_contain_expected_statuses_green_path(self, statuses, expected_statuses):
         operations = [{NAME: TEST_TRANSFER_OPERATION_NAME, METADATA: {STATUS: status}} for status in statuses]
 
-        result = \
-            CloudDataTransferServiceHook.operations_contain_expected_statuses(operations, expected_statuses)
+        result = CloudDataTransferServiceHook.operations_contain_expected_statuses(
+            operations, expected_statuses
+        )
 
         self.assertTrue(result)
 
@@ -436,7 +531,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -454,7 +549,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -465,7 +560,8 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         execute_method = get_method.return_value.execute
         execute_method.return_value = TEST_TRANSFER_JOB
         res = self.gct_hook.get_transfer_job(  # pylint: disable=no-value-for-parameter
-            job_name=TEST_TRANSFER_JOB_NAME)
+            job_name=TEST_TRANSFER_JOB_NAME
+        )
         self.assertIsNotNone(res)
         self.assertEqual(TEST_TRANSFER_JOB_NAME, res[NAME])
         get_method.assert_called_once_with(jobName=TEST_TRANSFER_JOB_NAME, projectId='example-project')
@@ -474,7 +570,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -505,7 +601,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -573,7 +669,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -638,7 +734,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -652,15 +748,16 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
             self.gct_hook.create_transfer_job(body=_without_key(TEST_BODY, PROJECT_ID))
 
         self.assertEqual(
-            'The project id must be passed either as `projectId` key in `body` parameter or as project_id '
-            'extra in GCP connection definition. Both are not set!',
+            'The project id must be passed either as `projectId` key in `body` '
+            'parameter or as project_id '
+            'extra in Google Cloud connection definition. Both are not set!',
             str(e.exception),
         )
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -672,10 +769,11 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         execute_method.return_value = TEST_TRANSFER_JOB
         with self.assertRaises(AirflowException) as e:
             self.gct_hook.get_transfer_job(  # pylint: disable=no-value-for-parameter
-                job_name=TEST_TRANSFER_JOB_NAME)
+                job_name=TEST_TRANSFER_JOB_NAME
+            )
         self.assertEqual(
             'The project id must be passed either as keyword project_id '
-            'parameter or as project_id extra in GCP connection definition. '
+            'parameter or as project_id extra in Google Cloud connection definition. '
             'Both are not set!',
             str(e.exception),
         )
@@ -683,7 +781,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -699,18 +797,19 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
 
         with self.assertRaises(AirflowException) as e:
             self.gct_hook.list_transfer_job(
-                request_filter=_without_key(TEST_TRANSFER_JOB_FILTER, FILTER_PROJECT_ID))
+                request_filter=_without_key(TEST_TRANSFER_JOB_FILTER, FILTER_PROJECT_ID)
+            )
 
         self.assertEqual(
             'The project id must be passed either as `project_id` key in `filter` parameter or as '
-            'project_id extra in GCP connection definition. Both are not set!',
+            'project_id extra in Google Cloud connection definition. Both are not set!',
             str(e.exception),
         )
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -732,7 +831,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -749,14 +848,14 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
 
         self.assertEqual(
             'The project id must be passed either as `projectId` key in `body` parameter or as project_id '
-            'extra in GCP connection definition. Both are not set!',
+            'extra in Google Cloud connection definition. Both are not set!',
             str(e.exception),
         )
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -765,18 +864,19 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
     def test_delete_transfer_job(self, get_conn, mock_project_id):  # pylint: disable=unused-argument
         with self.assertRaises(AirflowException) as e:
             self.gct_hook.delete_transfer_job(  # pylint: disable=no-value-for-parameter
-                job_name=TEST_TRANSFER_JOB_NAME)
+                job_name=TEST_TRANSFER_JOB_NAME
+            )
 
         self.assertEqual(
             'The project id must be passed either as keyword project_id parameter or as project_id extra in '
-            'GCP connection definition. Both are not set!',
+            'Google Cloud connection definition. Both are not set!',
             str(e.exception),
         )
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=None
+        return_value=None,
     )
     @mock.patch(
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
@@ -797,6 +897,6 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
 
         self.assertEqual(
             'The project id must be passed either as `project_id` key in `filter` parameter or as project_id '
-            'extra in GCP connection definition. Both are not set!',
+            'extra in Google Cloud connection definition. Both are not set!',
             str(e.exception),
         )

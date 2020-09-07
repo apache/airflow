@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import inspect
 import os
 import shutil
@@ -25,11 +23,19 @@ from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest.mock import patch
 
+from freezegun import freeze_time
+from sqlalchemy import func
+
 import airflow.example_dags
 from airflow import models
 from airflow.models import DagBag, DagModel
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
+from tests import cluster_policies
 from tests.models import TEST_DAGS_FOLDER
+from tests.test_utils import db
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 
 
@@ -41,6 +47,14 @@ class TestDagBag(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.empty_dir)
+
+    def setUp(self) -> None:
+        db.clear_db_dags()
+        db.clear_db_serialized_dags()
+
+    def tearDown(self) -> None:
+        db.clear_db_dags()
+        db.clear_db_serialized_dags()
 
     def test_get_existing_dag(self):
         """
@@ -129,15 +143,16 @@ class TestDagBag(unittest.TestCase):
         test the loading of a DAG from within a zip file that skips another file because
         it doesn't have "airflow" and "DAG"
         """
-        from unittest.mock import Mock
-        with patch('airflow.models.DagBag.log') as log_mock:
-            log_mock.info = Mock()
+        with self.assertLogs() as cm:
             test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
             dagbag = models.DagBag(dag_folder=test_zip_path, include_examples=False)
 
             self.assertTrue(dagbag.has_logged)
-            log_mock.info.assert_any_call("File %s assumed to contain no DAGs. Skipping.",
-                                          test_zip_path)
+            self.assertIn(
+                f'INFO:airflow.models.dagbag.DagBag:File {test_zip_path}:file_no_airflow_dag.py '
+                'assumed to contain no DAGs. Skipping.',
+                cm.output
+            )
 
     def test_zip(self):
         """
@@ -311,10 +326,11 @@ class TestDagBag(unittest.TestCase):
     def test_load_subdags(self):
         # Define Dag to load
         def standard_subdag():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'master'
             default_args = {
                 'owner': 'owner1',
@@ -366,10 +382,11 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdags():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'master'
             default_args = {
                 'owner': 'owner1',
@@ -464,9 +481,10 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def basic_cycle():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'cycle_dag'
             default_args = {
                 'owner': 'owner1',
@@ -497,10 +515,11 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdag_cycle():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'nested_cycle'
             default_args = {
                 'owner': 'owner1',
@@ -621,3 +640,114 @@ class TestDagBag(unittest.TestCase):
         # clean up
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
+
+    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
+    def test_serialized_dags_are_written_to_db_on_sync(self):
+        """
+        Test that when dagbag.sync_to_db is called the DAGs are Serialized and written to DB
+        even when dagbag.read_dags_from_db is False
+        """
+        with create_session() as session:
+            serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
+            self.assertEqual(serialized_dags_count, 0)
+
+            dagbag = DagBag(
+                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
+                include_examples=False)
+            dagbag.sync_to_db()
+
+            self.assertFalse(dagbag.read_dags_from_db)
+
+            new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
+            self.assertEqual(new_serialized_dags_count, 1)
+
+    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
+    def test_get_dag_with_dag_serialization(self):
+        """
+        Test that Serialized DAG is updated in DagBag when it is updated in
+        Serialized DAG table after 'min_serialized_dag_fetch_interval' seconds are passed.
+        """
+
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)):
+            example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+
+            dag_bag = DagBag(read_dags_from_db=True)
+            ser_dag_1 = dag_bag.get_dag("example_bash_operator")
+            ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+            self.assertEqual(example_bash_op_dag.tags, ser_dag_1.tags)
+            self.assertEqual(ser_dag_1_update_time, tz.datetime(2020, 1, 5, 0, 0, 0))
+
+        # Check that if min_serialized_dag_fetch_interval has not passed we do not fetch the DAG
+        # from DB
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 4)):
+            with assert_queries_count(0):
+                self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example"])
+
+        # Make a change in the DAG and write Serialized DAG to the DB
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 6)):
+            example_bash_op_dag.tags += ["new_tag"]
+            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+
+        # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
+        # fetches the Serialized DAG from DB
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 8)):
+            with assert_queries_count(2):
+                updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
+                updated_ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+
+        self.assertCountEqual(updated_ser_dag_1.tags, ["example", "new_tag"])
+        self.assertGreater(updated_ser_dag_1_update_time, ser_dag_1_update_time)
+
+    def test_collect_dags_from_db(self):
+        """DAGs are collected from Database"""
+        example_dags_folder = airflow.example_dags.__path__[0]
+        dagbag = DagBag(example_dags_folder)
+
+        example_dags = dagbag.dags
+        for dag in example_dags.values():
+            SerializedDagModel.write_dag(dag)
+
+        new_dagbag = DagBag(read_dags_from_db=True)
+        self.assertEqual(len(new_dagbag.dags), 0)
+        new_dagbag.collect_dags_from_db()
+        new_dags = new_dagbag.dags
+        self.assertEqual(len(example_dags), len(new_dags))
+        for dag_id, dag in example_dags.items():
+            serialized_dag = new_dags[dag_id]
+
+            self.assertEqual(serialized_dag.dag_id, dag.dag_id)
+            self.assertEqual(set(serialized_dag.task_dict), set(dag.task_dict))
+
+    @patch("airflow.settings.policy", cluster_policies.cluster_policy)
+    def test_cluster_policy_violation(self):
+        """test that file processing results in import error when task does not
+        obey cluster policy.
+        """
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_missing_owner.py")
+
+        dagbag = DagBag(dag_folder=dag_file)
+        self.assertEqual(set(), set(dagbag.dag_ids))
+        expected_import_errors = {
+            dag_file: (
+                f"""DAG policy violation (DAG ID: test_missing_owner, Path: {dag_file}):\n"""
+                """Notices:\n"""
+                """ * Task must have non-None non-default owner. Current value: airflow"""
+            )
+        }
+        self.assertEqual(expected_import_errors, dagbag.import_errors)
+
+    @patch("airflow.settings.policy", cluster_policies.cluster_policy)
+    def test_cluster_policy_obeyed(self):
+        """test that dag successfully imported without import errors when tasks
+        obey cluster policy.
+        """
+        dag_file = os.path.join(TEST_DAGS_FOLDER,
+                                "test_with_non_default_owner.py")
+
+        dagbag = DagBag(dag_folder=dag_file)
+        self.assertEqual({"test_with_non_default_owner"}, set(dagbag.dag_ids))
+
+        self.assertEqual({}, dagbag.import_errors)

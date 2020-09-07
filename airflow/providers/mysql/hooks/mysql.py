@@ -19,10 +19,11 @@
 """
 This module allows to connect to a MySQL database.
 """
-
 import json
+from typing import Dict, Optional, Tuple
 
 from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.models import Connection
 
 
 class MySqlHook(DbApiHook):
@@ -44,18 +45,18 @@ class MySqlHook(DbApiHook):
     default_conn_name = 'mysql_default'
     supports_autocommit = True
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
         self.connection = kwargs.pop("connection", None)
 
-    def set_autocommit(self, conn, autocommit):
+    def set_autocommit(self, conn: Connection, autocommit: bool) -> None:  # noqa: D403
         """
         MySql connection sets autocommit in a different way.
         """
         conn.autocommit(autocommit)
 
-    def get_autocommit(self, conn):
+    def get_autocommit(self, conn: Connection) -> bool:  # noqa: D403
         """
         MySql connection gets autocommit in a different way.
 
@@ -66,12 +67,12 @@ class MySqlHook(DbApiHook):
         """
         return conn.get_autocommit()
 
-    def _get_conn_config_mysql_client(self, conn):
+    def _get_conn_config_mysql_client(self, conn: Connection) -> Dict:
         conn_config = {
             "user": conn.login,
             "passwd": conn.password or '',
             "host": conn.host or 'localhost',
-            "db": self.schema or conn.schema or ''
+            "db": self.schema or conn.schema or '',
         }
 
         # check for authentication via AWS IAM
@@ -87,6 +88,7 @@ class MySqlHook(DbApiHook):
                 conn_config["use_unicode"] = True
         if conn.extra_dejson.get('cursor', False):
             import MySQLdb.cursors
+
             if (conn.extra_dejson["cursor"]).lower() == 'sscursor':
                 conn_config["cursorclass"] = MySQLdb.cursors.SSCursor
             elif (conn.extra_dejson["cursor"]).lower() == 'dictcursor':
@@ -108,13 +110,13 @@ class MySqlHook(DbApiHook):
             conn_config["local_infile"] = 1
         return conn_config
 
-    def _get_conn_config_mysql_connector_python(self, conn):
+    def _get_conn_config_mysql_connector_python(self, conn: Connection) -> Dict:
         conn_config = {
             'user': conn.login,
             'password': conn.password or '',
             'host': conn.host or 'localhost',
             'database': self.schema or conn.schema or '',
-            'port': int(conn.port) if conn.port else 3306
+            'port': int(conn.port) if conn.port else 3306,
         }
 
         if conn.extra_dejson.get('allow_local_infile', False):
@@ -139,17 +141,19 @@ class MySqlHook(DbApiHook):
 
         if client_name == 'mysqlclient':
             import MySQLdb
+
             conn_config = self._get_conn_config_mysql_client(conn)
             return MySQLdb.connect(**conn_config)
 
         if client_name == 'mysql-connector-python':
             import mysql.connector  # pylint: disable=no-name-in-module
+
             conn_config = self._get_conn_config_mysql_connector_python(conn)
             return mysql.connector.connect(**conn_config)  # pylint: disable=no-member
 
         raise ValueError('Unknown MySQL client name provided!')
 
-    def get_uri(self):
+    def get_uri(self) -> str:
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         uri = super().get_uri()
         if conn.extra_dejson.get('charset', False):
@@ -157,32 +161,42 @@ class MySqlHook(DbApiHook):
             return "{uri}?charset={charset}".format(uri=uri, charset=charset)
         return uri
 
-    def bulk_load(self, table, tmp_file):
+    def bulk_load(self, table: str, tmp_file: str) -> None:
         """
         Loads a tab-delimited file into a database table
         """
         conn = self.get_conn()
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             LOAD DATA LOCAL INFILE '{tmp_file}'
             INTO TABLE {table}
-            """.format(tmp_file=tmp_file, table=table))
+            """.format(
+                tmp_file=tmp_file, table=table
+            )
+        )
         conn.commit()
 
-    def bulk_dump(self, table, tmp_file):
+    def bulk_dump(self, table: str, tmp_file: str) -> None:
         """
         Dumps a database table into a tab-delimited file
         """
         conn = self.get_conn()
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             SELECT * INTO OUTFILE '{tmp_file}'
             FROM {table}
-            """.format(tmp_file=tmp_file, table=table))
+            """.format(
+                tmp_file=tmp_file, table=table
+            )
+        )
         conn.commit()
 
     @staticmethod
-    def _serialize_cell(cell, conn):  # pylint: disable=signature-differs
+    def _serialize_cell(
+        cell: object, conn: Optional[Connection] = None
+    ) -> object:  # pylint: disable=signature-differs   # noqa: D403
         """
         MySQLdb converts an argument to a literal
         when passing those separately to execute. Hence, this method does nothing.
@@ -197,7 +211,7 @@ class MySqlHook(DbApiHook):
 
         return cell
 
-    def get_iam_token(self, conn):
+    def get_iam_token(self, conn: Connection) -> Tuple[str, int]:
         """
         Uses AWSHook to retrieve a temporary password to connect to MySQL
         Port is required. If none is provided, default 3306 is used
@@ -214,7 +228,9 @@ class MySqlHook(DbApiHook):
         token = client.generate_db_auth_token(conn.host, port, conn.login)
         return token, port
 
-    def bulk_load_custom(self, table, tmp_file, duplicate_key_handling='IGNORE', extra_options=''):
+    def bulk_load_custom(
+        self, table: str, tmp_file: str, duplicate_key_handling: str = 'IGNORE', extra_options: str = ''
+    ) -> None:
         """
         A more configurable way to load local data from a file into the database.
 
@@ -241,17 +257,19 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             LOAD DATA LOCAL INFILE '{tmp_file}'
             {duplicate_key_handling}
             INTO TABLE {table}
             {extra_options}
             """.format(
-            tmp_file=tmp_file,
-            table=table,
-            duplicate_key_handling=duplicate_key_handling,
-            extra_options=extra_options
-        ))
+                tmp_file=tmp_file,
+                table=table,
+                duplicate_key_handling=duplicate_key_handling,
+                extra_options=extra_options,
+            )
+        )
 
         cursor.close()
         conn.commit()

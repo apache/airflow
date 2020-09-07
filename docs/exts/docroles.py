@@ -25,7 +25,7 @@ from sphinx.ext.autodoc.importer import import_module, mock
 
 
 class RoleException(Exception):
-    """Exception for roles extension """
+    """Exception for roles extension"""
 
 
 def get_template_field(env, fullname):
@@ -33,7 +33,7 @@ def get_template_field(env, fullname):
     Gets template fields for specific operator class.
 
     :param fullname: Full path to operator class.
-        For example: ``airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator``
+        For example: ``airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductSetOperator``
     :return: List of template field
     :rtype: list[str]
     """
@@ -59,7 +59,6 @@ def get_template_field(env, fullname):
     return list(template_fields)
 
 
-# noinspection PyUnusedLocal
 def template_field_role(app,
                         typ,  # pylint: disable=unused-argument
                         rawtext,
@@ -75,8 +74,7 @@ def template_field_role(app,
 
     Sample usage::
 
-    :template-fields:
-        `airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentimentOperator`
+    :template-fields:`airflow.operators.bash.BashOperator`
 
     For further information look at:
 

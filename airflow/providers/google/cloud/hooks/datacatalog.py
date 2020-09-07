@@ -20,7 +20,13 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 from google.api_core.retry import Retry
 from google.cloud.datacatalog_v1beta1 import DataCatalogClient
 from google.cloud.datacatalog_v1beta1.types import (
-    Entry, EntryGroup, FieldMask, SearchCatalogRequest, Tag, TagTemplate, TagTemplateField,
+    Entry,
+    EntryGroup,
+    FieldMask,
+    SearchCatalogRequest,
+    Tag,
+    TagTemplate,
+    TagTemplateField,
 )
 
 from airflow import AirflowException
@@ -33,14 +39,30 @@ class CloudDataCatalogHook(GoogleBaseHook):
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+        )
         self._client: Optional[DataCatalogClient] = None
 
     def get_conn(self) -> DataCatalogClient:
@@ -49,8 +71,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         """
         if not self._client:
             self._client = DataCatalogClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._client
 
@@ -81,8 +102,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.datacatalog_v1beta1.types.Entry`
         :type entry: Union[Dict, google.cloud.datacatalog_v1beta1.types.Entry]
-        :param project_id: The ID of the GCP project that owns the entry.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If set to ``None`` or missing, requests will be
             retried using a default configuration.
@@ -127,8 +148,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.datacatalog_v1beta1.types.EntryGroup`
         :type entry_group: Union[Dict, google.cloud.datacatalog_v1beta1.types.EntryGroup]
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -183,8 +204,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type tag: Union[Dict, google.cloud.datacatalog_v1beta1.types.Tag]
         :param template_id: Required. Template ID used to create tag
         :type template_id: Optional[str]
-        :param project_id: The ID of the GCP project that owns the tag.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the tag.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -233,8 +254,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.datacatalog_v1beta1.types.TagTemplate`
         :type tag_template: Union[Dict, google.cloud.datacatalog_v1beta1.types.TagTemplate]
-        :param project_id: The ID of the GCP project that owns the tag template.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the tag template.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -291,8 +312,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.datacatalog_v1beta1.types.TagTemplateField`
         :type tag_template_field: Union[Dict, google.cloud.datacatalog_v1beta1.types.TagTemplateField]
-        :param project_id: The ID of the GCP project that owns the tag template field.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the tag template field.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -341,8 +362,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type entry_group: str
         :param entry: Entry ID that is deleted.
         :type entry: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -378,8 +399,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type location: str
         :param entry_group: Entry group ID that is deleted.
         :type entry_group: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -420,8 +441,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type entry: str
         :param tag: Identifier for TAG that is deleted.
         :type tag: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -457,8 +478,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type location: str
         :param tag_template: ID for tag template that is deleted.
         :type tag_template: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param force: Required. Currently, this field must always be set to ``true``. This confirms the
             deletion of any possible tags using this template. ``force = false`` will be supported in the
@@ -503,8 +524,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type field: str
         :param force: Required. This confirms the deletion of this field from any tags using this field.
         :type force: bool
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -544,8 +565,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type entry_group: str
         :param entry: The ID of the entry to get.
         :type entry: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -588,8 +609,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.datacatalog_v1beta1.types.FieldMask`
         :type read_mask: Union[Dict, google.cloud.datacatalog_v1beta1.types.FieldMask]
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -630,8 +651,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type location: str
         :param tag_template: Required. The ID of the tag template to get.
         :type tag_template: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -678,8 +699,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
             streaming is performed per- resource, this parameter does not affect the return value. If page
             streaming is performed per-page, this determines the maximum number of resources in a page.
         :type page_size: int
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -726,8 +747,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type entry: str
         :param template_name: The name of the template that will be the search criterion.
         :type template_name: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -761,10 +782,10 @@ class CloudDataCatalogHook(GoogleBaseHook):
         r"""
         Get an entry by target resource name.
 
-        This method allows clients to use the resource name from the source Google Cloud Platform service
+        This method allows clients to use the resource name from the source Google Cloud service
         to get the Data Catalog Entry.
 
-        :param linked_resource: The full name of the Google Cloud Platform resource the Data Catalog entry
+        :param linked_resource: The full name of the Google Cloud resource the Data Catalog entry
             represents. See: https://cloud.google.com/apis/design/resource\_names#full\_resource\_name. Full
             names are case-sensitive.
 
@@ -826,8 +847,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :param new_tag_template_field_id: Required. The new ID of this tag template field. For example,
             ``my_new_field``.
         :type new_tag_template_field_id: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -871,7 +892,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         Searches Data Catalog for multiple resources like entries, tags that match a query.
 
         This does not return the complete resource, only the resource identifier and high level fields.
-        Clients can subsequentally call ``Get`` methods.
+        Clients can subsequently call ``Get`` methods.
 
         Note that searches do not have full recall. There may be results that match your query but are not
         returned, even in subsequent pages of results. These missing results may vary across repeated calls to
@@ -919,7 +940,10 @@ class CloudDataCatalogHook(GoogleBaseHook):
 
         self.log.info(
             "Searching catalog: scope=%s, query=%s, page_size=%s, order_by=%s",
-            scope, query, page_size, order_by
+            scope,
+            query,
+            page_size,
+            order_by,
         )
         result = client.search_catalog(
             scope=scope,
@@ -968,8 +992,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type entry_group: str
         :param entry_id: The entry ID that is being updated.
         :type entry_id: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -1042,8 +1066,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type entry: str
         :param tag_id: The tag ID that is being updated.
         :type tag_id: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -1114,8 +1138,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type location: str
         :param tag_template_id: Optional. The tag template ID for the entry that is being updated.
         :type tag_template_id: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.
@@ -1200,8 +1224,8 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type tag_template: str
         :param tag_template_field_id: Optional. The ID of tag template field to rename.
         :type tag_template_field_id: str
-        :param project_id: The ID of the GCP project that owns the entry group.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :param project_id: The ID of the Google Cloud project that owns the entry group.
+            If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
             retried using a default configuration.

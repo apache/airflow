@@ -19,6 +19,10 @@
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 """Exceptions used by Airflow"""
+from typing import List, NamedTuple, Optional
+
+from airflow.utils.code_utils import prepare_code_snippet
+from airflow.utils.platform import is_tty
 
 
 class AirflowException(Exception):
@@ -75,8 +79,16 @@ class AirflowSkipException(AirflowException):
     """Raise when the task should be skipped"""
 
 
+class AirflowFailException(AirflowException):
+    """Raise when the task should be failed without retrying"""
+
+
 class AirflowDagCycleException(AirflowException):
     """Raise when there is a cycle in Dag definition"""
+
+
+class AirflowClusterPolicyViolation(AirflowException):
+    """Raise when there is a violation of a Cluster Policy in Dag definition"""
 
 
 class DagNotFound(AirflowNotFoundException):
@@ -132,8 +144,49 @@ class BackfillUnfinished(AirflowException):
     Raises when not all tasks succeed in backfill.
 
     :param message: The human-readable description of the exception
-    :zparam ti_status: The information about all task statuses
+    :param ti_status: The information about all task statuses
     """
     def __init__(self, message, ti_status):
         super().__init__(message)
         self.ti_status = ti_status
+
+
+class FileSyntaxError(NamedTuple):
+    """Information about a single error in a file."""
+    line_no: Optional[int]
+    message: str
+
+    def __str__(self):
+        return f"{self.message}. Line number: s{str(self.line_no)},"
+
+
+class AirflowFileParseException(AirflowException):
+    """
+    Raises when connection or variable file can not be parsed
+
+    :param msg: The human-readable description of the exception
+    :param file_path: A processed file that contains errors
+    :param parse_errors: File syntax errors
+    """
+    def __init__(self, msg: str, file_path: str, parse_errors: List[FileSyntaxError]) -> None:
+        super().__init__(msg)
+        self.msg = msg
+        self.file_path = file_path
+        self.parse_errors = parse_errors
+
+    def __str__(self):
+        result = f"{self.msg}\nFilename: {self.file_path}\n\n"
+
+        for error_no, parse_error in enumerate(self.parse_errors, 1):
+            result += "=" * 20 + f" Parse error {error_no:3} " + "=" * 20 + "\n"
+            result += f"{parse_error.message}\n"
+            if parse_error.line_no:
+                result += f"Line number:  {parse_error.line_no}\n"
+                if parse_error.line_no and is_tty():
+                    result += "\n" + prepare_code_snippet(self.file_path, parse_error.line_no) + "\n"
+
+        return result
+
+
+class ConnectionNotUnique(AirflowException):
+    """Raise when multiple values are found for the same conn_id"""

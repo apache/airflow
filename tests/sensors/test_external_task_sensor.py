@@ -72,8 +72,64 @@ class TestExternalTaskSensor(unittest.TestCase):
             ignore_ti_state=True
         )
 
-    def test_external_dag_sensor(self):
+    def test_catch_overlap_allowed_failed_state(self):
+        with self.assertRaises(AirflowException):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=TEST_TASK_ID,
+                allowed_states=[State.SUCCESS],
+                failed_states=[State.SUCCESS],
+                dag=self.dag
+            )
 
+    def test_external_task_sensor_wrong_failed_states(self):
+        with self.assertRaises(ValueError):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=TEST_TASK_ID,
+                failed_states=["invalid_state"],
+                dag=self.dag
+            )
+
+    def test_external_task_sensor_failed_states(self):
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            failed_states=["failed"],
+            dag=self.dag
+        )
+        op.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_ti_state=True
+        )
+
+    def test_external_task_sensor_failed_states_as_success(self):
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            allowed_states=["failed"],
+            failed_states=["success"],
+            dag=self.dag
+        )
+        with self.assertRaises(AirflowException) as cm:
+            op.run(
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE,
+                ignore_ti_state=True
+            )
+        self.assertEqual(str(cm.exception),
+                         "The external task "
+                         "time_sensor_check in DAG "
+                         "unit_test_dag failed.")
+
+    def test_external_dag_sensor(self):
         other_dag = DAG(
             'other_dag',
             default_args=self.args,
@@ -222,7 +278,7 @@ exit 0
         self.test_time_sensor()
         # check that the execution_fn works
         op1 = ExternalTaskSensor(
-            task_id='test_external_task_sensor_check_delta',
+            task_id='test_external_task_sensor_check_delta_1',
             external_dag_id=TEST_DAG_ID,
             external_task_id=TEST_TASK_ID,
             execution_date_fn=lambda dt: dt + timedelta(0),
@@ -236,7 +292,7 @@ exit 0
         )
         # double check that the execution is being called by failing the test
         op2 = ExternalTaskSensor(
-            task_id='test_external_task_sensor_check_delta',
+            task_id='test_external_task_sensor_check_delta_2',
             external_dag_id=TEST_DAG_ID,
             external_task_id=TEST_TASK_ID,
             execution_date_fn=lambda dt: dt + timedelta(days=1),
@@ -251,6 +307,28 @@ exit 0
                 end_date=DEFAULT_DATE,
                 ignore_ti_state=True
             )
+
+    def test_external_task_sensor_fn_multiple_args(self):
+        """Check this task sensor passes multiple args with full context. If no failure, means clean run."""
+        self.test_time_sensor()
+
+        def my_func(dt, context):
+            assert context['execution_date'] == dt
+            return dt + timedelta(0)
+
+        op1 = ExternalTaskSensor(
+            task_id='test_external_task_sensor_multiple_arg_fn',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            execution_date_fn=my_func,
+            allowed_states=['success'],
+            dag=self.dag
+        )
+        op1.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_ti_state=True
+        )
 
     def test_external_task_sensor_error_delta_and_fn(self):
         self.test_time_sensor()
@@ -269,7 +347,7 @@ exit 0
     def test_catch_invalid_allowed_states(self):
         with self.assertRaises(ValueError):
             ExternalTaskSensor(
-                task_id='test_external_task_sensor_check',
+                task_id='test_external_task_sensor_check_1',
                 external_dag_id=TEST_DAG_ID,
                 external_task_id=TEST_TASK_ID,
                 allowed_states=['invalid_state'],
@@ -278,7 +356,7 @@ exit 0
 
         with self.assertRaises(ValueError):
             ExternalTaskSensor(
-                task_id='test_external_task_sensor_check',
+                task_id='test_external_task_sensor_check_2',
                 external_dag_id=TEST_DAG_ID,
                 external_task_id=None,
                 allowed_states=['invalid_state'],
@@ -379,7 +457,7 @@ def dag_bag_ext():
     task_a_3 >> task_b_3
 
     for dag in [dag_0, dag_1, dag_2, dag_3]:
-        dag_bag.bag_dag(dag, None, dag)
+        dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     return dag_bag
 
@@ -409,12 +487,12 @@ def assert_ti_state_equal(task_instance, state):
     assert task_instance.state == state
 
 
-def clear_tasks(dag_bag, dag, task):
+def clear_tasks(dag_bag, dag, task, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE):
     """
     Clear the task and its downstream tasks recursively for the dag in the given dagbag.
     """
     subdag = dag.sub_dag(task_regex="^{}$".format(task.task_id), include_downstream=True)
-    subdag.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, dag_bag=dag_bag)
+    subdag.clear(start_date=start_date, end_date=end_date, dag_bag=dag_bag)
 
 
 # pylint: disable=redefined-outer-name
@@ -430,6 +508,30 @@ def test_external_task_marker_transitive(dag_bag_ext):
     ti_b_3 = tis["task_b_3"]
     assert_ti_state_equal(ti_a_0, State.NONE)
     assert_ti_state_equal(ti_b_3, State.NONE)
+
+
+def test_external_task_marker_future(dag_bag_ext):
+    """
+    Test clearing tasks with no end_date. This is the case when users clear tasks with
+    Future, Downstream and Recursive selected.
+    """
+    date_0 = DEFAULT_DATE
+    date_1 = DEFAULT_DATE + timedelta(days=1)
+
+    tis_date_0 = run_tasks(dag_bag_ext, execution_date=date_0)
+    tis_date_1 = run_tasks(dag_bag_ext, execution_date=date_1)
+
+    dag_0 = dag_bag_ext.get_dag("dag_0")
+    task_a_0 = dag_0.get_task("task_a_0")
+    # This should clear all tasks on dag_0 to dag_3 on both date_0 and date_1
+    clear_tasks(dag_bag_ext, dag_0, task_a_0, end_date=None)
+
+    ti_a_0_date_0 = tis_date_0["task_a_0"]
+    ti_b_3_date_0 = tis_date_0["task_b_3"]
+    ti_b_3_date_1 = tis_date_1["task_b_3"]
+    assert_ti_state_equal(ti_a_0_date_0, State.NONE)
+    assert_ti_state_equal(ti_b_3_date_0, State.NONE)
+    assert_ti_state_equal(ti_b_3_date_1, State.NONE)
 
 
 def test_external_task_marker_exception(dag_bag_ext):
@@ -484,7 +586,7 @@ def dag_bag_cyclic():
     task_a_1 >> task_b_1
 
     for dag in [dag_0, dag_1]:
-        dag_bag.bag_dag(dag, None, dag)
+        dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     return dag_bag
 
@@ -509,8 +611,8 @@ def dag_bag_multiple():
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
     daily_dag = DAG("daily_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
     agg_dag = DAG("agg_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
-    dag_bag.bag_dag(daily_dag, None, daily_dag)
-    dag_bag.bag_dag(agg_dag, None, agg_dag)
+    dag_bag.bag_dag(dag=daily_dag, root_dag=daily_dag)
+    dag_bag.bag_dag(dag=agg_dag, root_dag=agg_dag)
 
     daily_task = DummyOperator(task_id="daily_tas", dag=daily_dag)
 
@@ -526,6 +628,7 @@ def dag_bag_multiple():
     yield dag_bag
 
 
+@pytest.mark.quarantined
 @pytest.mark.backend("postgres", "mysql")
 def test_clear_multiple_external_task_marker(dag_bag_multiple):
     """

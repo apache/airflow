@@ -18,10 +18,9 @@
 """Base class for all hooks"""
 import logging
 import random
-from typing import List
+from typing import Any, List
 
-from airflow import secrets
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = logging.getLogger(__name__)
@@ -44,7 +43,7 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: array of connections
         """
-        return secrets.get_connections(conn_id)
+        return Connection.get_connections_from_secrets(conn_id)
 
     @classmethod
     def get_connection(cls, conn_id: str) -> Connection:
@@ -54,9 +53,19 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: connection
         """
-        conn = random.choice(list(cls.get_connections(conn_id)))
+        conn = random.choice(cls.get_connections(conn_id))
         if conn.host:
-            log.info("Using connection to: %s", conn.log_info())
+            log.info(
+                "Using connection to: id: %s. Host: %s, Port: %s, Schema: %s, Login: %s, Password: %s, "
+                "extra: %s",
+                conn.conn_id,
+                conn.host,
+                conn.port,
+                conn.schema,
+                conn.login,
+                "XXXXXXXX" if conn.password else None,
+                "XXXXXXXX" if conn.extra_dejson else None
+            )
         return conn
 
     @classmethod
@@ -72,6 +81,6 @@ class BaseHook(LoggingMixin):
         connection = cls.get_connection(conn_id)
         return connection.get_hook()
 
-    def get_conn(self):
+    def get_conn(self) -> Any:
         """Returns connection for the hook."""
         raise NotImplementedError()

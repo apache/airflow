@@ -44,6 +44,8 @@ class ExternalTaskSensor(BaseSensorOperator):
     :type external_task_id: str or None
     :param allowed_states: list of allowed states, default is ``['success']``
     :type allowed_states: list
+    :param failed_states: list of failed or dis-allowed states, default is ``None``
+    :type failed_states: list
     :param execution_delta: time difference with the previous execution to
         look at, the default is the same execution_date as the current task or DAG.
         For yesterday, use [positive!] datetime.timedelta(days=1). Either
@@ -64,29 +66,38 @@ class ExternalTaskSensor(BaseSensorOperator):
     ui_color = '#19647e'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  external_dag_id,
                  external_task_id=None,
                  allowed_states=None,
+                 failed_states=None,
                  execution_delta=None,
                  execution_date_fn=None,
                  check_existence=False,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.allowed_states = allowed_states or [State.SUCCESS]
+        self.failed_states = failed_states or []
+
+        total_states = self.allowed_states + self.failed_states
+        total_states = set(total_states)
+
+        if set(self.failed_states).intersection(set(self.allowed_states)):
+            raise AirflowException("Duplicate values provided as allowed "
+                                   "`{}` and failed states `{}`"
+                                   .format(self.allowed_states, self.failed_states))
+
         if external_task_id:
-            if not set(self.allowed_states) <= set(State.task_states):
+            if not total_states <= set(State.task_states):
                 raise ValueError(
-                    'Valid values for `allowed_states` '
-                    'when `external_task_id` is not `None`: {}'.format(State.task_states)
+                    f'Valid values for `allowed_states` and `failed_states` '
+                    f'when `external_task_id` is not `None`: {State.task_states}'
                 )
-        else:
-            if not set(self.allowed_states) <= set(State.dag_states):
-                raise ValueError(
-                    'Valid values for `allowed_states` '
-                    'when `external_task_id` is `None`: {}'.format(State.dag_states)
-                )
+        elif not total_states <= set(State.dag_states):
+            raise ValueError(
+                f'Valid values for `allowed_states` and `failed_states` '
+                f'when `external_task_id` is `None`: {State.dag_states}'
+            )
 
         if execution_delta is not None and execution_date_fn is not None:
             raise ValueError(
@@ -106,7 +117,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         if self.execution_delta:
             dttm = context['execution_date'] - self.execution_delta
         elif self.execution_date_fn:
-            dttm = self.execution_date_fn(context['execution_date'])
+            dttm = self._handle_execution_date_fn(context=context)
         else:
             dttm = context['execution_date']
 
@@ -120,9 +131,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         )
 
         DM = DagModel
-        TI = TaskInstance
-        DR = DagRun
-
         # we only do the check for 1st time, no need for subsequent poke
         if self.check_existence and not self.has_checked_existence:
             dag_to_wait = session.query(DM).filter(
@@ -130,39 +138,87 @@ class ExternalTaskSensor(BaseSensorOperator):
             ).first()
 
             if not dag_to_wait:
-                raise AirflowException('The external DAG '
-                                       '{} does not exist.'.format(self.external_dag_id))
-            else:
-                if not os.path.exists(dag_to_wait.fileloc):
-                    raise AirflowException('The external DAG '
-                                           '{} was deleted.'.format(self.external_dag_id))
+                raise AirflowException(f'The external DAG {self.external_dag_id} does not exist.')
+            elif not os.path.exists(dag_to_wait.fileloc):
+                raise AirflowException(f'The external DAG {self.external_dag_id} was deleted.')
 
             if self.external_task_id:
                 refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
                 if not refreshed_dag_info.has_task(self.external_task_id):
-                    raise AirflowException('The external task'
-                                           '{} in DAG {} does not exist.'.format(self.external_task_id,
-                                                                                 self.external_dag_id))
+                    raise AirflowException(
+                        f'The external task {self.external_task_id} in '
+                        f'DAG {self.external_dag_id} does not exist.'
+                    )
             self.has_checked_existence = True
+
+        count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
+
+        count_failed = -1
+        if len(self.failed_states) > 0:
+            count_failed = self.get_count(dttm_filter, session, self.failed_states)
+
+        session.commit()
+        if count_failed == len(dttm_filter):
+            if self.external_task_id:
+                raise AirflowException(
+                    f'The external task {self.external_task_id} in DAG {self.external_dag_id} failed.'
+                )
+            else:
+                raise AirflowException(f'The external DAG {self.external_dag_id} failed.')
+
+        return count_allowed == len(dttm_filter)
+
+    def get_count(self, dttm_filter, session, states):
+        """
+        Get the count of records against dttm filter and states
+
+        :param dttm_filter: date time filter for execution date
+        :type dttm_filter: list
+        :param session: airflow session object
+        :type session: SASession
+        :param states: task or dag states
+        :type states: list
+        :return: count of record against the filters
+        """
+        TI = TaskInstance
+        DR = DagRun
 
         if self.external_task_id:
             # .count() is inefficient
             count = session.query(func.count()).filter(
                 TI.dag_id == self.external_dag_id,
                 TI.task_id == self.external_task_id,
-                TI.state.in_(self.allowed_states),
+                TI.state.in_(states),  # pylint: disable=no-member
                 TI.execution_date.in_(dttm_filter),
             ).scalar()
         else:
             # .count() is inefficient
             count = session.query(func.count()).filter(
                 DR.dag_id == self.external_dag_id,
-                DR.state.in_(self.allowed_states),  # pylint: disable=no-member
+                DR.state.in_(states),  # pylint: disable=no-member
                 DR.execution_date.in_(dttm_filter),
             ).scalar()
+        return count
 
-        session.commit()
-        return count == len(dttm_filter)
+    def _handle_execution_date_fn(self, context):
+        """
+        This function is to handle backwards compatibility with how this operator was
+        previously where it only passes the execution date, but also allow for the newer
+        implementation to pass all context through as well, to allow for more sophisticated
+        returns of dates to return.
+        Namely, this function check the number of arguments in the execution_date_fn
+        signature and if its 1, treat the legacy way, if it's 2, pass the context as
+        the 2nd argument, and if its more, throw an exception.
+        """
+        num_fxn_params = self.execution_date_fn.__code__.co_argcount
+        if num_fxn_params == 1:
+            return self.execution_date_fn(context['execution_date'])
+        if num_fxn_params == 2:
+            return self.execution_date_fn(context['execution_date'], context)
+
+        raise AirflowException(
+            f'execution_date_fn passed {num_fxn_params} args but only allowed up to 2'
+        )
 
 
 class ExternalTaskMarker(DummyOperator):
@@ -187,14 +243,13 @@ class ExternalTaskMarker(DummyOperator):
     ui_color = '#19647e'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  external_dag_id,
                  external_task_id,
                  execution_date: Optional[Union[str, datetime.datetime]] = "{{ execution_date.isoformat() }}",
                  recursion_depth: int = 10,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
         if isinstance(execution_date, datetime.datetime):

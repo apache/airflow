@@ -54,36 +54,20 @@ class TestSqoopOperator(unittest.TestCase):
         'create_hcatalog_table': True,
         'hcatalog_database': 'hive_database',
         'hcatalog_table': 'hive_table',
-        'properties': {
-            'mapred.map.max.attempts': '1'
-        },
-        'extra_import_options': {
-            'hcatalog-storage-stanza': "\"stored as orcfile\"",
-            'show': ''
-        },
-        'extra_export_options': {
-            'update-key': 'id',
-            'update-mode': 'allowinsert',
-            'fetch-size': 1
-        }
+        'properties': {'mapred.map.max.attempts': '1'},
+        'extra_import_options': {'hcatalog-storage-stanza': "\"stored as orcfile\"", 'show': ''},
+        'extra_export_options': {'update-key': 'id', 'update-mode': 'allowinsert', 'fetch-size': 1},
     }
 
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': datetime.datetime(2017, 1, 1)
-        }
+        args = {'owner': 'airflow', 'start_date': datetime.datetime(2017, 1, 1)}
         self.dag = DAG('test_dag_id', default_args=args)
 
     def test_execute(self):
         """
         Tests to verify values of the SqoopOperator match that passed in from the config.
         """
-        operator = SqoopOperator(
-            task_id='sqoop_job',
-            dag=self.dag,
-            **self._config
-        )
+        operator = SqoopOperator(task_id='sqoop_job', dag=self.dag, **self._config)
 
         self.assertEqual(self._config['conn_id'], operator.conn_id)
         self.assertEqual(self._config['query'], operator.query)
@@ -121,7 +105,7 @@ class TestSqoopOperator(unittest.TestCase):
             hcatalog_table='import_table_1',
             create_hcatalog_table=True,
             extra_import_options={'hcatalog-storage-stanza': "\"stored as orcfile\""},
-            dag=self.dag
+            dag=self.dag,
         )
 
         SqoopOperator(
@@ -137,7 +121,7 @@ class TestSqoopOperator(unittest.TestCase):
             hcatalog_table='import_table_2',
             create_hcatalog_table=True,
             extra_import_options={'hcatalog-storage-stanza': "\"stored as orcfile\""},
-            dag=self.dag
+            dag=self.dag,
         )
 
         SqoopOperator(
@@ -154,9 +138,9 @@ class TestSqoopOperator(unittest.TestCase):
                 'hcatalog-storage-stanza': "\"stored as orcfile\"",
                 'hive-partition-key': 'day',
                 'hive-partition-value': '2017-10-18',
-                'fetch-size': 1
+                'fetch-size': 1,
             },
-            dag=self.dag
+            dag=self.dag,
         )
 
         SqoopOperator(
@@ -169,7 +153,7 @@ class TestSqoopOperator(unittest.TestCase):
             hcatalog_database='default',
             hcatalog_table='hive_export_table_1',
             extra_export_options=None,
-            dag=self.dag
+            dag=self.dag,
         )
 
         SqoopOperator(
@@ -182,15 +166,14 @@ class TestSqoopOperator(unittest.TestCase):
             verbose=True,
             num_mappers=None,
             extra_export_options=None,
-            dag=self.dag
+            dag=self.dag,
         )
 
     def test_invalid_cmd_type(self):
         """
         Tests to verify if the cmd_type is not import or export, an exception is raised.
         """
-        operator = SqoopOperator(task_id='sqoop_job', dag=self.dag,
-                                 cmd_type='invalid')
+        operator = SqoopOperator(task_id='sqoop_job', dag=self.dag, cmd_type='invalid')
         with self.assertRaises(AirflowException):
             operator.execute({})
 
@@ -200,10 +183,6 @@ class TestSqoopOperator(unittest.TestCase):
         """
         import_query_and_table_configs = self._config.copy()
         import_query_and_table_configs['cmd_type'] = 'import'
-        operator = SqoopOperator(
-            task_id='sqoop_job',
-            dag=self.dag,
-            **import_query_and_table_configs
-        )
+        operator = SqoopOperator(task_id='sqoop_job', dag=self.dag, **import_query_and_table_configs)
         with self.assertRaises(AirflowException):
             operator.execute({})

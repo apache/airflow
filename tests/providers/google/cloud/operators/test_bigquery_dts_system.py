@@ -18,7 +18,10 @@
 import pytest
 
 from airflow.providers.google.cloud.example_dags.example_bigquery_dts import (
-    BUCKET_URI, GCP_DTS_BQ_DATASET, GCP_DTS_BQ_TABLE, GCP_PROJECT_ID,
+    BUCKET_URI,
+    GCP_DTS_BQ_DATASET,
+    GCP_DTS_BQ_TABLE,
+    GCP_PROJECT_ID,
 )
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
@@ -32,8 +35,7 @@ class GcpBigqueryDtsSystemTest(GoogleSystemTest):
         table_name = f"{dataset_name}.{table}"
 
         self.execute_with_ctx(
-            ["bq", "--location", "us", "mk", "--dataset", dataset_name],
-            key=GCP_BIGQUERY_KEY
+            ["bq", "--location", "us", "mk", "--dataset", dataset_name], key=GCP_BIGQUERY_KEY
         )
         self.execute_with_ctx(["bq", "mk", "--table", table_name, ""], key=GCP_BIGQUERY_KEY)
 
@@ -50,7 +52,8 @@ class GcpBigqueryDtsSystemTest(GoogleSystemTest):
                 "CSV",
                 table_name,
                 gcs_file,
-            ], key=GCP_BIGQUERY_KEY
+            ],
+            key=GCP_BIGQUERY_KEY,
         )
 
     def delete_dataset(self, project_id: str, dataset: str):
@@ -61,17 +64,13 @@ class GcpBigqueryDtsSystemTest(GoogleSystemTest):
     def setUp(self):
         super().setUp()
         self.create_dataset(
-            project_id=GCP_PROJECT_ID,
-            dataset=GCP_DTS_BQ_DATASET,
-            table=GCP_DTS_BQ_TABLE,
+            project_id=GCP_PROJECT_ID, dataset=GCP_DTS_BQ_DATASET, table=GCP_DTS_BQ_TABLE,
         )
         self.upload_data(dataset=GCP_DTS_BQ_DATASET, table=GCP_DTS_BQ_TABLE, gcs_file=BUCKET_URI)
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def tearDown(self):
-        self.delete_dataset(
-            project_id=GCP_PROJECT_ID, dataset=GCP_DTS_BQ_DATASET
-        )
+        self.delete_dataset(project_id=GCP_PROJECT_ID, dataset=GCP_DTS_BQ_DATASET)
         super().tearDown()
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)

@@ -24,43 +24,20 @@ from airflow.providers.exasol.operators.exasol import ExasolOperator
 
 
 class TestExasol(unittest.TestCase):
-
     @mock.patch('airflow.providers.exasol.hooks.exasol.ExasolHook.run')
     def test_overwrite_autocommit(self, mock_run):
-        operator = ExasolOperator(
-            task_id='TEST',
-            sql='SELECT 1',
-            autocommit=True
-        )
+        operator = ExasolOperator(task_id='TEST', sql='SELECT 1', autocommit=True)
         operator.execute({})
-        mock_run.assert_called_once_with(
-            'SELECT 1',
-            autocommit=True,
-            parameters=None
-        )
+        mock_run.assert_called_once_with('SELECT 1', autocommit=True, parameters=None)
 
     @mock.patch('airflow.providers.exasol.hooks.exasol.ExasolHook.run')
     def test_pass_parameters(self, mock_run):
-        operator = ExasolOperator(
-            task_id='TEST',
-            sql='SELECT {value!s}',
-            parameters={'value': 1}
-        )
+        operator = ExasolOperator(task_id='TEST', sql='SELECT {value!s}', parameters={'value': 1})
         operator.execute({})
-        mock_run.assert_called_once_with(
-            'SELECT {value!s}',
-            autocommit=False,
-            parameters={'value': 1}
-        )
+        mock_run.assert_called_once_with('SELECT {value!s}', autocommit=False, parameters={'value': 1})
 
     @mock.patch('airflow.providers.exasol.operators.exasol.ExasolHook')
     def test_overwrite_schema(self, mock_hook):
-        operator = ExasolOperator(
-            task_id='TEST',
-            sql='SELECT 1',
-            schema='dummy'
-        )
+        operator = ExasolOperator(task_id='TEST', sql='SELECT 1', schema='dummy')
         operator.execute({})
-        mock_hook.assert_called_once_with(
-            exasol_conn_id='exasol_default', schema='dummy'
-        )
+        mock_hook.assert_called_once_with(exasol_conn_id='exasol_default', schema='dummy')

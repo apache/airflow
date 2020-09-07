@@ -61,12 +61,16 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
     Execute a task on AWS ECS (Elastic Container Service)
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ECSOperator`
+
     :param task_definition: the task definition name on Elastic Container Service
     :type task_definition: str
     :param cluster: the cluster name on Elastic Container Service
     :type cluster: str
     :param overrides: the same parameter that boto3 will receive (templated):
-        http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
     :type overrides: dict
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
@@ -82,6 +86,9 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     :param placement_constraints: an array of placement constraint objects to use for
         the task
     :type placement_constraints: list
+    :param placement_strategy: an array of placement strategy objects to use for
+        the task
+    :type placement_strategy: list
     :param platform_version: the platform version on which your task is running
     :type platform_version: str
     :param network_configuration: the network configuration for the task
@@ -109,11 +116,27 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     template_fields = ('overrides',)
 
     @apply_defaults
-    def __init__(self, task_definition, cluster, overrides,  # pylint: disable=too-many-arguments
-                 aws_conn_id=None, region_name=None, launch_type='EC2',
-                 group=None, placement_constraints=None, platform_version='LATEST',
-                 network_configuration=None, tags=None, awslogs_group=None,
-                 awslogs_region=None, awslogs_stream_prefix=None, **kwargs):
+    def __init__(
+        self,
+        *,
+        task_definition,
+        cluster,
+        overrides,  # pylint: disable=too-many-arguments
+        aws_conn_id=None,
+        region_name=None,
+        launch_type='EC2',
+        group=None,
+        placement_constraints=None,
+        placement_strategy=None,
+        platform_version='LATEST',
+        network_configuration=None,
+        tags=None,
+        awslogs_group=None,
+        awslogs_region=None,
+        awslogs_stream_prefix=None,
+        propagate_tags=None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
@@ -124,6 +147,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.launch_type = launch_type
         self.group = group
         self.placement_constraints = placement_constraints
+        self.placement_strategy = placement_strategy
         self.platform_version = platform_version
         self.network_configuration = network_configuration
 
@@ -131,6 +155,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.awslogs_group = awslogs_group
         self.awslogs_stream_prefix = awslogs_stream_prefix
         self.awslogs_region = awslogs_region
+        self.propagate_tags = propagate_tags
 
         if self.awslogs_region is None:
             self.awslogs_region = region_name
@@ -139,8 +164,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
     def execute(self, context):
         self.log.info(
-            'Running ECS Task - Task definition: %s - on cluster %s',
-            self.task_definition, self.cluster
+            'Running ECS Task - Task definition: %s - on cluster %s', self.task_definition, self.cluster
         )
         self.log.info('ECSOperator overrides: %s', self.overrides)
 
@@ -161,10 +185,14 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             run_opts['group'] = self.group
         if self.placement_constraints is not None:
             run_opts['placementConstraints'] = self.placement_constraints
+        if self.placement_strategy is not None:
+            run_opts['placementStrategy'] = self.placement_strategy
         if self.network_configuration is not None:
             run_opts['networkConfiguration'] = self.network_configuration
         if self.tags is not None:
             run_opts['tags'] = [{'key': k, 'value': v} for (k, v) in self.tags.items()]
+        if self.propagate_tags is not None:
+            run_opts['propagateTags'] = self.propagate_tags
 
         response = self.client.run_task(**run_opts)
 
@@ -182,16 +210,10 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     def _wait_for_task_ended(self):
         waiter = self.client.get_waiter('tasks_stopped')
         waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
-        waiter.wait(
-            cluster=self.cluster,
-            tasks=[self.arn]
-        )
+        waiter.wait(cluster=self.cluster, tasks=[self.arn])
 
     def _check_success_task(self):
-        response = self.client.describe_tasks(
-            cluster=self.cluster,
-            tasks=[self.arn]
-        )
+        response = self.client.describe_tasks(cluster=self.cluster, tasks=[self.arn])
         self.log.info('ECS Task stopped, check status: %s', response)
 
         # Get logs from CloudWatch if the awslogs log driver was used
@@ -211,44 +233,39 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             # successfully finished, but there is no other indication of failure
             # in the response.
             # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html
-            if re.match(r'Host EC2 \(instance .+?\) (stopped|terminated)\.',
-                        task.get('stoppedReason', '')):
+            if re.match(r'Host EC2 \(instance .+?\) (stopped|terminated)\.', task.get('stoppedReason', '')):
                 raise AirflowException(
-                    'The task was stopped because the host instance terminated: {}'.
-                    format(task.get('stoppedReason', '')))
+                    'The task was stopped because the host instance terminated: {}'.format(
+                        task.get('stoppedReason', '')
+                    )
+                )
             containers = task['containers']
             for container in containers:
-                if container.get('lastStatus') == 'STOPPED' and \
-                        container['exitCode'] != 0:
-                    raise AirflowException(
-                        'This task is not in success state {}'.format(task))
+                if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
+                    raise AirflowException('This task is not in success state {}'.format(task))
                 elif container.get('lastStatus') == 'PENDING':
                     raise AirflowException('This task is still pending {}'.format(task))
                 elif 'error' in container.get('reason', '').lower():
                     raise AirflowException(
-                        'This containers encounter an error during launching : {}'.
-                        format(container.get('reason', '').lower()))
+                        'This containers encounter an error during launching : {}'.format(
+                            container.get('reason', '').lower()
+                        )
+                    )
 
     def get_hook(self):
         """Create and return an AwsHook."""
         if not self.hook:
             self.hook = AwsBaseHook(
-                aws_conn_id=self.aws_conn_id,
-                client_type='ecs',
-                region_name=self.region_name
+                aws_conn_id=self.aws_conn_id, client_type='ecs', region_name=self.region_name
             )
         return self.hook
 
     def get_logs_hook(self):
         """Create and return an AwsLogsHook."""
-        return AwsLogsHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.awslogs_region
-        )
+        return AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.awslogs_region)
 
     def on_kill(self):
         response = self.client.stop_task(
-            cluster=self.cluster,
-            task=self.arn,
-            reason='Task killed by the user')
+            cluster=self.cluster, task=self.arn, reason='Task killed by the user'
+        )
         self.log.info(response)

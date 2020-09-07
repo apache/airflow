@@ -22,24 +22,32 @@ Example Airflow DAG that interacts with Google Data Catalog service
 from google.cloud.datacatalog_v1beta1.proto.tags_pb2 import FieldType, TagField, TagTemplateField
 
 from airflow import models
-from airflow.models.baseoperator import chain
 from airflow.operators.bash_operator import BashOperator
 from airflow.providers.google.cloud.operators.datacatalog import (
-    CloudDataCatalogCreateEntryGroupOperator, CloudDataCatalogCreateEntryOperator,
-    CloudDataCatalogCreateTagOperator, CloudDataCatalogCreateTagTemplateFieldOperator,
-    CloudDataCatalogCreateTagTemplateOperator, CloudDataCatalogDeleteEntryGroupOperator,
-    CloudDataCatalogDeleteEntryOperator, CloudDataCatalogDeleteTagOperator,
-    CloudDataCatalogDeleteTagTemplateFieldOperator, CloudDataCatalogDeleteTagTemplateOperator,
-    CloudDataCatalogGetEntryGroupOperator, CloudDataCatalogGetEntryOperator,
-    CloudDataCatalogGetTagTemplateOperator, CloudDataCatalogListTagsOperator,
-    CloudDataCatalogLookupEntryOperator, CloudDataCatalogRenameTagTemplateFieldOperator,
-    CloudDataCatalogSearchCatalogOperator, CloudDataCatalogUpdateEntryOperator,
-    CloudDataCatalogUpdateTagOperator, CloudDataCatalogUpdateTagTemplateFieldOperator,
+    CloudDataCatalogCreateEntryGroupOperator,
+    CloudDataCatalogCreateEntryOperator,
+    CloudDataCatalogCreateTagOperator,
+    CloudDataCatalogCreateTagTemplateFieldOperator,
+    CloudDataCatalogCreateTagTemplateOperator,
+    CloudDataCatalogDeleteEntryGroupOperator,
+    CloudDataCatalogDeleteEntryOperator,
+    CloudDataCatalogDeleteTagOperator,
+    CloudDataCatalogDeleteTagTemplateFieldOperator,
+    CloudDataCatalogDeleteTagTemplateOperator,
+    CloudDataCatalogGetEntryGroupOperator,
+    CloudDataCatalogGetEntryOperator,
+    CloudDataCatalogGetTagTemplateOperator,
+    CloudDataCatalogListTagsOperator,
+    CloudDataCatalogLookupEntryOperator,
+    CloudDataCatalogRenameTagTemplateFieldOperator,
+    CloudDataCatalogSearchCatalogOperator,
+    CloudDataCatalogUpdateEntryOperator,
+    CloudDataCatalogUpdateTagOperator,
+    CloudDataCatalogUpdateTagTemplateFieldOperator,
     CloudDataCatalogUpdateTagTemplateOperator,
 )
 from airflow.utils.dates import days_ago
-
-default_args = {"start_date": days_ago(1)}
+from airflow.utils.helpers import chain
 
 PROJECT_ID = "polidea-airflow"
 LOCATION = "us-central1"
@@ -50,7 +58,7 @@ FIELD_NAME_1 = "first"
 FIELD_NAME_2 = "second"
 FIELD_NAME_3 = "first-rename"
 
-with models.DAG("example_gcp_datacatalog", default_args=default_args, schedule_interval=None) as dag:
+with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_interval=None) as dag:
     # Create
     # [START howto_operator_gcp_datacatalog_create_entry_group]
     create_entry_group = CloudDataCatalogCreateEntryGroupOperator(
@@ -181,7 +189,7 @@ with models.DAG("example_gcp_datacatalog", default_args=default_args, schedule_i
 
     # [START howto_operator_gcp_datacatalog_create_tag_template_field_result2]
     create_tag_template_field_result2 = BashOperator(
-        task_id="create_tag_template_field_result",
+        task_id="create_tag_template_field_result2",
         bash_command="echo \"{{ task_instance.xcom_pull('create_tag_template_field') }}\"",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_template_field_result2]
@@ -290,7 +298,7 @@ with models.DAG("example_gcp_datacatalog", default_args=default_args, schedule_i
         task_id="lookup_entry",
         linked_resource=current_entry_template.format(
             project_id=PROJECT_ID, location=LOCATION, entry_group=ENTRY_GROUP_ID, entry=ENTRY_ID
-        )
+        ),
     )
     # [END howto_operator_gcp_datacatalog_lookup_entry_linked_resource]
 

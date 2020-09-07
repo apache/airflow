@@ -25,84 +25,60 @@ setup() {
 }
 
 teardown() {
-  load bats_utils
   rm -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
 }
 
 @test "Test missing value for a parameter" {
-  load bats_utils
   export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
-  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
-  diff <(echo "${output}") - <<EOF
-
+  run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+  assert_output "
 ERROR:  Allowed Test Param: [ a b c ]. Is: ''.
 
-Switch to supported value with --message flag.
-EOF
-  [ "${status}" == "1" ]
+Switch to supported value with --message flag."
+  assert_failure
 }
 
 @test "Test wrong value for a parameter but proper stored in the .build/PARAM" {
-  load bats_utils
-
-  initialize_common_environment
-
   export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
   export TEST_PARAM=x
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
-  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
-  diff <(echo "${output}") - <<EOF
-
+  run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+  assert_output "
 ERROR:  Allowed Test Param: [ a b c ]. Is: 'x'.
 
-Switch to supported value with --message flag.
-EOF
-  [ -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
-  diff <(cat "${AIRFLOW_SOURCES}/.build/.TEST_PARAM") <(echo "a")
-  [ "${status}" == "1" ]
+Switch to supported value with --message flag."
+  assert_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
+  assert_file_contains "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" "^a$"
+  assert_failure 1
 }
 
 @test "Test wrong value for a parameter stored in the .build/PARAM" {
-  load bats_utils
-
-  initialize_common_environment
-
   export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
   export TEST_PARAM=x
   echo "x" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
-  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
-  diff <(echo "${output}") - <<EOF
-
+  run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+  assert_output "
 ERROR:  Allowed Test Param: [ a b c ]. Is: 'x'.
 
 Switch to supported value with --message flag.
 
-Removing ${AIRFLOW_SOURCES}/.build/.TEST_PARAM. Next time you run it, it should be OK.
-EOF
-  [ ! -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
-  [ "${status}" == "1" ]
+Removing ${AIRFLOW_SOURCES}/.build/.TEST_PARAM. Next time you run it, it should be OK."
+  assert_not_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
+  assert_failure 1
 }
 
 
 @test "Test correct value for a parameter" {
-  load bats_utils
-
-  initialize_common_environment
-
   export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
   export TEST_PARAM=a
-  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
-  diff <(echo "${output}") <(echo "")
-  [ -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
-  diff <(echo "a") <(cat "${AIRFLOW_SOURCES}/.build/.TEST_PARAM")
-  [ "${status}" == "0" ]
+  run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+  assert_output ""
+  assert_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
+  assert_file_contains "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" "^a$"
+  assert_success
 }
 
 @test "Test correct value for a parameter from multi-line values" {
-  load bats_utils
-
-  initialize_common_environment
-
   _BREEZE_ALLOWED_TEST_PARAMS=$(cat <<-EOF
 a
 b
@@ -111,34 +87,26 @@ EOF
 )
   export _BREEZE_ALLOWED_TEST_PARAMS
   export TEST_PARAM=a
-  run check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
-  diff <(echo "${output}") <(echo "")
-  [ -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
-  diff <(echo "a") <(cat "${AIRFLOW_SOURCES}/.build/.TEST_PARAM")
-  [ "${status}" == "0" ]
+  run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
+  assert_output ""
+  assert_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
+  assert_file_contains "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" "^a$"
+  assert_success
 }
 
 
 @test "Test read_parameter from missing file" {
-  load bats_utils
-
-  initialize_common_environment
-
-  run read_from_file TEST_PARAM
-  [ -z "${TEST_FILE}" ]
-  diff <(echo "${output}") <(echo "")
-  [ ! -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
-  [ "${status}" == "0" ]
+  run parameters::read_from_file TEST_PARAM
+  assert [ -z "${TEST_FILE}" ]
+  assert_output ""
+  assert_not_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
+  assert_success
 }
 
 @test "Test read_parameter from file" {
-  load bats_utils
-
-  initialize_common_environment
-
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
-  run read_from_file TEST_PARAM
-  diff <(echo "${output}") <(echo "a")
-  [ -f "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" ]
-  [ "${status}" == "0" ]
+  run parameters::read_from_file TEST_PARAM
+  assert_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
+  assert_file_contains "${AIRFLOW_SOURCES}/.build/.TEST_PARAM" "^a$"
+  assert_success
 }

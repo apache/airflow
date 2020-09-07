@@ -26,6 +26,8 @@ import unittest
 import unittest.mock
 from copy import deepcopy
 
+import pytest
+
 from airflow import models
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.utils.db import add_default_pool_if_not_exists
@@ -48,9 +50,9 @@ logger = logging.getLogger(__name__)
 
 def mock_custom_module_path(path: str):
     """
-    This decorator adds a path to sys.path to simulate running the current script with the ``PYTHONPATH``
-    environment variable set and sets the environment variable ``PYTHONPATH`` to change the
-    module load directory for child scripts.
+    This decorator adds a path to sys.path to simulate running the current script with
+    the :envvar:`PYTHONPATH` environment variable set and sets the environment variable
+    :envvar:`PYTHONPATH` to change the module load directory for child scripts.
     """
     def wrapper(func):
         @functools.wraps(func)
@@ -107,6 +109,7 @@ def create_user():
             )
 
 
+@pytest.mark.quarantined
 class TestImpersonation(unittest.TestCase):
 
     def setUp(self):
@@ -183,6 +186,7 @@ class TestImpersonation(unittest.TestCase):
         )
 
 
+@pytest.mark.quarantined
 class TestImpersonationWithCustomPythonPath(unittest.TestCase):
 
     @mock_custom_module_path(TEST_UTILS_FOLDER)

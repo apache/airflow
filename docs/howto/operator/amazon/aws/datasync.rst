@@ -36,7 +36,7 @@ in action.
  - example_datasync_2.py
 
 Both examples use the :class:`~airflow.providers.amazon.aws.hooks.datasync.AWSDataSyncHook`
-to create a boto3 DataSync client. This hook in turn uses the :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsHook`
+to create a boto3 DataSync client. This hook in turn uses the :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
 Note this guide differentiates between an *Airflow task* (identified by a task_id on Airflow),
 and an *AWS DataSync Task* (identified by a TaskArn on AWS).
@@ -56,12 +56,12 @@ Environment variables
 
 These examples rely on the following variables, which can be passed via OS environment variables.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_datasync_1.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_datasync_1.py
     :language: python
     :start-after: [START howto_operator_datasync_1_args_1]
     :end-before: [END howto_operator_datasync_1_args_1]
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_datasync_1.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_datasync_1.py
     :language: python
     :start-after: [START howto_operator_datasync_1_args_2]
     :end-before: [END howto_operator_datasync_1_args_2]
@@ -72,7 +72,7 @@ Get DataSync Tasks
 The :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator` can execute a specific
 TaskArn by specifying the ``task_arn`` parameter. This is useful when you know the TaskArn you want to execute.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_datasync_1.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_datasync_1.py
     :language: python
     :start-after: [START howto_operator_datasync_1_1]
     :end-before: [END howto_operator_datasync_1_1]
@@ -90,7 +90,7 @@ each LocationArn to see if its the URIs match the desired source / destination U
 
 To perform a search based on the Location URIs, define the task as follows
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_datasync_1.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_datasync_1.py
     :language: python
     :start-after: [START howto_operator_datasync_1_2]
     :end-before: [END howto_operator_datasync_1_2]
@@ -117,7 +117,7 @@ Environment variables
 
 This example relies on the following variables, which can be passed via OS environment variables.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_datasync_2.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_datasync_2.py
     :language: python
     :start-after: [START howto_operator_datasync_2_args]
     :end-before: [END howto_operator_datasync_2_args]
@@ -132,7 +132,7 @@ Most of the arguments (``CREATE_*_KWARGS``) provide a way for the operator to au
 and/or Locations if no suitable existing Task was found. If these are left to their default value (None)
 then no create will be attempted.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_datasync_2.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_datasync_2.py
     :language: python
     :start-after: [START howto_operator_datasync_2]
     :end-before: [END howto_operator_datasync_2]
@@ -210,7 +210,7 @@ TaskArn creation behaviour
 When creating a Task, the
 :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator` will try to find
 and use existing LocationArns rather than creating new ones. If multiple LocationArns match the
-specied URIs then we need to choose one to use. In this scenario, the operator behaves similarly
+specified URIs then we need to choose one to use. In this scenario, the operator behaves similarly
 to how it chooses a single Task from many Tasks:
 
 The operator will raise an Exception. To avoid this, you can set ``allow_random_location_choice=True``

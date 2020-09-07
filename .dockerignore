@@ -33,8 +33,17 @@
 !dev
 !docs
 !licenses
-!scripts
+!metastore_browser
+
+# Add those folders to the context so that they are available in the CI container
+!scripts/in_container
+
+# Add backport packages to the context
+!backport_packages
+
+# Add tests and kubernetes_tests to context.
 !tests
+!kubernetes_tests
 
 !.coveragerc
 !.rat-excludes
@@ -43,14 +52,11 @@
 !pylintrc
 !pytest.ini
 !CHANGELOG.txt
-!Dockerfile.ci
-!Dockerfile
 !LICENSE
 !MANIFEST.in
 !NOTICE
 !.github
-!requirements
-!entrypoint.sh
+!empty
 
 # Avoid triggering context change on README change (new companies using Airflow)
 # So please do not uncomment this line ;)

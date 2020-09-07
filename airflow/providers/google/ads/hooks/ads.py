@@ -34,7 +34,30 @@ from airflow.hooks.base_hook import BaseHook
 
 class GoogleAdsHook(BaseHook):
     """
-    Hook for the Google Ads API
+    Hook for the Google Ads API.
+
+    This hook requires two connections:
+
+        - gcp_conn_id - provides service account details (like any other GCP connection)
+        - google_ads_conn_id - which contains information from Google Ads config.yaml file
+          in the ``extras``. Example of the ``extras``:
+
+        .. code-block:: json
+
+            {
+                "google_ads_client": {
+                    "developer_token": "{{ INSERT_TOKEN }}",
+                    "path_to_private_key_file": null,
+                    "delegated_account": "{{ INSERT_DELEGATED_ACCOUNT }}"
+                }
+            }
+
+        The ``path_to_private_key_file`` is resolved by the hook using credentials from gcp_conn_id.
+        https://developers.google.com/google-ads/api/docs/client-libs/python/oauth-service
+
+    .. seealso::
+        For more information on how Google Ads authentication flow works take a look at:
+        https://developers.google.com/google-ads/api/docs/client-libs/python/oauth-service
 
     .. seealso::
         For more information on the Google Ads API, take a look at the API docs:
@@ -104,7 +127,7 @@ class GoogleAdsHook(BaseHook):
 
     def _update_config_with_secret(self, secrets_temp: IO[str]) -> None:
         """
-        Gets GCP secret from connection and saves the contents to the temp file
+        Gets Google Cloud secret from connection and saves the contents to the temp file
         Updates google ads config with file path of the temp file containing the secret
         Note, the secret must be passed as a file path for Google Ads API
         """
@@ -133,16 +156,13 @@ class GoogleAdsHook(BaseHook):
         """
         service = self._get_service
         iterators = (
-            service.search(client_id, query=query, page_size=page_size, **kwargs)
-            for client_id in client_ids
+            service.search(client_id, query=query, page_size=page_size, **kwargs) for client_id in client_ids
         )
         self.log.info("Fetched Google Ads Iterators")
 
         return self._extract_rows(iterators)
 
-    def _extract_rows(
-        self, iterators: Generator[GRPCIterator, None, None]
-    ) -> List[GoogleAdsRow]:
+    def _extract_rows(self, iterators: Generator[GRPCIterator, None, None]) -> List[GoogleAdsRow]:
         """
         Convert Google Page Iterator (GRPCIterator) objects to Google Ads Rows
 
@@ -165,9 +185,7 @@ class GoogleAdsHook(BaseHook):
                 self.log.error("\tError with message: %s.", error.message)
                 if error.location:
                     for field_path_element in error.location.field_path_elements:
-                        self.log.error(
-                            "\t\tOn field: %s", field_path_element.field_name
-                        )
+                        self.log.error("\t\tOn field: %s", field_path_element.field_name)
             raise
 
     def list_accessible_customers(self) -> List[str]:

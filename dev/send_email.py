@@ -38,8 +38,8 @@ except ModuleNotFoundError:
 SMTP_PORT = 587
 SMTP_SERVER = "mail-relay.apache.org"
 MAILING_LIST = {
-    "dev": f"dev@airflow.apache.org",
-    "users": f"users@airflow.apache.org"
+    "dev": "dev@airflow.apache.org",
+    "users": "users@airflow.apache.org"
 }
 
 
@@ -127,7 +127,7 @@ class BaseParameters:
         self.password = password
         self.version = version
         self.version_rc = version_rc
-        self.template_arguments = dict()
+        self.template_arguments = {}
 
     def __repr__(self):
         return f"Apache Credentials: {self.email}/{self.username}/{self.version}/{self.version_rc}"

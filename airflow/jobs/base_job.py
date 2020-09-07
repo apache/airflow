@@ -25,11 +25,12 @@ from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
-from airflow import models
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.base import ID_LEN, Base
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import convert_camel_to_snake
@@ -81,7 +82,7 @@ class BaseJob(Base, LoggingMixin):
             *args, **kwargs):
         self.hostname = get_hostname()
         self.executor = executor or ExecutorLoader.get_default_executor()
-        self.executor_class = executor.__class__.__name__
+        self.executor_class = self.executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
@@ -147,7 +148,7 @@ class BaseJob(Base, LoggingMixin):
         Callback that is called during heartbeat. This method should be overwritten.
         """
 
-    def heartbeat(self):
+    def heartbeat(self, only_if_necessary: bool = False):
         """
         Heartbeats update the job's entry in the database with a timestamp
         for the latest_heartbeat and allows for the job to be killed
@@ -165,7 +166,18 @@ class BaseJob(Base, LoggingMixin):
         will sleep 50 seconds to complete the 60 seconds and keep a steady
         heart rate. If you go over 60 seconds before calling it, it won't
         sleep at all.
+
+        :param only_if_necessary: If the heartbeat is not yet due then do
+            nothing (don't update column, don't call ``heartbeat_callback``)
+        :type only_if_necessary: boolean
         """
+        seconds_remaining = 0
+        if self.latest_heartbeat:
+            seconds_remaining = self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+
+        if seconds_remaining > 0 and only_if_necessary:
+            return
+
         previous_heartbeat = self.latest_heartbeat
 
         try:
@@ -215,9 +227,7 @@ class BaseJob(Base, LoggingMixin):
             self.state = State.RUNNING
             session.add(self)
             session.commit()
-            id_ = self.id
             make_transient(self)
-            self.id = id_
 
             try:
                 self._execute()
@@ -259,21 +269,20 @@ class BaseJob(Base, LoggingMixin):
         running_tis = self.executor.running
 
         resettable_states = [State.SCHEDULED, State.QUEUED]
-        TI = models.TaskInstance
-        DR = models.DagRun
         if filter_by_dag_run is None:
             resettable_tis = (
                 session
-                .query(TI)
+                .query(TaskInstance)
                 .join(
-                    DR,
+                    DagRun,
                     and_(
-                        TI.dag_id == DR.dag_id,
-                        TI.execution_date == DR.execution_date))
+                        TaskInstance.dag_id == DagRun.dag_id,
+                        TaskInstance.execution_date == DagRun.execution_date))
                 .filter(
-                    DR.state == State.RUNNING,
-                    DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"),
-                    TI.state.in_(resettable_states))).all()
+                    # pylint: disable=comparison-with-callable
+                    DagRun.state == State.RUNNING,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB.value,
+                    TaskInstance.state.in_(resettable_states))).all()
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,
                                                                   session=session)
@@ -283,16 +292,16 @@ class BaseJob(Base, LoggingMixin):
             if ti.key not in queued_tis and ti.key not in running_tis:
                 tis_to_reset.append(ti)
 
-        if len(tis_to_reset) == 0:
+        if not tis_to_reset:
             return []
 
         def query(result, items):
             if not items:
                 return result
 
-            filter_for_tis = TI.filter_for_tis(items)
-            reset_tis = session.query(TI).filter(
-                filter_for_tis, TI.state.in_(resettable_states)
+            filter_for_tis = TaskInstance.filter_for_tis(items)
+            reset_tis = session.query(TaskInstance).filter(
+                filter_for_tis, TaskInstance.state.in_(resettable_states)
             ).with_for_update().all()
 
             for ti in reset_tis:
@@ -306,8 +315,7 @@ class BaseJob(Base, LoggingMixin):
                                              [],
                                              self.max_tis_per_query)
 
-        task_instance_str = '\n\t'.join(
-            [repr(x) for x in reset_tis])
+        task_instance_str = '\n\t'.join([repr(x) for x in reset_tis])
         session.commit()
 
         self.log.info(

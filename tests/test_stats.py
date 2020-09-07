@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import importlib
+import re
 import unittest
 from unittest import mock
 from unittest.mock import Mock
@@ -23,7 +24,7 @@ from unittest.mock import Mock
 import statsd
 
 import airflow
-from airflow.exceptions import InvalidStatsNameException
+from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
 from airflow.stats import AllowListValidator, SafeDogStatsdLogger, SafeStatsdLogger
 from tests.test_utils.config import conf_vars
 
@@ -73,14 +74,14 @@ class TestStats(unittest.TestCase):
         self.statsd_client.incr.assert_called_once_with('test_stats_run', 1, 1)
 
     def test_stat_name_must_be_a_string(self):
-        self.stats.incr(list())
+        self.stats.incr([])
         self.statsd_client.assert_not_called()
 
     def test_stat_name_must_not_exceed_max_length(self):
         self.stats.incr('X' * 300)
         self.statsd_client.assert_not_called()
 
-    def test_stat_name_must_only_include_whitelisted_characters(self):
+    def test_stat_name_must_only_include_allowed_characters(self):
         self.stats.incr('test/$tats')
         self.statsd_client.assert_not_called()
 
@@ -124,9 +125,14 @@ class TestStats(unittest.TestCase):
         ("scheduler", "statsd_custom_client_path"): "tests.test_stats.InvalidCustomStatsd",
     })
     def test_load_invalid_custom_stats_client(self):
-        importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
-        assert InvalidCustomStatsd.incr_calls == 0
+        with self.assertRaisesRegex(
+            AirflowConfigException,
+            re.escape(
+                'Your custom Statsd client must extend the statsd.'
+                'StatsClient in order to ensure backwards compatibility.'
+            )
+        ):
+            importlib.reload(airflow.stats)
 
     def tearDown(self) -> None:
         # To avoid side-effect
@@ -146,14 +152,14 @@ class TestDogStats(unittest.TestCase):
         )
 
     def test_stat_name_must_be_a_string_with_dogstatsd(self):
-        self.dogstatsd.incr(list())
+        self.dogstatsd.incr([])
         self.dogstatsd_client.assert_not_called()
 
     def test_stat_name_must_not_exceed_max_length_with_dogstatsd(self):
         self.dogstatsd.incr('X' * 300)
         self.dogstatsd_client.assert_not_called()
 
-    def test_stat_name_must_only_include_whitelisted_characters_with_dogstatsd(self):
+    def test_stat_name_must_only_include_allowed_characters_with_dogstatsd(self):
         self.dogstatsd.incr('test/$tats')
         self.dogstatsd_client.assert_not_called()
 

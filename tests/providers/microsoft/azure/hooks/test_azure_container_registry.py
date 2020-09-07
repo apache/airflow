@@ -24,11 +24,11 @@ from airflow.utils import db
 
 
 class TestAzureContainerRegistryHook(unittest.TestCase):
-
     def test_get_conn(self):
         db.merge_conn(
             Connection(
                 conn_id='azure_container_registry',
+                conn_type='azure_container_registry',
                 login='myuser',
                 password='password',
                 host='test.cr',

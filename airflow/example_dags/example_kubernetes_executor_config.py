@@ -27,13 +27,13 @@ from airflow.utils.dates import days_ago
 
 default_args = {
     'owner': 'airflow',
-    'start_date': days_ago(2)
 }
 
 with DAG(
     dag_id='example_kubernetes_executor_config',
     default_args=default_args,
     schedule_interval=None,
+    start_date=days_ago(2),
     tags=['example'],
 ) as dag:
 

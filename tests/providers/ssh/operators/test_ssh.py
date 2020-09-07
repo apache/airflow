@@ -39,6 +39,7 @@ COMMAND_WITH_SUDO = "sudo " + COMMAND
 class TestSSHOperator(unittest.TestCase):
     def setUp(self):
         from airflow.providers.ssh.hooks.ssh import SSHHook
+
         hook = SSHHook(ssh_conn_id='ssh_default')
         hook.no_host_key_check = True
         args = {
@@ -54,11 +55,7 @@ class TestSSHOperator(unittest.TestCase):
         timeout = 20
         ssh_id = "ssh_default"
         task = SSHOperator(
-            task_id="test",
-            command=COMMAND,
-            dag=self.dag,
-            timeout=timeout,
-            ssh_conn_id="ssh_default"
+            task_id="test", command=COMMAND, dag=self.dag, timeout=timeout, ssh_conn_id="ssh_default"
         )
         self.assertIsNotNone(task)
 
@@ -70,36 +67,27 @@ class TestSSHOperator(unittest.TestCase):
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_json_command_execution(self):
         task = SSHOperator(
-            task_id="test",
-            ssh_hook=self.hook,
-            command=COMMAND,
-            do_xcom_push=True,
-            dag=self.dag,
+            task_id="test", ssh_hook=self.hook, command=COMMAND, do_xcom_push=True, dag=self.dag,
         )
 
         self.assertIsNotNone(task)
 
-        ti = TaskInstance(
-            task=task, execution_date=timezone.utcnow())
+        ti = TaskInstance(task=task, execution_date=timezone.utcnow())
         ti.run()
         self.assertIsNotNone(ti.duration)
-        self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'),
-                         b64encode(b'airflow').decode('utf-8'))
+        self.assertEqual(
+            ti.xcom_pull(task_ids='test', key='return_value'), b64encode(b'airflow').decode('utf-8')
+        )
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_pickle_command_execution(self):
         task = SSHOperator(
-            task_id="test",
-            ssh_hook=self.hook,
-            command=COMMAND,
-            do_xcom_push=True,
-            dag=self.dag,
+            task_id="test", ssh_hook=self.hook, command=COMMAND, do_xcom_push=True, dag=self.dag,
         )
 
         self.assertIsNotNone(task)
 
-        ti = TaskInstance(
-            task=task, execution_date=timezone.utcnow())
+        ti = TaskInstance(task=task, execution_date=timezone.utcnow())
         ti.run()
         self.assertIsNotNone(ti.duration)
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
@@ -111,45 +99,35 @@ class TestSSHOperator(unittest.TestCase):
             command=COMMAND,
             do_xcom_push=True,
             dag=self.dag,
-            environment={'TEST': 'value'}
+            environment={'TEST': 'value'},
         )
 
         self.assertIsNotNone(task)
 
         with conf_vars({('core', 'enable_xcom_pickling'): 'True'}):
-            ti = TaskInstance(
-                task=task, execution_date=timezone.utcnow())
+            ti = TaskInstance(task=task, execution_date=timezone.utcnow())
             ti.run()
             self.assertIsNotNone(ti.duration)
             self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
 
     def test_no_output_command(self):
         task = SSHOperator(
-            task_id="test",
-            ssh_hook=self.hook,
-            command="sleep 1",
-            do_xcom_push=True,
-            dag=self.dag,
+            task_id="test", ssh_hook=self.hook, command="sleep 1", do_xcom_push=True, dag=self.dag,
         )
 
         self.assertIsNotNone(task)
 
         with conf_vars({('core', 'enable_xcom_pickling'): 'True'}):
-            ti = TaskInstance(
-                task=task, execution_date=timezone.utcnow())
+            ti = TaskInstance(task=task, execution_date=timezone.utcnow())
             ti.run()
             self.assertIsNotNone(ti.duration)
             self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'')
 
-    @unittest.mock.patch('os.environ', {
-        'AIRFLOW_CONN_' + TEST_CONN_ID.upper(): "ssh://test_id@localhost"
-    })
+    @unittest.mock.patch('os.environ', {'AIRFLOW_CONN_' + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
     def test_arg_checking(self):
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
-        with self.assertRaisesRegex(AirflowException,
-                                    "Cannot operate without ssh_hook or ssh_conn_id."):
-            task_0 = SSHOperator(task_id="test", command=COMMAND,
-                                 timeout=TIMEOUT, dag=self.dag)
+        with self.assertRaisesRegex(AirflowException, "Cannot operate without ssh_hook or ssh_conn_id."):
+            task_0 = SSHOperator(task_id="test", command=COMMAND, timeout=TIMEOUT, dag=self.dag)
             task_0.execute(None)
 
         # if ssh_hook is invalid/not provided, use ssh_conn_id to create SSHHook
@@ -159,7 +137,7 @@ class TestSSHOperator(unittest.TestCase):
             ssh_conn_id=TEST_CONN_ID,
             command=COMMAND,
             timeout=TIMEOUT,
-            dag=self.dag
+            dag=self.dag,
         )
         try:
             task_1.execute(None)
@@ -172,7 +150,7 @@ class TestSSHOperator(unittest.TestCase):
             ssh_conn_id=TEST_CONN_ID,  # no ssh_hook provided
             command=COMMAND,
             timeout=TIMEOUT,
-            dag=self.dag
+            dag=self.dag,
         )
         try:
             task_2.execute(None)
@@ -187,7 +165,7 @@ class TestSSHOperator(unittest.TestCase):
             ssh_conn_id=TEST_CONN_ID,
             command=COMMAND,
             timeout=TIMEOUT,
-            dag=self.dag
+            dag=self.dag,
         )
         try:
             task_3.execute(None)
@@ -195,12 +173,14 @@ class TestSSHOperator(unittest.TestCase):
             pass
         self.assertEqual(task_3.ssh_hook.ssh_conn_id, self.hook.ssh_conn_id)
 
-    @parameterized.expand([
-        (COMMAND, False, False),
-        (COMMAND, True, True),
-        (COMMAND_WITH_SUDO, False, True),
-        (COMMAND_WITH_SUDO, True, True),
-    ])
+    @parameterized.expand(
+        [
+            (COMMAND, False, False),
+            (COMMAND, True, True),
+            (COMMAND_WITH_SUDO, False, True),
+            (COMMAND_WITH_SUDO, True, True),
+        ]
+    )
     def test_get_pyt_set_correctly(self, command, get_pty_in, get_pty_out):
         task = SSHOperator(
             task_id="test",
@@ -208,7 +188,7 @@ class TestSSHOperator(unittest.TestCase):
             command=command,
             timeout=TIMEOUT,
             get_pty=get_pty_in,
-            dag=self.dag
+            dag=self.dag,
         )
         try:
             task.execute(None)

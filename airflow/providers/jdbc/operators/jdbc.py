@@ -38,7 +38,7 @@ class JdbcOperator(BaseOperator):
         (default value: False)
     :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     """
 
     template_fields = ('sql',)
@@ -46,13 +46,16 @@ class JdbcOperator(BaseOperator):
     ui_color = '#ededed'
 
     @apply_defaults
-    def __init__(self,
-                 sql: str,
-                 jdbc_conn_id: str = 'jdbc_default',
-                 autocommit: bool = False,
-                 parameters: Optional[Union[Mapping, Iterable]] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        sql: str,
+        jdbc_conn_id: str = 'jdbc_default',
+        autocommit: bool = False,
+        parameters: Optional[Union[Mapping, Iterable]] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.parameters = parameters
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id

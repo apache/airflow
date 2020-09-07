@@ -34,6 +34,7 @@ class ExasolHook(DbApiHook):
     <https://github.com/badoo/pyexasol/blob/master/docs/REFERENCE.md#connect>`_
     for more details.
     """
+
     conn_name_attr = 'exasol_conn_id'
     default_conn_name = 'exasol_default'
     supports_autocommit = True
@@ -49,7 +50,8 @@ class ExasolHook(DbApiHook):
             dsn='%s:%s' % (conn.host, conn.port),
             user=conn.login,
             password=conn.password,
-            schema=self.schema or conn.schema)
+            schema=self.schema or conn.schema,
+        )
         # check for parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name in ['compression', 'encryption', 'json_lib', 'client_name']:
@@ -58,7 +60,7 @@ class ExasolHook(DbApiHook):
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(self, sql, parameters=None):
+    def get_pandas_df(self, sql, parameters=None, **kwargs):
         """
         Executes the sql and returns a pandas dataframe
 
@@ -66,10 +68,12 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
+        :param kwargs: (optional) passed into pyexasol.ExaConnection.export_to_pandas method
+        :type kwargs: dict
         """
         with closing(self.get_conn()) as conn:
-            conn.export_to_pandas(sql, query_params=parameters)
+            conn.export_to_pandas(sql, query_params=parameters, **kwargs)
 
     def get_records(self, sql, parameters=None):
         """
@@ -79,7 +83,7 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.execute(sql, parameters)) as cur:
@@ -93,7 +97,7 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.execute(sql, parameters)) as cur:
@@ -112,7 +116,7 @@ class ExasolHook(DbApiHook):
             before executing the query.
         :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         if isinstance(sql, basestring):
             sql = [sql]
@@ -141,9 +145,9 @@ class ExasolHook(DbApiHook):
         """
         if not self.supports_autocommit and autocommit:
             self.log.warning(
-                ("%s connection doesn't support "
-                 "autocommit but autocommit activated."),
-                getattr(self, self.conn_name_attr))
+                ("%s connection doesn't support " "autocommit but autocommit activated."),
+                getattr(self, self.conn_name_attr),
+            )
         conn.set_autocommit(autocommit)
 
     def get_autocommit(self, conn):

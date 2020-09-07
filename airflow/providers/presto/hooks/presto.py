@@ -55,7 +55,7 @@ class PrestoHook(DbApiHook):
             catalog=db.extra_dejson.get('catalog', 'hive'),
             schema=db.schema,
             auth=auth,
-            isolation_level=self.get_isolation_level()
+            isolation_level=self.get_isolation_level(),
         )
 
     def get_isolation_level(self):
@@ -68,29 +68,14 @@ class PrestoHook(DbApiHook):
     def _strip_sql(sql):
         return sql.strip().rstrip(';')
 
-    @staticmethod
-    def _get_pretty_exception_message(e):
-        """
-        Parses some DatabaseError to provide a better error message
-        """
-        if (hasattr(e, 'message') and
-            'errorName' in e.message and
-                'message' in e.message):
-            return ('{name}: {message}'.format(
-                    name=e.message['errorName'],
-                    message=e.message['message']))
-        else:
-            return str(e)
-
     def get_records(self, hql, parameters=None):
         """
         Get a set of records from Presto
         """
         try:
-            return super().get_records(
-                self._strip_sql(hql), parameters)
+            return super().get_records(self._strip_sql(hql), parameters)
         except DatabaseError as e:
-            raise PrestoException(self._get_pretty_exception_message(e))
+            raise PrestoException(e)
 
     def get_first(self, hql, parameters=None):
         """
@@ -98,28 +83,28 @@ class PrestoHook(DbApiHook):
         returns.
         """
         try:
-            return super().get_first(
-                self._strip_sql(hql), parameters)
+            return super().get_first(self._strip_sql(hql), parameters)
         except DatabaseError as e:
-            raise PrestoException(self._get_pretty_exception_message(e))
+            raise PrestoException(e)
 
-    def get_pandas_df(self, hql, parameters=None):
+    def get_pandas_df(self, hql, parameters=None, **kwargs):
         """
         Get a pandas dataframe from a sql query.
         """
         import pandas
+
         cursor = self.get_cursor()
         try:
             cursor.execute(self._strip_sql(hql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
-            raise PrestoException(self._get_pretty_exception_message(e))
+            raise PrestoException(e)
         column_descriptions = cursor.description
         if data:
-            df = pandas.DataFrame(data)
+            df = pandas.DataFrame(data, **kwargs)
             df.columns = [c[0] for c in column_descriptions]
         else:
-            df = pandas.DataFrame()
+            df = pandas.DataFrame(**kwargs)
         return df
 
     def run(self, hql, parameters=None):

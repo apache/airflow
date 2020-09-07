@@ -28,16 +28,9 @@ class GoogleAnalyticsHook(GoogleBaseHook):
     Hook for Google Analytics 360.
     """
 
-    def __init__(
-        self,
-        api_version: str = "v3",
-        gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
-    ):
+    def __init__(self, api_version: str = "v3", *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.api_version = api_version
-        self.gcp_connection_is = gcp_conn_id
         self._conn = None
 
     def _paginate(self, resource: Resource, list_args: Optional[Dict[str, Any]] = None):
@@ -61,12 +54,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build(
-                "analytics",
-                self.api_version,
-                http=http_authorized,
-                cache_discovery=False,
-            )
+            self._conn = build("analytics", self.api_version, http=http_authorized, cache_discovery=False,)
         return self._conn
 
     def list_accounts(self) -> List[Dict[str, Any]]:
@@ -111,9 +99,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         )
         return ad_words_link
 
-    def list_ad_words_links(
-        self, account_id: str, web_property_id: str
-    ) -> List[Dict[str, Any]]:
+    def list_ad_words_links(self, account_id: str, web_property_id: str) -> List[Dict[str, Any]]:
         """
         Lists webProperty-Google Ads links for a given web property.
 
@@ -128,9 +114,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
 
         self.log.info("Retrieving ad words list...")
         conn = self.get_conn()
-        ads_links = (
-            conn.management().webPropertyAdWordsLinks()  # pylint: disable=no-member
-        )
+        ads_links = conn.management().webPropertyAdWordsLinks()  # pylint: disable=no-member
         list_args = {"accountId": account_id, "webPropertyId": web_property_id}
         result = self._paginate(ads_links, list_args)
         return result
@@ -143,7 +127,6 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         custom_data_source_id: str,
         resumable_upload: bool = False,
     ) -> None:
-
         """
         Uploads file to GA via the Data Import API
 
@@ -161,9 +144,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         """
 
         media = MediaFileUpload(
-            file_location,
-            mimetype="application/octet-stream",
-            resumable=resumable_upload,
+            file_location, mimetype="application/octet-stream", resumable=resumable_upload,
         )
 
         self.log.info(
@@ -215,9 +196,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
             body=delete_request_body,
         ).execute()
 
-    def list_uploads(
-        self, account_id, web_property_id, custom_data_source_id
-    ) -> List[Dict[str, Any]]:
+    def list_uploads(self, account_id, web_property_id, custom_data_source_id) -> List[Dict[str, Any]]:
         """
         Get list of data upload from GA
 

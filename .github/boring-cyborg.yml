@@ -19,13 +19,14 @@
 # Details: https://github.com/kaxil/boring-cyborg
 
 labelPRBasedOnFilePath:
-  provider:GCP:
-    - airflow/providers/google/cloud/**/*
-    - tests/providers/google/cloud/**/*
-    - tests/providers/google/cloud/*
+  provider:Google:
+    - airflow/providers/google/*
+    - airflow/providers/google/**/*
     - docs/howto/connection/gcp.rst
     - docs/howto/connection/gcp_sql.rst
-    - docs/howto/operator/gcp/*
+    - docs/howto/operator/google/*
+    - tests/providers/google/*
+    - tests/providers/google/**/*
 
   provider:AWS:
     - airflow/providers/amazon/aws/**/*
@@ -38,19 +39,45 @@ labelPRBasedOnFilePath:
     - airflow/providers/microsoft/azure/**/*
     - tests/providers/microsoft/azure/**/*
     - tests/providers/microsoft/azure/*
+    - docs/howto/connection/azure.rst
 
   provider:Apache:
     - airflow/providers/apache/**/*
-    - tests/providers/apache/**/*
+    - docs/howto/operator/apache/*
     - tests/providers/apache/*
+    - tests/providers/apache/**/*
 
   k8s:
     - airflow/**/kubernetes_*.py
+    - airflow/example_dags/example_kubernetes_executor.py
+    - airflow/example_dags/example_kubernetes_executor_config.py
     - airflow/kubernetes/**/*
-    - tests/runtime/kubernetes/*
+    - docs/executor/kubernetes.rst
+    - docs/howto/connection/kubernetes.rst
+    - docs/howto/operator/kubernetes.rst
     - docs/kubernetes.rst
+    - tests/runtime/kubernetes/*
+
+  area:API:
+    - airflow/api/*
+    - airflow/api/**/*
+    - airflow/api_connexion/*
+    - airflow/api_connexion/**/*
+    - airflow/www/api/*
+    - airflow/www/api/**/*
+    - clients/*
+    - clients/**/*
+    - docs/rest-api-ref.rst
+    - docs/stable-rest-api/*
+    - docs/stable-rest-api/**/*
+    - tests/api_connexion/*
+    - tests/api_connexion/**/*
+    - tests/www/api/*
+    - tests/www/api/**/*
 
   area:dev:
+    - airflow/mypy/*
+    - airflow/mypy/**/*
     - scripts/**/*
     - scripts/*
     - dev/**/*
@@ -76,14 +103,24 @@ labelPRBasedOnFilePath:
     - .rat-excludes
     - .readthedocs.yml
     - .travis.yml
+    - airflow/www/.eslintignore
+    - airflow/www/.eslintrc
+    - airflow/www/.stylelintignore
+    - airflow/www/.stylelintrc
 
   area:docs:
     - docs/**/*
     - docs/*
 
+  area:helm-chart:
+    - chart/**/*
+    - chart/*
+
   area:Webserver:
+    - airflow/cli/commands/webserver_command.py
     - airflow/www/**/*
     - airflow/www_rbac/**/*
+    - tests/cli/commands/test_webserver_command.py
     - tests/www/**/*
     - tests/www/*
     - tests/www_rbac/**/*
@@ -93,20 +130,27 @@ labelPRBasedOnFilePath:
     - airflow/bin/cli.py
     - airflow/cli/**/*.py
     - tests/cli/**/*.py
+    - docs/cli-ref.rst
+    - docs/usage-cli.rst
 
   area:Lineage:
     - airflow/lineage/**/*
     - airflow/lineage/*
     - tests/lineage/*
-
-  area:Logging:
-    - airflow/utils/log/*
-    - tests/utils/log/**/*
-    - tests/utils/log/*
     - docs/lineage.rst
 
+  area:Logging:
+    - airflow/providers/**/log/*
+    - airflow/utils/log/*
+    - docs/howto/write-logs.rst
+    - tests/providers/**/log/*
+    - tests/utils/log/*
+    - tests/utils/log/**/*
+
   area:Plugins:
+    - airflow/cli/commands/plugins_command.py
     - airflow/plugins_manager.py
+    - tests/cli/commands/test_plugins_command.py
     - tests/plugins/*
     - docs/plugins.rst
 
@@ -125,10 +169,13 @@ labelPRBasedOnFilePath:
     - airflow/providers/**/secrets/*
     - tests/secrets/*
     - tests/providers/**/secrets/*
+    - docs/howto/secrets-backend/*
 
   area:Serialization:
     - airflow/serialization/*
+    - airflow/models/serialized_dag.py
     - tests/serialization/*
+    - tests/models/test_serialized_dag.py
     - docs/dag-serialization.rst
 
 # Various Flags to control behaviour of the "Labeler"
@@ -162,6 +209,9 @@ firstPRWelcomeComment: >
   - Be patient and persistent. It might take some time to get a review or get the final approval from
   Committers.
 
+  - Please follow [ASF Code of Conduct](https://www.apache.org/foundation/policies/conduct) for all
+  communication including (but not limited to) comments on Pull Requests, Mailing list and Slack.
+
   - Be sure to read the [Airflow Coding style](
   https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#coding-style-and-best-practices).
 
@@ -180,16 +230,6 @@ firstPRMergeComment: >
 # Comment to be posted to on first time issues
 firstIssueWelcomeComment: >
   Thanks for opening your first issue here! Be sure to follow the issue template!
-
-insertIssueLinkInPrDescription:
-  descriptionIssuePlaceholderRegexp: "^Issue link: (.*)$"
-  matchers:
-    jiraIssueMatch:
-      titleIssueIdRegexp: \[(AIRFLOW-[0-9]{4})\]
-      descriptionIssueLink: "[${1}](https://issues.apache.org/jira/browse/${1})"
-    docOnlyIssueMatch:
-      titleIssueIdRegexp: \[(AIRFLOW-X{4})\]
-      descriptionIssueLink: "`Document only change, no JIRA issue`"
 
 checkUpToDate:
   - airflow/migrations/*

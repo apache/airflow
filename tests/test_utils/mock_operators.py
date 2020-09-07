@@ -14,13 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import warnings
 from typing import NamedTuple
+from unittest import mock
 
 import attr
 
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -58,7 +60,7 @@ class AirflowLink(BaseOperatorLink):
 class Dummy2TestOperator(BaseOperator):
     """
     Example of an Operator that has an extra operator link
-    and will be overriden by the one defined in tests/plugins/test_plugin.py
+    and will be overridden by the one defined in tests/plugins/test_plugin.py
     """
     operator_extra_links = (
         AirflowLink(),
@@ -119,8 +121,8 @@ class CustomOperator(BaseOperator):
         )
 
     @apply_defaults
-    def __init__(self, bash_command=None, *args, **kwargs):
-        super(CustomOperator, self).__init__(*args, **kwargs)
+    def __init__(self, bash_command=None, **kwargs):
+        super(CustomOperator, self).__init__(**kwargs)
         self.bash_command = bash_command
 
     def execute(self, context):
@@ -158,3 +160,19 @@ class GithubLink(BaseOperatorLink):
 
     def get_link(self, operator, dttm):
         return 'https://github.com/apache/airflow'
+
+
+class MockHiveOperator(HiveOperator):
+    def __init__(self, *args, **kwargs):
+        self.run = mock.MagicMock()
+        super().__init__(*args, **kwargs)
+
+
+class DeprecatedOperator(BaseOperator):
+    @apply_defaults
+    def __init__(self, **kwargs):
+        warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=4)
+        super().__init__(**kwargs)
+
+    def execute(self, context):
+        pass

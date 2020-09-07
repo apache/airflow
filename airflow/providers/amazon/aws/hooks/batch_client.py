@@ -38,7 +38,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.typing_compat import Protocol, runtime_checkable
 
-# Add exceptions to pylint for the boto3 protocol only; ideally the boto3 library could provide
+# Add exceptions to pylint for the boto3 protocol only; ideally the boto3 library
+# could provide
 # protocols for all their dynamically generated classes (try to migrate this to a PR on botocore).
 # Note that the use of invalid-name parameters should be restricted to the boto3 mappings only;
 # all the Airflow wrappers of boto3 clients should not adopt invalid-names to match boto3.
@@ -153,7 +154,7 @@ class AwsBatchProtocol(Protocol):
 # pylint: enable=invalid-name, unused-argument
 
 
-class AwsBatchClient(AwsBaseHook):
+class AwsBatchClientHook(AwsBaseHook):
     """
     A client for AWS batch services.
 
@@ -198,11 +199,7 @@ class AwsBatchClient(AwsBaseHook):
     DEFAULT_DELAY_MAX = 10
 
     def __init__(
-        self,
-        *args,
-        max_retries: Optional[int] = None,
-        status_retries: Optional[int] = None,
-        **kwargs
+        self, *args, max_retries: Optional[int] = None, status_retries: Optional[int] = None, **kwargs
     ):
         # https://github.com/python/mypy/issues/6799 hence type: ignore
         super().__init__(client_type='batch', *args, **kwargs)  # type: ignore
@@ -210,7 +207,7 @@ class AwsBatchClient(AwsBaseHook):
         self.status_retries = status_retries or self.STATUS_RETRIES
 
     @property
-    def client(self) -> Union[AwsBatchProtocol, botocore.client.BaseClient]:
+    def client(self) -> Union[AwsBatchProtocol, botocore.client.BaseClient]:  # noqa: D402
         """
         An AWS API client for batch services, like ``boto3.client('batch')``
 
@@ -352,9 +349,7 @@ class AwsBatchClient(AwsBaseHook):
                 return True
 
             if retries >= self.max_retries:
-                raise AirflowException(
-                    "AWS Batch job ({}) status checks exceed max_retries".format(job_id)
-                )
+                raise AirflowException("AWS Batch job ({}) status checks exceed max_retries".format(job_id))
 
             retries += 1
             pause = self.exponential_delay(retries)
@@ -390,9 +385,7 @@ class AwsBatchClient(AwsBaseHook):
                 if error.get("Code") == "TooManyRequestsException":
                     pass  # allow it to retry, if possible
                 else:
-                    raise AirflowException(
-                        "AWS Batch job ({}) description error: {}".format(job_id, err)
-                    )
+                    raise AirflowException("AWS Batch job ({}) description error: {}".format(job_id, err))
 
             retries += 1
             if retries >= self.status_retries:
@@ -486,9 +479,9 @@ class AwsBatchClient(AwsBaseHook):
             when many concurrent tasks request job-descriptions.
         """
         if delay is None:
-            delay = uniform(AwsBatchClient.DEFAULT_DELAY_MIN, AwsBatchClient.DEFAULT_DELAY_MAX)
+            delay = uniform(AwsBatchClientHook.DEFAULT_DELAY_MIN, AwsBatchClientHook.DEFAULT_DELAY_MAX)
         else:
-            delay = AwsBatchClient.add_jitter(delay)
+            delay = AwsBatchClientHook.add_jitter(delay)
         sleep(delay)
 
     @staticmethod

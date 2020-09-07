@@ -50,8 +50,7 @@ class PagerdutyHook(BaseHook):
             self.token = token
 
         if self.token is None:
-            raise AirflowException(
-                'Cannot get token: No valid api token nor pagerduty_conn_id supplied.')
+            raise AirflowException('Cannot get token: No valid api token nor pagerduty_conn_id supplied.')
 
     # pylint: disable=too-many-arguments
     def create_event(
@@ -96,7 +95,7 @@ class PagerdutyHook(BaseHook):
         :param class_type: The class/type of the event.
         :type class_type: str
         :param links: List of links to include.
-        :type class_type: list of str
+        :type class_type: list(str)
         """
         if routing_key is None:
             routing_key = self.routing_key

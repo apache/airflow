@@ -31,7 +31,6 @@ MESSAGE_ATTRIBUTES = {"test-attribute": "Attribute to send"}
 
 
 class TestSnsPublishOperator(unittest.TestCase):
-
     def test_init(self):
         # Given / When
         operator = SnsPublishOperator(

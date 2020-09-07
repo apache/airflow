@@ -43,6 +43,13 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
     if you provide ``{"connections_prefix": "/airflow/connections"}`` and request conn_id ``smtp_default``.
     And if ssm path is ``/airflow/variables/hello``, this would be accessible
     if you provide ``{"variables_prefix": "/airflow/variables"}`` and request conn_id ``hello``.
+
+    :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
+    :type connections_prefix: str
+    :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
+    :type variables_prefix: str
+    :param profile_name: The name of a profile to use. If not given, then the default profile is used.
+    :type profile_name: str
     """
 
     def __init__(
@@ -50,12 +57,13 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         connections_prefix: str = '/airflow/connections',
         variables_prefix: str = '/airflow/variables',
         profile_name: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
+        super().__init__()
         self.connections_prefix = connections_prefix.rstrip("/")
         self.variables_prefix = variables_prefix.rstrip('/')
         self.profile_name = profile_name
-        super().__init__(**kwargs)
+        self.kwargs = kwargs
 
     @cached_property
     def client(self):
@@ -63,7 +71,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         Create a SSM client
         """
         session = boto3.Session(profile_name=self.profile_name)
-        return session.client("ssm")
+        return session.client("ssm", **self.kwargs)
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
@@ -72,7 +80,6 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-
         return self._get_secret(self.connections_prefix, conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
@@ -95,14 +102,13 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         """
         ssm_path = self.build_path(path_prefix, secret_id)
         try:
-            response = self.client.get_parameter(
-                Name=ssm_path, WithDecryption=False
-            )
+            response = self.client.get_parameter(Name=ssm_path, WithDecryption=True)
             value = response["Parameter"]["Value"]
             return value
         except self.client.exceptions.ParameterNotFound:
             self.log.info(
                 "An error occurred (ParameterNotFound) when calling the GetParameter operation: "
-                "Parameter %s not found.", ssm_path
+                "Parameter %s not found.",
+                ssm_path,
             )
             return None

@@ -31,6 +31,7 @@ from time import sleep
 from unittest import mock
 
 import psutil
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.utils import process_utils
@@ -124,6 +125,7 @@ def my_sleep_subprocess_with_signals():
     sleep(100)
 
 
+@pytest.mark.quarantined
 class TestKillChildProcessesByPids(unittest.TestCase):
     def test_should_kill_process(self):
         before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
