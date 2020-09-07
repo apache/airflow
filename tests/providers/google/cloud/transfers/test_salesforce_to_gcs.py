@@ -54,8 +54,9 @@ QUERY_PARAMS = {"DEFAULT_SETTING": "ENABLED"}
 
 class TestSalesforceToGcsOperator(unittest.TestCase):
     @mock.patch.object(GCSHook, 'upload')
+    @mock.patch.object(SalesforceHook, 'write_object_to_file')
     @mock.patch.object(SalesforceHook, 'make_query')
-    def test_execute(self, mock_make_query, mock_upload):
+    def test_execute(self, mock_make_query, mock_write_object_to_file, mock_upload):
         mock_make_query.return_value = SALESFORCE_RESPONSE
 
         operator = SalesforceToGcsOperator(
@@ -66,12 +67,23 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
             gcp_conn_id=GCP_CONNECTION_ID,
             include_deleted=INCLUDE_DELETED,
             query_params=QUERY_PARAMS,
+            export_format="json",
+            coerce_to_timestamp=True,
+            record_time_added=True,
             task_id=TASK_ID,
         )
         operator.execute({})
 
         mock_make_query.assert_called_once_with(
             query=QUERY, include_deleted=INCLUDE_DELETED, query_params=QUERY_PARAMS
+        )
+
+        mock_write_object_to_file.assert_called_once_with(
+            query_results=SALESFORCE_RESPONSE['records'],
+            filename=mock.ANY,
+            fmt="json",
+            coerce_to_timestamp=True,
+            record_time_added=True,
         )
 
         mock_upload.assert_called_once_with(

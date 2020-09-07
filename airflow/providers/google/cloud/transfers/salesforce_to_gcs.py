@@ -15,8 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import csv
-import json
+import os
 import tempfile
 from typing import Dict, Optional
 
@@ -46,6 +45,15 @@ class SalesforceToGcsOperator(BaseOperator):
     :type include_deleted: bool
     :param query_params: Additional optional arguments
     :type query_params: dict
+    :param export_format: Desired format of files to be exported.
+    :type export_format: str
+    :param coerce_to_timestamp: True if you want all datetime fields to be converted into Unix timestamps.
+        False if you want them to be left in the same format as they were in Salesforce.
+        Leaving the value as False will result in datetimes being strings. Default: False
+    :type coerce_to_timestamp: bool
+    :param record_time_added: True if you want to add a Unix timestamp field
+        to the resulting data that marks when the data was fetched from Salesforce. Default: False
+    :type record_time_added: bool
     :param gzip: Option to compress local file or file data for upload
     :type gzip: bool
     :param gcp_conn_id: the name of the connection that has the parameters we need to connect to GCS.
@@ -61,6 +69,9 @@ class SalesforceToGcsOperator(BaseOperator):
         salesforce_conn_id: str,
         include_deleted: bool = False,
         query_params: Optional[dict] = None,
+        export_format: str = "csv",
+        coerce_to_timestamp: bool = False,
+        record_time_added: bool = False,
         gzip: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         **kwargs,
@@ -70,6 +81,9 @@ class SalesforceToGcsOperator(BaseOperator):
         self.bucket_name = bucket_name
         self.object_name = object_name
         self.salesforce_conn_id = salesforce_conn_id
+        self.export_format = export_format
+        self.coerce_to_timestamp = coerce_to_timestamp
+        self.record_time_added = record_time_added
         self.gzip = gzip
         self.gcp_conn_id = gcp_conn_id
         self.include_deleted = include_deleted
@@ -81,26 +95,18 @@ class SalesforceToGcsOperator(BaseOperator):
             query=self.query, include_deleted=self.include_deleted, query_params=self.query_params
         )
 
-        def jsonify_attributes(row):
-            if "attributes" in row:
-                row["attributes"] = json.dumps(row["attributes"])
-            return row
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, self.object_name)
+            salesforce.write_object_to_file(
+                query_results=response["records"],
+                filename=path,
+                fmt=self.export_format,
+                coerce_to_timestamp=self.coerce_to_timestamp,
+                record_time_added=self.record_time_added,
+            )
 
-        rows = [jsonify_attributes(row) for row in response["records"]]
-        self.log.info("Salesforce Returned %s data points", len(rows))
-
-        if rows:
-            headers = rows[0].keys()
-            with tempfile.NamedTemporaryFile("w", suffix=".csv") as file:
-                writer = csv.DictWriter(file, fieldnames=headers)
-                writer.writeheader()
-                writer.writerows(rows)
-                file.flush()
-                hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
-                hook.upload(
-                    bucket_name=self.bucket_name,
-                    object_name=self.object_name,
-                    filename=file.name,
-                    gzip=self.gzip,
-                )
-                self.log.info("%s uploaded to GCS", file.name)
+            hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
+            hook.upload(
+                bucket_name=self.bucket_name, object_name=self.object_name, filename=path, gzip=self.gzip,
+            )
+            self.log.info("%s uploaded to GCS", path)
