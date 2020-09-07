@@ -19,7 +19,7 @@
 
 import base64
 import json
-from typing import Union
+from typing import Union, Optional
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -54,7 +54,7 @@ class SecretsManagerHook(AwsBaseHook):
             secret = base64.b64decode(get_secret_value_response['SecretBinary'])
         return secret
 
-    def get_secrets_as_dict(self, secret_name: str) -> dict:
+    def get_secrets_as_dict(self, secret_name: str) -> Optional[dict]:
         """
         Create queue using connection object
         :param secret_name: name of the secrets.
