@@ -2828,13 +2828,11 @@ class CLIFactory(object):
 
         }, {
             'func': kubernetes_migrate_to_pod_template_file,
-            'help': "List dag runs given a DAG id. If state option is given, it will only"
-                    "search for all the dagruns with the given state. "
-                    "If no_backfill option is given, it will filter out"
-                    "all backfill dagruns for given dag id.",
-            'args': (
-            )
-
+           'help': "Reads your airflow.cfg and migrates your configurations into a"
+                   "airflow_template.yaml file. From this point a user can link"
+                   "this file to airflow using the `pod_template_file` argument"
+                   "and modify using the Kubernetes API",
+            'args': ()
         }, {
             'func': clear,
             'help': "Clear a set of task instance, as if they never ran",
