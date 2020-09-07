@@ -42,12 +42,13 @@ function run_check_license() {
     fi
 
     set +e
-    ERRORS=$(grep -F "??" "${AIRFLOW_SOURCES}/logs/rat-results.txt")
+    local errors
+    errors=$(grep -F "??" "${AIRFLOW_SOURCES}/logs/rat-results.txt")
     set -e
-    if test ! -z "${ERRORS}"; then
+    if test ! -z "${errors}"; then
         echo >&2
         echo >&2 "Could not find Apache license headers in the following files:"
-        echo >&2 "${ERRORS}"
+        echo >&2 "${errors}"
         exit 1
         echo >&2
     else
