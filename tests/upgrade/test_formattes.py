@@ -17,7 +17,7 @@
 
 import json
 from tempfile import NamedTemporaryFile
-from unittest import mock
+from tests.compat import mock
 
 import pytest
 

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
+from tests.compat import mock
 
 from airflow.upgrade.problem import RuleStatus
 
