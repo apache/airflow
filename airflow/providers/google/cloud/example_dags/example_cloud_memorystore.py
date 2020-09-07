@@ -263,19 +263,19 @@ with models.DAG(
 
     # [START howto_operator_get_instance_memcached]
     get_instance_2 = CloudMemorystoreMemcachedGetInstanceOperator(
-        task_id="get-instance", location="europe-north1", instance=INSTANCE_NAME, project_id=GCP_PROJECT_ID,
+        task_id="get-instance-2", location="europe-north1", instance=INSTANCE_NAME, project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_get_instance_memcached]
 
     # [START howto_operator_list_instances_memcached]
     list_instances_2 = CloudMemorystoreMemcachedListInstancesOperator(
-        task_id="list-instances", location="-", project_id=GCP_PROJECT_ID
+        task_id="list-instances-2", location="-", project_id=GCP_PROJECT_ID
     )
     # [END howto_operator_list_instances_memcached]
 
     # [START howto_operator_update_instance_memcached]
     update_instance_2 = CloudMemorystoreMemcachedUpdateInstanceOperator(
-        task_id="update-instance",
+        task_id="update-instance-2",
         location="europe-north1",
         instance_id=INSTANCE_NAME,
         project_id=GCP_PROJECT_ID,
@@ -290,8 +290,8 @@ with models.DAG(
         location="europe-north1",
         instance_id=INSTANCE_NAME,
         project_id=GCP_PROJECT_ID,
-        update_mask="",
-        parameters={"protocol": "ascii", "track-sizes": "true"},
+        update_mask="protocol,hash_algorithm",
+        parameters={"protocol": "ascii", "hash_algorithm": "jenkins"},
     )
 
     apply_parameters = CloudMemorystoreMemcachedApplyParametersOperator(

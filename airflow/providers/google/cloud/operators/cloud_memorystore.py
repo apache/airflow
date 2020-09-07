@@ -1669,7 +1669,7 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
 
     template_fields = (
         "update_mask",
-        "instance",
+        "parameters",
         "location",
         "instance_id",
         "project_id",
