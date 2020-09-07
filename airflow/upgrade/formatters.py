@@ -99,11 +99,16 @@ class JSONFormatter(BaseFormatter):
     def start_checking(self, all_rules):
         print("Start looking for problems.")
 
-    def end_checking(self, all_problems):
-        formatted_results = [
-            {"rule": type(problem.rule).__name__, "message": problem.message}
-            for problem in all_problems
-        ]
-        with open(self.filename, "w") as output_file:
+    @staticmethod
+    def _info_from_rule_status(rule_status):
+        return {
+            "rule": type(rule_status.rule).__name__,
+            "title": rule_status.rule.title,
+            "messages": rule_status.messages,
+        }
+
+    def end_checking(self, rule_statuses):
+        formatted_results = [self._info_from_rule_status(rs) for rs in rule_statuses]
+        with open(self.filename, "w+") as output_file:
             json.dump(formatted_results, output_file, indent=2)
         print("Saved result to: {}".format(self.filename))

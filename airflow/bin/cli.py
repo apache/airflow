@@ -2457,16 +2457,16 @@ class CLIFactory(object):
         # show_dag
         'save': Arg(
             ("-s", "--save"),
-            "Saves the result to the indicated file.\n"
+            "Saves the result to the indicated file. The file format is determined by the file extension.\n"
             "\n"
-            "The file format is determined by the file extension. For more information about supported "
-            "format, see: https://www.graphviz.org/doc/info/output.html\n"
+            "To see more information about supported format for show_dags command, see: "
+            "https://www.graphviz.org/doc/info/output.html\n"
             "\n"
             "If you want to create a PNG file then you should execute the following command:\n"
-            "airflow dags show <DAG_ID> --save output.png\n"
+            "airflow show_dag <DAG_ID> --save output.png\n"
             "\n"
             "If you want to create a DOT file then you should execute the following command:\n"
-            "airflow dags show <DAG_ID> --save output.dot\n"
+            "airflow show_dag <DAG_ID> --save output.dot\n"
         ),
         'imgcat': Arg(
             ("--imgcat", ),
