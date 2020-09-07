@@ -1293,7 +1293,9 @@ def kubernetes_migrate_to_pod_template_file(args):
     worker_configuration_pod = WorkerConfiguration(kube_config=kube_config).as_pod()
     api_client = ApiClient()
     yaml_file_name = "airflow_template.yml"
-    with open(yaml_file_name, "w") as output:
+    yaml_output_path = args.output_path
+    os.makedirs(yaml_output_path, exist_ok=True)
+    with open(yaml_output_path + "/" + yaml_file_name, "w") as output:
         sanitized_pod = api_client.sanitize_for_serialization(worker_configuration_pod)
         output.write(yaml.dump(sanitized_pod))
     output_string = """
@@ -2828,11 +2830,11 @@ class CLIFactory(object):
 
         }, {
             'func': kubernetes_migrate_to_pod_template_file,
-           'help': "Reads your airflow.cfg and migrates your configurations into a"
-                   "airflow_template.yaml file. From this point a user can link"
-                   "this file to airflow using the `pod_template_file` argument"
-                   "and modify using the Kubernetes API",
-            'args': ()
+            'help': "Reads your airflow.cfg and migrates your configurations into a"
+                    "airflow_template.yaml file. From this point a user can link"
+                    "this file to airflow using the `pod_template_file` argument"
+                    "and modify using the Kubernetes API",
+            'args': ('output_path',),
         }, {
             'func': clear,
             'help': "Clear a set of task instance, as if they never ran",

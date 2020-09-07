@@ -22,6 +22,7 @@ import io
 
 import logging
 import os
+import tempfile
 
 from airflow.configuration import conf
 from parameterized import parameterized
@@ -288,6 +289,21 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(stdout[-1], expected_output[i])
 
             reset_dr_db(dag_id)
+
+    def test_kubernetes_migrate_to_pod_template_file(self):
+
+        from airflow.kubernetes.pod_generator import PodGenerator
+        with tempfile.TemporaryDirectory("airflow_dry_run_test/") as directory:
+            d = directory
+            print(d)
+            cli.kubernetes_migrate_to_pod_template_file(self.parser.parse_args(
+                ['kubernetes_migrate_to_pod_template_file', '-o', directory]))
+            self.assertTrue(os.path.isdir(directory))
+            self.assertTrue(os.path.isfile(os.path.join(directory, 'airflow_template.yml')))
+
+            # ensure that a valid pod is created from YAML
+            result = PodGenerator.deserialize_model_file(os.path.join(directory, 'airflow_template.yml'))
+            self.assertIsNotNone(result)
 
     @mock.patch("airflow.bin.cli.DAG.run")
     def test_backfill(self, mock_run):
