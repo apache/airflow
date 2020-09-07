@@ -569,6 +569,54 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         return instance
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def apply_parameters(
+        self,
+        node_ids: Sequence[str],
+        apply_all: bool,
+        project_id: str,
+        location: str,
+        instance_id: str,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ):
+        """
+        Will update current set of Parameters to the set of specified nodes of the Memcached Instance.
+
+        :param node_ids: Nodes to which we should apply the instance-level parameter group.
+        :type node_ids: Sequence[str]
+        :param apply_all: Whether to apply instance-level parameter group to all nodes. If set to true,
+            will explicitly restrict users from specifying any nodes, and apply parameter group updates
+            to all nodes within the instance.
+        :type apply_all: bool
+        :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
+        :param instance_id: The logical name of the Memcached instance in the customer project.
+        :type instance_id: str
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
+        :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+            retried.
+        :type retry: google.api_core.retry.Retry
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
+        """
+        client = self.get_conn()
+
+        name = CloudMemcacheClient.instance_path(project_id, location, instance_id)
+
+        self.log.info("Applying update to instance: %s", instance_id)
+        result = client.apply_parameters(
+            name=name, node_ids=node_ids, apply_all=apply_all, retry=retry, timeout=timeout, metadata=metadata
+        )
+        result.result()
+        self.log.info("Instance updated: %s", instance_id)
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
         self,
         location: str,
@@ -823,3 +871,65 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         )
         result.result()
         self.log.info("Instance updated: %s", instance.name)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_parameters(
+        self,
+        update_mask: Union[Dict, cloud_memcache.field_mask.FieldMask],
+        parameters: Union[Dict, cloud_memcache.MemcacheParameters],
+        project_id: str,
+        location: str,
+        instance_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ):
+        """
+        Updates the defined Memcached Parameters for an existing Instance. This method only stages the
+            parameters, it must be followed by apply_parameters to apply the parameters to nodes of
+            the Memcached Instance.
+
+        :param update_mask: Required. Mask of fields to update.
+            If a dict is provided, it must be of the same form as the protobuf message
+            :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMask`
+        :type update_mask:
+            Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMask]
+        :param parameters: The parameters to apply to the instance.
+                If a dict is provided, it must be of the same form as the protobuf message
+            :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.MemcacheParameters`
+        :type parameters: Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.MemcacheParameters]
+        :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
+        :param instance_id: The logical name of the Memcached instance in the customer project.
+        :type instance_id: str
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
+        :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+            retried.
+        :type retry: google.api_core.retry.Retry
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
+        """
+        client = self.get_conn()
+
+        if isinstance(parameters, dict):
+            parameters = ParseDict(parameters, cloud_memcache.MemcacheParameters())
+        elif not isinstance(parameters, cloud_memcache.MemcacheParameters):
+            raise AirflowException("instance is not instance of MemcacheParameters type or python dict")
+
+        name = CloudMemcacheClient.instance_path(project_id, location, instance_id)
+        self.log.info("Staging update to instance: %s", instance_id)
+        result = client.update_parameters(
+            name=name,
+            update_mask=update_mask,
+            parameters=parameters,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        result.result()
+        self.log.info("Update staged for instance: %s", instance_id)

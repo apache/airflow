@@ -131,20 +131,22 @@ operator.
     :end-before: [END howto_operator_update_instance_memcached]
 
 
-.. _howto/operator:CloudMemorystoreMemcachedDeleteInstanceOperator: TODO
+.. _howto/operator:CloudMemorystoreMemcachedApplyParametersOperator:
 
-Apply params and update TODO
-^^^^^^^^^^^^
+Update and apply parameters to an instance
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Get an instance is performed with the
-:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedDeleteInstanceOperator`
+To update and apply Memcached parameters to an instance use
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedUpdateParametersOperator`
+and
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedApplyParametersOperator`
 operator.
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_delete_instance_memcached]
-    :end-before: [END howto_operator_delete_instance_memcached]
+    :start-after: [START howto_operator_update_and_apply_parameters_memcached]
+    :end-before: [END howto_operator_update_and_apply_parameters_memcached]
 
 
 Reference

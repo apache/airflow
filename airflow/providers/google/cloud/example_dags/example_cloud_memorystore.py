@@ -37,11 +37,13 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreListInstancesOperator,
     CloudMemorystoreScaleInstanceOperator,
     CloudMemorystoreUpdateInstanceOperator,
+    CloudMemorystoreMemcachedApplyParametersOperator,
     CloudMemorystoreMemcachedCreateInstanceOperator,
     CloudMemorystoreMemcachedDeleteInstanceOperator,
     CloudMemorystoreMemcachedGetInstanceOperator,
     CloudMemorystoreMemcachedListInstancesOperator,
     CloudMemorystoreMemcachedUpdateInstanceOperator,
+    CloudMemorystoreMemcachedUpdateParametersOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSBucketCreateAclEntryOperator
 from airflow.utils import dates
@@ -260,22 +262,19 @@ with models.DAG(
     # [END howto_operator_delete_instance_memcached]
 
     # [START howto_operator_get_instance_memcached]
-    get_instance = CloudMemorystoreMemcachedGetInstanceOperator(
-        task_id="get-instance",
-        location="europe-north1",
-        instance=INSTANCE_NAME,
-        project_id=GCP_PROJECT_ID,
+    get_instance_2 = CloudMemorystoreMemcachedGetInstanceOperator(
+        task_id="get-instance", location="europe-north1", instance=INSTANCE_NAME, project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_get_instance_memcached]
 
     # [START howto_operator_list_instances_memcached]
-    list_instances = CloudMemorystoreMemcachedListInstancesOperator(
+    list_instances_2 = CloudMemorystoreMemcachedListInstancesOperator(
         task_id="list-instances", location="-", project_id=GCP_PROJECT_ID
     )
     # [END howto_operator_list_instances_memcached]
 
     # [START howto_operator_update_instance_memcached]
-    update_instance = CloudMemorystoreMemcachedUpdateInstanceOperator(
+    update_instance_2 = CloudMemorystoreMemcachedUpdateInstanceOperator(
         task_id="update-instance",
         location="europe-north1",
         instance_id=INSTANCE_NAME,
@@ -284,3 +283,25 @@ with models.DAG(
         instance={"memory_size_gb": 2},
     )
     # [END howto_operator_update_instance_memcached]
+
+    # [START howto_operator_update_and_apply_parameters_memcached]
+    update_parameters = CloudMemorystoreMemcachedUpdateParametersOperator(
+        task_id="update-parameters",
+        location="europe-north1",
+        instance_id=INSTANCE_NAME,
+        project_id=GCP_PROJECT_ID,
+        update_mask="",
+        parameters={"protocol": "ascii", "track-sizes": "true"},
+    )
+
+    apply_parameters = CloudMemorystoreMemcachedApplyParametersOperator(
+        task_id="apply-parameters",
+        location="europe-north1",
+        instance_id=INSTANCE_NAME,
+        project_id=GCP_PROJECT_ID,
+        node_ids=["node-1", "node-2"],
+        apply_all=False,
+    )
+
+    update_parameters >> apply_parameters
+    # [END howto_operator_update_and_apply_parameters_memcached]

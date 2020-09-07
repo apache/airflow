@@ -476,8 +476,9 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
             NotFound("Instance not found"),
             cloud_memcache.Instance(name=TEST_NAME),
         ]
-        mock_get_conn.return_value.create_instance.return_value.result.return_value = \
-            cloud_memcache.Instance(name=TEST_NAME)
+        mock_get_conn.return_value.create_instance.return_value.result.return_value = cloud_memcache.Instance(
+            name=TEST_NAME
+        )
         result = self.hook.create_instance(  # pylint: disable=no-value-for-parameter
             location=TEST_LOCATION,
             instance_id=TEST_INSTANCE_ID,
@@ -567,7 +568,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
         new_callable=PropertyMock,
-        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.get_conn"
