@@ -70,7 +70,7 @@ def flatten_list(list_of_lists):
 
 def filter_options(options):
     """Remove options from the list"""
-    options_to_remove = ["help", "print-logs-live", "print-logs"]
+    options_to_remove = ["help", "print-logs-live", "print-logs", "pool"]
     return [option for option in options if option not in options_to_remove]
 
 
