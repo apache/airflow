@@ -28,12 +28,13 @@ Authenticating to Kubernetes cluster
 
 There are three ways to connect to Kubernetes using Airflow.
 
-1. Use kube_config that reside in the default location on the machine(~/.kube/config) - just leave all fields empty.
+1. Use kube_config that reside in the default location on the machine(~/.kube/config) - just leave all fields empty
 2. Use in_cluster config, if Airflow runs inside Kubernetes cluster take the configuration from the cluster - mark:
-   In cluster configuration .
+    In cluster configuration
 3. Use kube_config from different location - insert the path into ``Kube config path``
-4. Use kube_config in JSON format from connection configuration - paste  kube_config into ``Kube config
-(JSON format)`` .
+4. Use kube_config in JSON format from connection configuration - paste  kube_config into
+    ``Kube config (JSON format)``
+
 
 Default Connection IDs
 ----------------------

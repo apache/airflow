@@ -40,8 +40,8 @@ class KubernetesHook(BaseHook):
 
     - use in cluster configuration by using ``extra__kubernetes__in_cluster`` in connection
     - use custom configuration either by providing content of kubeconfig file via
-     ``extra__kubernetes__kube_config`` in connection
-    - use custom config by provideing path to the file using ``extra__kubernetes__kube_config_path``
+        ``extra__kubernetes__kube_config`` in connection
+    - use custom config by providing path to the file using ``extra__kubernetes__kube_config_path``
     - use default config by providing no extras
 
     .. seealso::
