@@ -178,7 +178,7 @@ EOF
 }
 
 function stop_output_heartbeat() {
-    kill "${HEARTBEAT_PID}"
+    kill "${HEARTBEAT_PID}" || true
     wait "${HEARTBEAT_PID}" || true 2> /dev/null
 }
 
