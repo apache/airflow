@@ -19,7 +19,11 @@ import os
 
 import pytest
 
-from airflow.providers.google.cloud.example_dags.example_gcs_to_local import BUCKET, PATH_TO_SAVED_FILE
+from airflow.providers.google.cloud.example_dags.example_gcs_to_local import (
+    BUCKET,
+    PATH_TO_REMOTE_FILE,
+    PATH_TO_LOCAL_FILE,
+)
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
@@ -32,13 +36,14 @@ class GoogleCloudStorageExampleDagsTest(GoogleSystemTest):
         super().setUp()
         self.create_gcs_bucket(BUCKET)
         self.upload_content_to_gcs(
-            lines=f"{os.urandom(1 * 1024 * 1024)}", bucket=BUCKET, filename=PATH_TO_SAVED_FILE
+            lines=f"{os.urandom(1 * 1024 * 1024)}", bucket=BUCKET, filename=PATH_TO_REMOTE_FILE
         )
+        self.execute_cmd(["gsutil", "ls", f"gs://{BUCKET}"])
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
         self.delete_gcs_bucket(BUCKET)
-        os.remove(PATH_TO_SAVED_FILE)
+        os.remove(PATH_TO_LOCAL_FILE)
         super().tearDown()
 
     @provide_gcp_context(GCP_GCS_KEY)
