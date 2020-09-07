@@ -63,7 +63,7 @@ class DataProcJobBuilder:
         self.job_type = job_type
         self.job = {
             "job": {
-                "reference": {"project_id": project_id, "job_id": name,},
+                "reference": {"project_id": project_id, "job_id": name},
                 "placement": {"cluster_name": cluster_name},
                 "labels": {'airflow-version': 'v' + airflow_version.replace('.', '-').replace('+', '-')},
                 job_type: {},
@@ -250,8 +250,10 @@ class DataprocHook(GoogleBaseHook):
     def create_cluster(
         self,
         region: str,
-        cluster: Union[Dict, Cluster],
         project_id: str,
+        cluster_name: str,
+        cluster_config: Union[Dict, Cluster],
+        labels: Optional[Dict[str, str]] = None,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -264,10 +266,14 @@ class DataprocHook(GoogleBaseHook):
         :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
         :type region: str
-        :param cluster: Required. The cluster to create.
+        :param cluster_name: Name of the cluster to create
+        :type cluster_name: str
+        :param labels: Labels that will be assigned to created cluster
+        :type labels: Dict[str, str]
+        :param cluster_config: Required. The cluster config to create.
             If a dict is provided, it must be of the same form as the protobuf message
-            :class:`~google.cloud.dataproc_v1.types.Cluster`
-        :type cluster: Union[Dict, google.cloud.dataproc_v1.types.Cluster]
+            :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
+        :type cluster_config: Union[Dict, google.cloud.dataproc_v1.types.ClusterConfig]
         :param request_id: Optional. A unique id used to identify the request. If the server receives two
             ``CreateClusterRequest`` requests with the same id, then the second request will be ignored and
             the first ``google.longrunning.Operation`` created and stored in the backend is returned.
@@ -281,6 +287,19 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
+        # Dataproc labels must conform to the following regex:
+        # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
+        # semantic versioning spec: x.y.z).
+        labels = labels or {}
+        labels.update({'airflow-version': 'v' + airflow_version.replace('.', '-').replace('+', '-')})
+
+        cluster = {
+            "project_id": project_id,
+            "cluster_name": cluster_name,
+            "config": cluster_config,
+            "labels": labels,
+        }
+
         client = self.get_cluster_client(location=region)
         result = client.create_cluster(
             project_id=project_id,

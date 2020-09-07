@@ -32,8 +32,15 @@ JOB_ID = "test-id"
 TASK_ID = "test-task-id"
 GCP_LOCATION = "global"
 GCP_PROJECT = "test-project"
-CLUSTER = {"test": "test"}
+CLUSTER_CONFIG = {"test": "test"}
+LABELS = {"test": "test"}
 CLUSTER_NAME = "cluster-name"
+CLUSTER = {
+    "cluster_name": CLUSTER_NAME,
+    "config": CLUSTER_CONFIG,
+    "labels": LABELS,
+    "project_id": GCP_PROJECT,
+}
 
 PARENT = "parent"
 NAME = "name"
@@ -51,9 +58,7 @@ class TestDataprocHook(unittest.TestCase):
             self.hook = DataprocHook(gcp_conn_id="test")
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
-    @mock.patch(
-        DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock,
-    )
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock)
     @mock.patch(DATAPROC_STRING.format("ClusterControllerClient"))
     def test_get_cluster_client(self, mock_client, mock_client_info, mock_get_credentials):
         self.hook.get_cluster_client(location=GCP_LOCATION)
@@ -64,20 +69,16 @@ class TestDataprocHook(unittest.TestCase):
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
-    @mock.patch(
-        DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock,
-    )
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock)
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceClient"))
     def test_get_template_client(self, mock_client, mock_client_info, mock_get_credentials):
         _ = self.hook.get_template_client
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=mock_client_info.return_value,
+            credentials=mock_get_credentials.return_value, client_info=mock_client_info.return_value
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
-    @mock.patch(
-        DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock,
-    )
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock)
     @mock.patch(DATAPROC_STRING.format("JobControllerClient"))
     def test_get_job_client(self, mock_client, mock_client_info, mock_get_credentials):
         self.hook.get_job_client(location=GCP_LOCATION)
@@ -89,7 +90,13 @@ class TestDataprocHook(unittest.TestCase):
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
     def test_create_cluster(self, mock_client):
-        self.hook.create_cluster(project_id=GCP_PROJECT, region=GCP_LOCATION, cluster=CLUSTER)
+        self.hook.create_cluster(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            cluster_config=CLUSTER_CONFIG,
+            labels=LABELS,
+        )
         mock_client.assert_called_once_with(location=GCP_LOCATION)
         mock_client.return_value.create_cluster.assert_called_once_with(
             project_id=GCP_PROJECT,
@@ -202,13 +209,7 @@ class TestDataprocHook(unittest.TestCase):
         )
         mock_client.workflow_template_path.assert_called_once_with(GCP_PROJECT, GCP_LOCATION, template_name)
         mock_client.instantiate_workflow_template.assert_called_once_with(
-            name=NAME,
-            version=None,
-            parameters=None,
-            request_id=None,
-            retry=None,
-            timeout=None,
-            metadata=None,
+            name=NAME, version=None, parameters=None, request_id=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
@@ -220,7 +221,7 @@ class TestDataprocHook(unittest.TestCase):
         )
         mock_client.region_path.assert_called_once_with(GCP_PROJECT, GCP_LOCATION)
         mock_client.instantiate_inline_workflow_template.assert_called_once_with(
-            parent=PARENT, template=template, request_id=None, retry=None, timeout=None, metadata=None,
+            parent=PARENT, template=template, request_id=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job"))
@@ -230,9 +231,7 @@ class TestDataprocHook(unittest.TestCase):
             mock.MagicMock(status=mock.MagicMock(state=JobStatus.ERROR)),
         ]
         with self.assertRaises(AirflowException):
-            self.hook.wait_for_job(
-                job_id=JOB_ID, location=GCP_LOCATION, project_id=GCP_PROJECT, wait_time=0,
-            )
+            self.hook.wait_for_job(job_id=JOB_ID, location=GCP_LOCATION, project_id=GCP_PROJECT, wait_time=0)
         calls = [
             mock.call(location=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),
             mock.call(location=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),

@@ -46,7 +46,6 @@ from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProc
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
-from airflow.version import version as airflow_version
 
 
 # pylint: disable=too-many-instance-attributes
@@ -157,8 +156,7 @@ class ClusterGenerator:
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(
         self,
-        project_id: Optional[str] = None,
-        cluster_name: Optional[str] = None,
+        project_id: str,
         num_workers: Optional[int] = None,
         zone: Optional[str] = None,
         network_uri: Optional[str] = None,
@@ -183,8 +181,6 @@ class ClusterGenerator:
         worker_disk_type: str = 'pd-standard',
         worker_disk_size: int = 1024,
         num_preemptible_workers: int = 0,
-        labels: Optional[Dict] = None,
-        region: Optional[str] = None,
         service_account: Optional[str] = None,
         service_account_scopes: Optional[List[str]] = None,
         idle_delete_ttl: Optional[int] = None,
@@ -194,9 +190,7 @@ class ClusterGenerator:
         **kwargs,
     ) -> None:
 
-        self.cluster_name = cluster_name
         self.project_id = project_id
-        self.region = region
         self.num_masters = num_masters
         self.num_workers = num_workers
         self.num_preemptible_workers = num_preemptible_workers
@@ -216,7 +210,6 @@ class ClusterGenerator:
         self.worker_machine_type = worker_machine_type
         self.worker_disk_type = worker_disk_type
         self.worker_disk_size = worker_disk_size
-        self.labels = labels
         self.zone = zone
         self.network_uri = network_uri
         self.subnetwork_uri = subnetwork_uri
@@ -239,11 +232,11 @@ class ClusterGenerator:
     def _get_init_action_timeout(self):
         match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)
         if match:
+            val = float(match.group(1))
             if match.group(2) == "s":
-                return self.init_action_timeout
+                return {"seconds": int(val)}
             elif match.group(2) == "m":
-                val = float(match.group(1))
-                return "{}s".format(int(timedelta(minutes=val).total_seconds()))
+                return {"seconds": int(timedelta(minutes=val).total_seconds())}
 
         raise AirflowException(
             "DataprocClusterCreateOperator init_action_timeout"
@@ -255,93 +248,85 @@ class ClusterGenerator:
             zone_uri = 'https://www.googleapis.com/compute/v1/projects/{}/zones/{}'.format(
                 self.project_id, self.zone
             )
-            cluster_data['config']['gce_cluster_config']['zone_uri'] = zone_uri
+            cluster_data['gce_cluster_config']['zone_uri'] = zone_uri
 
         if self.metadata:
-            cluster_data['config']['gce_cluster_config']['metadata'] = self.metadata
+            cluster_data['gce_cluster_config']['metadata'] = self.metadata
 
         if self.network_uri:
-            cluster_data['config']['gce_cluster_config']['network_uri'] = self.network_uri
+            cluster_data['gce_cluster_config']['network_uri'] = self.network_uri
 
         if self.subnetwork_uri:
-            cluster_data['config']['gce_cluster_config']['subnetwork_uri'] = self.subnetwork_uri
+            cluster_data['gce_cluster_config']['subnetwork_uri'] = self.subnetwork_uri
 
         if self.internal_ip_only:
             if not self.subnetwork_uri:
                 raise AirflowException("Set internal_ip_only to true only when" " you pass a subnetwork_uri.")
-            cluster_data['config']['gce_cluster_config']['internal_ip_only'] = True
+            cluster_data['gce_cluster_config']['internal_ip_only'] = True
 
         if self.tags:
-            cluster_data['config']['gce_cluster_config']['tags'] = self.tags
+            cluster_data['gce_cluster_config']['tags'] = self.tags
 
         if self.service_account:
-            cluster_data['config']['gce_cluster_config']['service_account'] = self.service_account
+            cluster_data['gce_cluster_config']['service_account'] = self.service_account
 
         if self.service_account_scopes:
-            cluster_data['config']['gce_cluster_config'][
-                'service_account_scopes'
-            ] = self.service_account_scopes
+            cluster_data['gce_cluster_config']['service_account_scopes'] = self.service_account_scopes
 
         return cluster_data
 
     def _build_lifecycle_config(self, cluster_data):
         if self.idle_delete_ttl:
-            cluster_data['config']['lifecycle_config']['idle_delete_ttl'] = "{}s".format(self.idle_delete_ttl)
+            cluster_data['lifecycle_config']['idle_delete_ttl'] = {"seconds": self.idle_delete_ttl}
 
         if self.auto_delete_time:
             utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
-            cluster_data['config']['lifecycle_config']['auto_delete_time'] = utc_auto_delete_time.strftime(
+            cluster_data['lifecycle_config']['auto_delete_time'] = utc_auto_delete_time.strftime(
                 '%Y-%m-%dT%H:%M:%S.%fZ'
             )
         elif self.auto_delete_ttl:
-            cluster_data['config']['lifecycle_config']['auto_delete_ttl'] = "{}s".format(self.auto_delete_ttl)
+            cluster_data['lifecycle_config']['auto_delete_ttl'] = {"seconds": int(self.auto_delete_ttl)}
 
         return cluster_data
 
     def _build_cluster_data(self):
         if self.zone:
             master_type_uri = (
-                "https://www.googleapis.com/compute/v1/projects"
-                f"/{self.project_id}/zones/{self.zone}/machineTypes/{self.master_machine_type}"
+                f"projects/{self.project_id}/zones/{self.zone}/machineTypes/{self.master_machine_type}"
             )
             worker_type_uri = (
-                "https://www.googleapis.com/compute/v1/projects"
-                f"/{self.project_id}/zones/{self.zone}/machineTypes/{self.worker_machine_type}"
+                f"projects/{self.project_id}/zones/{self.zone}/machineTypes/{self.worker_machine_type}"
             )
         else:
             master_type_uri = self.master_machine_type
             worker_type_uri = self.worker_machine_type
 
         cluster_data = {
-            'project_id': self.project_id,
-            'cluster_name': self.cluster_name,
-            'config': {
-                'gce_cluster_config': {},
-                'master_config': {
-                    'num_instances': self.num_masters,
-                    'machine_type_uri': master_type_uri,
-                    'disk_config': {
-                        'boot_disk_type': self.master_disk_type,
-                        'boot_disk_size_gb': self.master_disk_size,
-                    },
+            'gce_cluster_config': {},
+            'master_config': {
+                'num_instances': self.num_masters,
+                'machine_type_uri': master_type_uri,
+                'disk_config': {
+                    'boot_disk_type': self.master_disk_type,
+                    'boot_disk_size_gb': self.master_disk_size,
                 },
-                'worker_config': {
-                    'num_instances': self.num_workers,
-                    'machine_type_uri': worker_type_uri,
-                    'disk_config': {
-                        'boot_disk_type': self.worker_disk_type,
-                        'boot_disk_size_gb': self.worker_disk_size,
-                    },
-                },
-                'secondary_worker_config': {},
-                'software_config': {},
-                'lifecycle_config': {},
-                'encryption_config': {},
-                'autoscaling_config': {},
             },
+            'worker_config': {
+                'num_instances': self.num_workers,
+                'machine_type_uri': worker_type_uri,
+                'disk_config': {
+                    'boot_disk_type': self.worker_disk_type,
+                    'boot_disk_size_gb': self.worker_disk_size,
+                },
+            },
+            'secondary_worker_config': {},
+            'software_config': {},
+            'lifecycle_config': {},
+            'encryption_config': {},
+            'autoscaling_config': {},
         }
         if self.num_preemptible_workers > 0:
-            cluster_data['config']['secondary_worker_config'] = {
+            cluster_data['secondary_worker_config'] = {
                 'num_instances': self.num_preemptible_workers,
                 'machine_type_uri': worker_type_uri,
                 'disk_config': {
@@ -351,19 +336,11 @@ class ClusterGenerator:
                 'is_preemptible': True,
             }
 
-        cluster_data['labels'] = self.labels or {}
-
-        # Dataproc labels must conform to the following regex:
-        # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
-        # semantic versioning spec: x.y.z).
-        cluster_data['labels'].update(
-            {'airflow-version': 'v' + airflow_version.replace('.', '-').replace('+', '-')}
-        )
         if self.storage_bucket:
-            cluster_data['config']['config_bucket'] = self.storage_bucket
+            cluster_data['config_bucket'] = self.storage_bucket
 
         if self.image_version:
-            cluster_data['config']['software_config']['image_version'] = self.image_version
+            cluster_data['software_config']['image_version'] = self.image_version
 
         elif self.custom_image:
             project_id = self.custom_image_project_id or self.project_id
@@ -371,9 +348,9 @@ class ClusterGenerator:
                 'https://www.googleapis.com/compute/beta/projects/'
                 '{}/global/images/{}'.format(project_id, self.custom_image)
             )
-            cluster_data['config']['master_config']['image_uri'] = custom_image_url
+            cluster_data['master_config']['image_uri'] = custom_image_url
             if not self.single_node:
-                cluster_data['config']['worker_config']['image_uri'] = custom_image_url
+                cluster_data['worker_config']['image_uri'] = custom_image_url
 
         cluster_data = self._build_gce_cluster_config(cluster_data)
 
@@ -381,10 +358,10 @@ class ClusterGenerator:
             self.properties["dataproc:dataproc.allow.zero.workers"] = "true"
 
         if self.properties:
-            cluster_data['config']['software_config']['properties'] = self.properties
+            cluster_data['software_config']['properties'] = self.properties
 
         if self.optional_components:
-            cluster_data['config']['software_config']['optional_components'] = self.optional_components
+            cluster_data['software_config']['optional_components'] = self.optional_components
 
         cluster_data = self._build_lifecycle_config(cluster_data)
 
@@ -393,12 +370,12 @@ class ClusterGenerator:
                 {'executable_file': uri, 'execution_timeout': self._get_init_action_timeout()}
                 for uri in self.init_actions_uris
             ]
-            cluster_data['config']['initialization_actions'] = init_actions_dict
+            cluster_data['initialization_actions'] = init_actions_dict
 
         if self.customer_managed_key:
-            cluster_data['config']['encryption_config'] = {'gce_pd_kms_key_name': self.customer_managed_key}
+            cluster_data['encryption_config'] = {'gce_pd_kms_key_name': self.customer_managed_key}
         if self.autoscaling_policy:
-            cluster_data['config']['autoscaling_config'] = {'policy_uri': self.autoscaling_policy}
+            cluster_data['autoscaling_config'] = {'policy_uri': self.autoscaling_policy}
 
         return cluster_data
 
@@ -435,6 +412,14 @@ class DataprocCreateClusterOperator(BaseOperator):
     :param project_id: The ID of the google cloud project in which
         to create the cluster. (templated)
     :type project_id: str
+    :param cluster_name: Name of the cluster to create
+    :type cluster_name: str
+    :param labels: Labels that will be assigned to created cluster
+    :type labels: Dict[str, str]
+    :param cluster_config: Required. The cluster config to create.
+        If a dict is provided, it must be of the same form as the protobuf message
+        :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
+    :type cluster_config: Union[Dict, google.cloud.dataproc_v1.types.ClusterConfig]
     :param region: leave as 'global', might become relevant in the future. (templated)
     :type region: str
     :parm delete_on_error: If true the cluster will be deleted if created with ERROR state. Default
@@ -470,7 +455,9 @@ class DataprocCreateClusterOperator(BaseOperator):
     template_fields = (
         'project_id',
         'region',
-        'cluster',
+        'cluster_config',
+        'cluster_name',
+        'labels',
         'impersonation_chain',
     )
 
@@ -478,9 +465,11 @@ class DataprocCreateClusterOperator(BaseOperator):
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
+        cluster_name: str,
         region: str = 'global',
         project_id: Optional[str] = None,
-        cluster: Optional[Dict] = None,
+        cluster_config: Optional[Dict] = None,
+        labels: Optional[Dict] = None,
         request_id: Optional[str] = None,
         delete_on_error: bool = True,
         use_if_exists: bool = True,
@@ -492,10 +481,10 @@ class DataprocCreateClusterOperator(BaseOperator):
         **kwargs,
     ) -> None:
         # TODO: remove one day
-        if cluster is None:
+        if cluster_config is None:
             warnings.warn(
                 "Passing cluster parameters by keywords to `{}` "
-                "will be deprecated. Please provide cluster object using `cluster` parameter. "
+                "will be deprecated. Please provide cluster_config object using `cluster_config` parameter. "
                 "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` method to "
                 "obtain cluster object.".format(type(self).__name__),
                 DeprecationWarning,
@@ -506,9 +495,12 @@ class DataprocCreateClusterOperator(BaseOperator):
                 del kwargs['params']
 
             # Create cluster object from kwargs
-            kwargs['region'] = region
-            kwargs['project_id'] = project_id
-            cluster = ClusterGenerator(**kwargs).make()
+            if project_id is None:
+                raise AirflowException(
+                    "project_id argument is required when building cluster from keywords parameters"
+                )
+            kwargs["project_id"] = project_id
+            cluster_config = ClusterGenerator(**kwargs).make()
 
             # Remove from kwargs cluster params passed for backward compatibility
             cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
@@ -518,11 +510,9 @@ class DataprocCreateClusterOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-        self.cluster = cluster
-        try:
-            self.cluster_name = cluster['cluster_name']
-        except KeyError:
-            raise AirflowException("`config` misses `cluster_name` key")
+        self.cluster_config = cluster_config
+        self.cluster_name = cluster_name
+        self.labels = labels
         self.project_id = project_id
         self.region = region
         self.request_id = request_id
@@ -534,11 +524,13 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.use_if_exists = use_if_exists
         self.impersonation_chain = impersonation_chain
 
-    def _create_cluster(self, hook):
+    def _create_cluster(self, hook: DataprocHook):
         operation = hook.create_cluster(
             project_id=self.project_id,
             region=self.region,
-            cluster=self.cluster,
+            cluster_name=self.cluster_name,
+            labels=self.labels,
+            cluster_config=self.cluster_config,
             request_id=self.request_id,
             retry=self.retry,
             timeout=self.timeout,
@@ -550,9 +542,7 @@ class DataprocCreateClusterOperator(BaseOperator):
 
     def _delete_cluster(self, hook):
         self.log.info("Deleting the cluster")
-        hook.delete_cluster(
-            region=self.region, cluster_name=self.cluster_name, project_id=self.project_id,
-        )
+        hook.delete_cluster(region=self.region, cluster_name=self.cluster_name, project_id=self.project_id)
 
     def _get_cluster(self, hook: DataprocHook):
         return hook.get_cluster(
@@ -569,7 +559,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             return
         self.log.info("Cluster is in ERROR state")
         gcs_uri = hook.diagnose_cluster(
-            region=self.region, cluster_name=self.cluster_name, project_id=self.project_id,
+            region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
         )
         self.log.info('Diagnostic information for cluster %s available at: %s', self.cluster_name, gcs_uri)
         if self.delete_on_error:
@@ -604,7 +594,7 @@ class DataprocCreateClusterOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info('Creating cluster: %s', self.cluster_name)
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         try:
             # First try to create a new cluster
             cluster = self._create_cluster(hook)
@@ -677,12 +667,7 @@ class DataprocScaleClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
-        'cluster_name',
-        'project_id',
-        'region',
-        'impersonation_chain',
-    ]
+    template_fields = ['cluster_name', 'project_id', 'region', 'impersonation_chain']
 
     @apply_defaults
     def __init__(
@@ -727,7 +712,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         return scale_data
 
     @property
-    def _graceful_decommission_timeout_object(self) -> Optional[Dict]:
+    def _graceful_decommission_timeout_object(self) -> Optional[Dict[str, int]]:
         if not self.graceful_decommission_timeout:
             return None
 
@@ -764,7 +749,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         scaling_cluster_data = self._build_scale_cluster_data()
         update_mask = ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
 
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         operation = hook.update_cluster(
             project_id=self.project_id,
             location=self.region,
@@ -846,7 +831,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Deleting cluster: %s", self.cluster_name)
         operation = hook.delete_cluster(
             project_id=self.project_id,
@@ -983,7 +968,7 @@ class DataprocJobBaseOperator(BaseOperator):
             self.dataproc_job_id = self.job["job"]["reference"]["job_id"]
             self.log.info('Submitting %s job %s', self.job_type, self.dataproc_job_id)
             job_object = self.hook.submit_job(
-                project_id=self.project_id, job=self.job["job"], location=self.region,
+                project_id=self.project_id, job=self.job["job"], location=self.region
             )
             job_id = job_object.reference.job_id
             self.log.info('Job %s submitted successfully.', job_id)
@@ -1060,10 +1045,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         'dataproc_properties',
         'impersonation_chain',
     ]
-    template_ext = (
-        '.pg',
-        '.pig',
-    )
+    template_ext = ('.pg', '.pig')
     ui_color = '#0273d4'
     job_type = 'pig_job'
 
@@ -1138,10 +1120,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         'dataproc_properties',
         'impersonation_chain',
     ]
-    template_ext = (
-        '.q',
-        '.hql',
-    )
+    template_ext = ('.q', '.hql')
     ui_color = '#0273d4'
     job_type = 'hive_job'
 
@@ -1607,10 +1586,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
-        'template_id',
-        'impersonation_chain',
-    ]
+    template_fields = ['template_id', 'impersonation_chain']
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
@@ -1644,7 +1620,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info('Instantiating template %s', self.template_id)
         operation = hook.instantiate_workflow_template(
             project_id=self.project_id,
@@ -1712,10 +1688,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
-        'template',
-        'impersonation_chain',
-    ]
+    template_fields = ['template', 'impersonation_chain']
 
     @apply_defaults
     def __init__(
@@ -1746,7 +1719,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info('Instantiating Inline Template')
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         operation = hook.instantiate_inline_workflow_template(
             template=self.template,
             project_id=self.project_id,
@@ -1802,12 +1775,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type asynchronous: bool
     """
 
-    template_fields = (
-        'project_id',
-        'location',
-        'job',
-        'impersonation_chain',
-    )
+    template_fields = ('project_id', 'location', 'job', 'impersonation_chain')
 
     @apply_defaults
     def __init__(
@@ -1839,7 +1807,7 @@ class DataprocSubmitJobOperator(BaseOperator):
 
     def execute(self, context: Dict):
         self.log.info("Submitting job")
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         job_object = hook.submit_job(
             project_id=self.project_id,
             location=self.location,
@@ -1947,7 +1915,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Updating %s cluster.", self.cluster_name)
         operation = hook.update_cluster(
             project_id=self.project_id,
