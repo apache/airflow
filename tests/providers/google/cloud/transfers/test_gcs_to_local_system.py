@@ -38,7 +38,6 @@ class GoogleCloudStorageExampleDagsTest(GoogleSystemTest):
         self.upload_content_to_gcs(
             lines=f"{os.urandom(1 * 1024 * 1024)}", bucket=BUCKET, filename=PATH_TO_REMOTE_FILE
         )
-        
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
