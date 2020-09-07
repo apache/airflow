@@ -213,7 +213,6 @@ class TestPodGenerator(unittest.TestCase):
             labels={'app': 'myapp'},
             name='myapp-pod',
             image_pull_secrets='pull_secret_a,pull_secret_b',
-            docker_repository='docker.private.com',
             image='busybox',
             envs=self.envs,
             cmds=['sh', '-c', 'echo Hello Kubernetes!'],
@@ -234,8 +233,6 @@ class TestPodGenerator(unittest.TestCase):
         result_dict['spec']['containers'][0]['envFrom'].sort(
             key=lambda x: list(x.values())[0]['name']
         )
-
-        self.expected['spec']['containers'][0]['image'] = 'docker.private.com/busybox'
 
         self.assertDictEqual(self.expected, result_dict)
 
@@ -293,7 +290,6 @@ class TestPodGenerator(unittest.TestCase):
             labels={'app': 'myapp'},
             name='myapp-pod',
             image_pull_secrets='pull_secret_a,pull_secret_b',
-            docker_repository='docker.private.com',
             image='busybox',
             envs=self.envs,
             cmds=['sh', '-c', 'echo Hello Kubernetes!'],
@@ -304,7 +300,8 @@ class TestPodGenerator(unittest.TestCase):
             ),
             ports=[k8s.V1ContainerPort(name='foo', container_port=1234)],
             configmaps=['configmap_a', 'configmap_b'],
-            extract_xcom=True
+            extract_xcom=True,
+            sidecar_xcom_image='docker.private.com/alpine'
         )
         result = pod_generator.gen_pod()
         result = append_to_pod(result, self.secrets)
@@ -330,7 +327,6 @@ class TestPodGenerator(unittest.TestCase):
         self.expected['spec']['volumes'].insert(0, {
             'name': 'xcom', 'emptyDir': {}
         })
-        self.expected['spec']['containers'][0]['image'] = 'docker.private.com/busybox'
         result_dict['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
         self.assertEqual(result_dict, self.expected)
 

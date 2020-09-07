@@ -145,6 +145,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :type do_xcom_push: bool
+    :param sidecar_xcom_image: Sidecar XCOM image. Defaults to None,
+        but if set, this image will replace the default.
+    :type sidecar_xcom_image: Optional[str]
     :param pod_template_file: path to pod template file
     :type pod_template_file: str
     :param priority_class_name: priority class name for the launched Pod
@@ -193,6 +196,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  init_containers: Optional[List[k8s.V1Container]] = None,
                  log_events_on_failure: bool = False,
                  do_xcom_push: bool = False,
+                 sidecar_xcom_image: Optional[str] = None,
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
                  **kwargs):
@@ -202,6 +206,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
         self.pod = None
         self.do_xcom_push = do_xcom_push
+        self.sidecar_xcom_image = sidecar_xcom_image
         self.docker_repository = docker_repository
         self.image = image
         self.namespace = namespace
@@ -371,7 +376,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             )
             self.labels.update(labels)
         pod = pod_generator.PodGenerator(
-            docker_repository=self.docker_repository,
             image=self.image,
             namespace=self.namespace,
             cmds=self.cmds,
@@ -380,6 +384,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             name=self.name,
             envs=self.env_vars,
             extract_xcom=self.do_xcom_push,
+            sidecar_xcom_image=self.sidecar_xcom_image,
             image_pull_policy=self.image_pull_policy,
             node_selectors=self.node_selectors,
             annotations=self.annotations,

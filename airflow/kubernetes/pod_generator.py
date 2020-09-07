@@ -122,9 +122,6 @@ class PodGenerator:
     Any configuration that is container specific gets applied to
     the first container in the list of containers.
 
-    :param docker_repository: Docker repository used to prefix image if set. Defaults to None,
-        but if set, image will be fully qualified, this is also used to qualify side car image if needed.
-    :type docker_repository: str
     :param image: The docker image
     :type image: Optional[str]
     :param name: name in the metadata section (not the container name)
@@ -185,12 +182,14 @@ class PodGenerator:
     :type pod_template_file: Optional[str]
     :param extract_xcom: Whether to bring up a container for xcom
     :type extract_xcom: bool
+    :param sidecar_xcom_image: Sidecar XCOM image. Defaults to None,
+        but if set, this image will replace the default.
+    :type sidecar_xcom_image: Optional[str]
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
     """
     def __init__(  # pylint: disable=too-many-arguments,too-many-locals
         self,
-        docker_repository: Optional[str] = None,
         image: Optional[str] = None,
         name: Optional[str] = None,
         namespace: Optional[str] = None,
@@ -219,6 +218,7 @@ class PodGenerator:
         pod: Optional[k8s.V1Pod] = None,
         pod_template_file: Optional[str] = None,
         extract_xcom: bool = False,
+        sidecar_xcom_image: Optional[str] = None,
         priority_class_name: Optional[str] = None,
     ):
         self.validate_pod_generator_args(locals())
@@ -228,7 +228,7 @@ class PodGenerator:
         else:
             self.ud_pod = pod
 
-        self.docker_repository = docker_repository
+        self.sidecar_xcom_image = sidecar_xcom_image
 
         self.pod = k8s.V1Pod()
         self.pod.api_version = 'v1'
@@ -243,7 +243,7 @@ class PodGenerator:
 
         # Pod Container
         self.container = k8s.V1Container(name='base')
-        self.container.image = self.qualify_image_url(image)
+        self.container.image = image
 
         self.container.env = []
 
@@ -299,15 +299,6 @@ class PodGenerator:
         # Attach sidecar
         self.extract_xcom = extract_xcom
 
-    def qualify_image_url(self, image: str) -> str:
-        if not self.docker_repository:
-            return image
-
-        if image.startswith(self.docker_repository):
-            return image
-
-        return self.docker_repository + '/' + image
-
     def gen_pod(self) -> k8s.V1Pod:
         """Generates pod"""
         result = self.ud_pod
@@ -321,13 +312,12 @@ class PodGenerator:
         result.metadata.name = self.make_unique_pod_id(result.metadata.name)
 
         if self.extract_xcom:
-            image = self.qualify_image_url(PodDefaults.SIDECAR_CONTAINER.image)
-            result = self.add_sidecar(result, image)
+            result = self.add_sidecar(result, self.sidecar_xcom_image)
 
         return result
 
     @staticmethod
-    def add_sidecar(pod: k8s.V1Pod, image: str) -> k8s.V1Pod:
+    def add_sidecar(pod: k8s.V1Pod, sidecar_xcom_image: Optional[str] = None) -> k8s.V1Pod:
         """Adds sidecar"""
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
@@ -336,7 +326,8 @@ class PodGenerator:
         pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
 
         pod_cp.spec.containers.append(PodDefaults.SIDECAR_CONTAINER)
-        pod_cp.spec.containers[-1].image = image
+        if sidecar_xcom_image:
+            pod_cp.spec.containers[-1].image = sidecar_xcom_image
 
         return pod_cp
 
