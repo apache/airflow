@@ -32,8 +32,7 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 from airflow.providers.google.cloud.transfers.salesforce_to_gcs import SalesforceToGcsOperator
 from airflow.utils.dates import days_ago
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/root/keyfile.json"
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "my-project-id")
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCS_BUCKET = os.environ.get("GCS_BUCKET", "airflow-salesforce-bucket")
 DATASET_NAME = os.environ.get("SALESFORCE_DATASET_NAME", "salesforce_test_dataset")
 TABLE_NAME = os.environ.get("SALESFORCE_TABLE_NAME", "salesforce_test_datatable")
