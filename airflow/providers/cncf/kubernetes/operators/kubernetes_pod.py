@@ -139,7 +139,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param log_events_on_failure: Log the pod's events if a failure occurs
     :type log_events_on_failure: bool
     :param retry_only_on_pod_launching_failure: retry logic is only effective if pod launching fails. This
-        prevents retries when image failures occurs. Useful for non-idempotent tasks.
+        prevents retries when image failures occurs. Useful for idempotent tasks.
     :type retry_only_on_pod_launching_failure: bool
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
