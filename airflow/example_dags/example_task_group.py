@@ -23,37 +23,35 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.task_group import TaskGroup
 
-
 # [START howto_task_group]
-def create_section():
-    """
-    Create tasks in the outer section.
-    """
-    dummies = [DummyOperator(task_id=f'task-{i + 1}') for i in range(5)]
-
-    with TaskGroup("inside_section_1") as inside_section_1:
-        _ = [DummyOperator(task_id=f'task-{i + 1}',) for i in range(3)]
-
-    with TaskGroup("inside_section_2") as inside_section_2:
-        _ = [DummyOperator(task_id=f'task-{i + 1}',) for i in range(3)]
-
-    dummies[-1] >> inside_section_1
-    dummies[-2] >> inside_section_2
-    inside_section_1 >> inside_section_2
-
-
 with DAG(dag_id="example_task_group", start_date=days_ago(2)) as dag:
     start = DummyOperator(task_id="start")
 
-    with TaskGroup("section_1", tooltip="Tasks for Section 1") as section_1:
-        create_section()
+    # [START howto_task_group_section_1]
+    with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
+        task_1 = DummyOperator(task_id="task_1")
+        task_2 = DummyOperator(task_id="task_2")
+        task_3 = DummyOperator(task_id="task_3")
 
-    some_other_task = DummyOperator(task_id="some-other-task")
+        task_1 >> [task_2, task_3]
+    # [END howto_task_group_section_1]
 
-    with TaskGroup("section_2", tooltip="Tasks for Section 2") as section_2:
-        create_section()
+    # [START howto_task_group_section_2]
+    with TaskGroup("section_2", tooltip="Tasks for section_2") as section_2:
+        task_1 = DummyOperator(task_id="task_1")
+
+        # [START howto_task_group_inner_section_2]
+        with TaskGroup("inner_section_2", tooltip="Tasks for inner_section2") as inner_section_2:
+            task_2 = DummyOperator(task_id="task_2")
+            task_3 = DummyOperator(task_id="task_3")
+            task_4 = DummyOperator(task_id="task_4")
+
+            [task_2, task_3] >> task_4
+        # [END howto_task_group_inner_section_2]
+
+    # [END howto_task_group_section_2]
 
     end = DummyOperator(task_id='end')
 
-    start >> section_1 >> some_other_task >> section_2 >> end
+    start >> section_1 >> section_2 >> end
 # [END howto_task_group]
