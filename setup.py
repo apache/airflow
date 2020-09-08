@@ -613,6 +613,7 @@ def do_setup():
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
                  "airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
             'airflow.serialization': ["*.json"],
+            'airflow.utils': ["*.csv"]
         },
         include_package_data=True,
         zip_safe=False,
