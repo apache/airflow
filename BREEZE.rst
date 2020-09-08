@@ -1812,11 +1812,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-merge-conflict check-xml consistent-pylint daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
                  fix-encoding-pragma flake8 forbid-tabs incorrect-use-of-LoggingMixin insert-license
-                 isort language-matters lint-dockerfile lint-openapi mixed-line-ending mypy
-                 provide-create-sessions pydevd pydocstyle pylint pylint-tests python-no-log-warn
-                 rst-backticks setup-order shellcheck stylelint trailing-whitespace
-                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 yamllint
+                 isort language-matters lint-dockerfile lint-openapi mermaid mixed-line-ending mypy
+                 pre-commit-descriptions provide-create-sessions pydevd pydocstyle pylint
+                 pylint-tests python-no-log-warn restrict-start_date rst-backticks setup-order
+                 shellcheck stylelint trailing-whitespace update-breeze-file update-extras
+                 update-local-yml-file update-setup-cfg-file yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:

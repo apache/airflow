@@ -340,7 +340,7 @@ repos:
         entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
         pass_filenames: true
-      - id: restrict-start_date-in-default_args-in-example_dags
+      - id: restrict-start_date
         language: pygrep
         name: "'start_date' should not be defined in default_args in example_dags"
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
@@ -411,4 +411,10 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
         language: system
         files: \.mermaid$
+        require_serial: true
+      - id: pre-commit-descriptions
+        name: Check if pre-commits are described
+        entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^STATIC_CODE_CHECKS.rst|^breeze-complete$
         require_serial: true
