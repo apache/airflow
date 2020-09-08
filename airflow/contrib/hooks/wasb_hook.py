@@ -36,9 +36,17 @@ class WasbHook(BaseHook):
     :type wasb_conn_id: str
     """
 
-    def __init__(self, wasb_conn_id='wasb_default'):
+    def __init__(self, wasb_conn_id='wasb_default', **kwargs):
         self.conn_id = wasb_conn_id
-        self.connection = self.get_conn()
+        if 'sas_token' in kwargs and kwargs['sas_token'] is not None:
+            self.connection = self.get_custom_conn(**kwargs)
+        else:
+            self.connection = self.get_conn()
+
+    def get_custom_conn(self, **kwargs):
+        conn = self.get_connection(self.conn_id)
+        return BlockBlobService(account_name=conn.login,
+                                account_key=None, **kwargs)
 
     def get_conn(self):
         """Return the BlockBlobService object."""
@@ -128,7 +136,7 @@ class WasbHook(BaseHook):
         :param blob_name: Name of the blob.
         :type blob_name: str
         :param kwargs: Optional keyword arguments that
-            `BlockBlobService.create_blob_from_path()` takes.
+            `BlockBlobService.get_blob_to_path()` takes.
         :type kwargs: object
         """
         return self.connection.get_blob_to_path(container_name, blob_name,
@@ -143,7 +151,7 @@ class WasbHook(BaseHook):
         :param blob_name: Name of the blob.
         :type blob_name: str
         :param kwargs: Optional keyword arguments that
-            `BlockBlobService.create_blob_from_path()` takes.
+            `BlockBlobService.get_blob_to_text()` takes.
         :type kwargs: object
         """
         return self.connection.get_blob_to_text(container_name,
@@ -165,7 +173,7 @@ class WasbHook(BaseHook):
             blob does not exist.
         :type ignore_if_missing: bool
         :param kwargs: Optional keyword arguments that
-            `BlockBlobService.create_blob_from_path()` takes.
+            `BlockBlobService.delete_blob()` takes.
         :type kwargs: object
         """
 
@@ -189,3 +197,50 @@ class WasbHook(BaseHook):
                                         blob_uri,
                                         delete_snapshots='include',
                                         **kwargs)
+
+
+    def write_string(self, container_name, blob_name, text, encoding = 'utf-8', **kwargs):
+        """
+        Create a file for Azure Blob Storage from string.
+
+        :param container_name: Name of the container.
+        :type container_name: str
+        :param blob_name: Name of the blob.
+        :type blob_name: str
+        :param text: text content to be written to blob storage
+        :type text: str
+        :param encoding: Python encoding to use to convert the text to bytes
+        :type encoding: str
+        :param kwargs: Optional keyword arguments that
+            `BlockBlobService.create_blob_from_text()` takes.
+        :type kwargs: object
+        """
+        if text is None:
+            raise AirflowException("is_path variable set to FALSE but no text was provided.")
+        else:
+            self.connection.create_blob_from_text(container_name, blob_name, text, encoding=encoding, **kwargs)
+
+    def write_file(self, container_name, blob_name, file_path = None, **kwargs):
+
+        """
+        Create a file for Azure Blob Storage from filepath.
+
+        :param container_name: Name of the container.
+        :type container_name: str
+        :param blob_name: Name of the blob.
+        :type blob_name: str
+        :param file_path: str value for where the blob that needs to be written would be read from
+        :type file_path: str
+        :param kwargs: Optional keyword arguments that
+            `BlockBlobService.create_blob_from_path()` takes.
+        :type kwargs: object
+        """
+        
+        # if wanting to write from file_path, we use create_blob_from_path
+        if file_path is None:
+            raise AirflowException("is_path variable set to TRUE but not no file path allocated.")
+        else:
+            self.connection.create_blob_from_path(container_name, blob_name, \
+                    file_path, **kwargs)
+
+        
