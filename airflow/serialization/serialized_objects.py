@@ -25,9 +25,11 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Union
 import cattr
 import pendulum
 from dateutil import relativedelta
+from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowException
+from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -180,6 +182,9 @@ class BaseSerialization:
                 )
             elif isinstance(var, list):
                 return [cls._serialize(v) for v in var]
+            elif isinstance(var, k8s.V1Pod):
+                json_pod = PodGenerator.serialize_pod(var)
+                return cls._encode(json_pod, type_=DAT.POD)
             elif isinstance(var, DAG):
                 return SerializedDAG.serialize_dag(var)
             elif isinstance(var, BaseOperator):
@@ -239,6 +244,9 @@ class BaseSerialization:
             return SerializedBaseOperator.deserialize_operator(var)
         elif type_ == DAT.DATETIME:
             return pendulum.from_timestamp(var)
+        elif type_ == DAT.POD:
+            pod = PodGenerator.deserialize_model_dict(var)
+            return pod
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
         elif type_ == DAT.TIMEZONE:
