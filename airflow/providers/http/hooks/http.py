@@ -40,7 +40,10 @@ class HttpHook(BaseHook):
     """
 
     def __init__(
-        self, method: str = 'POST', http_conn_id: str = 'http_default', auth_type: Any = HTTPBasicAuth,
+        self,
+        method: str = 'POST',
+        http_conn_id: str = 'http_default',
+        auth_type: Any = HTTPBasicAuth,
     ) -> None:
         super().__init__()
         self.http_conn_id = http_conn_id

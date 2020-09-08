@@ -133,7 +133,10 @@ class KubernetesHook(BaseHook):
         return namespace
 
     def get_pod_log_stream(
-        self, pod_name: str, container: Optional[str] = "", namespace: Optional[str] = None,
+        self,
+        pod_name: str,
+        container: Optional[str] = "",
+        namespace: Optional[str] = None,
     ) -> Tuple[watch.Watch, Generator[str, None, None]]:
         """
         Retrieves a log stream for a container in a kubernetes pod.
@@ -159,7 +162,10 @@ class KubernetesHook(BaseHook):
         )
 
     def get_pod_logs(
-        self, pod_name: str, container: Optional[str] = "", namespace: Optional[str] = None,
+        self,
+        pod_name: str,
+        container: Optional[str] = "",
+        namespace: Optional[str] = None,
     ):
         """
         Retrieves a container's log from the specified pod.

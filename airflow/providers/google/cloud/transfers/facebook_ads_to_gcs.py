@@ -126,7 +126,10 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                 writer.writeheader()
                 writer.writerows(converted_rows)
                 csvfile.flush()
-                hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+                hook = GCSHook(
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                )
                 hook.upload(
                     bucket_name=self.bucket_name,
                     object_name=self.object_name,

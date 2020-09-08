@@ -49,7 +49,9 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
 
     def execute(self, context: Dict):
         self.log.info("Fetching data for job with id: %d ...", self.job_id)
-        hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default",)
+        hook = GoogleDataprepHook(
+            dataprep_conn_id="dataprep_default",
+        )
         response = hook.get_jobs_for_job_group(job_id=self.job_id)
         return response
 
@@ -94,7 +96,9 @@ class DataprepGetJobGroupOperator(BaseOperator):
         self.log.info("Fetching data for job with id: %d ...", self.job_group_id)
         hook = GoogleDataprepHook(dataprep_conn_id=self.dataprep_conn_id)
         response = hook.get_job_group(
-            job_group_id=self.job_group_id, embed=self.embed, include_deleted=self.include_deleted,
+            job_group_id=self.job_group_id,
+            embed=self.embed,
+            include_deleted=self.include_deleted,
         )
         return response
 

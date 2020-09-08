@@ -91,7 +91,13 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
                 'port': 80,
             },
         )
-        self.assertEqual(result_2, {'conn_id': "mysql_default_2", 'conn_type': "postgres",})
+        self.assertEqual(
+            result_2,
+            {
+                'conn_id': "mysql_default_2",
+                'conn_type': "postgres",
+            },
+        )
 
     def test_deserialize_required_fields(self):
         connection_dump_1 = {

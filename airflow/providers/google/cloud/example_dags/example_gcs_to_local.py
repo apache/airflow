@@ -28,10 +28,16 @@ PATH_TO_REMOTE_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-ex
 PATH_TO_LOCAL_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-local.txt")
 
 with models.DAG(
-    "example_gcs_to_local", start_date=days_ago(1), schedule_interval=None, tags=['example'],
+    "example_gcs_to_local",
+    start_date=days_ago(1),
+    schedule_interval=None,
+    tags=['example'],
 ) as dag:
     # [START howto_operator_gcs_download_file_task]
     download_file = GCSToLocalFilesystemOperator(
-        task_id="download_file", object_name=PATH_TO_REMOTE_FILE, bucket=BUCKET, filename=PATH_TO_LOCAL_FILE,
+        task_id="download_file",
+        object_name=PATH_TO_REMOTE_FILE,
+        bucket=BUCKET,
+        filename=PATH_TO_LOCAL_FILE,
     )
     # [END howto_operator_gcs_download_file_task]

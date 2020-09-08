@@ -40,7 +40,10 @@ def get_health():
 
     payload = {
         "metadatabase": {"status": metadatabase_status},
-        "scheduler": {"status": scheduler_status, "latest_scheduler_heartbeat": latest_scheduler_heartbeat,},
+        "scheduler": {
+            "status": scheduler_status,
+            "latest_scheduler_heartbeat": latest_scheduler_heartbeat,
+        },
     }
 
     return health_schema.dump(payload)

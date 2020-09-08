@@ -55,7 +55,10 @@ class TestGoogleSheetsToGCSOperator:
         )
 
         result = op._upload_data(
-            gcs_hook=mock_gcs_hook, hook=mock_sheet_hook, sheet_range=RANGE, sheet_values=VALUES,
+            gcs_hook=mock_gcs_hook,
+            hook=mock_sheet_hook,
+            sheet_range=RANGE,
+            sheet_values=VALUES,
         )
 
         # Test writing to file
@@ -96,10 +99,14 @@ class TestGoogleSheetsToGCSOperator:
         op.execute(context)
 
         mock_sheet_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         mock_sheet_hook.return_value.get_sheet_titles.assert_called_once_with(

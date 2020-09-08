@@ -149,7 +149,8 @@ class SFTPOperator(BaseOperator):
                     remote_folder = os.path.dirname(self.remote_filepath)
                     if self.create_intermediate_dirs:
                         _make_intermediate_dirs(
-                            sftp_client=sftp_client, remote_directory=remote_folder,
+                            sftp_client=sftp_client,
+                            remote_directory=remote_folder,
                         )
                     file_msg = "from {0} to {1}".format(self.local_filepath, self.remote_filepath)
                     self.log.info("Starting to transfer file %s", file_msg)

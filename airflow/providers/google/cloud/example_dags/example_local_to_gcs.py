@@ -36,6 +36,9 @@ with models.DAG(
 ) as dag:
     # [START howto_operator_local_filesystem_to_gcs]
     upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file", src=PATH_TO_UPLOAD_FILE, dst=DESTINATION_FILE_LOCATION, bucket=BUCKET_NAME,
+        task_id="upload_file",
+        src=PATH_TO_UPLOAD_FILE,
+        dst=DESTINATION_FILE_LOCATION,
+        bucket=BUCKET_NAME,
     )
     # [END howto_operator_local_filesystem_to_gcs]

@@ -167,7 +167,10 @@ def batch_infrastructure(
 
     compute_env_name = "moto_test_compute_env"
     resp = aws_clients.batch.create_compute_environment(
-        computeEnvironmentName=compute_env_name, type="UNMANAGED", state="ENABLED", serviceRole=iam_arn,
+        computeEnvironmentName=compute_env_name,
+        type="UNMANAGED",
+        state="ENABLED",
+        serviceRole=iam_arn,
     )
     compute_env_arn = resp["computeEnvironmentArn"]
 
@@ -184,7 +187,12 @@ def batch_infrastructure(
     resp = aws_clients.batch.register_job_definition(
         jobDefinitionName=job_definition_name,
         type="container",
-        containerProperties={"image": "busybox", "vcpus": 1, "memory": 64, "command": ["sleep", "10"],},
+        containerProperties={
+            "image": "busybox",
+            "vcpus": 1,
+            "memory": 64,
+            "command": ["sleep", "10"],
+        },
     )
     assert resp["jobDefinitionName"] == job_definition_name
     assert resp["jobDefinitionArn"]

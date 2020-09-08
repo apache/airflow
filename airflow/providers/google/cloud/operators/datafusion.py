@@ -99,7 +99,9 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         )
         self.log.info("Restarting Data Fusion instance: %s", self.instance_name)
         operation = hook.restart_instance(
-            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+            project_id=self.project_id,
         )
         hook.wait_for_operation(operation)
         self.log.info("Instance %s restarted successfully", self.instance_name)
@@ -174,7 +176,9 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         )
         self.log.info("Deleting Data Fusion instance: %s", self.instance_name)
         operation = hook.delete_instance(
-            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+            project_id=self.project_id,
         )
         hook.wait_for_operation(operation)
         self.log.info("Instance %s deleted successfully", self.instance_name)
@@ -444,7 +448,9 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         )
         self.log.info("Retrieving Data Fusion instance: %s", self.instance_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+            project_id=self.project_id,
         )
         return instance
 
@@ -532,7 +538,9 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         )
         self.log.info("Creating Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+            project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         hook.create_pipeline(
@@ -627,7 +635,9 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         )
         self.log.info("Deleting Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+            project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         hook.delete_pipeline(
@@ -723,7 +733,9 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         )
         self.log.info("Listing Data Fusion pipelines")
         instance = hook.get_instance(
-            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+            project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         pipelines = hook.list_pipelines(
@@ -829,7 +841,9 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         )
         self.log.info("Starting Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+            project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         pipeline_id = hook.start_pipeline(
@@ -929,10 +943,14 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         )
         self.log.info("Starting Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
-            instance_name=self.instance_name, location=self.location, project_id=self.project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+            project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
         hook.stop_pipeline(
-            pipeline_name=self.pipeline_name, instance_url=api_url, namespace=self.namespace,
+            pipeline_name=self.pipeline_name,
+            instance_url=api_url,
+            namespace=self.namespace,
         )
         self.log.info("Pipeline started")

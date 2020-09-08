@@ -88,7 +88,9 @@ class CloudSQLHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
         self._conn = None
@@ -248,7 +250,13 @@ class CloudSQLHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
-    def patch_database(self, instance: str, database: str, body: Dict, project_id: str,) -> None:
+    def patch_database(
+        self,
+        instance: str,
+        database: str,
+        body: Dict,
+        project_id: str,
+    ) -> None:
         """
         Updates a database resource inside a Cloud SQL instance.
 

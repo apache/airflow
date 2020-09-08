@@ -63,7 +63,9 @@ class CloudTasksHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -128,7 +130,11 @@ class CloudTasksHook(GoogleBaseHook):
                 raise AirflowException('Unable to set queue_name.')
         full_location_path = CloudTasksClient.location_path(project_id, location)
         return client.create_queue(
-            parent=full_location_path, queue=task_queue, retry=retry, timeout=timeout, metadata=metadata,
+            parent=full_location_path,
+            queue=task_queue,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -186,7 +192,11 @@ class CloudTasksHook(GoogleBaseHook):
             else:
                 raise AirflowException('Unable to set queue_name.')
         return client.update_queue(
-            queue=task_queue, update_mask=update_mask, retry=retry, timeout=timeout, metadata=metadata,
+            queue=task_queue,
+            update_mask=update_mask,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -529,7 +539,11 @@ class CloudTasksHook(GoogleBaseHook):
 
         full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
         return client.get_task(
-            name=full_task_name, response_view=response_view, retry=retry, timeout=timeout, metadata=metadata,
+            name=full_task_name,
+            response_view=response_view,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -666,5 +680,9 @@ class CloudTasksHook(GoogleBaseHook):
 
         full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
         return client.run_task(
-            name=full_task_name, response_view=response_view, retry=retry, timeout=timeout, metadata=metadata,
+            name=full_task_name,
+            response_view=response_view,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )

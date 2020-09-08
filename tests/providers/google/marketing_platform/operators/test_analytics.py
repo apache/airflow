@@ -68,7 +68,9 @@ class TestGoogleAnalyticsRetrieveAdsLinksListOperator(unittest.TestCase):
         hook_mock.assert_called_once()
         hook_mock.return_value.list_ad_words_links.assert_called_once()
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.list_ad_words_links.assert_called_once_with(
             account_id=ACCOUNT_ID, web_property_id=WEB_PROPERTY_ID
@@ -91,7 +93,9 @@ class TestGoogleAnalyticsGetAdsLinkOperator(unittest.TestCase):
         hook_mock.assert_called_once()
         hook_mock.return_value.get_ad_words_link.assert_called_once()
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.get_ad_words_link.assert_called_once_with(
             account_id=ACCOUNT_ID,
@@ -122,7 +126,9 @@ class TestGoogleAnalyticsDataImportUploadOperator(unittest.TestCase):
         op.execute(context=None)
 
         gcs_hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         ga_hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -159,15 +165,23 @@ class TestGoogleAnalyticsDeletePreviousDataUploadsOperator:
         )
         op.execute(context=None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION, impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
 
         mock_hook.return_value.list_uploads.assert_called_once_with(
-            account_id=ACCOUNT_ID, web_property_id=WEB_PROPERTY_ID, custom_data_source_id=DATA_SOURCE,
+            account_id=ACCOUNT_ID,
+            web_property_id=WEB_PROPERTY_ID,
+            custom_data_source_id=DATA_SOURCE,
         )
 
         mock_hook.return_value.delete_upload_data.assert_called_once_with(
-            ACCOUNT_ID, WEB_PROPERTY_ID, DATA_SOURCE, {"customDataImportUids": [1, 2, 3]},
+            ACCOUNT_ID,
+            WEB_PROPERTY_ID,
+            DATA_SOURCE,
+            {"customDataImportUids": [1, 2, 3]},
         )
 
 
@@ -236,7 +250,9 @@ how_to_make_doughnuts,2
         op.execute(context=None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         mock_hook.return_value.download.assert_called_once_with(

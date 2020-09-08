@@ -142,13 +142,20 @@ class GCSToSFTPOperator(BaseOperator):
             self.log.info("Done. Uploaded '%s' file to %s", self.source_object, destination_path)
 
     def _copy_single_object(
-        self, gcs_hook: GCSHook, sftp_hook: SFTPHook, source_object: str, destination_path: str,
+        self,
+        gcs_hook: GCSHook,
+        sftp_hook: SFTPHook,
+        source_object: str,
+        destination_path: str,
     ) -> None:
         """
         Helper function to copy single object.
         """
         self.log.info(
-            "Executing copy of gs://%s/%s to %s", self.source_bucket, source_object, destination_path,
+            "Executing copy of gs://%s/%s to %s",
+            self.source_bucket,
+            source_object,
+            destination_path,
         )
 
         dir_path = os.path.dirname(destination_path)
@@ -156,7 +163,9 @@ class GCSToSFTPOperator(BaseOperator):
 
         with NamedTemporaryFile("w") as tmp:
             gcs_hook.download(
-                bucket_name=self.source_bucket, object_name=source_object, filename=tmp.name,
+                bucket_name=self.source_bucket,
+                object_name=source_object,
+                filename=tmp.name,
             )
             sftp_hook.store_file(destination_path, tmp.name)
 

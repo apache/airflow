@@ -67,7 +67,10 @@ class TestAutoMLTrainModelOperator(unittest.TestCase):
     def test_execute(self, mock_hook, mock_xcom):
         mock_hook.return_value.extract_object_id.return_value = MODEL_ID
         op = AutoMLTrainModelOperator(
-            model=MODEL, location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID,
+            model=MODEL,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+            task_id=TASK_ID,
         )
         op.execute(context=None)
         mock_hook.return_value.create_model.assert_called_once_with(
@@ -135,7 +138,10 @@ class TestAutoMLCreateImportOperator(unittest.TestCase):
     def test_execute(self, mock_hook, mock_xcom):
         mock_hook.return_value.extract_object_id.return_value = DATASET_ID
         op = AutoMLCreateDatasetOperator(
-            dataset=DATASET, location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID,
+            dataset=DATASET,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+            task_id=TASK_ID,
         )
         op.execute(context=None)
         mock_hook.return_value.create_dataset.assert_called_once_with(
@@ -188,11 +194,18 @@ class TestAutoMLUpdateDatasetOperator(unittest.TestCase):
         dataset["name"] = DATASET_ID
 
         op = AutoMLTablesUpdateDatasetOperator(
-            dataset=dataset, update_mask=MASK, location=GCP_LOCATION, task_id=TASK_ID,
+            dataset=dataset,
+            update_mask=MASK,
+            location=GCP_LOCATION,
+            task_id=TASK_ID,
         )
         op.execute(context=None)
         mock_hook.return_value.update_dataset.assert_called_once_with(
-            dataset=dataset, metadata=None, retry=None, timeout=None, update_mask=MASK,
+            dataset=dataset,
+            metadata=None,
+            retry=None,
+            timeout=None,
+            update_mask=MASK,
         )
 
 
@@ -200,7 +213,10 @@ class TestAutoMLGetModelOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
         op = AutoMLGetModelOperator(
-            model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID,
+            model_id=MODEL_ID,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+            task_id=TASK_ID,
         )
         op.execute(context=None)
         mock_hook.return_value.get_model.assert_called_once_with(
@@ -217,7 +233,10 @@ class TestAutoMLDeleteModelOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
         op = AutoMLDeleteModelOperator(
-            model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID,
+            model_id=MODEL_ID,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+            task_id=TASK_ID,
         )
         op.execute(context=None)
         mock_hook.return_value.delete_model.assert_called_once_with(
@@ -309,7 +328,11 @@ class TestAutoMLDatasetListOperator(unittest.TestCase):
         op = AutoMLListDatasetOperator(location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID)
         op.execute(context=None)
         mock_hook.return_value.list_datasets.assert_called_once_with(
-            location=GCP_LOCATION, metadata=None, project_id=GCP_PROJECT_ID, retry=None, timeout=None,
+            location=GCP_LOCATION,
+            metadata=None,
+            project_id=GCP_PROJECT_ID,
+            retry=None,
+            timeout=None,
         )
         mock_xcom.assert_called_once_with(None, key="dataset_id_list", value=[])
 
@@ -318,7 +341,10 @@ class TestAutoMLDatasetDeleteOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
         op = AutoMLDeleteDatasetOperator(
-            dataset_id=DATASET_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID,
+            dataset_id=DATASET_ID,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+            task_id=TASK_ID,
         )
         op.execute(context=None)
         mock_hook.return_value.delete_dataset.assert_called_once_with(

@@ -95,7 +95,10 @@ class TestGoogleDataprepHook(unittest.TestCase):
         self.hook.get_job_group(JOB_ID, EMBED, INCLUDE_DELETED)
         mock_get_request.assert_called_once_with(
             f"{URL}/{JOB_ID}",
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}",},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {TOKEN}",
+            },
             params={"embed": "", "includeDeleted": False},
         )
 
@@ -118,7 +121,13 @@ class TestGoogleDataprepHook(unittest.TestCase):
 
     @patch(
         "airflow.providers.google.cloud.hooks.dataprep.requests.get",
-        side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), mock.MagicMock(),],
+        side_effect=[
+            HTTPError(),
+            HTTPError(),
+            HTTPError(),
+            HTTPError(),
+            mock.MagicMock(),
+        ],
     )
     def test_get_job_group_should_retry_after_four_errors(self, mock_get_request):
         self.hook.get_job_group.retry.sleep = mock.Mock()  # pylint: disable=no-member
@@ -143,7 +152,10 @@ class TestGoogleDataprepHook(unittest.TestCase):
         self.hook.run_job_group(body_request=DATA)
         mock_get_request.assert_called_once_with(
             f"{URL}",
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}",},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {TOKEN}",
+            },
             data=data,
         )
 
@@ -166,7 +178,13 @@ class TestGoogleDataprepHook(unittest.TestCase):
 
     @patch(
         "airflow.providers.google.cloud.hooks.dataprep.requests.post",
-        side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), mock.MagicMock(),],
+        side_effect=[
+            HTTPError(),
+            HTTPError(),
+            HTTPError(),
+            HTTPError(),
+            mock.MagicMock(),
+        ],
     )
     def test_run_job_group_should_retry_after_four_errors(self, mock_get_request):
         self.hook.run_job_group.retry.sleep = mock.Mock()  # pylint: disable=no-member

@@ -654,7 +654,8 @@ class BigQueryExecuteQueryOperator(BaseOperator):
             gcp_conn_id = bigquery_conn_id
 
         warnings.warn(
-            "This operator is deprecated. Please use `BigQueryInsertJobOperator`.", DeprecationWarning,
+            "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
+            DeprecationWarning,
         )
 
         self.sql = sql
@@ -1573,7 +1574,9 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         )
 
         return bq_hook.get_dataset_tables(
-            dataset_id=self.dataset_id, project_id=self.project_id, max_results=self.max_results,
+            dataset_id=self.dataset_id,
+            project_id=self.project_id,
+            max_results=self.max_results,
         )
 
 
@@ -1656,7 +1659,9 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         )
 
         return bq_hook.patch_dataset(
-            dataset_id=self.dataset_id, dataset_resource=self.dataset_resource, project_id=self.project_id,
+            dataset_id=self.dataset_id,
+            dataset_resource=self.dataset_resource,
+            project_id=self.project_id,
         )
 
 
@@ -1923,7 +1928,9 @@ class BigQueryUpsertTableOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         hook.run_table_upsert(
-            dataset_id=self.dataset_id, table_resource=self.table_resource, project_id=self.project_id,
+            dataset_id=self.dataset_id,
+            table_resource=self.table_resource,
+            project_id=self.project_id,
         )
 
 
@@ -2023,7 +2030,11 @@ class BigQueryInsertJobOperator(BaseOperator):
             with open(self.configuration, 'r') as file:
                 self.configuration = json.loads(file.read())
 
-    def _submit_job(self, hook: BigQueryHook, job_id: str,) -> BigQueryJob:
+    def _submit_job(
+        self,
+        hook: BigQueryHook,
+        job_id: str,
+    ) -> BigQueryJob:
         # Submit a new job
         job = hook.insert_job(
             configuration=self.configuration,
@@ -2068,7 +2079,11 @@ class BigQueryInsertJobOperator(BaseOperator):
             self._handle_job_error(job)
         except Conflict:
             # If the job already exists retrieve it
-            job = hook.get_job(project_id=self.project_id, location=self.location, job_id=job_id,)
+            job = hook.get_job(
+                project_id=self.project_id,
+                location=self.location,
+                job_id=job_id,
+            )
             if job.state in self.reattach_states:
                 # We are reattaching to a job
                 job.result()

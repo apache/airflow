@@ -447,7 +447,8 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
 
     def execute(self, context):
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            google_cloud_storage_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         hook.insert_bucket_acl(
             bucket_name=self.bucket, entity=self.entity, role=self.role, user_project=self.user_project
@@ -545,7 +546,8 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
 
     def execute(self, context):
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            google_cloud_storage_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         hook.insert_object_acl(
             bucket_name=self.bucket,

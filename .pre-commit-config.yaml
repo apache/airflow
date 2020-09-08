@@ -150,7 +150,7 @@ repos:
     hooks:
       - id: check-hooks-apply
   - repo: https://github.com/psf/black
-    rev: 19.10b0
+    rev: 20.8b1
     hooks:
       - id: black
         files: api_connexion/.*\.py|.*providers.*\.py

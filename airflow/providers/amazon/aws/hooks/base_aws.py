@@ -71,7 +71,9 @@ class _SessionFactory(LoggingMixin):
             self.log.info("Retrieving region_name from Connection.extra_config['region_name']")
             region_name = self.extra_config["region_name"]
         self.log.info(
-            "Creating session with aws_access_key_id=%s region_name=%s", aws_access_key_id, region_name,
+            "Creating session with aws_access_key_id=%s region_name=%s",
+            aws_access_key_id,
+            region_name,
         )
 
         return boto3.session.Session(
@@ -161,7 +163,9 @@ class _SessionFactory(LoggingMixin):
             assume_role_kwargs["ExternalId"] = self.extra_config.get("external_id")
         role_session_name = f"Airflow_{self.conn.conn_id}"
         self.log.info(
-            "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)", role_arn, role_session_name,
+            "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
+            role_arn,
+            role_session_name,
         )
         return sts_client.assume_role(
             RoleArn=role_arn, RoleSessionName=role_session_name, **assume_role_kwargs
@@ -317,7 +321,8 @@ class AwsBaseHook(BaseHook):
             # http://boto3.readthedocs.io/en/latest/guide/configuration.html
 
         self.log.info(
-            "Creating session using boto3 credential strategy region_name=%s", region_name,
+            "Creating session using boto3 credential strategy region_name=%s",
+            region_name,
         )
         session = boto3.session.Session(region_name=region_name)
         return session, None

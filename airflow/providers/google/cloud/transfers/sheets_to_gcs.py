@@ -92,7 +92,11 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def _upload_data(
-        self, gcs_hook: GCSHook, hook: GSheetsHook, sheet_range: str, sheet_values: List[Any],
+        self,
+        gcs_hook: GCSHook,
+        hook: GSheetsHook,
+        sheet_range: str,
+        sheet_values: List[Any],
     ) -> str:
         # Construct destination file path
         sheet = hook.get_spreadsheet(self.spreadsheet_id)
@@ -109,7 +113,9 @@ class GoogleSheetsToGCSOperator(BaseOperator):
 
             # Upload to GCS
             gcs_hook.upload(
-                bucket_name=self.destination_bucket, object_name=dest_file_name, filename=temp_file.name,
+                bucket_name=self.destination_bucket,
+                object_name=dest_file_name,
+                filename=temp_file.name,
             )
         return dest_file_name
 

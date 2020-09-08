@@ -67,7 +67,11 @@ class TestSSHOperator(unittest.TestCase):
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_json_command_execution(self):
         task = SSHOperator(
-            task_id="test", ssh_hook=self.hook, command=COMMAND, do_xcom_push=True, dag=self.dag,
+            task_id="test",
+            ssh_hook=self.hook,
+            command=COMMAND,
+            do_xcom_push=True,
+            dag=self.dag,
         )
 
         self.assertIsNotNone(task)
@@ -82,7 +86,11 @@ class TestSSHOperator(unittest.TestCase):
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_pickle_command_execution(self):
         task = SSHOperator(
-            task_id="test", ssh_hook=self.hook, command=COMMAND, do_xcom_push=True, dag=self.dag,
+            task_id="test",
+            ssh_hook=self.hook,
+            command=COMMAND,
+            do_xcom_push=True,
+            dag=self.dag,
         )
 
         self.assertIsNotNone(task)
@@ -112,7 +120,11 @@ class TestSSHOperator(unittest.TestCase):
 
     def test_no_output_command(self):
         task = SSHOperator(
-            task_id="test", ssh_hook=self.hook, command="sleep 1", do_xcom_push=True, dag=self.dag,
+            task_id="test",
+            ssh_hook=self.hook,
+            command="sleep 1",
+            do_xcom_push=True,
+            dag=self.dag,
         )
 
         self.assertIsNotNone(task)

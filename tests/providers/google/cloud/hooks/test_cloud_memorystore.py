@@ -53,7 +53,9 @@ TEST_NAME_DEFAULT_PROJECT_ID = "projects/{}/locations/test-location/instances/te
 
 
 class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
-    def setUp(self,):
+    def setUp(
+        self,
+    ):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -204,7 +206,9 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
 
 
 class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
-    def setUp(self,):
+    def setUp(
+        self,
+    ):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

@@ -258,7 +258,10 @@ class TestDatabricksHook(unittest.TestCase):
         self.assertEqual(run_id, '1')
         mock_requests.post.assert_called_once_with(
             submit_run_endpoint(HOST),
-            json={'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER,},
+            json={
+                'notebook_task': NOTEBOOK_TASK,
+                'new_cluster': NEW_CLUSTER,
+            },
             params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
@@ -274,7 +277,10 @@ class TestDatabricksHook(unittest.TestCase):
         self.assertEqual(run_id, '1')
         mock_requests.post.assert_called_once_with(
             submit_run_endpoint(HOST),
-            json={'spark_python_task': SPARK_PYTHON_TASK, 'new_cluster': NEW_CLUSTER,},
+            json={
+                'spark_python_task': SPARK_PYTHON_TASK,
+                'new_cluster': NEW_CLUSTER,
+            },
             params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,

@@ -126,7 +126,16 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         export_method = get_conn.return_value.instances.return_value.export
         execute_method = export_method.return_value.execute
         execute_method.side_effect = [
-            HttpError(resp=type('', (object,), {"status": 429,})(), content=b'Internal Server Error'),
+            HttpError(
+                resp=type(
+                    '',
+                    (object,),
+                    {
+                        "status": 429,
+                    },
+                )(),
+                content=b'Internal Server Error',
+            ),
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
@@ -189,7 +198,16 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         insert_method = get_conn.return_value.instances.return_value.insert
         execute_method = insert_method.return_value.execute
         execute_method.side_effect = [
-            HttpError(resp=type('', (object,), {"status": 429,})(), content=b'Internal Server Error'),
+            HttpError(
+                resp=type(
+                    '',
+                    (object,),
+                    {
+                        "status": 429,
+                    },
+                )(),
+                content=b'Internal Server Error',
+            ),
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
@@ -214,7 +232,16 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         patch_method = get_conn.return_value.instances.return_value.patch
         execute_method = patch_method.return_value.execute
         execute_method.side_effect = [
-            HttpError(resp=type('', (object,), {"status": 429,})(), content=b'Internal Server Error'),
+            HttpError(
+                resp=type(
+                    '',
+                    (object,),
+                    {
+                        "status": 429,
+                    },
+                )(),
+                content=b'Internal Server Error',
+            ),
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
@@ -283,7 +310,16 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         delete_method = get_conn.return_value.instances.return_value.delete
         execute_method = delete_method.return_value.execute
         execute_method.side_effect = [
-            HttpError(resp=type('', (object,), {"status": 429,})(), content=b'Internal Server Error'),
+            HttpError(
+                resp=type(
+                    '',
+                    (object,),
+                    {
+                        "status": 429,
+                    },
+                )(),
+                content=b'Internal Server Error',
+            ),
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
@@ -353,7 +389,16 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         insert_method = get_conn.return_value.databases.return_value.insert
         execute_method = insert_method.return_value.execute
         execute_method.side_effect = [
-            HttpError(resp=type('', (object,), {"status": 429,})(), content=b'Internal Server Error'),
+            HttpError(
+                resp=type(
+                    '',
+                    (object,),
+                    {
+                        "status": 429,
+                    },
+                )(),
+                content=b'Internal Server Error',
+            ),
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
@@ -404,7 +449,16 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         patch_method = get_conn.return_value.databases.return_value.patch
         execute_method = patch_method.return_value.execute
         execute_method.side_effect = [
-            HttpError(resp=type('', (object,), {"status": 429,})(), content=b'Internal Server Error'),
+            HttpError(
+                resp=type(
+                    '',
+                    (object,),
+                    {
+                        "status": 429,
+                    },
+                )(),
+                content=b'Internal Server Error',
+            ),
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
@@ -455,7 +509,16 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         delete_method = get_conn.return_value.databases.return_value.delete
         execute_method = delete_method.return_value.execute
         execute_method.side_effect = [
-            HttpError(resp=type('', (object,), {"status": 429,})(), content=b'Internal Server Error'),
+            HttpError(
+                resp=type(
+                    '',
+                    (object,),
+                    {
+                        "status": 429,
+                    },
+                )(),
+                content=b'Internal Server Error',
+            ),
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
@@ -889,7 +952,13 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
     def test_cloudsql_database_hook_get_sqlproxy_runner_no_proxy(self, get_connection):
         connection = Connection(uri="http://user:password@host:80/database")
         connection.set_extra(
-            json.dumps({"location": "test", "instance": "instance", "database_type": "postgres",})
+            json.dumps(
+                {
+                    "location": "test",
+                    "instance": "instance",
+                    "database_type": "postgres",
+                }
+            )
         )
         get_connection.return_value = connection
         hook = CloudSQLDatabaseHook(
@@ -926,7 +995,13 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
     def test_cloudsql_database_hook_get_database_hook(self, get_connection):
         connection = Connection(uri="http://user:password@host:80/database")
         connection.set_extra(
-            json.dumps({"location": "test", "instance": "instance", "database_type": "postgres",})
+            json.dumps(
+                {
+                    "location": "test",
+                    "instance": "instance",
+                    "database_type": "postgres",
+                }
+            )
         )
         get_connection.return_value = connection
         hook = CloudSQLDatabaseHook(
@@ -953,7 +1028,10 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
             '"instance":"my_instance", "use_proxy": true, '
             '"project_id":"my_project"}',
         )
-        self.connection = Connection(conn_id='my_gcp_connection', conn_type='google_cloud_platform',)
+        self.connection = Connection(
+            conn_id='my_gcp_connection',
+            conn_type='google_cloud_platform',
+        )
         scopes = [
             "https://www.googleapis.com/auth/pubsub",
             "https://www.googleapis.com/auth/datastore",

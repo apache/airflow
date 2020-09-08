@@ -31,7 +31,12 @@ class TestPrestoHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(login='login', password='password', host='host', schema='hive',)
+        self.connection = Connection(
+            login='login',
+            password='password',
+            host='host',
+            schema='hive',
+        )
 
         class UnitTestPrestoHook(PrestoHook):
             conn_name_attr = 'presto_conn_id'

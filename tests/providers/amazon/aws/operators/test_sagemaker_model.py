@@ -35,7 +35,10 @@ image = 'test-image'
 output_url = 's3://{}/test/output'.format(bucket)
 create_model_params = {
     'ModelName': model_name,
-    'PrimaryContainer': {'Image': image, 'ModelDataUrl': output_url,},
+    'PrimaryContainer': {
+        'Image': image,
+        'ModelDataUrl': output_url,
+    },
     'ExecutionRoleArn': role,
 }
 

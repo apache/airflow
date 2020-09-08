@@ -193,7 +193,13 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
             ("/api/v1/connections?limit=2", ['TEST_CONN_ID1', "TEST_CONN_ID2"]),
             (
                 "/api/v1/connections?offset=5",
-                ["TEST_CONN_ID6", "TEST_CONN_ID7", "TEST_CONN_ID8", "TEST_CONN_ID9", "TEST_CONN_ID10",],
+                [
+                    "TEST_CONN_ID6",
+                    "TEST_CONN_ID7",
+                    "TEST_CONN_ID8",
+                    "TEST_CONN_ID9",
+                    "TEST_CONN_ID10",
+                ],
             ),
             (
                 "/api/v1/connections?offset=0",
@@ -212,7 +218,10 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
             ),
             ("/api/v1/connections?limit=1&offset=5", ["TEST_CONN_ID6"]),
             ("/api/v1/connections?limit=1&offset=1", ["TEST_CONN_ID2"]),
-            ("/api/v1/connections?limit=2&offset=2", ["TEST_CONN_ID3", "TEST_CONN_ID4"],),
+            (
+                "/api/v1/connections?limit=2&offset=2",
+                ["TEST_CONN_ID3", "TEST_CONN_ID4"],
+            ),
         ]
     )
     @provide_session

@@ -47,12 +47,17 @@ class TestMakeSummary(unittest.TestCase):
 
         with self.assertRaises(SystemExit):
             mlengine_prediction_summary.run(
-                ["--prediction_path=some/path",]
+                [
+                    "--prediction_path=some/path",
+                ]
             )
 
         with self.assertRaises(SystemExit):
             mlengine_prediction_summary.run(
-                ["--prediction_path=some/path", "--metric_fn_encoded=encoded_text",]
+                [
+                    "--prediction_path=some/path",
+                    "--metric_fn_encoded=encoded_text",
+                ]
             )
 
     def test_run_should_fail_for_invalid_encoded_fn(self):
@@ -71,7 +76,11 @@ class TestMakeSummary(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             mlengine_prediction_summary.run(
-                ["--prediction_path=some/path", "--metric_fn_encoded=" + fn_enc, "--metric_keys=a",]
+                [
+                    "--prediction_path=some/path",
+                    "--metric_fn_encoded=" + fn_enc,
+                    "--metric_keys=a",
+                ]
             )
 
     @mock.patch.object(mlengine_prediction_summary.beam.pipeline, "PipelineOptions")
@@ -84,7 +93,11 @@ class TestMakeSummary(unittest.TestCase):
         fn_enc = base64.b64encode(dill.dumps(metric_function)).decode('utf-8')
 
         mlengine_prediction_summary.run(
-            ["--prediction_path=some/path", "--metric_fn_encoded=" + fn_enc, "--metric_keys=a",]
+            [
+                "--prediction_path=some/path",
+                "--metric_fn_encoded=" + fn_enc,
+                "--metric_keys=a",
+            ]
         )
 
         pipeline_mock.assert_called_once_with([])

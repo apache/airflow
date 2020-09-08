@@ -181,7 +181,9 @@ class PubSubPullSensor(BaseSensorOperator):
 
         if pulled_messages and self.ack_messages:
             hook.acknowledge(
-                project_id=self.project_id, subscription=self.subscription, messages=pulled_messages,
+                project_id=self.project_id,
+                subscription=self.subscription,
+                messages=pulled_messages,
             )
 
         return bool(pulled_messages)

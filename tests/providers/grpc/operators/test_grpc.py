@@ -37,7 +37,10 @@ class TestGrpcOperator(unittest.TestCase):
     @mock.patch('airflow.providers.grpc.operators.grpc.GrpcHook')
     def test_with_interceptors(self, mock_hook):
         operator = GrpcOperator(
-            stub_class=StubClass, call_func="stream_call", interceptors=[], task_id="test_grpc",
+            stub_class=StubClass,
+            call_func="stream_call",
+            interceptors=[],
+            task_id="test_grpc",
         )
 
         operator.execute({})
@@ -63,7 +66,10 @@ class TestGrpcOperator(unittest.TestCase):
         mock_hook.return_value = mocked_hook
         mocked_hook.configure_mock(**{'run.return_value': ["value1", "value2"]})
         operator = GrpcOperator(
-            stub_class=StubClass, call_func="stream_call", log_response=True, task_id="test_grpc",
+            stub_class=StubClass,
+            call_func="stream_call",
+            log_response=True,
+            task_id="test_grpc",
         )
 
         with mock.patch.object(operator.log, 'info') as mock_info:
