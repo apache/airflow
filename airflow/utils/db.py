@@ -462,10 +462,8 @@ def initdb(rbac=False):
 
     merge_conn(
         Connection(
-            conn_id='qcos_mino', conn_type='http',
-            host='172.17.0.1', port=9000,
-            login='minio',
-            password='minio123'
+            conn_id='qcos_minio', conn_type='http',
+            host='172.17.0.1', port=9000
         ), session)
 
     merge_conn(
