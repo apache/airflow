@@ -352,12 +352,15 @@ class DatabricksRunNowOperator(BaseOperator):
 
         python_params = ["douglas adams", "42"]
 
+        jar_params = ["douglas adams", "42"]
+
         spark_submit_params = ["--class", "org.apache.spark.examples.SparkPi"]
 
         notebook_run = DatabricksRunNowOperator(
             job_id=job_id,
             notebook_params=notebook_params,
             python_params=python_params,
+            jar_params=jar_params,
             spark_submit_params=spark_submit_params
         )
 
@@ -370,6 +373,7 @@ class DatabricksRunNowOperator(BaseOperator):
         - ``json``
         - ``notebook_params``
         - ``python_params``
+        - ``jar_params``
         - ``spark_submit_params``
 
 
@@ -427,6 +431,18 @@ class DatabricksRunNowOperator(BaseOperator):
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
     :type spark_submit_params: list[str]
+    :param jar_params: A list of parameters for jobs with JAR tasks, 
+        e.g. "jar_params": ["john doe", "35"]. The parameters will be used to invoke 
+        the main function of the main class specified in the Spark JAR task. If not 
+        specified upon run-now, it will default to an empty list. jar_params cannot be 
+        specified in conjunction with notebook_params. 
+        The JSON representation of this field (i.e. {"jar_params":["john doe","35"]}) 
+        cannot exceed 10,000 bytes.
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/latest/jobs.html#run-now
+    :type jar_params: list[str]
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
         This field will be templated.
@@ -462,6 +478,7 @@ class DatabricksRunNowOperator(BaseOperator):
         notebook_params=None,
         python_params=None,
         spark_submit_params=None,
+        jar_params=None,
         databricks_conn_id='databricks_default',
         polling_period_seconds=30,
         databricks_retry_limit=3,
@@ -487,6 +504,8 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json['python_params'] = python_params
         if spark_submit_params is not None:
             self.json['spark_submit_params'] = spark_submit_params
+        if jar_params is not None:
+            self.json['jar_params'] = jar_params
 
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
