@@ -431,12 +431,12 @@ class DatabricksRunNowOperator(BaseOperator):
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
     :type spark_submit_params: list[str]
-    :param jar_params: A list of parameters for jobs with JAR tasks, 
-        e.g. "jar_params": ["john doe", "35"]. The parameters will be used to invoke 
-        the main function of the main class specified in the Spark JAR task. If not 
-        specified upon run-now, it will default to an empty list. jar_params cannot be 
-        specified in conjunction with notebook_params. 
-        The JSON representation of this field (i.e. {"jar_params":["john doe","35"]}) 
+    :param jar_params: A list of parameters for jobs with JAR tasks,
+        e.g. "jar_params": ["john doe", "35"]. The parameters will be used to invoke
+        the main function of the main class specified in the Spark JAR task. If not
+        specified upon run-now, it will default to an empty list. jar_params cannot be
+        specified in conjunction with notebook_params.
+        The JSON representation of this field (i.e. {"jar_params":["john doe","35"]})
         cannot exceed 10,000 bytes.
         This field will be templated.
 
