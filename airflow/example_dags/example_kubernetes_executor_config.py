@@ -39,6 +39,19 @@ with DAG(
     tags=['example'],
 ) as dag:
 
+    def test_sharedvolume_mount():
+        """
+        Tests whether the volume has been mounted.
+        """
+        for i in range(5):
+            try:
+                return_code = os.system("cat /shared/test.txt")
+                if return_code != 0:
+                    raise ValueError(f"Error when checking volume mount. Return code {return_code}")
+            except ValueError as e:
+                if i > 4:
+                    raise e
+
     def test_volume_mount():
         """
         Tests whether the volume has been mounted.
@@ -96,7 +109,7 @@ with DAG(
     # [START task_with_sidecar]
     sidecar_task = PythonOperator(
         task_id="task_with_sidecar",
-        python_callable=test_volume_mount,
+        python_callable=test_sharedvolume_mount,
         executor_config={
             "pod_override": k8s.V1Pod(
                 spec=k8s.V1PodSpec(
@@ -111,6 +124,8 @@ with DAG(
                         k8s.V1Container(
                             name="sidecar",
                             image="ubuntu",
+                            args=["echo \"retrieved from mount\" > /shared/test.txt"],
+                            command=["bash", "-cx"],
                             volume_mounts=[k8s.V1VolumeMount(
                                 mount_path="/shared/",
                                 name="shared-empty-dir"
