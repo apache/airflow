@@ -68,8 +68,8 @@ Example, for **Postgres**:
    CREATE USER airflow WITH PASSWORD 'airflow';
    GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow;
 
-You may need to update your Postgres `pg_hba.conf` to add the
-`airflow` user to the database access control list; and to reload
+You may need to update your Postgres ``pg_hba.conf`` to add the
+``airflow`` user to the database access control list; and to reload
 the database configuration to load your change. See
 [The pg_hba.conf File](https://www.postgresql.org/docs/current/auth-pg-hba-conf.html)
 in the Postgres documentation to learn more.
