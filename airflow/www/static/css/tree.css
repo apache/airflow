@@ -83,6 +83,10 @@ rect.skipped {
   fill: pink;
 }
 
+rect.sensing {
+  fill: lightseagreen;
+}
+
 .tooltip.in {
   opacity: 1;
   filter: alpha(opacity=100);

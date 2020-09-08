@@ -506,9 +506,9 @@ class TestAirflowBaseViews(TestBase):
             val_state_color_mapping = 'const STATE_COLOR = {"failed": "red", ' \
                                       '"null": "lightblue", "queued": "gray", ' \
                                       '"removed": "lightgrey", "running": "lime", ' \
-                                      '"scheduled": "tan", "shutdown": "blue", ' \
-                                      '"skipped": "pink", "success": "green", ' \
-                                      '"up_for_reschedule": "turquoise", ' \
+                                      '"scheduled": "tan", "sensing": "lightseagreen", ' \
+                                      '"shutdown": "blue", "skipped": "pink", ' \
+                                      '"success": "green", "up_for_reschedule": "turquoise", ' \
                                       '"up_for_retry": "gold", "upstream_failed": "orange"};'
             self.check_content_in_response(val_state_color_mapping, resp)
 
@@ -1163,9 +1163,9 @@ class TestLogView(TestBase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('Log by attempts', response.data.decode('utf-8'))
         for num in range(1, expected_num_logs_visible + 1):
-            self.assertIn('try-{}'.format(num), response.data.decode('utf-8'))
-        self.assertNotIn('try-0', response.data.decode('utf-8'))
-        self.assertNotIn('try-{}'.format(expected_num_logs_visible + 1), response.data.decode('utf-8'))
+            self.assertIn('log-group-{}'.format(num), response.data.decode('utf-8'))
+        self.assertNotIn('log-group-0', response.data.decode('utf-8'))
+        self.assertNotIn('log-group-{}'.format(expected_num_logs_visible + 1), response.data.decode('utf-8'))
 
     def test_get_logs_with_metadata_as_download_file(self):
         url_template = "get_logs_with_metadata?dag_id={}&" \
@@ -1191,10 +1191,10 @@ class TestLogView(TestBase):
 
     def test_get_logs_with_metadata_as_download_large_file(self):
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
-            first_return = (['1st line'], [{}])
-            second_return = (['2nd line'], [{'end_of_log': False}])
-            third_return = (['3rd line'], [{'end_of_log': True}])
-            fourth_return = (['should never be read'], [{'end_of_log': True}])
+            first_return = ([[('default_log', '1st line')]], [{}])
+            second_return = ([[('default_log', '2nd line')]], [{'end_of_log': False}])
+            third_return = ([[('default_log', '3rd line')]], [{'end_of_log': True}])
+            fourth_return = ([[('default_log', 'should never be read')]], [{'end_of_log': True}])
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
             url_template = "get_logs_with_metadata?dag_id={}&" \
                            "task_id={}&execution_date={}&" \
@@ -1300,7 +1300,7 @@ class TestLogView(TestBase):
         response = self.client.get(url)
         self.assertIn('message', response.json)
         self.assertIn('metadata', response.json)
-        self.assertIn('Log for testing.', response.json['message'])
+        self.assertIn('Log for testing.', response.json['message'][0][1])
         self.assertEqual(200, response.status_code)
 
     @mock.patch("airflow.www.views.TaskLogReader")
