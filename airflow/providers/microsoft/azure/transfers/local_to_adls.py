@@ -16,7 +16,7 @@
 # under the License.
 
 from typing import Dict, Any, Optional
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
 from airflow.utils.decorators import apply_defaults
@@ -67,7 +67,7 @@ class AzureDataLakeStorageUploadOperator(BaseOperator):
         extra_upload_options: Optional[Dict[str, Any]] = None,
         azure_data_lake_conn_id: str = 'azure_data_lake_default',
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.local_path = local_path
         self.remote_path = remote_path
@@ -78,7 +78,7 @@ class AzureDataLakeStorageUploadOperator(BaseOperator):
         self.extra_upload_options = extra_upload_options
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 
-    def execute(self, context):
+    def execute(self, context: Dict[Any, Any]):
         if '**' in self.local_path:
             raise AirflowException("Recursive glob patterns using `**` are not supported")
         if not self.extra_upload_options:
