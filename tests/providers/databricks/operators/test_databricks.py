@@ -293,12 +293,14 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         json dict.
         """
         override_notebook_params = {'workers': 999}
+        override_jar_params = {'workers': 999}
         json = {'notebook_params': NOTEBOOK_PARAMS, 'jar_params': JAR_PARAMS}
 
         op = DatabricksRunNowOperator(
             task_id=TASK_ID,
             json=json,
             job_id=JOB_ID,
+            jar_params=override_jar_params,
             notebook_params=override_notebook_params,
             python_params=PYTHON_PARAMS,
             spark_submit_params=SPARK_SUBMIT_PARAMS,
@@ -307,7 +309,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         expected = databricks_operator._deep_string_coerce(
             {
                 'notebook_params': override_notebook_params,
-                'jar_params': JAR_PARAMS,
+                'jar_params': override_jar_params,
                 'python_params': PYTHON_PARAMS,
                 'spark_submit_params': SPARK_SUBMIT_PARAMS,
                 'job_id': JOB_ID,
