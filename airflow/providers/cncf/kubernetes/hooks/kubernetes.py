@@ -39,10 +39,13 @@ class KubernetesHook(BaseHook):
     Creates Kubernetes API connection.
 
     - use in cluster configuration by using ``extra__kubernetes__in_cluster`` in connection
-    - use custom configuration either by providing content of kubeconfig file via
-        ``extra__kubernetes__kube_config`` in connection
     - use custom config by providing path to the file using ``extra__kubernetes__kube_config_path``
+    - use custom configuration by providing content of kubeconfig file via
+        ``extra__kubernetes__kube_config`` in connection
     - use default config by providing no extras
+
+    This hook check for configuration option in the above order. Once an option is present it will
+    use this configuration.
 
     .. seealso::
         For more information about Kubernetes connection:
@@ -72,15 +75,16 @@ class KubernetesHook(BaseHook):
         if extras.get("extra__kubernetes__in_cluster"):
             self.log.debug("loading kube_config from: in_cluster configuration")
             config.load_incluster_config()
-        elif kubeconfig_path is not None:
+            return client.ApiClient()
+
+        if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
             config.load_kube_config(
                 config_file=kubeconfig_path, client_configuration=self.client_configuration
             )
-        elif kubeconfig is None:
-            self.log.debug("loading kube_config from: default file")
-            config.load_kube_config(client_configuration=self.client_configuration)
-        else:
+            return client.ApiClient()
+
+        if kubeconfig is not None:
             with tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug("loading kube_config from: connection kube_config")
                 temp_config.write(kubeconfig.encode())
@@ -88,6 +92,10 @@ class KubernetesHook(BaseHook):
                 config.load_kube_config(
                     config_file=temp_config.name, client_configuration=self.client_configuration
                 )
+            return client.ApiClient()
+
+        self.log.debug("loading kube_config from: default file")
+        config.load_kube_config(client_configuration=self.client_configuration)
         return client.ApiClient()
 
     @cached_property
