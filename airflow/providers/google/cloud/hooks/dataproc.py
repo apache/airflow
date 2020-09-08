@@ -851,7 +851,7 @@ class DataprocHook(GoogleBaseHook):
         self,
         job_id: str,
         project_id: str,
-        location: str = 'global',
+        location: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -874,7 +874,15 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
+        if location is None:
+            warnings.warn(
+                "Default location value `global` will be deprecated. Please, provide location value.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            location = 'global'
         client = self.get_job_client(location=location)
+
         job = client.cancel_job(
             project_id=project_id,
             region=location,
