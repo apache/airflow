@@ -28,9 +28,7 @@ from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.models.connection import Connection
 
 CursorType = Union[
-    psycopg2.extras.DictCursor,
-    psycopg2.extras.RealDictCursor,
-    psycopg2.extras.NamedTupleCursor
+    psycopg2.extras.DictCursor, psycopg2.extras.RealDictCursor, psycopg2.extras.NamedTupleCursor
 ]
 
 
@@ -199,11 +197,9 @@ class PostgresHook(DbApiHook):
         return login, token, port
 
     @staticmethod
-    def _generate_insert_sql(table: str,
-                             values: Tuple[Any],
-                             target_fields: Iterable[str],
-                             replace: bool,
-                             **kwargs) -> str:
+    def _generate_insert_sql(
+        table: str, values: Tuple[Any], target_fields: Iterable[str], replace: bool, **kwargs
+    ) -> str:
         """
         Static helper method that generate the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
