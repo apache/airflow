@@ -130,7 +130,7 @@ class ClusterGenerator:
     :type internal_ip_only: bool
     :param tags: The GCE tags to add to all instances
     :type tags: list[str]
-    :param region: leave as 'global', might become relevant in the future. (templated)
+    :param region: The specified region where the dataproc cluster is created.
     :type region: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
@@ -420,7 +420,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
     :type cluster_config: Union[Dict, google.cloud.dataproc_v1.types.ClusterConfig]
-    :param region: leave as 'global', might become relevant in the future. (templated)
+    :param region: The specified region where the dataproc cluster is created.
     :type region: str
     :parm delete_on_error: If true the cluster will be deleted if created with ERROR state. Default
         value is true.
@@ -466,7 +466,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self,
         *,
         cluster_name: str,
-        region: str = 'global',
+        region: Optional[str] = None,
         project_id: Optional[str] = None,
         cluster_config: Optional[Dict] = None,
         labels: Optional[Dict] = None,
@@ -480,6 +480,14 @@ class DataprocCreateClusterOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
+        if region is None:
+            warnings.warn(
+                "Default region value `global` will be deprecated. Please, provide region value.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            region = 'global'
+
         # TODO: remove one day
         if cluster_config is None:
             warnings.warn(
@@ -916,7 +924,7 @@ class DataprocJobBaseOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
-        region: str = 'global',
+        region: Optional[str] = None,
         job_error_states: Optional[Set[str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
@@ -930,7 +938,16 @@ class DataprocJobBaseOperator(BaseOperator):
         self.cluster_name = cluster_name
         self.dataproc_properties = dataproc_properties
         self.dataproc_jars = dataproc_jars
+
+        if region is None:
+            warnings.warn(
+                "Default region value `global` will be deprecated. Please, provide region value.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            region = 'global'
         self.region = region
+
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
         self.impersonation_chain = impersonation_chain
 
@@ -1549,7 +1566,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     :param project_id: The ID of the google cloud project in which
         the template runs
     :type project_id: str
-    :param region: leave as 'global', might become relevant in the future
+    :param region: The specified region where the dataproc cluster is created.
     :type region: str
     :param parameters: a map of parameters for Dataproc Template in key-value format:
         map (key: string, value: string)
@@ -1651,7 +1668,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     :param project_id: The ID of the google cloud project in which
         the template runs
     :type project_id: str
-    :param region: leave as 'global', might become relevant in the future
+    :param region: The specified region where the dataproc cluster is created.
     :type region: str
     :param parameters: a map of parameters for Dataproc Template in key-value format:
         map (key: string, value: string)
