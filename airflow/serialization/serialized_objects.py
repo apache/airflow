@@ -607,8 +607,9 @@ class SerializedDAG(DAG, BaseSerialization):
             setattr(dag, k, v)
 
         # Set _task_group
+        # pylint: disable=protected-access
         if "_task_group" in encoded_dag:
-            dag._task_group = SerializedTaskGroup.deserialize_task_group(  # pylint: disable=protected-access
+            dag._task_group = SerializedTaskGroup.deserialize_task_group(  # type: ignore
                 encoded_dag["_task_group"],
                 None,
                 dag.task_dict
@@ -616,9 +617,10 @@ class SerializedDAG(DAG, BaseSerialization):
         else:
             # This must be old data that had no task_group. Create a root TaskGroup and add
             # all tasks to it.
-            dag._task_group = TaskGroup.create_root(dag)  # pylint: disable=protected-access
+            dag._task_group = TaskGroup.create_root(dag)
             for task in dag.tasks:
                 dag.task_group.add(task)
+        # pylint: enable=protected-access
 
         keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:
@@ -671,7 +673,8 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
     """
     @classmethod
     def serialize_task_group(cls, task_group: TaskGroup) -> Optional[Union[Dict[str, Any]]]:
-        """Serializes TaskGroup into a JSON object.
+        """
+        Serializes TaskGroup into a JSON object.
         """
         if not task_group:
             return None
@@ -704,7 +707,8 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         parent_group: Optional[TaskGroup],
         task_dict: Dict[str, BaseOperator]
     ) -> Optional[TaskGroup]:
-        """Deserializes a TaskGroup from a JSON object.
+        """
+        Deserializes a TaskGroup from a JSON object.
         """
         if not encoded_group:
             return None

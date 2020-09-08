@@ -115,14 +115,14 @@ class TaskGroup:
         self.downstream_task_ids: Set[Optional[str]] = set()
 
     @classmethod
-    def create_root(cls, dag: "DAG"):
+    def create_root(cls, dag: "DAG") -> "TaskGroup":
         """
         Create a root TaskGroup with no group_id or parent.
         """
         return cls(group_id=None, dag=dag)
 
     @property
-    def is_root(self):
+    def is_root(self) -> bool:
         """
         Returns True if this TaskGroup is the root TaskGroup. Otherwise False
         """
@@ -162,7 +162,7 @@ class TaskGroup:
         return self._group_id
 
     @property
-    def label(self):
+    def label(self) -> Optional[str]:
         """
         group_id excluding parent's group_id used as the node label in UI.
         """
@@ -305,7 +305,7 @@ class TaskGroup:
         return label
 
     @property
-    def upstream_join_id(self):
+    def upstream_join_id(self) -> str:
         """
         If this TaskGroup has immediate upstream TaskGroups or tasks, a dummy node called
         upstream_join_id will be created in Graph View to join the outgoing edges from this
@@ -314,7 +314,7 @@ class TaskGroup:
         return f"{self.group_id}.upstream_join_id"
 
     @property
-    def downstream_join_id(self):
+    def downstream_join_id(self) -> str:
         """
         If this TaskGroup has immediate downstream TaskGroups or tasks, a dummy node called
         downstream_join_id will be created in Graph View to join the outgoing edges from this
@@ -340,7 +340,7 @@ class TaskGroup:
         build_map(self)
         return task_group_map
 
-    def get_child_by_label(self, label):
+    def get_child_by_label(self, label: str) -> Union["BaseOperator", "TaskGroup"]:
         """
         Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)
         """
@@ -377,7 +377,7 @@ class TaskGroupContext:
         return old_task_group
 
     @classmethod
-    def get_current_task_group(cls, dag) -> Optional[TaskGroup]:
+    def get_current_task_group(cls, dag: Optional["DAG"]) -> Optional[TaskGroup]:
         """
         Get the current TaskGroup.
         """
