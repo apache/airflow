@@ -28,7 +28,7 @@ import os
 import re
 import uuid
 from functools import reduce
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 
 import yaml
 from dateutil import parser
@@ -479,7 +479,8 @@ class PodGenerator:
         kube_executor_config: Optional[k8s.V1Pod],
         worker_config: k8s.V1Pod,
         namespace: str,
-        worker_uuid: str
+        worker_uuid: str,
+        run_as_args: bool = False
     ) -> k8s.V1Pod:
         """
         Construct a pod by gathering and consolidating the configuration from 3 places:
@@ -487,6 +488,12 @@ class PodGenerator:
             - executor_config
             - dynamic arguments
         """
+
+        if run_as_args:
+            cmds, args = None, command
+        else:
+            cmds, args = command, None
+
         dynamic_pod = PodGenerator(
             namespace=namespace,
             labels={
@@ -504,7 +511,8 @@ class PodGenerator:
                 'execution_date': date.isoformat(),
                 'try_number': str(try_number),
             },
-            cmds=command,
+            cmds=cmds,
+            args=args,
             name=pod_id
         ).gen_pod()
 

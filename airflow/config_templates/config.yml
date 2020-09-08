@@ -2262,6 +2262,13 @@
       type: string
       example: '{"grace_period_seconds": 10}'
       default: ""
+    - name: run_as_args
+      description: |
+        Pass the command invoking the task runner as container args instead of a container command. Useful if you have a
+        custom entrypoint script that needs to be run.
+      type: boolean
+      example: True
+      default: False
     - name: run_as_user
       description: |
         Specifies the uid to run the first process of the worker pods containers as

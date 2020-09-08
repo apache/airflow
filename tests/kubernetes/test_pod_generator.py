@@ -470,6 +470,68 @@ class TestPodGenerator(unittest.TestCase):
         }, sanitized_result)
 
     @mock.patch('uuid.uuid4')
+    def test_construct_pod_empty_worker_config_run_as_args(self, mock_uuid):
+        mock_uuid.return_value = self.static_uuid
+        executor_config = k8s.V1Pod(
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name='',
+                        resources=k8s.V1ResourceRequirements(
+                            limits={
+                                'cpu': '1m',
+                                'memory': '1G'
+                            }
+                        )
+                    )
+                ]
+            )
+        )
+        worker_config = k8s.V1Pod()
+
+        result = PodGenerator.construct_pod(
+            self.dag_id,
+            self.task_id,
+            'pod_id',
+            self.try_number,
+            self.execution_date,
+            ['command'],
+            executor_config,
+            worker_config,
+            'namespace',
+            'uuid',
+            run_as_args=True,
+        )
+        sanitized_result = self.k8s_client.sanitize_for_serialization(result)
+
+        self.assertEqual({
+            'apiVersion': 'v1',
+            'kind': 'Pod',
+            'metadata': self.metadata,
+            'spec': {
+                'containers': [{
+                    'args': ['command'],
+                    'command': [],
+                    'env': [],
+                    'envFrom': [],
+                    'name': 'base',
+                    'ports': [],
+                    'resources': {
+                        'limits': {
+                            'cpu': '1m',
+                            'memory': '1G'
+                        }
+                    },
+                    'volumeMounts': []
+                }],
+                'hostNetwork': False,
+                'imagePullSecrets': [],
+                'volumes': []
+            }
+        }, sanitized_result)
+
+
+    @mock.patch('uuid.uuid4')
     def test_construct_pod_empty_execuctor_config(self, mock_uuid):
         mock_uuid.return_value = self.static_uuid
         worker_config = k8s.V1Pod(
