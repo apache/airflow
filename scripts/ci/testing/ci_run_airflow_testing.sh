@@ -54,10 +54,11 @@ fi
 function run_airflow_testing_in_docker() {
     set +u
     set +e
-    for TRY_NUM in {1..3}
+    local exit_code
+    for try_num in {1..3}
     do
         echo
-        echo "Starting try number ${TRY_NUM}"
+        echo "Starting try number ${try_num}"
         echo
         docker-compose --log-level INFO \
           -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
@@ -65,10 +66,10 @@ function run_airflow_testing_in_docker() {
           "${INTEGRATIONS[@]}" \
           "${DOCKER_COMPOSE_LOCAL[@]}" \
              run airflow "${@}"
-        EXIT_CODE=$?
-        if [[ ${EXIT_CODE} == 254 ]]; then
+        exit_code=$?
+        if [[ ${exit_code} == 254 ]]; then
             echo
-            echo "Failed starting integration on ${TRY_NUM} try. Wiping-out docker-compose remnants"
+            echo "Failed starting integration on ${try_num} try. Wiping-out docker-compose remnants"
             echo
             docker-compose --log-level INFO \
                 -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
@@ -83,11 +84,11 @@ function run_airflow_testing_in_docker() {
         fi
     done
     if [[ ${ONLY_RUN_QUARANTINED_TESTS:=} == "true" ]]; then
-        if [[ ${EXIT_CODE} == "1" ]]; then
+        if [[ ${exit_code} == "1" ]]; then
             echo
             echo "Some Quarantined tests failed. but we recorded it in an issue"
             echo
-            EXIT_CODE="0"
+            exit_code="0"
         else
             echo
             echo "All Quarantined tests succeeded"
@@ -96,7 +97,7 @@ function run_airflow_testing_in_docker() {
     fi
     set -u
     set -e
-    return "${EXIT_CODE}"
+    return "${exit_code}"
 }
 
 build_images::prepare_ci_build
@@ -125,10 +126,14 @@ if [[ -n ${INSTALL_AIRFLOW_VERSION=} || -n ${INSTALL_AIRFLOW_REFERENCE} ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml")
 fi
 
+readonly DOCKER_COMPOSE_LOCAL
+
 echo
 echo "Using docker image: ${AIRFLOW_CI_IMAGE} for docker compose runs"
 echo
 
 RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
+readonly RUN_INTEGRATION_TESTS
+
 
 run_airflow_testing_in_docker "${@}"
