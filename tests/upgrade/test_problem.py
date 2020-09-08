@@ -31,5 +31,5 @@ class TestRuleStatus:
         rule.check.return_value = msgs
 
         result = RuleStatus.from_rule(rule)
-        rule.check.assert_called_once()
+        rule.check.assert_called_once_with()
         assert result == RuleStatus(rule, msgs)
