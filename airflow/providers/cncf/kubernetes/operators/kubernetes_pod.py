@@ -361,16 +361,19 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     def _log_pod_events_on_failure(self, pod, launcher):
         if self.log_events_on_failure:
-            for event in launcher.read_pod_events(pod).items:
-                self.log.error("Pod Event: %s - %s", event.reason, event.message)
+            try:
+                for event in launcher.read_pod_events(pod).items:
+                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
+            except AirflowException:
+                self.log.exception('Failed to read pod events')
 
     def _log_pod_status_on_failure(self, pod, launcher):
         try:
             pod_status = launcher.read_pod_status(pod)
             self.log.error('Pod not succeeded, look for OOMKilled in containers statuses.')
             self.log.error(pod_status.status.container_statuses)
-        except AirflowException as ex:
-            self.log.exception('Failed to get container statuses: %s', ex)
+        except AirflowException:
+            self.log.exception('Failed to get container status')
 
     def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:
         """
