@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,20 +17,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: memory-demo
-  namespace: mem-example
-spec:
-  containers:
-    - name: memory-demo-ctr
-      image: apache/airflow:stress-2020.07.10-1.0.4
-      resources:
-        limits:
-          memory: "200Mi"
-        requests:
-          memory: "100Mi"
-      command: ["stress"]
-      args: ["--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"]
+
+set -exuo pipefail
+
+FQDN=$(hostname)
+readonly FQDN
+ADMIN="admin"
+readonly ADMIN
+PASS="airflow"
+readonly PASS
+
+KRB5_KTNAME=/etc/airflow.keytab
+readonly KRB5_KTNAME
+
+cat /etc/hosts
+echo "hostname: ${FQDN}"
+# create kerberos database
+echo -e "${PASS}\n${PASS}" | kdb5_util create -s
+# create admin
+echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc ${ADMIN}/admin"
+# create airflow
+echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc -randkey airflow"
+echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc -randkey airflow/${FQDN}"
+kadmin.local -q "ktadd -k ${KRB5_KTNAME} airflow"
+kadmin.local -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}"
+
+# Start services
+/usr/local/bin/supervisord -n -c /etc/supervisord.conf
