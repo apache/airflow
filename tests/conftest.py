@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -98,6 +97,11 @@ def pytest_addoption(parser):
         action="store_true",
         help="Includes quarantined tests (marked with quarantined marker). They are skipped by default.",
     )
+    group.addoption(
+        "--include-heisentests",
+        action="store_true",
+        help="Includes heisentests (marked with heisentests marker). They are skipped by default.",
+    )
 
 
 def initial_db_init():
@@ -171,10 +175,13 @@ def pytest_configure(config):
         "markers", "system(name): mark test to run with named system"
     )
     config.addinivalue_line(
-        "markers", "long_running(name): mark test that run for a long time (many minutes)"
+        "markers", "long_running: mark test that run for a long time (many minutes)"
     )
     config.addinivalue_line(
         "markers", "quarantined: mark test that are in quarantine (i.e. flaky, need to be isolated and fixed)"
+    )
+    config.addinivalue_line(
+        "markers", "heisentests: mark test that should be run in isolation due to resource consumption"
     )
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
@@ -217,7 +224,7 @@ def skip_if_not_marked_with_system(selected_systems, item):
 def skip_system_test(item):
     for marker in item.iter_markers(name="system"):
         pytest.skip("The test is skipped because it has system marker. "
-                    "System tests are only run when --systems flag "
+                    "System tests are only run when --system flag "
                     "with the right system ({system}) is passed to pytest. {item}".
                     format(system=marker.args[0], item=item))
 
@@ -233,6 +240,13 @@ def skip_quarantined_test(item):
     for _ in item.iter_markers(name="quarantined"):
         pytest.skip("The test is skipped because it has quarantined marker. "
                     "And --include-quarantined flag is passed to pytest. {item}".
+                    format(item=item))
+
+
+def skip_heisen_test(item):
+    for _ in item.iter_markers(name="heisentests"):
+        pytest.skip("The test is skipped because it has heisentests marker. "
+                    "And --include-heisentests flag is passed to pytest. {item}".
                     format(item=item))
 
 
@@ -277,6 +291,7 @@ def pytest_runtest_setup(item):
 
     include_long_running = item.config.getoption("--include-long-running")
     include_quarantined = item.config.getoption("--include-quarantined")
+    include_heisentests = item.config.getoption("--include-heisentests")
 
     for marker in item.iter_markers(name="integration"):
         skip_if_integration_disabled(marker, item)
@@ -295,4 +310,6 @@ def pytest_runtest_setup(item):
         skip_long_running_test(item)
     if not include_quarantined:
         skip_quarantined_test(item)
+    if not include_heisentests:
+        skip_heisen_test(item)
     skip_if_credential_file_missing(item)
