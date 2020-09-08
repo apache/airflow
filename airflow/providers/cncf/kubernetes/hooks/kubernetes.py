@@ -69,7 +69,7 @@ class KubernetesHook(BaseHook):
     @cached_property
     def api_client(self):
         """Cached Kubernetes API client"""
-        return self.api_client
+        return self.get_conn()
 
     def create_custom_resource_definition(
         self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
@@ -148,7 +148,6 @@ class KubernetesHook(BaseHook):
         :param pod_name: pod name
         :type pod_name: str
         :param container: container name
-        :type version: str
         :param namespace: kubernetes namespace
         :type namespace: str
         """
@@ -174,7 +173,6 @@ class KubernetesHook(BaseHook):
         :param pod_name: pod name
         :type pod_name: str
         :param container: container name
-        :type version: str
         :param namespace: kubernetes namespace
         :type namespace: str
         """
