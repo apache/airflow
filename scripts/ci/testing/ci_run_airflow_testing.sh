@@ -17,6 +17,9 @@
 # under the License.
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 
+
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
 INTEGRATIONS=()
 
 ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
@@ -39,8 +42,7 @@ do
     INTEGRATIONS+=("${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml")
 done
 
-
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+readonly INTEGRATIONS
 
 if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     echo
