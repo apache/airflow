@@ -22,7 +22,7 @@ from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLak
 from airflow.utils.decorators import apply_defaults
 
 
-class AzureDataLakeStorageUploadOperator(BaseOperator):
+class LocalToAzureDataLakeStorageOperator(BaseOperator):
     """
     Upload file(s) to Azure Data Lake
 

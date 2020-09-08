@@ -21,7 +21,7 @@ import unittest
 import mock
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.transfers.local_to_adls import AzureDataLakeStorageUploadOperator
+from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalToAzureDataLakeStorageOperator
 
 TASK_ID = 'test-adls-upload-operator'
 LOCAL_PATH = 'test/*'
@@ -32,7 +32,7 @@ REMOTE_PATH = 'TEST-DIR'
 class TestAzureDataLakeStorageUploadOperator(unittest.TestCase):
     @mock.patch('airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook')
     def test_execute_success(self, mock_hook):
-        operator = AzureDataLakeStorageUploadOperator(
+        operator = LocalToAzureDataLakeStorageOperator(
             task_id=TASK_ID, local_path=LOCAL_PATH, remote_path=REMOTE_PATH
         )
         operator.execute(None)
@@ -47,7 +47,7 @@ class TestAzureDataLakeStorageUploadOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook')
     def test_execute_raises_for_bad_glob_val(self, mock_hook):
-        operator = AzureDataLakeStorageUploadOperator(
+        operator = LocalToAzureDataLakeStorageOperator(
             task_id=TASK_ID, local_path=BAD_LOCAL_PATH, remote_path=REMOTE_PATH
         )
         with self.assertRaises(AirflowException) as e:
@@ -56,7 +56,7 @@ class TestAzureDataLakeStorageUploadOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook')
     def test_extra_options_is_passed(self, mock_hook):
-        operator = AzureDataLakeStorageUploadOperator(
+        operator = LocalToAzureDataLakeStorageOperator(
             task_id=TASK_ID,
             local_path=LOCAL_PATH,
             remote_path=REMOTE_PATH,
