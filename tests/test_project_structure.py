@@ -115,7 +115,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'cassandra_to_gcs'),
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
-        ('cloud', 'gcs_to_local'),
         ('ads', 'ads_to_gcs'),
     }
 
