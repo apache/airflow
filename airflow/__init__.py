@@ -38,6 +38,11 @@ __version__ = version.version
 
 __all__ = ['__version__', 'login', 'DAG']
 
+# Make `airflow` an namespace package, supporting installing
+# airflow.providers.* in different locations (i.e. one in site, and one in user
+# lib.)
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+
 settings.initialize()
 
 login: Optional[Callable] = None

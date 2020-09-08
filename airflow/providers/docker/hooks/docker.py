@@ -71,7 +71,7 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__login(client)
         return client
 
-    def __login(self, client) -> None:
+    def __login(self, client) -> int:
         self.log.debug('Logging into Docker registry')
         try:
             client.login(

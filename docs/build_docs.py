@@ -97,6 +97,7 @@ spelling_errors: List[SpellingError] = []
 ROOT_PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir))
 ROOT_PACKAGE_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
 DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
+PROVIDER_INIT_FILE = os.path.join(ROOT_PACKAGE_DIR, "providers", "__init__.py")
 
 _API_DIR = os.path.join(DOCS_DIR, "_api")
 _BUILD_DIR = os.path.join(DOCS_DIR, "_build")
@@ -109,6 +110,11 @@ def clean_files() -> None:
     os.makedirs(_API_DIR, exist_ok=True)
     os.makedirs(_BUILD_DIR, exist_ok=True)
     print(f"Recreated content of the ${_BUILD_DIR} and ${_API_DIR} folders")
+    # Bugs in sphinx-autoapi using metaclasses prevent us from upgrading to 1.3
+    # which has implicit namespace support. Until that time, we make it look
+    # like a real package for building docs
+    with open(PROVIDER_INIT_FILE, "wt"):
+        pass
 
 
 def display_errors_summary() -> None:
@@ -719,18 +725,21 @@ Channel link: https://apache-airflow.slack.com/archives/CJ1LVREHX
 Invitation link: https://s.apache.org/airflow-slack\
 """
 
-print_build_errors_and_exit("The documentation has errors. Fix them to build documentation.")
+try:
+    print_build_errors_and_exit("The documentation has errors. Fix them to build documentation.")
 
-if not args.docs_only:
-    check_spelling()
-    print_build_errors_and_exit("The documentation has spelling errors. Fix them to build documentation.")
+    if not args.docs_only:
+        check_spelling()
+        print_build_errors_and_exit("The documentation has spelling errors. Fix them to build documentation.")
 
-if not args.spellcheck_only:
-    build_sphinx_docs()
-    check_guide_links_in_operator_descriptions()
-    check_class_links_in_operators_and_hooks_ref()
-    check_guide_links_in_operators_and_hooks_ref()
-    check_enforce_code_block()
-    check_exampleinclude_for_example_dags()
-    check_google_guides()
-    print_build_errors_and_exit("The documentation has errors.")
+    if not args.spellcheck_only:
+        build_sphinx_docs()
+        check_guide_links_in_operator_descriptions()
+        check_class_links_in_operators_and_hooks_ref()
+        check_guide_links_in_operators_and_hooks_ref()
+        check_enforce_code_block()
+        check_exampleinclude_for_example_dags()
+        check_google_guides()
+        print_build_errors_and_exit("The documentation has errors.")
+finally:
+    shutil.rmtree(PROVIDER_INIT_FILE, ignore_errors=True)
