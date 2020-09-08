@@ -265,9 +265,10 @@ def get_curve_template_name(key: str) -> str:
 # to redis event key
 def gen_template_key(template_name):
     template_name = get_curve_template_name(template_name)
-    if 'templates.' in template_name:
+    template_prefix = os.environ.get('TEMPLATE_KEY_PREFIX', 'qcos_templates')
+    if '{}.'.format(template_prefix) in template_name:
         return template_name
-    return "templates.{}".format(template_name)
+    return "{}.{}".format(template_prefix, template_name)
 
 
 # from redis event key
