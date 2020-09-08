@@ -83,11 +83,13 @@ fix-encoding-pragma
 flake8
 forbid-tabs
 insert-license
+incorrect-use-of-LoggingMixin
 language-matters
 lint-dockerfile
 lint-openapi
 mixed-line-ending
 mypy
+pre-commit-descriptions
 pydevd
 python2-compile
 python2-fastcheck
