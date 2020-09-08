@@ -47,12 +47,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install setuptools wheel gitpython
           pip install -r requirements.txt --cache-dir .pip_cache
+      - name: Compile translation
+        run: |
+          cd $GITHUB_WORKSPACE/airflow/airflow
+          /bin/bash ./compile_translation.sh
       - name: Build
         run: |
           cd $GITHUB_WORKSPACE/airflow
           echo $(pwd)
           echo creating a build
-          /bin/bash ./airflow/compile_translation.sh
           /bin/bash ./airflow/www_rbac/compile_assets.sh
           python setup.py sdist bdist_wheel
           echo "$(ls dist/ | grep whl)" > $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME
