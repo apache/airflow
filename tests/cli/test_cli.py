@@ -296,8 +296,8 @@ class TestCLI(unittest.TestCase):
         with tempfile.TemporaryDirectory("airflow_dry_run_test/") as directory:
             d = directory
             print(d)
-            cli.kubernetes_migrate_to_pod_template_file(self.parser.parse_args(
-                ['kubernetes_migrate_to_pod_template_file', '-o', directory]))
+            cli.generate_pod_template(self.parser.parse_args(
+                ['generate_pod_template', '-o', directory]))
             self.assertTrue(os.path.isdir(directory))
             self.assertTrue(os.path.isfile(os.path.join(directory, 'airflow_template.yml')))
 

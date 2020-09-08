@@ -1285,7 +1285,7 @@ def kubernetes_generate_dag_yaml(args):
 
 
 @cli_utils.action_logging
-def kubernetes_migrate_to_pod_template_file(args):
+def generate_pod_template(args):
     from airflow.executors.kubernetes_executor import KubeConfig
     from airflow.kubernetes.worker_configuration import WorkerConfiguration
     from kubernetes.client.api_client import ApiClient
@@ -2829,7 +2829,7 @@ class CLIFactory(object):
             )
 
         }, {
-            'func': kubernetes_migrate_to_pod_template_file,
+            'func': generate_pod_template,
             'help': "Reads your airflow.cfg and migrates your configurations into a"
                     "airflow_template.yaml file. From this point a user can link"
                     "this file to airflow using the `pod_template_file` argument"
