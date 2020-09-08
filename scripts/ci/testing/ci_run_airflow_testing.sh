@@ -26,6 +26,8 @@ if [[ ${TEST_TYPE:=} == "Integration" ]]; then
     export RUN_INTEGRATION_TESTS="${AVAILABLE_INTEGRATIONS}"
 elif [[ ${TEST_TYPE:=} == "Long" ]]; then
     export ONLY_RUN_LONG_RUNNING_TESTS="true"
+elif [[ ${TEST_TYPE:=} == "Heisentests" ]]; then
+    export ONLY_RUN_HEISEN_TESTS="true"
 elif [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
     export ONLY_RUN_QUARANTINED_TESTS="true"
     # Do not fail in quarantined tests
@@ -128,7 +130,3 @@ echo
 RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
 
 run_airflow_testing_in_docker "${@}"
-
-if [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
-    export ONLY_RUN_QUARANTINED_TESTS="true"
-fi

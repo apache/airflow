@@ -125,7 +125,6 @@ def my_sleep_subprocess_with_signals():
     sleep(100)
 
 
-@pytest.mark.quarantined
 class TestKillChildProcessesByPids(unittest.TestCase):
     def test_should_kill_process(self):
         before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
@@ -142,6 +141,7 @@ class TestKillChildProcessesByPids(unittest.TestCase):
         num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
         self.assertEqual(before_num_process, num_process)
 
+    @pytest.mark.quarantined
     def test_should_force_kill_process(self):
         before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
 
