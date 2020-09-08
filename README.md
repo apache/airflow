@@ -135,9 +135,11 @@ Following the ASF rules, the source packages released must be sufficient for a u
 
 Other ways of retrieving source code are "convenience" methods. For example:
 
-- Tagging in GitHub is a convenient way to mark the git project sources that were used to generate official source packages
-- We also have binary "convenience" packages
-- PyPI releases which are a convenient way of installing Apache Airflow using standard python tools
+- Tagging in GitHub to mark the git project sources that were used to generate official source packages
+
+We also have binary "convenience" packages:
+
+- PyPI releases to install Airflow using standard python tools
 - Docker Images published in the [Apache Airflow DockerHub](https://hub.docker.com/repository/docker/apache/airflow).
 
 These artifacts are not official releases, but they are built using officially released sources.
