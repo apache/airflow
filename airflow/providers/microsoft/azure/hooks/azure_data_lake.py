@@ -77,7 +77,14 @@ class AzureDataLakeHook(BaseHook):
             return False
 
     def upload_file(
-        self, local_path, remote_path, nthreads=64, overwrite=True, buffersize=4194304, blocksize=4194304
+        self,
+        local_path,
+        remote_path,
+        nthreads=64,
+        overwrite=True,
+        buffersize=4194304,
+        blocksize=4194304,
+        **kwargs,
     ):
         """
         Upload a file to Azure Data Lake.
@@ -113,10 +120,18 @@ class AzureDataLakeHook(BaseHook):
             overwrite=overwrite,
             buffersize=buffersize,
             blocksize=blocksize,
+            **kwargs,
         )
 
     def download_file(
-        self, local_path, remote_path, nthreads=64, overwrite=True, buffersize=4194304, blocksize=4194304
+        self,
+        local_path,
+        remote_path,
+        nthreads=64,
+        overwrite=True,
+        buffersize=4194304,
+        blocksize=4194304,
+        **kwargs,
     ):
         """
         Download a file from Azure Blob Storage.
@@ -153,6 +168,7 @@ class AzureDataLakeHook(BaseHook):
             overwrite=overwrite,
             buffersize=buffersize,
             blocksize=blocksize,
+            **kwargs,
         )
 
     def list(self, path):
