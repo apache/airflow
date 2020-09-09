@@ -545,8 +545,6 @@ function initialization::make_constants_read_only() {
     readonly HOST_HOME
     readonly HOST_OS
 
-    readonly INTEGRATIONS
-
     readonly ENABLE_KIND_CLUSTER
     readonly KUBERNETES_MODE
     readonly KUBERNETES_VERSION

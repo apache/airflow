@@ -95,6 +95,7 @@ Content
     lineage
     dag-serialization
     modules_management
+    smart-sensor
     changelog
     best-practices
     faq

@@ -44,6 +44,7 @@ class MetastorePartitionSensor(SqlSensor):
 
     template_fields = ('partition_name', 'table', 'schema')
     ui_color = '#8da7be'
+    poke_context_fields = ('partition_name', 'table', 'schema', 'mysql_conn_id')
 
     @apply_defaults
     def __init__(

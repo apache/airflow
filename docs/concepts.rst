@@ -156,6 +156,15 @@ Example DAG with functional abstraction
         html_content=email_info['body']
     )
 
+.. _concepts:executor_config:
+
+executor_config
+===============
+
+The executor_config is an argument placed into operators that allow airflow users to override tasks
+before launch. Currently this is primarily used by the :class:`KubernetesExecutor`, but will soon be available
+for other overrides.
+
 .. _concepts:dagruns:
 
 DAG Runs

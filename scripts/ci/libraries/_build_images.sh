@@ -509,7 +509,7 @@ function build_images::build_ci_image() {
         spinner::spin "${OUTPUT_LOG}" &
         SPIN_PID=$!
         # shellcheck disable=SC2064
-        traps::add_trap "kill ${SPIN_PID}" INT TERM HUP EXIT
+        traps::add_trap "kill ${SPIN_PID} || true" INT TERM HUP EXIT
     fi
     push_pull_remove_images::pull_ci_images_if_needed
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
@@ -537,7 +537,7 @@ function build_images::build_ci_image() {
         spinner::spin "${OUTPUT_LOG}" &
         SPIN_PID=$!
         # shellcheck disable=SC2064
-        traps::add_trap "kill ${SPIN_PID}" EXIT HUP INT TERM
+        traps::add_trap "kill ${SPIN_PID} || true" EXIT HUP INT TERM
     fi
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
         echo -n "

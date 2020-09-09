@@ -44,7 +44,7 @@
   <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
     <img id="loading-{{ loop.index }}" style="margin-top:0%; margin-left:50%; height:50px; width:50px; position: absolute;"
          alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
-    <pre><code id="try-{{ loop.index }}" class="{{ 'wrap' if wrapped else '' }}">{{ log }}</code></pre>
+    <div id="log-group-{{ loop.index }}"></div>
   </div>
   {% endfor %}
   </div>
@@ -122,16 +122,30 @@
             if(auto_tailing && checkAutoTailingCondition()) {
               var should_scroll = true;
             }
-            // The message may contain HTML, so either have to escape it or write it as text.
-            var escaped_message = escapeHtml(res.message);
 
             // Detect urls
             var url_regex = /http(s)?:\/\/[\w\.\-]+(\.?:[\w\.\-]+)*([\/?#][\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=\.%]+)?/g;
-            var linkified_message = escaped_message.replace(url_regex, function(url) {
-              return "<a href=\"" + url + "\" target=\"_blank\">" + url + "</a>";
-            });
 
-            document.getElementById(`try-${try_number}`).innerHTML += linkified_message + "<br/>";
+            res.message.forEach(function(item, index){
+              var log_block_element_id = "try-" + try_number + "-" + item[0];
+              var log_block = document.getElementById(log_block_element_id);
+              if (!log_block) {
+                log_div_block = document.createElement('div');
+                log_pre_block = document.createElement('pre');
+                log_div_block.appendChild(log_pre_block);
+                log_pre_block.innerHTML = "<code id=\"" + log_block_element_id + "\"  ></code>";
+                document.getElementById("log-group-" + try_number).appendChild(log_div_block);
+                log_block = document.getElementById(log_block_element_id);
+              }
+
+              // The message may contain HTML, so either have to escape it or write it as text.
+              var escaped_message = escapeHtml(item[1]);
+              var linkified_message = escaped_message.replace(url_regex, function(url) {
+                return "<a href=\"" + url + "\" target=\"_blank\">" + url + "</a>";
+              });
+              log_block.innerHTML += linkified_message + "\n";
+            })
+
             // Auto scroll window to the end if current window location is near the end.
             if(should_scroll) {
               scrollBottom();
