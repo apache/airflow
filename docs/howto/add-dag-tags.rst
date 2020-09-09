@@ -23,6 +23,9 @@ Add tags to DAGs and use it for filtering in the UI
 
 .. versionadded:: 1.10.8
 
+**UI Prerequisite**:
+The web UI with RBAC feature needs to be enabled; otherwise, the UI will not allow you to filter DAGs using tags nor show you the tag labels.
+
 In order to filter DAGs (e.g by team), you can add tags in each dag.
 The filter is saved in a cookie and can be reset by the reset button.
 
@@ -37,7 +40,6 @@ In your Dag file, pass a list of tags you want to add to DAG object:
     schedule_interval='0 0 * * *',
     tags=['example']
   )
-
 
 **Screenshot**:
 
