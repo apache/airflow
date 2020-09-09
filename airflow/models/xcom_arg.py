@@ -70,14 +70,14 @@ class XComArg:
         Implements XComArg << op
         """
         self.set_upstream(other)
-        return self
+        return other
 
     def __rshift__(self, other):
         """
         Implements XComArg >> op
         """
         self.set_downstream(other)
-        return self
+        return other
 
     def __getitem__(self, item):
         """
