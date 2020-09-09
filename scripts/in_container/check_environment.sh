@@ -119,19 +119,19 @@ function startairflow_if_requested() {
 
         # Name first Pane and start bash
         tmux rename-window -t 0 'Main'
-        tmux send-keys -t 'Main' 'bash' C-m 'clear' C-m # Switch to bind script?
+        tmux send-keys -t 'Main' 'bash' C-m 'clear' C-m
 
         tmux split-window -v
         tmux select-pane -t 1
-        tmux send-keys 'airflow scheduler' C-m # Switch to bind script?
+        tmux send-keys 'airflow scheduler' C-m
 
         tmux split-window -h
         tmux select-pane -t 2
-        tmux send-keys 'airflow webserver' C-m # Switch to bind script?
+        tmux send-keys 'airflow webserver' C-m
 
         # Attach Session, on the Main window
         tmux select-pane -t 0
-        tmux send-keys 'cd /opt/airflow/' C-m 'clear' C-m # Switch to bind script?
+        tmux send-keys 'cd /opt/airflow/' C-m 'clear' C-m
 
         tmux attach-session -t $SESSION:0
     fi

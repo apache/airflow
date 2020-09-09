@@ -146,7 +146,7 @@ dockerhub-user: dockerhub-repo: github-registry github-repository: github-image-
 postgres-version: mysql-version:
 version-suffix-for-pypi: version-suffix-for-svn:
 additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps:
-"n
+"
 
 export BREEZE_COMMANDS="
 shell
