@@ -97,7 +97,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
         )
         op.execute(None)
 
-        copy_query = """
+        copy_statement = """
                     COPY {schema}.{table}
                     FROM 's3://{s3_bucket}/{s3_key}'
                     with credentials
