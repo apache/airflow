@@ -1287,6 +1287,92 @@ def kubernetes_generate_dag_yaml(args):
 
 
 @cli_utils.action_logging
+def generate_pod_template(args):
+    from airflow.executors.kubernetes_executor import KubeConfig
+    from airflow.kubernetes.worker_configuration import WorkerConfiguration
+    from kubernetes.client.api_client import ApiClient
+    kube_config = KubeConfig()
+    worker_configuration_pod = WorkerConfiguration(kube_config=kube_config).as_pod()
+    api_client = ApiClient()
+    yaml_file_name = "airflow_template.yml"
+    yaml_output_path = args.output_path
+    if not os.path.exists(yaml_output_path):
+        os.makedirs(yaml_output_path)
+    with open(yaml_output_path + "/" + yaml_file_name, "w") as output:
+        sanitized_pod = api_client.sanitize_for_serialization(worker_configuration_pod)
+        sanitized_pod = json.dumps(sanitized_pod)
+        sanitized_pod = json.loads(sanitized_pod)
+        output.write(yaml.safe_dump(sanitized_pod))
+    output_string = """
+Congratulations on migrating your kubernetes configs to the pod_template_file!
+
+This is a critical first step on your migration to Airflow 2.0.
+
+Please check the following file and ensure that all configurations are correct: {yaml_file_name}
+
+
+Please place this file in a desired location on your machine and set the following airflow.cfg config:
+
+```
+[kubernetes]
+    pod_template_file=/path/to/{yaml_file_name}
+```
+
+You will now have full access to the Kubernetes API.
+
+Please note that the following configs will no longer be considered when the pod_template_file is set:
+
+worker_container_image_pull_policy
+airflow_configmap
+airflow_local_settings_configmap
+dags_in_image
+dags_volume_subpath
+dags_volume_mount_point
+dags_volume_claim
+logs_volume_subpath
+logs_volume_claim
+dags_volume_host
+logs_volume_host
+env_from_configmap_ref
+env_from_secret_ref
+git_repo
+git_branch
+git_sync_depth
+git_subpath
+git_sync_rev
+git_user
+git_password
+git_sync_root
+git_sync_dest
+git_dags_folder_mount_point
+git_ssh_key_secret_name
+git_ssh_known_hosts_configmap_name
+git_sync_credentials_secret
+git_sync_container_repository
+git_sync_container_tag
+git_sync_init_container_name
+git_sync_run_as_user
+worker_service_account_name
+image_pull_secrets
+gcp_service_account_keys
+affinity
+tolerations
+run_as_user
+fs_group
+[kubernetes_node_selectors]
+[kubernetes_annotations]
+[kubernetes_environment_variables]
+[kubernetes_secrets]
+[kubernetes_labels]
+
+
+Happy Airflowing!
+
+""".format(yaml_file_name=yaml_file_name)
+    print(output_string)
+
+
+@cli_utils.action_logging
 def worker(args):
     env = os.environ.copy()
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
@@ -2760,6 +2846,13 @@ class CLIFactory(object):
                 'dag_id', 'output_path', 'subdir', 'execution_date'
             )
 
+        }, {
+            'func': generate_pod_template,
+            'help': "Reads your airflow.cfg and migrates your configurations into a"
+                    "airflow_template.yaml file. From this point a user can link"
+                    "this file to airflow using the `pod_template_file` argument"
+                    "and modify using the Kubernetes API",
+            'args': ('output_path',),
         }, {
             'func': clear,
             'help': "Clear a set of task instance, as if they never ran",
