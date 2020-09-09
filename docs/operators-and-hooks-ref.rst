@@ -131,6 +131,10 @@ Fundamentals
    * - :mod:`airflow.hooks.filesystem`
      -
 
+   * - :mod:`airflow.sensors.smart_sensor_operator`
+     -
+
+
 .. _Apache:
 
 ASF: Apache Software Foundation

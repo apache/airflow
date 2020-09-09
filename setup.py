@@ -748,7 +748,7 @@ def do_setup():
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(exclude=['tests*']),
+        packages=find_packages(include=['airflow', 'airflow.*']),
         package_data={
             'airflow': ['py.typed'],
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",

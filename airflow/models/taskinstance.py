@@ -29,6 +29,7 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
+import jinja2
 import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
@@ -41,7 +42,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException, AirflowFailException, AirflowRescheduleException, AirflowSkipException,
-    AirflowTaskTimeout,
+    AirflowSmartSensorException, AirflowTaskTimeout,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.log import Log
@@ -281,7 +282,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
-        if self.state == State.RUNNING:
+        # TODO: whether we need sensing here or not (in sensor and task_instance state machine)
+        if self.state in State.running():
             return self._try_number
         return self._try_number + 1
 
@@ -1072,6 +1074,9 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                 self._prepare_and_execute_task_with_callbacks(context, task)
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
+        except AirflowSmartSensorException as e:
+            self.log.info(e)
+            return
         except AirflowSkipException as e:
             # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
@@ -1172,6 +1177,20 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         # Run on_execute callback
         self._run_execute_callback(context, task)
 
+        if task_copy.is_smart_sensor_compatible():
+            # Try to register it in the smart sensor service.
+            registered = False
+            try:
+                registered = task_copy.register_in_sensor_service(self, context)
+            except Exception as e:
+                self.log.warning("Failed to register in sensor service."
+                                 "Continue to run task in non smart sensor mode.")
+                self.log.exception(e, exc_info=True)
+
+            if registered:
+                # Will raise AirflowSmartSensorException to avoid long running execution.
+                self._update_ti_state_for_sensing()
+
         # Execute the task
         with set_current_context(context):
             result = self._execute_task(context, task_copy)
@@ -1186,6 +1205,16 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                      duration)
         Stats.incr('operator_successes_{}'.format(self.task.__class__.__name__), 1, 1)
         Stats.incr('ti_successes')
+
+    @provide_session
+    def _update_ti_state_for_sensing(self, session=None):
+        self.log.info('Submitting %s to sensor service', self)
+        self.state = State.SENSING
+        self.start_date = timezone.utcnow()
+        session.merge(self)
+        session.commit()
+        # Raise exception for sensing state
+        raise AirflowSmartSensorException("Task successfully registered in smart sensor.")
 
     def _run_success_callback(self, context, task):
         """Functions that need to be run if Task is successful"""
@@ -1580,19 +1609,12 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
         self.task.render_template_fields(context)
 
-    def email_alert(self, exception):
-        """Send Email Alert with exception trace"""
+    def get_email_subject_content(self, exception):
+        """Get the email subject content for exceptions."""
+        # For a ti from DB (without ti.task), return the default value
+        # Reuse it for smart sensor to send default email alert
+        use_default = not hasattr(self, 'task')
         exception_html = str(exception).replace('\n', '<br>')
-        jinja_context = self.get_template_context()
-        # This function is called after changing the state
-        # from State.RUNNING so use prev_attempted_tries.
-        jinja_context.update(dict(
-            exception=exception,
-            exception_html=exception_html,
-            try_number=self.prev_attempted_tries,
-            max_tries=self.max_tries))
-
-        jinja_env = self.task.get_template_env()
 
         default_subject = 'Airflow alert: {{ti}}'
         # For reporting purposes, we report based on 1-indexed,
@@ -1607,29 +1629,62 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
-        def render(key, content):
-            if conf.has_option('email', key):
-                path = conf.get('email', key)
-                with open(path) as file:
-                    content = file.read()
+        default_html_content_err = (
+            'Try {{try_number}} out of {{max_tries + 1}}<br>'
+            'Exception:<br>Failed attempt to attach error logs<br>'
+            'Log: <a href="{{ti.log_url}}">Link</a><br>'
+            'Host: {{ti.hostname}}<br>'
+            'Log file: {{ti.log_filepath}}<br>'
+            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+        )
 
-            return jinja_env.from_string(content).render(**jinja_context)
+        if use_default:
+            jinja_context = {'ti': self}
+            # This function is called after changing the state
+            # from State.RUNNING so need to subtract 1 from self.try_number.
+            jinja_context.update(dict(
+                exception=exception,
+                exception_html=exception_html,
+                try_number=self.try_number - 1,
+                max_tries=self.max_tries))
 
-        subject = render('subject_template', default_subject)
-        html_content = render('html_content_template', default_html_content)
-        # noinspection PyBroadException
+            jinja_env = jinja2.Environment(
+                loader=jinja2.FileSystemLoader(os.path.dirname(__file__)),
+                autoescape=True)
+            subject = jinja_env.from_string(default_subject).render(**jinja_context)
+            html_content = jinja_env.from_string(default_html_content).render(**jinja_context)
+            html_content_err = jinja_env.from_string(default_html_content_err).render(**jinja_context)
+
+        else:
+            jinja_context = self.get_template_context()
+
+            jinja_context.update(dict(
+                exception=exception,
+                exception_html=exception_html,
+                try_number=self.try_number - 1,
+                max_tries=self.max_tries))
+
+            jinja_env = self.task.get_template_env()
+
+            def render(key, content):
+                if conf.has_option('email', key):
+                    path = conf.get('email', key)
+                    with open(path) as f:
+                        content = f.read()
+                return jinja_env.from_string(content).render(**jinja_context)
+
+            subject = render('subject_template', default_subject)
+            html_content = render('html_content_template', default_html_content)
+            html_content_err = render('html_content_template', default_html_content_err)
+
+        return subject, html_content, html_content_err
+
+    def email_alert(self, exception):
+        """Send alert email with exception information."""
+        subject, html_content, html_content_err = self.get_email_subject_content(exception)
         try:
             send_email(self.task.email, subject, html_content)
-        except Exception:     # pylint: disable=broad-except
-            default_html_content_err = (
-                'Try {{try_number}} out of {{max_tries + 1}}<br>'
-                'Exception:<br>Failed attempt to attach error logs<br>'
-                'Log: <a href="{{ti.log_url}}">Link</a><br>'
-                'Host: {{ti.hostname}}<br>'
-                'Log file: {{ti.log_filepath}}<br>'
-                'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-            )
-            html_content_err = render('html_content_template', default_html_content_err)
+        except Exception:
             send_email(self.task.email, subject, html_content_err)
 
     def set_duration(self) -> None:

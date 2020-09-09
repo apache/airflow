@@ -1598,6 +1598,12 @@ of this provider.
 This section describes the changes that have been made, and what you need to do to update your if
 you use any code located in `airflow.providers` package.
 
+#### Changed return type of `list_prefixes` and `list_keys` methods in `S3Hook`
+
+Previously, the `list_prefixes` and `list_keys` methods returned `None` when there were no
+results. The behavior has been changed to return an empty list instead of `None` in this
+case.
+
 #### Removed Hipchat integration
 
 Hipchat has reached end of life and is no longer available.

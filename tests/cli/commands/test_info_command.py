@@ -16,6 +16,7 @@
 # under the License.
 
 import contextlib
+import importlib
 import io
 import os
 import unittest
@@ -25,6 +26,8 @@ from parameterized import parameterized
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import info_command
+from airflow.config_templates import airflow_local_settings
+from airflow.logging_config import configure_logging
 from airflow.version import version as airflow_version
 from tests.test_utils.config import conf_vars
 
@@ -93,6 +96,23 @@ class TestConfigInfo(unittest.TestCase):
         self.assertIn("TEST_PLUGINS_FOLDER", text)
         self.assertIn("TEST_LOG_FOLDER", text)
         self.assertIn("postgresql+psycopg2://postgres:airflow@postgres/airflow", text)
+
+
+class TestConfigInfoLogging(unittest.TestCase):
+    def test_should_read_logging_configuration(self):
+        with conf_vars({
+            ('logging', 'remote_logging'): 'True',
+            ('logging', 'remote_base_log_folder'): 'stackdriver://logs-name',
+        }):
+            importlib.reload(airflow_local_settings)
+            configure_logging()
+            instance = info_command.ConfigInfo(info_command.NullAnonymizer())
+            text = str(instance)
+            self.assertIn("StackdriverTaskHandler", text)
+
+    def tearDown(self) -> None:
+        importlib.reload(airflow_local_settings)
+        configure_logging()
 
 
 class TestToolsInfo(unittest.TestCase):

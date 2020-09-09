@@ -355,7 +355,6 @@ class TestCliTaskBackfill(unittest.TestCase):
 
         self.parser = cli_parser.get_parser()
 
-    @pytest.mark.quarantined
     def test_run_ignores_all_dependencies(self):
         """
         Test that run respects ignore_all_dependencies

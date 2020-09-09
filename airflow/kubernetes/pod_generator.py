@@ -27,6 +27,7 @@ import inspect
 import os
 import re
 import uuid
+import warnings
 from functools import reduce
 from typing import Dict, List, Optional, Union
 
@@ -324,6 +325,37 @@ class PodGenerator:
     @staticmethod
     def from_obj(obj) -> Optional[k8s.V1Pod]:
         """Converts to pod from obj"""
+
+        if obj is None:
+            return None
+
+        k8s_legacy_object = obj.get("KubernetesExecutor", None)
+        k8s_object = obj.get("pod_override", None)
+
+        if k8s_legacy_object and k8s_object:
+            raise AirflowConfigException("Can not have both a legacy and new"
+                                         "executor_config object. Please delete the KubernetesExecutor"
+                                         "dict and only use the pod_override kubernetes.client.models.V1Pod"
+                                         "object.")
+        if not k8s_object and not k8s_legacy_object:
+            return None
+
+        if isinstance(k8s_object, k8s.V1Pod):
+            return k8s_object
+        elif isinstance(k8s_legacy_object, dict):
+            warnings.warn('Using a dictionary for the executor_config is deprecated and will soon be removed.'
+                          'please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
+                          ' instead. ',
+                          category=DeprecationWarning)
+            return PodGenerator.from_legacy_obj(obj)
+        else:
+            raise TypeError(
+                'Cannot convert a non-kubernetes.client.models.V1Pod'
+                'object into a KubernetesExecutorConfig')
+
+    @staticmethod
+    def from_legacy_obj(obj) -> Optional[k8s.V1Pod]:
+        """Converts to pod from obj"""
         if obj is None:
             return None
 
@@ -515,6 +547,16 @@ class PodGenerator:
         return reduce(PodGenerator.reconcile_pods, pod_list)
 
     @staticmethod
+    def serialize_pod(pod: k8s.V1Pod):
+        """
+        Converts a k8s.V1Pod into a jsonified object
+        @param pod:
+        @return:
+        """
+        api_client = ApiClient()
+        return api_client.sanitize_for_serialization(pod)
+
+    @staticmethod
     def deserialize_model_file(path: str) -> k8s.V1Pod:
         """
         :param path: Path to the file
@@ -524,7 +566,6 @@ class PodGenerator:
         ``_ApiClient__deserialize_model`` from the kubernetes client.
         This issue is tracked here; https://github.com/kubernetes-client/python/issues/977.
         """
-        api_client = ApiClient()
         if os.path.exists(path):
             with open(path) as stream:
                 pod = yaml.safe_load(stream)
@@ -532,7 +573,18 @@ class PodGenerator:
             pod = yaml.safe_load(path)
 
         # pylint: disable=protected-access
-        return api_client._ApiClient__deserialize_model(pod, k8s.V1Pod)
+        return PodGenerator.deserialize_model_dict(pod)
+
+    @staticmethod
+    def deserialize_model_dict(pod_dict: dict) -> k8s.V1Pod:
+        """
+        Deserializes python dictionary to k8s.V1Pod
+        @param pod_dict:
+        @return:
+        """
+        api_client = ApiClient()
+        return api_client._ApiClient__deserialize_model(  # pylint: disable=W0212
+            pod_dict, k8s.V1Pod)
 
     @staticmethod
     def make_unique_pod_id(dag_id):

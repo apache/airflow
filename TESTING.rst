@@ -324,6 +324,18 @@ Those tests are marked with ``@pytest.mark.quarantined`` annotation.
 Those tests are skipped by default. You can enable them with ``--include-quarantined`` flag. You
 can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
 
+Heisen tests
+------------
+
+Some of our tests are Heisentests. This means that they run fine in isolation but when they run together with
+others they might fail the tests (this is likely due to resource consumptions). Therefore we run those tests
+in isolation.
+
+Those tests are marked with ``@pytest.mark.heisentests`` annotation.
+Those tests are skipped by default. You can enable them with ``--include-heisentests`` flag. You
+can also decide to only run tests with ``-m heisentests`` flag to run only those tests.
+
+
 Running Tests with Kubernetes
 =============================
 

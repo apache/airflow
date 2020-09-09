@@ -216,6 +216,15 @@ elif [[ ${ONLY_RUN_LONG_RUNNING_TESTS:=""} == "true" ]]; then
         "--execution-timeout=120"
         "--teardown-timeout=30"
     )
+elif [[ ${ONLY_RUN_HEISEN_TESTS:=""} == "true" ]]; then
+    EXTRA_PYTEST_ARGS+=(
+        "-m" "heisentests"
+        "--include-heisentests"
+        "--verbosity=1"
+        "--setup-timeout=20"
+        "--execution-timeout=50"
+        "--teardown-timeout=20"
+    )
 elif [[ ${ONLY_RUN_QUARANTINED_TESTS:=""} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "quarantined"

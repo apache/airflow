@@ -862,7 +862,7 @@ class DagFileProcessor(LoggingMixin):
         self.log.info("Processing file %s for tasks to queue", file_path)
 
         try:
-            dagbag = DagBag(file_path, include_examples=False)
+            dagbag = DagBag(file_path, include_examples=False, include_smart_sensor=False)
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
@@ -1743,7 +1743,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # NONE so we don't try to re-run it.
         self._change_state_for_tis_without_dagrun(
             simple_dag_bag=simple_dag_bag,
-            old_states=[State.QUEUED, State.SCHEDULED, State.UP_FOR_RESCHEDULE],
+            old_states=[State.QUEUED,
+                        State.SCHEDULED,
+                        State.UP_FOR_RESCHEDULE,
+                        State.SENSING],
             new_state=State.NONE
         )
         self._execute_task_instances(simple_dag_bag)

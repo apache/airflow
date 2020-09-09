@@ -128,20 +128,19 @@ class TestS3TaskHandler(unittest.TestCase):
 
     def test_read(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'Log line\n')
+        log, metadata = self.s3_task_handler.read(self.ti)
         self.assertEqual(
-            self.s3_task_handler.read(self.ti),
-            (
-                ['*** Reading remote log from s3://bucket/remote/log/location/1.log.\nLog line\n\n'],
-                [{'end_of_log': True}],
-            ),
+            log[0][0][-1],
+            '*** Reading remote log from s3://bucket/remote/log/location/1.log.\n' 'Log line\n\n',
         )
+        self.assertEqual(metadata, [{'end_of_log': True}])
 
     def test_read_when_s3_log_missing(self):
         log, metadata = self.s3_task_handler.read(self.ti)
 
         self.assertEqual(1, len(log))
         self.assertEqual(len(log), len(metadata))
-        self.assertIn('*** Log file does not exist:', log[0])
+        self.assertIn('*** Log file does not exist:', log[0][0][-1])
         self.assertEqual({'end_of_log': True}, metadata[0])
 
     def test_read_raises_return_error(self):

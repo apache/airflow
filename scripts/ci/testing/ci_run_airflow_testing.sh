@@ -17,6 +17,9 @@
 # under the License.
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 
+
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
 INTEGRATIONS=()
 
 ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
@@ -26,6 +29,8 @@ if [[ ${TEST_TYPE:=} == "Integration" ]]; then
     export RUN_INTEGRATION_TESTS="${AVAILABLE_INTEGRATIONS}"
 elif [[ ${TEST_TYPE:=} == "Long" ]]; then
     export ONLY_RUN_LONG_RUNNING_TESTS="true"
+elif [[ ${TEST_TYPE:=} == "Heisentests" ]]; then
+    export ONLY_RUN_HEISEN_TESTS="true"
 elif [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
     export ONLY_RUN_QUARANTINED_TESTS="true"
     # Do not fail in quarantined tests
@@ -37,8 +42,7 @@ do
     INTEGRATIONS+=("${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml")
 done
 
-
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+readonly INTEGRATIONS
 
 if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     echo
@@ -128,7 +132,3 @@ echo
 RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
 
 run_airflow_testing_in_docker "${@}"
-
-if [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
-    export ONLY_RUN_QUARANTINED_TESTS="true"
-fi

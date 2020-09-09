@@ -34,7 +34,7 @@ function run_check_license() {
     if ! docker run -v "${AIRFLOW_SOURCES}:/opt/airflow" -t \
             --user "$(id -ur):$(id -gr)" \
             --rm --env-file "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env" \
-            ashb/apache-rat:0.13-1 \
+            apache/airflow:apache-rat-2020.07.10-0.13 \
             --exclude-file /opt/airflow/.rat-excludes \
             --d /opt/airflow | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
         echo >&2 "RAT exited abnormally"

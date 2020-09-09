@@ -53,7 +53,8 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'kubernetes_node_selectors',
     'kubernetes_environment_variables',
     'kubernetes_secrets',
-    'kubernetes_labels'
+    'kubernetes_labels',
+    'smart_sensor'
 ]
 
 DEFAULT_TEST_SECTIONS = [
