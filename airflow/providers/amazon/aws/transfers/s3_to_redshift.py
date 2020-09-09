@@ -120,7 +120,7 @@ class S3ToRedshiftOperator(BaseOperator):
         )
 
         if self.truncate_table:
-            truncate_statement = f'TRUNCATE TABLE {schema}.{table};'
+            truncate_statement = f'TRUNCATE TABLE {self.schema}.{self.table};'
             transaction = f"""
             BEGIN;
             {truncate_statement}
