@@ -1625,7 +1625,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
             settings.Session.remove()  # type: ignore
         except Exception:  # pylint: disable=broad-except
-            self.log.exception("Exception when executing execute_helper")
+            self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
         finally:
             self.processor_agent.end()
             self.log.info("Exited execute loop")
