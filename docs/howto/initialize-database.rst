@@ -83,6 +83,8 @@ Once you've setup your database to host Airflow, you'll need to alter the
 SqlAlchemy connection string located in ``sql_alchemy_conn`` option in ``[core]`` section in your configuration file
 ``$AIRFLOW_HOME/airflow.cfg``.
 
+You can also define connection URI using ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` environment variable.
+
 Configure a worker that supports parallelism
 --------------------------------------------
 
