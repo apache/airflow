@@ -38,7 +38,7 @@ class TestSecretsManagerHook(unittest.TestCase):
 
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
-    def test_get_secrets_string(self):
+    def test_get_secret_string(self):
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value = '{"user": "test"}'
         hook = SecretsManagerHook(aws_conn_id='aws_default')
@@ -50,12 +50,12 @@ class TestSecretsManagerHook(unittest.TestCase):
 
         hook.get_conn().put_secret_value(**param)
 
-        secrets = hook.get_secret(secret_name)
-        self.assertEqual(secrets, secret_value)
+        secret = hook.get_secret(secret_name)
+        self.assertEqual(secret, secret_value)
 
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
-    def test_get_secrets_dict(self):
+    def test_get_secret_dict(self):
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value = '{"user": "test"}'
         hook = SecretsManagerHook(aws_conn_id='aws_default')
@@ -67,12 +67,12 @@ class TestSecretsManagerHook(unittest.TestCase):
 
         hook.get_conn().put_secret_value(**param)
 
-        secrets = hook.get_secret_as_dict(secret_name)
-        self.assertEqual(secrets, json.loads(secret_value))
+        secret = hook.get_secret_as_dict(secret_name)
+        self.assertEqual(secret, json.loads(secret_value))
 
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
-    def test_get_secrets_binary(self):
+    def test_get_secret_binary(self):
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value_binary = base64.b64encode(b'{"username": "test"}')
         hook = SecretsManagerHook(aws_conn_id='aws_default')
@@ -84,5 +84,5 @@ class TestSecretsManagerHook(unittest.TestCase):
 
         hook.get_conn().put_secret_value(**param)
 
-        secrets = hook.get_secret(secret_name)
-        self.assertEqual(secrets, base64.b64decode(secret_value_binary))
+        secret = hook.get_secret(secret_name)
+        self.assertEqual(secret, base64.b64decode(secret_value_binary))
