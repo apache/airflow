@@ -21,5 +21,5 @@
   load bats_utils
 
   run pwd
-  [ "${status}" == 0 ]
+  assert_success
 }

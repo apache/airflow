@@ -42,10 +42,15 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__")
     def test_init(self, mock_base_init):
         hook = GoogleAnalyticsHook(
-            API_VERSION, GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN,
+            API_VERSION,
+            GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_base_init.assert_called_once_with(
-            GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN,
+            GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         self.assertEqual(hook.api_version, API_VERSION)
 
@@ -56,7 +61,10 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
     def test_gen_conn(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            "analytics", API_VERSION, http=mock_authorize.return_value, cache_discovery=False,
+            "analytics",
+            API_VERSION,
+            http=mock_authorize.return_value,
+            cache_discovery=False,
         )
         self.assertEqual(mock_build.return_value, result)
 
@@ -174,6 +182,8 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
             "totalResults": 2,
         }
         result = self.hook.list_uploads(
-            account_id=ACCOUNT_ID, web_property_id=WEB_PROPERTY_ID, custom_data_source_id=DATA_SOURCE,
+            account_id=ACCOUNT_ID,
+            web_property_id=WEB_PROPERTY_ID,
+            custom_data_source_id=DATA_SOURCE,
         )
         self.assertEqual(result, ["a", "b"])

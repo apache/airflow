@@ -29,7 +29,10 @@ GCP_PROJECT_ID = "test"
 
 
 def mock_init(
-    self, gcp_conn_id, delegate_to=None, impersonation_chain=None,
+    self,
+    gcp_conn_id,
+    delegate_to=None,
+    impersonation_chain=None,
 ):  # pylint: disable=unused-argument
     pass
 
@@ -88,7 +91,8 @@ class TestDatastoreHook(unittest.TestCase):
         self.datastore_hook.connection = mock_get_conn.return_value
 
         transaction = self.datastore_hook.begin_transaction(
-            project_id=GCP_PROJECT_ID, transaction_options={},
+            project_id=GCP_PROJECT_ID,
+            transaction_options={},
         )
 
         projects = self.datastore_hook.connection.projects
@@ -176,7 +180,9 @@ class TestDatastoreHook(unittest.TestCase):
 
         with self.assertRaises(AirflowException) as err:
             self.datastore_hook.lookup(  # pylint: disable=no-value-for-parameter
-                keys=keys, read_consistency=read_consistency, transaction=transaction,
+                keys=keys,
+                read_consistency=read_consistency,
+                transaction=transaction,
             )
         self.assertIn("project_id", str(err.exception))
 
@@ -335,7 +341,10 @@ class TestDatastoreHook(unittest.TestCase):
 
         with self.assertRaises(AirflowException) as err:
             self.datastore_hook.export_to_storage_bucket(  # pylint: disable=no-value-for-parameter
-                bucket=bucket, namespace=namespace, entity_filter=entity_filter, labels=labels,
+                bucket=bucket,
+                namespace=namespace,
+                entity_filter=entity_filter,
+                labels=labels,
             )
         self.assertIn("project_id", str(err.exception))
 
@@ -388,6 +397,10 @@ class TestDatastoreHook(unittest.TestCase):
 
         with self.assertRaises(AirflowException) as err:
             self.datastore_hook.import_from_storage_bucket(  # pylint: disable=no-value-for-parameter
-                bucket=bucket, file=file, namespace=namespace, entity_filter=entity_filter, labels=labels,
+                bucket=bucket,
+                file=file,
+                namespace=namespace,
+                entity_filter=entity_filter,
+                labels=labels,
             )
         self.assertIn("project_id", str(err.exception))

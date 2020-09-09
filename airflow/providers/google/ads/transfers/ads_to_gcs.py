@@ -124,6 +124,9 @@ class GoogleAdsToGcsOperator(BaseOperator):
 
             hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
             hook.upload(
-                bucket_name=self.bucket, object_name=self.obj, filename=csvfile.name, gzip=self.gzip,
+                bucket_name=self.bucket,
+                object_name=self.obj,
+                filename=csvfile.name,
+                gzip=self.gzip,
             )
             self.log.info("%s uploaded to GCS", self.obj)

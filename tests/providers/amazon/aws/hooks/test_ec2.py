@@ -26,7 +26,10 @@ from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 
 class TestEC2Hook(unittest.TestCase):
     def test_init(self):
-        ec2_hook = EC2Hook(aws_conn_id="aws_conn_test", region_name="region-test",)
+        ec2_hook = EC2Hook(
+            aws_conn_id="aws_conn_test",
+            region_name="region-test",
+        )
         self.assertEqual(ec2_hook.aws_conn_id, "aws_conn_test")
         self.assertEqual(ec2_hook.region_name, "region-test")
 
@@ -39,7 +42,10 @@ class TestEC2Hook(unittest.TestCase):
     @mock_ec2
     def test_get_instance(self):
         ec2_hook = EC2Hook()
-        created_instances = ec2_hook.conn.create_instances(MaxCount=1, MinCount=1,)
+        created_instances = ec2_hook.conn.create_instances(
+            MaxCount=1,
+            MinCount=1,
+        )
         created_instance_id = created_instances[0].instance_id
         # test get_instance method
         existing_instance = ec2_hook.get_instance(instance_id=created_instance_id)
@@ -48,7 +54,10 @@ class TestEC2Hook(unittest.TestCase):
     @mock_ec2
     def test_get_instance_state(self):
         ec2_hook = EC2Hook()
-        created_instances = ec2_hook.conn.create_instances(MaxCount=1, MinCount=1,)
+        created_instances = ec2_hook.conn.create_instances(
+            MaxCount=1,
+            MinCount=1,
+        )
         created_instance_id = created_instances[0].instance_id
         all_instances = list(ec2_hook.conn.instances.all())
         created_instance_state = all_instances[0].state["Name"]

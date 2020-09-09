@@ -37,8 +37,13 @@ class DynamodbToS3Test(unittest.TestCase):
     @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.AwsDynamoDBHook')
     def test_dynamodb_to_s3_success(self, mock_aws_dynamodb_hook, mock_s3_hook):
         responses = [
-            {'Items': [{'a': 1}, {'b': 2}], 'LastEvaluatedKey': '123',},
-            {'Items': [{'c': 3}],},
+            {
+                'Items': [{'a': 1}, {'b': 2}],
+                'LastEvaluatedKey': '123',
+            },
+            {
+                'Items': [{'c': 3}],
+            },
         ]
         table = MagicMock()
         table.return_value.scan.side_effect = responses

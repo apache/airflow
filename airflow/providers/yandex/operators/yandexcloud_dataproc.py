@@ -135,7 +135,9 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.hook = None
 
     def execute(self, context):
-        self.hook = DataprocHook(connection_id=self.connection_id,)
+        self.hook = DataprocHook(
+            connection_id=self.connection_id,
+        )
         operation_result = self.hook.client.create_cluster(
             folder_id=self.folder_id,
             cluster_name=self.cluster_name,
@@ -186,7 +188,9 @@ class DataprocDeleteClusterOperator(BaseOperator):
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
-        self.hook = DataprocHook(connection_id=connection_id,)
+        self.hook = DataprocHook(
+            connection_id=connection_id,
+        )
         self.hook.client.delete_cluster(cluster_id)
 
 
@@ -245,7 +249,9 @@ class DataprocCreateHiveJobOperator(BaseOperator):
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
-        self.hook = DataprocHook(connection_id=connection_id,)
+        self.hook = DataprocHook(
+            connection_id=connection_id,
+        )
         self.hook.client.create_hive_job(
             query=self.query,
             query_file_uri=self.query_file_uri,
@@ -321,7 +327,9 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
-        self.hook = DataprocHook(connection_id=connection_id,)
+        self.hook = DataprocHook(
+            connection_id=connection_id,
+        )
         self.hook.client.create_mapreduce_job(
             main_class=self.main_class,
             main_jar_file_uri=self.main_jar_file_uri,
@@ -398,7 +406,9 @@ class DataprocCreateSparkJobOperator(BaseOperator):
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
-        self.hook = DataprocHook(connection_id=connection_id,)
+        self.hook = DataprocHook(
+            connection_id=connection_id,
+        )
         self.hook.client.create_spark_job(
             main_class=self.main_class,
             main_jar_file_uri=self.main_jar_file_uri,
@@ -475,7 +485,9 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
         connection_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
-        self.hook = DataprocHook(connection_id=connection_id,)
+        self.hook = DataprocHook(
+            connection_id=connection_id,
+        )
         self.hook.client.create_pyspark_job(
             main_python_file_uri=self.main_python_file_uri,
             python_file_uris=self.python_file_uris,

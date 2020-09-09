@@ -134,7 +134,8 @@ with models.DAG(
     )
 
     get_operation = CloudDataTransferServiceGetOperationOperator(
-        task_id="get_operation", operation_name="{{task_instance.xcom_pull('list_operations')[0]['name']}}",
+        task_id="get_operation",
+        operation_name="{{task_instance.xcom_pull('list_operations')[0]['name']}}",
     )
 
     delete_transfer = CloudDataTransferServiceDeleteJobOperator(

@@ -72,7 +72,10 @@ class TestCloudDataFusionRestartInstanceOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, mock_hook):
         op = CloudDataFusionRestartInstanceOperator(
-            task_id="test_taks", instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID,
+            task_id="test_taks",
+            instance_name=INSTANCE_NAME,
+            location=LOCATION,
+            project_id=PROJECT_ID,
         )
         op.execute({})
 
@@ -95,7 +98,10 @@ class TestCloudDataFusionCreateInstanceOperator:
         op.execute({})
 
         mock_hook.return_value.create_instance.assert_called_once_with(
-            instance_name=INSTANCE_NAME, instance=INSTANCE, location=LOCATION, project_id=PROJECT_ID,
+            instance_name=INSTANCE_NAME,
+            instance=INSTANCE,
+            location=LOCATION,
+            project_id=PROJECT_ID,
         )
         assert mock_hook.return_value.wait_for_operation.call_count == 1
 
@@ -104,7 +110,10 @@ class TestCloudDataFusionDeleteInstanceOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, mock_hook):
         op = CloudDataFusionDeleteInstanceOperator(
-            task_id="test_taks", instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID,
+            task_id="test_taks",
+            instance_name=INSTANCE_NAME,
+            location=LOCATION,
+            project_id=PROJECT_ID,
         )
         op.execute({})
 
@@ -118,7 +127,10 @@ class TestCloudDataFusionGetInstanceOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, mock_hook):
         op = CloudDataFusionGetInstanceOperator(
-            task_id="test_taks", instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID,
+            task_id="test_taks",
+            instance_name=INSTANCE_NAME,
+            location=LOCATION,
+            project_id=PROJECT_ID,
         )
         op.execute({})
 
@@ -146,7 +158,10 @@ class TestCloudDataFusionCreatePipelineOperator:
         )
 
         mock_hook.return_value.create_pipeline.assert_called_once_with(
-            instance_url=INSTANCE_URL, pipeline_name=PIPELINE_NAME, pipeline=PIPELINE, namespace=NAMESPACE,
+            instance_url=INSTANCE_URL,
+            pipeline_name=PIPELINE_NAME,
+            pipeline=PIPELINE,
+            namespace=NAMESPACE,
         )
 
 
@@ -169,7 +184,10 @@ class TestCloudDataFusionDeletePipelineOperator:
         )
 
         mock_hook.return_value.delete_pipeline.assert_called_once_with(
-            instance_url=INSTANCE_URL, pipeline_name=PIPELINE_NAME, namespace=NAMESPACE, version_id="1.12",
+            instance_url=INSTANCE_URL,
+            pipeline_name=PIPELINE_NAME,
+            namespace=NAMESPACE,
+            version_id="1.12",
         )
 
 

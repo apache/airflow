@@ -138,7 +138,10 @@ class TestFallbackToVariables(unittest.TestCase):
 
 
 def mock_init(
-    self, gcp_conn_id, delegate_to=None, impersonation_chain=None,
+    self,
+    gcp_conn_id,
+    delegate_to=None,
+    impersonation_chain=None,
 ):  # pylint: disable=unused-argument
     pass
 
@@ -169,7 +172,10 @@ class TestDataflowHook(unittest.TestCase):
         dataflowjob_instance = mock_dataflowjob.return_value
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_PY, dataflow=PY_FILE, py_options=PY_OPTIONS,
+            job_name=JOB_NAME,
+            variables=DATAFLOW_VARIABLES_PY,
+            dataflow=PY_FILE,
+            py_options=PY_OPTIONS,
         )
         expected_cmd = [
             "python3",
@@ -200,7 +206,10 @@ class TestDataflowHook(unittest.TestCase):
         variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
         variables['region'] = TEST_LOCATION
         self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=variables, dataflow=PY_FILE, py_options=PY_OPTIONS,
+            job_name=JOB_NAME,
+            variables=variables,
+            dataflow=PY_FILE,
+            py_options=PY_OPTIONS,
         )
         expected_cmd = [
             "python3",
@@ -265,7 +274,10 @@ class TestDataflowHook(unittest.TestCase):
         variables['extra-package'] = ['a.whl', 'b.whl']
 
         self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=variables, dataflow=PY_FILE, py_options=PY_OPTIONS,
+            job_name=JOB_NAME,
+            variables=variables,
+            dataflow=PY_FILE,
+            py_options=PY_OPTIONS,
         )
         expected_cmd = [
             "python3",
@@ -295,7 +307,13 @@ class TestDataflowHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_start_python_dataflow_with_custom_interpreter(
-        self, name, py_interpreter, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid,
+        self,
+        name,
+        py_interpreter,
+        mock_conn,
+        mock_dataflow,
+        mock_dataflowjob,
+        mock_uuid,
     ):
         del name  # unused variable
         mock_uuid.return_value = MOCK_UUID
@@ -325,7 +343,11 @@ class TestDataflowHook(unittest.TestCase):
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
     @parameterized.expand(
-        [(['foo-bar'], False), (['foo-bar'], True), ([], True),]
+        [
+            (['foo-bar'], False),
+            (['foo-bar'], True),
+            ([], True),
+        ]
     )
     @mock.patch(DATAFLOW_STRING.format('prepare_virtualenv'))
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
@@ -418,7 +440,8 @@ class TestDataflowHook(unittest.TestCase):
             '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID),
         ]
         self.assertListEqual(
-            sorted(expected_cmd), sorted(mock_dataflow.call_args[1]["cmd"]),
+            sorted(expected_cmd),
+            sorted(mock_dataflow.call_args[1]["cmd"]),
         )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
@@ -487,7 +510,8 @@ class TestDataflowHook(unittest.TestCase):
             '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID),
         ]
         self.assertListEqual(
-            sorted(expected_cmd), sorted(mock_dataflow.call_args[1]["cmd"]),
+            sorted(expected_cmd),
+            sorted(mock_dataflow.call_args[1]["cmd"]),
         )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
@@ -522,7 +546,8 @@ class TestDataflowHook(unittest.TestCase):
             '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID),
         ]
         self.assertListEqual(
-            sorted(expected_cmd), sorted(mock_dataflow.call_args[1]["cmd"]),
+            sorted(expected_cmd),
+            sorted(mock_dataflow.call_args[1]["cmd"]),
         )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
@@ -644,7 +669,10 @@ class TestDataflowTemplateHook(unittest.TestCase):
         )
 
         launch_method.assert_called_once_with(
-            projectId=TEST_PROJECT, location=TEST_LOCATION, gcsPath=TEST_TEMPLATE, body=mock.ANY,
+            projectId=TEST_PROJECT,
+            location=TEST_LOCATION,
+            gcsPath=TEST_TEMPLATE,
+            body=mock.ANY,
         )
 
         mock_controller.assert_called_once_with(
@@ -721,7 +749,10 @@ class TestDataflowTemplateHook(unittest.TestCase):
         )
         body = {"jobName": mock.ANY, "parameters": PARAMETERS, "environment": RUNTIME_ENV}
         method.assert_called_once_with(
-            projectId=TEST_PROJECT, location=DEFAULT_DATAFLOW_LOCATION, gcsPath=TEST_TEMPLATE, body=body,
+            projectId=TEST_PROJECT,
+            location=DEFAULT_DATAFLOW_LOCATION,
+            gcsPath=TEST_TEMPLATE,
+            body=body,
         )
         mock_dataflowjob.assert_called_once_with(
             dataflow=mock_conn.return_value,

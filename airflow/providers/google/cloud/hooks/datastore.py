@@ -57,7 +57,9 @@ class DatastoreHook(GoogleBaseHook):
             )
             gcp_conn_id = datastore_conn_id
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.connection = None
         self.api_version = api_version

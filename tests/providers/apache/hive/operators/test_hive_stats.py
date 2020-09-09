@@ -150,7 +150,15 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
             table='hive_stats',
             rows=rows,
-            target_fields=['ds', 'dttm', 'table_name', 'partition_repr', 'col', 'metric', 'value',],
+            target_fields=[
+                'ds',
+                'dttm',
+                'table_name',
+                'partition_repr',
+                'col',
+                'metric',
+                'value',
+            ],
         )
 
     @patch('airflow.providers.apache.hive.operators.hive_stats.json.dumps')
@@ -190,7 +198,15 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
             table='hive_stats',
             rows=rows,
-            target_fields=['ds', 'dttm', 'table_name', 'partition_repr', 'col', 'metric', 'value',],
+            target_fields=[
+                'ds',
+                'dttm',
+                'table_name',
+                'partition_repr',
+                'col',
+                'metric',
+                'value',
+            ],
         )
 
     @patch('airflow.providers.apache.hive.operators.hive_stats.json.dumps')
@@ -230,7 +246,15 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
             table='hive_stats',
             rows=rows,
-            target_fields=['ds', 'dttm', 'table_name', 'partition_repr', 'col', 'metric', 'value',],
+            target_fields=[
+                'ds',
+                'dttm',
+                'table_name',
+                'partition_repr',
+                'col',
+                'metric',
+                'value',
+            ],
         )
 
     @patch('airflow.providers.apache.hive.operators.hive_stats.MySqlHook')
@@ -327,5 +351,13 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         mock_mysql_hook.insert_rows.assert_called_with(
             table='hive_stats',
             rows=insert_rows_val,
-            target_fields=['ds', 'dttm', 'table_name', 'partition_repr', 'col', 'metric', 'value',],
+            target_fields=[
+                'ds',
+                'dttm',
+                'table_name',
+                'partition_repr',
+                'col',
+                'metric',
+                'value',
+            ],
         )

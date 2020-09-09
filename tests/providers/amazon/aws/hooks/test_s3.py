@@ -108,7 +108,7 @@ class TestAwsS3Hook:
         bucket.put_object(Key='a', Body=b'a')
         bucket.put_object(Key='dir/b', Body=b'b')
 
-        assert hook.list_prefixes(s3_bucket, prefix='non-existent/') is None
+        assert [] == hook.list_prefixes(s3_bucket, prefix='non-existent/')
         assert ['dir/'] == hook.list_prefixes(s3_bucket, delimiter='/')
         assert ['a'] == hook.list_keys(s3_bucket, delimiter='/')
         assert ['dir/b'] == hook.list_keys(s3_bucket, prefix='dir/')
@@ -131,7 +131,7 @@ class TestAwsS3Hook:
         bucket.put_object(Key='a', Body=b'a')
         bucket.put_object(Key='dir/b', Body=b'b')
 
-        assert hook.list_keys(s3_bucket, prefix='non-existent/') is None
+        assert [] == hook.list_keys(s3_bucket, prefix='non-existent/')
         assert ['a', 'dir/b'] == hook.list_keys(s3_bucket)
         assert ['a'] == hook.list_keys(s3_bucket, delimiter='/')
         assert ['dir/b'] == hook.list_keys(s3_bucket, prefix='dir/')

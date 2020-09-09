@@ -91,7 +91,9 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.get_function.assert_called_once_with(
             'projects/test_project_id/locations/test_region/functions/helloWorld'
@@ -111,7 +113,9 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.get_function.assert_called_once_with(
             'projects/test_project_id/locations/test_region/functions/helloWorld'
@@ -133,7 +137,9 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         )
         operator.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         new_body = deepcopy(VALID_BODY)
         new_body['labels'] = {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')}
@@ -170,7 +176,9 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.reset_mock()
 
@@ -195,12 +203,21 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.reset_mock()
 
     @parameterized.expand(
-        [(labels,) for labels in [{}, {"label": 'value-01'}, {"label_324234_a_b_c": 'value-01_93'},]]
+        [
+            (labels,)
+            for labels in [
+                {},
+                {"label": 'value-01'},
+                {"label_324234_a_b_c": 'value-01_93'},
+            ]
+        ]
     )
     @mock.patch('airflow.providers.google.cloud.operators.functions.CloudFunctionsHook')
     def test_valid_labels_field(self, labels, mock_hook):
@@ -212,7 +229,9 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.reset_mock()
 
@@ -225,7 +244,9 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.reset_mock()
 
@@ -242,7 +263,9 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         err = cm.exception
         self.assertIn("The body field 'name' of value '' does not match", str(err))
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.reset_mock()
 
@@ -273,7 +296,9 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         err = cm.exception
         self.assertIn(message, str(err))
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.reset_mock()
 
@@ -455,13 +480,18 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         body.update(trigger)
         with self.assertRaises(AirflowException) as cm:
             op = CloudFunctionDeployFunctionOperator(
-                project_id="test_project_id", location="test_region", body=body, task_id="id",
+                project_id="test_project_id",
+                location="test_region",
+                body=body,
+                task_id="id",
             )
             op.execute(None)
         err = cm.exception
         self.assertIn(message, str(err))
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.reset_mock()
 
@@ -511,11 +541,16 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         body.pop('eventTrigger', None)
         body.update(trigger)
         op = CloudFunctionDeployFunctionOperator(
-            project_id="test_project_id", location="test_region", body=body, task_id="id",
+            project_id="test_project_id",
+            location="test_region",
+            body=body,
+            task_id="id",
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.get_function.assert_called_once_with(
             'projects/test_project_id/locations/test_region/functions/helloWorld'
@@ -535,7 +570,9 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.reset_mock()
 
@@ -563,7 +600,9 @@ class TestGcfFunctionDelete(unittest.TestCase):
         op = CloudFunctionDeleteFunctionOperator(name=self._FUNCTION_NAME, task_id="id")
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.delete_function.assert_called_once_with(
             'projects/project_name/locations/project_location/functions/function_name'
@@ -577,7 +616,9 @@ class TestGcfFunctionDelete(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.functions.CloudFunctionsHook')
@@ -606,7 +647,9 @@ class TestGcfFunctionDelete(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.delete_function.assert_called_once_with(
             'projects/project_name/locations/project_location/functions/function_name'
@@ -624,7 +667,9 @@ class TestGcfFunctionDelete(unittest.TestCase):
             op.execute(None)
 
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.delete_function.assert_called_once_with(
             'projects/project_name/locations/project_location/functions/function_name'
@@ -656,7 +701,9 @@ class TestGcfFunctionInvokeOperator(unittest.TestCase):
         )
         op.execute(None)
         mock_gcf_hook.assert_called_once_with(
-            api_version=api_version, gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain,
+            api_version=api_version,
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
         )
 
         mock_gcf_hook.return_value.call_function.assert_called_once_with(

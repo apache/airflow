@@ -91,11 +91,16 @@ class TestCreateEvaluateOps(unittest.TestCase):
             hook_instance.create_job.return_value = success_message
             result = pred.execute(None)
             mock_mlengine_hook.assert_called_once_with(
-                'google_cloud_default', None, impersonation_chain=None,
+                'google_cloud_default',
+                None,
+                impersonation_chain=None,
             )
             hook_instance.create_job.assert_called_once_with(
                 project_id='test-project',
-                job={'jobId': 'eval_test_prediction', 'predictionInput': input_with_model,},
+                job={
+                    'jobId': 'eval_test_prediction',
+                    'predictionInput': input_with_model,
+                },
                 use_existing_job_fn=ANY,
             )
             self.assertEqual(success_message['predictionOutput'], result)

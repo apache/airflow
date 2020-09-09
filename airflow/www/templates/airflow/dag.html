@@ -478,7 +478,7 @@
                   "&dag_id=" + encodeURIComponent(dag_id) +
                   "&execution_date=" + encodeURIComponent(execution_date) +
                   "&link_name=" + encodeURIComponent(link);
-          var external_link = $('<a href="#" data-toggle="tooltip" class="btn btn-primary disabled" target="_blank"></a>')
+          var external_link = $('<a href="#" class="btn btn-primary disabled" target="_blank"></a>')
           var link_tooltip = $('<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" ' +
             'title="link not yet available"></span>');
           link_tooltip.append(external_link)
@@ -500,9 +500,10 @@
           markupArr.push(link_tooltip)
         });
 
-        $('#extra_links').prev('hr').show();
-        $('#extra_links').append(markupArr).show();
-        $('[data-toggle="tooltip"]').tooltip();
+        var extra_links_span = $('#extra_links');
+        extra_links_span.prev('hr').show();
+        extra_links_span.append(markupArr).show();
+        extra_links_span.find('[data-toggle="tooltip"]').tooltip();
       }
     }
 

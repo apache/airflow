@@ -199,7 +199,11 @@ class TestSparkSqlHook(unittest.TestCase):
 
         # When
         with self.assertRaises(AirflowException) as e:
-            hook = SparkSqlHook(conn_id='spark_default', sql=sql, master=master,)
+            hook = SparkSqlHook(
+                conn_id='spark_default',
+                sql=sql,
+                master=master,
+            )
             hook.run_query(params)
 
         # Then

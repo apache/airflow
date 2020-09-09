@@ -66,7 +66,9 @@ class LifeSciencesHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
@@ -126,7 +128,9 @@ class LifeSciencesHook(GoogleBaseHook):
         :type location: str
         """
         return google.api_core.path_template.expand(
-            'projects/{project}/locations/{location}', project=project_id, location=location,
+            'projects/{project}/locations/{location}',
+            project=project_id,
+            location=location,
         )
 
     def _wait_for_operation_to_complete(self, operation_name: str) -> None:

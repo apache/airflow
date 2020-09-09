@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 set -euo pipefail
-export NO_TERMINAL_OUTPUT_FROM_SCRIPTS="true"
+export PRINT_INFO_FROM_SCRIPTS="false"
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
@@ -28,29 +28,38 @@ if ! command -v npm; then
     exit 0
 fi
 
-tmp_file="${CACHE_TMP_FILE_DIR}/tmp.mermaid"
+TMP_FILE="${CACHE_TMP_FILE_DIR}/tmp.mermaid"
+readonly TMP_FILE
+
 cd "${AIRFLOW_SOURCES}"
 
 MERMAID_INSTALLATION_DIR="${AIRFLOW_SOURCES}/.build/mermaid/"
+readonly MERMAID_INSTALLATION_DIR
+
 MERMAID_CONFIG_FILE="${MERMAID_INSTALLATION_DIR}/mermaid-config.json"
+readonly MERMAID_CONFIG_FILE
+
 MERMAID_CLI="${MERMAID_INSTALLATION_DIR}/node_modules/.bin/mmdc"
+readonly  MERMAID_CLI
+
 export NODE_VIRTUAL_ENV="${MERMAID_INSTALLATION_DIR}"
+readonly NODE_VIRTUAL_ENV
 
 if [[ -f "${MERMAID_CLI}" ]]; then
-    MERMAID_INSTALLED="true"
+    mermaid_installed="true"
 else
-    MERMAID_INSTALLED="false"
+    mermaid_installed="false"
 fi
 
 # shellcheck disable=SC2064
-traps::add_trap "rm -rf '${tmp_file}'" EXIT HUP INT TERM
+traps::add_trap "rm -rf '${TMP_FILE}'" EXIT HUP INT TERM
 
 for file in "${@}"
 do
     basename_file=${AIRFLOW_SOURCES}/"$(dirname "${file}")/$(basename "${file}" .mermaid)"
     md5sum_file="${basename_file}.md5"
     if ! diff "${md5sum_file}" <(md5sum "${file}"); then
-        if [[ ${MERMAID_INSTALLED} != "true" ]]; then
+        if [[ ${mermaid_installed} != "true" ]]; then
             echo "Installing mermaid"
             mkdir -p "${MERMAID_INSTALLATION_DIR}/node_modules"
             pushd "${MERMAID_INSTALLATION_DIR}"
@@ -61,7 +70,7 @@ do
   "themeCSS": ".label foreignObject { overflow: visible; }"
 }
 EOF
-            MERMAID_INSTALLED="true"
+            mermaid_installed="true"
             popd
         fi
         echo "Running generation for ${file}"
@@ -70,11 +79,11 @@ EOF
         # unfortunately mermaid does not handle well multiline comments and we need licence comment
         # Stripping them manually :(. Multiline comments are coming in the future
         # https://github.com/mermaid-js/mermaid/issues/1249
-        grep -v "^%%" <"${file}" > "${tmp_file}"
+        grep -v "^%%" <"${file}" > "${TMP_FILE}"
         mkdir -p "${MERMAID_INSTALLATION_DIR}"
 
         "${MERMAID_CLI}" \
-            -i "${tmp_file}" \
+            -i "${TMP_FILE}" \
             -w 2048 \
             -o "${basename_file}.png" \
             -c "${MERMAID_CONFIG_FILE}"

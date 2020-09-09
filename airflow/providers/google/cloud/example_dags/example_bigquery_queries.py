@@ -72,7 +72,9 @@ for location in [None, LOCATION]:
         user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_1},
     ) as dag_with_locations:
         create_dataset = BigQueryCreateEmptyDatasetOperator(
-            task_id="create-dataset", dataset_id=DATASET_NAME, location=location,
+            task_id="create-dataset",
+            dataset_id=DATASET_NAME,
+            location=location,
         )
 
         create_table_1 = BigQueryCreateEmptyTableOperator(
@@ -100,7 +102,12 @@ for location in [None, LOCATION]:
         # [START howto_operator_bigquery_insert_job]
         insert_query_job = BigQueryInsertJobOperator(
             task_id="insert_query_job",
-            configuration={"query": {"query": INSERT_ROWS_QUERY, "useLegacySql": "False",}},
+            configuration={
+                "query": {
+                    "query": INSERT_ROWS_QUERY,
+                    "useLegacySql": "False",
+                }
+            },
             location=location,
         )
         # [END howto_operator_bigquery_insert_job]
@@ -109,7 +116,10 @@ for location in [None, LOCATION]:
         select_query_job = BigQueryInsertJobOperator(
             task_id="select_query_job",
             configuration={
-                "query": {"query": "{% include 'example_bigquery_query.sql' %}", "useLegacySql": False,}
+                "query": {
+                    "query": "{% include 'example_bigquery_query.sql' %}",
+                    "useLegacySql": False,
+                }
             },
             location=location,
         )
@@ -149,7 +159,8 @@ for location in [None, LOCATION]:
         # [END howto_operator_bigquery_get_data]
 
         get_data_result = BashOperator(
-            task_id="get_data_result", bash_command="echo \"{{ task_instance.xcom_pull('get_data') }}\"",
+            task_id="get_data_result",
+            bash_command="echo \"{{ task_instance.xcom_pull('get_data') }}\"",
         )
 
         # [START howto_operator_bigquery_check]

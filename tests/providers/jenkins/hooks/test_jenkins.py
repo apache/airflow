@@ -47,7 +47,7 @@ class TestJenkinsHook(unittest.TestCase):
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     def test_client_created_default_https(self, get_connection_mock):
         """tests `init` method to validate https client creation when all
-        parameters are passed """
+        parameters are passed"""
         default_connection_id = 'jenkins_default'
 
         connection_host = 'http://test.com'

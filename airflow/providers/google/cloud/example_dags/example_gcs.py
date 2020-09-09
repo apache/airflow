@@ -52,7 +52,12 @@ PATH_TO_SAVED_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-exam
 
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 
-with models.DAG("example_gcs", start_date=days_ago(1), schedule_interval=None, tags=['example'],) as dag:
+with models.DAG(
+    "example_gcs",
+    start_date=days_ago(1),
+    schedule_interval=None,
+    tags=['example'],
+) as dag:
     create_bucket1 = GCSCreateBucketOperator(
         task_id="create_bucket1", bucket_name=BUCKET_1, project_id=PROJECT_ID
     )
@@ -64,11 +69,15 @@ with models.DAG("example_gcs", start_date=days_ago(1), schedule_interval=None, t
     list_buckets = GCSListObjectsOperator(task_id="list_buckets", bucket=BUCKET_1)
 
     list_buckets_result = BashOperator(
-        task_id="list_buckets_result", bash_command="echo \"{{ task_instance.xcom_pull('list_buckets') }}\"",
+        task_id="list_buckets_result",
+        bash_command="echo \"{{ task_instance.xcom_pull('list_buckets') }}\"",
     )
 
     upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file", src=PATH_TO_UPLOAD_FILE, dst=BUCKET_FILE_LOCATION, bucket=BUCKET_1,
+        task_id="upload_file",
+        src=PATH_TO_UPLOAD_FILE,
+        dst=BUCKET_FILE_LOCATION,
+        bucket=BUCKET_1,
     )
 
     transform_file = GCSFileTransformOperator(

@@ -80,7 +80,9 @@ class TestCloudFormationDeleteStackOperator(unittest.TestCase):
         stack_name = "myStackToBeDeleted"
 
         operator = CloudFormationDeleteStackOperator(
-            task_id='test_task', stack_name=stack_name, dag=DAG('test_dag_id', default_args=self.args),
+            task_id='test_task',
+            stack_name=stack_name,
+            dag=DAG('test_dag_id', default_args=self.args),
         )
 
         with patch('boto3.session.Session', self.boto3_session_mock):

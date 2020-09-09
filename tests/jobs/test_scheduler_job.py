@@ -33,6 +33,7 @@ from mock import MagicMock, patch
 from parameterized import parameterized
 
 import airflow.example_dags
+import airflow.smart_sensor_dags
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -197,7 +198,9 @@ class TestDagFileProcessor(unittest.TestCase):
         executor = MockExecutor(do_update=True, parallelism=3)
 
         with create_session() as session:
-            dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"))
+            dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"),
+                            include_examples=False,
+                            include_smart_sensor=False)
             dag = self.create_test_dag()
             dag.clear()
             dagbag.bag_dag(dag=dag, root_dag=dag)
@@ -1241,7 +1244,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 self.assertIsNone(duration)
 
 
-@pytest.mark.quarantined
+@pytest.mark.heisentests
 class TestDagFileProcessorQueriesCount(unittest.TestCase):
     """
     These tests are designed to detect changes in the number of queries for different DAG files.
@@ -1309,7 +1312,9 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
         }), conf_vars({
             ('scheduler', 'use_job_schedule'): 'True',
         }):
-            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE,
+                            include_examples=False,
+                            include_smart_sensor=False)
             processor = DagFileProcessor([], mock.MagicMock())
             for expected_query_count in expected_query_counts:
                 with assert_queries_count(expected_query_count):
@@ -2154,7 +2159,6 @@ class TestSchedulerJob(unittest.TestCase):
             self.assertEqual(State.QUEUED, ti.state)
 
     @pytest.mark.quarantined
-    @pytest.mark.xfail(condition=True, reason="The test is flaky with nondeterministic result")
     def test_change_state_for_tis_without_dagrun(self):
         dag1 = DAG(dag_id='test_change_state_for_tis_without_dagrun', start_date=DEFAULT_DATE)
 
@@ -2937,7 +2941,6 @@ class TestSchedulerJob(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(State.SUCCESS, ti.state)
 
-    @pytest.mark.quarantined
     def test_retry_still_in_executor(self):
         """
         Checks if the scheduler does not put a task in limbo, when a task is retried
@@ -3025,7 +3028,6 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(ti.state, State.SUCCESS)
 
     @pytest.mark.quarantined
-    @pytest.mark.xfail(condition=True, reason="This test is failing!")
     def test_retry_handling_job(self):
         """
         Integration test of the scheduler not accidentally resetting
@@ -3298,6 +3300,19 @@ class TestSchedulerJob(unittest.TestCase):
                         expected_files.add(os.path.join(root, file_name))
         detected_files.clear()
         for file_path in list_py_file_paths(TEST_DAG_FOLDER, include_examples=True):
+            detected_files.add(file_path)
+        self.assertEqual(detected_files, expected_files)
+
+        smart_sensor_dag_folder = airflow.smart_sensor_dags.__path__[0]
+        for root, _, files in os.walk(smart_sensor_dag_folder):
+            for file_name in files:
+                if (file_name.endswith('.py') or file_name.endswith('.zip')) and \
+                        file_name not in ['__init__.py']:
+                    expected_files.add(os.path.join(root, file_name))
+        detected_files.clear()
+        for file_path in list_py_file_paths(TEST_DAG_FOLDER,
+                                            include_examples=True,
+                                            include_smart_sensor=True):
             detected_files.add(file_path)
         self.assertEqual(detected_files, expected_files)
 

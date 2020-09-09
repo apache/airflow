@@ -45,7 +45,9 @@ class TestPagerdutyHook(unittest.TestCase):
     def test_without_routing_key_extra(self, session):
         session.add(
             Connection(
-                conn_id="pagerduty_no_extra", conn_type='http', password="pagerduty_token_without_extra",
+                conn_id="pagerduty_no_extra",
+                conn_type='http',
+                password="pagerduty_token_without_extra",
             )
         )
         session.commit()
@@ -69,14 +71,23 @@ class TestPagerdutyHook(unittest.TestCase):
             "message": "Event processed",
             "dedup_key": "samplekeyhere",
         }
-        resp = hook.create_event(routing_key="key", summary="test", source="airflow_test", severity="error",)
+        resp = hook.create_event(
+            routing_key="key",
+            summary="test",
+            source="airflow_test",
+            severity="error",
+        )
         self.assertEqual(resp["status"], "success")
         mock_event_create.assert_called_once_with(
             api_key="pagerduty_token",
             data={
                 "routing_key": "key",
                 "event_action": "trigger",
-                "payload": {"severity": "error", "source": "airflow_test", "summary": "test",},
+                "payload": {
+                    "severity": "error",
+                    "source": "airflow_test",
+                    "summary": "test",
+                },
             },
         )
 
@@ -89,7 +100,10 @@ class TestPagerdutyHook(unittest.TestCase):
             "dedup_key": "samplekeyhere",
         }
         resp = hook.create_event(
-            summary="test", source="airflow_test", severity="error", custom_details='{"foo": "bar"}',
+            summary="test",
+            source="airflow_test",
+            severity="error",
+            custom_details='{"foo": "bar"}',
         )
         self.assertEqual(resp["status"], "success")
         mock_event_create.assert_called_once_with(

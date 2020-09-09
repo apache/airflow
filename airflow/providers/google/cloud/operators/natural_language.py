@@ -98,7 +98,8 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudNaturalLanguageHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
 
         self.log.info("Start analyzing entities")
@@ -178,7 +179,8 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudNaturalLanguageHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
 
         self.log.info("Start entity sentiment analyze")
@@ -261,7 +263,8 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudNaturalLanguageHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
 
         self.log.info("Start sentiment analyze")
@@ -334,7 +337,8 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudNaturalLanguageHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
 
         self.log.info("Start text classify")

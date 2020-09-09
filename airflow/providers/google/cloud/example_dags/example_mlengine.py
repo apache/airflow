@@ -82,17 +82,26 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_create_model]
     create_model = MLEngineCreateModelOperator(
-        task_id="create-model", project_id=PROJECT_ID, model={"name": MODEL_NAME,},
+        task_id="create-model",
+        project_id=PROJECT_ID,
+        model={
+            "name": MODEL_NAME,
+        },
     )
     # [END howto_operator_gcp_mlengine_create_model]
 
     # [START howto_operator_gcp_mlengine_get_model]
-    get_model = MLEngineGetModelOperator(task_id="get-model", project_id=PROJECT_ID, model_name=MODEL_NAME,)
+    get_model = MLEngineGetModelOperator(
+        task_id="get-model",
+        project_id=PROJECT_ID,
+        model_name=MODEL_NAME,
+    )
     # [END howto_operator_gcp_mlengine_get_model]
 
     # [START howto_operator_gcp_mlengine_print_model]
     get_model_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('get-model') }}\"", task_id="get-model-result",
+        bash_command="echo \"{{ task_instance.xcom_pull('get-model') }}\"",
+        task_id="get-model-result",
     )
     # [END howto_operator_gcp_mlengine_print_model]
 
@@ -132,19 +141,25 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_default_version]
     set_defaults_version = MLEngineSetDefaultVersionOperator(
-        task_id="set-default-version", project_id=PROJECT_ID, model_name=MODEL_NAME, version_name="v2",
+        task_id="set-default-version",
+        project_id=PROJECT_ID,
+        model_name=MODEL_NAME,
+        version_name="v2",
     )
     # [END howto_operator_gcp_mlengine_default_version]
 
     # [START howto_operator_gcp_mlengine_list_versions]
     list_version = MLEngineListVersionsOperator(
-        task_id="list-version", project_id=PROJECT_ID, model_name=MODEL_NAME,
+        task_id="list-version",
+        project_id=PROJECT_ID,
+        model_name=MODEL_NAME,
     )
     # [END howto_operator_gcp_mlengine_list_versions]
 
     # [START howto_operator_gcp_mlengine_print_versions]
     list_version_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('list-version') }}\"", task_id="list-version-result",
+        bash_command="echo \"{{ task_instance.xcom_pull('list-version') }}\"",
+        task_id="list-version-result",
     )
     # [END howto_operator_gcp_mlengine_print_versions]
 

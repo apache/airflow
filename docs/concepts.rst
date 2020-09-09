@@ -156,6 +156,15 @@ Example DAG with functional abstraction
         html_content=email_info['body']
     )
 
+.. _concepts:executor_config:
+
+executor_config
+===============
+
+The executor_config is an argument placed into operators that allow airflow users to override tasks
+before launch. Currently this is primarily used by the :class:`KubernetesExecutor`, but will soon be available
+for other overrides.
+
 .. _concepts:dagruns:
 
 DAG Runs
@@ -747,6 +756,8 @@ to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter 
 deserialization mechanism the custom class should override ``serialize_value`` and ``deserialize_value``
 methods.
 
+See :doc:`modules_management` for details on how Python and Airflow manage modules.
+
 .. _concepts:variables:
 
 Variables
@@ -1196,6 +1207,8 @@ Where to put ``airflow_local_settings.py``?
 
 Add a ``airflow_local_settings.py`` file to your ``$PYTHONPATH``
 or to ``$AIRFLOW_HOME/config`` folder.
+
+See :doc:`modules_management` for details on how Python and Airflow manage modules.
 
 
 Documentation & Notes

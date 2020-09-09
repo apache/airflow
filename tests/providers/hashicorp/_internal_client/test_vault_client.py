@@ -95,7 +95,9 @@ class TestVaultClient(TestCase):
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
         client.auth_aws_iam.assert_called_with(
-            access_key='user', secret_key='pass', role="role",
+            access_key='user',
+            secret_key='pass',
+            role="role",
         )
         client.is_authenticated.assert_called_with()
         self.assertEqual(2, vault_client.kv_engine_version)
@@ -135,7 +137,10 @@ class TestVaultClient(TestCase):
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
         client.auth.azure.configure.assert_called_with(
-            tenant_id="tenant_id", resource="resource", client_id="user", client_secret="pass",
+            tenant_id="tenant_id",
+            resource="resource",
+            client_id="user",
+            client_secret="pass",
         )
         client.is_authenticated.assert_called_with()
         self.assertEqual(2, vault_client.kv_engine_version)
@@ -209,7 +214,9 @@ class TestVaultClient(TestCase):
             key_path="path.json", keyfile_dict=None, scopes=['scope1', 'scope2']
         )
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
-        client.auth.gcp.configure.assert_called_with(credentials="credentials",)
+        client.auth.gcp.configure.assert_called_with(
+            credentials="credentials",
+        )
         client.is_authenticated.assert_called_with()
         self.assertEqual(2, vault_client.kv_engine_version)
 
@@ -260,7 +267,9 @@ class TestVaultClient(TestCase):
             key_path=None, keyfile_dict={"key": "value"}, scopes=['scope1', 'scope2']
         )
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
-        client.auth.gcp.configure.assert_called_with(credentials="credentials",)
+        client.auth.gcp.configure.assert_called_with(
+            credentials="credentials",
+        )
         client.is_authenticated.assert_called_with()
         self.assertEqual(2, vault_client.kv_engine_version)
 

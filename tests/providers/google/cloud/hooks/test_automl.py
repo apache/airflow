@@ -56,9 +56,7 @@ class TestAuoMLHook(unittest.TestCase):
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudAutoMLHook()
-            self.hook._get_credentials = mock.MagicMock(  # type: ignore
-                return_value=CREDENTIALS
-            )
+            self.hook._get_credentials = mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.automl.GoogleBaseHook.client_info",
@@ -109,11 +107,19 @@ class TestAuoMLHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.automl.PredictionServiceClient.predict")
     def test_predict(self, mock_predict):
         self.hook.predict(
-            model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID, payload=PAYLOAD,
+            model_id=MODEL_ID,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+            payload=PAYLOAD,
         )
 
         mock_predict.assert_called_once_with(
-            name=MODEL_PATH, payload=PAYLOAD, params=None, retry=None, timeout=None, metadata=None,
+            name=MODEL_PATH,
+            payload=PAYLOAD,
+            params=None,
+            retry=None,
+            timeout=None,
+            metadata=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.create_dataset")
@@ -121,7 +127,11 @@ class TestAuoMLHook(unittest.TestCase):
         self.hook.create_dataset(dataset=DATASET, location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
 
         mock_create_dataset.assert_called_once_with(
-            parent=LOCATION_PATH, dataset=DATASET, retry=None, timeout=None, metadata=None,
+            parent=LOCATION_PATH,
+            dataset=DATASET,
+            retry=None,
+            timeout=None,
+            metadata=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.import_data")
@@ -134,7 +144,11 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
         mock_import_data.assert_called_once_with(
-            name=DATASET_PATH, input_config=INPUT_CONFIG, retry=None, timeout=None, metadata=None,
+            name=DATASET_PATH,
+            input_config=INPUT_CONFIG,
+            retry=None,
+            timeout=None,
+            metadata=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.list_column_specs")
@@ -179,7 +193,8 @@ class TestAuoMLHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.update_dataset")
     def test_update_dataset(self, mock_update_dataset):
         self.hook.update_dataset(
-            dataset=DATASET, update_mask=MASK,
+            dataset=DATASET,
+            update_mask=MASK,
         )
 
         mock_update_dataset.assert_called_once_with(

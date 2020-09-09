@@ -863,7 +863,7 @@ To install yarn on macOS:
 
 .. code-block:: bash
 
-    brew install node --without-npm
+    brew install node
     brew install yarn
     yarn config set prefix ~/.yarn
 

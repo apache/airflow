@@ -36,7 +36,10 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 class BigtableWaitForTableReplicationTest(unittest.TestCase):
     @parameterized.expand(
-        [('instance_id', PROJECT_ID, '', TABLE_ID), ('table_id', PROJECT_ID, INSTANCE_ID, ''),],
+        [
+            ('instance_id', PROJECT_ID, '', TABLE_ID),
+            ('table_id', PROJECT_ID, INSTANCE_ID, ''),
+        ],
         testcase_func_name=lambda f, n, p: 'test_empty_attribute.empty_' + p.args[0],
     )
     @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
@@ -68,7 +71,8 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
         )
         self.assertFalse(op.poke(None))
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
     @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
@@ -88,7 +92,8 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
         )
         self.assertFalse(op.poke(None))
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
     @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
@@ -105,7 +110,8 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
         )
         self.assertFalse(op.poke(None))
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
     @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
@@ -122,5 +128,6 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
         )
         self.assertTrue(op.poke(None))
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )

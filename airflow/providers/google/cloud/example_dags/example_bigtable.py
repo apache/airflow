@@ -140,19 +140,27 @@ with models.DAG(
 
     # [START howto_operator_gcp_bigtable_instance_delete]
     delete_instance_task = BigtableDeleteInstanceOperator(
-        project_id=GCP_PROJECT_ID, instance_id=CBT_INSTANCE_ID, task_id='delete_instance_task',
+        project_id=GCP_PROJECT_ID,
+        instance_id=CBT_INSTANCE_ID,
+        task_id='delete_instance_task',
     )
     delete_instance_task2 = BigtableDeleteInstanceOperator(
-        instance_id=CBT_INSTANCE_ID, task_id='delete_instance_task2',
+        instance_id=CBT_INSTANCE_ID,
+        task_id='delete_instance_task2',
     )
     # [END howto_operator_gcp_bigtable_instance_delete]
 
     # [START howto_operator_gcp_bigtable_table_create]
     create_table_task = BigtableCreateTableOperator(
-        project_id=GCP_PROJECT_ID, instance_id=CBT_INSTANCE_ID, table_id=CBT_TABLE_ID, task_id='create_table',
+        project_id=GCP_PROJECT_ID,
+        instance_id=CBT_INSTANCE_ID,
+        table_id=CBT_TABLE_ID,
+        task_id='create_table',
     )
     create_table_task2 = BigtableCreateTableOperator(
-        instance_id=CBT_INSTANCE_ID, table_id=CBT_TABLE_ID, task_id='create_table_task2',
+        instance_id=CBT_INSTANCE_ID,
+        table_id=CBT_TABLE_ID,
+        task_id='create_table_task2',
     )
     create_table_task >> create_table_task2
     # [END howto_operator_gcp_bigtable_table_create]
@@ -183,7 +191,9 @@ with models.DAG(
         task_id='delete_table_task',
     )
     delete_table_task2 = BigtableDeleteTableOperator(
-        instance_id=CBT_INSTANCE_ID, table_id=CBT_TABLE_ID, task_id='delete_table_task2',
+        instance_id=CBT_INSTANCE_ID,
+        table_id=CBT_TABLE_ID,
+        task_id='delete_table_task2',
     )
     # [END howto_operator_gcp_bigtable_table_delete]
 

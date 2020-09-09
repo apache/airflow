@@ -150,7 +150,7 @@ repos:
     hooks:
       - id: check-hooks-apply
   - repo: https://github.com/psf/black
-    rev: 19.10b0
+    rev: 20.8b1
     hooks:
       - id: black
         files: api_connexion/.*\.py|.*providers.*\.py
@@ -199,7 +199,7 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D104,D105,D106,D107,D200,D202,D204,D205,D207,D208,D400,D401
+          - --add-ignore=D100,D102,D104,D105,D107,D200,D202,D204,D205,D400,D401
         exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
   - repo: local
     hooks:
@@ -223,7 +223,7 @@ repos:
         name: Lint dockerfile
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh"
-        files: ^Dockerfile.*$
+        files: Dockerfile.*$
         pass_filenames: true
       - id: setup-order
         name: Checks for an order of dependencies in setup.py
@@ -340,7 +340,7 @@ repos:
         entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
         pass_filenames: true
-      - id: restrict-start_date-in-default_args-in-example_dags
+      - id: restrict-start_date
         language: pygrep
         name: "'start_date' should not be defined in default_args in example_dags"
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
@@ -411,4 +411,10 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
         language: system
         files: \.mermaid$
+        require_serial: true
+      - id: pre-commit-descriptions
+        name: Check if pre-commits are described
+        entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commits.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^STATIC_CODE_CHECKS.rst|^breeze-complete$
         require_serial: true

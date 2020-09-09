@@ -133,7 +133,9 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
         res = self.gcf_function_hook.create_new_function(
-            location=GCF_LOCATION, body={}, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            location=GCF_LOCATION,
+            body={},
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         self.assertIsNone(res)
         create_method.assert_called_once_with(body={}, location='projects/example-project/locations/location')
@@ -227,7 +229,9 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
             execute_method.return_value = {"uploadUrl": "http://uploadHere"}
             requests_put.return_value = None
             res = self.gcf_function_hook.upload_function_zip(
-                location=GCF_LOCATION, zip_path="/tmp/path.zip", project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+                location=GCF_LOCATION,
+                zip_path="/tmp/path.zip",
+                project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             )
             self.assertEqual("http://uploadHere", res)
             generate_upload_url_method.assert_called_once_with(

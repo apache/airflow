@@ -80,7 +80,11 @@ create_tuning_params = {
         'Strategy': 'Bayesian',
         'HyperParameterTuningJobObjective': {'Type': 'Maximize', 'MetricName': 'test_metric'},
         'ResourceLimits': {'MaxNumberOfTrainingJobs': 123, 'MaxParallelTrainingJobs': 123},
-        'ParameterRanges': {'IntegerParameterRanges': [{'Name': 'k', 'MinValue': '2', 'MaxValue': '10'},]},
+        'ParameterRanges': {
+            'IntegerParameterRanges': [
+                {'Name': 'k', 'MinValue': '2', 'MaxValue': '10'},
+            ]
+        },
     },
     'TrainingJobDefinition': {
         'StaticHyperParameters': create_training_params['HyperParameters'],
@@ -98,13 +102,18 @@ create_transform_params = {
     'ModelName': model_name,
     'BatchStrategy': 'MultiRecord',
     'TransformInput': {'DataSource': {'S3DataSource': {'S3DataType': 'S3Prefix', 'S3Uri': data_url}}},
-    'TransformOutput': {'S3OutputPath': output_url,},
+    'TransformOutput': {
+        'S3OutputPath': output_url,
+    },
     'TransformResources': {'InstanceType': 'ml.m4.xlarge', 'InstanceCount': 123},
 }
 
 create_model_params = {
     'ModelName': model_name,
-    'PrimaryContainer': {'Image': image, 'ModelDataUrl': output_url,},
+    'PrimaryContainer': {
+        'Image': image,
+        'ModelDataUrl': output_url,
+    },
     'ExecutionRoleArn': role,
 }
 
@@ -129,7 +138,9 @@ DESCRIBE_TRAINING_COMPLETED_RETURN = {
     'ResourceConfig': {'InstanceCount': 1, 'InstanceType': 'ml.c4.xlarge', 'VolumeSizeInGB': 10},
     'TrainingStartTime': datetime(2018, 2, 17, 7, 15, 0, 103000),
     'TrainingEndTime': datetime(2018, 2, 17, 7, 19, 34, 953000),
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
 }
 
 DESCRIBE_TRAINING_INPROGRESS_RETURN = dict(DESCRIBE_TRAINING_COMPLETED_RETURN)

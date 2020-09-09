@@ -48,13 +48,20 @@ class TestCloudDatastoreExportEntitiesOperator:
         }
 
         op = CloudDatastoreExportEntitiesOperator(
-            task_id="test_task", datastore_conn_id=CONN_ID, project_id=PROJECT_ID, bucket=BUCKET,
+            task_id="test_task",
+            datastore_conn_id=CONN_ID,
+            project_id=PROJECT_ID,
+            bucket=BUCKET,
         )
         op.execute({})
 
         mock_hook.assert_called_once_with(CONN_ID, None, impersonation_chain=None)
         mock_hook.return_value.export_to_storage_bucket.assert_called_once_with(
-            project_id=PROJECT_ID, bucket=BUCKET, entity_filter=None, labels=None, namespace=None,
+            project_id=PROJECT_ID,
+            bucket=BUCKET,
+            entity_filter=None,
+            labels=None,
+            namespace=None,
         )
 
         mock_hook.return_value.poll_operation_until_done.assert_called_once_with(OPERATION_ID, 10)
@@ -69,13 +76,22 @@ class TestCloudDatastoreImportEntitiesOperator:
         }
 
         op = CloudDatastoreImportEntitiesOperator(
-            task_id="test_task", datastore_conn_id=CONN_ID, project_id=PROJECT_ID, bucket=BUCKET, file=FILE,
+            task_id="test_task",
+            datastore_conn_id=CONN_ID,
+            project_id=PROJECT_ID,
+            bucket=BUCKET,
+            file=FILE,
         )
         op.execute({})
 
         mock_hook.assert_called_once_with(CONN_ID, None, impersonation_chain=None)
         mock_hook.return_value.import_from_storage_bucket.assert_called_once_with(
-            project_id=PROJECT_ID, bucket=BUCKET, file=FILE, entity_filter=None, labels=None, namespace=None,
+            project_id=PROJECT_ID,
+            bucket=BUCKET,
+            file=FILE,
+            entity_filter=None,
+            labels=None,
+            namespace=None,
         )
 
         mock_hook.return_value.export_to_storage_bucketassert_called_once_with(OPERATION_ID, 10)
@@ -86,7 +102,10 @@ class TestCloudDatastoreAllocateIds:
     def test_execute(self, mock_hook):
         partial_keys = [1, 2, 3]
         op = CloudDatastoreAllocateIdsOperator(
-            task_id="test_task", gcp_conn_id=CONN_ID, project_id=PROJECT_ID, partial_keys=partial_keys,
+            task_id="test_task",
+            gcp_conn_id=CONN_ID,
+            project_id=PROJECT_ID,
+            partial_keys=partial_keys,
         )
         op.execute({})
 
@@ -100,7 +119,10 @@ class TestCloudDatastoreBeginTransaction:
     @mock.patch(HOOK_PATH)
     def test_execute(self, mock_hook):
         op = CloudDatastoreBeginTransactionOperator(
-            task_id="test_task", gcp_conn_id=CONN_ID, project_id=PROJECT_ID, transaction_options=BODY,
+            task_id="test_task",
+            gcp_conn_id=CONN_ID,
+            project_id=PROJECT_ID,
+            transaction_options=BODY,
         )
         op.execute({})
 
@@ -146,7 +168,10 @@ class TestCloudDatastoreRollback:
     @mock.patch(HOOK_PATH)
     def test_execute(self, mock_hook):
         op = CloudDatastoreRollbackOperator(
-            task_id="test_task", gcp_conn_id=CONN_ID, project_id=PROJECT_ID, transaction=TRANSACTION,
+            task_id="test_task",
+            gcp_conn_id=CONN_ID,
+            project_id=PROJECT_ID,
+            transaction=TRANSACTION,
         )
         op.execute({})
 

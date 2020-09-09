@@ -26,15 +26,31 @@ from glob import glob
 from unittest import mock
 
 from dateutil.relativedelta import FR, relativedelta
+from kubernetes.client import models as k8s
 from parameterized import parameterized
 
 from airflow.hooks.base_hook import BaseHook
+from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
+
+executor_config_pod = k8s.V1Pod(
+    metadata=k8s.V1ObjectMeta(name="my-name"),
+    spec=k8s.V1PodSpec(containers=[
+        k8s.V1Container(
+            name="base",
+            volume_mounts=[
+                k8s.V1VolumeMount(
+                    name="my-vol",
+                    mount_path="/vol/"
+                )
+            ]
+        )
+    ]))
 
 serialized_simple_dag_ground_truth = {
     "__version": 1,
@@ -70,6 +86,12 @@ serialized_simple_dag_ground_truth = {
                 "_task_type": "BashOperator",
                 "_task_module": "airflow.operators.bash",
                 "pool": "default_pool",
+                "executor_config": {'__type': 'dict',
+                                    '__var': {"pod_override": {
+                                        '__type': 'k8s.V1Pod',
+                                        '__var': PodGenerator.serialize_pod(executor_config_pod)}
+                                    }
+                                    }
             },
             {
                 "task_id": "custom_task",
@@ -130,8 +152,9 @@ def make_simple_dag():
         }
     ) as dag:
         CustomOperator(task_id='custom_task')
-        BashOperator(task_id='bash_task', bash_command='echo {{ task.task_id }}', owner='airflow')
-    return {'simple_dag': dag}
+        BashOperator(task_id='bash_task', bash_command='echo {{ task.task_id }}', owner='airflow',
+                     executor_config={"pod_override": executor_config_pod})
+        return {'simple_dag': dag}
 
 
 def make_user_defined_macro_filter_dag():

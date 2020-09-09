@@ -78,7 +78,9 @@ class TestKubernetesHook(unittest.TestCase):
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch("kubernetes.config.kube_config.KUBE_CONFIG_DEFAULT_LOCATION", "/mock/config")
     def test_default_kube_config_connection(
-        self, mock_kube_config_loader, mock_kube_config_merger,
+        self,
+        mock_kube_config_loader,
+        mock_kube_config_merger,
     ):
         kubernetes_hook = KubernetesHook(conn_id='kubernetes_default_kube_config')
         api_conn = kubernetes_hook.get_conn()

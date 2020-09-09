@@ -15,16 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-function run_bats_tests() {
-    FILES=("$@")
-    if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            bats/bats:latest --tap -r /airflow/tests/bats
-    else
-        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            bats/bats:latest --tap -r "${FILES[@]}"
-    fi
-}
+set -euo pipefail
+DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
+DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
+readonly DOCKERHUB_USER
+readonly DOCKERHUB_REPO
+STRESS_VERSION="1.0.4"
+readonly STRESS_VERSION
 
-run_bats_tests "$@"
+AIRFLOW_STRESS_VERSION="2020.07.10"
+readonly AIRFLOW_STRESS_VERSION
+
+COMMIT_SHA=$(git rev-parse HEAD)
+readonly COMMIT_SHA
+
+cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
+
+TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:stress-${AIRFLOW_STRESS_VERSION}-${STRESS_VERSION}"
+readonly TAG
+
+docker build . \
+    --pull \
+    --build-arg "STRESS_VERSION=${STRESS_VERSION}" \
+    --build-arg "AIRFLOW_STRESS_VERSION=${AIRFLOW_STRESS_VERSION}" \
+    --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
+    --tag "${TAG}"
+
+docker push "${TAG}"

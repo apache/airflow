@@ -110,7 +110,9 @@ def provide_gcp_credentials(key_file_path: Optional[str] = None, key_file_dict: 
 
 @contextmanager
 def provide_gcp_connection(
-    key_file_path: Optional[str] = None, scopes: Optional[Sequence] = None, project_id: Optional[str] = None,
+    key_file_path: Optional[str] = None,
+    scopes: Optional[Sequence] = None,
+    project_id: Optional[str] = None,
 ):
     """
     Context manager that provides a temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`
@@ -135,7 +137,9 @@ def provide_gcp_connection(
 
 @contextmanager
 def provide_gcp_conn_and_credentials(
-    key_file_path: Optional[str] = None, scopes: Optional[Sequence] = None, project_id: Optional[str] = None,
+    key_file_path: Optional[str] = None,
+    scopes: Optional[Sequence] = None,
+    project_id: Optional[str] = None,
 ):
     """
     Context manager that provides both:

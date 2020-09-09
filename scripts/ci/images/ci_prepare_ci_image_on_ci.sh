@@ -33,14 +33,14 @@ function build_ci_image_on_ci() {
         # Tries to wait for the images indefinitely
         # skips further image checks - since we already have the target image
 
-        PYTHON_TAG_SUFFIX=""
+        local python_tag_suffix=""
         if [[ ${GITHUB_REGISTRY_PUSH_IMAGE_TAG} != "latest" ]]; then
-            PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+            python_tag_suffix="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         fi
         # first we pull base python image. We will need it to re-push it after master build
         # Becoming the new "latest" image for other builds
         build_images::wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
-            "${PYTHON_TAG_SUFFIX}" "${PYTHON_BASE_IMAGE}"
+            "${python_tag_suffix}" "${PYTHON_BASE_IMAGE}"
 
         # And then the base image
         build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" \

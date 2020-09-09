@@ -1334,6 +1334,13 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
 
         return cls.__serialized_fields
 
+    def is_smart_sensor_compatible(self):
+        """
+        Return if this operator can use smart service. Default False.
+
+        """
+        return False
+
 
 def chain(*tasks: Union[BaseOperator, Sequence[BaseOperator]]):
     r"""

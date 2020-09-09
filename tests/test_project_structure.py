@@ -27,10 +27,6 @@ ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)
 )
 
-MISSING_TEST_FILES = {
-    'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py',
-}
-
 
 class TestProjectStructure(unittest.TestCase):
     def test_reference_to_providers_from_core(self):
@@ -89,22 +85,7 @@ class TestProjectStructure(unittest.TestCase):
         current_test_files = set(current_test_files)
 
         missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
-        self.assertEqual(set(), missing_tests_files - MISSING_TEST_FILES)
-
-    def test_keep_missing_test_files_update(self):
-        new_test_files = []
-        for test_file in MISSING_TEST_FILES:
-            if os.path.isfile(f"{ROOT_FOLDER}/{test_file}"):
-                new_test_files.append(test_file)
-        if new_test_files:
-            new_files_text = '\n'.join(new_test_files)
-            self.fail(
-                "You've added a test file currently listed as missing:\n"
-                f"{new_files_text}"
-                "\n"
-                "Thank you very much.\n"
-                "Can you remove it from the list of missing tests, please?"
-            )
+        self.assertEqual(set(), missing_tests_files)
 
 
 class TestGoogleProviderProjectStructure(unittest.TestCase):
@@ -116,7 +97,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'cassandra_to_gcs'),
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
-        ('cloud', 'gcs_to_local'),
         ('ads', 'ads_to_gcs'),
     }
 

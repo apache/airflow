@@ -69,7 +69,10 @@ with models.DAG(
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
         schema_fields=SCHEMA,
-        time_partitioning={"type": "DAY", "field": "ds",},
+        time_partitioning={
+            "type": "DAY",
+            "field": "ds",
+        },
     )
     # [START howto_sensor_bigquery_table]
     check_table_exists = BigQueryTableExistenceSensor(

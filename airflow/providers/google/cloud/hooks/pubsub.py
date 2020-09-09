@@ -64,7 +64,9 @@ class PubSubHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -90,7 +92,12 @@ class PubSubHook(GoogleBaseHook):
         return SubscriberClient(credentials=self._get_credentials(), client_info=self.client_info)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def publish(self, topic: str, messages: List[Dict], project_id: str,) -> None:
+    def publish(
+        self,
+        topic: str,
+        messages: List[Dict],
+        project_id: str,
+    ) -> None:
         """
         Publishes messages to a Pub/Sub topic.
 
@@ -269,7 +276,10 @@ class PubSubHook(GoogleBaseHook):
         try:
             # pylint: disable=no-member
             publisher.delete_topic(
-                topic=topic_path, retry=retry, timeout=timeout, metadata=metadata,
+                topic=topic_path,
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata,
             )
         except NotFound:
             self.log.warning('Topic does not exist: %s', topic_path)
