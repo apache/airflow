@@ -1,4 +1,4 @@
-import pprint
+import json
 from redis import Redis
 from airflow.contrib.hooks.redis_hook import RedisHook
 from typing import Dict
@@ -79,7 +79,7 @@ class ClsRedisConnection(ClsEntity):
             for key, val in templates.items():
                 _logger.debug("storing template, key: {} ...".format(key))
                 channel = gen_template_key(key)
-                p.set(channel, value=val)
+                p.set(channel, value=json.dumps(val))
             p.execute()
 
     def run(self):
