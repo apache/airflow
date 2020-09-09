@@ -29,14 +29,15 @@ CHANGED_FILES_PATTERNS=(
     "^tests"
     "^kubernetes_tests"
 )
+readonly CHANGED_FILES_PATTERNS
 
-CHANGED_FILES_REGEXP=""
+changed_files_regexp=""
 
-SEPARATOR=""
+separator=""
 for PATTERN in "${CHANGED_FILES_PATTERNS[@]}"
 do
-    CHANGED_FILES_REGEXP="${CHANGED_FILES_REGEXP}${SEPARATOR}${PATTERN}"
-    SEPARATOR="|"
+    changed_files_regexp="${changed_files_regexp}${separator}${PATTERN}"
+    separator="|"
 done
 
 echo
@@ -44,11 +45,11 @@ echo "GitHub SHA: ${COMMIT_SHA}"
 echo
 
 set +e
-"${SCRIPTS_CI_DIR}/tools/ci_count_changed_files.sh" "${CHANGED_FILES_REGEXP}"
-COUNT_CHANGED_FILES=$?
+"${SCRIPTS_CI_DIR}/tools/ci_count_changed_files.sh" "${changed_files_regexp}"
+count_changed_files=$?
 set -e
 
-if [[ ${COUNT_CHANGED_FILES} == "0" ]]; then
+if [[ ${count_changed_files} == "0" ]]; then
     echo "::set-output name=run-tests::false"
 else
     echo "::set-output name=run-tests::true"
