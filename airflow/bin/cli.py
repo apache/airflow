@@ -541,7 +541,7 @@ def run(args, dag=None):
         dag = get_dag(args)
     elif not dag:
         with db.create_session() as session:
-            print('Loading pickle id %s', args.pickle)
+            print('Loading pickle id ', args.pickle)
             dag_pickle = session.query(DagPickle).filter(DagPickle.id == args.pickle).first()
             if not dag_pickle:
                 raise AirflowException("Who hid the pickle!? [missing pickle]")
@@ -554,7 +554,7 @@ def run(args, dag=None):
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
-    print("Running %s on host %s", ti, hostname)
+    print("Running {} on host {}".format(ti, hostname))
 
     if args.interactive:
         _run(args, dag, ti)
