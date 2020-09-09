@@ -52,8 +52,10 @@ from tests.test_utils.config import conf_vars
 if PY2:
     # Need `assertWarns` back-ported from unittest2
     import unittest2 as unittest
+    from backports import tempfile
 else:
     import unittest
+    import tempfile
 
 if PY2:
     @contextlib.contextmanager
@@ -288,6 +290,21 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(stdout[-1], expected_output[i])
 
             reset_dr_db(dag_id)
+
+    def test_generate_pod_template(self):
+
+        from airflow.kubernetes.pod_generator import PodGenerator
+        with tempfile.TemporaryDirectory("airflow_dry_run_test/") as directory:
+            d = directory
+            print(d)
+            cli.generate_pod_template(self.parser.parse_args(
+                ['generate_pod_template', '-o', directory]))
+            self.assertTrue(os.path.isdir(directory))
+            self.assertTrue(os.path.isfile(os.path.join(directory, 'airflow_template.yml')))
+
+            # ensure that a valid pod is created from YAML
+            result = PodGenerator.deserialize_model_file(os.path.join(directory, 'airflow_template.yml'))
+            self.assertIsNotNone(result)
 
     @mock.patch("airflow.bin.cli.DAG.run")
     def test_backfill(self, mock_run):
