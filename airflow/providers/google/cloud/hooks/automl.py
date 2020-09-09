@@ -482,7 +482,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         """
         Updates a dataset.
 
-        :param dataset: TThe dataset which replaces the resource on the server.
+        :param dataset: The dataset which replaces the resource on the server.
             If a dict is provided, it must be of the same form as the protobuf message Dataset.
         :type dataset: Union[dict, Dataset]
         :param update_mask: The update mask applies to the resource.  If a dict is provided, it must
