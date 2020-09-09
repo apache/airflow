@@ -1337,7 +1337,6 @@ webservers
 webservice
 whitespace
 whl
-wil
 winrm
 workgroup
 workgroups
