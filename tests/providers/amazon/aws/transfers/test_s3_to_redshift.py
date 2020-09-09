@@ -72,6 +72,8 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
 
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
     def test_truncate(self, mock_run, mock_session):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
