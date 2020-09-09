@@ -236,7 +236,7 @@ class TestPodGenerator(unittest.TestCase):
     def test_from_obj(self):
         result = PodGenerator.from_obj(
             {
-                "podOverride": k8s.V1Pod(
+                "pod_override": k8s.V1Pod(
                     api_version="v1",
                     kind="Pod",
                     metadata=k8s.V1ObjectMeta(
