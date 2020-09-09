@@ -18,6 +18,8 @@ import tempfile
 from typing import Generator, Optional, Tuple, Union
 
 import yaml
+from cached_property import cached_property
+
 from kubernetes import client, config, watch
 
 from airflow.exceptions import AirflowException
@@ -64,6 +66,11 @@ class KubernetesHook(BaseHook):
                 config.load_kube_config(temp_config.name)
         return client.ApiClient()
 
+    @cached_property
+    def api_client(self):
+        """Cached Kubernetes API client"""
+        return self.get_conn()
+
     def create_custom_resource_definition(
         self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
     ):
@@ -81,7 +88,7 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         :type namespace: str
         """
-        api = client.CustomObjectsApi(self.get_conn())
+        api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
             namespace = self.get_namespace()
         if isinstance(body, str):
@@ -112,7 +119,7 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         :type namespace: str
         """
-        custom_resource_definition_api = client.CustomObjectsApi(self.get_conn())
+        custom_resource_definition_api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
             namespace = self.get_namespace()
         try:
@@ -144,12 +151,11 @@ class KubernetesHook(BaseHook):
         :param pod_name: pod name
         :type pod_name: str
         :param container: container name
-        :type version: str
         :param namespace: kubernetes namespace
         :type namespace: str
         """
 
-        api = client.CoreV1Api(self.get_conn())
+        api = client.CoreV1Api(self.api_client)
         watcher = watch.Watch()
         return (
             watcher,
@@ -173,11 +179,10 @@ class KubernetesHook(BaseHook):
         :param pod_name: pod name
         :type pod_name: str
         :param container: container name
-        :type version: str
         :param namespace: kubernetes namespace
         :type namespace: str
         """
-        api = client.CoreV1Api(self.get_conn())
+        api = client.CoreV1Api(self.api_client)
         return api.read_namespaced_pod_log(
             name=pod_name,
             container=container,
