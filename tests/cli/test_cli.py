@@ -22,7 +22,6 @@ import io
 
 import logging
 import os
-import tempfile
 
 from airflow.configuration import conf
 from parameterized import parameterized
@@ -53,8 +52,10 @@ from tests.test_utils.config import conf_vars
 if PY2:
     # Need `assertWarns` back-ported from unittest2
     import unittest2 as unittest
+    from backports import tempfile
 else:
     import unittest
+    import tempfile
 
 if PY2:
     @contextlib.contextmanager
@@ -290,7 +291,7 @@ class TestCLI(unittest.TestCase):
 
             reset_dr_db(dag_id)
 
-    def test_kubernetes_migrate_to_pod_template_file(self):
+    def test_generate_pod_template(self):
 
         from airflow.kubernetes.pod_generator import PodGenerator
         with tempfile.TemporaryDirectory("airflow_dry_run_test/") as directory:

@@ -1294,10 +1294,13 @@ def generate_pod_template(args):
     api_client = ApiClient()
     yaml_file_name = "airflow_template.yml"
     yaml_output_path = args.output_path
-    os.makedirs(yaml_output_path, exist_ok=True)
+    if not os.path.exists(yaml_output_path):
+        os.makedirs(yaml_output_path)
     with open(yaml_output_path + "/" + yaml_file_name, "w") as output:
         sanitized_pod = api_client.sanitize_for_serialization(worker_configuration_pod)
-        output.write(yaml.dump(sanitized_pod))
+        sanitized_pod = json.dumps(sanitized_pod)
+        sanitized_pod = json.loads(sanitized_pod)
+        output.write(yaml.safe_dump(sanitized_pod))
     output_string = """
 Congratulations on migrating your kubernetes configs to the pod_template_file!
 
