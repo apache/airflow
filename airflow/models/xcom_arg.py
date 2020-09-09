@@ -21,6 +21,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator  # pylint: disable=R0401
 from airflow.models.taskmixin import TaskMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
+from airflow.utils.task_group import TaskGroup
 
 
 class XComArg(TaskMixin):

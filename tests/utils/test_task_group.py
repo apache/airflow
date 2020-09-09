@@ -265,6 +265,82 @@ def test_build_task_group_with_prefix():
     }
 
 
+def test_build_task_group_with_task_decorator():
+    """
+    Test that TaskGroup can be used with the @task decorator.
+    """
+    from airflow.operators.python import task
+
+    @task
+    def task_1():
+        print("task_1")
+
+    @task
+    def task_2():
+        return "task_2"
+
+    @task
+    def task_3():
+        return "task_3"
+
+    @task
+    def task_4(task_2_output, task_3_output):
+        print(task_2_output, task_3_output)
+
+    @task
+    def task_5():
+        print("task_5")
+
+    execution_date = pendulum.parse("20200101")
+    with DAG("test_build_task_group_with_task_decorator", start_date=execution_date) as dag:
+        tsk_1 = task_1()
+
+        with TaskGroup("group234") as group234:
+            tsk_2 = task_2()
+            tsk_3 = task_3()
+            tsk_4 = task_4(tsk_2, tsk_3)
+
+        tsk_5 = task_5()
+
+        tsk_1 >> group234
+        tsk_5 << group234
+
+    # pylint: disable=no-member
+    assert tsk_1.operator in tsk_2.operator.upstream_list
+    assert tsk_1.operator in tsk_3.operator.upstream_list
+    assert tsk_5.operator in tsk_4.operator.downstream_list
+    # pylint: enable=no-member
+
+    assert extract_node_id(task_group_to_dict(dag.task_group)) == {
+        'id': None,
+        'children': [
+            {
+                'id': 'group234',
+                'children': [
+                    {'id': 'group234.task_2'},
+                    {'id': 'group234.task_3'},
+                    {'id': 'group234.task_4'},
+                    {'id': 'group234.upstream_join_id'},
+                    {'id': 'group234.downstream_join_id'},
+                ],
+            },
+            {'id': 'task_1'},
+            {'id': 'task_5'},
+        ],
+    }
+
+    edges = dag_edges(dag)
+    assert sorted((e["source_id"], e["target_id"]) for e in edges) == [
+        ('group234.downstream_join_id', 'task_5'),
+        ('group234.task_2', 'group234.task_4'),
+        ('group234.task_3', 'group234.task_4'),
+        ('group234.task_4', 'group234.downstream_join_id'),
+        ('group234.upstream_join_id', 'group234.task_2'),
+        ('group234.upstream_join_id', 'group234.task_3'),
+        ('task_1', 'group234.upstream_join_id'),
+    ]
+
+
 def test_sub_dag_task_group():
     """
     Tests dag.sub_dag() updates task_group correctly.
