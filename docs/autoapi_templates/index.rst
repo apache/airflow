@@ -180,6 +180,8 @@ All operators are in the following packages:
 
   airflow/providers/papermill/operators/index
 
+  airflow/providers/plexus/operators/index
+
   airflow/providers/postgres/operators/index
 
   airflow/providers/qubole/operators/index
@@ -324,6 +326,8 @@ All hooks are in the following packages:
   airflow/providers/oracle/hooks/index
 
   airflow/providers/pagerduty/hooks/index
+
+  airflow/providers/plexus/hooks/index
 
   airflow/providers/postgres/hooks/index
 
