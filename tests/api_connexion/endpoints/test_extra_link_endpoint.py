@@ -82,7 +82,12 @@ class TestGetExtraLinks(unittest.TestCase):
 
     @staticmethod
     def _create_dag():
-        with DAG(dag_id="TEST_DAG_ID", default_args=dict(start_date=days_ago(2),)) as dag:
+        with DAG(
+            dag_id="TEST_DAG_ID",
+            default_args=dict(
+                start_date=days_ago(2),
+            ),
+        ) as dag:
             BigQueryExecuteQueryOperator(task_id="TEST_SINGLE_QUERY", sql="SELECT 1")
             BigQueryExecuteQueryOperator(task_id="TEST_MULTIPLE_QUERY", sql=["SELECT 1", "SELECT 2"])
         return dag
@@ -152,7 +157,8 @@ class TestGetExtraLinks(unittest.TestCase):
 
         self.assertEqual(200, response.status_code, response.data)
         self.assertEqual(
-            {"BigQuery Console": None}, response.json,
+            {"BigQuery Console": None},
+            response.json,
         )
 
     @mock_plugin_manager(plugins=[])
@@ -187,7 +193,8 @@ class TestGetExtraLinks(unittest.TestCase):
 
         self.assertEqual(200, response.status_code, response.data)
         self.assertEqual(
-            {"BigQuery Console #1": None, "BigQuery Console #2": None}, response.json,
+            {"BigQuery Console #1": None, "BigQuery Console #2": None},
+            response.json,
         )
 
     def test_should_response_200_support_plugins(self):

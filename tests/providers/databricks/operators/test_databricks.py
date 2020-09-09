@@ -149,7 +149,11 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json, new_cluster=override_new_cluster)
         expected = databricks_operator._deep_string_coerce(
-            {'new_cluster': override_new_cluster, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID,}
+            {
+                'new_cluster': override_new_cluster,
+                'notebook_task': NOTEBOOK_TASK,
+                'run_name': TASK_ID,
+            }
         )
         self.assertDictEqual(expected, op.json)
 
@@ -226,7 +230,11 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
             op.execute(None)
 
         expected = databricks_operator._deep_string_coerce(
-            {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID,}
+            {
+                'new_cluster': NEW_CLUSTER,
+                'notebook_task': NOTEBOOK_TASK,
+                'run_name': TASK_ID,
+            }
         )
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay

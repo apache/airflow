@@ -38,7 +38,9 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super(GoogleDeploymentManagerHook, self).__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
 
     def get_conn(self):

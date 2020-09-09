@@ -42,7 +42,12 @@ GCS_JAR_PARTS = urlparse(GCS_JAR)
 GCS_JAR_BUCKET_NAME = GCS_JAR_PARTS.netloc
 GCS_JAR_OBJECT_NAME = GCS_JAR_PARTS.path[1:]
 
-default_args = {'dataflow_default_options': {'tempLocation': GCS_TMP, 'stagingLocation': GCS_STAGING,}}
+default_args = {
+    'dataflow_default_options': {
+        'tempLocation': GCS_TMP,
+        'stagingLocation': GCS_STAGING,
+    }
+}
 
 with models.DAG(
     "example_gcp_dataflow_native_java",
@@ -56,7 +61,9 @@ with models.DAG(
         task_id="start-java-job",
         jar=GCS_JAR,
         job_name='{{task.task_id}}',
-        options={'output': GCS_OUTPUT,},
+        options={
+            'output': GCS_OUTPUT,
+        },
         poll_sleep=10,
         job_class='org.apache.beam.examples.WordCount',
         check_if_running=CheckJobRunning.IgnoreJob,
@@ -75,7 +82,9 @@ with models.DAG(
         task_id="start-java-job-local",
         jar="/tmp/dataflow-{{ ds_nodash }}.jar",
         job_name='{{task.task_id}}',
-        options={'output': GCS_OUTPUT,},
+        options={
+            'output': GCS_OUTPUT,
+        },
         poll_sleep=10,
         job_class='org.apache.beam.examples.WordCount',
         check_if_running=CheckJobRunning.WaitForRun,
@@ -96,7 +105,9 @@ with models.DAG(
         py_file=GCS_PYTHON,
         py_options=[],
         job_name='{{task.task_id}}',
-        options={'output': GCS_OUTPUT,},
+        options={
+            'output': GCS_OUTPUT,
+        },
         py_requirements=['apache-beam[gcp]==2.21.0'],
         py_interpreter='python3',
         py_system_site_packages=False,
@@ -109,7 +120,9 @@ with models.DAG(
         py_file='apache_beam.examples.wordcount',
         py_options=['-m'],
         job_name='{{task.task_id}}',
-        options={'output': GCS_OUTPUT,},
+        options={
+            'output': GCS_OUTPUT,
+        },
         py_requirements=['apache-beam[gcp]==2.14.0'],
         py_interpreter='python3',
         py_system_site_packages=False,

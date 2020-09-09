@@ -342,7 +342,10 @@ class AwsBatchClientHook(AwsBaseHook):
             job = self.get_job_description(job_id)
             job_status = job.get("status")
             self.log.info(
-                "AWS Batch job (%s) check status (%s) in %s", job_id, job_status, match_status,
+                "AWS Batch job (%s) check status (%s) in %s",
+                job_id,
+                job_status,
+                match_status,
             )
 
             if job_status in match_status:

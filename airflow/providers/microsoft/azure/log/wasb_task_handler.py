@@ -177,7 +177,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
         try:
             self.hook.load_string(
-                log, self.wasb_container, remote_log_location,
+                log,
+                self.wasb_container,
+                remote_log_location,
             )
         except AzureHttpError:
             self.log.exception('Could not write logs to %s', remote_log_location)

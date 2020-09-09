@@ -86,7 +86,15 @@ class TestAWSAthenaOperator(unittest.TestCase):
         )
         self.assertEqual(mock_check_query_status.call_count, 1)
 
-    @mock.patch.object(AWSAthenaHook, 'check_query_status', side_effect=("RUNNING", "RUNNING", "SUCCESS",))
+    @mock.patch.object(
+        AWSAthenaHook,
+        'check_query_status',
+        side_effect=(
+            "RUNNING",
+            "RUNNING",
+            "SUCCESS",
+        ),
+    )
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_run_big_success_query(self, mock_conn, mock_run_query, mock_check_query_status):
@@ -100,7 +108,14 @@ class TestAWSAthenaOperator(unittest.TestCase):
         )
         self.assertEqual(mock_check_query_status.call_count, 3)
 
-    @mock.patch.object(AWSAthenaHook, 'check_query_status', side_effect=(None, None,))
+    @mock.patch.object(
+        AWSAthenaHook,
+        'check_query_status',
+        side_effect=(
+            None,
+            None,
+        ),
+    )
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_run_failed_query_with_none(self, mock_conn, mock_run_query, mock_check_query_status):
@@ -116,7 +131,14 @@ class TestAWSAthenaOperator(unittest.TestCase):
         self.assertEqual(mock_check_query_status.call_count, 3)
 
     @mock.patch.object(AWSAthenaHook, 'get_state_change_reason')
-    @mock.patch.object(AWSAthenaHook, 'check_query_status', side_effect=("RUNNING", "FAILED",))
+    @mock.patch.object(
+        AWSAthenaHook,
+        'check_query_status',
+        side_effect=(
+            "RUNNING",
+            "FAILED",
+        ),
+    )
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_run_failure_query(
@@ -134,7 +156,15 @@ class TestAWSAthenaOperator(unittest.TestCase):
         self.assertEqual(mock_check_query_status.call_count, 2)
         self.assertEqual(mock_get_state_change_reason.call_count, 1)
 
-    @mock.patch.object(AWSAthenaHook, 'check_query_status', side_effect=("RUNNING", "RUNNING", "CANCELLED",))
+    @mock.patch.object(
+        AWSAthenaHook,
+        'check_query_status',
+        side_effect=(
+            "RUNNING",
+            "RUNNING",
+            "CANCELLED",
+        ),
+    )
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_run_cancelled_query(self, mock_conn, mock_run_query, mock_check_query_status):
@@ -149,7 +179,15 @@ class TestAWSAthenaOperator(unittest.TestCase):
         )
         self.assertEqual(mock_check_query_status.call_count, 3)
 
-    @mock.patch.object(AWSAthenaHook, 'check_query_status', side_effect=("RUNNING", "RUNNING", "RUNNING",))
+    @mock.patch.object(
+        AWSAthenaHook,
+        'check_query_status',
+        side_effect=(
+            "RUNNING",
+            "RUNNING",
+            "RUNNING",
+        ),
+    )
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_run_failed_query_with_max_tries(self, mock_conn, mock_run_query, mock_check_query_status):

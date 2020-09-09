@@ -123,7 +123,9 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
                 gcs_hook.delete(self.bucket, obj)
 
         ds_hook = DatastoreHook(
-            self.datastore_conn_id, self.delegate_to, impersonation_chain=self.impersonation_chain,
+            self.datastore_conn_id,
+            self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
         result = ds_hook.export_to_storage_bucket(
             bucket=self.bucket,
@@ -225,7 +227,9 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Importing data from Cloud Storage bucket %s', self.bucket)
         ds_hook = DatastoreHook(
-            self.datastore_conn_id, self.delegate_to, impersonation_chain=self.impersonation_chain,
+            self.datastore_conn_id,
+            self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
         result = ds_hook.import_from_storage_bucket(
             bucket=self.bucket,
@@ -302,8 +306,14 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
-        keys = hook.allocate_ids(partial_keys=self.partial_keys, project_id=self.project_id,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        keys = hook.allocate_ids(
+            partial_keys=self.partial_keys,
+            project_id=self.project_id,
+        )
         return keys
 
 
@@ -364,9 +374,13 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         handle = hook.begin_transaction(
-            transaction_options=self.transaction_options, project_id=self.project_id,
+            transaction_options=self.transaction_options,
+            project_id=self.project_id,
         )
         return handle
 
@@ -428,8 +442,14 @@ class CloudDatastoreCommitOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
-        response = hook.commit(body=self.body, project_id=self.project_id,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        response = hook.commit(
+            body=self.body,
+            project_id=self.project_id,
+        )
         return response
 
 
@@ -490,9 +510,13 @@ class CloudDatastoreRollbackOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook.rollback(
-            transaction=self.transaction, project_id=self.project_id,
+            transaction=self.transaction,
+            project_id=self.project_id,
         )
 
 
@@ -553,8 +577,14 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
-        response = hook.run_query(body=self.body, project_id=self.project_id,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        response = hook.run_query(
+            body=self.body,
+            project_id=self.project_id,
+        )
         return response
 
 
@@ -607,7 +637,10 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         op = hook.get_operation(name=self.name)
         return op
 
@@ -661,5 +694,8 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook.delete_operation(name=self.name)

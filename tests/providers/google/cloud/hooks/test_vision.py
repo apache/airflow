@@ -601,7 +601,8 @@ class TestGcpVisionHook(unittest.TestCase):
         err = cm.exception
         self.assertTrue(err)
         self.assertIn(
-            ERR_UNABLE_TO_CREATE.format(label='Product', id_label='product_id'), str(err),
+            ERR_UNABLE_TO_CREATE.format(label='Product', id_label='product_id'),
+            str(err),
         )
         update_product_method.assert_not_called()
 

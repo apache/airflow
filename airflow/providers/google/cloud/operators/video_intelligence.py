@@ -112,7 +112,8 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudVideoIntelligenceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         operation = hook.annotate_video(
             input_uri=self.input_uri,
@@ -211,7 +212,8 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudVideoIntelligenceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         operation = hook.annotate_video(
             input_uri=self.input_uri,
@@ -310,7 +312,8 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudVideoIntelligenceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         operation = hook.annotate_video(
             input_uri=self.input_uri,

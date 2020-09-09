@@ -25,7 +25,11 @@ from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
 
 class TestPrestoToMySqlTransfer(TestHiveEnvironment):
     def setUp(self):
-        self.kwargs = dict(sql='sql', mysql_table='mysql_table', task_id='test_presto_to_mysql_transfer',)
+        self.kwargs = dict(
+            sql='sql',
+            mysql_table='mysql_table',
+            task_id='test_presto_to_mysql_transfer',
+        )
         super().setUp()
 
     @patch('airflow.providers.mysql.transfers.presto_to_mysql.MySqlHook')

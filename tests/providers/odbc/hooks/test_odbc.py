@@ -105,7 +105,10 @@ class TestOdbcHook:
         hook = self.get_hook(
             hook_params=dict(
                 connect_kwargs={
-                    'attrs_before': {1: 2, pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,},
+                    'attrs_before': {
+                        1: 2,
+                        pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,
+                    },
                     'readonly': True,
                     'autocommit': False,
                 }
@@ -121,7 +124,10 @@ class TestOdbcHook:
         extra = json.dumps(
             dict(
                 connect_kwargs={
-                    'attrs_before': {1: 2, pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,},
+                    'attrs_before': {
+                        1: 2,
+                        pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,
+                    },
                     'readonly': True,
                     'autocommit': True,
                 }

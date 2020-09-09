@@ -51,7 +51,8 @@ class TestGoogleAdsToGcsOperator:
             client_ids=CLIENT_IDS, query=QUERY, page_size=10000
         )
         mock_gcs_hook.assert_called_once_with(
-            gcp_conn_id=gcp_conn_id, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=BUCKET, object_name=GCS_OBJ_PATH, filename=mock.ANY, gzip=False

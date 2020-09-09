@@ -29,7 +29,12 @@ class TestVerticaHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(login='login', password='password', host='host', schema='vertica',)
+        self.connection = Connection(
+            login='login',
+            password='password',
+            host='host',
+            schema='vertica',
+        )
 
         class UnitTestVerticaHook(VerticaHook):
             conn_name_attr = 'vertica_conn_id'

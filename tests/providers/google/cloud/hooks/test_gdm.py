@@ -24,7 +24,10 @@ from airflow.providers.google.cloud.hooks.gdm import GoogleDeploymentManagerHook
 
 
 def mock_init(
-    self, gcp_conn_id, delegate_to=None, impersonation_chain=None,
+    self,
+    gcp_conn_id,
+    delegate_to=None,
+    impersonation_chain=None,
 ):  # pylint: disable=unused-argument
     pass
 
@@ -36,7 +39,8 @@ TEST_DEPLOYMENT = 'my-deployment'
 class TestDeploymentManagerHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__", new=mock_init,
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+            new=mock_init,
         ):
             self.gdm_hook = GoogleDeploymentManagerHook(gcp_conn_id="test")
 
@@ -62,7 +66,9 @@ class TestDeploymentManagerHook(unittest.TestCase):
         mock_get_conn.assert_called_once_with()
 
         mock_get_conn.return_value.deployments.return_value.list.assert_called_once_with(
-            project=TEST_PROJECT, filter='filter', orderBy='name',
+            project=TEST_PROJECT,
+            filter='filter',
+            orderBy='name',
         )
 
         self.assertEqual(mock_get_conn.return_value.deployments.return_value.list_next.call_count, 2)

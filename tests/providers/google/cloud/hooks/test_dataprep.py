@@ -121,7 +121,13 @@ class TestGoogleDataprepHook(unittest.TestCase):
 
     @patch(
         "airflow.providers.google.cloud.hooks.dataprep.requests.get",
-        side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), mock.MagicMock(),],
+        side_effect=[
+            HTTPError(),
+            HTTPError(),
+            HTTPError(),
+            HTTPError(),
+            mock.MagicMock(),
+        ],
     )
     def test_get_job_group_should_retry_after_four_errors(self, mock_get_request):
         self.hook.get_job_group.retry.sleep = mock.Mock()  # pylint: disable=no-member

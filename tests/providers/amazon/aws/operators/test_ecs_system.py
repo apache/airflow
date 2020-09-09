@@ -55,17 +55,20 @@ class ECSSystemTest(AmazonSystemTest):
     @classmethod
     def setup_class(cls):
         cls.create_connection(
-            aws_conn_id=cls.aws_conn_id, region=cls._region_name(),
+            aws_conn_id=cls.aws_conn_id,
+            region=cls._region_name(),
         )
 
         # create ecs cluster if it does not exist
         cls.create_ecs_cluster(
-            aws_conn_id=cls.aws_conn_id, cluster_name=cls.cluster,
+            aws_conn_id=cls.aws_conn_id,
+            cluster_name=cls.cluster,
         )
 
         # create task_definition if it does not exist
         task_definition_exists = cls.is_ecs_task_definition_exists(
-            aws_conn_id=cls.aws_conn_id, task_definition=cls.task_definition,
+            aws_conn_id=cls.aws_conn_id,
+            task_definition=cls.task_definition,
         )
         if not task_definition_exists:
             cls.create_ecs_task_definition(
@@ -84,10 +87,12 @@ class ECSSystemTest(AmazonSystemTest):
         # remove all created/existing resources in tear down
         if cls._remove_resources():
             cls.delete_ecs_cluster(
-                aws_conn_id=cls.aws_conn_id, cluster_name=cls.cluster,
+                aws_conn_id=cls.aws_conn_id,
+                cluster_name=cls.cluster,
             )
             cls.delete_ecs_task_definition(
-                aws_conn_id=cls.aws_conn_id, task_definition=cls.task_definition,
+                aws_conn_id=cls.aws_conn_id,
+                task_definition=cls.task_definition,
             )
 
     def test_run_example_dag_ecs_fargate_dag(self):

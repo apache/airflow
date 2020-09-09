@@ -104,7 +104,10 @@ with models.DAG(
 
     # [START howto_google_display_video_getquery_report_operator]
     get_report = GoogleDisplayVideo360DownloadReportOperator(
-        report_id=report_id, task_id="get_report", bucket_name=BUCKET, report_name="test1.csv",
+        report_id=report_id,
+        task_id="get_report",
+        bucket_name=BUCKET,
+        report_name="test1.csv",
     )
     # [END howto_google_display_video_getquery_report_operator]
 
@@ -141,7 +144,9 @@ with models.DAG(
 
     # [START howto_google_display_video_upload_line_items_operator]
     upload_line_items = GoogleDisplayVideo360UploadLineItemsOperator(
-        task_id="upload_line_items", bucket_name=BUCKET, object_name=BUCKET_FILE_LOCATION,
+        task_id="upload_line_items",
+        bucket_name=BUCKET,
+        object_name=BUCKET_FILE_LOCATION,
     )
     # [END howto_google_display_video_upload_line_items_operator]
 
@@ -159,7 +164,8 @@ with models.DAG(
 
     # [START howto_google_display_video_wait_for_operation_sensor]
     wait_for_operation = GoogleDisplayVideo360GetSDFDownloadOperationSensor(
-        task_id="wait_for_operation", operation_name=operation_name,
+        task_id="wait_for_operation",
+        operation_name=operation_name,
     )
     # [END howto_google_display_video_wait_for_operation_sensor]
 

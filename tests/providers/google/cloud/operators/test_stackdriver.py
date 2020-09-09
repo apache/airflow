@@ -146,7 +146,10 @@ class TestStackdriverUpsertAlertsOperator(unittest.TestCase):
 class TestStackdriverDeleteAlertOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.stackdriver.StackdriverHook')
     def test_execute(self, mock_hook):
-        operator = StackdriverDeleteAlertOperator(task_id=TEST_TASK_ID, name='test-alert',)
+        operator = StackdriverDeleteAlertOperator(
+            task_id=TEST_TASK_ID,
+            name='test-alert',
+        )
         operator.execute(None)
         mock_hook.return_value.delete_alert_policy.assert_called_once_with(
             name='test-alert', retry=DEFAULT, timeout=DEFAULT, metadata=None
@@ -210,7 +213,10 @@ class TestStackdriverUpsertChannelOperator(unittest.TestCase):
 class TestStackdriverDeleteNotificationChannelOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.stackdriver.StackdriverHook')
     def test_execute(self, mock_hook):
-        operator = StackdriverDeleteNotificationChannelOperator(task_id=TEST_TASK_ID, name='test-channel',)
+        operator = StackdriverDeleteNotificationChannelOperator(
+            task_id=TEST_TASK_ID,
+            name='test-channel',
+        )
         operator.execute(None)
         mock_hook.return_value.delete_notification_channel.assert_called_once_with(
             name='test-channel', retry=DEFAULT, timeout=DEFAULT, metadata=None

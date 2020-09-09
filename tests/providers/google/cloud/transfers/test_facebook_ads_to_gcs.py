@@ -33,7 +33,13 @@ FIELDS = [
 ]
 PARAMS = {"level": "ad", "date_preset": "yesterday"}
 FACEBOOK_RETURN_VALUE = [
-    {"campaign_name": "abcd", "campaign_id": "abcd", "ad_id": "abcd", "clicks": "2", "impressions": "2",}
+    {
+        "campaign_name": "abcd",
+        "campaign_id": "abcd",
+        "ad_id": "abcd",
+        "clicks": "2",
+        "impressions": "2",
+    }
 ]
 
 
@@ -55,7 +61,8 @@ class TestFacebookAdsReportToGcsOperator:
         mock_ads_hook.assert_called_once_with(facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=API_VERSION)
         mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(params=PARAMS, fields=FIELDS)
         mock_gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCS_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCS_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH, filename=mock.ANY, gzip=False

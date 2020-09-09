@@ -48,7 +48,10 @@ with models.DAG(
 ) as dag:
     # [START how_to_export_task]
     export_task = CloudDatastoreExportEntitiesOperator(
-        task_id="export_task", bucket=BUCKET, project_id=GCP_PROJECT_ID, overwrite_existing=True,
+        task_id="export_task",
+        bucket=BUCKET,
+        project_id=GCP_PROJECT_ID,
+        overwrite_existing=True,
     )
     # [END how_to_export_task]
 
@@ -64,7 +67,12 @@ with models.DAG(
     export_task >> import_task
 
 # [START how_to_keys_def]
-KEYS = [{"partitionId": {"projectId": GCP_PROJECT_ID, "namespaceId": ""}, "path": {"kind": "airflow"},}]
+KEYS = [
+    {
+        "partitionId": {"projectId": GCP_PROJECT_ID, "namespaceId": ""},
+        "path": {"kind": "airflow"},
+    }
+]
 # [END how_to_keys_def]
 
 # [START how_to_transaction_def]
@@ -75,7 +83,12 @@ TRANSACTION_OPTIONS: Dict[str, Any] = {"readWrite": {}}
 COMMIT_BODY = {
     "mode": "TRANSACTIONAL",
     "mutations": [
-        {"insert": {"key": KEYS[0], "properties": {"string": {"stringValue": "airflow is awesome!"}},}}
+        {
+            "insert": {
+                "key": KEYS[0],
+                "properties": {"string": {"stringValue": "airflow is awesome!"}},
+            }
+        }
     ],
     "transaction": "{{ task_instance.xcom_pull('begin_transaction_commit') }}",
 }
@@ -118,7 +131,9 @@ with models.DAG(
     allocate_ids >> begin_transaction_commit >> commit_task
 
     begin_transaction_query = CloudDatastoreBeginTransactionOperator(
-        task_id="begin_transaction_query", transaction_options=TRANSACTION_OPTIONS, project_id=GCP_PROJECT_ID,
+        task_id="begin_transaction_query",
+        transaction_options=TRANSACTION_OPTIONS,
+        project_id=GCP_PROJECT_ID,
     )
 
     # [START how_to_run_query]

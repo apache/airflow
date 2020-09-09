@@ -68,7 +68,10 @@ with models.DAG(
     subscription = "{{ task_instance.xcom_pull('subscribe_task') }}"
 
     pull_messages = PubSubPullSensor(
-        task_id="pull_messages", ack_messages=True, project_id=GCP_PROJECT_ID, subscription=subscription,
+        task_id="pull_messages",
+        ack_messages=True,
+        project_id=GCP_PROJECT_ID,
+        subscription=subscription,
     )
     # [END howto_operator_gcp_pubsub_pull_message_with_sensor]
 
@@ -124,7 +127,10 @@ with models.DAG(
     subscription = "{{ task_instance.xcom_pull('subscribe_task') }}"
 
     pull_messages_operaator = PubSubPullOperator(
-        task_id="pull_messages", ack_messages=True, project_id=GCP_PROJECT_ID, subscription=subscription,
+        task_id="pull_messages",
+        ack_messages=True,
+        project_id=GCP_PROJECT_ID,
+        subscription=subscription,
     )
     # [END howto_operator_gcp_pubsub_pull_message_with_operator]
 

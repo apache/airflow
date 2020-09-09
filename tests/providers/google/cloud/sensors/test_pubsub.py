@@ -52,7 +52,11 @@ class TestPubSubPullSensor(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
     def test_poke_no_messages(self, mock_hook):
-        operator = PubSubPullSensor(task_id=TASK_ID, project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION,)
+        operator = PubSubPullSensor(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+        )
 
         mock_hook.return_value.pull.return_value = []
         self.assertEqual(False, operator.poke({}))
@@ -60,7 +64,10 @@ class TestPubSubPullSensor(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
     def test_poke_with_ack_messages(self, mock_hook):
         operator = PubSubPullSensor(
-            task_id=TASK_ID, project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, ack_messages=True,
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            ack_messages=True,
         )
 
         generated_messages = self._generate_messages(5)
@@ -69,13 +76,18 @@ class TestPubSubPullSensor(unittest.TestCase):
 
         self.assertEqual(True, operator.poke({}))
         mock_hook.return_value.acknowledge.assert_called_once_with(
-            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, messages=generated_messages,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            messages=generated_messages,
         )
 
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
         operator = PubSubPullSensor(
-            task_id=TASK_ID, project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, poke_interval=0,
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            poke_interval=0,
         )
 
         generated_messages = self._generate_messages(5)
@@ -115,7 +127,8 @@ class TestPubSubPullSensor(unittest.TestCase):
         messages_callback_return_value = 'asdfg'
 
         def messages_callback(
-            pulled_messages: List[ReceivedMessage], context: Dict[str, Any],
+            pulled_messages: List[ReceivedMessage],
+            context: Dict[str, Any],
         ):
             assert pulled_messages == generated_messages
 

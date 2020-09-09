@@ -61,10 +61,15 @@ with models.DAG(
 ) as dag:
 
     create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=GCS_BUCKET, project_id=GCP_PROJECT_ID,
+        task_id="create_bucket",
+        bucket_name=GCS_BUCKET,
+        project_id=GCP_PROJECT_ID,
     )
 
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME,)
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset",
+        dataset_id=DATASET_NAME,
+    )
 
     create_table = BigQueryCreateEmptyTableOperator(
         task_id="create_table",
@@ -106,10 +111,16 @@ with models.DAG(
         use_legacy_sql=False,
     )
 
-    delete_bucket = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=GCS_BUCKET,)
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket",
+        bucket_name=GCS_BUCKET,
+    )
 
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset", project_id=GCP_PROJECT_ID, dataset_id=DATASET_NAME, delete_contents=True,
+        task_id="delete_dataset",
+        project_id=GCP_PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        delete_contents=True,
     )
 
     create_bucket >> create_dataset >> create_table >> run_operator >> load_csv

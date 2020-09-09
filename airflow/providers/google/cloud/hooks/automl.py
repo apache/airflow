@@ -57,7 +57,9 @@ class CloudAutoMLHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None  # type: Optional[AutoMlClient]
 
@@ -233,7 +235,12 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.prediction_client
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.predict(
-            name=name, payload=payload, params=params, retry=retry, timeout=timeout, metadata=metadata,
+            name=name,
+            payload=payload,
+            params=params,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result
 
@@ -272,7 +279,11 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         parent = client.location_path(project=project_id, location=location)
         result = client.create_dataset(
-            parent=parent, dataset=dataset, retry=retry, timeout=timeout, metadata=metadata,
+            parent=parent,
+            dataset=dataset,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result
 
@@ -314,7 +325,11 @@ class CloudAutoMLHook(GoogleBaseHook):
         client = self.get_conn()
         name = client.dataset_path(project=project_id, location=location, dataset=dataset_id)
         result = client.import_data(
-            name=name, input_config=input_config, retry=retry, timeout=timeout, metadata=metadata,
+            name=name,
+            input_config=input_config,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result
 
@@ -368,7 +383,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         """
         client = self.get_conn()
         parent = client.table_spec_path(
-            project=project_id, location=location, dataset=dataset_id, table_spec=table_spec_id,
+            project=project_id,
+            location=location,
+            dataset=dataset_id,
+            table_spec=table_spec_id,
         )
         result = client.list_column_specs(
             parent=parent,
@@ -483,7 +501,11 @@ class CloudAutoMLHook(GoogleBaseHook):
         """
         client = self.get_conn()
         result = client.update_dataset(
-            dataset=dataset, update_mask=update_mask, retry=retry, timeout=timeout, metadata=metadata,
+            dataset=dataset,
+            update_mask=update_mask,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         return result
 

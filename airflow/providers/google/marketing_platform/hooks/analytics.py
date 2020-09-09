@@ -54,7 +54,12 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("analytics", self.api_version, http=http_authorized, cache_discovery=False,)
+            self._conn = build(
+                "analytics",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+            )
         return self._conn
 
     def list_accounts(self) -> List[Dict[str, Any]]:
@@ -144,7 +149,9 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         """
 
         media = MediaFileUpload(
-            file_location, mimetype="application/octet-stream", resumable=resumable_upload,
+            file_location,
+            mimetype="application/octet-stream",
+            resumable=resumable_upload,
         )
 
         self.log.info(

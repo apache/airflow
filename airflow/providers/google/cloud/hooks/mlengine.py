@@ -136,7 +136,11 @@ class MLEngineHook(GoogleBaseHook):
         return self._wait_for_job_done(project_id, job_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def cancel_job(self, job_id: str, project_id: str,) -> Dict:
+    def cancel_job(
+        self,
+        job_id: str,
+        project_id: str,
+    ) -> Dict:
         """
         Cancels a MLEngine job.
 
@@ -222,7 +226,12 @@ class MLEngineHook(GoogleBaseHook):
             time.sleep(interval)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_version(self, model_name: str, version_spec: Dict, project_id: str,) -> Dict:
+    def create_version(
+        self,
+        model_name: str,
+        version_spec: Dict,
+        project_id: str,
+    ) -> Dict:
         """
         Creates the Version on Google Cloud ML Engine.
 
@@ -257,7 +266,12 @@ class MLEngineHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def set_default_version(self, model_name: str, version_name: str, project_id: str,) -> Dict:
+    def set_default_version(
+        self,
+        model_name: str,
+        version_name: str,
+        project_id: str,
+    ) -> Dict:
         """
         Sets a version to be the default. Blocks until finished.
 
@@ -288,7 +302,11 @@ class MLEngineHook(GoogleBaseHook):
             raise
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def list_versions(self, model_name: str, project_id: str,) -> List[Dict]:
+    def list_versions(
+        self,
+        model_name: str,
+        project_id: str,
+    ) -> List[Dict]:
         """
         Lists all available versions of a model. Blocks until finished.
 
@@ -322,7 +340,12 @@ class MLEngineHook(GoogleBaseHook):
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_version(self, model_name: str, version_name: str, project_id: str,) -> Dict:
+    def delete_version(
+        self,
+        model_name: str,
+        version_name: str,
+        project_id: str,
+    ) -> Dict:
         """
         Deletes the given version of a model. Blocks until finished.
 
@@ -352,7 +375,11 @@ class MLEngineHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_model(self, model: Dict, project_id: str,) -> Dict:
+    def create_model(
+        self,
+        model: Dict,
+        project_id: str,
+    ) -> Dict:
         """
         Create a Model. Blocks until finished.
 
@@ -400,7 +427,11 @@ class MLEngineHook(GoogleBaseHook):
         return respone
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_model(self, model_name: str, project_id: str,) -> Optional[Dict]:
+    def get_model(
+        self,
+        model_name: str,
+        project_id: str,
+    ) -> Optional[Dict]:
         """
         Gets a Model. Blocks until finished.
 
@@ -428,7 +459,12 @@ class MLEngineHook(GoogleBaseHook):
             raise
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_model(self, model_name: str, project_id: str, delete_contents: bool = False,) -> None:
+    def delete_model(
+        self,
+        model_name: str,
+        project_id: str,
+        delete_contents: bool = False,
+    ) -> None:
         """
         Delete a Model. Blocks until finished.
 

@@ -152,7 +152,10 @@ class HiveToDruidOperator(BaseOperator):
         druid = DruidHook(druid_ingest_conn_id=self.druid_ingest_conn_id)
 
         try:
-            index_spec = self.construct_ingest_query(static_path=static_path, columns=columns,)
+            index_spec = self.construct_ingest_query(
+                static_path=static_path,
+                columns=columns,
+            )
 
             self.log.info("Inserting rows into Druid, hdfs path: %s", static_path)
 
