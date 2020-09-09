@@ -34,8 +34,7 @@ class TestConnTypeIsNotNullableRule:
         with create_session() as session:
             conn = Connection(conn_id="TestConnTypeIsNotNullableRule")
             session.merge(conn)
-            session.commit()
-            msgs = rule.check(session=session)
 
+        msgs = rule.check(session=session)
         assert [m for m in msgs if "TestConnTypeIsNotNullableRule" in m], \
             "TestConnTypeIsNotNullableRule not in warning messages"
