@@ -1243,11 +1243,16 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         origin = get_safe_url(request.values.get('origin'))
 
         if request.method == 'GET':
+            # Use dag.params as default data in trigger-DagRun UI
+            default_conf = ''
+            dag = current_app.dag_bag.get_dag(dag_id)
+            if dag.params:
+                default_conf = json.dumps(dag.params, indent=4)
             return self.render_template(
                 'airflow/trigger.html',
                 dag_id=dag_id,
                 origin=origin,
-                conf=''
+                conf=default_conf
             )
 
         dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
