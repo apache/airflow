@@ -299,7 +299,7 @@ Bug Fixes
 - BugFix: Show task_id in the Graph View tooltip (#7859)
 - [AIRFLOW-6730] Use total_seconds instead of seconds (#7363)
 - [AIRFLOW-6167] Escape column name in create table in hive (#6741)
-- [AIRFLOW-6628] DAG auto-complete now suggests from all acessible DAGs (#7251)
+- [AIRFLOW-6628] DAG auto-complete now suggests from all accessible DAGs (#7251)
 - [AIRFLOW-7113] Fix gantt render error (#7913)
 - [AIRFLOW-6399] Add _access control to validate deserialized DAGs (#7896)
 - [AIRFLOW-6399] Serialization: DAG access_control field should be decorated field in DAG serialization (#7879)
@@ -468,7 +468,7 @@ Doc only changes
 - [AIRFLOW-XXXX] Fix location of kubernetes tests (#7373)
 - [AIRFLOW-XXXX] Remove quotes from domains in Google Oauth (#4226)
 - [AIRFLOW-XXXX] Add explicit info about JIRAs for code-related PRs (#7318)
-- [AIRFLOW-XXXX] Fix typo commiter => committer (#7392)
+- [AIRFLOW-XXXX] Fix typo in the word committer (#7392)
 - [AIRFLOW-XXXX] Remove duplicated paragraph in docs (#7662)
 - Fix reference to KubernetesPodOperator (#8100)
 
@@ -870,7 +870,7 @@ Improvements
 - [AIRFLOW-5126] Read ``aws_session_token`` in extra_config of the aws hook (#6303)
 - [AIRFLOW-5636] Allow adding or overriding existing Operator Links (#6302)
 - [AIRFLOW-4965] Handle quote exceptions in GCP AI operators (v1.10) (#6304)
-- [AIRFLOW-3783] Speed up Redshift to S3 UNload with HEADERs (#6309)
+- [AIRFLOW-3783] Speed up Redshift to S3 unload with HEADERs (#6309)
 - [AIRFLOW-3388] Add support to Array Jobs for AWS Batch Operator (#6153)
 - [AIRFLOW-4574] add option to provide private_key in SSHHook (#6104) (#6163)
 - [AIRFLOW-5530] Fix typo in AWS SQS sensors (#6012)
@@ -3684,7 +3684,7 @@ Airflow 1.7.2
 - [AIRFLOW-399] Remove dags/testdruid.py
 - [AIRFLOW-400] models.py/DAG.set_dag_runs_state() does not correctly set state
 - [AIRFLOW-395] Fix colon/equal signs typo for resources in default config
-- [AIRFLOW-397] Documentation: Fix typo "instatiating" to "instantiating"
+- [AIRFLOW-397] Documentation: Fix typo in the word "instantiating"
 - [AIRFLOW-395] Remove trailing commas from resources in config
 - [AIRFLOW-388] Add a new chart for Task_Tries for each DAG
 - [AIRFLOW-322] Fix typo in FAQ section
