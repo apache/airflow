@@ -26,6 +26,9 @@ import argcomplete
 
 from airflow.cli import cli_parser
 from airflow.configuration import conf
+from airflow.get_provider_info import get_provider_info
+from airflow.models.connection import CONN_TYPE_TO_HOOK
+from airflow.www.forms import _connection_types  # noqa
 
 
 def main():
@@ -33,6 +36,10 @@ def main():
     if conf.get("core", "security") == 'kerberos':
         os.environ['KRB5CCNAME'] = conf.get('kerberos', 'ccache')
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
+
+    get_provider_info(CONN_TYPE_TO_HOOK, _connection_types)
+    print(CONN_TYPE_TO_HOOK)
+    print(_connection_types)
 
     parser = cli_parser.get_parser()
     argcomplete.autocomplete(parser)

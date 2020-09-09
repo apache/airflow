@@ -31,7 +31,7 @@ from wtforms import widgets
 from wtforms.fields import (
     BooleanField, Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
 )
-from wtforms.validators import DataRequired, NumberRange, Optional
+from wtforms.validators import DataRequired, Optional
 
 from airflow.configuration import conf
 from airflow.utils import timezone
@@ -161,7 +161,6 @@ _connection_types = [
     ('facebook_social', 'Facebook Social'),
     ('fs', 'File (path)'),
     ('ftp', 'FTP'),
-    ('google_cloud_platform', 'Google Cloud'),
     ('hdfs', 'HDFS'),
     ('http', 'HTTP'),
     ('pig_cli', 'Pig Client Wrapper'),
@@ -185,18 +184,12 @@ _connection_types = [
     ('mesos_framework-id', 'Mesos Framework ID'),
     ('jira', 'JIRA'),
     ('redis', 'Redis'),
-    ('wasb', 'Azure Blob Storage'),
     ('databricks', 'Databricks'),
     ('aws', 'Amazon Web Services'),
     ('emr', 'Elastic MapReduce'),
     ('snowflake', 'Snowflake'),
     ('segment', 'Segment'),
     ('sqoop', 'Sqoop'),
-    ('azure_batch', 'Azure Batch Service'),
-    ('azure_data_lake', 'Azure Data Lake'),
-    ('azure_container_instances', 'Azure Container Instances'),
-    ('azure_cosmos', 'Azure CosmosDB'),
-    ('azure_data_explorer', 'Azure Data Explorer'),
     ('cassandra', 'Cassandra'),
     ('qubole', 'Qubole'),
     ('mongo', 'MongoDB'),
@@ -209,7 +202,6 @@ _connection_types = [
     ('spark', 'Spark'),
     ('imap', 'IMAP'),
     ('vault', 'Hashicorp Vault'),
-    ('azure', 'Azure'),
 ]
 
 
@@ -254,23 +246,6 @@ class ConnectionForm(DynamicForm):
     extra__jdbc__drv_clsname = StringField(
         lazy_gettext('Driver Class'),
         widget=BS3TextFieldWidget())
-    extra__google_cloud_platform__project = StringField(
-        lazy_gettext('Project Id'),
-        widget=BS3TextFieldWidget())
-    extra__google_cloud_platform__key_path = StringField(
-        lazy_gettext('Keyfile Path'),
-        widget=BS3TextFieldWidget())
-    extra__google_cloud_platform__keyfile_dict = PasswordField(
-        lazy_gettext('Keyfile JSON'),
-        widget=BS3PasswordFieldWidget())
-    extra__google_cloud_platform__scope = StringField(
-        lazy_gettext('Scopes (comma separated)'),
-        widget=BS3TextFieldWidget())
-    extra__google_cloud_platform__num_retries = IntegerField(
-        lazy_gettext('Number of Retries'),
-        validators=[NumberRange(min=0)],
-        widget=BS3TextFieldWidget(),
-        default=5)
     extra__grpc__auth_type = StringField(
         lazy_gettext('Grpc Auth Type'),
         widget=BS3TextFieldWidget())

@@ -37,35 +37,14 @@ from airflow.utils.module_loading import import_string
 # the path of the class and the name of the conn_id key parameter.
 # PLEASE KEEP BELOW LIST IN ALPHABETICAL ORDER.
 CONN_TYPE_TO_HOOK = {
-    "azure_batch": (
-        "airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook",
-        "azure_batch_conn_id"
-    ),
-    "azure_cosmos": (
-        "airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook",
-        "azure_cosmos_conn_id",
-    ),
-    "azure_data_lake": (
-        "airflow.providers.microsoft.azure.hooks.azure_data_lake.AzureDataLakeHook",
-        "azure_data_lake_conn_id",
-    ),
     "cassandra": ("airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook", "cassandra_conn_id"),
     "cloudant": ("airflow.providers.cloudant.hooks.cloudant.CloudantHook", "cloudant_conn_id"),
-    "dataprep": ("airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook", "dataprep_default"),
     "docker": ("airflow.providers.docker.hooks.docker.DockerHook", "docker_conn_id"),
     "elasticsearch": (
         "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
         "elasticsearch_conn_id"
     ),
     "exasol": ("airflow.providers.exasol.hooks.exasol.ExasolHook", "exasol_conn_id"),
-    "gcpcloudsql": (
-        "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook",
-        "gcp_cloudsql_conn_id",
-    ),
-    "google_cloud_platform": (
-        "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook",
-        "bigquery_conn_id",
-    ),
     "grpc": ("airflow.providers.grpc.hooks.grpc.GrpcHook", "grpc_conn_id"),
     "hive_cli": ("airflow.providers.apache.hive.hooks.hive.HiveCliHook", "hive_cli_conn_id"),
     "hiveserver2": ("airflow.providers.apache.hive.hooks.hive.HiveServer2Hook", "hiveserver2_conn_id"),
@@ -86,7 +65,6 @@ CONN_TYPE_TO_HOOK = {
     "sqlite": ("airflow.providers.sqlite.hooks.sqlite.SqliteHook", "sqlite_conn_id"),
     "tableau": ("airflow.providers.salesforce.hooks.tableau.TableauHook", "tableau_conn_id"),
     "vertica": ("airflow.providers.vertica.hooks.vertica.VerticaHook", "vertica_conn_id"),
-    "wasb": ("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", "wasb_conn_id"),
 }
 # PLEASE KEEP ABOVE LIST IN ALPHABETICAL ORDER.
 
