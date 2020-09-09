@@ -24,12 +24,20 @@ import argcomplete
 
 from airflow.configuration import conf
 from airflow.bin.cli import CLIFactory
+from airflow.get_provider_info import get_provider_info
+from airflow.models.connection import Connection
+
+from airflow.models.connection import CONN_TYPE_TO_HOOK
 
 if __name__ == '__main__':
 
     if conf.get("core", "security") == 'kerberos':
         os.environ['KRB5CCNAME'] = conf.get('kerberos', 'ccache')
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
+
+    get_provider_info(CONN_TYPE_TO_HOOK, Connection._types)
+    print(CONN_TYPE_TO_HOOK)
+    print(Connection._types)
 
     parser = CLIFactory.get_parser()
     argcomplete.autocomplete(parser)

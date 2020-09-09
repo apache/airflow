@@ -18,6 +18,10 @@
 # under the License.
 
 import json
+
+from typing import Dict, Tuple
+
+from airflow.utils.module_loading import import_string
 from builtins import bytes
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
@@ -43,6 +47,9 @@ def parse_netloc_to_hostname(uri_parts):
             hostname = hostname.split(":", 1)[0]
         hostname = unquote(hostname)
     return hostname
+
+
+CONN_TYPE_TO_HOOK = {}  # type: Dict[str, Tuple[str, str]]
 
 
 class Connection(Base, LoggingMixin):
@@ -236,7 +243,7 @@ class Connection(Base, LoggingMixin):
         if self._extra and self.is_extra_encrypted:
             self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
 
-    def get_hook(self):
+    def get_ariflow_1_10_hook(self):
         if self.conn_type == 'mysql':
             from airflow.hooks.mysql_hook import MySqlHook
             return MySqlHook(mysql_conn_id=self.conn_id)
@@ -307,6 +314,14 @@ class Connection(Base, LoggingMixin):
             from airflow.contrib.hooks.grpc_hook import GrpcHook
             return GrpcHook(grpc_conn_id=self.conn_id)
         raise AirflowException("Unknown hook type {}".format(self.conn_type))
+
+    def get_hook(self):
+        """Return hook based on conn_type."""
+        hook_class_name, conn_id_param = CONN_TYPE_TO_HOOK.get(self.conn_type, (None, None))
+        if not hook_class_name:
+            return self.get_ariflow_1_10_hook()
+        hook_class = import_string(hook_class_name)
+        return hook_class(**{conn_id_param: self.conn_id})
 
     def __repr__(self):
         return self.conn_id
