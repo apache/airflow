@@ -96,4 +96,13 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
+        truncate_statement = f'TRUNCATE TABLE {schema}.{table}'
+        transaction = f"""
+                    BEGIN;
+                    {truncate_statement}
+                    {copy_statement}
+                    COMMIT
+                    """
+        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], transaction)
 
+        assert mock_run.call_count == 1

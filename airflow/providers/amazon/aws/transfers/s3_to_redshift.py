@@ -103,8 +103,6 @@ class S3ToRedshiftOperator(BaseOperator):
         credentials = self._s3_hook.get_credentials()
         copy_options = '\n\t\t\t'.join(self.copy_options)
 
-        truncate_statement = f'TRUNCATE TABLE {schema}.{table};' if self.truncate_table else ''
-
         copy_statement = """
             COPY {schema}.{table}
             FROM 's3://{s3_bucket}/{s3_key}'
@@ -121,11 +119,16 @@ class S3ToRedshiftOperator(BaseOperator):
             copy_options=copy_options,
         )
 
-        transaction = f"""BEGIN;
-        {truncate_statement}
-        {copy_statement}
-        COMMIT
-        """
+        if self.truncate_table:
+            truncate_statement = f'TRUNCATE TABLE {schema}.{table};'
+            transaction = f"""
+            BEGIN;
+            {truncate_statement}
+            {copy_statement}
+            COMMIT
+            """
+        else:
+            transaction = copy_statement
 
         self.log.info('Executing COPY command...')
         self._postgres_hook.run(transaction, self.autocommit)
