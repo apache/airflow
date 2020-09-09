@@ -57,6 +57,7 @@ will use to access this database.
 Example, for **MySQL**:
 
 .. code-block:: sql
+
    CREATE DATABASE airflow CHARACTER SET utf8 COLLATE utf8_unicode_ci;
    CREATE USER 'airflow' IDENTIFIED BY 'airflow';
    GRANT ALL PRIVILEGES ON airflow.* TO 'airflow';
@@ -64,6 +65,7 @@ Example, for **MySQL**:
 Example, for **Postgres**:
 
 .. code-block:: sql
+
    CREATE DATABASE airflow;
    CREATE USER airflow WITH PASSWORD 'airflow';
    GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow;
@@ -71,7 +73,7 @@ Example, for **Postgres**:
 You may need to update your Postgres ``pg_hba.conf`` to add the
 ``airflow`` user to the database access control list; and to reload
 the database configuration to load your change. See
-[The pg_hba.conf File](https://www.postgresql.org/docs/current/auth-pg-hba-conf.html)
+`The pg_hba.conf File <https://www.postgresql.org/docs/current/auth-pg-hba-conf.html>`__
 in the Postgres documentation to learn more.
 
 Configure Airflow's database connection string
@@ -80,6 +82,8 @@ Configure Airflow's database connection string
 Once you've setup your database to host Airflow, you'll need to alter the
 SqlAlchemy connection string located in ``sql_alchemy_conn`` option in ``[core]`` section in your configuration file
 ``$AIRFLOW_HOME/airflow.cfg``.
+
+You can also define connection URI using ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` environment variable.
 
 Configure a worker that supports parallelism
 --------------------------------------------
@@ -93,3 +97,7 @@ Initialize the database
 
     # initialize the database
     airflow db init
+
+.. spelling::
+
+     hba
