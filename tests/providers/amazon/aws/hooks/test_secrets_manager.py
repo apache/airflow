@@ -50,7 +50,7 @@ class TestSecretsManagerHook(unittest.TestCase):
 
         hook.get_conn().put_secret_value(**param)
 
-        secrets = hook.get_secrets(secret_name)
+        secrets = hook.get_secret(secret_name)
         self.assertEqual(secrets, secret_value)
 
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
@@ -67,7 +67,7 @@ class TestSecretsManagerHook(unittest.TestCase):
 
         hook.get_conn().put_secret_value(**param)
 
-        secrets = hook.get_secrets_as_dict(secret_name)
+        secrets = hook.get_secret_as_dict(secret_name)
         self.assertEqual(secrets, json.loads(secret_value))
 
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
@@ -84,5 +84,5 @@ class TestSecretsManagerHook(unittest.TestCase):
 
         hook.get_conn().put_secret_value(**param)
 
-        secrets = hook.get_secrets(secret_name)
+        secrets = hook.get_secret(secret_name)
         self.assertEqual(secrets, base64.b64decode(secret_value_binary))

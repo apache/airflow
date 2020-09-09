@@ -37,9 +37,10 @@ class SecretsManagerHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type='secretsmanager', *args, **kwargs)
 
-    def get_secrets(self, secret_name: str) -> Union[str, bytes]:
+    def get_secret(self, secret_name: str) -> Union[str, bytes]:
         """
-        Create queue using connection object
+        Retrieve secret value from AWS Secrets Manager as a str or bytes
+        reflecting format it stored in the AWS Secrets Manager
         :param secret_name: name of the secrets.
         :type secret_name: str
         :return: Union[str, bytes] with the information about the secrets
@@ -54,9 +55,9 @@ class SecretsManagerHook(AwsBaseHook):
             secret = base64.b64decode(get_secret_value_response['SecretBinary'])
         return secret
 
-    def get_secrets_as_dict(self, secret_name: str) -> Optional[dict]:
+    def get_secret_as_dict(self, secret_name: str) -> Optional[dict]:
         """
-        Create queue using connection object
+        Retrieve secret value from AWS Secrets Manager in a dict representation
         :param secret_name: name of the secrets.
         :type secret_name: str
         :return: dict with the information about the secrets
@@ -66,7 +67,7 @@ class SecretsManagerHook(AwsBaseHook):
         # these fields will be populated.
         secret = None
         try:
-            secret = json.loads(self.get_secrets(secret_name))
+            secret = json.loads(self.get_secret(secret_name))
         except json.JSONDecodeError:
             self.log.debug('Unable to parse secrets as a dict: %s', secret_name)
         return secret
