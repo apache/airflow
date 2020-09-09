@@ -7,8 +7,6 @@ ARG BATS_FILE_VERSION
 ARG AIRFLOW_BATS_VERSION
 ARG COMMIT_SHA
 
-MAINTAINER "Apache Airflow Community <dev@airflow.apache.org>"
-
 # Install curl and gnupg2 - needed to download nodejs in the next step
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -44,6 +42,7 @@ LABEL org.apache.airflow.bats.assert.version="${BATS_ASSERT_VERSION}"
 LABEL org.apache.airflow.bats.file.version="${BATS_FILE_VERSION}"
 LABEL org.apache.airflow.airflow_bats.version="${AIRFLOW_BATS_VERSION}"
 LABEL org.apache.airflow.commit_sha="${COMMIT_SHA}"
+LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
 ENTRYPOINT ["/opt/bats/bin/bats"]
 CMD ["--help"]

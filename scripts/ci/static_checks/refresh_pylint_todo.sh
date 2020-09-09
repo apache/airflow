@@ -23,7 +23,7 @@ export FORCE_ANSWER_TO_QUESTIONS="quit"
 function refresh_pylint_todo() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         "${AIRFLOW_CI_IMAGE}" \
-        /opt/airflow/scripts/in_container/refresh_pylint_todo.sh
+        "/opt/airflow/scripts/in_container/refresh_pylint_todo.sh"
 }
 
 build_images::prepare_ci_build

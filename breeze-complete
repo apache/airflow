@@ -94,14 +94,17 @@ isort
 language-matters
 lint-dockerfile
 lint-openapi
+mermaid
 mixed-line-ending
 mypy
+pre-commit-descriptions
 provide-create-sessions
 pydevd
 pydocstyle
 pylint
 pylint-tests
 python-no-log-warn
+restrict-start_date
 rst-backticks
 setup-order
 shellcheck

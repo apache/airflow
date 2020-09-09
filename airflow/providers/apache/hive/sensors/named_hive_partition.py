@@ -40,6 +40,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
     template_fields = ('partition_names',)
     ui_color = '#8d99ae'
+    poke_context_fields = ('partition_names', 'metastore_conn_id')
 
     @apply_defaults
     def __init__(
@@ -104,3 +105,12 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
         self.next_index_to_poke = 0
         return True
+
+    def is_smart_sensor_compatible(self):
+        result = (
+            not self.soft_fail
+            and not self.hook
+            and len(self.partition_names) <= 30
+            and super().is_smart_sensor_compatible()
+        )
+        return result

@@ -298,7 +298,7 @@ jobs:
       matrix:
         python-version: [3.6, 3.7]
         postgres-version: [9.6, 10]
-        test-type: [Core, Integration]
+        test-type: [Core, Integration, Heisentests]
       fail-fast: false
     env:
       BACKEND: postgres
@@ -344,7 +344,7 @@ jobs:
       matrix:
         python-version: [3.7, 3.8]
         mysql-version: [5.7]
-        test-type: [Core, Integration]
+        test-type: [Core, Integration, Heisentests]
       fail-fast: false
     env:
       BACKEND: mysql
@@ -388,7 +388,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.8]
-        test-type: [Core, Integration]
+        test-type: [Core, Integration, Heisentests]
       fail-fast: false
     env:
       BACKEND: sqlite
@@ -439,7 +439,7 @@ jobs:
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: true
       TEST_TYPE: Quarantined
-      NUM_RUNS: 20
+      NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: >
       (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&

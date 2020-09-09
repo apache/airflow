@@ -803,7 +803,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'containers': [{
                     'args': ['--vm', '1', '--vm-bytes', '150M', '--vm-hang', '1'],
                     'command': ['stress'],
-                    'image': 'polinux/stress',
+                    'image': 'apache/airflow:stress-2020.07.10-1.0.4',
                     'name': 'memory-demo-ctr',
                     'resources': {
                         'limits': {'memory': '200Mi'},

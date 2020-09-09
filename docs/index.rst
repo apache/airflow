@@ -94,6 +94,8 @@ Content
     kubernetes
     lineage
     dag-serialization
+    modules_management
+    smart-sensor
     changelog
     best-practices
     faq

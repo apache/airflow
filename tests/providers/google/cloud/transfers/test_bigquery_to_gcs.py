@@ -25,6 +25,7 @@ from airflow.providers.google.cloud.transfers.bigquery_to_gcs import BigQueryToG
 TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'
 TEST_TABLE_ID = 'test-table-id'
+PROJECT_ID = 'test-project-id'
 
 
 class TestBigQueryToCloudStorageOperator(unittest.TestCase):
@@ -38,6 +39,24 @@ class TestBigQueryToCloudStorageOperator(unittest.TestCase):
         print_header = True
         labels = {'k1': 'v1'}
 
+        mock_hook().project_id = PROJECT_ID
+
+        configuration = {
+            'extract': {
+                'sourceTable': {
+                    'projectId': mock_hook().project_id,
+                    'datasetId': TEST_DATASET,
+                    'tableId': TEST_TABLE_ID,
+                },
+                'compression': compression,
+                'destinationUris': destination_cloud_storage_uris,
+                'destinationFormat': export_format,
+                'fieldDelimiter': field_delimiter,
+                'printHeader': print_header,
+            },
+            'labels': labels,
+        }
+
         operator = BigQueryToGCSOperator(
             task_id=TASK_ID,
             source_project_dataset_table=source_project_dataset_table,
@@ -50,12 +69,5 @@ class TestBigQueryToCloudStorageOperator(unittest.TestCase):
         )
 
         operator.execute(None)
-        mock_hook.return_value.get_conn.return_value.cursor.return_value.run_extract.assert_called_once_with(
-            source_project_dataset_table=source_project_dataset_table,
-            destination_cloud_storage_uris=destination_cloud_storage_uris,
-            compression=compression,
-            export_format=export_format,
-            field_delimiter=field_delimiter,
-            print_header=print_header,
-            labels=labels,
-        )
+
+        mock_hook.return_value.insert_job.assert_called_once_with(configuration=configuration)

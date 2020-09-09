@@ -114,6 +114,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'can_blocked',
         'can_rendered',
         'can_version',
+        'can_extra_links'
     }
     # [END security_viewer_perms]
 
