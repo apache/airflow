@@ -183,7 +183,8 @@ repos:
         name: Check yaml files with yamllint
         entry: yamllint -c yamllint-config.yml
         types: [yaml]
-        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/templates/.*\.yaml$
+        exclude:
+          ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml
   - repo: https://github.com/timothycrosley/isort
     rev: 5.4.2
     hooks:
