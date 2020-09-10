@@ -33,7 +33,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 
-@security.requires_access([("can_edit", "DagRun"), ("can_delete", "DagRun")])
+@security.requires_access([("can_read", "Dag"), ("can_delete", "DagRun")])
 @provide_session
 def delete_dag_run(dag_id, dag_run_id, session):
     """

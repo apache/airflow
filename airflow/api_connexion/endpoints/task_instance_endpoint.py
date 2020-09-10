@@ -36,7 +36,15 @@ def get_task_instances():
     raise NotImplementedError("Not implemented yet.")
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "TaskInstance")])
+@security.requires_access(
+    [
+        ('can_read', 'DagBag'),
+        ('can_read', 'Dag'),
+        ('can_read', 'DagRun'),
+        ('can_read', 'Task'),
+        ('can_read', 'TaskInstance'),
+    ]
+)
 def get_task_instances_batch():
     """
     Get list of task instances.

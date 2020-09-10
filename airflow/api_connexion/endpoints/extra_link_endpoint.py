@@ -26,7 +26,15 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.utils.session import provide_session
 
 
-@security.requires_access([('can_read', 'DagBag'), ('can_read', 'Dag'), ('can_read', 'Task')])
+@security.requires_access(
+    [
+        ('can_read', 'DagBag'),
+        ('can_read', 'Dag'),
+        ('can_read', 'DagRun'),
+        ('can_read', 'Task'),
+        ('can_read', 'TaskInstance'),
+    ]
+)
 @provide_session
 def get_extra_links(dag_id: str, dag_run_id: str, task_id: str, session):
     """
