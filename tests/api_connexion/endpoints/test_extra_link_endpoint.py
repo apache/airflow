@@ -50,7 +50,13 @@ class TestGetExtraLinks(unittest.TestCase):
             cls.app,  # type: ignore
             username="test",
             role_name="Test",
-            permissions=[('can_read', 'DagBag'), ('can_read', 'Dag'), ('can_read', 'Task')],
+            permissions=[
+                ('can_read', 'DagBag'),
+                ('can_read', 'Dag'),
+                ('can_read', 'DagRun'),
+                ('can_read', 'Task'),
+                ('can_read', 'TaskInstance'),
+            ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
