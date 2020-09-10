@@ -26,6 +26,8 @@ from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.api.common.experimental.cancel_dag_run import cancel_dag_run as _cancel_dag_run
+from airflow.api.common.experimental.clear_dag_run import clear_dag_run as _clear_dag_run
+
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.strings import to_boolean
@@ -288,6 +290,39 @@ def cancel_dag_run(dag_id):
         _log.info("User {} canceled {}".format(g.user, dr))
 
     response = jsonify(message="Cancelled {}".format(dr))
+    return response
+
+
+@csrf.exempt
+@api_experimental.route('/dags/<string:dag_id>/clear_dag_run', methods=['POST'])
+@requires_authentication
+def clear_dag_run(dag_id):
+    """
+    Clear a specific dagrun run_id for a given DAG
+    """
+    data = request.get_json(force=True)
+
+    if 'run_id' not in data:
+        error_message = 'Missing run_id'
+        _log.info(error_message)
+        response = jsonify({'error': error_message})
+        response.status_code = 400
+        return response
+
+    run_id = data['run_id']
+
+    try:
+       dr = _clear_dag_run(dag_id, run_id)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    if getattr(g, 'user', None):
+        _log.info("User {} cleared {}".format(g.user, dr))
+
+    response = jsonify(message="Cleared {}".format(dr))
     return response
 
 
