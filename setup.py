@@ -310,7 +310,6 @@ jira = [
 kerberos = [
     'pykerberos>=1.1.13',
     'requests_kerberos>=0.10.0',
-    'snakebite[kerberos]>=2.7.8',
     'thrift_sasl>=0.2.0',
 ]
 kubernetes = [
