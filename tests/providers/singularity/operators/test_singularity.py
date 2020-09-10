@@ -30,7 +30,13 @@ from airflow.providers.singularity.operators.singularity import SingularityOpera
 class SingularityOperatorTestCase(unittest.TestCase):
     @mock.patch('airflow.providers.singularity.operators.singularity.Client')
     def test_execute(self, client_mock):
-        instance = mock.Mock(autospec=Instance, **{'start.return_value': 0, 'stop.return_value': 0,})
+        instance = mock.Mock(
+            autospec=Instance,
+            **{
+                'start.return_value': 0,
+                'stop.return_value': 0,
+            },
+        )
 
         client_mock.instance.return_value = instance
         client_mock.execute.return_value = {'return_code': 0, 'message': 'message'}
@@ -49,7 +55,10 @@ class SingularityOperatorTestCase(unittest.TestCase):
         instance.stop.assert_called_once_with()
 
     @parameterized.expand(
-        [("",), (None,),]
+        [
+            ("",),
+            (None,),
+        ]
     )
     def test_command_is_required(self, command):
         task = SingularityOperator(task_id='task-id', image="docker://busybox", command=command)
@@ -58,7 +67,13 @@ class SingularityOperatorTestCase(unittest.TestCase):
 
     @mock.patch('airflow.providers.singularity.operators.singularity.Client')
     def test_image_should_be_pulled_when_not_exists(self, client_mock):
-        instance = mock.Mock(autospec=Instance, **{'start.return_value': 0, 'stop.return_value': 0,})
+        instance = mock.Mock(
+            autospec=Instance,
+            **{
+                'start.return_value': 0,
+                'stop.return_value': 0,
+            },
+        )
 
         client_mock.pull.return_value = '/tmp/busybox_latest.sif'
         client_mock.instance.return_value = instance
@@ -81,16 +96,37 @@ class SingularityOperatorTestCase(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (None, [],),
-            ([], [],),
-            (["AAA"], ['--bind', 'AAA'],),
-            (["AAA", "BBB"], ['--bind', 'AAA', '--bind', 'BBB'],),
-            (["AAA", "BBB", "CCC"], ['--bind', 'AAA', '--bind', 'BBB', '--bind', 'CCC'],),
+            (
+                None,
+                [],
+            ),
+            (
+                [],
+                [],
+            ),
+            (
+                ["AAA"],
+                ['--bind', 'AAA'],
+            ),
+            (
+                ["AAA", "BBB"],
+                ['--bind', 'AAA', '--bind', 'BBB'],
+            ),
+            (
+                ["AAA", "BBB", "CCC"],
+                ['--bind', 'AAA', '--bind', 'BBB', '--bind', 'CCC'],
+            ),
         ]
     )
     @mock.patch('airflow.providers.singularity.operators.singularity.Client')
     def test_bind_options(self, volumes, expected_options, client_mock):
-        instance = mock.Mock(autospec=Instance, **{'start.return_value': 0, 'stop.return_value': 0,})
+        instance = mock.Mock(
+            autospec=Instance,
+            **{
+                'start.return_value': 0,
+                'stop.return_value': 0,
+            },
+        )
         client_mock.pull.return_value = 'docker://busybox'
         client_mock.instance.return_value = instance
         client_mock.execute.return_value = {'return_code': 0, 'message': 'message'}
@@ -109,11 +145,30 @@ class SingularityOperatorTestCase(unittest.TestCase):
         )
 
     @parameterized.expand(
-        [(None, [],), ("", ['--workdir', ''],), ("/work-dir/", ['--workdir', '/work-dir/'],),]
+        [
+            (
+                None,
+                [],
+            ),
+            (
+                "",
+                ['--workdir', ''],
+            ),
+            (
+                "/work-dir/",
+                ['--workdir', '/work-dir/'],
+            ),
+        ]
     )
     @mock.patch('airflow.providers.singularity.operators.singularity.Client')
     def test_working_dir(self, working_dir, expected_working_dir, client_mock):
-        instance = mock.Mock(autospec=Instance, **{'start.return_value': 0, 'stop.return_value': 0,})
+        instance = mock.Mock(
+            autospec=Instance,
+            **{
+                'start.return_value': 0,
+                'stop.return_value': 0,
+            },
+        )
         client_mock.pull.return_value = 'docker://busybox'
         client_mock.instance.return_value = instance
         client_mock.execute.return_value = {'return_code': 0, 'message': 'message'}

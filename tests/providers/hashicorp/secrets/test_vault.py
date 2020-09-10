@@ -122,7 +122,12 @@ class TestVaultSecrets(TestCase):
         )
         self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
 
-    @mock.patch.dict('os.environ', {'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',})
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
+        },
+    )
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_non_existent_key(self, mock_hvac):
         """
@@ -215,7 +220,12 @@ class TestVaultSecrets(TestCase):
         )
         self.assertEqual('world', returned_uri)
 
-    @mock.patch.dict('os.environ', {'AIRFLOW_VAR_HELLO': 'world',})
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_VAR_HELLO': 'world',
+        },
+    )
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value_non_existent_key(self, mock_hvac):
         """

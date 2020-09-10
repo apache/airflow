@@ -210,7 +210,9 @@ class PostgresHook(DbApiHook):
         :return: The generated INSERT or REPLACE SQL statement
         :rtype: str
         """
-        placeholders = ["%s",] * len(values)
+        placeholders = [
+            "%s",
+        ] * len(values)
         replace_index = kwargs.get("replace_index", None)
 
         if target_fields:
@@ -234,6 +236,7 @@ class PostgresHook(DbApiHook):
                 "{0} = excluded.{0}".format(col) for col in target_fields if col not in replace_index_set
             ]
             sql += " ON CONFLICT ({0}) DO UPDATE SET {1}".format(
-                ", ".join(replace_index), ", ".join(replace_target),
+                ", ".join(replace_index),
+                ", ".join(replace_target),
             )
         return sql

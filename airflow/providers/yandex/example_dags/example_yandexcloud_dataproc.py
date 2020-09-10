@@ -57,7 +57,10 @@ with DAG(
         s3_bucket=S3_BUCKET_NAME_FOR_JOB_LOGS,
     )
 
-    create_hive_query = DataprocCreateHiveJobOperator(task_id='create_hive_query', query='SELECT 1;',)
+    create_hive_query = DataprocCreateHiveJobOperator(
+        task_id='create_hive_query',
+        query='SELECT 1;',
+    )
 
     create_hive_query_from_file = DataprocCreateHiveJobOperator(
         task_id='create_hive_query_from_file',
@@ -98,8 +101,12 @@ with DAG(
         task_id='create_spark_job',
         main_jar_file_uri='s3a://data-proc-public/jobs/sources/java/dataproc-examples-1.0.jar',
         main_class='ru.yandex.cloud.dataproc.examples.PopulationSparkJob',
-        file_uris=['s3a://data-proc-public/jobs/sources/data/config.json',],
-        archive_uris=['s3a://data-proc-public/jobs/sources/data/country-codes.csv.zip',],
+        file_uris=[
+            's3a://data-proc-public/jobs/sources/data/config.json',
+        ],
+        archive_uris=[
+            's3a://data-proc-public/jobs/sources/data/country-codes.csv.zip',
+        ],
         jar_file_uris=[
             's3a://data-proc-public/jobs/sources/java/icu4j-61.1.jar',
             's3a://data-proc-public/jobs/sources/java/commons-lang-2.6.jar',
@@ -110,15 +117,23 @@ with DAG(
             's3a://data-proc-public/jobs/sources/data/cities500.txt.bz2',
             's3a://{bucket}/dataproc/job/results/${{JOB_ID}}'.format(bucket=S3_BUCKET_NAME_FOR_JOB_LOGS),
         ],
-        properties={'spark.submit.deployMode': 'cluster',},
+        properties={
+            'spark.submit.deployMode': 'cluster',
+        },
     )
 
     create_pyspark_job = DataprocCreatePysparkJobOperator(
         task_id='create_pyspark_job',
         main_python_file_uri='s3a://data-proc-public/jobs/sources/pyspark-001/main.py',
-        python_file_uris=['s3a://data-proc-public/jobs/sources/pyspark-001/geonames.py',],
-        file_uris=['s3a://data-proc-public/jobs/sources/data/config.json',],
-        archive_uris=['s3a://data-proc-public/jobs/sources/data/country-codes.csv.zip',],
+        python_file_uris=[
+            's3a://data-proc-public/jobs/sources/pyspark-001/geonames.py',
+        ],
+        file_uris=[
+            's3a://data-proc-public/jobs/sources/data/config.json',
+        ],
+        archive_uris=[
+            's3a://data-proc-public/jobs/sources/data/country-codes.csv.zip',
+        ],
         args=[
             's3a://data-proc-public/jobs/sources/data/cities500.txt.bz2',
             's3a://{bucket}/jobs/results/${{JOB_ID}}'.format(bucket=S3_BUCKET_NAME_FOR_JOB_LOGS),
@@ -128,10 +143,14 @@ with DAG(
             's3a://data-proc-public/jobs/sources/java/icu4j-61.1.jar',
             's3a://data-proc-public/jobs/sources/java/commons-lang-2.6.jar',
         ],
-        properties={'spark.submit.deployMode': 'cluster',},
+        properties={
+            'spark.submit.deployMode': 'cluster',
+        },
     )
 
-    delete_cluster = DataprocDeleteClusterOperator(task_id='delete_cluster',)
+    delete_cluster = DataprocDeleteClusterOperator(
+        task_id='delete_cluster',
+    )
 
     create_cluster >> create_mapreduce_job >> create_hive_query >> create_hive_query_from_file
     create_hive_query_from_file >> create_spark_job >> create_pyspark_job >> delete_cluster

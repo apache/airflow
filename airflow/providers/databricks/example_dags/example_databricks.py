@@ -57,7 +57,9 @@ with DAG(
 
     notebook_task_params = {
         'new_cluster': new_cluster,
-        'notebook_task': {'notebook_path': '/Users/airflow@example.com/PrepareData',},
+        'notebook_task': {
+            'notebook_path': '/Users/airflow@example.com/PrepareData',
+        },
     }
     # Example of using the JSON parameter to initialize the operator.
     notebook_task = DatabricksSubmitRunOperator(task_id='notebook_task', json=notebook_task_params)

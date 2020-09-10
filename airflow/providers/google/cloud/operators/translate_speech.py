@@ -148,10 +148,12 @@ class CloudTranslateSpeechOperator(BaseOperator):
 
     def execute(self, context):
         speech_to_text_hook = CloudSpeechToTextHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         translate_hook = CloudTranslateHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
 
         recognize_result = speech_to_text_hook.recognize_speech(config=self.config, audio=self.audio)

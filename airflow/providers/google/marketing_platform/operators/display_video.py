@@ -322,7 +322,10 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
                 mime_type="text/csv",
             )
         self.log.info(
-            "Report %s was saved in bucket %s as %s.", self.report_id, self.bucket_name, report_name,
+            "Report %s was saved in bucket %s as %s.",
+            self.report_id,
+            self.bucket_name,
+            report_name,
         )
         self.xcom_push(context, key="report_name", value=report_name)
 
@@ -397,7 +400,9 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info(
-            "Running report %s with the following params:\n %s", self.report_id, self.params,
+            "Running report %s with the following params:\n %s",
+            self.report_id,
+            self.params,
         )
         hook.run_query(query_id=self.report_id, params=self.params)
 
@@ -549,7 +554,9 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         # downloaded file from the GCS could be a 1GB size or even more
         with tempfile.NamedTemporaryFile("w+") as f:
             line_items = gcs_hook.download(
-                bucket_name=self.bucket_name, object_name=self.object_name, filename=f.name,
+                bucket_name=self.bucket_name,
+                object_name=self.object_name,
+                filename=f.name,
             )
             f.flush()
             hook.upload_line_items(line_items=line_items)

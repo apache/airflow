@@ -55,7 +55,9 @@ class TestAwsBaseHook(unittest.TestCase):
         # this table needs to be created in production
         table = resource_from_hook.create_table(  # pylint: disable=no-member
             TableName='test_airflow',
-            KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'},],
+            KeySchema=[
+                {'AttributeName': 'id', 'KeyType': 'HASH'},
+            ],
             AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
             ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
         )
@@ -72,7 +74,9 @@ class TestAwsBaseHook(unittest.TestCase):
         resource_from_session = session_from_hook.resource('dynamodb')
         table = resource_from_session.create_table(  # pylint: disable=no-member
             TableName='test_airflow',
-            KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'},],
+            KeySchema=[
+                {'AttributeName': 'id', 'KeyType': 'HASH'},
+            ],
             AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
             ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
         )
@@ -97,7 +101,10 @@ class TestAwsBaseHook(unittest.TestCase):
 
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_login_without_token(self, mock_get_connection):
-        mock_connection = Connection(login='aws_access_key_id', password='aws_secret_access_key',)
+        mock_connection = Connection(
+            login='aws_access_key_id',
+            password='aws_secret_access_key',
+        )
 
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='spam')

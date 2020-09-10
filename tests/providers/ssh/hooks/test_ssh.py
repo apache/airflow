@@ -91,7 +91,11 @@ class TestSSHHook(unittest.TestCase):
                 conn_id=cls.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
                 host='localhost',
                 conn_type='ssh',
-                extra=json.dumps({"private_key": TEST_PRIVATE_KEY,}),
+                extra=json.dumps(
+                    {
+                        "private_key": TEST_PRIVATE_KEY,
+                    }
+                ),
             )
         )
 
@@ -233,7 +237,10 @@ class TestSSHHook(unittest.TestCase):
         import socket
         import subprocess
 
-        subprocess_kwargs = dict(args=["python", "-c", HELLO_SERVER_CMD], stdout=subprocess.PIPE,)
+        subprocess_kwargs = dict(
+            args=["python", "-c", HELLO_SERVER_CMD],
+            stdout=subprocess.PIPE,
+        )
         with subprocess.Popen(**subprocess_kwargs) as server_handle, hook.create_tunnel(2135, 2134):
             server_output = server_handle.stdout.read(5)
             self.assertEqual(b"ready", server_output)

@@ -490,7 +490,8 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
         op.execute(context={})
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,

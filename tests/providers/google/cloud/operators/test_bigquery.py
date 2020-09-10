@@ -337,7 +337,10 @@ class TestBigQueryOperator(unittest.TestCase):
     def test_execute_list(self, mock_hook):
         operator = BigQueryExecuteQueryOperator(
             task_id=TASK_ID,
-            sql=['Select * from test_table', 'Select * from other_test_table',],
+            sql=[
+                'Select * from test_table',
+                'Select * from other_test_table',
+            ],
             destination_dataset_table=None,
             write_disposition='WRITE_EMPTY',
             allow_large_results=False,
@@ -467,7 +470,8 @@ class TestBigQueryOperator(unittest.TestCase):
     def test_bigquery_operator_extra_serialized_field_when_single_query(self):
         with self.dag:
             BigQueryExecuteQueryOperator(
-                task_id=TASK_ID, sql='SELECT * FROM test_table',
+                task_id=TASK_ID,
+                sql='SELECT * FROM test_table',
             )
         serialized_dag = SerializedDAG.to_dict(self.dag)
         self.assertIn("sql", serialized_dag["dag"]["tasks"][0])
@@ -503,7 +507,8 @@ class TestBigQueryOperator(unittest.TestCase):
     def test_bigquery_operator_extra_serialized_field_when_multiple_queries(self):
         with self.dag:
             BigQueryExecuteQueryOperator(
-                task_id=TASK_ID, sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
+                task_id=TASK_ID,
+                sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
             )
         serialized_dag = SerializedDAG.to_dict(self.dag)
         self.assertIn("sql", serialized_dag["dag"]["tasks"][0])
@@ -560,25 +565,33 @@ class TestBigQueryOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_missing_job_id(self, mock_hook, session):
         bigquery_task = BigQueryExecuteQueryOperator(
-            task_id=TASK_ID, sql='SELECT * FROM test_table', dag=self.dag,
+            task_id=TASK_ID,
+            sql='SELECT * FROM test_table',
+            dag=self.dag,
         )
         self.dag.clear()
         session.query(XCom).delete()
 
         self.assertEqual(
-            '', bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name),
+            '',
+            bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name),
         )
 
     @provide_session
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_single_query(self, mock_hook, session):
         bigquery_task = BigQueryExecuteQueryOperator(
-            task_id=TASK_ID, sql='SELECT * FROM test_table', dag=self.dag,
+            task_id=TASK_ID,
+            sql='SELECT * FROM test_table',
+            dag=self.dag,
         )
         self.dag.clear()
         session.query(XCom).delete()
 
-        ti = TaskInstance(task=bigquery_task, execution_date=DEFAULT_DATE,)
+        ti = TaskInstance(
+            task=bigquery_task,
+            execution_date=DEFAULT_DATE,
+        )
 
         job_id = '12345'
         ti.xcom_push(key='job_id', value=job_id)
@@ -589,19 +602,25 @@ class TestBigQueryOperator(unittest.TestCase):
         )
 
         self.assertEqual(
-            '', bigquery_task.get_extra_links(datetime(2019, 1, 1), BigQueryConsoleLink.name),
+            '',
+            bigquery_task.get_extra_links(datetime(2019, 1, 1), BigQueryConsoleLink.name),
         )
 
     @provide_session
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_multiple_query(self, mock_hook, session):
         bigquery_task = BigQueryExecuteQueryOperator(
-            task_id=TASK_ID, sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'], dag=self.dag,
+            task_id=TASK_ID,
+            sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
+            dag=self.dag,
         )
         self.dag.clear()
         session.query(XCom).delete()
 
-        ti = TaskInstance(task=bigquery_task, execution_date=DEFAULT_DATE,)
+        ti = TaskInstance(
+            task=bigquery_task,
+            execution_date=DEFAULT_DATE,
+        )
 
         job_id = ['123', '45']
         ti.xcom_push(key='job_id', value=job_id)
@@ -672,7 +691,9 @@ class TestBigQueryGetDatasetTablesOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.get_dataset_tables.assert_called_once_with(
-            dataset_id=TEST_DATASET, project_id=TEST_GCP_PROJECT_ID, max_results=2,
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            max_results=2,
         )
 
 
@@ -730,7 +751,12 @@ class TestBigQueryInsertJobOperator:
         real_job_id = f"{job_id}_{hash_}"
         mock_md5.return_value.hexdigest.return_value = hash_
 
-        configuration = {"query": {"query": "SELECT * FROM any", "useLegacySql": False,}}
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
         op = BigQueryInsertJobOperator(
@@ -759,7 +785,12 @@ class TestBigQueryInsertJobOperator:
         real_job_id = f"{job_id}_{hash_}"
         mock_md5.return_value.hexdigest.return_value = hash_
 
-        configuration = {"query": {"query": "SELECT * FROM any", "useLegacySql": False,}}
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=True)
 
         op = BigQueryInsertJobOperator(
@@ -780,10 +811,20 @@ class TestBigQueryInsertJobOperator:
         real_job_id = f"{job_id}_{hash_}"
         mock_md5.return_value.hexdigest.return_value = hash_
 
-        configuration = {"query": {"query": "SELECT * FROM any", "useLegacySql": False,}}
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
 
         mock_hook.return_value.insert_job.return_value.result.side_effect = Conflict("any")
-        job = MagicMock(job_id=real_job_id, error_result=False, state="PENDING", done=lambda: False,)
+        job = MagicMock(
+            job_id=real_job_id,
+            error_result=False,
+            state="PENDING",
+            done=lambda: False,
+        )
         mock_hook.return_value.get_job.return_value = job
 
         op = BigQueryInsertJobOperator(
@@ -797,7 +838,9 @@ class TestBigQueryInsertJobOperator:
         result = op.execute({})
 
         mock_hook.return_value.get_job.assert_called_once_with(
-            location=TEST_DATASET_LOCATION, job_id=real_job_id, project_id=TEST_GCP_PROJECT_ID,
+            location=TEST_DATASET_LOCATION,
+            job_id=real_job_id,
+            project_id=TEST_GCP_PROJECT_ID,
         )
 
         job.result.assert_called_once_with()
@@ -813,9 +856,17 @@ class TestBigQueryInsertJobOperator:
         real_job_id = f"{job_id}_{hash_}"
         mock_md5.return_value.hexdigest.return_value = hash_
 
-        configuration = {"query": {"query": "SELECT * FROM any", "useLegacySql": False,}}
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
 
-        job = MagicMock(job_id=real_job_id, error_result=False,)
+        job = MagicMock(
+            job_id=real_job_id,
+            error_result=False,
+        )
         mock_hook.return_value.insert_job.return_value = job
 
         op = BigQueryInsertJobOperator(
@@ -845,10 +896,20 @@ class TestBigQueryInsertJobOperator:
         real_job_id = f"{job_id}_{hash_}"
         mock_md5.return_value.hexdigest.return_value = hash_
 
-        configuration = {"query": {"query": "SELECT * FROM any", "useLegacySql": False,}}
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
 
         mock_hook.return_value.insert_job.return_value.result.side_effect = Conflict("any")
-        job = MagicMock(job_id=real_job_id, error_result=False, state="DONE", done=lambda: True,)
+        job = MagicMock(
+            job_id=real_job_id,
+            error_result=False,
+            state="DONE",
+            done=lambda: True,
+        )
         mock_hook.return_value.get_job.return_value = job
 
         op = BigQueryInsertJobOperator(

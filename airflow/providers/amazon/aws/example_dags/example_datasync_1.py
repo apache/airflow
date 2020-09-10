@@ -57,7 +57,9 @@ with models.DAG(
     # [END howto_operator_datasync_1_1]
 
 with models.DAG(
-    "example_datasync_1_2", start_date=days_ago(1), schedule_interval=None,  # Override to match your needs
+    "example_datasync_1_2",
+    start_date=days_ago(1),
+    schedule_interval=None,  # Override to match your needs
 ) as dag:
     # [START howto_operator_datasync_1_2]
     datasync_task_2 = AWSDataSyncOperator(

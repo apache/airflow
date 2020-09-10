@@ -90,12 +90,17 @@ class TestDataFusionHook:
         method_mock = self.mock_endpoint(get_conn_mock).create
         method_mock.return_value.execute.return_value = "value"
         result = hook.create_instance(
-            instance_name=INSTANCE_NAME, instance=INSTANCE, location=LOCATION, project_id=PROJECT_ID,
+            instance_name=INSTANCE_NAME,
+            instance=INSTANCE,
+            location=LOCATION,
+            project_id=PROJECT_ID,
         )
 
         assert result == "value"
         method_mock.assert_called_once_with(
-            parent=hook._parent(PROJECT_ID, LOCATION), body=INSTANCE, instanceId=INSTANCE_NAME,
+            parent=hook._parent(PROJECT_ID, LOCATION),
+            body=INSTANCE,
+            instanceId=INSTANCE_NAME,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook.get_conn"))
@@ -112,7 +117,9 @@ class TestDataFusionHook:
 
         assert result == "value"
         method_mock.assert_called_once_with(
-            name=hook._name(PROJECT_ID, LOCATION, INSTANCE_NAME), body=INSTANCE, updateMask="instance.name",
+            name=hook._name(PROJECT_ID, LOCATION, INSTANCE_NAME),
+            body=INSTANCE,
+            updateMask="instance.name",
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook.get_conn"))
@@ -148,7 +155,9 @@ class TestDataFusionHook:
         mock_request.return_value.status = 200
         hook.create_pipeline(pipeline_name=PIPELINE_NAME, pipeline=PIPELINE, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}", method="PUT", body=PIPELINE,
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}",
+            method="PUT",
+            body=PIPELINE,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
@@ -156,7 +165,9 @@ class TestDataFusionHook:
         mock_request.return_value.status = 200
         hook.delete_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}", method="DELETE", body=None,
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}",
+            method="DELETE",
+            body=None,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))

@@ -140,8 +140,7 @@ COMPOSITE_FIELD_TYPES = ['union', 'dict', 'list']
 
 
 class GcpFieldValidationException(AirflowException):
-    """Thrown when validation finds dictionary field not valid according to specification.
-    """
+    """Thrown when validation finds dictionary field not valid according to specification."""
 
 
 class GcpValidationSpecificationException(AirflowException):

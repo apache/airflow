@@ -258,7 +258,9 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     def test_should_use_credentials(self, mock_client, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
 
-        stackdriver_task_handler = StackdriverTaskHandler(gcp_key_path="KEY_PATH",)
+        stackdriver_task_handler = StackdriverTaskHandler(
+            gcp_key_path="KEY_PATH",
+        )
 
         client = stackdriver_task_handler._client
 
@@ -281,7 +283,9 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
         mock_client.return_value.project = 'project_id'
 
-        stackdriver_task_handler = StackdriverTaskHandler(gcp_key_path="KEY_PATH",)
+        stackdriver_task_handler = StackdriverTaskHandler(
+            gcp_key_path="KEY_PATH",
+        )
 
         url = stackdriver_task_handler.get_external_log_url(self.ti, self.ti.try_number)
 

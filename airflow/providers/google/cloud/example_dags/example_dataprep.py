@@ -51,7 +51,9 @@ DATA = {
 
 
 with models.DAG(
-    "example_dataprep", schedule_interval=None, start_date=dates.days_ago(1),  # Override to match your needs
+    "example_dataprep",
+    schedule_interval=None,
+    start_date=dates.days_ago(1),  # Override to match your needs
 ) as dag:
     # [START how_to_dataprep_run_job_group_operator]
     run_job_group = DataprepRunJobGroupOperator(task_id="run_job_group", body_request=DATA)
@@ -65,7 +67,10 @@ with models.DAG(
 
     # [START how_to_dataprep_get_job_group_operator]
     get_job_group = DataprepGetJobGroupOperator(
-        task_id="get_job_group", job_group_id=DATAPREP_JOB_ID, embed="", include_deleted=False,
+        task_id="get_job_group",
+        job_group_id=DATAPREP_JOB_ID,
+        embed="",
+        include_deleted=False,
     )
     # [END how_to_dataprep_get_job_group_operator]
 

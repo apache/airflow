@@ -25,7 +25,12 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Union
 import cattr
 import pendulum
 from dateutil import relativedelta
-from kubernetes.client import models as k8s
+
+try:
+    from kubernetes.client import models as k8s
+except ImportError:
+    k8s = None
+
 from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowException

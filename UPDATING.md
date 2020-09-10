@@ -691,7 +691,7 @@ The `chain` method and `cross_downstream` method both use BaseOperator. If any o
 any classes or functions from helpers module, then it automatically has an
 implicit dependency to BaseOperator. That can often lead to cyclic dependencies.
 
-More information in [Airflow-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
+More information in [AIRFLOW-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
 
 In Airflow <2.0 you imported those two methods like this:
 
@@ -1496,7 +1496,7 @@ you should write `@GoogleBaseHook.provide_gcp_credential_file`
 It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
 https://cloud.google.com/compute/docs/disks/performance
 
-Hence, the default value for `master_disk_size` in DataprocCreateClusterOperator has been changes from 500GB to 1TB.
+Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
 
 #### `<airflow class="providers google c"></airflow>loud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 

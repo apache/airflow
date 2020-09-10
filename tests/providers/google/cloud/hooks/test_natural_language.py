@@ -56,7 +56,9 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.hook._conn, result)
 
-    @mock.patch("airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",)
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
+    )
     def test_analyze_entities(self, get_conn):
         get_conn.return_value.analyze_entities.return_value = API_RESPONSE
         result = self.hook.analyze_entities(document=DOCUMENT, encoding_type=ENCODING_TYPE)
@@ -67,7 +69,9 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",)
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
+    )
     def test_analyze_entity_sentiment(self, get_conn):
         get_conn.return_value.analyze_entity_sentiment.return_value = API_RESPONSE
         result = self.hook.analyze_entity_sentiment(document=DOCUMENT, encoding_type=ENCODING_TYPE)
@@ -78,7 +82,9 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",)
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
+    )
     def test_analyze_sentiment(self, get_conn):
         get_conn.return_value.analyze_sentiment.return_value = API_RESPONSE
         result = self.hook.analyze_sentiment(document=DOCUMENT, encoding_type=ENCODING_TYPE)
@@ -89,7 +95,9 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",)
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
+    )
     def test_analyze_syntax(self, get_conn):
         get_conn.return_value.analyze_syntax.return_value = API_RESPONSE
         result = self.hook.analyze_syntax(document=DOCUMENT, encoding_type=ENCODING_TYPE)
@@ -100,7 +108,9 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",)
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
+    )
     def test_annotate_text(self, get_conn):
         get_conn.return_value.annotate_text.return_value = API_RESPONSE
         result = self.hook.annotate_text(document=DOCUMENT, encoding_type=ENCODING_TYPE, features=None)
@@ -116,7 +126,9 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",)
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
+    )
     def test_classify_text(self, get_conn):
         get_conn.return_value.classify_text.return_value = API_RESPONSE
         result = self.hook.classify_text(document=DOCUMENT)

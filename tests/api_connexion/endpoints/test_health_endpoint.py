@@ -16,6 +16,7 @@
 # under the License.
 import unittest
 from datetime import timedelta
+from unittest import mock
 
 from airflow.jobs.base_job import BaseJob
 from airflow.utils import timezone
@@ -87,4 +88,11 @@ class TestGetHeath(TestHealthTestBase):
         resp_json = self.client.get("/api/v1/health").json
         self.assertEqual("healthy", resp_json["metadatabase"]["status"])
         self.assertEqual("unhealthy", resp_json["scheduler"]["status"])
-        self.assertIsNone(None, resp_json["scheduler"]["latest_scheduler_heartbeat"])
+        self.assertIsNone(resp_json["scheduler"]["latest_scheduler_heartbeat"])
+
+    @mock.patch("airflow.api_connexion.endpoints.health_endpoint.SchedulerJob.most_recent_job")
+    def test_unhealthy_metadatabase_status(self, mock_scheduler_most_recent_job):
+        mock_scheduler_most_recent_job.side_effect = Exception
+        resp_json = self.client.get("/api/v1/health").json
+        self.assertEqual("unhealthy", resp_json["metadatabase"]["status"])
+        self.assertIsNone(resp_json["scheduler"]["latest_scheduler_heartbeat"])

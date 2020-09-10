@@ -313,7 +313,9 @@ class TestVaultHook(TestCase):
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
         test_client.auth_aws_iam.assert_called_with(
-            access_key='user', secret_key='pass', role="role",
+            access_key='user',
+            secret_key='pass',
+            role="role",
         )
         test_client.is_authenticated.assert_called_with()
         self.assertEqual(2, test_hook.vault_client.kv_engine_version)
@@ -338,7 +340,9 @@ class TestVaultHook(TestCase):
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
         test_client.auth_aws_iam.assert_called_with(
-            access_key='user', secret_key='pass', role="role",
+            access_key='user',
+            secret_key='pass',
+            role="role",
         )
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
@@ -364,7 +368,10 @@ class TestVaultHook(TestCase):
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
         test_client.auth.azure.configure.assert_called_with(
-            tenant_id="tenant_id", resource="resource", client_id="user", client_secret="pass",
+            tenant_id="tenant_id",
+            resource="resource",
+            client_id="user",
+            client_secret="pass",
         )
         test_client.is_authenticated.assert_called_with()
         self.assertEqual(2, test_hook.vault_client.kv_engine_version)
@@ -393,7 +400,10 @@ class TestVaultHook(TestCase):
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
         test_client.auth.azure.configure.assert_called_with(
-            tenant_id="tenant_id", resource="resource", client_id="user", client_secret="pass",
+            tenant_id="tenant_id",
+            resource="resource",
+            client_id="user",
+            client_secret="pass",
         )
         test_client.is_authenticated.assert_called_with()
         self.assertEqual(2, test_hook.vault_client.kv_engine_version)
@@ -428,7 +438,9 @@ class TestVaultHook(TestCase):
             key_path="path.json", keyfile_dict=None, scopes=['scope1', 'scope2']
         )
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
-        test_client.auth.gcp.configure.assert_called_with(credentials="credentials",)
+        test_client.auth.gcp.configure.assert_called_with(
+            credentials="credentials",
+        )
         test_client.is_authenticated.assert_called_with()
         self.assertEqual(2, test_hook.vault_client.kv_engine_version)
 
@@ -463,7 +475,9 @@ class TestVaultHook(TestCase):
             key_path="path.json", keyfile_dict=None, scopes=['scope1', 'scope2']
         )
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
-        test_client.auth.gcp.configure.assert_called_with(credentials="credentials",)
+        test_client.auth.gcp.configure.assert_called_with(
+            credentials="credentials",
+        )
         test_client.is_authenticated.assert_called_with()
         self.assertEqual(2, test_hook.vault_client.kv_engine_version)
 
@@ -498,7 +512,9 @@ class TestVaultHook(TestCase):
             key_path=None, keyfile_dict={'key': 'value'}, scopes=['scope1', 'scope2']
         )
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
-        test_client.auth.gcp.configure.assert_called_with(credentials="credentials",)
+        test_client.auth.gcp.configure.assert_called_with(
+            credentials="credentials",
+        )
         test_client.is_authenticated.assert_called_with()
         self.assertEqual(2, test_hook.vault_client.kv_engine_version)
 

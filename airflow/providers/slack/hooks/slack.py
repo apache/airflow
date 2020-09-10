@@ -60,7 +60,10 @@ class SlackHook(BaseHook):  # noqa
     """
 
     def __init__(
-        self, token: Optional[str] = None, slack_conn_id: Optional[str] = None, **client_args: Any,
+        self,
+        token: Optional[str] = None,
+        slack_conn_id: Optional[str] = None,
+        **client_args: Any,
     ) -> None:
         super().__init__()
         self.token = self.__get_token(token, slack_conn_id)

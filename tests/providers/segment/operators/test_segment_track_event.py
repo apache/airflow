@@ -65,7 +65,10 @@ class TestSegmentTrackEventOperator(unittest.TestCase):
         properties = {}
 
         operator = SegmentTrackEventOperator(
-            task_id='segment-track', user_id=user_id, event=event, properties=properties,
+            task_id='segment-track',
+            user_id=user_id,
+            event=event,
+            properties=properties,
         )
 
         # When
@@ -73,5 +76,7 @@ class TestSegmentTrackEventOperator(unittest.TestCase):
 
         # Then
         mock_hook.return_value.track.assert_called_once_with(
-            user_id=user_id, event=event, properties=properties,
+            user_id=user_id,
+            event=event,
+            properties=properties,
         )

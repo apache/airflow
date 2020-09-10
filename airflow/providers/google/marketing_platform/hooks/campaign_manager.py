@@ -42,7 +42,9 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
@@ -52,7 +54,12 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("dfareporting", self.api_version, http=http_authorized, cache_discovery=False,)
+            self._conn = build(
+                "dfareporting",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+            )
         return self._conn
 
     def delete_report(self, profile_id: str, report_id: str) -> Any:

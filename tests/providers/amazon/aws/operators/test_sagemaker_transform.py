@@ -46,13 +46,18 @@ create_transform_params = {
     'MaxPayloadInMB': '6',
     'BatchStrategy': 'MultiRecord',
     'TransformInput': {'DataSource': {'S3DataSource': {'S3DataType': 'S3Prefix', 'S3Uri': data_url}}},
-    'TransformOutput': {'S3OutputPath': output_url,},
+    'TransformOutput': {
+        'S3OutputPath': output_url,
+    },
     'TransformResources': {'InstanceType': 'ml.m4.xlarge', 'InstanceCount': '3'},
 }
 
 create_model_params = {
     'ModelName': model_name,
-    'PrimaryContainer': {'Image': image, 'ModelDataUrl': output_url,},
+    'PrimaryContainer': {
+        'Image': image,
+        'ModelDataUrl': output_url,
+    },
     'ExecutionRoleArn': role,
 }
 

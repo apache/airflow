@@ -79,7 +79,9 @@ with models.DAG(
     )
 
     transform = GoogleAnalyticsModifyFileHeadersDataImportOperator(
-        task_id="transform", storage_bucket=BUCKET, storage_name_object=BUCKET_FILENAME,
+        task_id="transform",
+        storage_bucket=BUCKET,
+        storage_name_object=BUCKET_FILENAME,
     )
 
     upload >> [delete, transform]

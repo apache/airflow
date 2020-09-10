@@ -55,12 +55,12 @@ MOD_TIME_2 = datetime(2019, 1, 1)
 
 class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
     """
-        Tests the three use-cases for the wildcard operator. These are
-        no_prefix: *test_object
-        no_suffix: test_object*
-        prefix_and_suffix: test*object
-        Also tests the destination_object as prefix when the wildcard is used.
-        """
+    Tests the three use-cases for the wildcard operator. These are
+    no_prefix: *test_object
+    no_suffix: test_object*
+    prefix_and_suffix: test*object
+    Also tests the destination_object as prefix when the wildcard is used.
+    """
 
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
     def test_execute_no_prefix(self, mock_hook):

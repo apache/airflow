@@ -98,7 +98,8 @@ class TestBigtableInstanceCreate(unittest.TestCase):
         op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.create_instance.assert_not_called()
 
@@ -117,7 +118,8 @@ class TestBigtableInstanceCreate(unittest.TestCase):
         op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.create_instance.assert_not_called()
 
@@ -142,7 +144,8 @@ class TestBigtableInstanceCreate(unittest.TestCase):
             op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.create_instance.assert_called_once_with(
             cluster_nodes=None,
@@ -174,7 +177,8 @@ class TestBigtableInstanceCreate(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.create_instance.assert_called_once_with(
             cluster_nodes=None,
@@ -207,7 +211,8 @@ class TestBigtableInstanceCreate(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.create_instance.assert_called_once_with(
             cluster_nodes=None,
@@ -241,7 +246,8 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_instance.assert_called_once_with(
             project_id=PROJECT_ID,
@@ -265,7 +271,8 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_instance.assert_called_once_with(
             project_id=None,
@@ -277,7 +284,9 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
         )
 
     @parameterized.expand(
-        [('instance_id', PROJECT_ID, ''),],
+        [
+            ('instance_id', PROJECT_ID, ''),
+        ],
         testcase_func_name=lambda f, n, p: 'test_empty_attribute.empty_' + p.args[0],
     )
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -316,7 +325,8 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
         self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(INSTANCE_ID))
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_instance.assert_not_called()
 
@@ -340,7 +350,8 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
         self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(INSTANCE_ID))
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_instance.assert_not_called()
 
@@ -364,7 +375,8 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
             op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_instance.assert_called_once_with(
             project_id=PROJECT_ID,
@@ -419,7 +431,8 @@ class TestBigtableClusterUpdate(unittest.TestCase):
         err = e.exception
         self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(INSTANCE_ID))
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_not_called()
 
@@ -441,7 +454,8 @@ class TestBigtableClusterUpdate(unittest.TestCase):
         err = e.exception
         self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(INSTANCE_ID))
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_not_called()
 
@@ -470,7 +484,8 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             "Dependency: cluster '{}' does not exist for instance '{}'.".format(CLUSTER_ID, INSTANCE_ID),
         )
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_called_once_with(
             instance=instance, cluster_id=CLUSTER_ID, nodes=NODES
@@ -500,7 +515,8 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             "Dependency: cluster '{}' does not exist for instance '{}'.".format(CLUSTER_ID, INSTANCE_ID),
         )
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_called_once_with(
             instance=instance, cluster_id=CLUSTER_ID, nodes=NODES
@@ -526,7 +542,8 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_cluster.assert_called_once_with(
             instance=instance, cluster_id=CLUSTER_ID, nodes=NODES
@@ -545,7 +562,8 @@ class TestBigtableInstanceDelete(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID
@@ -561,14 +579,17 @@ class TestBigtableInstanceDelete(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=None, instance_id=INSTANCE_ID
         )
 
     @parameterized.expand(
-        [('instance_id', PROJECT_ID, ''),],
+        [
+            ('instance_id', PROJECT_ID, ''),
+        ],
         testcase_func_name=lambda f, n, p: 'test_empty_attribute.empty_' + p.args[0],
     )
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -593,7 +614,8 @@ class TestBigtableInstanceDelete(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID
@@ -612,7 +634,8 @@ class TestBigtableInstanceDelete(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=None, instance_id=INSTANCE_ID
@@ -635,7 +658,8 @@ class TestBigtableInstanceDelete(unittest.TestCase):
             op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID
@@ -655,14 +679,18 @@ class TestBigtableTableDelete(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_table.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID, table_id=TABLE_ID
         )
 
     @parameterized.expand(
-        [('instance_id', PROJECT_ID, '', TABLE_ID), ('table_id', PROJECT_ID, INSTANCE_ID, ''),],
+        [
+            ('instance_id', PROJECT_ID, '', TABLE_ID),
+            ('table_id', PROJECT_ID, INSTANCE_ID, ''),
+        ],
         testcase_func_name=lambda f, n, p: 'test_empty_attribute.empty_' + p.args[0],
     )
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -695,7 +723,8 @@ class TestBigtableTableDelete(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_table.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID, table_id=TABLE_ID
@@ -716,7 +745,8 @@ class TestBigtableTableDelete(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_table.assert_called_once_with(
             project_id=None, instance_id=INSTANCE_ID, table_id=TABLE_ID
@@ -739,7 +769,8 @@ class TestBigtableTableDelete(unittest.TestCase):
         err = e.exception
         self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(INSTANCE_ID))
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_table.assert_not_called()
 
@@ -761,7 +792,8 @@ class TestBigtableTableDelete(unittest.TestCase):
             op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_table.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID, table_id=TABLE_ID
@@ -784,7 +816,8 @@ class TestBigtableTableCreate(unittest.TestCase):
         instance = mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.create_table.assert_called_once_with(
             instance=instance,
@@ -794,7 +827,10 @@ class TestBigtableTableCreate(unittest.TestCase):
         )
 
     @parameterized.expand(
-        [('instance_id', PROJECT_ID, '', TABLE_ID), ('table_id', PROJECT_ID, INSTANCE_ID, ''),],
+        [
+            ('instance_id', PROJECT_ID, '', TABLE_ID),
+            ('table_id', PROJECT_ID, INSTANCE_ID, ''),
+        ],
         testcase_func_name=lambda f, n, p: 'test_empty_attribute.empty_' + p.args[0],
     )
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -832,7 +868,8 @@ class TestBigtableTableCreate(unittest.TestCase):
             "Dependency: instance '{}' does not exist in project '{}'.".format(INSTANCE_ID, PROJECT_ID),
         )
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -856,7 +893,8 @@ class TestBigtableTableCreate(unittest.TestCase):
         op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.create_table.assert_called_once_with(
             instance=instance,
@@ -885,7 +923,8 @@ class TestBigtableTableCreate(unittest.TestCase):
         op.execute(None)
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.create_table.assert_called_once_with(
             instance=instance,
@@ -919,7 +958,8 @@ class TestBigtableTableCreate(unittest.TestCase):
             str(err), "Table '{}' already exists with different Column Families.".format(TABLE_ID)
         )
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -950,5 +990,6 @@ class TestBigtableTableCreate(unittest.TestCase):
             str(err), "Table '{}' already exists with different Column Families.".format(TABLE_ID)
         )
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )

@@ -150,7 +150,9 @@ class TestQuboleOperator(unittest.TestCase):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
         with dag:
             QuboleOperator(
-                task_id=TASK_ID, command_type='shellcmd', qubole_conn_id=TEST_CONN,
+                task_id=TASK_ID,
+                command_type='shellcmd',
+                qubole_conn_id=TEST_CONN,
             )
 
         serialized_dag = SerializedDAG.to_dict(dag)

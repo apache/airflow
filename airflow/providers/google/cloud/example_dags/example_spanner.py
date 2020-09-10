@@ -108,7 +108,9 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
-        ddl_statements=["CREATE TABLE my_table3 (id INT64, name STRING(MAX)) PRIMARY KEY (id)",],
+        ddl_statements=[
+            "CREATE TABLE my_table3 (id INT64, name STRING(MAX)) PRIMARY KEY (id)",
+        ],
         task_id='spanner_database_update_task',
     )
     # [END howto_operator_spanner_database_update]
@@ -119,14 +121,18 @@ with models.DAG(
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
         operation_id=OPERATION_ID,
-        ddl_statements=["CREATE TABLE my_table_unique (id INT64, name STRING(MAX)) PRIMARY KEY (id)",],
+        ddl_statements=[
+            "CREATE TABLE my_table_unique (id INT64, name STRING(MAX)) PRIMARY KEY (id)",
+        ],
         task_id='spanner_database_update_idempotent1_task',
     )
     spanner_database_update_idempotent2_task = SpannerUpdateDatabaseInstanceOperator(
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
         operation_id=OPERATION_ID,
-        ddl_statements=["CREATE TABLE my_table_unique (id INT64, name STRING(MAX)) PRIMARY KEY (id)",],
+        ddl_statements=[
+            "CREATE TABLE my_table_unique (id INT64, name STRING(MAX)) PRIMARY KEY (id)",
+        ],
         task_id='spanner_database_update_idempotent2_task',
     )
     # [END howto_operator_spanner_database_update_idempotent]

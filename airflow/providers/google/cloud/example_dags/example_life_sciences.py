@@ -31,10 +31,14 @@ LOCATION = os.environ.get("GCP_LIFE_SCIENCES_LOCATION", 'us-central1')
 # [START howto_configure_simple_action_pipeline]
 SIMPLE_ACTION_PIEPELINE = {
     "pipeline": {
-        "actions": [{"imageUri": "bash", "commands": ["-c", "echo Hello, world"]},],
+        "actions": [
+            {"imageUri": "bash", "commands": ["-c", "echo Hello, world"]},
+        ],
         "resources": {
             "regions": ["{}".format(LOCATION)],
-            "virtualMachine": {"machineType": "n1-standard-1",},
+            "virtualMachine": {
+                "machineType": "n1-standard-1",
+            },
         },
     },
 }
@@ -61,7 +65,9 @@ MULTI_ACTION_PIPELINE = {
         ],
         "resources": {
             "regions": ["{}".format(LOCATION)],
-            "virtualMachine": {"machineType": "n1-standard-1",},
+            "virtualMachine": {
+                "machineType": "n1-standard-1",
+            },
         },
     }
 }

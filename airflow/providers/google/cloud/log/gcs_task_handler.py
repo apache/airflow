@@ -27,7 +27,11 @@ from airflow.providers.google.cloud.utils.credentials_provider import get_creden
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-_DEFAULT_SCOPESS = frozenset(["https://www.googleapis.com/auth/devstorage.read_write",])
+_DEFAULT_SCOPESS = frozenset(
+    [
+        "https://www.googleapis.com/auth/devstorage.read_write",
+    ]
+)
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
