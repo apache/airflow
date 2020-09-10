@@ -286,6 +286,7 @@ class TestPodLauncherHelper(unittest.TestCase):
                     sub_path=None,
                     read_only=True
                 )],
+            image_pull_secrets="",
             secrets=[Secret("env", "AIRFLOW_SECRET", "ai", "secret_key")],
             security_context={'fsGroup': 0, 'runAsUser': 0},
             volumes=[Volume(name="myvolume", configs={'name': 'myvolume'}),
