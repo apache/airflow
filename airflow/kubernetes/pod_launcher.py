@@ -321,7 +321,7 @@ def _convert_to_airflow_pod(pod):
         image_pull_policy=base_container.image_pull_policy or 'IfNotPresent',
         tolerations=pod.spec.tolerations,
         init_containers=init_containers,
-        image_pull_secrets=pod.spec.image_pull_secrets,
+        image_pull_secrets=",".join(pod.spec.image_pull_secrets),
         resources=base_container.resources,
         service_account_name=pod.spec.service_account_name,
         secrets=secrets,

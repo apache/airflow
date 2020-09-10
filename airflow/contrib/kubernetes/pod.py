@@ -142,6 +142,7 @@ class Pod(object):
             labels=self.labels,
             name=self.name,
             namespace=self.namespace,
+            annotations=self.annotations,
         )
         spec = k8s.V1PodSpec(
             init_containers=self.init_containers,
@@ -149,14 +150,17 @@ class Pod(object):
                 k8s.V1Container(
                     image=self.image,
                     command=self.cmds,
+                    env_from=[],
                     name="base",
                     env=[k8s.V1EnvVar(name=key, value=val) for key, val in self.envs.items()],
                     args=self.args,
                     image_pull_policy=self.image_pull_policy,
                 )
             ],
-            image_pull_secrets=self.image_pull_secrets,
+            image_pull_secrets=[k8s.V1LocalObjectReference(i)
+                                for i in self.image_pull_secrets.split(",")],
             service_account_name=self.service_account_name,
+            node_selector=self.node_selectors,
             dns_policy=self.dnspolicy,
             host_network=self.hostnetwork,
             tolerations=self.tolerations,
@@ -168,6 +172,14 @@ class Pod(object):
             spec=spec,
             metadata=meta,
         )
+        for configmap_name in self.configmaps:
+            env_var = k8s.V1EnvFromSource(
+                config_map_ref=k8s.V1ConfigMapEnvSource(
+                    name=configmap_name,
+                )
+            )
+            pod.spec.containers[0].env_from.append(env_var)
+
         for port in _extract_ports(self.ports):
             pod = port.attach_to_pod(pod)
         volumes = _extract_volumes(self.volumes)
