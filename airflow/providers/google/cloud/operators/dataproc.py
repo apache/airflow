@@ -1808,8 +1808,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
-        hook: Optional[DataprocHook] = None,
-        job_id: str = '',
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1823,8 +1822,9 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
-        self.hook = hook
-        self.job_id = job_id
+        self.cancel_on_kill = True
+        self.hook: Optional[DataprocHook] = None
+        self.job_id: Optional[str] = None
 
     def execute(self, context: Dict):
         self.log.info("Submitting job")
@@ -1848,13 +1848,8 @@ class DataprocSubmitJobOperator(BaseOperator):
 
         return self.job_id
 
-    def on_kill(self, cancel_on_kill: bool = True, job_id: str = ''):
-        if not cancel_on_kill:
-            return
-        cancel_job_id = self.job_id
-        if job_id:
-            cancel_job_id = job_id
-        if self.hook and cancel_job_id:
+    def on_kill(self):
+        if self.job_id and self.cancel_on_kill:
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
 
 
