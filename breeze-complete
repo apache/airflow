@@ -109,6 +109,7 @@ restrict-start_date
 rst-backticks
 setup-order
 shellcheck
+sort-in-the-wild
 stylelint
 trailing-whitespace
 update-breeze-file
