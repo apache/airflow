@@ -103,7 +103,6 @@ class PodLauncher(LoggingMixin):
             dummy_pod = dummy_pod.to_v1_kubernetes_pod()
 
             new_pod = PodGenerator.reconcile_pods(pod, dummy_pod)
-            print(new_pod)
         except AttributeError as e:
             try:
                 settings.pod_mutation_hook(pod)
