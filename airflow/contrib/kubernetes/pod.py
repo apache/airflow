@@ -118,7 +118,7 @@ class Pod(object):
         self.node_selectors = node_selectors or {}
         self.namespace = namespace
         self.image_pull_policy = image_pull_policy
-        self.image_pull_secrets = image_pull_secrets
+        self.image_pull_secrets = image_pull_secrets or ""
         self.init_containers = init_containers
         self.service_account_name = service_account_name
         self.resources = resources or Resources()
@@ -144,6 +144,11 @@ class Pod(object):
             namespace=self.namespace,
             annotations=self.annotations,
         )
+        if self.image_pull_secrets:
+            image_pull_secrets = [k8s.V1LocalObjectReference(i)
+                                for i in self.image_pull_secrets.split(",")]
+        else:
+            image_pull_secrets = []
         spec = k8s.V1PodSpec(
             init_containers=self.init_containers,
             containers=[
@@ -157,8 +162,7 @@ class Pod(object):
                     image_pull_policy=self.image_pull_policy,
                 )
             ],
-            image_pull_secrets=[k8s.V1LocalObjectReference(i)
-                                for i in self.image_pull_secrets.split(",")],
+            image_pull_secrets=image_pull_secrets,
             service_account_name=self.service_account_name,
             node_selector=self.node_selectors,
             dns_policy=self.dnspolicy,
