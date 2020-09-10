@@ -32,8 +32,7 @@ _NOTE: The transition from 1.8.0 (or before) to 1.8.1 (or after) requires uninst
 
 Apache Airflow (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
 
-When workflows are defined as code, they become more maintainable,
-versionable, testable, and collaborative.
+When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
 
 Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on DAGs a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
 
@@ -45,7 +44,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
 - [Official source code](#official-source-code)
-- [Beyond the Horizon](#beyond-the-horizon)
+- [Project Focus](#project-focus)
 - [Principles](#principles)
 - [User Interface](#user-interface)
 - [Using hooks and Operators from "master" in Airflow 1.10](#using-hooks-and-operators-from-master-in-airflow-110)
@@ -144,20 +143,13 @@ These artifacts are not official releases, but they are built using officially r
 
 > Note: Airflow Summit 2020's ["Production Docker Image talk"](https://youtu.be/wDr3Y7q2XoI) explains context, architecture and customization/extension methods.
 
-## Beyond the Horizon
+## Project Focus
 
-Airflow **is not** a data streaming solution. Tasks do not move data from
-one to the other (though tasks can exchange metadata!). Airflow is not
-in the [Spark Streaming](http://spark.apache.org/streaming/)
-or [Storm](https://storm.apache.org/) space, it is more comparable to
-[Oozie](http://oozie.apache.org/) or
-[Azkaban](https://azkaban.github.io/).
+Airflow works best with workflows that are mostly static and slowly changing. When the structure is similar from one run to the next, it allows for clarity around unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](http://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
 
-Workflows are expected to be mostly static or slowly changing. You can think
-of the structure of the tasks in your workflow as slightly more dynamic
-than a database structure would be. Airflow workflows are expected to look
-similar from a run to the next, this allows for clarity around
-unit of work and continuity.
+Airflow is commonly used to process data, but has the opinion that tasks should ideally be idempotent, and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [Xcom feature](https://airflow.apache.org/docs/stable/concepts.html#xcoms)). For high-volume, data-intensive tasks, a best practice is to delegate to external services that specialize on that type of work.
+
+Airflow **is not** a streaming solution. Airflow is not in the [Spark Streaming](http://spark.apache.org/streaming/) or [Storm](https://storm.apache.org/) space.
 
 ## Principles
 
