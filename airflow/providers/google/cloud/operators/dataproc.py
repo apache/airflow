@@ -1838,14 +1838,15 @@ class DataprocSubmitJobOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.job_id = job_object.reference.job_id
-        self.log.info('Job %s submitted successfully.', self.job_id)
+        job_id = job_object.reference.job_id
+        self.log.info('Job %s submitted successfully.', job_id)
 
         if not self.asynchronous:
-            self.log.info('Waiting for job %s to complete', self.job_id)
-            self.hook.wait_for_job(job_id=self.job_id, location=self.location, project_id=self.project_id)
-            self.log.info('Job %s completed successfully.', self.job_id)
+            self.log.info('Waiting for job %s to complete', job_id)
+            self.hook.wait_for_job(job_id=job_id, location=self.location, project_id=self.project_id)
+            self.log.info('Job %s completed successfully.', job_id)
 
+        self.job_id = job_id
         return self.job_id
 
     def on_kill(self):
