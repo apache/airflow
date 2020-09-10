@@ -356,6 +356,9 @@ password = [
 pinot = [
     'pinotdb==0.1.1',
 ]
+plexus = [
+    'arrow>=0.16.0',
+]
 postgres = [
     'psycopg2-binary>=2.7.4',
 ]
@@ -532,6 +535,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "oracle": oracle,
     "pagerduty": pagerduty,
     "papermill": papermill,
+    "plexus": plexus,
     "postgres": postgres,
     "presto": presto,
     "qubole": qds,
@@ -609,6 +613,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'papermill': papermill,
     'password': password,
     'pinot': pinot,  # TODO: remove this in Airflow 2.1
+    'plexus': plexus,
     'postgres': postgres,
     'presto': presto,
     'qds': qds,
