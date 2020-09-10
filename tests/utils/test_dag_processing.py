@@ -25,6 +25,8 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
+import pytest
+
 from airflow.configuration import conf
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.jobs.scheduler_job import DagFileProcessorProcess
@@ -382,6 +384,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
             self.assertFalse(os.path.isfile(log_file_loc))
 
+    @pytest.mark.quarantined
     def test_parse_once(self):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
