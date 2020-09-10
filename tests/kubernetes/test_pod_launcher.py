@@ -228,6 +228,7 @@ class TestPodLauncherHelper(unittest.TestCase):
                     run_as_user=0,
                     fs_group=0,
                 ),
+                image_pull_secrets=[k8s.V1LocalObjectReference("my-secret")],
                 volumes=[
                     k8s.V1Volume(
                         name="myvolume"
@@ -286,6 +287,7 @@ class TestPodLauncherHelper(unittest.TestCase):
                     sub_path=None,
                     read_only=True
                 )],
+            image_pull_secrets="my-secret",
             secrets=[Secret("env", "AIRFLOW_SECRET", "ai", "secret_key")],
             security_context={'fsGroup': 0, 'runAsUser': 0},
             volumes=[Volume(name="myvolume", configs={'name': 'myvolume'}),

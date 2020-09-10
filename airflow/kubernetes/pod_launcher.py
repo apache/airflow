@@ -303,6 +303,7 @@ def _convert_to_airflow_pod(pod):
     volumes = _extract_volumes(pod.spec.volumes)
     api_client = ApiClient()
     init_containers = pod.spec.init_containers
+    image_pull_secrets = pod.spec.image_pull_secrets or []
     if pod.spec.init_containers is not None:
         init_containers = [api_client.sanitize_for_serialization(i) for i in pod.spec.init_containers]
     dummy_pod = Pod(
@@ -321,7 +322,7 @@ def _convert_to_airflow_pod(pod):
         image_pull_policy=base_container.image_pull_policy or 'IfNotPresent',
         tolerations=pod.spec.tolerations,
         init_containers=init_containers,
-        image_pull_secrets=pod.spec.image_pull_secrets,
+        image_pull_secrets=",".join([i.name for i in image_pull_secrets]),
         resources=base_container.resources,
         service_account_name=pod.spec.service_account_name,
         secrets=secrets,

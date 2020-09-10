@@ -1255,6 +1255,7 @@ def _serve_logs(env, skip_serve_logs=False):
 def kubernetes_generate_dag_yaml(args):
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig
     from airflow.kubernetes.pod_generator import PodGenerator
+    from airflow.kubernetes.pod_launcher import PodLauncher
     from airflow.kubernetes.worker_configuration import WorkerConfiguration
     from kubernetes.client.api_client import ApiClient
     dag = get_dag(args)
@@ -1276,6 +1277,7 @@ def kubernetes_generate_dag_yaml(args):
             worker_config=WorkerConfiguration(kube_config=kube_config).as_pod()
         )
         api_client = ApiClient()
+        pod = PodLauncher._mutate_pod_backcompat(pod)
         date_string = AirflowKubernetesScheduler._datetime_to_label_safe_datestring(  # pylint: disable=W0212
             args.execution_date)
         yaml_file_name = "{}_{}_{}.yml".format(args.dag_id, ti.task_id, date_string)
