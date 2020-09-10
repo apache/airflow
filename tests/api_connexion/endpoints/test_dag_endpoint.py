@@ -65,10 +65,8 @@ class TestDagEndpoint(unittest.TestCase):
         )
 
         cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
-            "TEST_DAG_1",
-            access_control={
-                'TestGranularDag': ['can_edit', 'can_read']
-            })
+            "TEST_DAG_1", access_control={'TestGranularDag': ['can_edit', 'can_read']}
+        )
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
@@ -183,9 +181,7 @@ class TestGetDagDetails(TestDagEndpoint):
 
     def test_should_response_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             app_serialized = app.create_app(testing=True)
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         app_serialized.dag_bag = dag_bag
@@ -388,7 +384,7 @@ class TestPatchDag(TestDagEndpoint):
             json={
                 "is_paused": False,
             },
-            environ_overrides={'REMOTE_USER': "test_granular_permissions"}
+            environ_overrides={'REMOTE_USER': "test_granular_permissions"},
         )
         assert response.status_code == 200
 

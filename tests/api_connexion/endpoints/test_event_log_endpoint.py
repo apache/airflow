@@ -123,8 +123,9 @@ class TestGetEventLog(TestEventLogEndpoint):
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get("/api/v1/eventLogs",
-                                   environ_overrides={'REMOTE_USER': "test_no_permissions"})
+        response = self.client.get(
+            "/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
         assert response.status_code == 403
 
 

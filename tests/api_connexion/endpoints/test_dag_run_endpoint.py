@@ -151,7 +151,7 @@ class TestDeleteDagRun(TestDagRunEndpoint):
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID",
-            environ_overrides={'REMOTE_USER': "test_no_permissions"}
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
         )
         assert response.status_code == 403
 

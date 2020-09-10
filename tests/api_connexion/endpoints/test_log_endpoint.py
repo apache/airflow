@@ -304,6 +304,6 @@ class TestGetLog(unittest.TestCase):
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'text/plain'},
-            environ_overrides={'REMOTE_USER': "test_no_permissions"}
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
         )
         assert response.status_code == 403

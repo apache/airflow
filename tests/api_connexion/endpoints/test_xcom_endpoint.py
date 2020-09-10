@@ -128,7 +128,7 @@ class TestGetXComEntry(TestXComEndpoint):
         self._create_xcom_entry(dag_id, dag_run_id, execution_date_parsed, task_id, xcom_key)
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
-            environ_overrides={'REMOTE_USER': "test_no_permissions"}
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
         )
         assert response.status_code == 403
 

@@ -163,6 +163,6 @@ class TestGetSource(unittest.TestCase):
         response = self.client.get(
             f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}",
             headers={"Accept": "text/plain"},
-            environ_overrides={'REMOTE_USER': "test_no_permissions"}
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
         )
         assert response.status_code == 403
