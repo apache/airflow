@@ -61,21 +61,15 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-### Master version (2.0.0dev)
+|              | Master version (2.0.0dev) | Stable version (1.10.12) |
+| ------------ | ------------------------- | ------------------------ |
+| Python       | 3.6, 3.7, 3.8             | 2.7, 3.5, 3.6, 3.7, 3.8  |
+| PostgreSQL   | 9.6, 10                   | 9.6, 10                  |
+| MySQL        | 5.7                       | 5.6, 5.7                 |
+| SQLite       | latest stable             | latest stable            |
+| Kubernetes   | 1.16.2, 1.17.0            | 1.16.2, 1.17.0           |
 
-* Python versions: 3.6, 3.7, 3.8
-* Postgres DB: 9.6, 10
-* MySQL DB: 5.7
-* Sqlite - latest stable (it is used mainly for development purpose)
-* Kubernetes - 1.16.2, 1.17.0
-
-### Stable version (1.10.12)
-
-* Python versions: 2.7, 3.5, 3.6, 3.7, 3.8
-* Postgres DB: 9.6, 10
-* MySQL DB: 5.6, 5.7
-* Sqlite - latest stable (it is used mainly for development purpose)
-* Kubernetes - 1.16.2, 1.17.0
+> Note: SQLite is used primarily for development purpose.
 
 ### Additional notes on Python version requirements
 
