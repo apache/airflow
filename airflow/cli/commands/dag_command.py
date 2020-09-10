@@ -409,7 +409,8 @@ def generate_pod_yaml(args):
             kube_mutation_object=PodGenerator.from_obj(ti.executor_config),
             worker_uuid="worker-config",
             namespace=kube_config.executor_namespace,
-            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file)
+            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
+            run_as_args=kube_config.run_as_args
         )
         pod_mutation_hook(pod)
         api_client = ApiClient()

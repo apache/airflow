@@ -505,6 +505,58 @@ class TestPodGenerator(unittest.TestCase):
         self.assertEqual(expected_dict, result_dict)
 
     @mock.patch('uuid.uuid4')
+    def test_construct_pod_run_as_args(self, mock_uuid):
+        path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
+        worker_config = PodGenerator.deserialize_model_file(path)
+        mock_uuid.return_value = self.static_uuid
+        executor_config = k8s.V1Pod(
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name='',
+                        resources=k8s.V1ResourceRequirements(
+                            limits={
+                                'cpu': '1m',
+                                'memory': '1G'
+                            }
+                        )
+                    )
+                ]
+            )
+        )
+
+        result = PodGenerator.construct_pod(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            pod_id='pod_id',
+            kube_image='airflow_image',
+            try_number=self.try_number,
+            date=self.execution_date,
+            command=['command'],
+            kube_mutation_object=executor_config,
+            base_worker_pod=worker_config,
+            namespace='test_namespace',
+            worker_uuid='uuid',
+            run_as_args=True,
+        )
+        expected = self.expected
+        expected.metadata.labels = self.labels
+        expected.metadata.labels['app'] = 'myapp'
+        expected.metadata.annotations = self.annotations
+        expected.metadata.name = 'pod_id-' + self.static_uuid.hex
+        expected.metadata.namespace = 'test_namespace'
+        expected.spec.containers[0].command = []
+        expected.spec.containers[0].args = ['command']
+        expected.spec.containers[0].image = 'airflow_image'
+        expected.spec.containers[0].resources = {'limits': {'cpu': '1m',
+                                                            'memory': '1G'}
+                                                 }
+        result_dict = self.k8s_client.sanitize_for_serialization(result)
+        expected_dict = self.k8s_client.sanitize_for_serialization(self.expected)
+
+        self.assertEqual(expected_dict, result_dict)
+
+    @mock.patch('uuid.uuid4')
     def test_construct_pod_empty_executor_config(self, mock_uuid):
         path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
         worker_config = PodGenerator.deserialize_model_file(path)

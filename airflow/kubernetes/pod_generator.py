@@ -352,7 +352,8 @@ class PodGenerator:
         kube_mutation_object: Optional[k8s.V1Pod],
         base_worker_pod: k8s.V1Pod,
         namespace: str,
-        worker_uuid: str
+        worker_uuid: str,
+        run_as_args: bool = False
     ) -> k8s.V1Pod:
         """
         Construct a pod by gathering and consolidating the configuration from 3 places:
@@ -360,6 +361,13 @@ class PodGenerator:
             - executor_config
             - dynamic arguments
         """
+
+        args: Optional[List[str]] = None
+        cmds: Optional[List[str]] = command
+
+        if run_as_args:
+            cmds, args = None, command
+
         try:
             image = kube_mutation_object.spec.containers[0].image  # type: ignore
             if not image:
@@ -391,7 +399,8 @@ class PodGenerator:
                 containers=[
                     k8s.V1Container(
                         name="base",
-                        command=command,
+                        command=cmds,
+                        args=args,
                         image=image,
                     )
                 ]
