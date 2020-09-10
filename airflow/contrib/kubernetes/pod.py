@@ -146,7 +146,7 @@ class Pod(object):
         )
         if self.image_pull_secrets:
             image_pull_secrets = [k8s.V1LocalObjectReference(i)
-                                for i in self.image_pull_secrets.split(",")]
+                                  for i in self.image_pull_secrets.split(",")]
         else:
             image_pull_secrets = []
         spec = k8s.V1PodSpec(
