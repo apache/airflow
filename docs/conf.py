@@ -216,6 +216,7 @@ exclude_patterns = [
     '_api/airflow/typing_compat',
     '_api/airflow/kubernetes',
     '_api/airflow/ti_deps',
+    '_api/airflow/upgrade',
     '_api/airflow/utils',
     '_api/airflow/version',
     '_api/airflow/www',
