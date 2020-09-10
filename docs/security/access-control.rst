@@ -120,7 +120,7 @@ Permissions
 
 Resource-Based permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Starting with version 2.0, permissions are based on individual resources and a small subset of actions on those resources. Resources match standard Airflow concepts, such as ``Dag``, ``DagRun``, ``Task``, and ``Connection``. Actions include ``can_create``, ``can_read``, ``can_edit``, and ``can_delete``. Permissions (each consistint of a resource + action pair) are then added to roles.
+Starting with version 2.0, permissions are based on individual resources and a small subset of actions on those resources. Resources match standard Airflow concepts, such as ``Dag``, ``DagRun``, ``Task``, and ``Connection``. Actions include ``can_create``, ``can_read``, ``can_edit``, and ``can_delete``. Permissions (each consisting of a resource + action pair) are then added to roles.
 
 Simple table:
 
