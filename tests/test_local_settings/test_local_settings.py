@@ -318,9 +318,10 @@ class LocalSettingsTest(unittest.TestCase):
 
             self.assertEqual(
                 sanitized_pod_post_mutation,
-                {"apiVersion": "v1",
-                 "kind": "Pod",
-                 'metadata': {'labels': {'test_label': 'test_value'},
+                {'apiVersion': 'v1',
+                 'kind': 'Pod',
+                 'metadata': {'annotations': {},
+                              'labels': {'test_label': 'test_value'},
                               'name': mock.ANY,
                               'namespace': 'airflow-tests'},
                  'spec': {'affinity': {'nodeAffinity': {'requiredDuringSchedulingIgnoredDuringExecution': {
@@ -330,6 +331,7 @@ class LocalSettingsTest(unittest.TestCase):
                           'containers': [{'args': ['/bin/sh', '-c', 'touch /tmp/healthy2'],
                                           'command': ['foo'],
                                           'env': [{'name': 'TEST_USER', 'value': 'ADMIN'}],
+                                          'envFrom': [],
                                           'image': 'my_image',
                                           'imagePullPolicy': 'Never',
                                           'name': 'base',
@@ -338,14 +340,13 @@ class LocalSettingsTest(unittest.TestCase):
                                           'resources': {'limits': {'nvidia.com/gpu': '200G'},
                                                         'requests': {'cpu': '200Mi',
                                                                      'memory': '2G'}},
-                                          'volumeMounts': [
-                                              {'mountPath': '/mnt',
-                                               'name': 'foo',
-                                               'readOnly': True,
-                                               'subPath': '/'},
-                                              {'mountPath': '/opt/airflow/secrets/',
-                                               'name': 'airflow-secrets-mount',
-                                               'readOnly': True}]}],
+                                          'volumeMounts': [{'mountPath': '/mnt',
+                                                            'name': 'foo',
+                                                            'readOnly': True,
+                                                            'subPath': '/'},
+                                                           {'mountPath': '/opt/airflow/secrets/',
+                                                            'name': 'airflow-secrets-mount',
+                                                            'readOnly': True}]}],
                           'hostNetwork': False,
                           'imagePullSecrets': [],
                           'initContainers': [{'name': 'init-container',
@@ -353,6 +354,8 @@ class LocalSettingsTest(unittest.TestCase):
                                                                   'runAsUser': 50000},
                                               'volumeMounts': [{'mountPath': '/tmp',
                                                                 'name': 'init-secret'}]}],
+                          'nodeSelector': {},
+                          'securityContext': {'runAsUser': 1},
                           'tolerations': [{'effect': 'NoSchedule',
                                            'key': 'static-pods',
                                            'operator': 'Equal',
@@ -364,9 +367,7 @@ class LocalSettingsTest(unittest.TestCase):
                           'volumes': [{'name': 'airflow-secrets-mount',
                                        'secret': {'secretName': 'airflow-test-secrets'}},
                                       {'name': 'bar'},
-                                      {'name': 'foo'},
-                                      ],
-                          'securityContext': {'runAsUser': 1}}}
+                                      {'name': 'foo'}]}}
             )
 
     def test_pod_mutation_v1_pod(self):
