@@ -1241,13 +1241,17 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Triggers DAG Run."""
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
+        request_conf = request.values.get('conf')
 
         if request.method == 'GET':
-            # Use dag.params as default data in trigger-DagRun UI
+            # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ''
-            dag = current_app.dag_bag.get_dag(dag_id)
-            if dag.params:
-                default_conf = json.dumps(dag.params, indent=4)
+            if request_conf:
+                default_conf = request_conf
+            else:
+                dag = current_app.dag_bag.get_dag(dag_id)
+                if dag.params:
+                    default_conf = json.dumps(dag.params, indent=4)
             return self.render_template(
                 'airflow/trigger.html',
                 dag_id=dag_id,
@@ -1268,7 +1272,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return redirect(origin)
 
         run_conf = {}
-        request_conf = request.values.get('conf')
         if request_conf:
             try:
                 run_conf = json.loads(request_conf)
