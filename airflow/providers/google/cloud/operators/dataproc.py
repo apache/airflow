@@ -1790,6 +1790,8 @@ class DataprocSubmitJobOperator(BaseOperator):
         This is useful for submitting long running jobs and
         waiting on them asynchronously using the DataprocJobSensor
     :type asynchronous: bool
+    :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
+    :type cancel_on_kill: bool
     """
 
     template_fields = ('project_id', 'location', 'job', 'impersonation_chain')
