@@ -1762,3 +1762,63 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     @provide_session
     def heartbeat_callback(self, session: Session = None) -> None:
         Stats.incr('scheduler_heartbeat', 1, 1)
+
+    @provide_session
+    def reset_state_for_orphaned_tasks(self, session: Session = None):
+        """
+        Reset any TaskInstance still in QUEUED or SCHEDULED states that were
+        enqueued by a SchedulerJob that is no longer running.
+
+        :return: the number of TIs reset
+        :rtype: int
+        """
+        timeout = conf.getint('scheduler', 'scheduler_health_check_threshold')
+
+        num_failed = session.query(SchedulerJob).filter(
+            SchedulerJob.state == State.RUNNING,
+            SchedulerJob.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout))
+        ).update({"state": State.FAILED})
+
+        if num_failed:
+            self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
+
+        resettable_states = [State.SCHEDULED, State.QUEUED]
+        tis_to_reset = (
+            session.query(TI).filter(TI.state.in_(resettable_states))
+            # outerjoin is becase we didn't use to have queued_by_job
+            # set, so we need to pick up anything pre upgrade. This (and the
+            # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
+            # released.
+            .outerjoin(TI.queued_by_job)
+            .filter(or_(TI.queued_by_job_id.is_(None), SchedulerJob.state != State.RUNNING))
+            .join(TI.dag_run)
+            .filter(DagRun.run_type != DagRunType.BACKFILL_JOB.value,
+                    # pylint: disable=comparison-with-callable
+                    DagRun.state == State.RUNNING)
+            .with_entities(TI.dag_id, TI.task_id, TI.execution_date)
+        )
+
+        if self.using_sqlite:
+            tis_to_reset = tis_to_reset.with_for_update(of=TI).all()
+            if tis_to_reset:
+                filter_for_tis = TI.filter_for_tis([
+                    TaskInstanceKey(dag_id, task_id, execution_date, 0)
+                    for (dag_id, task_id, execution_date) in tis_to_reset
+                ])
+                num_reset = session.query(TI).filter(
+                    filter_for_tis, TI.state.in_(resettable_states)
+                ).update({TI.state: State.NONE}, synchronize_session=False)
+            else:
+                num_reset = 0
+        else:
+            tis_to_reset = tis_to_reset.subquery('tis_to_reset')
+            num_reset = session.query(TI).filter(
+                TI.dag_id == tis_to_reset.c.dag_id,
+                TI.task_id == tis_to_reset.c.task_id,
+                TI.execution_date == tis_to_reset.c.execution_date,
+            ).update({TI.state: State.NONE}, synchronize_session=False)
+
+        if num_reset:
+            self.log.info("Reset %d orphaned TaskInstances that were in queued state", num_reset)
+
+        return num_reset
