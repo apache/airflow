@@ -274,6 +274,14 @@ repos:
         entry: "\\|\\s*safe"
         files: \.html$
         pass_filenames: true
+      - id: no-relative-imports
+        language: pygrep
+        name: No relative imports
+        description: Airflow style is to use absolute imports only
+        entry: "^\\s*from\\s+\\."
+        pass_filenames: true
+        files: \.py$
+        exclude: ^tests/
       - id: language-matters
         language: pygrep
         name: Check for language that we do not accept as community
