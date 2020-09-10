@@ -99,12 +99,10 @@ function resetdb_if_requested() {
 
 function startairflow_if_requested() {
     if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+
         # initialize db and create the admin user if it's a new run
-        if $(airflow users list | grep 'Roles' -q);
-        then
-            airflow db init
-            airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
-        fi
+        airflow db init
+        airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
 
         #this is because I run docker in WSL - Hi Bill!
         export TMUX_TMPDIR=~/.tmux/tmp
