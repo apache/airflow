@@ -26,6 +26,15 @@ regarding its security model.
   :depth: 1
   :local:
 
+.. spelling::
+    clearTaskInstances
+    dagRuns
+    dagSources
+    eventLogs
+    importErrors
+    taskInstances
+    xcomEntries
+
 Default Roles
 '''''''''''''
 Airflow ships with a set of roles by default: Admin, User, Op, Viewer, and Public.
