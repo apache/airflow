@@ -1951,10 +1951,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  cassandra kerberos mongo openldap presto rabbitmq redis all
 
---start-airflow
-        Starts the Airflow Scheduler and Webserver in two tmux panes, a third one will be
-        available for the usual use cases. In case the database is not initialized it will
-        run also 'airflow db init' and create an Admin user with credentials admin/admin.
+  --start-airflow
+          Starts the Airflow Scheduler and Webserver in two tmux panes, a third one will be
+          available for the usual use cases. In case the database is not initialized it will
+          run also 'airflow db init' and create an Admin user with credentials admin/admin.
 
   ****************************************************************************************************
    Kind kubernetes and Kubernetes tests configuration(optional)
