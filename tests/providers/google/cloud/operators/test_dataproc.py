@@ -504,6 +504,37 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
         )
         mock_hook.return_value.wait_for_job.assert_not_called()
 
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_on_kill(self, mock_hook):
+        job = {}
+        job_id = "job_id"
+        mock_hook.return_value.wait_for_job.return_value = None
+        mock_hook.return_value.submit_job.return_value.reference.job_id = job_id
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job=job,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            cancel_on_kill=False,
+        )
+        op.execute(context={})
+
+        op.on_kill()
+        mock_hook.return_value.cancel_job.assert_not_called()
+
+        op.cancel_on_kill = True
+        op.on_kill()
+        mock_hook.return_value.cancel_job.assert_called_once_with(
+            project_id=GCP_PROJECT, location=GCP_LOCATION, job_id=job_id
+        )
+
 
 class TestDataprocUpdateClusterOperator(unittest.TestCase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
