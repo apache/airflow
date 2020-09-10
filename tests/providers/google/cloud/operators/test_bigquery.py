@@ -779,6 +779,43 @@ class TestBigQueryInsertJobOperator:
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_on_kill(self, mock_hook, mock_md5):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+        mock_md5.return_value.hexdigest.return_value = hash_
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+            cancel_on_kill=False,
+        )
+        op.execute({})
+
+        op.on_kill()
+        mock_hook.return_value.cancel_job.assert_not_called()
+
+        op.cancel_on_kill = True
+        op.on_kill()
+        mock_hook.return_value.cancel_job.assert_called_once_with(
+            job_id=real_job_id,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_execute_failure(self, mock_hook, mock_md5):
         job_id = "123456"
         hash_ = "hash"
