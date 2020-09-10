@@ -96,11 +96,6 @@ DAG Level Role
 is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
 allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.
 
-Add a new role
-''''''''''''''
-
-To configure a new role, go to **Security** tab and click **List Roles** in the new UI.
-
 .. image:: /img/add-role.png
 .. image:: /img/new-role.png
 
@@ -115,19 +110,27 @@ using the ``airflow roles create`` command, e.g.:
 And we could assign the given role to a new user using the ``airflow
 users add-role`` CLI command.
 
+
 Permissions
 '''''''''''
 
 Resource-Based permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Starting with version 2.0, permissions are based on individual resources and a small subset of actions on those
+resources. Resources match standard Airflow concepts, such as ``Dag``, ``DagRun``, ``Task``, and
+``Connection``. Actions include ``can_create``, ``can_read``, ``can_edit``, and ``can_delete``.
+
+Permissions (each consistent of a resource + action pair) are then added to roles.
+
 Starting with version 2.0, permissions are based on individual resources and a small subset of actions on those resources. Resources match standard Airflow concepts, such as ``Dag``, ``DagRun``, ``Task``, and ``Connection``. Actions include ``can_create``, ``can_read``, ``can_edit``, and ``can_delete``. Permissions (each consisting of a resource + action pair) are then added to roles.
 
-Simple table:
+**To access an endpoint, the user needs all permissions assigned to that endpoint**
 
 ================================================================================== ====== ====================================================================================
-   Inputs
+Stable API Permissions
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-View                                                                               Method Permissions
+Endpoint                                                                           Method Permissions
 ================================================================================== ====== ====================================================================================
 /config                                                                            GET    Config.can_read
 /connections                                                                       GET    Connection.can_read
