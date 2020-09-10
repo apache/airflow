@@ -35,7 +35,8 @@ dag = DAG(
     schedule_interval='0 0 * * *',
     start_date=days_ago(2),
     dagrun_timeout=timedelta(minutes=60),
-    tags=['example']
+    tags=['example'],
+    params={"example_key": "example_value"}
 )
 
 run_this_last = DummyOperator(

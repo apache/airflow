@@ -2519,6 +2519,16 @@ class TestTriggerDag(TestBase):
                 expected_origin),
             resp)
 
+    def test_trigger_dag_params_conf(self):
+        test_dag_id = "example_bash_operator"
+        test_dag_conf = json.dumps({"example_key": "example_value"}, indent=4) \
+            .replace("\"", "&#34;")
+
+        resp = self.client.get('trigger?dag_id={}'.format(test_dag_id))
+        self.check_content_in_response(
+            '<textarea class="form-control" name="conf">{}</textarea>'.format(test_dag_conf),
+            resp)
+
     def test_trigger_endpoint_uses_existing_dagbag(self):
         """
         Test that Trigger Endpoint uses the DagBag already created in views.py
