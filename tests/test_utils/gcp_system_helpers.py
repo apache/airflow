@@ -29,7 +29,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import provide_gc
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY, GCP_SECRET_MANAGER_KEY
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.system_tests_class import SystemTest
-from tests.utils.logging_command_executor import get_executor
+from tests.test_utils.logging_command_executor import get_executor
 
 CLOUD_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "cloud", "example_dags"
