@@ -75,7 +75,7 @@ class TestPodGenerator(unittest.TestCase):
             'execution_date': self.execution_date_label,
             'task_id': self.task_id,
             'try_number': str(self.try_number),
-            'airflow_version': mock.ANY,
+            'airflow_version': '2.0.0.dev0',
             'kubernetes_executor': 'True'
         }
         self.annotations = {
