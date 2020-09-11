@@ -30,6 +30,7 @@ from functools import reduce
 
 import kubernetes.client.models as k8s
 import yaml
+from dateutil import parser
 from kubernetes.client.api_client import ApiClient
 from airflow.contrib.kubernetes.pod import _extract_volume_mounts
 
@@ -90,6 +91,30 @@ def make_safe_label_value(string):
         safe_label = safe_label[:MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
 
     return safe_label
+
+
+def datetime_to_label_safe_datestring(datetime_obj):
+    """
+    Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but
+    not "_" let's
+    replace ":" with "_"
+
+    :param datetime_obj: datetime.datetime object
+    :return: ISO-like string representing the datetime
+    """
+    return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
+
+
+def label_safe_datestring_to_datetime(string):
+    """
+    Kubernetes doesn't permit ":" in labels. ISO datetime format uses ":" but not
+    "_", let's
+    replace ":" with "_"
+
+    :param string: str
+    :return: datetime.datetime object
+    """
+    return parser.parse(string.replace('_plus_', '+').replace("_", ":"))
 
 
 class PodGenerator(object):
@@ -496,10 +521,11 @@ class PodGenerator(object):
         task_id,
         pod_id,
         try_number,
+        kube_image,
         date,
         command,
-        kube_executor_config,
-        worker_config,
+        pod_override_object,
+        base_worker_pod,
         namespace,
         worker_uuid
     ):
@@ -511,22 +537,29 @@ class PodGenerator(object):
         """
         dynamic_pod = PodGenerator(
             namespace=namespace,
+            image=kube_image,
             labels={
                 'airflow-worker': worker_uuid,
-                'dag_id': dag_id,
-                'task_id': task_id,
-                'execution_date': date,
+                'dag_id': make_safe_label_value(dag_id),
+                'task_id': make_safe_label_value(task_id),
+                'execution_date': datetime_to_label_safe_datestring(date),
                 'try_number': str(try_number),
                 'airflow_version': airflow_version.replace('+', '-'),
                 'kubernetes_executor': 'True',
+            },
+            annotations={
+                'dag_id': dag_id,
+                'task_id': task_id,
+                'execution_date': date.isoformat(),
+                'try_number': str(try_number),
             },
             cmds=command,
             name=pod_id
         ).gen_pod()
 
         # Reconcile the pods starting with the first chronologically,
-        # Pod from the airflow.cfg -> Pod from executor_config arg -> Pod from the K8s executor
-        pod_list = [worker_config, kube_executor_config, dynamic_pod]
+        # Pod from the pod_template_File -> Pod from executor_config arg -> Pod from the K8s executor
+        pod_list = [base_worker_pod, pod_override_object, dynamic_pod]
 
         return reduce(PodGenerator.reconcile_pods, pod_list)
 

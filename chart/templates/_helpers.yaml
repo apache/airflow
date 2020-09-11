@@ -213,6 +213,10 @@
 {{ default (printf "%s-airflow-result-backend" .Release.Name) .Values.data.resultBackendSecretName }}
 {{- end }}
 
+{{ define "airflow_pod_template_file" -}}
+{{ (printf "%s/pod_templates" .Values.airflowHome) }}
+{{- end }}
+
 {{ define "pgbouncer_config_secret" -}}
 {{ .Release.Name }}-pgbouncer-config
 {{- end }}

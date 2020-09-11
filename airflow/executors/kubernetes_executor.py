@@ -440,10 +440,11 @@ class AirflowKubernetesScheduler(LoggingMixin):
             dag_id=pod_generator.make_safe_label_value(dag_id),
             task_id=pod_generator.make_safe_label_value(task_id),
             try_number=try_number,
-            date=self._datetime_to_label_safe_datestring(execution_date),
+            kube_image=self.kube_config.kube_image,
+            date=execution_date,
             command=command,
-            kube_executor_config=kube_executor_config,
-            worker_config=self.worker_configuration_pod
+            pod_override_object=kube_executor_config,
+            base_worker_pod=self.worker_configuration_pod
         )
 
         sanitized_pod = self.launcher._client.api_client.sanitize_for_serialization(pod)
