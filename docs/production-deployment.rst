@@ -630,8 +630,3 @@ Keytab secret and both containers in the same Pod share the volume, where tempor
 the side-care container and read by the worker container.
 
 This concept is implemented in the development version of the Helm Chart that is part of Airflow source code.
-
-
-.. spelling::
-
-   pypirc

@@ -18,6 +18,7 @@
 
 import unittest
 import six
+from dateutil import parser
 from parameterized import parameterized
 
 from tests.compat import mock
@@ -373,12 +374,14 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.base_log_folder = '/logs'
 
         worker_config = WorkerConfiguration(self.kube_config)
+        execution_date = parser.parse('2019-11-21 11:08:22.920875')
         pod = PodGenerator.construct_pod(
             "test_dag_id",
             "test_task_id",
             "test_pod_id",
             1,
-            "2019-11-21 11:08:22.920875",
+            'kube_image',
+            execution_date,
             ["bash -c 'ls /'"],
             None,
             worker_config.as_pod(),
@@ -389,7 +392,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             'airflow-worker': 'sample-uuid',
             'airflow_version': airflow_version.replace('+', '-'),
             'dag_id': 'test_dag_id',
-            'execution_date': '2019-11-21 11:08:22.920875',
+            'execution_date': '2019-11-21T11_08_22.920875',
             'kubernetes_executor': 'True',
             'my_label': 'label_id',
             'task_id': 'test_task_id',
