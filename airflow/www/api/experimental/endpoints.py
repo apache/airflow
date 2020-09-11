@@ -100,9 +100,8 @@ def trigger_dag(dag_id):
 
 
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['GET'])
-@api_experimental.route('/dags/<string:dag_id>/dag_runs/<string:dagrun_id>', methods=['GET'])
 @requires_authentication
-def dag_runs(dag_id, dagrun_id=None):
+def dag_runs(dag_id):
     """
     Returns a list of Dag Runs for a specific DAG ID.
     :query param state: a query string parameter '?state=queued|running|success...'
@@ -113,6 +112,7 @@ def dag_runs(dag_id, dagrun_id=None):
     """
     try:
         state = request.args.get('state')
+        dagrun_id = request.args.get('dagrun_id')
         dagruns = get_dag_runs(dag_id, dagrun_id, state)
     except AirflowException as err:
         _log.info(err)

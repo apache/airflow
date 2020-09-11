@@ -155,4 +155,3 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
         self.assertIsInstance(data, list)
         self.assertEqual(len(data), 0)
-

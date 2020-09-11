@@ -160,6 +160,34 @@ class TestDagRunsEndpoint(unittest.TestCase):
             self.assertIsInstance(data, list)
             self.assertEqual(len(data), 0)
 
+    def test_get_dag_runs_with_dagrun_id_filter(self):
+        url_template = '/api/experimental/dags/{}/dag_runs?dagrun_id=1'
+        dag_id = 'example_bash_operator'
+        # Create DagRun
+        dag_run = trigger_dag(dag_id=dag_id, run_id='1')
+
+        response = self.app.get(url_template.format(dag_id))
+        self.assertEqual(200, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
+
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['dag_id'], dag_id)
+        self.assertEqual(data[0]['id'], dag_run.id)
+
+    def test_get_dag_runs_with_unmatched_dagrun_id_filter(self):
+        url_template = '/api/experimental/dags/{}/dag_runs?dagrun_id=2'
+        dag_id = 'example_bash_operator'
+        # Create DagRun
+        dag_run = trigger_dag(dag_id=dag_id, run_id='1')
+
+        response = self.app.get(url_template.format(dag_id))
+        self.assertEqual(200, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
+
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
