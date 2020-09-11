@@ -724,14 +724,14 @@ function breeze::parse_arguments() {
             shift 2
             ;;
         -i | --integration)
-            local integration=${2}
+            local INTEGRATION=${2}
             parameters::check_and_save_allowed_param "INTEGRATION" "integration" "--integration"
-            echo "Integration: ${integration}"
-            if [[ ${integration} == "all" ]]; then
-                for integration in ${_BREEZE_ALLOWED_INTEGRATIONS}; do
-                    if [[ ${integration} != "all" ]]; then
-                        echo "${integration}"
-                        INTEGRATIONS+=("${integration}")
+            echo "Integration: ${INTEGRATION}"
+            if [[ ${INTEGRATION} == "all" ]]; then
+                for INTEGRATION in ${_BREEZE_ALLOWED_INTEGRATIONS}; do
+                    if [[ ${INTEGRATION} != "all" ]]; then
+                        echo "${INTEGRATION}"
+                        INTEGRATIONS+=("${INTEGRATION}")
                     fi
                 done
             else
