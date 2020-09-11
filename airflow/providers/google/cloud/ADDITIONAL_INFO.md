@@ -23,4 +23,5 @@
 Class `AutoMLBatchPredictOperator` property `params` is renamed to `prediction_params`.
 To keep old behaviour, please rename `params` to `prediction_params` when initializing an instance of `AutoMLBatchPredictOperator`.
 
-Property `params` still exists, but as a property inherited from parent's class `BaseOperator`. Property `params` has nothing to do with prediction, use `prediction_params` instead.
+Property `params` still exists, but as a property inherited from parent's class `BaseOperator`.
+Property `params` has nothing to do with prediction, use `prediction_params` instead.

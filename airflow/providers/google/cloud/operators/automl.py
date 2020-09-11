@@ -240,8 +240,8 @@ class AutoMLBatchPredictOperator(BaseOperator):
         written. If a dict is provided, it must be of the same form as the protobuf message
         `google.cloud.automl_v1beta1.types.BatchPredictOutputConfig`
     :type output_config: Union[dict, ~google.cloud.automl_v1beta1.types.BatchPredictOutputConfig]
-    :param prediction_params: Additional domain-specific parameters for the predictions, any string must be up to
-        25000 characters long.
+    :param prediction_params: Additional domain-specific parameters for the predictions,
+        any string must be up to 25000 characters long.
     :type prediction_params: Optional[Dict[str, str]]
     :param project_id: ID of the Google Cloud project where model is located if None then
         default project_id is used.
