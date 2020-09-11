@@ -25,8 +25,7 @@ from airflow.api.common.experimental import check_and_get_dag
 from airflow.models import DagRun
 
 
-def get_dag_runs(dag_id, dagrun_id, state=None, run_url_route='Airflow.graph'):
-    # type: (str, Optional[str], str) -> List[Dict[str, Any]]
+def get_dag_runs(dag_id, state=None, run_url_route='Airflow.graph', **kwargs):
     """
     Returns a list of Dag Runs for a specific DAG ID.
 
@@ -40,7 +39,7 @@ def get_dag_runs(dag_id, dagrun_id, state=None, run_url_route='Airflow.graph'):
 
     dag_runs = list()
     state = state.lower() if state else None
-    for run in DagRun.find(dag_id=dag_id, state=state, run_id=dagrun_id):
+    for run in DagRun.find(dag_id=dag_id, state=state, run_id=kwargs['dagrun_id']):
         dag_runs.append({
             'id': run.id,
             'run_id': run.run_id,
