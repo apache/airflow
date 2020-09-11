@@ -300,7 +300,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
         self.model_id = model_id
         self.location = location
         self.project_id = project_id
-        self.prediction_params = prediction_params  # type: ignore
+        self.prediction_params = prediction_params
         self.metadata = metadata
         self.timeout = timeout
         self.retry = retry
