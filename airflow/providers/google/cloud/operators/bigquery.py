@@ -1934,6 +1934,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         )
 
 
+# pylint: disable=too-many-arguments
 class BigQueryInsertJobOperator(BaseOperator):
     """
     Executes a BigQuery job. Waits for the job to complete and returns job id.
