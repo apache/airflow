@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Example Airflow DAG that showss interactions with Google Cloud Firestore.
+Example Airflow DAG that shows interactions with Google Cloud Firestore.
 
 Prerequisites
 =============

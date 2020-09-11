@@ -177,3 +177,8 @@ class TestQuboleOperator(unittest.TestCase):
         # check for negative case
         url2 = simple_task.get_extra_links(datetime(2017, 1, 2), 'Go to QDS')
         self.assertEqual(url2, '')
+
+    def test_parameter_pool_passed(self):
+        test_pool = 'test_pool'
+        op = QuboleOperator(task_id=TASK_ID, pool=test_pool)
+        self.assertEqual(op.pool, test_pool)
