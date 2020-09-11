@@ -96,3 +96,10 @@ class TestStreamLogWriter(unittest.TestCase):
 
         log = StreamLogWriter(logger, 1)
         self.assertIsNone(log.encoding)
+
+    def test_iobase_compatibility(self):
+        log = StreamLogWriter(None, 1)
+
+        self.assertFalse(log.closed)
+        # has no specific effect
+        log.close()
