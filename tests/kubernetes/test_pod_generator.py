@@ -19,12 +19,14 @@ import unittest
 import sys
 from tests.compat import mock
 import uuid
-import kubernetes.client.models as k8s
-from kubernetes.client import ApiClient
+
+from dateutil import parser
+from kubernetes.client import ApiClient, models as k8s
 
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod import Resources
-from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator, extend_object_field, merge_objects
+from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator, extend_object_field, merge_objects, \
+    datetime_to_label_safe_datestring
 from airflow.kubernetes.secret import Secret
 
 
@@ -63,16 +65,25 @@ class TestPodGenerator(unittest.TestCase):
             Secret('env', 'TARGET', 'secret_b', 'source_b'),
         ]
 
+        self.execution_date = parser.parse('2020-08-24 00:00:00.000000')
+        self.execution_date_label = datetime_to_label_safe_datestring(self.execution_date)
+        self.dag_id = 'dag_id'
+        self.task_id = 'task_id'
+        self.try_number = 3
         self.labels = {
             'airflow-worker': 'uuid',
             'dag_id': 'dag_id',
-            'execution_date': 'date',
+            'execution_date': mock.ANY,
             'task_id': 'task_id',
             'try_number': '3',
             'airflow_version': mock.ANY,
             'kubernetes_executor': 'True'
         }
         self.metadata = {
+            'annotations': {'dag_id': 'dag_id',
+                            'execution_date': '2020-08-24T00:00:00',
+                            'task_id': 'task_id',
+                            'try_number': '3'},
             'labels': self.labels,
             'name': 'pod_id-' + self.static_uuid.hex,
             'namespace': 'namespace'
@@ -646,8 +657,9 @@ class TestPodGenerator(unittest.TestCase):
             'dag_id',
             'task_id',
             'pod_id',
-            3,
-            'date',
+            self.try_number,
+            "kube_image",
+            self.execution_date,
             ['command'],
             executor_config,
             worker_config,
@@ -667,6 +679,7 @@ class TestPodGenerator(unittest.TestCase):
                     'env': [],
                     'envFrom': [],
                     'name': 'base',
+                    'image': 'kube_image',
                     'ports': [],
                     'resources': {
                         'limits': {
@@ -706,8 +719,9 @@ class TestPodGenerator(unittest.TestCase):
             'dag_id',
             'task_id',
             'pod_id',
-            3,
-            'date',
+            self.try_number,
+            "kube_image",
+            self.execution_date,
             ['command'],
             executor_config,
             worker_config,
@@ -727,6 +741,7 @@ class TestPodGenerator(unittest.TestCase):
                     'env': [],
                     'envFrom': [],
                     'name': 'base',
+                    'image': 'kube_image',
                     'ports': [],
                     'resources': {
                         'limits': {
@@ -789,8 +804,9 @@ class TestPodGenerator(unittest.TestCase):
             'dag_id',
             'task_id',
             'pod_id',
-            3,
-            'date',
+            self.try_number,
+            "kube_image",
+            self.execution_date,
             ['command'],
             executor_config,
             worker_config,
@@ -799,7 +815,7 @@ class TestPodGenerator(unittest.TestCase):
         )
         sanitized_result = self.k8s_client.sanitize_for_serialization(result)
 
-        self.metadata.update({'annotations': {'should': 'stay'}})
+        self.metadata['annotations']['should'] = 'stay'
 
         self.assertEqual({
             'apiVersion': 'v1',
@@ -811,6 +827,7 @@ class TestPodGenerator(unittest.TestCase):
                     'command': ['command'],
                     'env': [],
                     'envFrom': [],
+                    'image': 'kube_image',
                     'name': 'base',
                     'ports': [],
                     'resources': {
@@ -872,20 +889,21 @@ class TestPodGenerator(unittest.TestCase):
         )
 
         result = PodGenerator.construct_pod(
-            'dag_id',
-            'task_id',
-            'pod_id',
-            3,
-            'date',
-            ['command'],
-            executor_config,
-            worker_config,
-            'namespace',
-            'uuid',
+            dag_id='dag_id',
+            task_id='task_id',
+            pod_id='pod_id',
+            try_number=3,
+            kube_image='kube_image',
+            date=self.execution_date,
+            command=['command'],
+            pod_override_object=executor_config,
+            base_worker_pod=worker_config,
+            namespace='namespace',
+            worker_uuid='uuid',
         )
         sanitized_result = self.k8s_client.sanitize_for_serialization(result)
 
-        self.metadata.update({'annotations': {'should': 'stay'}})
+        self.metadata['annotations']['should'] = 'stay'
 
         self.assertEqual({
             'apiVersion': 'v1',
@@ -898,6 +916,7 @@ class TestPodGenerator(unittest.TestCase):
                     'env': [],
                     'envFrom': [],
                     'name': 'base',
+                    'image': 'kube_image',
                     'ports': [],
                     'resources': {
                         'limits': {
@@ -1081,12 +1100,14 @@ spec:
             worker_uuid="test",
             pod_id="test",
             dag_id="test",
+            kube_image="foo",
             task_id="test",
             try_number=1,
-            date="23-07-2020",
+            date=parser.parse("23-07-2020"),
             command="test",
-            kube_executor_config=None,
-            worker_config=k8s.V1Pod(metadata=k8s.V1ObjectMeta(labels={"airflow-test": "airflow-task-pod"},
-                                                              annotations={"my.annotation": "foo"})))
+            pod_override_object=None,
+            base_worker_pod=k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(labels={"airflow-test": "airflow-task-pod"},
+                                          annotations={"my.annotation": "foo"})))
         self.assertIn("airflow-test", pod.metadata.labels)
         self.assertIn("my.annotation", pod.metadata.annotations)
