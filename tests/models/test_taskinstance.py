@@ -40,6 +40,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
+from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
@@ -1751,3 +1752,20 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
             "airflow.models.taskinstance.STORE_SERIALIZED_DAGS", True
         ):
             ti._run_raw_task()
+
+    def test_operator_field_with_serialization(self):
+
+        dag = DAG('test_queries', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='op', dag=dag)
+        self.assertEqual(task.task_type, 'DummyOperator')
+
+        # Verify that ti.operator field renders correctly "without" Serialization
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        self.assertEqual(ti.operator, "DummyOperator")
+
+        serialized_op = SerializedBaseOperator.serialize_operator(task)
+        deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
+        self.assertEqual(deserialized_op.task_type, 'DummyOperator')
+        # Verify that ti.operator field renders correctly "with" Serialization
+        ser_ti = TI(task=deserialized_op, execution_date=datetime.datetime.now())
+        self.assertEqual(ser_ti.operator, "DummyOperator")
