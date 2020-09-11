@@ -96,7 +96,3 @@ class TestGetHeath(TestHealthTestBase):
         resp_json = self.client.get("/api/v1/health").json
         self.assertEqual("unhealthy", resp_json["metadatabase"]["status"])
         self.assertIsNone(resp_json["scheduler"]["latest_scheduler_heartbeat"])
-
-    def test_should_response_403_unauthorized(self):
-        response = self.client.get("/api/v1/health", environ_overrides={'REMOTE_USER': "test_no_permissions"})
-        self.assertEqual(403, response.status_code)
