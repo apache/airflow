@@ -17,6 +17,7 @@
 """
 Base executor - this is the base class for all the implemented executors.
 """
+import sys
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -264,6 +265,16 @@ class BaseExecutor(LoggingMixin):
         This method is called when the daemon receives a SIGTERM
         """
         raise NotImplementedError()
+
+    @property
+    def slots_available(self):
+        """
+        Number of new tasks this executor can accept
+        """
+        if self.parallelism:
+            return self.parallelism - len(self.running) - len(self.queued_tasks)
+        else:
+            return sys.maxsize
 
     @staticmethod
     def validate_command(command: List[str]) -> None:

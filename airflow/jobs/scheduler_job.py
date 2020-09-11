@@ -1477,7 +1477,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             session.commit()
             return result + len(simple_tis_with_state_changed)
 
-        return helpers.reduce_in_chunks(query, executable_tis, 0, self.max_tis_per_query)
+        chunk_size = min(self.max_tis_per_query, self.executor.slots_available)
+        return helpers.reduce_in_chunks(query, executable_tis, 0, chunk_size)
 
     @provide_session
     def _change_state_for_tasks_failed_to_execute(self, session: Session = None):
