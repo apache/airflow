@@ -501,7 +501,7 @@ class PodGenerator:
         )
 
     @staticmethod
-    def construct_pod(  # pylint: disable=R0913
+    def construct_pod(  # pylint: disable=too-many-arguments
         dag_id: str,
         task_id: str,
         pod_id: str,
