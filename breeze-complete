@@ -97,6 +97,7 @@ lint-openapi
 mermaid
 mixed-line-ending
 mypy
+no-relative-imports
 pre-commit-descriptions
 provide-create-sessions
 pydevd

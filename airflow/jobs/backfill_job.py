@@ -22,6 +22,7 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import Optional, Set
 
+from sqlalchemy import and_
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
 
@@ -37,7 +38,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
-from airflow.utils import timezone
+from airflow.utils import helpers, timezone
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -499,6 +500,7 @@ class BackfillJob(BaseJob):
                         self.log.debug('Sending %s to executor', ti)
                         # Skip scheduled state, we are executing immediately
                         ti.state = State.QUEUED
+                        ti.queued_by_job_id = self.id
                         ti.queued_dttm = timezone.utcnow()
                         session.merge(ti)
 
@@ -829,3 +831,77 @@ class BackfillJob(BaseJob):
             executor.end()
 
         self.log.info("Backfill done. Exiting.")
+
+    @provide_session
+    def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None):
+        """
+        This function checks if there are any tasks in the dagrun (or all) that
+        have a schedule or queued states but are not known by the executor. If
+        it finds those it will reset the state to None so they will get picked
+        up again.  The batch option is for performance reasons as the queries
+        are made in sequence.
+
+        :param filter_by_dag_run: the dag_run we want to process, None if all
+        :type filter_by_dag_run: airflow.models.DagRun
+        :return: the number of TIs reset
+        :rtype: int
+        """
+        queued_tis = self.executor.queued_tasks
+        # also consider running as the state might not have changed in the db yet
+        running_tis = self.executor.running
+
+        resettable_states = [State.SCHEDULED, State.QUEUED]
+        if filter_by_dag_run is None:
+            resettable_tis = (
+                session
+                .query(TaskInstance)
+                .join(
+                    DagRun,
+                    and_(
+                        TaskInstance.dag_id == DagRun.dag_id,
+                        TaskInstance.execution_date == DagRun.execution_date))
+                .filter(
+                    # pylint: disable=comparison-with-callable
+                    DagRun.state == State.RUNNING,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB.value,
+                    TaskInstance.state.in_(resettable_states))).all()
+        else:
+            resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,
+                                                                  session=session)
+        tis_to_reset = []
+        # Can't use an update here since it doesn't support joins
+        for ti in resettable_tis:
+            if ti.key not in queued_tis and ti.key not in running_tis:
+                tis_to_reset.append(ti)
+
+        if not tis_to_reset:
+            return 0
+
+        def query(result, items):
+            if not items:
+                return result
+
+            filter_for_tis = TaskInstance.filter_for_tis(items)
+            reset_tis = session.query(TaskInstance).filter(
+                filter_for_tis, TaskInstance.state.in_(resettable_states)
+            ).with_for_update().all()
+
+            for ti in reset_tis:
+                ti.state = State.NONE
+                session.merge(ti)
+
+            return result + reset_tis
+
+        reset_tis = helpers.reduce_in_chunks(query,
+                                             tis_to_reset,
+                                             [],
+                                             self.max_tis_per_query)
+
+        task_instance_str = '\n\t'.join([repr(x) for x in reset_tis])
+        session.commit()
+
+        self.log.info(
+            "Reset the following %s TaskInstances:\n\t%s",
+            len(reset_tis), task_instance_str
+        )
+        return len(reset_tis)
