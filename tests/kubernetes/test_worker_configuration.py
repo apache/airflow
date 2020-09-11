@@ -388,6 +388,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             "test_task_id",
             "test_pod_id",
             1,
+            'kube_image',
             execution_date,
             ["bash -c 'ls /'"],
             None,
