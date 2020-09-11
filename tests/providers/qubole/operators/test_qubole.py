@@ -177,6 +177,6 @@ class TestQuboleOperator(unittest.TestCase):
         self.assertEqual(url2, '')
 
     def test_parameter_pool_passed(self):
-        test_pool='test_pool'
+        test_pool = 'test_pool'
         op = QuboleOperator(task_id=TASK_ID, pool=test_pool)
         self.assertEqual(op.pool, test_pool)
