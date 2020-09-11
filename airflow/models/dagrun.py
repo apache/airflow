@@ -69,7 +69,7 @@ class DagRun(Base, LoggingMixin):
 
     task_instances = relationship(
         TI,
-        primaryjoin=and_(TI.dag_id == dag_id, TI.execution_date == execution_date),
+        primaryjoin=and_(TI.dag_id == dag_id, TI.execution_date == execution_date),  # type: ignore
         foreign_keys=(dag_id, execution_date),
         backref=backref('dag_run', uselist=False),
     )
