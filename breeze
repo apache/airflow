@@ -62,6 +62,8 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    ENABLE_KIND_CLUSTER
 #    FORWARD_CREDENTIALS
 #    DB_RESET
+#    START_AIRFLOW
+#    RBAC_UI
 #    INSTALL_AIRFLOW_VERSION
 #    INSTALL_AIRFLOW_REFERENCE
 #    FORCE_BUILD_IMAGES
@@ -112,6 +114,12 @@ function breeze::setup_default_breeze_constants() {
 
     # If set to true, the database will be reset at entry. Works for Postgres and MySQL
     export DB_RESET="false"
+
+    # If set to true, the database will be initialized, a user created and webserver and scheduler started
+    export START_AIRFLOW="false"
+
+    # If set to true, RBAC mode is enabled
+    export RBAC_UI="false"
 
     # If it set is set to specified version, then the source version of Airflow
     # is removed and the specified version of Airflow is installed from PyPi
@@ -971,6 +979,18 @@ function breeze::parse_arguments() {
             export SKIP_CHECK_REMOTE_IMAGE="true"
             shift 2
             ;;
+        --start-airflow)
+            echo "Starting Airflow"
+            echo
+            export START_AIRFLOW="true"
+            shift 1
+            ;;
+        --rbac-ui)
+            echo "Enable RBAC UI"
+            echo
+            export RBAC_UI="true"
+            shift
+            ;;
         --)
             shift
             break
@@ -1824,6 +1844,15 @@ function breeze::flag_breeze_actions() {
         One of:
 
 ${FORMATTED_INTEGRATIONS}
+
+--start-airflow
+        Starts the Airflow Scheduler and Webserver in two tmux panes, a third one will be
+        available for the usual use cases. In case the database is not initialized it will
+        run also 'airflow db init' and create an Admin user with credentials admin/admin.
+
+--rbac-ui
+        Enable RBAC UI.
+
 "
 }
 

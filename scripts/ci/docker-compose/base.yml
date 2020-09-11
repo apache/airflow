@@ -48,6 +48,8 @@ services:
       - BREEZE
       - INSTALL_AIRFLOW_VERSION
       - DB_RESET
+      - START_AIRFLOW
+      - RBAC_UI
       - ENABLED_SYSTEMS
       - RUN_SYSTEM_TESTS
       - PYTHON_MAJOR_MINOR_VERSION
