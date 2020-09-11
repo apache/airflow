@@ -21,9 +21,9 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
   push:
-    branches: ['master', 'v1-10-test', 'v1-10-stable']
+    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
   pull_request:
-    branches: ['master', 'v1-10-test', 'v1-10-stable']
+    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
 
 env:
 
@@ -921,7 +921,8 @@ jobs:
       - verify-prod-images
       - docs
     if: >
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test') &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test') &&
       github.event_name != 'schedule'
     strategy:
       matrix:
@@ -960,7 +961,8 @@ jobs:
       - verify-ci-images
       - docs
     if: >
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test') &&
       github.event_name != 'schedule'
     strategy:
       matrix:
@@ -995,7 +997,9 @@ jobs:
       - ci-images
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test'
+    if: >
+      github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1031,7 +1035,9 @@ jobs:
       - tests-mysql
       - tests-postgres
       - tests-kubernetes
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test'
+    if: >
+      github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
