@@ -186,6 +186,9 @@ workers:
   # Number of airflow celery workers in StatefulSet
   replicas: 1
 
+  serviceAccount:
+    annotations: {}
+
   # Allow KEDA autoscaling.
   # Persistence.enabled must be set to false to use KEDA.
   keda:
@@ -214,6 +217,8 @@ workers:
     # of local-path provisioner.
     fixPermissions: false
 
+  extraVolumes: []
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -239,6 +244,9 @@ scheduler:
     config:
       maxUnavailable: 1
 
+  serviceAccount:
+    annotations: {}
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -246,6 +254,8 @@ scheduler:
   #  requests:
   #   cpu: 100m
   #   memory: 128Mi
+
+  extraVolumes: []
 
   # This setting can overwrite
   # podMutation settings.
@@ -274,6 +284,9 @@ webserver:
 
   # Additional network policies as needed
   extraNetworkPolicies: []
+
+  serviceAccount:
+    annotations: {}
 
   resources: {}
   #   limits:

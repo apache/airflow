@@ -19,7 +19,7 @@
 ## Airflow Pod Launcher Role Binding
 #################################
 {{- if and .Values.rbacEnabled .Values.allowPodLaunching }}
-{{- $grantScheduler := or (eq .Values.executor "LocalExecutor") (eq .Values.executor "SequentialExecutor") (eq .Values.executor "KubernetesExecutor") }}
+{{- $grantScheduler := or (eq .Values.executor "LocalExecutor") (eq .Values.executor "SequentialExecutor") (eq .Values.executor "CeleryExecutor") (eq .Values.executor "KubernetesExecutor") }}
 {{- $grantWorker := or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "KubernetesExecutor") }}
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -48,4 +48,7 @@ subjects:
     name: {{ .Release.Name }}-worker
     namespace: {{ .Release.Namespace }}
 {{- end }}
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-webserver-serviceaccount
+    namespace: {{ .Release.Namespace }}
 {{- end }}
