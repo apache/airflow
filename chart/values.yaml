@@ -547,7 +547,7 @@ config:
     delete_worker_pods: 'True'
 # yamllint enable rule:line-length
 
-#podTemplate: ~
+podTemplate: ~
 
 # Git sync
 dags:
