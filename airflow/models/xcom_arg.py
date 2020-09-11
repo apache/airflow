@@ -15,13 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, List, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator  # pylint: disable=R0401
 from airflow.models.taskmixin import TaskMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.utils.task_group import TaskGroup
+
+if TYPE_CHECKING:
+    from airflow.utils.task_group import TaskGroup  # pylint: disable=cyclic-import
 
 
 class XComArg(TaskMixin):
