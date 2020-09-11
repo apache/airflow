@@ -130,13 +130,24 @@ def is_valid_plugin(plugin_obj):
     return False
 
 
+def register_plugin(plugin_instance):
+    """
+    Start plugin load and register it after success initialization
+
+    :param plugin_instance: subclass of AirflowPlugin
+    """
+    global plugins  # pylint: disable=global-statement
+    if callable(getattr(plugin_instance, 'on_load', None)):
+        plugin_instance.on_load()
+        plugins.append(plugin_instance)
+
+
 def load_entrypoint_plugins():
     """
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
     The entry_point group should be 'airflow.plugins'.
     """
     global import_errors  # pylint: disable=global-statement
-    global plugins  # pylint: disable=global-statement
 
     entry_points = pkg_resources.iter_entry_points('airflow.plugins')
 
@@ -147,10 +158,7 @@ def load_entrypoint_plugins():
         try:
             plugin_class = entry_point.load()
             if is_valid_plugin(plugin_class):
-                plugin_instance = plugin_class()
-                if callable(getattr(plugin_instance, 'on_load', None)):
-                    plugin_instance.on_load()
-                    plugins.append(plugin_instance)
+                register_plugin(plugin_class())
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module_name] = str(e)
@@ -161,7 +169,6 @@ def load_plugins_from_plugin_directory():
     Load and register Airflow Plugins from plugins directory
     """
     global import_errors  # pylint: disable=global-statement
-    global plugins  # pylint: disable=global-statement
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
     for file_path in find_path_from_directory(
@@ -182,9 +189,7 @@ def load_plugins_from_plugin_directory():
             log.debug('Importing plugin module %s', file_path)
 
             for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
-                plugin_instance = mod_attr_value()
-                plugins.append(plugin_instance)
-
+                register_plugin(mod_attr_value())
         except Exception as e:  # pylint: disable=broad-except
             log.exception(e)
             log.error('Failed to import plugin %s', file_path)

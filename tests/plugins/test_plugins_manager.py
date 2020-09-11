@@ -19,7 +19,7 @@ import unittest
 from unittest import mock
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.plugins_manager import AirflowPlugin
+from airflow.plugins_manager import AirflowPlugin, AirflowPluginException
 from airflow.www import app as application
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
@@ -120,6 +120,39 @@ class TestPluginsManager(unittest.TestCase):
             self.assertIn('AirflowTestPropertyPlugin', str(plugins_manager.plugins))
             self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
             self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
+
+    def test_should_fail_on_register_plugin_with_incorrect_load(self):
+        class TestNonPropertyHook(BaseHook):
+            pass
+
+        class AirflowTestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            hooks = []
+
+            @classmethod
+            def on_load(cls, *args, **kwargs):
+                cls.hooks.append(TestNonPropertyHook)
+
+        with mock_plugin_manager(plugins=[]):
+            from airflow import plugins_manager
+
+            plugins_manager.register_plugin(AirflowTestPlugin)
+            self.assertListEqual(plugins_manager.plugins, [AirflowTestPlugin])
+
+    def test_should_register_plugin(self):
+        class AirflowTestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            @classmethod
+            def on_load(cls, *args, **kwargs):
+                raise AirflowPluginException("Incorrect on_load function")
+
+        with mock_plugin_manager(plugins=[]):
+            from airflow import plugins_manager
+
+            self.assertRaises(AirflowPluginException, plugins_manager.register_plugin, AirflowTestPlugin)
+            self.assertListEqual(plugins_manager.plugins, [])
 
     def test_should_warning_about_incompatible_plugins(self):
         class AirflowAdminViewsPlugin(AirflowPlugin):
