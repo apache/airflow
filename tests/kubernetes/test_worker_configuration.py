@@ -373,12 +373,14 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.base_log_folder = '/logs'
 
         worker_config = WorkerConfiguration(self.kube_config)
+        execution_date = parser.parse('2019-11-21 11:08:22.920875')
         pod = PodGenerator.construct_pod(
             "test_dag_id",
             "test_task_id",
             "test_pod_id",
             1,
-            "2019-11-21 11:08:22.920875",
+            'kube_image',
+            execution_date,
             ["bash -c 'ls /'"],
             None,
             worker_config.as_pod(),

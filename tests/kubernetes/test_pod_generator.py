@@ -19,12 +19,14 @@ import unittest
 import sys
 from tests.compat import mock
 import uuid
-import kubernetes.client.models as k8s
-from kubernetes.client import ApiClient
+
+from dateutil import parser
+from kubernetes.client import ApiClient, models as k8s
 
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod import Resources
-from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator, extend_object_field, merge_objects
+from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator, extend_object_field, merge_objcts, \
+    datetime_to_label_safe_datestring
 from airflow.kubernetes.secret import Secret
 
 
@@ -63,6 +65,11 @@ class TestPodGenerator(unittest.TestCase):
             Secret('env', 'TARGET', 'secret_b', 'source_b'),
         ]
 
+        self.execution_date = parser.parse('2020-08-24 00:00:00.000000')
+        self.execution_date_label = datetime_to_label_safe_datestring(self.execution_date)
+        self.dag_id = 'dag_id'
+        self.task_id = 'task_id'
+        self.try_number = 3
         self.labels = {
             'airflow-worker': 'uuid',
             'dag_id': 'dag_id',
@@ -646,8 +653,9 @@ class TestPodGenerator(unittest.TestCase):
             'dag_id',
             'task_id',
             'pod_id',
-            3,
-            'date',
+            self.try_number,
+            "kube_image",
+            self.execution_date,
             ['command'],
             executor_config,
             worker_config,
@@ -667,6 +675,7 @@ class TestPodGenerator(unittest.TestCase):
                     'env': [],
                     'envFrom': [],
                     'name': 'base',
+                    'image': 'kube_image',
                     'ports': [],
                     'resources': {
                         'limits': {
@@ -706,8 +715,9 @@ class TestPodGenerator(unittest.TestCase):
             'dag_id',
             'task_id',
             'pod_id',
-            3,
-            'date',
+            self.try_number,
+            "kube_image",
+            self.execution_date,
             ['command'],
             executor_config,
             worker_config,
@@ -727,6 +737,7 @@ class TestPodGenerator(unittest.TestCase):
                     'env': [],
                     'envFrom': [],
                     'name': 'base',
+                    'image': 'kube_image',
                     'ports': [],
                     'resources': {
                         'limits': {
@@ -789,8 +800,9 @@ class TestPodGenerator(unittest.TestCase):
             'dag_id',
             'task_id',
             'pod_id',
-            3,
-            'date',
+            self.try_number,
+            "kube_image",
+            self.execution_date,
             ['command'],
             executor_config,
             worker_config,
@@ -898,6 +910,7 @@ class TestPodGenerator(unittest.TestCase):
                     'env': [],
                     'envFrom': [],
                     'name': 'base',
+                    'image': 'kube_image',
                     'ports': [],
                     'resources': {
                         'limits': {
