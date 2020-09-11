@@ -99,30 +99,6 @@ def trigger_dag(dag_id):
     return response
 
 
-@api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['GET'])
-@requires_authentication
-def dag_runs(dag_id):
-    """
-    Returns a list of Dag Runs for a specific DAG ID.
-    :query param state: a query string parameter '?state=queued|running|success...'
-    :param dag_id: String identifier of a DAG
-    :param dagrun_id: String identifier of a single dagrun to query for
-    :return: List of DAG runs of a DAG with requested state,
-    or all runs if the state is not specified
-    """
-    try:
-        state = request.args.get('state')
-        dagrun_id = request.args.get('dagrun_id')
-        dagruns = get_dag_runs(dag_id, dagrun_id, state)
-    except AirflowException as err:
-        _log.info(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = 400
-        return response
-
-    return jsonify(dagruns)
-
-
 @csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>', methods=['DELETE'])
 @requires_authentication
@@ -153,7 +129,8 @@ def dag_runs(dag_id):
     """
     try:
         state = request.args.get('state')
-        dagruns = get_dag_runs(dag_id, state, run_url_route='airflow.graph')
+        dagrun_id = request.args.get('dagrun_id')
+        dagruns = get_dag_runs(dag_id, dagrun_id, state, run_url_route='airflow.graph')
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))
