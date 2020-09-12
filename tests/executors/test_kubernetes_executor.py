@@ -22,15 +22,19 @@ import unittest
 from datetime import datetime
 
 import mock
+from kubernetes.client import models as k8s
 from urllib3 import HTTPResponse
 
+from airflow import AirflowException
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
 try:
     from kubernetes.client.rest import ApiException
 
-    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubernetesExecutor
+    from airflow.executors.kubernetes_executor import (
+        AirflowKubernetesScheduler, KubernetesExecutor, KubernetesJobWatcher, create_pod_id,
+    )
     from airflow.kubernetes import pod_generator
     from airflow.kubernetes.pod_generator import PodGenerator
     from airflow.utils.state import State
@@ -84,7 +88,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
     def test_create_pod_id(self):
         for dag_id, task_id in self._cases():
             pod_name = PodGenerator.make_unique_pod_id(
-                AirflowKubernetesScheduler._create_pod_id(dag_id, task_id)
+                create_pod_id(dag_id, task_id)
             )
             self.assertTrue(self._is_valid_pod_id(pod_name))
 
@@ -255,3 +259,57 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor._change_state(key, State.FAILED, 'pod_id', 'test-namespace')
         self.assertTrue(executor.event_buffer[key][0] == State.FAILED)
         mock_delete_pod.assert_called_once_with('pod_id', 'test-namespace')
+
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    def test_adopt_launched_task(self, mock_kube_client):
+        executor = KubernetesExecutor()
+        executor.worker_uuid = "modified"
+        pod_ids = {"dagtask": {}}
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="foo",
+                labels={
+                    "airflow-worker": "bar",
+                    "dag_id": "dag",
+                    "task_id": "task"
+                }
+            )
+        )
+        executor.adopt_launched_task(mock_kube_client, pod=pod, pod_ids=pod_ids)
+        self.assertEqual(
+            mock_kube_client.patch_namespaced_pod.call_args[1],
+            {'body': {'metadata': {'labels': {'airflow-worker': 'modified',
+                                              'dag_id': 'dag',
+                                              'task_id': 'task'},
+                                   'name': 'foo'}
+                      },
+             'name': 'foo',
+             'namespace': None}
+        )
+        self.assertDictEqual(pod_ids, {})
+
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    def test_not_adopt_unassigned_task(self, mock_kube_client):
+        """
+        We should not adopt any tasks that were not assigned by the scheduler.
+        This ensures that there is no contention over pod management.
+        @param mock_kube_client:
+        @return:
+        """
+
+        executor = KubernetesExecutor()
+        executor.worker_uuid = "modified"
+        pod_ids = {}
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="foo",
+                labels={
+                    "airflow-worker": "bar",
+                    "dag_id": "dag",
+                    "task_id": "task"
+                }
+            )
+        )
+        with self.assertRaises(AirflowException):
+            executor.adopt_launched_task(mock_kube_client, pod=pod, pod_ids=pod_ids)
+        self.assertDictEqual(pod_ids, {})

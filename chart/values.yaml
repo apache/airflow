@@ -231,6 +231,7 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
+  replicas: 2
   # Scheduler pod disruption budget
   podDisruptionBudget:
     enabled: false
@@ -510,7 +511,7 @@ config:
   api:
     auth_backend: airflow.api.auth.backend.deny_all
   logging:
-    logging_level: DEBUG
+    logging_level: INFO
   webserver:
     enable_proxy_fix: 'True'
     expose_config: 'True'
@@ -545,6 +546,7 @@ config:
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     delete_worker_pods: 'True'
+    worker_pods_creation_batch_size: 10
 # yamllint enable rule:line-length
 
 podTemplate: ~

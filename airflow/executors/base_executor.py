@@ -56,6 +56,8 @@ class BaseExecutor(LoggingMixin):
         ``0`` for infinity
     """
 
+    _job_id = None
+
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism
@@ -63,6 +65,22 @@ class BaseExecutor(LoggingMixin):
             = OrderedDict()
         self.running: Set[TaskInstanceKey] = set()
         self.event_buffer: Dict[TaskInstanceKey, EventBufferValueType] = {}
+
+    @property
+    def job_id(self):
+        """
+        Get job_id for SchedulerJob
+        @return:
+        """
+        return self._job_id
+
+    @job_id.setter
+    def job_id(self, value):
+        """
+        Allows SchedulerJob to set job_id variable
+        @return:
+        """
+        self._job_id = value
 
     def start(self):  # pragma: no cover
         """

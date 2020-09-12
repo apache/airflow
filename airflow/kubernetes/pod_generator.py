@@ -383,7 +383,7 @@ class PodGenerator:
                 },
                 name=PodGenerator.make_unique_pod_id(pod_id),
                 labels={
-                    'airflow-worker': worker_uuid,
+                    'airflow-worker': str(worker_uuid),
                     'dag_id': dag_id,
                     'task_id': task_id,
                     'execution_date': datetime_to_label_safe_datestring(date),

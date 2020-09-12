@@ -48,7 +48,7 @@ spec:
 {{- if $stateful }}
   serviceName: {{ .Release.Name }}-scheduler
 {{- end }}
-  replicas: 1
+  replicas: {{ .Values.scheduler.replicas }}
   selector:
     matchLabels:
       tier: airflow
