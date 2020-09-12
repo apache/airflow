@@ -108,7 +108,7 @@
             <!-- Column 3: Name -->
             <td>
               <span>
-                <a href="{{ url_for('Airflow.'+ dag.default_view, dag_id=dag.dag_id) }}"
+                <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}"
                    title="{{ dag.description[0:80] + '…' if dag.description and dag.description|length > 80 else dag.description|default('', true) }}">
                   {{ dag.dag_id }}
                 </a>
