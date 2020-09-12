@@ -671,7 +671,7 @@ A DAG consists of Tasks and obviously you need those tasks to run. To do that we
               self.logger.exception(e)
 
 Now it is a bit more messy at the moment. That is due to the fact that DagRuns are not yet first class citizens. In the past Airflow only had a notion of DagRun: it mentioned them in the code but they did not really exist, instead DAGs were instantiated into "Tasks in Time": TaskInstances. This creates architectural issues but also real life ones. Some of the issues in the current scheduler with "depend_on_past" stem from this, because a Task is not really able to answer "which task instance is the first in time?". It is also the reason why scheduler loops start to increase over time if DAGs get more complex (many tasks). The good news is work is underway to improve this.
-TODO: Add link to roadmap
+Refer `roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+2.0+-+Planning>`_ for further details.
 
 States and race conditions
 --------------------------
@@ -699,7 +699,7 @@ Multiprocess Scheduling
 -----------------------
 In previous versions of the scheduler, user-supplied DAG definitions were parsed and loaded in the same process as the scheduler. Unfortunately, this made it possible for bad user code to adversely affect the scheduler process. For example, if a user DAG definition includes a ``system.exit(-1)``, parsing the DAG definition would cause the scheduler process to exit.
 
-To help mitigate such cases, the scheduler processes DAGs in a child processes. This gives it better isolation and faster performance. TODO: Reference scheduler docs
+To help mitigate such cases, the scheduler processes DAGs in a child processes. This gives it better isolation and faster performance.
 
 Better state handling (Work In Progress)
 ----------------------------------------
