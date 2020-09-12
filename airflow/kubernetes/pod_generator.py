@@ -357,7 +357,7 @@ class PodGenerator:
         pod_override_object: Optional[k8s.V1Pod],
         base_worker_pod: k8s.V1Pod,
         namespace: str,
-        worker_uuid: str
+        scheduler_job_id: str
     ) -> k8s.V1Pod:
         """
         Construct a pod by gathering and consolidating the configuration from 3 places:
@@ -383,7 +383,7 @@ class PodGenerator:
                 },
                 name=PodGenerator.make_unique_pod_id(pod_id),
                 labels={
-                    'airflow-worker': worker_uuid,
+                    'airflow-worker': str(scheduler_job_id),
                     'dag_id': dag_id,
                     'task_id': task_id,
                     'execution_date': datetime_to_label_safe_datestring(date),
