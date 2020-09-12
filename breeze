@@ -240,11 +240,24 @@ function breeze::initialize_virtualenv() {
         echo
         echo "Resetting AIRFLOW sqlite database"
         echo
-        AIRFLOW__CORE__UNIT_TEST_MODE="False" airflow db reset -y
+        AIRFLOW__CORE__LOAD_EXAMPLES="False" \
+            AIRFLOW__CORE__UNIT_TEST_MODE="False" \
+            AIRFLOW__CORE__SQL_ALCHEMY_POOL_ENABLED="False" \
+            AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/empty" \
+            AIRFLOW__CORE__PLUGINS_FOLDER="${AIRFLOW_SOURCES}/empty" \
+            airflow db reset -y
         echo
         echo "Resetting AIRFLOW sqlite unit test database"
         echo
-        AIRFLOW__CORE__UNIT_TEST_MODE="True" airflow db reset -y
+        AIRFLOW__CORE__LOAD_EXAMPLES="False" \
+            AIRFLOW__CORE__UNIT_TEST_MODE="True" \
+            AIRFLOW__CORE__SQL_ALCHEMY_POOL_ENABLED="False" \
+            AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/empty" \
+            AIRFLOW__CORE__PLUGINS_FOLDER="${AIRFLOW_SOURCES}/empty" \
+            airflow db reset -y
+        echo
+        echo "Initialization of virtualenv was successful! Go ahead and develop Airflow!"
+        echo
         exit 0
     fi
 }
