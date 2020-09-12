@@ -25,6 +25,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
 - [Airflow 1.10.11](#airflow-11011)
 - [Airflow 1.10.10](#airflow-11010)
@@ -60,6 +61,16 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+## Airflow 1.10.13
+
+### Removed Kerberos support for HDFS hook
+
+The HDFS hook's Kerberos support has been removed due to removed python-krbV dependency from PyPI
+and generally lack of support for SSL in Python3 (Snakebite-py3 we use as dependency has no
+support for SSL connection to HDFS).
+
+SSL support still works for WebHDFS hook.
+
 ## Airflow 1.10.12
 
 ### Clearing tasks skipped by SkipMixin will skip them
