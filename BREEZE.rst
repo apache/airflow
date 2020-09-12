@@ -1692,7 +1692,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  insert-license incorrect-use-of-LoggingMixin language-matters lint-dockerfile
                  lint-openapi mixed-line-ending mypy pre-commit-descriptions pydevd python2-compile
                  python2-fastcheck python-no-log-warn rst-backticks setup-order shellcheck
-                 trailing-whitespace update-breeze-file update-extras update-local-yml-file yamllint
+                 sort-in-the-wild trailing-whitespace update-breeze-file update-extras
+                 update-local-yml-file yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:

@@ -124,6 +124,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``shellcheck``                        Checks shell files with shellcheck.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``sort-in-the-wild``                  Sort INTHEWILD.md alphabetically.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``trailing-whitespace``               Removes trailing whitespace at end of line.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-breeze-file``                Update output of breeze command in BREEZE.rst.

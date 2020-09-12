@@ -97,6 +97,7 @@ python-no-log-warn
 rst-backticks
 setup-order
 shellcheck
+sort-in-the-wild
 trailing-whitespace
 update-breeze-file
 update-extras
