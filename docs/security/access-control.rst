@@ -151,7 +151,7 @@ Endpoint                                                                        
 /dags                                                                              GET    Dag.can_read
 /dags/{dag_id}                                                                     GET    Dag.can_read
 /dags/{dag_id}                                                                     PATCH  Dag.can_edit
-/dags/{dag_id}/clearTaskInstances                                                  POST   Dag.can_read, DagRun.can_read, TaskInstance.can_edit
+/dags/{dag_id}/clearTaskInstances                                                  POST   Dag.can_read, DagRun.can_read, Task.can_edit
 /dags/{dag_id}/details                                                             GET    Dag.can_read
 /dags/{dag_id}/tasks                                                               GET    Dag.can_read, Task.can_read
 /dags/{dag_id}/tasks/{task_id}                                                     GET    Dag.can_read, Task.can_read
@@ -171,11 +171,11 @@ Endpoint                                                                        
 /pools/{pool_name}                                                                 DELETE Pool.can_delete
 /pools/{pool_name}                                                                 GET    Pool.can_read
 /pools/{pool_name}                                                                 PATCH  Pool.can_edit
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances                                  GET    Dag.can_read, DagRun.can_read, TaskInstance.can_read
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}                        GET    Dag.can_read, DagRun.can_read, TaskInstance.can_read
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links                  GET    DagBag.can_read, Dag.can_read, DagRun.can_read, Task.can_read, TaskInstance.can_read
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances                                  GET    Dag.can_read, DagRun.can_read, Task.can_read
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}                        GET    Dag.can_read, DagRun.can_read, Task.can_read
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links                  GET    Dag.can_read, DagRun.can_read, Task.can_read
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number} GET    Dag.can_read, DagRun.can_read, Task.can_read
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list                             POST   DagBag.can_read, Dag.can_read, DagRun.can_read, Task.can_read, TaskInstance.can_read
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list                             POST   Dag.can_read, DagRun.can_read, Task.can_read
 /variables                                                                         GET    Variable.can_read
 /variables                                                                         POST   Variable.can_create
 /variables/{variable_key}                                                          DELETE Variable.can_delete

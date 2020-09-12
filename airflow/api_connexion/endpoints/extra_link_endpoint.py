@@ -28,7 +28,6 @@ from airflow.utils.session import provide_session
 
 @security.requires_access(
     [
-        ('can_read', 'DagBag'),
         ('can_read', 'Dag'),
         ('can_read', 'DagRun'),
         ('can_read', 'Task'),

@@ -51,7 +51,6 @@ class TestGetExtraLinks(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ('can_read', 'DagBag'),
                 ('can_read', 'Dag'),
                 ('can_read', 'DagRun'),
                 ('can_read', 'Task'),

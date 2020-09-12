@@ -32,7 +32,7 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
         create_role(
             cls.app,  # type: ignore
             name="Test",
-            permissions=[("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "TaskInstance")],
+            permissions=[("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task")],
         )
         create_user(cls.app, username="test", role_name="Test")  # type: ignore
         create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
