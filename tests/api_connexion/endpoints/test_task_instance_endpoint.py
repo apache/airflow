@@ -83,4 +83,5 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         response = self.client.post(
             "/api/v1/dags/clearTaskInstances", environ_overrides={'REMOTE_USER': "test"}
         )
+
         assert response.status_code == 200
