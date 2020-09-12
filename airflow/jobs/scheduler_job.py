@@ -918,7 +918,7 @@ class DagFileProcessor(LoggingMixin):
 
         :param dagbag: DagBag
         :type dagbag: DagBag
-        :param ti_keys_to_schedule: List of task instnace keys which can be scheduled.
+        :param ti_keys_to_schedule: List of task instance keys which can be scheduled.
         :type ti_keys_to_schedule: list
         """
         # Refresh all task instances that will be scheduled
