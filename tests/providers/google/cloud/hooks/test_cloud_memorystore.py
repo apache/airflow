@@ -91,7 +91,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_create_instance_when_not_exists(self, mock_get_conn, mock_project_id):
         mock_get_conn.return_value.get_instance.side_effect = [
-            NotFound("Instnace not found"),
+            NotFound("Instance not found"),
             Instance(name=TEST_NAME),
         ]
         mock_get_conn.return_value.create_instance.return_value.result.return_value = Instance(name=TEST_NAME)
@@ -238,7 +238,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_create_instance_when_not_exists(self, mock_get_conn):
         mock_get_conn.return_value.get_instance.side_effect = [
-            NotFound("Instnace not found"),
+            NotFound("Instance not found"),
             Instance(name=TEST_NAME),
         ]
         mock_get_conn.return_value.create_instance.return_value.result.return_value = Instance(name=TEST_NAME)

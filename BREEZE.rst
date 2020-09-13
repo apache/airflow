@@ -337,6 +337,10 @@ You can optionally reset database if specified as extra ``--db-reset`` flag and 
 start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
+You can also have breeze lunch Airflow automatically ``breeze --start-airflow``, this will drop you in a
+tmux session with three panes (one to monitor the scheduler, one for the webserver and one with a shell
+for additional commands.
+
 Managing Prod environment (with ``--production-image`` flag):
 
     * Build CI docker image with ``breeze build-image`` command
@@ -1815,8 +1819,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  isort language-matters lint-dockerfile lint-openapi mermaid mixed-line-ending mypy
                  no-relative-imports pre-commit-descriptions provide-create-sessions pydevd
                  pydocstyle pylint pylint-tests python-no-log-warn restrict-start_date rst-backticks
-                 setup-order shellcheck stylelint trailing-whitespace update-breeze-file
-                 update-extras update-local-yml-file update-setup-cfg-file yamllint
+                 setup-order shellcheck sort-in-the-wild stylelint trailing-whitespace
+                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -1946,6 +1951,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  cassandra kerberos mongo openldap presto rabbitmq redis all
+
+  --start-airflow
+          Starts the Airflow Scheduler and Webserver in two tmux panes, a third one will be
+          available for the usual use cases. In case the database is not initialized it will
+          run also 'airflow db init' and create an Admin user with credentials admin/admin.
 
   ****************************************************************************************************
    Kind kubernetes and Kubernetes tests configuration(optional)

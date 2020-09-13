@@ -1934,6 +1934,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         )
 
 
+# pylint: disable=too-many-arguments
 class BigQueryInsertJobOperator(BaseOperator):
     """
     Executes a BigQuery job. Waits for the job to complete and returns job id.
@@ -1990,6 +1991,8 @@ class BigQueryInsertJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
+    :type cancel_on_kill: bool
     """
 
     template_fields = (
@@ -2011,6 +2014,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2023,6 +2027,8 @@ class BigQueryInsertJobOperator(BaseOperator):
         self.force_rerun = force_rerun
         self.reattach_states: Set[str] = reattach_states or set()
         self.impersonation_chain = impersonation_chain
+        self.cancel_on_kill = cancel_on_kill
+        self.hook: Optional[BigQueryHook] = None
 
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
@@ -2071,6 +2077,7 @@ class BigQueryInsertJobOperator(BaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
+        self.hook = hook
 
         job_id = self._job_id(context)
 
@@ -2096,4 +2103,9 @@ class BigQueryInsertJobOperator(BaseOperator):
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
 
+        self.job_id = job.job_id
         return job.job_id
+
+    def on_kill(self):
+        if self.job_id and self.cancel_on_kill:
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)

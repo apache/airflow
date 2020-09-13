@@ -16,14 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-echo "Running helm tests"
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-chart_directory="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../../chart/"
+INTHEWILD="${AIRFLOW_SOURCES}/INTHEWILD.md"
+readonly INTHEWILD
 
-cat chart/files/pod-template-file.yaml > chart/templates/pod-template-file.yaml
+export LC_ALL=C
 
-docker run -w /airflow-chart -v "$chart_directory":/airflow-chart \
-  --entrypoint /bin/sh \
-  aneeshkj/helm-unittest \
-  -c "helm repo add stable https://kubernetes-charts.storage.googleapis.com; helm dependency update ; helm unittest ." \
-  && rm chart/templates/pod-template-file.yaml
+temp_file=$(mktemp)
+sed '/1\./q' "${INTHEWILD}" | head -n -1 >"${temp_file}"
+sed -n '/1\./p' "${INTHEWILD}" | sort >> "${temp_file}"
+
+cat "${temp_file}" > "${INTHEWILD}"
+
+rm  "${temp_file}"

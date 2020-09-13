@@ -55,7 +55,7 @@ WORKDIR /app
 LABEL org.apache.airflow.component="krb5-kdc-server"
 LABEL org.apache.airflow.airflow_krb5_kdc_server.version="${AIRFLOW_KRB5KDCSERVER_VERSION}"
 LABEL org.apache.airflow.commit_sha="${COMMIT_SHA}"
-LABEL maintainer "Apache Airflow Community <dev@airflow.apache.org>"
+LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
 RUN chmod a+x /entrypoint
 

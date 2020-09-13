@@ -62,6 +62,7 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    ENABLE_KIND_CLUSTER
 #    FORWARD_CREDENTIALS
 #    DB_RESET
+#    START_AIRFLOW
 #    INSTALL_AIRFLOW_VERSION
 #    INSTALL_AIRFLOW_REFERENCE
 #    FORCE_BUILD_IMAGES
@@ -112,6 +113,9 @@ function breeze::setup_default_breeze_constants() {
 
     # If set to true, the database will be reset at entry. Works for Postgres and MySQL
     export DB_RESET="false"
+
+    # If set to true, the database will be initialized, a user created and webserver and scheduler started
+    export START_AIRFLOW="false"
 
     # If it set is set to specified version, then the source version of Airflow
     # is removed and the specified version of Airflow is installed from PyPi
@@ -236,11 +240,24 @@ function breeze::initialize_virtualenv() {
         echo
         echo "Resetting AIRFLOW sqlite database"
         echo
-        AIRFLOW__CORE__UNIT_TEST_MODE="False" airflow db reset -y
+        AIRFLOW__CORE__LOAD_EXAMPLES="False" \
+            AIRFLOW__CORE__UNIT_TEST_MODE="False" \
+            AIRFLOW__CORE__SQL_ALCHEMY_POOL_ENABLED="False" \
+            AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/empty" \
+            AIRFLOW__CORE__PLUGINS_FOLDER="${AIRFLOW_SOURCES}/empty" \
+            airflow db reset -y
         echo
         echo "Resetting AIRFLOW sqlite unit test database"
         echo
-        AIRFLOW__CORE__UNIT_TEST_MODE="True" airflow db reset -y
+        AIRFLOW__CORE__LOAD_EXAMPLES="False" \
+            AIRFLOW__CORE__UNIT_TEST_MODE="True" \
+            AIRFLOW__CORE__SQL_ALCHEMY_POOL_ENABLED="False" \
+            AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/empty" \
+            AIRFLOW__CORE__PLUGINS_FOLDER="${AIRFLOW_SOURCES}/empty" \
+            airflow db reset -y
+        echo
+        echo "Initialization of virtualenv was successful! Go ahead and develop Airflow!"
+        echo
         exit 0
     fi
 }
@@ -724,14 +741,14 @@ function breeze::parse_arguments() {
             shift 2
             ;;
         -i | --integration)
-            local integration=${2}
+            local INTEGRATION=${2}
             parameters::check_and_save_allowed_param "INTEGRATION" "integration" "--integration"
-            echo "Integration: ${integration}"
-            if [[ ${integration} == "all" ]]; then
-                for integration in ${_BREEZE_ALLOWED_INTEGRATIONS}; do
-                    if [[ ${integration} != "all" ]]; then
-                        echo "${integration}"
-                        INTEGRATIONS+=("${integration}")
+            echo "Integration: ${INTEGRATION}"
+            if [[ ${INTEGRATION} == "all" ]]; then
+                for INTEGRATION in ${_BREEZE_ALLOWED_INTEGRATIONS}; do
+                    if [[ ${INTEGRATION} != "all" ]]; then
+                        echo "${INTEGRATION}"
+                        INTEGRATIONS+=("${INTEGRATION}")
                     fi
                 done
             else
@@ -969,6 +986,12 @@ function breeze::parse_arguments() {
             export MOUNT_LOCAL_SOURCES="false"
             export SKIP_CHECK_REMOTE_IMAGE="true"
             shift 2
+            ;;
+        --start-airflow)
+            echo "Starting Airflow"
+            echo
+            export START_AIRFLOW="true"
+            shift 1
             ;;
         -S | --version-suffix-for-pypi)
             if [[ -n ${VERSION_SUFFIX_FOR_SVN=} ]]; then
@@ -1925,6 +1948,12 @@ function breeze::flag_breeze_actions() {
         One of:
 
 ${FORMATTED_INTEGRATIONS}
+
+--start-airflow
+        Starts the Airflow Scheduler and Webserver in two tmux panes, a third one will be
+        available for the usual use cases. In case the database is not initialized it will
+        run also 'airflow db init' and create an Admin user with credentials admin/admin.
+
 "
 }
 

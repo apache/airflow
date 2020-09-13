@@ -501,15 +501,16 @@ class PodGenerator:
         )
 
     @staticmethod
-    def construct_pod(
+    def construct_pod(  # pylint: disable=too-many-arguments
         dag_id: str,
         task_id: str,
         pod_id: str,
         try_number: int,
+        kube_image: str,
         date: datetime.datetime,
         command: List[str],
-        kube_executor_config: Optional[k8s.V1Pod],
-        worker_config: k8s.V1Pod,
+        pod_override_object: Optional[k8s.V1Pod],
+        base_worker_pod: k8s.V1Pod,
         namespace: str,
         worker_uuid: str
     ) -> k8s.V1Pod:
@@ -521,6 +522,7 @@ class PodGenerator:
         """
         dynamic_pod = PodGenerator(
             namespace=namespace,
+            image=kube_image,
             labels={
                 'airflow-worker': worker_uuid,
                 'dag_id': make_safe_label_value(dag_id),
@@ -541,8 +543,8 @@ class PodGenerator:
         ).gen_pod()
 
         # Reconcile the pods starting with the first chronologically,
-        # Pod from the airflow.cfg -> Pod from executor_config arg -> Pod from the K8s executor
-        pod_list = [worker_config, kube_executor_config, dynamic_pod]
+        # Pod from the pod_template_File -> Pod from executor_config arg -> Pod from the K8s executor
+        pod_list = [base_worker_pod, pod_override_object, dynamic_pod]
 
         return reduce(PodGenerator.reconcile_pods, pod_list)
 
