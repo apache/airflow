@@ -526,6 +526,10 @@ function build_images::build_ci_image() {
         echo >&2
         exit 1
     fi
+    EXTRA_DOCKER_CI_BUILD_FLAGS=(
+        "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
+    )
+
     if [[ -n ${SPIN_PID=} ]]; then
         kill -HUP "${SPIN_PID}" || true
         wait "${SPIN_PID}" || true
@@ -546,6 +550,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     fi
     set +u
     docker build \
+        "${EXTRA_DOCKER_CI_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
@@ -594,6 +599,7 @@ function build_images::prepare_prod_build() {
     else
         # When no airflow version/reference is specified, production image is built from local sources
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+            "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
         )
     fi
     if [[ "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" == "${PYTHON_MAJOR_MINOR_VERSION}" ]]; then
