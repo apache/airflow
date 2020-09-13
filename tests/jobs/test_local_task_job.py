@@ -23,6 +23,7 @@ import unittest
 import uuid
 from unittest import mock
 from unittest.mock import patch
+from multiprocessing import Value, Lock
 
 import pytest
 
@@ -33,7 +34,8 @@ from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
@@ -311,14 +313,18 @@ class TestLocalTaskJob(unittest.TestCase):
         Test that ensures that mark_failure in the UI fails
         the task, and executes on_failure_callback
         """
-        data = {'called': False}
+        # use shared memory value so we can properly track the call count even
+        # if it's been called across processes.
+        failure_callback_called = Value('i', 0)
+        task_terminated_externally = Value('b', True)
+        shared_mem_lock = Lock()
 
         def check_failure(context):
+            with shared_mem_lock:
+                failure_callback_called.value += 1
             assert context['dag_run'].dag_id == 'test_mark_failure'
-            data['called'] = True
 
         def task_function(ti):
-            print("python_callable run in pid %s", os.getpid())
             with create_session() as session:
                 assert State.RUNNING == ti.state
                 ti.log.info("Marking TI as failed 'externally'")
@@ -328,7 +334,8 @@ class TestLocalTaskJob(unittest.TestCase):
 
             time.sleep(60)
             # This should not happen -- the state change should be noticed and the task should get killed
-            data['reached_end_of_sleep'] = True
+            with shared_mem_lock:
+                task_terminated_externally.value = False
 
         with DAG(dag_id='test_mark_failure', start_date=DEFAULT_DATE) as dag:
             task = PythonOperator(
@@ -358,8 +365,70 @@ class TestLocalTaskJob(unittest.TestCase):
 
         ti.refresh_from_db()
         assert ti.state == State.FAILED
-        assert data['called']
-        assert 'reached_end_of_sleep' not in data, 'Task should not have been allowed to run to completion'
+        assert failure_callback_called.value == 1
+        assert task_terminated_externally.value is True
+
+    @patch('airflow.utils.process_utils.subprocess.check_call')
+    @patch.object(StandardTaskRunner, 'return_code')
+    def test_failure_callback_only_called_once(self, mock_return_code, check_call):
+        """
+        Test that ensures that when a task exits with failure by itself,
+        failure callback is only called once
+        """
+        # use shared memory value so we can properly track the call count even
+        # if it's been called across processes.
+        failure_callback_called = Value('i', 0)
+        callback_count_lock = Lock()
+
+        def failure_callback(context):
+            with callback_count_lock:
+                failure_callback_called.value += 1
+            assert context['dag_run'].dag_id == 'test_failure_callback_race'
+
+        def task_function(ti):
+            from airflow.exceptions import AirflowFailException
+            raise AirflowFailException()
+
+        with DAG(dag_id='test_failure_callback_race', start_date=DEFAULT_DATE) as dag:
+            task = PythonOperator(
+                task_id='test_exit_on_failure',
+                python_callable=task_function,
+                on_failure_callback=failure_callback)
+
+        session = settings.Session()
+
+        dag.clear()
+        dag.create_dagrun(run_id="test",
+                          state=State.RUNNING,
+                          execution_date=DEFAULT_DATE,
+                          start_date=DEFAULT_DATE,
+                          session=session)
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+
+        job1 = LocalTaskJob(task_instance=ti,
+                            ignore_ti_state=True,
+                            executor=SequentialExecutor())
+
+        # Simulate race condition where job1 heartbeat ran right after task
+        # state got set to failed by ti.handle_failure but before task process
+        # fully exits. See _execute loop in airflow/jobs/local_task_job.py.
+        # In this case, we have:
+        #  * task_runner.return_code() is None
+        #  * ti.state == State.Failed
+        #
+        # We also need to set return_code to a valid int after job1.terminating
+        # is set to True so _execute loop won't loop forever.
+        mock_return_code.side_effect = lambda : None if not job1.terminating else -9
+
+        with timeout(30):
+            # This should be _much_ shorter to run.
+            # If you change this limit, make the timeout in the callbable above bigger
+            job1.run()
+
+        ti.refresh_from_db()
+        assert ti.state == State.FAILED  # task exits with failure state
+        assert failure_callback_called.value == 1
 
     @pytest.mark.quarantined
     def test_mark_success_on_success_callback(self):

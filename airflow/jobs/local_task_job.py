@@ -169,11 +169,7 @@ class LocalTaskJob(BaseJob):
             self.log.warning(
                 "State of this instance has been externally set to %s. " "Terminating instance.", ti.state
             )
-            if ti.state == State.FAILED and ti.task.on_failure_callback:
-                context = ti.get_template_context()
-                ti.task.on_failure_callback(context)
-            if ti.state == State.SUCCESS and ti.task.on_success_callback:
-                context = ti.get_template_context()
-                ti.task.on_success_callback(context)
+            # send sigterm to task process so it can catch the exception and
+            # execute the success/failure callback
             self.task_runner.terminate()
             self.terminating = True

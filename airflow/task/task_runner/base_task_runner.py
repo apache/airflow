@@ -144,7 +144,7 @@ class BaseTaskRunner(LoggingMixin):
         """Start running the task instance in a subprocess."""
         raise NotImplementedError()
 
-    def return_code(self):
+    def return_code(self) -> int:
         """
         :return: The return code associated with running the task instance or
             None if the task is not yet done.
@@ -152,11 +152,11 @@ class BaseTaskRunner(LoggingMixin):
         """
         raise NotImplementedError()
 
-    def terminate(self):
-        """Kill the running task instance."""
+    def terminate(self) -> None:
+        """Force kill the running task instance."""
         raise NotImplementedError()
 
-    def on_finish(self):
+    def on_finish(self) -> None:
         """A callback that should be called when this is done running."""
         if self._cfg_path and os.path.isfile(self._cfg_path):
             if self.run_as_user:
