@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -38,7 +38,11 @@ class EmrHook(AwsBaseHook):
         kwargs["client_type"] = "emr"
         super().__init__(*args, **kwargs)
 
-    def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: List[str]) -> Optional[str]:
+    def get_cluster_id_by_name(
+        self,
+        emr_cluster_name: str,
+        cluster_states: List[str]
+    ) -> Optional[str]:
         """
         Fetch id of EMR cluster with given name and (optional) states.
         Will return only if single id is found.
@@ -50,7 +54,9 @@ class EmrHook(AwsBaseHook):
         :return: id of the EMR cluster
         """
 
-        response = self.get_conn().list_clusters(ClusterStates=cluster_states)
+        response = self.get_conn().list_clusters(
+            ClusterStates=cluster_states
+        )
 
         matching_clusters = list(
             filter(lambda cluster: cluster['Name'] == emr_cluster_name, response['Clusters'])
@@ -66,7 +72,7 @@ class EmrHook(AwsBaseHook):
             self.log.info('No cluster found for name %s', emr_cluster_name)
             return None
 
-    def create_job_flow(self, job_flow_overrides: Dict):
+    def create_job_flow(self, job_flow_overrides: Dict[str, Any]) -> Dict[str, Any]:
         """
         Creates a job flow using the config from the EMR connection.
         Keys of the json extra hash may have the arguments of the boto3
