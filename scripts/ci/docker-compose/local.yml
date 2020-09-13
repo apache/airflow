@@ -20,9 +20,9 @@ services:
   airflow:
     stdin_open: true  # docker run -i
     tty: true  # docker run -t
-    # We need to mount files an directories individually because some files
+    # We need to mount files and directories individually because some files
     # such apache_airflow.egg-info should not be mounted from host
-    # we only mount those files that it makes sense to edit while developing
+    # we only mount those files, so that it makes sense to edit while developing
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
