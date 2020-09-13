@@ -38,11 +38,7 @@ class EmrHook(AwsBaseHook):
         kwargs["client_type"] = "emr"
         super().__init__(*args, **kwargs)
 
-    def get_cluster_id_by_name(
-        self,
-        emr_cluster_name: str,
-        cluster_states: List[str]
-    ) -> Optional[str]:
+    def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: List[str]) -> Optional[str]:
         """
         Fetch id of EMR cluster with given name and (optional) states.
         Will return only if single id is found.
@@ -54,9 +50,7 @@ class EmrHook(AwsBaseHook):
         :return: id of the EMR cluster
         """
 
-        response = self.get_conn().list_clusters(
-            ClusterStates=cluster_states
-        )
+        response = self.get_conn().list_clusters(ClusterStates=cluster_states)
 
         matching_clusters = list(
             filter(lambda cluster: cluster['Name'] == emr_cluster_name, response['Clusters'])

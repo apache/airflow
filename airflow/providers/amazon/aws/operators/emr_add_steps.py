@@ -45,6 +45,7 @@ class EmrAddStepsOperator(BaseOperator):
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     :type do_xcom_push: bool
     """
+
     template_fields = ['job_flow_id', 'job_flow_name', 'cluster_states', 'steps']
     template_ext = ('.json',)
     ui_color = '#f9c915'
@@ -78,8 +79,9 @@ class EmrAddStepsOperator(BaseOperator):
 
         emr = emr_hook.get_conn()
 
-        job_flow_id = self.job_flow_id or \
-            emr_hook.get_cluster_id_by_name(str(self.job_flow_name), self.cluster_states)
+        job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(
+            str(self.job_flow_name), self.cluster_states
+        )
 
         if not job_flow_id:
             raise AirflowException(f'No cluster found for name: {self.job_flow_name}')

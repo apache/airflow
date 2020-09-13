@@ -33,6 +33,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     """
+
     template_fields = ['job_flow_id']
     template_ext = ()
     ui_color = '#f9c915'
