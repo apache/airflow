@@ -383,9 +383,10 @@ class TestCliWebServer(unittest.TestCase):
             os.remove(access_logfile)
 
         # json access log format
-        access_logformat = "{\"ts\":\"%(t)s\",\"remote_ip\":\"%(h)s\",\"request_id\":\"%({X-Request-Id}i)s\"," \
-                           "\"code\":\"%(s)s\",\"request_method\":\"%(m)s\",\"request_path\":\"%(U)s\",\"agent\":\"%(" \
-                           "a)s\",\"response_time\":\"%(D)s\",\"response_length\":\"%(B)s\"} "
+        access_logformat = "{\"ts\":\"%(t)s\",\"remote_ip\":\"%(h)s\",\"request_id\":\"%({" \
+                           "X-Request-Id}i)s\",\"code\":\"%(s)s\",\"request_method\":\"%(m)s\"," \
+                           "\"request_path\":\"%(U)s\",\"agent\":\"%(a)s\",\"response_time\":\"%(D)s\"," \
+                           "\"response_length\":\"%(B)s\"} "
         with mock.patch.dict(
             "os.environ",
             AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
@@ -394,7 +395,8 @@ class TestCliWebServer(unittest.TestCase):
         ):
             # Run webserver in foreground and terminate it.
             proc = subprocess.Popen(
-                ["airflow", "webserver", "--access-logfile", access_logfile, "--access-logformat", access_logformat])
+                ["airflow", "webserver", "--access-logfile", access_logfile, "--access-logformat",
+                 access_logformat])
             self.assertEqual(None, proc.poll())
 
         # Wait for webserver process
