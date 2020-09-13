@@ -311,8 +311,8 @@ Then run the failed command, copy-and-paste the output from your terminal to the
 `Airflow Slack <https://apache-airflow-slack.herokuapp.com/>`_  #airflow-breeze channel and
 describe your problem.
 
-Other uses the Airflow Breeze environment
-=========================================
+Other uses of the Airflow Breeze environment
+============================================
 
 Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testing. Under the
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
