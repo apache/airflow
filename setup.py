@@ -199,6 +199,10 @@ azure_data_lake = [
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
 ]
+azure_secrets = [
+    'azure-identity>=1.3.1',
+    'azure-keyvault>=4.1.0',
+]
 cassandra = [
     'cassandra-driver>=3.13.0,<3.21.0',
 ]
@@ -450,9 +454,10 @@ else:
 
 devel_minreq = aws + cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
-devel_azure = azure_cosmos + azure_data_lake + devel_minreq
+
+devel_azure = azure_blob_storage + azure_container_instances + azure_cosmos + azure_data_lake + azure_secrets + devel_minreq  # noqa
 devel_all = (all_dbs + atlas + aws +
-             azure_blob_storage + azure_container_instances + azure_cosmos + azure_data_lake +
+             devel_azure +
              celery + cgroups + crypto + datadog + devel + doc + docker +
              elasticsearch + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes + ldap +
              oracle + papermill + password +
@@ -481,11 +486,12 @@ EXTRAS_REQUIREMENTS = {
     'async': async_packages,
     'atlas': atlas,
     'aws': aws,
-    'azure': azure_blob_storage + azure_container_instances + azure_cosmos + azure_data_lake,
+    'azure': azure_blob_storage + azure_container_instances + azure_cosmos + azure_data_lake + azure_secrets,
     'azure_blob_storage': azure_blob_storage,
     'azure_container_instances': azure_container_instances,
     'azure_cosmos': azure_cosmos,
     'azure_data_lake': azure_data_lake,
+    'azure_secrets': azure_secrets,
     'cassandra': cassandra,
     'celery': celery,
     'cgroups': cgroups,
