@@ -463,7 +463,7 @@ This workflow has two purposes - it builds images for the CI Workflow but also i
 failed builds in order to save job time in Github Actions and allow for faster feedback for developers.
 
 It's a special type of workflow: ``workflow_run`` which means that it is triggered by other workflows (in our
-case it is triggered by the ``CI Build`` workflow. This also means that the workflow has Write permission to
+case it is triggered by the ``CI Build`` workflow). This also means that the workflow has Write permission to
 the Airflow repository and it can - for example - push to the GitHub registry the images used by CI Builds
 which means that the images can be built only once and reused by all the CI jobs (including the matrix jobs).
 We've implemented it in the way that the CI Build running will wait until the images are built by the
