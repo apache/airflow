@@ -27,17 +27,17 @@ cd "${AIRFLOW_SOURCES}"
 
 . breeze-complete
 
-if [[ "${AVAILABLE_INTEGRATIONS} all" != "${_BREEZE_ALLOWED_INTEGRATIONS}" ]]; then
+if [[ "${AVAILABLE_INTEGRATIONS} all" != "${_breeze_allowed_integrations}" ]]; then
   echo
   echo "Error: Allowed integrations do not match!"
   echo
   echo "The ./scripts/ci/libraries/_initialization.sh integrations (AVAILABLE_INTEGRATIONS):"
   echo "${AVAILABLE_INTEGRATIONS}"
   echo
-  echo "The ./breeze-complete integrations (_BREEZE_ALLOWED_INTEGRATIONS):"
-  echo "${_BREEZE_ALLOWED_INTEGRATIONS}"
+  echo "The ./breeze-complete integrations (_breeze_allowed_integrations):"
+  echo "${_breeze_allowed_integrations}"
   echo
-  echo "_BREEZE_ALLOWED_INTEGRATIONS should match AVAILABLE_INTEGRATIONS plus 'all'"
+  echo "_breeze_allowed_integrations should match AVAILABLE_INTEGRATIONS plus 'all'"
   echo
   echo "Please align the two!"
   echo

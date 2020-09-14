@@ -29,7 +29,7 @@ teardown() {
 }
 
 @test "Test missing value for a parameter" {
-  export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
+  export _breeze_allowed_test_params="a b c"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   assert_output "
 ERROR:  Allowed Test Param: [ a b c ]. Is: ''.
@@ -39,7 +39,7 @@ Switch to supported value with --message flag."
 }
 
 @test "Test wrong value for a parameter but proper stored in the .build/PARAM" {
-  export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
+  export _breeze_allowed_test_params="a b c"
   export TEST_PARAM=x
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
@@ -53,7 +53,7 @@ Switch to supported value with --message flag."
 }
 
 @test "Test wrong value for a parameter stored in the .build/PARAM" {
-  export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
+  export _breeze_allowed_test_params="a b c"
   export TEST_PARAM=x
   echo "x" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
@@ -69,7 +69,7 @@ Removing ${AIRFLOW_SOURCES}/.build/.TEST_PARAM. Next time you run it, it should 
 
 
 @test "Test correct value for a parameter" {
-  export _BREEZE_ALLOWED_TEST_PARAMS="a b c"
+  export _breeze_allowed_test_params="a b c"
   export TEST_PARAM=a
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   assert_output ""
@@ -79,13 +79,13 @@ Removing ${AIRFLOW_SOURCES}/.build/.TEST_PARAM. Next time you run it, it should 
 }
 
 @test "Test correct value for a parameter from multi-line values" {
-  _BREEZE_ALLOWED_TEST_PARAMS=$(cat <<-EOF
+  _breeze_allowed_test_params=$(cat <<-EOF
 a
 b
 c
 EOF
 )
-  export _BREEZE_ALLOWED_TEST_PARAMS
+  export _breeze_allowed_test_params
   export TEST_PARAM=a
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   assert_output ""
