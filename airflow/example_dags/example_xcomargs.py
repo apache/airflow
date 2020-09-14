@@ -63,7 +63,7 @@ with DAG(
 ) as dag2:
     bash_op1 = BashOperator(task_id="c", bash_command="echo c")
     bash_op2 = BashOperator(task_id="d", bash_command="echo c")
-    xcom_args_a = print_value("first!")
-    xcom_args_b = print_value("second!")
+    xcom_args_a = print_value("first!")  # type: ignore
+    xcom_args_b = print_value("second!")  # type: ignore
 
     bash_op1 >> xcom_args_a >> xcom_args_b >> bash_op2
