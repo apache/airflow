@@ -66,7 +66,7 @@ so we generate these names dynamically before launch.
 It's important to note while Airflow overwrites these fields, they **can not be left blank**.
 If these fields do not exist, kubernetes can not load the yaml into a Kuberentes V1Pod.
 
-2. Each airflow ``pod_template_file`` must have a container named "base" at the ``pod.spec.containers[0]`` position
+2. Each Airflow ``pod_template_file`` must have a container named "base" at the ``pod.spec.containers[0]`` position
 
 Airflow uses the ``pod_template_file`` by making certain assumptions about the structure of the template.
 When airflow creates the worker pod's command, it assumes that the airflow worker container part exists
