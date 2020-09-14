@@ -150,9 +150,19 @@ def display_spelling_error_summary() -> None:
             if error.context_line:
                 print(f"Line with Error: '{error.context_line}'")
             if error.line_no:
-                print(prepare_code_snippet(error.file_path, error.line_no))
+                print(f"Line Number: {error.line_no}")
+                print(prepare_code_snippet(os.path.join(DOCS_DIR, error.file_path), error.line_no))
 
     print("=" * 50)
+    print()
+    msg = """
+    If the spelling is correct, add the spelling to docs/spelling_wordlist.txt
+    or use the spelling directive.
+    Check https://sphinxcontrib-spelling.readthedocs.io/en/latest/customize.html#private-dictionaries
+    for more details.
+    """.strip()
+    print(msg)
+    print()
 
 
 def find_existing_guide_operator_names() -> Set[str]:
@@ -656,12 +666,12 @@ def check_spelling() -> None:
                 )
             )
 
-        # pylint: disable=subprocess-run-check
-        run(f"find {DOCS_DIR} -name '*.spelling' -exec cat {{}} + >> {tmp_file.name}", shell=True)
-        tmp_file.seek(0)
-        warning_text = tmp_file.read().decode()
-        sphinx_build_errors = parse_spelling_warnings(warning_text)
-        spelling_errors.extend(sphinx_build_errors)
+            # pylint: disable=subprocess-run-check
+            run(f"find {DOCS_DIR} -name '*.spelling' -exec cat {{}} + >> {tmp_file.name}", shell=True)
+            tmp_file.seek(0)
+            warning_text = tmp_file.read().decode()
+            sphinx_build_errors = parse_spelling_warnings(warning_text)
+            spelling_errors.extend(sphinx_build_errors)
 
 
 def build_sphinx_docs() -> None:
