@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# [START template_with_dag_in_image]
+# [START template_with_dags_in_image]
 ---
 apiVersion: v1
 kind: Pod
@@ -81,4 +81,4 @@ spec:
     - configMap:
         name: RELEASE-NAME-airflow-config
       name: airflow-local-settings
-# [END template_with_dag_in_image]
+# [END template_with_dags_in_image]
