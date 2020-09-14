@@ -64,7 +64,7 @@ that Airflow overwrites is the ``pod.metadata.name`` field. This field has to be
 so we generate these names dynamically before launch.
 
 It's important to note while Airflow overwrites these fields, they **can not be left blank**.
-If these fields do not exist, kubernetes can not load the yaml into a Kuberentes V1Pod
+If these fields do not exist, kubernetes can not load the yaml into a Kuberentes V1Pod.
 
 2. Each airflow ``pod_template_file`` must have a container named "base" at the ``pod.spec.containers[0]`` position
 
