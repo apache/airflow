@@ -42,6 +42,7 @@ from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.base import Operator
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.models.taskmixin import TaskMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -84,7 +85,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
 # pylint: disable=too-many-instance-attributes,too-many-public-methods
 @functools.total_ordering
-class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
+class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta):
     """
     Abstract base class for all operators. Since operators create objects that
     become nodes in the dag, BaseOperator contains many recursive methods for
@@ -490,38 +491,6 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
             except TypeError:
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
-
-    # Composing Operators -----------------------------------------------
-
-    def __rshift__(self, other):
-        """
-        Implements Self >> Other == self.set_downstream(other)
-        """
-        self.set_downstream(other)
-        return other
-
-    def __lshift__(self, other):
-        """
-        Implements Self << Other == self.set_upstream(other)
-        """
-        self.set_upstream(other)
-        return other
-
-    def __rrshift__(self, other):
-        """
-        Called for Operator >> [Operator] because list don't have
-        __rshift__ operators.
-        """
-        self.__lshift__(other)
-        return self
-
-    def __rlshift__(self, other):
-        """
-        Called for Operator << [Operator] because list don't have
-        __lshift__ operators.
-        """
-        self.__rshift__(other)
-        return self
 
     # including lineage information
     def __or__(self, other):

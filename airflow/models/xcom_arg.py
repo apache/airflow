@@ -19,10 +19,11 @@ from typing import Any, Dict, List, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator  # pylint: disable=R0401
+from airflow.models.taskmixin import TaskMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 
 
-class XComArg:
+class XComArg(TaskMixin):
     """
     Class that represents a XCom push from a previous operator.
     Defaults to "return_value" as only key.
@@ -64,36 +65,6 @@ class XComArg:
     def __eq__(self, other):
         return (self.operator == other.operator
                 and self.key == other.key)
-
-    def __lshift__(self, other):
-        """
-        Implements XComArg << op
-        """
-        self.set_upstream(other)
-        return other
-
-    def __rshift__(self, other):
-        """
-        Implements XComArg >> op
-        """
-        self.set_downstream(other)
-        return other
-
-    def __rrshift__(self, other):
-        """
-        Called for XComArg >> [XComArg] because list don't have
-        __rshift__ operators.
-        """
-        self.__lshift__(other)
-        return self
-
-    def __rlshift__(self, other):
-        """
-        Called for XComArg >> [XComArg] because list don't have
-        __lshift__ operators.
-        """
-        self.__rshift__(other)
-        return self
 
     def __getitem__(self, item):
         """
