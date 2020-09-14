@@ -83,7 +83,7 @@ pod_template_file using the ``dag_in_image`` setting:
     :start-after: [START template_with_dags_in_image]
     :end-before: [END template_with_dags_in_image]
 
-pod_template_file which stores DAGs in a persistentVolume:
+``pod_template_file`` which stores DAGs in a ``persistentVolume``:
 
 .. exampleinclude:: /../airflow/kubernetes_executor_templates/dags_in_volume_template.yaml
     :language: yaml
