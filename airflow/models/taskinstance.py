@@ -1115,9 +1115,10 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             raise
         except AirflowException as e:
             self.refresh_from_db()
-            # for case when task is marked as success/failed externally we need
-            # to invoke callback from within task process to avoid race
-            # conditions
+            # for case when task is marked as success/failed externally,
+            # AirflowException will be raised through registered signal
+            # handler.  we need to invoke callback from within task process to
+            # avoid race conditions
             if self.state == State.SUCCESS:
                 self.log.info('Task marked as SUCCESS externally.')
             else:

@@ -21,22 +21,22 @@ import os
 import time
 import unittest
 import uuid
+from multiprocessing import Lock, Value
 from unittest import mock
 from unittest.mock import patch
-from multiprocessing import Value, Lock
 
 import pytest
 
 from airflow import settings
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
-from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import PythonOperator
+from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -244,8 +244,6 @@ class TestLocalTaskJob(unittest.TestCase):
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
-        from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
-
         with patch.object(StandardTaskRunner, 'start', return_value=None) as mock_method:
             job1.run()
             mock_method.assert_not_called()
@@ -288,8 +286,6 @@ class TestLocalTaskJob(unittest.TestCase):
             return return_codes.pop(0)
 
         time_start = time.time()
-        from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
-
         with patch.object(StandardTaskRunner, 'start', return_value=None) as mock_start:
             with patch.object(StandardTaskRunner, 'return_code') as mock_ret_code:
                 mock_ret_code.side_effect = multi_return_code
@@ -313,14 +309,13 @@ class TestLocalTaskJob(unittest.TestCase):
         Test that ensures that mark_failure in the UI fails
         the task, and executes on_failure_callback
         """
-        # use shared memory value so we can properly track the call count even
-        # if it's been called across processes.
+        # use shared memory value so we can properly track value change even if
+        # it's been updated across processes.
         failure_callback_called = Value('i', 0)
-        task_terminated_externally = Value('b', True)
-        shared_mem_lock = Lock()
+        task_terminated_externally = Value('i', 1)
 
         def check_failure(context):
-            with shared_mem_lock:
+            with failure_callback_called.get_lock():
                 failure_callback_called.value += 1
             assert context['dag_run'].dag_id == 'test_mark_failure'
 
@@ -334,8 +329,8 @@ class TestLocalTaskJob(unittest.TestCase):
 
             time.sleep(60)
             # This should not happen -- the state change should be noticed and the task should get killed
-            with shared_mem_lock:
-                task_terminated_externally.value = False
+            with task_terminated_externally.get_lock():
+                task_terminated_externally.value = 0
 
         with DAG(dag_id='test_mark_failure', start_date=DEFAULT_DATE) as dag:
             task = PythonOperator(
@@ -366,17 +361,17 @@ class TestLocalTaskJob(unittest.TestCase):
         ti.refresh_from_db()
         assert ti.state == State.FAILED
         assert failure_callback_called.value == 1
-        assert task_terminated_externally.value is True
+        assert task_terminated_externally.value == 1
 
     @patch('airflow.utils.process_utils.subprocess.check_call')
     @patch.object(StandardTaskRunner, 'return_code')
-    def test_failure_callback_only_called_once(self, mock_return_code, check_call):
+    def test_failure_callback_only_called_once(self, mock_return_code, _check_call):
         """
         Test that ensures that when a task exits with failure by itself,
         failure callback is only called once
         """
-        # use shared memory value so we can properly track the call count even
-        # if it's been called across processes.
+        # use shared memory value so we can properly track value change even if
+        # it's been updated across processes.
         failure_callback_called = Value('i', 0)
         callback_count_lock = Lock()
 
@@ -386,14 +381,15 @@ class TestLocalTaskJob(unittest.TestCase):
             assert context['dag_run'].dag_id == 'test_failure_callback_race'
 
         def task_function(ti):
-            from airflow.exceptions import AirflowFailException
             raise AirflowFailException()
 
-        with DAG(dag_id='test_failure_callback_race', start_date=DEFAULT_DATE) as dag:
-            task = PythonOperator(
-                task_id='test_exit_on_failure',
-                python_callable=task_function,
-                on_failure_callback=failure_callback)
+        dag = DAG(dag_id='test_failure_callback_race', start_date=DEFAULT_DATE)
+        task = PythonOperator(
+            task_id='test_exit_on_failure',
+            python_callable=task_function,
+            on_failure_callback=failure_callback,
+            dag=dag,
+        )
 
         session = settings.Session()
 
@@ -419,7 +415,7 @@ class TestLocalTaskJob(unittest.TestCase):
         #
         # We also need to set return_code to a valid int after job1.terminating
         # is set to True so _execute loop won't loop forever.
-        mock_return_code.side_effect = lambda : None if not job1.terminating else -9
+        mock_return_code.side_effect = lambda: None if not job1.terminating else -9
 
         with timeout(30):
             # This should be _much_ shorter to run.
@@ -436,15 +432,31 @@ class TestLocalTaskJob(unittest.TestCase):
         Test that ensures that where a task is marked suceess in the UI
         on_success_callback gets executed
         """
-        data = {'called': False}
+        # use shared memory value so we can properly track value change even if
+        # it's been updated across processes.
+        success_callback_called = Value('i', 0)
+        task_terminated_externally = Value('i', 1)
+        shared_mem_lock = Lock()
 
         def success_callback(context):
+            with shared_mem_lock:
+                success_callback_called.value += 1
             assert context['dag_run'].dag_id == 'test_mark_success'
-            data['called'] = True
 
         dag = DAG(dag_id='test_mark_success', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
-        task = DummyOperator(task_id='test_state_succeeded1', dag=dag, on_success_callback=success_callback)
+        def task_function(ti):
+            time.sleep(60)
+            # This should not happen -- the state change should be noticed and the task should get killed
+            with shared_mem_lock:
+                task_terminated_externally.value = 0
+
+        task = PythonOperator(
+            task_id='test_state_succeeded1',
+            python_callable=task_function,
+            on_success_callback=success_callback,
+            dag=dag,
+        )
 
         session = settings.Session()
 
@@ -459,25 +471,23 @@ class TestLocalTaskJob(unittest.TestCase):
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
-        from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
-
         job1.task_runner = StandardTaskRunner(job1)
         process = multiprocessing.Process(target=job1.run)
         process.start()
         ti.refresh_from_db()
         for _ in range(0, 50):
+            time.sleep(0.1)
             if ti.state == State.RUNNING:
                 break
-            time.sleep(0.1)
             ti.refresh_from_db()
         assert State.RUNNING == ti.state
         ti.state = State.SUCCESS
         session.merge(ti)
         session.commit()
 
-        job1.heartbeat_callback(session=None)
-        assert data['called']
         process.join(timeout=10)
+        assert success_callback_called.value == 1
+        assert task_terminated_externally.value == 1
         assert not process.is_alive()
 
 
