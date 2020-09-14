@@ -70,15 +70,6 @@ td > span.glyphicon {
   padding-top: 3px;
 }
 
-button.btn,
-label.btn {
-  border: 1px solid #000;
-}
-
-.btn-group label.btn {
-  background-color: #f0f0f0;
-}
-
 div.rich_doc {
   padding: 5px 10px;
   border: 1px solid #ddd;
@@ -267,11 +258,6 @@ div.square {
   float: right;
   margin-top: 2px;
   border: 1px solid #000;
-}
-
-.btn:active,
-.btn.active {
-  box-shadow: inset 0 6px 6px rgba(0, 0, 0, 0.4);
 }
 
 label[for="timezone-other"],
