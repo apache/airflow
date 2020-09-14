@@ -11,6 +11,7 @@ from airflow.api.common.experimental import trigger_dag as trigger
 import json
 from airflow.utils import timezone
 from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.utils.db import provide_session
 
 CAS_ANALYSIS_BASE_URL = os.environ.get("CAS_ANALYSIS_BASE_URL", "http://localhost:9095")
 CAS_TRAINING_BASE_URL = os.environ.get("CAS_TRAINING_BASE_URL", "http://localhost:9095")
@@ -26,8 +27,6 @@ CURVE_MODE_MAP = {
     'OK': 0,
     'NOK': 1,
 }
-
-DEFAULT_CRAFT_TYPE = os.environ.get('CRAFT_TYPE', '1')
 
 if RUNTIME_ENV == 'prod':
     schedule_interval = None
@@ -66,12 +65,16 @@ def get_cas_training_base_url():
     return url.get_uri() if isinstance(url, connection_model) else url
 
 
-def get_craft_type(craft_type: str = DEFAULT_CRAFT_TYPE) -> int:
-    ret = CRAFT_TYPE_MAP.get(craft_type, None)
+def get_craft_type(nut_no: str) -> int:
+    template_data = Variable.get_fuzzy_active(nut_no,
+                                              deserialize_json=True,
+                                              default_var=None
+                                              )[1]
+    ret = template_data.get('craft_type', None)
     if ret:
         return ret
     else:
-        return CRAFT_TYPE_MAP.get(DEFAULT_CRAFT_TYPE, None)
+        raise Exception('没有找到螺栓对应的工艺类型。')
 
 
 def get_curve_mode(final_state, error_tag):
@@ -98,7 +101,7 @@ def generate_bolt_number(controller_name, program, batch_count, pset):
 
 
 def generate_curve_name(nut_no):
-    return '/'.join([nut_no, str(get_craft_type())])
+    return '/'.join([nut_no, str(get_craft_type(nut_no))])
 
 
 def get_curve_params(bolt_number):
