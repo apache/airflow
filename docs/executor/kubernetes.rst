@@ -46,11 +46,12 @@ This command generates the pods as they will be launched in Kubernetes and dumps
 pod_template_file
 #################
 
-As of Airflow 1.10.12, users can now use a pod_template_file setting in their airflow.cfg to form the basis of
-their KubernetesExecutor pods. This process is faster and easier to modify.
+As of Airflow 1.10.12, you can now use the ``pod_template_file`` option in the ``kubernetes`` section
+of their airflow.cfg to form the basis of your KubernetesExecutor pods. This process is faster to execute
+and easier to modify.
 
 We include multiple examples of working pod operators below, but we would also like to explain a few necessary components
-if you want to customize your pod_template_files. As long as you have these components, every other element
+if you want to customize your template files. As long as you have these components, every other element
 in the template is
 customizable.
 
@@ -65,12 +66,12 @@ so we generate these names dynamically before launch.
 It's important to note while Airflow overwrites these fields, they **can not be left blank**.
 If these fields do not exist, kubernetes can not load the yaml into a Kuberentes V1Pod
 
-2. Each airflow ``pod_template_file`` must have a container named ``base`` at the ``pod.spec.containers[0]`` position
+2. Each airflow ``pod_template_file`` must have a container named "base" at the ``pod.spec.containers[0]`` position
 
 Airflow uses the ``pod_template_file`` by making certain assumptions about the structure of the template.
 When airflow creates the worker pod's command, it assumes that the airflow worker container part exists
-at the beginning of the container array. It then assumes that the container is named "base"
-when it merges this pod with internal configs. Users are more than welcome to create
+at the beginning of the container array. It then assumes that the container is named ``base``
+when it merges this pod with internal configs. you are more than welcome to create
 sidecar containers after this required container.
 
 With these requirements in mind, here are some examples of basic pod_template_file yaml files.
