@@ -76,7 +76,7 @@ sidecar containers after this required container.
 
 With these requirements in mind, here are some examples of basic pod_template_file yaml files.
 
-pod_template_file using the dag_in_image setting:
+pod_template_file using the ``dag_in_image`` setting:
 
 .. exampleinclude:: /../airflow/kubernetes_executor_templates/dags_in_image_template.yaml
     :language: yaml
