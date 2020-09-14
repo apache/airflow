@@ -39,11 +39,6 @@ spec:
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: airflow-logs
-{{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
-        - mountPath: {{ template "airflow_dags_mount_path" . }}
-          name: airflow-dags
-          readOnly: false
-{{- end }}
 {{- if .Values.dags.gitSync.sshKeySecret }}
         - mountPath: /etc/git-secret/known_hosts
           name: {{ .Values.dags.gitSync.knownHosts }}

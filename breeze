@@ -819,7 +819,7 @@ function breeze::parse_arguments() {
             echo "Resetting the DB!"
             echo
             export DB_RESET="true"
-            shift 1
+            shift
             ;;
         -v | --verbose)
             export VERBOSE="true"
@@ -951,7 +951,7 @@ function breeze::parse_arguments() {
             echo "Forwarding credentials. Be careful as your credentials ar available in the container!"
             echo
             export FORWARD_CREDENTIALS="true"
-            shift 1
+            shift
             ;;
         -c | --github-registry)
             echo
@@ -991,7 +991,7 @@ function breeze::parse_arguments() {
             echo "Starting Airflow"
             echo
             export START_AIRFLOW="true"
-            shift 1
+            shift
             ;;
         -S | --version-suffix-for-pypi)
             if [[ -n ${VERSION_SUFFIX_FOR_SVN=} ]]; then
@@ -1046,7 +1046,7 @@ function breeze::parse_arguments() {
         build-docs)
             last_subcommand="${1}"
             command_to_run="build_docs"
-            shift 1
+            shift
             ;;
         build-image)
             last_subcommand="${1}"
