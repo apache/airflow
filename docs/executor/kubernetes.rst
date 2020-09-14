@@ -52,19 +52,18 @@ and easier to modify.
 
 We include multiple examples of working pod operators below, but we would also like to explain a few necessary components
 if you want to customize your template files. As long as you have these components, every other element
-in the template is
-customizable.
+in the template is customizable.
 
 1. Airflow will overwrite the base container image and the pod name
 
 There are two points where Airflow potentially overwrites the base image: in the ``airflow.cfg``
-or the ``pod_override`` (discussed below) setting. This value is overwitten to ensure that users do
+or the ``pod_override`` (discussed below) setting. This value is overwritten to ensure that users do
 not need to update multiple template files every time they upgrade their docker image. The other field
 that Airflow overwrites is the ``pod.metadata.name`` field. This field has to be unique across all pods,
 so we generate these names dynamically before launch.
 
 It's important to note while Airflow overwrites these fields, they **can not be left blank**.
-If these fields do not exist, kubernetes can not load the yaml into a Kuberentes V1Pod.
+If these fields do not exist, kubernetes can not load the yaml into a Kubernetes V1Pod.
 
 2. Each Airflow ``pod_template_file`` must have a container named "base" at the ``pod.spec.containers[0]`` position
 
