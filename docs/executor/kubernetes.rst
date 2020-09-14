@@ -90,7 +90,7 @@ pod_template_file using the ``dag_in_image`` setting:
     :start-after: [START template_with_dags_in_volume]
     :end-before: [END template_with_dags_in_volume]
 
-pod_template_file which pulls DAGs from git:
+``pod_template_file`` which pulls DAGs from git:
 
 .. exampleinclude:: /../airflow/kubernetes_executor_templates/git_sync_template.yaml
     :language: yaml
