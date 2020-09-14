@@ -697,5 +697,7 @@ spec:
     def test_validate_pod_generator(self):
         with self.assertRaises(AirflowConfigException):
             PodGenerator(pod=k8s.V1Pod(), pod_template_file='k')
+        with self.assertRaises(AirflowConfigException):
+            PodGenerator()
         PodGenerator(pod_template_file='tests/kubernetes/pod.yaml')
         PodGenerator(pod=k8s.V1Pod())
