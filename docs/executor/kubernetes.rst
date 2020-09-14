@@ -47,7 +47,7 @@ pod_template_file
 #################
 
 As of Airflow 1.10.12, you can now use the ``pod_template_file`` option in the ``kubernetes`` section
-of their airflow.cfg to form the basis of your KubernetesExecutor pods. This process is faster to execute
+of the ``airflow.cfg`` file to form the basis of your KubernetesExecutor pods. This process is faster to execute
 and easier to modify.
 
 We include multiple examples of working pod operators below, but we would also like to explain a few necessary components
