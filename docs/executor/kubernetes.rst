@@ -74,7 +74,7 @@ at the beginning of the container array. It then assumes that the container is n
 when it merges this pod with internal configs. You are more than welcome to create
 sidecar containers after this required container.
 
-With these requirements in mind, here are some examples of basic pod_template_file yaml files.
+With these requirements in mind, here are some examples of basic ``pod_template_file`` YAML files.
 
 pod_template_file using the ``dag_in_image`` setting:
 
