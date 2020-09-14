@@ -62,7 +62,39 @@ class DocBuildError(NamedTuple):
         return (file_path_a, line_no_a, self.message) < (file_path_b, line_no_b, other.message)
 
 
+@total_ordering
+class SpellingError(NamedTuple):
+    """
+    Spelling errors found when building docs.
+    """
+    file_path: Optional[str]
+    line_no: Optional[int]
+    spelling: Optional[str]
+    suggestion: Optional[str]
+    context_line: Optional[str]
+    message: str
+
+    def __eq__(self, other):
+        left = (self.file_path, self.line_no, self.spelling, self.context_line, self.message)
+        right = (other.file_path, other.line_no, other.spelling, other.context_line, other.message)
+        return left == right
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __lt__(self, other):
+        file_path_a = self.file_path or ''
+        file_path_b = other.file_path or ''
+        line_no_a = self.line_no or 0
+        line_no_b = other.line_no or 0
+        context_line_a = self.context_line or ''
+        context_line_b = other.context_line or ''
+        return (file_path_a, line_no_a, context_line_a, self.spelling, self.message) < \
+               (file_path_b, line_no_b, context_line_b, other.spelling, other.message)
+
+
 build_errors: List[DocBuildError] = []
+spelling_errors: List[SpellingError] = []
 
 ROOT_PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir))
 ROOT_PACKAGE_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
@@ -101,6 +133,38 @@ def display_errors_summary() -> None:
     print("=" * 50)
 
 
+def display_spelling_error_summary() -> None:
+    """
+    Displays summary of Spelling errors
+    """
+    for warning_no, error in enumerate(sorted(spelling_errors), 1):
+        print("=" * 20, f"Error {warning_no:3}", "=" * 20)
+        print(error.message)
+        print()
+        if error.file_path:
+            print(f"File path: {error.file_path}")
+            if error.spelling:
+                print(f"Incorrect Spelling: '{error.spelling}'")
+            if error.suggestion:
+                print(f"Suggested Spelling: '{error.suggestion}'")
+            if error.context_line:
+                print(f"Line with Error: '{error.context_line}'")
+            if error.line_no:
+                print(f"Line Number: {error.line_no}")
+                print(prepare_code_snippet(os.path.join(DOCS_DIR, error.file_path), error.line_no))
+
+    print("=" * 50)
+    print()
+    msg = """
+If the spelling is correct, add the spelling to docs/spelling_wordlist.txt
+or use the spelling directive.
+Check https://sphinxcontrib-spelling.readthedocs.io/en/latest/customize.html#private-dictionaries
+for more details.
+    """
+    print(msg)
+    print()
+
+
 def find_existing_guide_operator_names() -> Set[str]:
     """
     Find names of existing operators.
@@ -123,10 +187,12 @@ def extract_ast_class_def_by_name(ast_tree, class_name):
     :param class_name: name of the class.
     :return: class node found
     """
+
     class ClassVisitor(ast.NodeVisitor):
         """
         Visitor.
         """
+
         def __init__(self):
             self.found_class_node = None
 
@@ -150,6 +216,7 @@ def check_guide_links_in_operator_descriptions() -> None:
     Check if there are links to guides in operator's descriptions.
 
     """
+
     def generate_build_error(path, line_no, operator_name):
         return DocBuildError(
             file_path=path,
@@ -439,6 +506,7 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
     :param context_lines_count: number of lines of context.
     :return:
     """
+
     def guess_lexer_for_filename(filename):
         from pygments.lexers import get_lexer_for_filename
         from pygments.util import ClassNotFound
@@ -502,47 +570,110 @@ def parse_sphinx_warnings(warning_text: str) -> List[DocBuildError]:
     return sphinx_build_errors
 
 
+def parse_spelling_warnings(warning_text: str) -> List[SpellingError]:
+    """
+    Parses warnings from Sphinx.
+
+    :param warning_text: warning to parse
+    :return: list of SpellingError.
+    """
+    sphinx_spelling_errors = []
+    for sphinx_warning in warning_text.split("\n"):
+        if not sphinx_warning:
+            continue
+        warning_parts = None
+        match = re.search(r"(.*):(\w*):\s\((\w*)\)\s?(\w*)\s?(.*)", sphinx_warning)
+        if match:
+            warning_parts = match.groups()
+        if warning_parts and len(warning_parts) == 5:
+            try:
+                sphinx_spelling_errors.append(
+                    SpellingError(
+                        file_path=warning_parts[0],
+                        line_no=int(warning_parts[1]) if warning_parts[1] not in ('None', '') else None,
+                        spelling=warning_parts[2],
+                        suggestion=warning_parts[3] if warning_parts[3] else None,
+                        context_line=warning_parts[4],
+                        message=sphinx_warning,
+                    )
+                )
+            except Exception:  # noqa pylint: disable=broad-except
+                # If an exception occurred while parsing the warning message, display the raw warning message.
+                sphinx_spelling_errors.append(
+                    SpellingError(
+                        file_path=None,
+                        line_no=None,
+                        spelling=None,
+                        suggestion=None,
+                        context_line=None,
+                        message=sphinx_warning,
+                    )
+                )
+        else:
+            sphinx_spelling_errors.append(
+                SpellingError(
+                    file_path=None,
+                    line_no=None,
+                    spelling=None,
+                    suggestion=None,
+                    context_line=None,
+                    message=sphinx_warning,
+                )
+            )
+    return sphinx_spelling_errors
+
+
 def check_spelling() -> None:
     """
     Checks spelling for sphinx.
 
     :return:
     """
-    build_cmd = [
-        "sphinx-build",
-        "-W",
-        "-b",  # builder to use
-        "spelling",
-        "-d",  # path for the cached environment and doctree files
-        "_build/doctrees",
-        "-D",  # override the extensions because one of them throws an error on the spelling builder
-        """extensions=sphinxarg.ext\
-,autoapi.extension\
-,sphinxcontrib.spelling\
-,exampleinclude\
-,sphinx.ext.autodoc\
-,sphinx.ext.coverage\
-,sphinx.ext.viewcode\
-,sphinx.ext.graphviz\
-,sphinxcontrib.httpdomain\
-,sphinxcontrib.jinja\
-,docroles\
-,removemarktransform\
-""",
-        ".",  # path to documentation source files
-        "_build/spelling"
+    extensions_to_use = [
+        "sphinxarg.ext",
+        "autoapi.extension",
+        "sphinxcontrib.spelling",
+        "exampleinclude",
+        "sphinx.ext.autodoc",
+        "sphinx.ext.coverage",
+        "sphinx.ext.viewcode",
+        "sphinx.ext.graphviz",
+        "sphinxcontrib.httpdomain",
+        "sphinxcontrib.jinja",
+        "docroles",
+        "removemarktransform",
     ]
-    print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
 
-    completed_proc = run(build_cmd, cwd=DOCS_DIR)  # pylint: disable=subprocess-run-check
-    if completed_proc.returncode != 0:
-        build_errors.append(
-            DocBuildError(
-                file_path=None,
-                line_no=None,
-                message=f"Sphinx spellcheck returned non-zero exit status: {completed_proc.returncode}.",
+    with NamedTemporaryFile() as tmp_file:
+        build_cmd = [
+            "sphinx-build",
+            "-W",
+            "-b",  # builder to use
+            "spelling",
+            "-d",  # path for the cached environment and doctree files
+            "_build/doctrees",
+            "-D",  # override the extensions because one of them throws an error on the spelling builder
+            f"extensions={','.join(extensions_to_use)}",
+            ".",  # path to documentation source files
+            "_build/spelling"
+        ]
+        print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
+
+        completed_proc = run(build_cmd, cwd=DOCS_DIR)  # pylint: disable=subprocess-run-check
+        if completed_proc.returncode != 0:
+            spelling_errors.append(
+                SpellingError(
+                    file_path=None, line_no=None, spelling=None, suggestion=None, context_line=None,
+                    message=f"Sphinx spellcheck returned non-zero exit status: {completed_proc.returncode}."
+                )
             )
-        )
+
+            # pylint: disable=subprocess-run-check
+            run(f"find {DOCS_DIR} -name '*.spelling' -exec cat {{}} + >> {tmp_file.name}", shell=True)
+            tmp_file.seek(0)
+            warning_text = tmp_file.read().decode()
+            sphinx_build_errors = parse_spelling_warnings(warning_text)
+            spelling_errors.extend(sphinx_build_errors)
 
 
 def build_sphinx_docs() -> None:
@@ -587,9 +718,13 @@ def print_build_errors_and_exit(message) -> None:
     :param message:
     :return:
     """
-    if build_errors:
-        display_errors_summary()
-        print()
+    if build_errors or spelling_errors:
+        if build_errors:
+            display_errors_summary()
+            print()
+        if spelling_errors:
+            display_spelling_error_summary()
+            print()
         print(message)
         print()
         print(CHANNEL_INVITATION)

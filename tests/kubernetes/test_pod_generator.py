@@ -474,6 +474,7 @@ class TestPodGenerator(unittest.TestCase):
             self.task_id,
             'pod_id',
             self.try_number,
+            "kube_image",
             self.execution_date,
             ['command'],
             executor_config,
@@ -494,6 +495,7 @@ class TestPodGenerator(unittest.TestCase):
                     'env': [],
                     'envFrom': [],
                     'name': 'base',
+                    'image': 'kube_image',
                     'ports': [],
                     'resources': {
                         'limits': {
@@ -534,6 +536,7 @@ class TestPodGenerator(unittest.TestCase):
             self.task_id,
             'pod_id',
             self.try_number,
+            "kube_image",
             self.execution_date,
             ['command'],
             executor_config,
@@ -554,6 +557,7 @@ class TestPodGenerator(unittest.TestCase):
                     'env': [],
                     'envFrom': [],
                     'name': 'base',
+                    'image': 'kube_image',
                     'ports': [],
                     'resources': {
                         'limits': {
@@ -617,6 +621,7 @@ class TestPodGenerator(unittest.TestCase):
             self.task_id,
             'pod_id',
             self.try_number,
+            "kube_image",
             self.execution_date,
             ['command'],
             executor_config,
@@ -640,6 +645,7 @@ class TestPodGenerator(unittest.TestCase):
                     'env': [],
                     'envFrom': [],
                     'name': 'base',
+                    'image': 'kube_image',
                     'ports': [],
                     'resources': {
                         'limits': {

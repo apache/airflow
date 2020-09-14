@@ -404,12 +404,13 @@ def generate_pod_yaml(args):
             pod_id=AirflowKubernetesScheduler._create_pod_id(  # pylint: disable=W0212
                 args.dag_id, ti.task_id),
             try_number=ti.try_number,
+            kube_image=kube_config.kube_image,
             date=ti.execution_date,
             command=ti.command_as_list(),
-            kube_executor_config=PodGenerator.from_obj(ti.executor_config),
+            pod_override_object=PodGenerator.from_obj(ti.executor_config),
             worker_uuid="worker-config",
             namespace=kube_config.executor_namespace,
-            worker_config=WorkerConfiguration(kube_config=kube_config).as_pod()
+            base_worker_pod=WorkerConfiguration(kube_config=kube_config).as_pod()
         )
         pod_mutation_hook(pod)
         api_client = ApiClient()

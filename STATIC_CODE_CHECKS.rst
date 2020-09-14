@@ -50,7 +50,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``base-operator``                     Checks that BaseOperator is imported properly
 ----------------------------------- ---------------------------------------------------------------- ------------
-``bat-tests``                         Runs BATS bash unit tests
+``bats-tests``                        Runs BATS bash unit tests
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``black``                             Runs Black (the uncompromising Python code formatter)
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -133,6 +133,8 @@ require Breeze Docker images to be installed locally:
 ``setup-order``                       Checks for an order of dependencies in setup.py
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``shellcheck``                        Checks shell files with shellcheck.
+----------------------------------- ---------------------------------------------------------------- ------------
+``sort-in-the-wild``                  Sort INTHEWILD.md alphabetically.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``stylelint``                         Checks CSS files with stylelint.
 ----------------------------------- ---------------------------------------------------------------- ------------

@@ -240,9 +240,9 @@ class AutoMLBatchPredictOperator(BaseOperator):
         written. If a dict is provided, it must be of the same form as the protobuf message
         `google.cloud.automl_v1beta1.types.BatchPredictOutputConfig`
     :type output_config: Union[dict, ~google.cloud.automl_v1beta1.types.BatchPredictOutputConfig]
-    :param params: Additional domain-specific parameters for the predictions, any string must be up to
-        25000 characters long.
-    :type params: Optional[Dict[str, str]]
+    :param prediction_params: Additional domain-specific parameters for the predictions,
+        any string must be up to 25000 characters long.
+    :type prediction_params: Optional[Dict[str, str]]
     :param project_id: ID of the Google Cloud project where model is located if None then
         default project_id is used.
     :type project_id: str
@@ -287,7 +287,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
         output_config: dict,
         location: str,
         project_id: Optional[str] = None,
-        params: Optional[Dict[str, str]] = None,
+        prediction_params: Optional[Dict[str, str]] = None,
         metadata: Optional[MetaData] = None,
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
@@ -300,7 +300,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
         self.model_id = model_id
         self.location = location
         self.project_id = project_id
-        self.params = params  # type: ignore
+        self.prediction_params = prediction_params
         self.metadata = metadata
         self.timeout = timeout
         self.retry = retry
@@ -321,7 +321,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
             output_config=self.output_config,
             project_id=self.project_id,
             location=self.location,
-            params=self.params,
+            params=self.prediction_params,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,

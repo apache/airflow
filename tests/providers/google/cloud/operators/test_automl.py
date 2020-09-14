@@ -94,6 +94,7 @@ class TestAutoMLBatchPredictOperator(unittest.TestCase):
             input_config=INPUT_CONFIG,
             output_config=OUTPUT_CONFIG,
             task_id=TASK_ID,
+            prediction_params={},
         )
         op.execute(context=None)
         mock_hook.return_value.batch_predict.assert_called_once_with(

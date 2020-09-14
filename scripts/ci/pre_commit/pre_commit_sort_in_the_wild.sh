@@ -16,9 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-DOCS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-readonly DOCS_DIR
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-(cd "${DOCS_DIR}"/_build/html || exit;
-    python -m http.server 8000
-)
+INTHEWILD="${AIRFLOW_SOURCES}/INTHEWILD.md"
+readonly INTHEWILD
+
+export LC_ALL=C
+
+temp_file=$(mktemp)
+sed '/1\./q' "${INTHEWILD}" | head -n -1 >"${temp_file}"
+sed -n '/1\./p' "${INTHEWILD}" | sort >> "${temp_file}"
+
+cat "${temp_file}" > "${INTHEWILD}"
+
+rm  "${temp_file}"

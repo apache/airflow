@@ -87,6 +87,9 @@ function initialization::initialize_base_variables() {
     # If set to true, the database will be reset at entry. Works for Postgres and MySQL
     export DB_RESET=${DB_RESET:="false"}
 
+    # If set to true, the database will be initialized, a user created and webserver and scheduler started
+    export START_AIRFLOW=${START_AIRFLOW:="false"}
+
     # Read airflow version from the version.py
     AIRFLOW_VERSION=$(grep version "${AIRFLOW_SOURCES}/airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
     export AIRFLOW_VERSION
@@ -393,6 +396,7 @@ Basic variables:
 
     PYTHON_MAJOR_MINOR_VERSION: ${PYTHON_MAJOR_MINOR_VERSION}
     DB_RESET: ${DB_RESET}
+    START_AIRFLOW: ${START_AIRFLOW}
 
 DockerHub variables:
 
@@ -563,6 +567,8 @@ function initialization::make_constants_read_only() {
 
     readonly DB_RESET
     readonly VERBOSE
+
+    readonly START_AIRFLOW
 
     readonly PRODUCTION_IMAGE
 

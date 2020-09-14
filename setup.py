@@ -187,6 +187,8 @@ azure = [
     'azure-batch>=8.0.0',
     'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
+    'azure-identity>=1.3.1',
+    'azure-keyvault>=4.1.0',
     'azure-kusto-data>=0.0.43,<0.1',
     'azure-mgmt-containerinstance>=1.5.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
@@ -201,6 +203,7 @@ celery = [
     'celery~=4.4.2',
     'flower>=0.7.3, <1.0',
     'tornado>=4.2.0, <6.0',  # Dep of flower. Pin to a version that works on Py3.5.2
+    'vine~=1.3',  # https://stackoverflow.com/questions/32757259/celery-no-module-named-five
 ]
 cgroups = [
     'cgroupspy>=0.1.4',
@@ -247,7 +250,7 @@ facebook = [
     'facebook-business>=6.0.2',
 ]
 flask_oauth = [
-    'Flask-OAuthlib>=0.9.1',
+    'Flask-OAuthlib>=0.9.1,<0.9.6',  # Flask OAuthLib 0.9.6 requires Flask-Login 0.5.0 - breaks FAB
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
     'requests-oauthlib==1.1.0',
 ]
@@ -309,7 +312,6 @@ jira = [
 kerberos = [
     'pykerberos>=1.1.13',
     'requests_kerberos>=0.10.0',
-    'snakebite[kerberos]>=2.7.8',
     'thrift_sasl>=0.2.0',
 ]
 kubernetes = [
@@ -703,7 +705,7 @@ INSTALL_REQUIREMENTS = [
     'flask>=1.1.0, <2.0',
     'flask-appbuilder>2.3.4,~=3.0',
     'flask-caching>=1.3.3, <2.0.0',
-    'flask-login>=0.3, <1.0',
+    'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
     'flask-wtf>=0.14.2, <0.15',
     'funcsigs>=1.0.0, <2.0.0',
