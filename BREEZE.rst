@@ -1685,14 +1685,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all airflow-config-yaml bat-tests build check-apache-license check-builtin-literals
-                 check-executables-have-shebangs check-hooks-apply check-integrations
-                 check-merge-conflict check-xml debug-statements detect-private-key doctoc
-                 dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
-                 insert-license incorrect-use-of-LoggingMixin language-matters lint-dockerfile
-                 lint-openapi mixed-line-ending mypy pre-commit-descriptions pydevd python2-compile
-                 python2-fastcheck python-no-log-warn rst-backticks setup-order shellcheck
-                 sort-in-the-wild trailing-whitespace update-breeze-file update-extras
+                 all airflow-config-yaml base-operator bats-tests black build check-apache-license
+                 check-builtin-literals check-executables-have-shebangs check-hooks-apply
+                 check-integrations check-merge-conflict check-xml debug-statements
+                 detect-private-key doctoc dont-use-safe-filter end-of-file-fixer fix-encoding-pragma
+                 flake8 forbid-tabs insert-license incorrect-use-of-LoggingMixin language-matters
+                 lint-dockerfile lint-openapi mixed-line-ending mypy pre-commit-descriptions pydevd
+                 python2-compile python2-fastcheck python-no-log-warn rst-backticks setup-order
+                 shellcheck sort-in-the-wild trailing-whitespace update-breeze-file update-extras
                  update-local-yml-file yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
