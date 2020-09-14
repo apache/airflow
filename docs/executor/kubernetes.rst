@@ -71,7 +71,7 @@ If these fields do not exist, kubernetes can not load the yaml into a Kuberentes
 Airflow uses the ``pod_template_file`` by making certain assumptions about the structure of the template.
 When airflow creates the worker pod's command, it assumes that the airflow worker container part exists
 at the beginning of the container array. It then assumes that the container is named ``base``
-when it merges this pod with internal configs. you are more than welcome to create
+when it merges this pod with internal configs. You are more than welcome to create
 sidecar containers after this required container.
 
 With these requirements in mind, here are some examples of basic pod_template_file yaml files.
