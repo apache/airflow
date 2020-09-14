@@ -214,7 +214,8 @@ function push_pull_remove_images::push_prod_images() {
 
 # waits for an image to be available in the github registry
 function push_pull_remove_images::wait_for_github_registry_image() {
-    GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${GITHUB_REPOSITORY_LOWERCASE}"
+    github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
+    GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${github_repository_lowercase}"
     IMAGE_NAME="${1}"
     IMAGE_TAG=${2}
     echo "Waiting for ${IMAGE_NAME}:${IMAGE_TAG} image"
