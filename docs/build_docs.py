@@ -741,13 +741,6 @@ args = parser.parse_args()
 
 clean_files()
 
-check_guide_links_in_operator_descriptions()
-check_class_links_in_operators_and_hooks_ref()
-check_guide_links_in_operators_and_hooks_ref()
-check_enforce_code_block()
-check_exampleinclude_for_example_dags()
-check_google_guides()
-
 CHANNEL_INVITATION = """\
 If you need help, write to #documentation channel on Airflow's Slack.
 Channel link: https://apache-airflow.slack.com/archives/CJ1LVREHX
@@ -762,4 +755,10 @@ if not args.docs_only:
 
 if not args.spellcheck_only:
     build_sphinx_docs()
+    check_guide_links_in_operator_descriptions()
+    check_class_links_in_operators_and_hooks_ref()
+    check_guide_links_in_operators_and_hooks_ref()
+    check_enforce_code_block()
+    check_exampleinclude_for_example_dags()
+    check_google_guides()
     print_build_errors_and_exit("The documentation has errors.")
