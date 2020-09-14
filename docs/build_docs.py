@@ -581,8 +581,11 @@ def parse_spelling_warnings(warning_text: str) -> List[SpellingError]:
     for sphinx_warning in warning_text.split("\n"):
         if not sphinx_warning:
             continue
-        warning_parts = re.search(r"(.*):(\w*):\s\((\w*)\)\s?(\w*)\s?(.*)", sphinx_warning).groups()
-        if len(warning_parts) == 5:
+        warning_parts = None
+        match = re.search(r"(.*):(\w*):\s\((\w*)\)\s?(\w*)\s?(.*)", sphinx_warning)
+        if match:
+            warning_parts = match.groups()
+        if warning_parts and len(warning_parts) == 5:
             try:
                 sphinx_spelling_errors.append(
                     SpellingError(
