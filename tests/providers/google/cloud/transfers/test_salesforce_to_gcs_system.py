@@ -15,51 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from contextlib import contextmanager
-import json
 import os
 import pytest
 
-from airflow.exceptions import AirflowException
-from airflow.models import Connection
-from airflow.utils.process_utils import patch_environ
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+from tests.test_utils.salesforce_system_helpers import provide_salesforce_connection
 
 CREDENTIALS_DIR = os.environ.get('CREDENTIALS_DIR', '/files/airflow-breeze-config/keys')
 SALESFORCE_KEY = 'salesforce.json'
 SALESFORCE_CREDENTIALS_PATH = os.path.join(CREDENTIALS_DIR, SALESFORCE_KEY)
-CONFIG_REQUIRED_FIELDS = ["host", "login", "password", "security_token"]
-SALESFORCE_CONNECTION_ID = os.environ.get('FACEBOOK_CONNECTION_ID', 'salesforce_default')
-CONNECTION_TYPE = os.environ.get('CONNECTION_TYPE', 'http')
-
-
-@contextmanager
-def provide_facebook_connection(key_file_path: str):
-    """
-    Context manager that provides a temporary value of SALESFORCE_DEFAULT connection.
-
-    :param key_file_path: Path to file with SALESFORCE credentials .json file.
-    :type key_file_path: str
-    """
-    if not key_file_path.endswith(".json"):
-        raise AirflowException("Use a JSON key file.")
-    with open(key_file_path, 'r') as credentials:
-        creds = json.load(credentials)
-    missing_keys = CONFIG_REQUIRED_FIELDS - creds.keys()
-    if missing_keys:
-        message = "{missing_keys} fields are missing".format(missing_keys=missing_keys)
-        raise AirflowException(message)
-    conn = Connection(
-        conn_id=SALESFORCE_CONNECTION_ID,
-        conn_type=CONNECTION_TYPE,
-        host=creds["host"],
-        login=creds["login"],
-        password=creds["password"],
-        extra=json.dumps({"security_token": creds["security_token"]}),
-    )
-    with patch_environ({f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
-        yield
 
 
 @pytest.mark.backend("mysql", "postgres")
@@ -69,6 +34,6 @@ def provide_facebook_connection(key_file_path: str):
 @pytest.mark.system("salesforce")
 class TestSalesforceIntoGCSExample(GoogleSystemTest):
     @provide_gcp_context(GCP_BIGQUERY_KEY)
-    @provide_facebook_connection(SALESFORCE_CREDENTIALS_PATH)
+    @provide_salesforce_connection(SALESFORCE_CREDENTIALS_PATH)
     def test_run_example_dag_salesforce_to_gcs_operator(self):
         self.run_dag('example_salesforce_to_gcs', CLOUD_DAG_FOLDER)

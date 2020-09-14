@@ -107,6 +107,9 @@ class SalesforceToGcsOperator(BaseOperator):
 
             hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
             hook.upload(
-                bucket_name=self.bucket_name, object_name=self.object_name, filename=path, gzip=self.gzip,
+                bucket_name=self.bucket_name,
+                object_name=self.object_name,
+                filename=path,
+                gzip=self.gzip,
             )
             self.log.info("%s uploaded to GCS", path)

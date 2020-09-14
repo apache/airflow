@@ -48,7 +48,10 @@ with models.DAG(
     start_date=days_ago(1),
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=GCS_BUCKET, project_id=GCP_PROJECT_ID, gcp_conn_id=GCS_CONN_ID,
+        task_id="create_bucket",
+        bucket_name=GCS_BUCKET,
+        project_id=GCP_PROJECT_ID,
+        gcp_conn_id=GCS_CONN_ID,
     )
 
     # [START howto_operator_salesforce_to_gcs]
@@ -101,10 +104,16 @@ with models.DAG(
         use_legacy_sql=False,
     )
 
-    delete_bucket = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=GCS_BUCKET,)
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket",
+        bucket_name=GCS_BUCKET,
+    )
 
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset", project_id=GCP_PROJECT_ID, dataset_id=DATASET_NAME, delete_contents=True,
+        task_id="delete_dataset",
+        project_id=GCP_PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        delete_contents=True,
     )
 
     create_bucket >> gcs_upload_task >> load_csv
