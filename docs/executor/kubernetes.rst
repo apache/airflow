@@ -57,7 +57,7 @@ customizable.
 
 1. Airflow will overwrite the base container image and the pod name
 
-There are two points where airflow potentially overwrites the base image: in the airflow.cfg
+There are two points where Airflow potentially overwrites the base image: in the ``airflow.cfg``
 or the ``pod_override`` (discussed below) setting. This value is overwitten to ensure that users do
 not need to update multiple template files every time they upgrade their docker image. The other field
 that Airflow overwrites is the ``pod.metadata.name`` field. This field has to be unique across all pods,
