@@ -328,7 +328,10 @@ class AwsBaseHook(BaseHook):
         return session, None
 
     def get_client_type(
-        self, client_type: str, region_name: Optional[str] = None, config: Optional[Config] = None,
+        self,
+        client_type: str,
+        region_name: Optional[str] = None,
+        config: Optional[Config] = None,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
@@ -341,7 +344,10 @@ class AwsBaseHook(BaseHook):
         return session.client(client_type, endpoint_url=endpoint_url, config=config, verify=self.verify)
 
     def get_resource_type(
-        self, resource_type: str, region_name: Optional[str] = None, config: Optional[Config] = None,
+        self,
+        resource_type: str,
+        region_name: Optional[str] = None,
+        config: Optional[Config] = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
