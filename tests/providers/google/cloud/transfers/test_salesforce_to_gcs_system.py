@@ -66,6 +66,7 @@ def provide_facebook_connection(key_file_path: str):
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
 @pytest.mark.credential_file(SALESFORCE_KEY)
 @pytest.mark.system("google.cloud")
+@pytest.mark.system("salesforce")
 class TestSalesforceIntoGCSExample(GoogleSystemTest):
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     @provide_facebook_connection(SALESFORCE_CREDENTIALS_PATH)
