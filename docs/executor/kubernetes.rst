@@ -78,21 +78,21 @@ With these requirements in mind, here are some examples of basic pod_template_fi
 
 pod_template_file using the dag_in_image setting:
 
-.. exampleinclude:: /../airflow/kubernetes_executor_templates/dags_in_image_template.yaml
+.. exampleinclude:: /../airflow/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_image]
     :end-before: [END template_with_dags_in_image]
 
 pod_template_file which stores DAGs in a persistentVolume:
 
-.. exampleinclude:: /../airflow/kubernetes_executor_templates/dags_in_volume_template.yaml
+.. exampleinclude:: /../airflow/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_volume]
     :end-before: [END template_with_dags_in_volume]
 
 pod_template_file which pulls DAGs from git:
 
-.. exampleinclude:: /../airflow/kubernetes_executor_templates/git_sync_template.yaml
+.. exampleinclude:: /../airflow/kubernetes/pod_template_file_examples/git_sync_template.yaml
     :language: yaml
     :start-after:  [START git_sync_template]
     :end-before: [END git_sync_template]
