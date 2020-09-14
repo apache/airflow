@@ -20,9 +20,13 @@
 import json
 import tempfile
 import unittest
+from unittest import mock
 from unittest.mock import patch
 
+from parameterized import parameterized
+
 import kubernetes
+from airflow import AirflowException
 
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
@@ -115,3 +119,19 @@ class TestKubernetesHook(unittest.TestCase):
         kubernetes_hook_without_namespace = KubernetesHook(conn_id='kubernetes_default_kube_config')
         self.assertEqual(kubernetes_hook_with_namespace.get_namespace(), 'mock_namespace')
         self.assertEqual(kubernetes_hook_without_namespace.get_namespace(), 'default')
+
+
+class TestKubernetesHookIncorrectConfiguration(unittest.TestCase):
+    @parameterized.expand(
+        (
+            "kubernetes://?extra__kubernetes__kube_config_path=/tmp/&extra__kubernetes__kube_config=[1,2,3]",
+            "kubernetes://?extra__kubernetes__kube_config_path=/tmp/&extra__kubernetes__in_cluster=[1,2,3]",
+            "kubernetes://?extra__kubernetes__kube_config=/tmp/&extra__kubernetes__in_cluster=[1,2,3]",
+        )
+    )
+    def test_should_raise_exception_on_invalid_configuration(self, conn_uri):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri), self.assertRaisesRegex(
+            AirflowException, "Invalid connection configuration"
+        ):
+            kubernetes_hook = KubernetesHook()
+            kubernetes_hook.get_conn()

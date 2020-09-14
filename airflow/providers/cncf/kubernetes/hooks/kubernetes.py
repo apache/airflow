@@ -68,11 +68,20 @@ class KubernetesHook(BaseHook):
         """
         connection = self.get_connection(self.conn_id)
         extras = connection.extra_dejson
-
+        in_cluster = extras.get("extra__kubernetes__in_cluster")
         kubeconfig_path = extras.get("extra__kubernetes__kube_config_path")
         kubeconfig = extras.get("extra__kubernetes__kube_config")
+        num_selected_configuration = (
+            int(bool(kubeconfig_path)) + int(bool(kubeconfig)) + int(bool(in_cluster))
+        )
 
-        if extras.get("extra__kubernetes__in_cluster"):
+        if num_selected_configuration not in (0, 1):
+            raise AirflowException(
+                "Invalid connection configuration. Options extra__kubernetes__kube_config_path, "
+                "extra__kubernetes__kube_config, extra__kubernetes__in_cluster are mutually exclusive. "
+                "You can only use one option at a time."
+            )
+        if in_cluster:
             self.log.debug("loading kube_config from: in_cluster configuration")
             config.load_incluster_config()
             return client.ApiClient()
