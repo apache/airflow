@@ -71,11 +71,9 @@ class KubernetesHook(BaseHook):
         in_cluster = extras.get("extra__kubernetes__in_cluster")
         kubeconfig_path = extras.get("extra__kubernetes__kube_config_path")
         kubeconfig = extras.get("extra__kubernetes__kube_config")
-        num_selected_configuration = (
-            int(bool(kubeconfig_path)) + int(bool(kubeconfig)) + int(bool(in_cluster))
-        )
+        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
 
-        if num_selected_configuration not in (0, 1):
+        if num_selected_configuration > 1:
             raise AirflowException(
                 "Invalid connection configuration. Options extra__kubernetes__kube_config_path, "
                 "extra__kubernetes__kube_config, extra__kubernetes__in_cluster are mutually exclusive. "
