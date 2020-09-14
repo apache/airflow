@@ -160,12 +160,12 @@ For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/se
 In Airflow 2.0, the KubernetesExecutor will require a base pod template written in yaml. This file can exist
 anywhere on the host machine and will be linked using the `pod_template_file` configuration in the airflow.cfg.
 
-The airflow.cfg will still accept values for the `worker_container_repository`, the `worker_container_tag`, and
+The `airflow.cfg` will still accept values for the `worker_container_repository`, the `worker_container_tag`, and
 the default namespace.
 
-#### The executor_config Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks
+#### The `executor_config` Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks
 
-In airflow 1.10, users could modify task pods at runtime by passing a dictionary to the `executor_config` variable.
+In Airflow 1.10.x, users could modify task pods at runtime by passing a dictionary to the `executor_config` variable.
 Users will now have full access the Kubernetes API via the `kubernetes.client.models.V1Pod`.
 
 While in the deprecated version a user would mount a volume using the following dictionary:
@@ -232,7 +232,7 @@ but will be removed in a future version.
 
 ### Changes to the KubernetesPodOperator
 
-Much like the KubernetesExecutor, the KubernetesPodOperator will no longer take Airflow custom classes and will
+Much like the `KubernetesExecutor`, the `KubernetesPodOperator` will no longer take Airflow custom classes and will
 instead expect either a pod_template yaml file, or `kubernetes.client.models` objects.
 
 The one notable exception is that we will continue to support the `airflow.kubernetes.secret.Secret` class.
