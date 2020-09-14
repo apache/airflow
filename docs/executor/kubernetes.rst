@@ -47,7 +47,7 @@ pod_template_file
 #################
 
 As of Airflow 1.10.12, you can now use the ``pod_template_file`` option in the ``kubernetes`` section
-of their airflow.cfg to form the basis of your KubernetesExecutor pods. This process is faster to execute
+of the ``airflow.cfg`` file to form the basis of your KubernetesExecutor pods. This process is faster to execute
 and easier to modify.
 
 We include multiple examples of working pod operators below, but we would also like to explain a few necessary components
@@ -57,40 +57,40 @@ customizable.
 
 1. Airflow will overwrite the base container image and the pod name
 
-There are two points where airflow potentially overwrites the base image: in the airflow.cfg
+There are two points where Airflow potentially overwrites the base image: in the ``airflow.cfg``
 or the ``pod_override`` (discussed below) setting. This value is overwitten to ensure that users do
 not need to update multiple template files every time they upgrade their docker image. The other field
 that Airflow overwrites is the ``pod.metadata.name`` field. This field has to be unique across all pods,
 so we generate these names dynamically before launch.
 
 It's important to note while Airflow overwrites these fields, they **can not be left blank**.
-If these fields do not exist, kubernetes can not load the yaml into a Kuberentes V1Pod
+If these fields do not exist, kubernetes can not load the yaml into a Kuberentes V1Pod.
 
-2. Each airflow ``pod_template_file`` must have a container named "base" at the ``pod.spec.containers[0]`` position
+2. Each Airflow ``pod_template_file`` must have a container named "base" at the ``pod.spec.containers[0]`` position
 
 Airflow uses the ``pod_template_file`` by making certain assumptions about the structure of the template.
 When airflow creates the worker pod's command, it assumes that the airflow worker container part exists
 at the beginning of the container array. It then assumes that the container is named ``base``
-when it merges this pod with internal configs. you are more than welcome to create
+when it merges this pod with internal configs. You are more than welcome to create
 sidecar containers after this required container.
 
-With these requirements in mind, here are some examples of basic pod_template_file yaml files.
+With these requirements in mind, here are some examples of basic ``pod_template_file`` YAML files.
 
-pod_template_file using the dag_in_image setting:
+pod_template_file using the ``dag_in_image`` setting:
 
 .. exampleinclude:: /../airflow/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_image]
     :end-before: [END template_with_dags_in_image]
 
-pod_template_file which stores DAGs in a persistentVolume:
+``pod_template_file`` which stores DAGs in a ``persistentVolume``:
 
 .. exampleinclude:: /../airflow/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_volume]
     :end-before: [END template_with_dags_in_volume]
 
-pod_template_file which pulls DAGs from git:
+``pod_template_file`` which pulls DAGs from git:
 
 .. exampleinclude:: /../airflow/kubernetes/pod_template_file_examples/git_sync_template.yaml
     :language: yaml
