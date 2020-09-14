@@ -156,11 +156,11 @@ def display_spelling_error_summary() -> None:
     print("=" * 50)
     print()
     msg = """
-    If the spelling is correct, add the spelling to docs/spelling_wordlist.txt
-    or use the spelling directive.
-    Check https://sphinxcontrib-spelling.readthedocs.io/en/latest/customize.html#private-dictionaries
-    for more details.
-    """.strip()
+If the spelling is correct, add the spelling to docs/spelling_wordlist.txt
+or use the spelling directive.
+Check https://sphinxcontrib-spelling.readthedocs.io/en/latest/customize.html#private-dictionaries
+for more details.
+    """
     print(msg)
     print()
 
@@ -581,17 +581,16 @@ def parse_spelling_warnings(warning_text: str) -> List[SpellingError]:
     for sphinx_warning in warning_text.split("\n"):
         if not sphinx_warning:
             continue
-        warning_parts_file = sphinx_warning.split(":", 2)
-        if len(warning_parts_file) == 3:
+        warning_parts = re.search(r"(.*):(\w*):\s\((\w*)\)\s?(\w*)\s?(.*)", sphinx_warning).groups()
+        if len(warning_parts) == 5:
             try:
-                warning_parts_spelling = warning_parts_file[2].strip().split(' ', maxsplit=2)
                 sphinx_spelling_errors.append(
                     SpellingError(
-                        file_path=warning_parts_file[0],
-                        line_no=int(warning_parts_file[1]) if warning_parts_file[1] != 'None' else None,
-                        spelling=warning_parts_spelling[0].replace("(", "").replace(")", ""),
-                        suggestion=None if warning_parts_spelling[1] == '' else warning_parts_spelling[1],
-                        context_line=warning_parts_spelling[2],
+                        file_path=warning_parts[0],
+                        line_no=int(warning_parts[1]) if warning_parts[1] not in ('None', '') else None,
+                        spelling=warning_parts[2],
+                        suggestion=warning_parts[3] if warning_parts[3] else None,
+                        context_line=warning_parts[4],
                         message=sphinx_warning,
                     )
                 )
