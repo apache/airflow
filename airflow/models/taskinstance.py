@@ -34,7 +34,7 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
-from sqlalchemy.orm import reconstructor
+from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 
@@ -235,6 +235,14 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         Index('ti_state_lkp', dag_id, task_id, execution_date, state),
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
+    )
+
+    dag_model = relationship(
+        "DagModel",
+        primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
+        foreign_keys=dag_id,
+        uselist=False,
+        innerjoin=True,
     )
 
     def __init__(self, task, execution_date: datetime, state: Optional[str] = None):

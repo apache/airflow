@@ -30,7 +30,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Callable, Dict, KeysView, List, NamedTuple, Optional, Tuple
+from typing import Any, Callable, Dict, KeysView, List, NamedTuple, Optional, Union, cast
 
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 from sqlalchemy import or_
@@ -149,12 +149,12 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def result(self) -> Optional[Tuple[List[dict], int]]:
+    def result(self) -> Optional[int]:
         """
         A list of simple dags found, and the number of import errors
 
         :return: result of running SchedulerJob.process_file() if availlablle. Otherwise, none
-        :rtype: Optional[Tuple[List[dict], int]]
+        :rtype: Optional[int]
         """
         raise NotImplementedError()
 
@@ -280,7 +280,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._all_files_processed = True
 
         self._parent_signal_conn: Optional[MultiprocessingConnection] = None
-        self._collected_dag_buffer: List = []
 
         self._last_parsing_stat_received_at: float = time.monotonic()
 
@@ -421,11 +420,9 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
         processor_manager.start()
 
-    def harvest_serialized_dags(self) -> List[SerializedDAG]:
+    def heartbeat(self) -> None:
         """
-        Harvest DAG parsing results from result queue and sync metadata from stat queue.
-
-        :return: List of parsing result in SerializedDAG format.
+        Check if the DagFileProcessorManager process is alive, and process any pending messages
         """
         if not self._parent_signal_conn:
             raise ValueError("Process not started.")
@@ -436,20 +433,16 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             except (EOFError, ConnectionError):
                 break
             self._process_message(result)
-        serialized_dags = self._collected_dag_buffer
-        self._collected_dag_buffer = []
 
         # If it died unexpectedly restart the manager process
         self._heartbeat_manager()
-
-        return serialized_dags
 
     def _process_message(self, message):
         self.log.debug("Received message of type %s", type(message).__name__)
         if isinstance(message, DagParsingStat):
             self._sync_metadata(message)
         else:
-            self._collected_dag_buffer.append(SerializedDAG.from_dict(message))
+            raise RuntimeError(f"Unexpected message recieved of type {type(message).__name__}")
 
     def _heartbeat_manager(self):
         """
@@ -624,7 +617,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
         self._log = logging.getLogger('airflow.processor_manager')
 
-        self.waitables = {self._signal_conn: self._signal_conn}
+        self.waitables: Dict[Any, Union[MultiprocessingConnection, AbstractDagFileProcessorProcess]] = {
+            self._signal_conn: self._signal_conn,
+        }
 
     def register_exit_signals(self):
         """
@@ -724,11 +719,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 if not processor:
                     continue
 
-                serialized_dags = self._collect_results_from_processor(processor)
+                self._collect_results_from_processor(processor)
                 self.waitables.pop(sentinel)
                 self._processors.pop(processor.file_path)
-                for serialized_dag in serialized_dags:
-                    self._signal_conn.send(serialized_dag)
 
             self._refresh_dag_dir()
             self._find_zombies()  # pylint: disable=no-value-for-parameter
@@ -756,9 +749,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 self.wait_until_finished()
 
             # Collect anything else that has finished, but don't kick off any more processors
-            serialized_dags = self.collect_results()
-            for serialized_dag in serialized_dags:
-                self._signal_conn.send(serialized_dag)
+            self.collect_results()
 
             self._print_stat()
 
@@ -1039,22 +1030,23 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             while not processor.done:
                 time.sleep(0.1)
 
-    def _collect_results_from_processor(self, processor):
+    def _collect_results_from_processor(self, processor) -> None:
         self.log.debug("Processor for %s finished", processor.file_path)
         Stats.decr('dag_processing.processes')
         last_finish_time = timezone.utcnow()
 
         if processor.result is not None:
-            dags, count_import_errors = processor.result
+            count_import_errors = processor.result
         else:
             self.log.error(
                 "Processor for %s exited with return code %s.",
                 processor.file_path, processor.exit_code
             )
-            dags, count_import_errors = [], -1
+            count_import_errors = -1
 
         stat = DagFileStat(
-            num_dags=len(dags),
+            # TODO: Return number of dags, number of errors?
+            num_dags=0,
             import_errors=count_import_errors,
             last_finish_time=last_finish_time,
             last_duration=(last_finish_time - processor.start_time).total_seconds(),
@@ -1062,34 +1054,25 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         )
         self._file_stats[processor.file_path] = stat
 
-        return dags
-
-    def collect_results(self):
+    def collect_results(self) -> None:
         """
         Collect the result from any finished DAG processors
-
-        :return: a list of dicts that were produced by processors that
-            have finished since the last time this was called
-        :rtype: list[dict]
         """
-        # Collect all the DAGs that were found in the processed files
-        serialized_dags = []
-
         ready = multiprocessing.connection.wait(self.waitables.keys() - [self._signal_conn], timeout=0)
 
         for sentinel in ready:
-            processor = self.waitables[sentinel]
+            if sentinel is self._signal_conn:
+                continue
+            processor = cast(AbstractDagFileProcessorProcess, self.waitables[sentinel])
             self.waitables.pop(processor.waitable_handle)
             self._processors.pop(processor.file_path)
-            serialized_dags += self._collect_results_from_processor(processor)
+            self._collect_results_from_processor(processor)
 
         self.log.debug("%s/%s DAG parsing processes running",
                        len(self._processors), self._parallelism)
 
         self.log.debug("%s file paths queued for processing",
                        len(self._file_path_queue))
-
-        return serialized_dags
 
     def start_new_processes(self):
         """

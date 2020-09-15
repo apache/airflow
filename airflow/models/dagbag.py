@@ -30,6 +30,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, NamedTuple, Optional
 
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
+from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 from airflow import settings
@@ -42,6 +43,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
 from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
 
@@ -144,7 +146,8 @@ class DagBag(BaseDagBag, LoggingMixin):
     def dag_ids(self) -> List[str]:
         return list(self.dags.keys())
 
-    def get_dag(self, dag_id):
+    @provide_session
+    def get_dag(self, dag_id, session: Session = None):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
 
@@ -159,7 +162,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             from airflow.models.serialized_dag import SerializedDagModel
             if dag_id not in self.dags:
                 # Load from DB if not (yet) in the bag
-                self._add_dag_from_db(dag_id=dag_id)
+                self._add_dag_from_db(dag_id=dag_id, session=session)
                 return self.dags.get(dag_id)
 
             # If DAG is in the DagBag, check the following
@@ -173,7 +176,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             ):
                 sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(dag_id=dag_id)
                 if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
-                    self._add_dag_from_db(dag_id=dag_id)
+                    self._add_dag_from_db(dag_id=dag_id, session=session)
 
             return self.dags.get(dag_id)
 
@@ -183,7 +186,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         if dag_id in self.dags:
             dag = self.dags[dag_id]
             if dag.is_subdag:
-                root_dag_id = dag.parent_dag.dag_id
+                root_dag_id = dag.parent_dag.dag_id  # type: ignore
 
         # If DAG Model is absent, we can't check last_expired property. Is the DAG not yet synchronized?
         orm_dag = DagModel.get_current(root_dag_id)
@@ -192,7 +195,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         # If the dag corresponding to root_dag_id is absent or expired
         is_missing = root_dag_id not in self.dags
-        is_expired = (orm_dag.last_expired and dag.last_loaded < orm_dag.last_expired)
+        is_expired = (orm_dag.last_expired and dag and dag.last_loaded < orm_dag.last_expired)
         if is_missing or is_expired:
             # Reprocess source file
             found_dags = self.process_file(
@@ -205,10 +208,10 @@ class DagBag(BaseDagBag, LoggingMixin):
                 del self.dags[dag_id]
         return self.dags.get(dag_id)
 
-    def _add_dag_from_db(self, dag_id: str):
+    def _add_dag_from_db(self, dag_id: str, session: Session):
         """Add DAG to DagBag from DB"""
         from airflow.models.serialized_dag import SerializedDagModel
-        row = SerializedDagModel.get(dag_id)
+        row = SerializedDagModel.get(dag_id, session)
         if not row:
             raise ValueError(f"DAG '{dag_id}' not found in serialized_dag table")
 
@@ -525,6 +528,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         DAG.bulk_sync_to_db(self.dags.values())
         # Write Serialized DAGs to DB if DAG Serialization is turned on
         # Even though self.read_dags_from_db is False
-        if settings.STORE_SERIALIZED_DAGS:
+        if settings.STORE_SERIALIZED_DAGS or self.read_dags_from_db:
             self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
             SerializedDagModel.bulk_sync_to_db(self.dags.values())

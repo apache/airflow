@@ -26,6 +26,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship, synonym
 from sqlalchemy.orm.session import Session
 
+from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
@@ -36,7 +37,7 @@ from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, skip_locked
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -59,6 +60,8 @@ class DagRun(Base, LoggingMixin):
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
     conf = Column(PickleType)
+    # When a scheduler last attempted to schedule TIs for this DagRun
+    last_scheduling_decision = Column(UtcDateTime)
 
     dag = None
 
@@ -66,6 +69,7 @@ class DagRun(Base, LoggingMixin):
         Index('dag_id_state', dag_id, _state),
         UniqueConstraint('dag_id', 'execution_date'),
         UniqueConstraint('dag_id', 'run_id'),
+        Index('idx_last_scheduling_decision', last_scheduling_decision),
     )
 
     task_instances = relationship(
@@ -74,6 +78,8 @@ class DagRun(Base, LoggingMixin):
         foreign_keys=(dag_id, execution_date),
         backref=backref('dag_run', uselist=False),
     )
+
+    DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint('scheduler', 'max_dagruns_per_query', fallback=20)
 
     def __init__(
         self,
@@ -138,6 +144,43 @@ class DagRun(Base, LoggingMixin):
 
         self.id = dr.id
         self.state = dr.state
+
+    @classmethod
+    def next_dagruns_to_examine(
+        cls,
+        session: Session,
+        max_number: Optional[int] = None,
+    ):
+        """
+        Return the next DagRuns that the scheduler should attempt to schedule.
+
+        This will return zero or more DagRun rows that are row-level-locked with a "SELECT ... FOR UPDATE"
+        query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
+        the transaction is commited it will be unlocked.
+
+        :rtype: list[DagRun]
+        """
+        from airflow.models.dag import DagModel
+
+        if max_number is None:
+            max_number = cls.DEFAULT_DAGRUNS_TO_EXAMINE
+
+        # TODO: Bake this query, it is run _A lot_
+        query = session.query(cls).filter(
+            cls.state == State.RUNNING,
+            cls.run_type != DagRunType.BACKFILL_JOB.value
+        ).join(
+            DagModel,
+            DagModel.dag_id == cls.dag_id,
+        ).filter(
+            DagModel.is_paused.is_(False),
+            DagModel.is_active.is_(True),
+        ).order_by(
+            cls.last_scheduling_decision.nullsfirst(),
+            cls.execution_date,
+        ).limit(max_number).with_for_update(**skip_locked(of=cls, session=session))
+
+        return query
 
     @staticmethod
     @provide_session
@@ -311,6 +354,10 @@ class DagRun(Base, LoggingMixin):
         :return: ready_tis: the tis that can be scheduled in the current loop
         :rtype ready_tis: list[airflow.models.TaskInstance]
         """
+
+        start_dttm = timezone.utcnow()
+        self.last_scheduling_decision = start_dttm
+
         dag = self.get_dag()
         ready_tis: List[TI] = []
         tis = list(self.get_task_instances(session=session, state=State.task_states + (State.SHUTDOWN,)))
@@ -318,7 +365,6 @@ class DagRun(Base, LoggingMixin):
         for ti in tis:
             ti.task = dag.get_task(ti.task_id)
 
-        start_dttm = timezone.utcnow()
         unfinished_tasks = [t for t in tis if t.state in State.unfinished()]
         finished_tasks = [t for t in tis if t.state in State.finished() + [State.UPSTREAM_FAILED]]
         none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
@@ -341,6 +387,9 @@ class DagRun(Base, LoggingMixin):
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
+
+        # TODO[ha]: These callbacks shouldn't run in the scheduler loop - check if Kamil changed this to run
+        # via the dag processor!
 
         # if all roots finished and at least one failed, the run failed
         if not unfinished_tasks and any(
@@ -371,10 +420,6 @@ class DagRun(Base, LoggingMixin):
             self.set_state(State.RUNNING)
 
         self._emit_duration_stats_for_finished_state()
-
-        # todo: determine we want to use with_for_update to make sure to lock the run
-        session.merge(self)
-        session.commit()
 
         return ready_tis
 
@@ -492,12 +537,13 @@ class DagRun(Base, LoggingMixin):
                 session.add(ti)
 
         try:
-            session.commit()
+            session.flush()
         except IntegrityError as err:
             self.log.info(str(err))
             self.log.info('Hit IntegrityError while creating the TIs for '
                           f'{dag.dag_id} - {self.execution_date}.')
             self.log.info('Doing session rollback.')
+            # TODO[HA]: We probaly need to savepoint this so we can keep the transaction alive.
             session.rollback()
 
     @staticmethod

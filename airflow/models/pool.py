@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Iterable, Optional, Tuple, Union
 
 from sqlalchemy import Column, Integer, String, Text, func
 from sqlalchemy.orm.session import Session
@@ -81,7 +81,11 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def slots_stats(session: Session = None) -> Dict[str, PoolStats]:
+    def slots_stats(
+        *,
+        with_for_update: Union[bool, Dict] = False,
+        session: Session = None,
+    ) -> Dict[str, PoolStats]:
         """
         Get Pool stats (Number of Running, Queued, Open & Total tasks)
 
@@ -91,7 +95,15 @@ class Pool(Base):
 
         pools: Dict[str, PoolStats] = {}
 
-        pool_rows: Iterable[Tuple[str, int]] = session.query(Pool.pool, Pool.slots).all()
+        query = session.query(Pool.pool, Pool.slots)
+
+        if with_for_update:
+            if isinstance(with_for_update, bool):
+                query = query.with_for_update()
+            else:
+                query = query.with_for_update(**with_for_update)
+
+        pool_rows: Iterable[Tuple[str, int]] = query.all()
         for (pool_name, total_slots) in pool_rows:
             pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0, open=0)
 
