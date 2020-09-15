@@ -62,10 +62,12 @@ then
 fi
 ENV_TMP_FILE=$(mktemp)
 env > "${ENV_TMP_FILE}"
-cleanup() {
+
+function run_cli_tool::cleanup() {
     rm "${ENV_TMP_FILE}"
 }
-trap cleanup EXIT HUP INT TERM
+
+trap run_cli_tool::cleanup EXIT HUP INT TERM
 
 CONTAINER_ID="$(head -n 1 < /proc/self/cgroup | cut -d ":" -f 3 | cut -d "/" -f 3)"
 

@@ -102,7 +102,7 @@ if [[ ${CI:=} == "true" ]]; then
         echo
         echo "Dumping logs on error"
         echo
-        dump_airflow_logs
+        container_utils::dump_airflow_logs
     fi
 fi
 

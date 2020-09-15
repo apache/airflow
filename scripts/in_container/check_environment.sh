@@ -23,6 +23,19 @@ EXIT_CODE=0
 
 DISABLED_INTEGRATIONS=""
 
+#######################################################################################################
+#
+# Checks the status of a service
+#
+# Arguments:
+#   Service name
+#   Call, command to check the service status
+#   Max Checks
+#
+# Returns:
+#   None
+#
+#######################################################################################################
 function check_environment::check_service {
     INTEGRATION_NAME=$1
     CALL=$2
@@ -60,20 +73,50 @@ function check_environment::check_service {
     fi
 }
 
+#######################################################################################################
+#
+# Checks the status of an integration service
+#
+# Arguments:
+#   Integration name
+#   Call, command to check the service status
+#   Max Checks
+#
+# Used globals:
+#   DISABLED_INTEGRATIONS
+#
+# Returns:
+#   None
+#
+#######################################################################################################
 function check_environment::check_integration {
-    INTEGRATION_LABEL=$1
-    INTEGRATION_NAME=$2
-    CALL=$3
-    MAX_CHECK=${4:=1}
+    local integration_label=$1
+    local integration_name=$2
+    local call=$3
+    local max_check=${4:=1}
 
-    ENV_VAR_NAME=INTEGRATION_${INTEGRATION_NAME^^}
-    if [[ ${!ENV_VAR_NAME:=} != "true" ]]; then
-        DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${INTEGRATION_NAME}"
+    local env_var_name=INTEGRATION_${integration_name^^}
+    if [[ ${!env_var_name:=} != "true" ]]; then
+        DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${integration_name}"
         return
     fi
     check_service "${INTEGRATION_LABEL}" "${CALL}" "${MAX_CHECK}"
 }
 
+#######################################################################################################
+#
+# Status check for different db backends
+#
+# Arguments:
+#   Max Checks
+#
+# Used globals:
+#   BACKEND
+#
+# Returns:
+#   None for success and 1 for error.
+#
+#######################################################################################################
 function check_environment::check_db_backend {
     MAX_CHECK=${1:=1}
 
@@ -89,6 +132,17 @@ function check_environment::check_db_backend {
     fi
 }
 
+#######################################################################################################
+#
+# Resets the Airflow's meta db.
+#
+# Used globals:
+#   DB_RESET
+#   RUN_AIRFLOW_1_10
+#
+# Returns:
+#   0 if the db is reset, non-zero on error.
+#######################################################################################################
 function check_environment::resetdb_if_requested() {
     if [[ ${DB_RESET:="false"} == "true" ]]; then
         if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then

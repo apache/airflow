@@ -18,9 +18,11 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-setup_backport_packages
+container_utils::setup_backport_packages
 
 OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
+
+container_utils::add_trap "container_utils::in_container_fix_ownership" EXIT HUP INT TERM  # TODO(werbolis) removed? Check on master after rebase.
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
