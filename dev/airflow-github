@@ -121,14 +121,14 @@ def print_changelog(sections):
 @click.group()
 def cli():
     r"""
-    This tool should be used by Airflow Release Manager to verify what Github issue's
+    This tool should be used by Airflow Release Manager to verify what GitHub issue's
      were merged in the current working branch.
 
         airflow-github compare <target_version> <github_token>
     """
 
 
-@cli.command(short_help='Compare a Github target version against git merges')
+@cli.command(short_help='Compare a GitHub target version against git merges')
 @click.argument('target_version')
 @click.argument('github-token', envvar='GITHUB_TOKEN')
 @click.option('--previous-version',
@@ -189,7 +189,7 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
         num_cherrypicked, sum(num_uncherrypicked.values()), dict(num_uncherrypicked)))
 
 
-@cli.command(short_help='Build a CHANGELOG grouped by Github Issue type')
+@cli.command(short_help='Build a CHANGELOG grouped by GitHub Issue type')
 @click.argument('previous_version')
 @click.argument('target_version')
 @click.argument('github-token', envvar='GITHUB_TOKEN')
