@@ -364,7 +364,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         Creates a V1Pod based on user parameters. Note that a `pod` or `pod_template_file`
         will supercede all other values.
 
-        @return:
         """
         pod = pod_generator.PodGenerator(
             image=self.image,
