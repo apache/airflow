@@ -1125,11 +1125,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                        upstream: bool = False) -> None:
         """Sets relatives for the task or task list."""
 
-        try:
-            # Check if this is sequence
-            len(task_or_task_list)
+        if isinstance(task_or_task_list, Sequence):
             task_like_object_list = task_or_task_list
-        except TypeError:
+        else:
             task_like_object_list = [task_or_task_list]
 
         task_list: List["BaseOperator"] = [t.operator for t in task_like_object_list]
