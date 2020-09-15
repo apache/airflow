@@ -241,8 +241,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.name = self._set_name(name)
         self.termination_grace_period = termination_grace_period
         self.client: CoreV1Api = None
-
-        self.pod: k8s.V1Pod = self.create_pod()
+        self.pod: k8s.V1Pod = None
 
     @staticmethod
     def create_labels_for_pod(context) -> dict:
@@ -278,6 +277,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 client = kube_client.get_kube_client(cluster_context=self.cluster_context,
                                                      config_file=self.config_file)
 
+            self.pod = self.create_pod_request_obj()
             self.client = client
 
             # Add combination of labels to uniquely identify a running pod
@@ -359,7 +359,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         validate_key(name, max_length=220)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
 
-    def create_pod(self) -> k8s.V1Pod:
+    def create_pod_request_obj(self) -> k8s.V1Pod:
         """
         Creates a V1Pod based on user parameters. Note that a `pod` or `pod_template_file`
         will supercede all other values.
