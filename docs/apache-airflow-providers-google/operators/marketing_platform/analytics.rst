@@ -30,7 +30,7 @@ For more information about the Google Analytics 360 API check
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: /operators/_partials/prerequisite_tasks.rst
+.. include::/operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:GoogleAnalyticsListAccountsOperator:
 

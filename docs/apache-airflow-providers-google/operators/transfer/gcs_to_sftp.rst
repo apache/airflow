@@ -32,7 +32,7 @@ It runs over the SSH protocol. It supports the full security and authentication 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: /operators/_partials/prerequisite_tasks.rst
+.. include::/operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:GCSToSFTPOperator:
 
