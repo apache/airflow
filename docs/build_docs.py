@@ -450,7 +450,6 @@ MISSING_GOOGLE_DOC_GUIDES = {
     'mssql_to_gcs',
     'mysql_to_gcs',
     'postgres_to_gcs',
-    's3_to_gcs',
     'sql_to_gcs',
     'tasks',
 }
