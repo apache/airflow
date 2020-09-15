@@ -354,8 +354,6 @@ function initialization::initialize_github_variables() {
     export GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG:="latest"}
 
     export GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
-    GITHUB_REPOSITORY_LOWERCASE="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
-    export GITHUB_REPOSITORY_LOWERCASE
 
     # Used only in CI environment
     export GITHUB_TOKEN="${GITHUB_TOKEN=""}"
@@ -458,7 +456,6 @@ Detected GitHub environment:
     USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY}
     GITHUB_REGISTRY=${GITHUB_REGISTRY}
     GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
-    GITHUB_REPOSITORY_LOWERCASE=${GITHUB_REPOSITORY_LOWERCASE}
     GITHUB_USERNAME=${GITHUB_USERNAME}
     GITHUB_TOKEN=${GITHUB_TOKEN}
     GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE}
@@ -606,7 +603,6 @@ function initialization::make_constants_read_only() {
     readonly GITHUB_REGISTRY_PUSH_IMAGE_TAG
 
     readonly GITHUB_REPOSITORY
-    readonly GITHUB_REPOSITORY_LOWERCASE
     readonly GITHUB_TOKEN
     readonly GITHUB_USERNAME
 
