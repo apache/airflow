@@ -49,7 +49,7 @@ if [[ ${ONLY_RUN_QUARANTINED_TESTS:=} = "true" ]]; then
         fi
     else
         echo
-        echo "Github repository '${GITHUB_REPOSITORY}'. NOT Updating Quarantine Issue!"
+        echo "GitHub repository '${GITHUB_REPOSITORY}'. NOT Updating Quarantine Issue!"
         echo
     fi
 else
