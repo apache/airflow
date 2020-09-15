@@ -77,7 +77,7 @@ class PostgresHook(DbApiHook):
 
     def get_conn(self) -> connection:
         """
-        Establishes a connection to a postgresql database.
+        Establishes a connection to a postgres database.
         """
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
@@ -165,7 +165,7 @@ class PostgresHook(DbApiHook):
         """
         return cell
 
-    def get_iam_token(self, conn: connection) -> Tuple[str, str, int]:
+    def get_iam_token(self, conn: Connection) -> Tuple[str, str, int]:
         """
         Uses AWSHook to retrieve a temporary password to connect to Postgres
         or Redshift. Port is required. If none is provided, default is used for
