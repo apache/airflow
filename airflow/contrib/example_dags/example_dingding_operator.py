@@ -172,7 +172,7 @@ with DAG(
                     'actionURL': 'http://airflow.apache.org'
                 },
                 {
-                    'title': 'Airflow Github',
+                    'title': 'Airflow GitHub',
                     'actionURL': 'https://github.com/apache/airflow'
                 }
             ]
