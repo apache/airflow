@@ -121,7 +121,7 @@ class TestPluginsManager(unittest.TestCase):
             self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
             self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
 
-    def test_should_fail_on_register_plugin_with_incorrect_load(self):
+    def test_should_register_plugin(self):
         class TestNonPropertyHook(BaseHook):
             pass
 
@@ -140,7 +140,7 @@ class TestPluginsManager(unittest.TestCase):
             plugins_manager.register_plugin(AirflowTestPlugin)
             self.assertListEqual(plugins_manager.plugins, [AirflowTestPlugin])
 
-    def test_should_register_plugin(self):
+    def test_should_fail_on_register_plugin_with_incorrect_load(self):
         class AirflowTestPlugin(AirflowPlugin):
             name = "test_plugin"
 
