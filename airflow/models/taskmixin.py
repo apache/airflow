@@ -28,6 +28,13 @@ class TaskMixin:
     No type annotations due to cyclic imports.
     """
 
+    @property
+    def operator(self):
+        """
+        Returns underlying operator
+        """
+        raise NotImplementedError()
+
     @abstractmethod
     def set_upstream(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):
         """

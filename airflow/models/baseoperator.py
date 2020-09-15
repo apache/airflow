@@ -1115,27 +1115,22 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         else:
             item_set.add(item)
 
+    @property
+    def operator(self) -> "BaseOperator":
+        """Required by TaskMixin"""
+        return self
+
     def _set_relatives(self,
-                       task_or_task_list: Union['BaseOperator', Sequence['BaseOperator']],
+                       task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
                        upstream: bool = False) -> None:
         """Sets relatives for the task or task list."""
-        from airflow.models.xcom_arg import XComArg
 
-        if isinstance(task_or_task_list, XComArg):
-            # otherwise we will start to iterate over xcomarg
-            # because of the "list" check below
-            # with current XComArg.__getitem__ implementation
-            task_list = [task_or_task_list.operator]
-        else:
-            try:
-                task_list = list(task_or_task_list)  # type: ignore
-            except TypeError:
-                task_list = [task_or_task_list]  # type: ignore
+        try:
+            task_list = len(task_or_task_list)  # type: ignore
+        except TypeError:
+            task_list = [task_or_task_list]  # type: ignore
 
-            task_list = [
-                t.operator if isinstance(t, XComArg) else t
-                for t in task_list
-            ]
+        task_list: List["BaseOperator"] = [t.operator for t in task_list]
 
         for task in task_list:
             if not isinstance(task, BaseOperator):
@@ -1174,17 +1169,17 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 self.add_only_new(self._downstream_task_ids, task.task_id)
                 task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id)
 
-    def set_downstream(self, task_or_task_list: Union['BaseOperator', Sequence['BaseOperator']]) -> None:
+    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
         """
         Set a task or a task list to be directly downstream from the current
-        task.
+        task. Required by TaskMixin.
         """
         self._set_relatives(task_or_task_list, upstream=False)
 
-    def set_upstream(self, task_or_task_list: Union['BaseOperator', Sequence['BaseOperator']]) -> None:
+    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
         """
         Set a task or a task list to be directly upstream from the current
-        task.
+        task. Required by TaskMixin.
         """
         self._set_relatives(task_or_task_list, upstream=True)
 

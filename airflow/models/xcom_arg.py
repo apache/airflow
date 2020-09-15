@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator  # pylint: disable=R0401
@@ -94,7 +94,7 @@ class XComArg(TaskMixin):
 
     @property
     def operator(self) -> BaseOperator:
-        """Returns operator of this XComArg"""
+        """Returns operator of this XComArg. Required by TaskMixin"""
         return self._operator
 
     @property
@@ -102,17 +102,15 @@ class XComArg(TaskMixin):
         """Returns keys of this XComArg"""
         return self._key
 
-    def set_upstream(self, task_or_task_list: Union[BaseOperator, List[BaseOperator]]):
+    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]):
         """
-        Proxy to underlying operator set_upstream method
+        Proxy to underlying operator set_upstream method. Required by TaskMixin.
         """
         self.operator.set_upstream(task_or_task_list)
 
-    def set_downstream(
-        self, task_or_task_list: Union[BaseOperator, List[BaseOperator]]
-    ):
+    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]):
         """
-        Proxy to underlying operator set_downstream method
+        Proxy to underlying operator set_downstream method. Required by TaskMixin.
         """
         self.operator.set_downstream(task_or_task_list)
 
