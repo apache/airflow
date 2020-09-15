@@ -35,6 +35,7 @@ cluster using the [Helm](https://helm.sh) package manager.
 ## Installing the Chart
 
 To install this repository from source (using helm 3)
+
 ```bash
 kubectl create namespace airflow
 helm repo add stable https://charts.helm.sh/stable/
@@ -48,6 +49,7 @@ section lists the parameters that can be configured during installation.
 > **Tip**: List all releases using `helm list`
 
 ## Upgrading the Chart
+
 To upgrade the chart with the release name `airflow`:
 
 ```bash
@@ -90,6 +92,7 @@ helm upgrade airflow . \
 ```
 
 ## Mounting DAGS using Git-Sync side car without Persistence
+
 This option will use an always running Git-Sync side car on every scheduler,webserver and worker pods. The Git-Sync side car containers will sync DAGs from a git repository every configured number of seconds. If you are using the KubernetesExecutor, Git-sync will run as an initContainer on your worker pods.
 
 ```bash
@@ -102,6 +105,7 @@ helm upgrade airflow . \
 ```
 
 ## Mounting DAGS from an externally populated PVC
+
 In this approach, Airflow will read the DAGs from a PVC which has `ReadOnlyMany` or `ReadWriteMany` accessMode. You will have to ensure that the PVC is populated/updated with the required DAGs(this won't be handled by the chart). You can pass in the name of the  volume claim to the chart
 
 ```bash
@@ -213,11 +217,13 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `webserver.resources.limits.memory`                   | Memory Limit of webserver                                                                                    | `~`                                               |
 | `webserver.resources.requests.cpu`                    | CPU Request of webserver                                                                                     | `~`                                               |
 | `webserver.resources.requests.memory`                 | Memory Request of webserver                                                                                  | `~`                                               |
+| `webserver.service.annotations`                       | Annotations to be added to the webserver service                                                             | `{}`                                              |
 | `webserver.defaultUser`                               | Optional default airflow user information                                                                    | `{}`                                              |
-| `dags.persistence.*`                                  | Dag persistence configuration                                                                    | Please refer to `values.yaml`                                    |
-| `dags.gitSync.*`                                      | Git sync configuration                                                                   | Please refer to `values.yaml`                                    |
+| `dags.persistence.*`                                  | Dag persistence configuration                                                                                | Please refer to `values.yaml`                     |
+| `dags.gitSync.*`                                      | Git sync configuration                                                                                       | Please refer to `values.yaml`                     |
 | `multiNamespaceMode`                                  | Whether the KubernetesExecutor can launch pods in multiple namespaces                                        | `False`                                           |
 | `serviceAccountAnnottions.*`                          | Map of annotations for worker, webserver, scheduler kubernetes service accounts                              | {}                                                |
+
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example,
 
