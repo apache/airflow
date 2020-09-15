@@ -108,8 +108,10 @@ function initialization::initialize_base_variables() {
 # Determine current branch
 function initialization::initialize_branch_variables() {
     # Default branch used - this will be different in different branches
-    export DEFAULT_BRANCH="v1-10-test"
-    export DEFAULT_CONSTRAINTS_BRANCH="constraints-1-10"
+    export DEFAULT_BRANCH=${DEFAULT_BRANCH="v1-10-test"}
+    export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-1-10"}
+    readonly DEFAULT_BRANCH
+    readonly DEFAULT_CONSTRAINTS_BRANCH
 
     # Default branch name for triggered builds is the one configured in default branch
     # We need to read it here as it comes from _common_values.sh
