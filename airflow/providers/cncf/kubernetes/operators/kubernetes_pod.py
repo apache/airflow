@@ -424,22 +424,21 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             )
             self.labels.update(labels)
             self.pod.metadata.labels = self.labels
-        pod = self.pod
-        self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod.to_dict()))
+        self.log.debug("Starting pod:\n%s", yaml.safe_dump(self.pod.to_dict()))
         try:
             launcher.start_pod(
                 self.pod,
                 startup_timeout=self.startup_timeout_seconds)
-            final_state, result = launcher.monitor_pod(pod=pod, get_logs=self.get_logs)
+            final_state, result = launcher.monitor_pod(pod=self.pod, get_logs=self.get_logs)
         except AirflowException:
             if self.log_events_on_failure:
-                for event in launcher.read_pod_events(pod).items:
+                for event in launcher.read_pod_events(self.pod).items:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
             raise
         finally:
             if self.is_delete_operator_pod:
-                launcher.delete_pod(pod)
-        return final_state, pod, result
+                launcher.delete_pod(self.pod)
+        return final_state, self.pod, result
 
     def monitor_launched_pod(self, launcher, pod) -> Tuple[State, Optional[str]]:
         """
