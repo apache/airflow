@@ -1070,17 +1070,32 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         :param session: SQLAlchemy ORM Session
         :type session: Session
         """
-        task = self.task
-        self.test_mode = test_mode
-        self.refresh_from_task(task, pool_override=pool)
-        self.refresh_from_db(session=session)
-        self.job_id = job_id
-        self.hostname = get_hostname()
-
-        context = {}  # type: Dict
-        actual_start_date = timezone.utcnow()
-        Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
+        # This try catch block needs to capture as much scope as possible to
+        # reduce chance of running into the following race condition:
+        #
+        # * Task state got updated to running from caller of _run_raw_task
+        # * Task state got updated to fail/success externally, e.g. web ui
+        # * Right before we enter the try block, local_task_job detected the
+        #   external state change and sends out sigterm
+        # * Because we haven't entered the try block yet, AirflowException will
+        #   crash the task run immediately, preventing us from handling the
+        #   signal properly
+        #
+        # To competely get rid this race condition, we need to start catching
+        # AirflowException before local_task_job started checking for external
+        # task state change in heartbeat, which requires a bit of refactoring.
         try:
+            task = self.task
+            self.test_mode = test_mode
+            self.refresh_from_task(task, pool_override=pool)
+            self.refresh_from_db(session=session)
+            self.job_id = job_id
+            self.hostname = get_hostname()
+
+            context = {}  # type: Dict
+            actual_start_date = timezone.utcnow()
+            Stats.incr('ti.start.{}.{}'.format(task.dag_id, task.task_id))
+
             if not mark_success:
                 context = self.get_template_context()
                 self._prepare_and_execute_task_with_callbacks(context, task)

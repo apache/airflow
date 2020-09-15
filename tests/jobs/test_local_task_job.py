@@ -446,6 +446,7 @@ class TestLocalTaskJob(unittest.TestCase):
         dag = DAG(dag_id='test_mark_success', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         def task_function(ti):
+            # pylint: disable=unused-argument
             time.sleep(60)
             # This should not happen -- the state change should be noticed and the task should get killed
             with shared_mem_lock:
@@ -476,7 +477,7 @@ class TestLocalTaskJob(unittest.TestCase):
         process.start()
         ti.refresh_from_db()
         for _ in range(0, 50):
-            time.sleep(0.1)
+            time.sleep(0.2)
             if ti.state == State.RUNNING:
                 break
             ti.refresh_from_db()
