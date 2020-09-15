@@ -512,7 +512,7 @@ class TaskInstance(Base, LoggingMixin):
         self.run_as_user = task.run_as_user
         self.max_tries = task.retries
         self.executor_config = task.executor_config
-        self.operator = task.__class__.__name__
+        self.operator = task.task_type
 
     @provide_session
     def clear_xcom_data(self, session=None):
