@@ -934,11 +934,15 @@ These integrations allow you to copy data from/to Google Cloud.
      - :doc:`How to use <howto/operator/amazon/aws/google_api_to_s3_transfer>`
      - :mod:`airflow.providers.amazon.aws.transfers.google_api_to_s3`
 
-   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+   * - Any Data Storage service
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/google/cloud/cloud_storage_transfer_service>`
-     - :mod:`airflow.providers.google.cloud.transfers.s3_to_gcs`,
-       :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
+     - :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
+
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/google/cloud/s3_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.transfers.s3_to_gcs`
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
