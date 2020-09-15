@@ -20,26 +20,26 @@ import os
 from airflow import models
 from airflow.operators.python import PythonOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.operators.s3_bucket import S3CreateBucketOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
+from airflow.providers.amazon.aws.operators.s3_bucket import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'gcp-project-id')
 S3BUCKET_NAME = os.environ.get('S3BUCKET_NAME', 'example-s3bucket-name')
 GCS_BUCKET = os.environ.get('GCP_GCS_BUCKET', 'example-gcsbucket-name')
-UPLOAD_FILENAME = os.environ.get('UPLOAD_FILENAME', 'example-file.txt')
+UPLOAD_FILE = '/tmp/example-file.txt'
 PREFIX = 'TESTS'
 
 
 def upload_file():
     """A callable to upload file to AWS bucket"""
     s3_hook = S3Hook()
-    s3_hook.load_file(filename=UPLOAD_FILENAME, key=PREFIX, bucket_name=S3BUCKET_NAME)
+    s3_hook.load_file(filename=UPLOAD_FILE, key=PREFIX, bucket_name=S3BUCKET_NAME)
 
 
 with models.DAG(
-    's3_to_gcs_transfer_dag',
+    'example_s3_to_gcs',
     schedule_interval=None,
     start_date=days_ago(2),
     tags=['example'],
@@ -57,8 +57,21 @@ with models.DAG(
     )
     # [START howto_transfer_s3togcs_operator]
     transfer_to_gcs = S3ToGCSOperator(
-        task_id='s3_to_gcs_task', bucket=S3BUCKET_NAME, prefix=PREFIX, dest_gcs=GCS_BUCKET
+        task_id='s3_to_gcs_task', bucket=S3BUCKET_NAME, prefix=PREFIX, dest_gcs="gs://" + GCS_BUCKET
     )
     # [END howto_transfer_s3togcs_operator]
 
-    create_s3_bucket >> upload_to_s3 >> create_gcs_bucket >> transfer_to_gcs
+    delete_s3_bucket = S3DeleteBucketOperator(
+        task_id='delete_s3_bucket', bucket_name=S3BUCKET_NAME, force_delete=True
+    )
+
+    delete_gcs_bucket = GCSDeleteBucketOperator(task_id='delete_gcs_bucket', bucket_name=GCS_BUCKET)
+
+    (
+        create_s3_bucket
+        >> upload_to_s3
+        >> create_gcs_bucket
+        >> transfer_to_gcs
+        >> delete_s3_bucket
+        >> delete_gcs_bucket
+    )
