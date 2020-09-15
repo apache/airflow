@@ -47,7 +47,7 @@ DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint('core', 'KILLED_TASK_CLEANUP_TI
 def reap_process_group(
     pgid: int,
     logger,
-    sig: signal.Signals = signal.SIGTERM,
+    sig: 'signal.Signals' = signal.SIGTERM,
     timeout: int = DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM,
 ) -> Dict[int, int]:
     """
