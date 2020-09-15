@@ -2441,7 +2441,7 @@ Airflow 1.10.0, 2018-08-03
 - [AIRFLOW-2200] Add snowflake operator with tests
 - [AIRFLOW-2178] Add handling on SLA miss errors
 - [AIRFLOW-2169] Fix type 'bytes' is not JSON serializable in python3
-- [AIRFLOW-2215] Pass environment to subproces.Popen in base_task_runner
+- [AIRFLOW-2215] Pass environment to subprocess.Popen in base_task_runner
 - [AIRFLOW-2253] Add Airflow CLI instrumentation
 - [AIRFLOW-2274] Fix Dataflow tests
 - [AIRFLOW-2269] Add Custom Ink as an Airflow user

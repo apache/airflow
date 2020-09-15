@@ -301,7 +301,6 @@ Reddit
 Redhat
 ReidentifyContentResponse
 Reinitialising
-Retrives
 Riccomini
 Roadmap
 Robinhood
@@ -628,7 +627,6 @@ dep
 deploymentUrl
 deps
 desc
-desecending
 deserialization
 deserialize
 deserialized
@@ -1043,7 +1041,6 @@ prestocmd
 prestodb
 prev
 profiler
-programatic
 programmatically
 projectId
 projectid
@@ -1211,7 +1208,6 @@ subpackages
 subpages
 subpartitioned
 subpath
-subproces
 subprocess
 subprocesses
 subquery
