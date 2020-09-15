@@ -335,6 +335,9 @@ function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Kubernetes
     CURRENT_KUBERNETES_VERSIONS+=("v1.18.6" "v1.17.5" "v1.16.9")
     export CURRENT_KUBERNETES_VERSIONS
+    # Currently supported backends
+    CURRENT_BACKENDS+=("sqlite" "postgres" "mysql")
+    export CURRENT_BACKENDS
     # Currently supported modes of Kubernetes
     CURRENT_KUBERNETES_MODES+=("image")
     export CURRENT_KUBERNETES_MODES

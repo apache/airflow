@@ -48,6 +48,8 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_pylint.sh
 # shellcheck source=scripts/ci/libraries/_runs.sh
 . "${LIBRARIES_DIR}"/_runs.sh
+# shellcheck source=scripts/ci/libraries/_selective_tests.sh
+. "${LIBRARIES_DIR}"/_selective_tests.sh
 # shellcheck source=scripts/ci/libraries/_spinner.sh
 . "${LIBRARIES_DIR}"/_spinner.sh
 # shellcheck source=scripts/ci/libraries/_start_end.sh

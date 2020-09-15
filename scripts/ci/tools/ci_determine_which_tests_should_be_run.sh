@@ -19,38 +19,17 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-CHANGED_FILES_PATTERNS=(
-    "^airflow"
-    "^.github/workflows/"
-    "^Dockerfile"
-    "^scripts"
-    "^chart"
-    "^setup.py"
-    "^tests"
-    "^kubernetes_tests"
-)
-readonly CHANGED_FILES_PATTERNS
 
-changed_files_regexp=""
 
-separator=""
-for PATTERN in "${CHANGED_FILES_PATTERNS[@]}"
-do
-    changed_files_regexp="${changed_files_regexp}${separator}${PATTERN}"
-    separator="|"
-done
 
-echo
-echo "GitHub SHA: ${COMMIT_SHA}"
-echo
+selective_tests::check_event_type
 
-set +e
-"${SCRIPTS_CI_DIR}/tools/ci_count_changed_files.sh" "${changed_files_regexp}"
-count_changed_files=$?
-set -e
+selective_tests::get_changed_files
 
-if [[ ${count_changed_files} == "0" ]]; then
-    echo "::set-output name=run-tests::false"
-else
-    echo "::set-output name=run-tests::true"
-fi
+selective_tests::check_scripts_changed
+
+selective_tests::enable_kubernetes_tests_if_changed
+
+selective_tests::check_providers_only_changed
+
+selective_tests::check_core_changed
