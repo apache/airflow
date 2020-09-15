@@ -49,6 +49,6 @@ subjects:
     namespace: {{ .Release.Namespace }}
 {{- end }}
   - kind: ServiceAccount
-    name: {{ .Release.Name }}-webserver-serviceaccount
+    name: {{ .Release.Name }}-webserver
     namespace: {{ .Release.Namespace }}
 {{- end }}
