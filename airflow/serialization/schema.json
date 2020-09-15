@@ -51,7 +51,7 @@
       "type": "string"
     },
     "dict": {
-      "description": "A python dictionary containing values of any type",
+      "description": "A Python dictionary containing values of any type",
       "type": "object"
     },
     "color": {

@@ -51,7 +51,7 @@ def prepare_virtualenv(
     requirements: List[str]
 ) -> str:
     """
-    Creates a virtual environment and installs the additional python packages
+    Creates a virtual environment and installs the additional Python packages
 
     :param venv_directory: The path for directory where the environment will be created
     :type venv_directory: str
@@ -60,7 +60,7 @@ def prepare_virtualenv(
     :param system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
     :type system_site_packages: bool
-    :param requirements: List of additional python packages
+    :param requirements: List of additional Python packages
     :type requirements: List[str]
     :return: Path to a binary file with Python in a virtual environment.
     :rtype: str
@@ -76,7 +76,7 @@ def prepare_virtualenv(
 
 def write_python_script(jinja_context: dict, filename: str):
     """
-    Renders the python script to a file to execute in the virtual environment.
+    Renders the Python script to a file to execute in the virtual environment.
 
     :param jinja_context: The jinja context variables to unpack and replace with its placeholders in the
         template file.

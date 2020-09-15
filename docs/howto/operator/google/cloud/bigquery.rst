@@ -296,7 +296,7 @@ To perform checks against BigQuery you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator`.
 
 This operator expects a sql query that will return a single row. Each value on
-that first row is evaluated using python ``bool`` casting. If any of the values
+that first row is evaluated using Python ``bool`` casting. If any of the values
 return ``False`` the check is failed and errors out.
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py

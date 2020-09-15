@@ -199,7 +199,7 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
@@ -233,7 +233,7 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
@@ -267,7 +267,7 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
@@ -335,7 +335,7 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -382,7 +382,7 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -429,7 +429,7 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -472,7 +472,7 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -514,7 +514,7 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -591,7 +591,7 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -634,7 +634,7 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -704,7 +704,7 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -743,7 +743,7 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -779,7 +779,7 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}

@@ -37,7 +37,7 @@ Password (required)
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in postgres
-    connection. The following parameters out of the standard python parameters
+    connection. The following parameters out of the standard Python parameters
     are supported:
 
     * ``sslmode`` - This option determines whether or with what priority a secure SSL

@@ -32,7 +32,7 @@ class PythonSensor(BaseSensorOperator):
     in the callable
 
     :param python_callable: A reference to an object that is callable
-    :type python_callable: python callable
+    :type python_callable: Python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function
     :type op_kwargs: dict

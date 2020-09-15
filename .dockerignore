@@ -94,7 +94,7 @@ airflow/www_rbac/node_modules
 # Exclude link to docs
 airflow/www/static/docs
 
-# Exclude python generated files
+# Exclude Python generated files
 **/__pycache__/
 **/*.py[cod]
 **/*$py.class

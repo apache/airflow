@@ -120,7 +120,7 @@ To create and initialize the local virtualenv:
 
 In case you have problems with installing airflow because of some requirements are not installable, you can
 try to install it with the set of working constraints (note that there are different constraint files
-for different python versions:
+for different Python versions:
 
    .. code-block:: bash
 

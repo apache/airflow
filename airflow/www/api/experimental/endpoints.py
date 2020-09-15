@@ -185,7 +185,7 @@ def info():
 @api_experimental.route('/dags/<string:dag_id>/code', methods=['GET'])
 @requires_authentication
 def get_dag_code(dag_id):
-    """Return python code of a given dag_id."""
+    """Return Python code of a given dag_id."""
     try:
         return get_code(dag_id)
     except AirflowException as err:

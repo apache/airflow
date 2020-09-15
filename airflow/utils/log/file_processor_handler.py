@@ -27,7 +27,7 @@ from airflow.utils.helpers import parse_template_string
 
 class FileProcessorHandler(logging.Handler):
     """
-    FileProcessorHandler is a python log handler that handles
+    FileProcessorHandler is a Python log handler that handles
     dag processor logs. It creates and delegates log handling
     to `logging.FileHandler` after receiving dag processor context.
 

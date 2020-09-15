@@ -236,7 +236,7 @@ def check_guide_links_in_operator_descriptions() -> None:
     # Extract operators for which there are existing .rst guides
     operator_names = find_existing_guide_operator_names()
 
-    # Extract all potential python modules that can contain operators
+    # Extract all potential Python modules that can contain operators
     python_module_paths = chain(
         glob(f"{ROOT_PACKAGE_DIR}/operators/*.py"),
         glob(f"{ROOT_PACKAGE_DIR}/sensors/*.py"),

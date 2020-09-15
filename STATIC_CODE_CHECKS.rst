@@ -92,7 +92,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``end-of-file-fixer``                 Makes sure that there is an empty line at the end.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``fix-encoding-pragma``               Removes encoding header from python files.
+``fix-encoding-pragma``               Removes encoding header from Python files.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``flake8``                            Runs flake8.                                                         *
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -104,7 +104,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``insert-license``                    Adds licenses for most file types.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``isort``                             Sorts imports in python files.
+``isort``                             Sorts imports in Python files.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``language-matters``                  Check for language that we do not accept as community
 ----------------------------------- ---------------------------------------------------------------- ------------

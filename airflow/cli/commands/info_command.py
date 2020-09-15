@@ -214,7 +214,7 @@ class AirflowInfo:
 
 
 class SystemInfo:
-    """Basic system and python information"""
+    """Basic system and Python information"""
 
     def __init__(self, anonymizer: Anonymizer):
         self.operating_system = OperatingSystem.get_current()

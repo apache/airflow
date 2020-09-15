@@ -155,7 +155,7 @@ The package can be removed using pip command:
 
     pip uninstall airflow_operators
 
-For more details on how to create to create and publish python packages,
+For more details on how to create to create and publish Python packages,
 see `Packaging Python Projects <https://packaging.python.org/tutorials/packaging-projects/>`_.
 
 
@@ -163,7 +163,7 @@ Adding directories to the path
 ------------------------------
 
 You can specify additional directories to be added to ``sys.path`` using the
-environment variable :envvar:`PYTHONPATH`. Start the python shell by providing
+environment variable :envvar:`PYTHONPATH`. Start the Python shell by providing
 the path to root of your project using the following command:
 
 .. code-block:: bash

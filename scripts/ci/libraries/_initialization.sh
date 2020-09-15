@@ -89,11 +89,11 @@ function initialization::initialize_base_variables() {
     # By default we build CI images but we can switch to production image with PRODUCTION_IMAGE="true"
     export PRODUCTION_IMAGE="false"
 
-    # All supported major/minor versions of python in all versions of Airflow
+    # All supported major/minor versions of Python in all versions of Airflow
     ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("2.7" "3.5" "3.6" "3.7" "3.8")
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
-    # Currently supported major/minor versions of python
+    # Currently supported major/minor versions of Python
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
@@ -328,7 +328,7 @@ function initialization::initialize_image_build_variables() {
 
     # Additional airflow extras on top of the default ones
     export ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS:=""}"
-    # Additional python dependencies on top of the default ones
+    # Additional Python dependencies on top of the default ones
     export ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS:=""}"
     # Use default DEV_APT_COMMAND
     export DEV_APT_COMMAND=""
@@ -465,10 +465,10 @@ function initialization::initialize_common_environment() {
 }
 
 function initialization::set_default_python_version_if_empty() {
-    # default version of python used to tag the "master" and "latest" images in DockerHub
+    # default version of Python used to tag the "master" and "latest" images in DockerHub
     export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.6
 
-    # default python Major/Minor version
+    # default Python Major/Minor version
     export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}}
 
 }

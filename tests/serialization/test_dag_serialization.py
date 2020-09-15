@@ -281,7 +281,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         def sorted_serialized_dag(dag_dict: dict):
             """
             Sorts the "tasks" list and "access_control" permissions in the
-            serialised dag python dictionary. This is needed as the order of
+            serialised dag Python dictionary. This is needed as the order of
             items should not matter but assertEqual would fail if the order of
             items changes in the dag dictionary
             """
@@ -716,7 +716,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         """
         Test that templated_fields exists for all Operators in Serialized DAG
 
-        Since we don't want to inflate arbitrary python objects (it poses a RCE/security risk etc.)
+        Since we don't want to inflate arbitrary Python objects (it poses a RCE/security risk etc.)
         we want check that non-"basic" objects are turned in to strings after deserializing.
         """
 

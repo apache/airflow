@@ -36,7 +36,7 @@ Here are some of the common causes:
 
 - Does the file containing your DAG contain the string "airflow" and "DAG" somewhere
   in the contents? When searching the DAG directory, Airflow ignores files not containing
-  "airflow" and "DAG" in order to prevent the DagBag parsing from importing all python
+  "airflow" and "DAG" in order to prevent the DagBag parsing from importing all Python
   files collocated with user's DAGs.
 
 - Is your ``start_date`` set properly? The Airflow scheduler triggers the
@@ -137,7 +137,7 @@ How can I create DAGs dynamically?
 Airflow looks in your ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
 in their global namespace and adds the objects it finds in the
 ``DagBag``. Knowing this all, we need is a way to dynamically assign
-variable in the global namespace. This is easily done in python using the
+variable in the global namespace. This is easily done in Python using the
 ``globals()`` function for the standard library, which behaves like a
 simple dictionary.
 

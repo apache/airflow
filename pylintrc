@@ -36,7 +36,7 @@ jobs=1
 # complex, nested conditions.
 limit-inference-results=100
 
-# List of plugins (as comma separated values of python modules names) to load,
+# List of plugins (as comma separated values of Python modules names) to load,
 # usually to register additional checkers.
 load-plugins=tests.airflow_pylint.do_not_use_asserts,tests.airflow_pylint.disable_checks_for_tests
 
@@ -172,7 +172,7 @@ enable=c-extension-no-member
 # (RP0004).
 evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10)
 
-# Template used to display messages. This is a python new-style format string
+# Template used to display messages. This is a Python new-style format string
 # used to format the message information. See doc for all details.
 #msg-template=
 

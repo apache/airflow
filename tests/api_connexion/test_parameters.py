@@ -42,7 +42,7 @@ class TestDateTimeParser(unittest.TestCase):
         datetime = format_datetime(self.default_time_2)
         datetime2 = timezone.parse(self.default_time_2)
         assert datetime == datetime2
-        assert datetime.isoformat() == self.default_time  # python uses +00:00 instead of Z
+        assert datetime.isoformat() == self.default_time  # Python uses +00:00 instead of Z
 
     def test_raises_400_for_invalid_arg(self):
         invalid_datetime = '2020-06-13T22:44:00P'

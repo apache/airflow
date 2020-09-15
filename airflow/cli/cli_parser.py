@@ -74,7 +74,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
                               'you run pip install 'apache-airflow[cncf.kubernetes]'"
                     raise ArgumentError(action, message)
             except Exception:  # pylint: disable=W0703
-                message = 'kubernetes subcommand requires that you pip install the kubernetes python client'
+                message = 'kubernetes subcommand requires that you pip install the kubernetes Python client'
                 raise ArgumentError(action, message)
 
         if action.choices is not None and value not in action.choices:

@@ -34,7 +34,7 @@ Port (optional)
     Specify the port in case of host be an URL.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in spark connection. The following parameters out of the standard python parameters are supported:
+    Specify the extra parameters (as json dictionary) that can be used in spark connection. The following parameters out of the standard Python parameters are supported:
 
     * ``queue`` - The name of the YARN queue to which the application is submitted.
     * ``deploy-mode`` - Whether to deploy your driver on the worker nodes (cluster) or locally as an external client (client).

@@ -39,7 +39,7 @@ Port (optional)
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in ssh
-    connection. The following parameters out of the standard python parameters
+    connection. The following parameters out of the standard Python parameters
     are supported:
 
     * ``key_file`` - Full Path of the private SSH Key file that will be used to connect to the remote_host.

@@ -46,7 +46,7 @@ Port (required)
 
 Extra (optional)
     The extra parameters (as json dictionary) that can be used in cassandra
-    connection. The following parameters out of the standard python parameters
+    connection. The following parameters out of the standard Python parameters
     are supported:
 
     * ``load_balancing_policy`` - This parameter specifies the load balancing policy to be used. There are four available policies:

@@ -31,7 +31,7 @@ docmark_re = re.compile(r"\s*#\s*\[(START|END)\s*[a-z_A-Z]+].*$", re.MULTILINE)
 
 class TrimDocMarkerFlagsTransform(SphinxTransform):
     """
-    Trim doc marker like ``# [START howto_concept]` from python code-blocks.
+    Trim doc marker like ``# [START howto_concept]` from Python code-blocks.
 
     Based on:
     https://github.com/sphinx-doc/sphinx/blob/master/sphinx/transforms/post_transforms/code.py
@@ -50,7 +50,7 @@ class TrimDocMarkerFlagsTransform(SphinxTransform):
 
     @staticmethod
     def is_pycode(node: nodes.literal_block) -> bool:
-        """Checks if the node is literal block of python"""
+        """Checks if the node is literal block of Python"""
         if node.rawsource != node.astext():
             return False  # skip parsed-literal node
 

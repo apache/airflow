@@ -159,7 +159,7 @@ def render_log_filename(ti, try_number, filename_template):
     :param ti: task instance
     :param try_number: try_number of the task
     :param filename_template: filename template, which can be jinja template or
-        python string template
+        Python string template
     """
     filename_template, filename_jinja_template = parse_template_string(filename_template)
     if filename_jinja_template:

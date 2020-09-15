@@ -78,7 +78,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         DAGs that create the smart sensor operators for whole cluster
     :type include_smart_sensor: bool
     :param read_dags_from_db: Read DAGs from DB if store_serialized_dags is ``True``.
-        If ``False`` DAGs are read from python files. This property is not used when
+        If ``False`` DAGs are read from Python files. This property is not used when
         determining whether or not to write Serialized DAGs, that is done by checking
         the config ``store_serialized_dags``.
     :type read_dags_from_db: bool
@@ -229,7 +229,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """
-        Given a path to a python module or zip file, this method imports
+        Given a path to a Python module or zip file, this method imports
         the module and look for dag objects within it.
         """
         integrate_dag_plugins()
@@ -423,7 +423,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             include_smart_sensor=conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
             safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
         """
-        Given a file path or a folder, this method looks for python modules,
+        Given a file path or a folder, this method looks for Python modules,
         imports them and adds them to the dagbag collection.
 
         Note that if a ``.airflowignore`` file is found while processing

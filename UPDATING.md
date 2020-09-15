@@ -1248,9 +1248,9 @@ where previously it returned None. Since it inherits from BaseOperator it will d
 
 #### `airflow.sensors.sql_sensor.SqlSensor`
 
-SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
+SQLSensor now consistent with Python `bool()` function and the `allow_null` parameter has been removed.
 
-It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That
+It will resolve after receiving any value  that is casted to `True` with Python `bool(value)`. That
 changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success
 criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
 behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
@@ -3042,12 +3042,12 @@ Once a logger has determined that a message needs to be processed, it is passed 
 
 Airflow's logging mechanism has been refactored to use Python’s built-in `logging` module to perform logging of the application. By extending classes with the existing `LoggingMixin`, all the logging will go through a central logger. Also the `BaseHook` and `BaseOperator` already extend this class, so it is easily available to do logging.
 
-The main benefit is easier configuration of the logging by setting a single centralized python file. Disclaimer; there is still some inline configuration, but this will be removed eventually. The new logging class is defined by setting the dotted classpath in your `~/airflow/airflow.cfg` file:
+The main benefit is easier configuration of the logging by setting a single centralized Python file. Disclaimer; there is still some inline configuration, but this will be removed eventually. The new logging class is defined by setting the dotted classpath in your `~/airflow/airflow.cfg` file:
 
 ```
 # Logging class
 # Specify the class that will specify the logging configuration
-# This class has to be on the python classpath
+# This class has to be on the Python classpath
 logging_config_class = my.path.default_local_settings.LOGGING_CONFIG
 ```
 

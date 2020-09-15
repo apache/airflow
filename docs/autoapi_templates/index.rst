@@ -418,7 +418,7 @@ All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
 
 Task Log Handlers
 -----------------
-Task log handlers are python log handlers that handles and reads task instance logs.
+Task log handlers are Python log handlers that handles and reads task instance logs.
 All task log handlers are derived from :class:`~airflow.utils.log.file_task_handler.FileTaskHandler`.
 
 .. toctree::

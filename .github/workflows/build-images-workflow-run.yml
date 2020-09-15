@@ -296,7 +296,7 @@ jobs:
         with:
           path: "main-airflow"
         if: steps.defaults.outputs.proceed == 'true'
-      - name: "Setup python"
+      - name: "Setup Python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}

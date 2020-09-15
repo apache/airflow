@@ -135,7 +135,7 @@ class TestPythonOperator(TestPythonBase):
         return self.run
 
     def test_python_operator_run(self):
-        """Tests that the python callable is invoked on task run."""
+        """Tests that the Python callable is invoked on task run."""
         task = PythonOperator(
             python_callable=self.do_run,
             task_id='python_operator',
@@ -1081,7 +1081,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         assert 'dill' in task.requirements
 
     def test_no_requirements(self):
-        """Tests that the python callable is invoked on task run."""
+        """Tests that the Python callable is invoked on task run."""
 
         def f():
             pass

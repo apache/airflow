@@ -19,7 +19,7 @@
 # Those are files that are mounted locally when mounting local sources is requested
 # By default not the whole airflow sources directory is mounted because there are often
 # artifacts created there (for example .egg-info files) that are breaking the capability
-# of running different python versions in Breeze. So we only mount what is needed by default.
+# of running different Python versions in Breeze. So we only mount what is needed by default.
 function local_mounts::generate_local_mounts_list {
     local prefix="$1"
     LOCAL_MOUNTS=(

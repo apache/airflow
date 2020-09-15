@@ -99,7 +99,7 @@ class BaseSerialization:
     @classmethod
     def from_dict(cls, serialized_obj: Dict[Encoding, Any]) -> \
             Union['BaseSerialization', dict, list, set, tuple]:
-        """Deserializes a python dict stored with type decorators and
+        """Deserializes a Python dict stored with type decorators and
         reconstructs all DAGs and operators it contains.
         """
         return cls._deserialize(serialized_obj)
@@ -660,7 +660,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def from_dict(cls, serialized_obj: dict) -> 'SerializedDAG':
-        """Deserializes a python dict in to the DAG and operators it contains."""
+        """Deserializes a Python dict in to the DAG and operators it contains."""
         ver = serialized_obj.get('__version', '<not present>')
         if ver != cls.SERIALIZER_VERSION:
             raise ValueError("Unsure how to deserialize version {!r}".format(ver))

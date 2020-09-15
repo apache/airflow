@@ -39,7 +39,7 @@ Port (optional)
     Port of host to connect to. Not user in ``JdbcOperator``.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in JDBC connection. The following parameters out of the standard python parameters are supported:
+    Specify the extra parameters (as json dictionary) that can be used in JDBC connection. The following parameters out of the standard Python parameters are supported:
 
     * ``conn_prefix`` - Used to build the connection url in ``SparkJDBCOperator``, added in front of host (``conn_prefix`` ``host`` [: ``port`` ] / ``schema``)
     * ``extra__jdbc__drv_clsname`` - Full qualified Java class name of the JDBC driver. For ``JdbcOperator``.

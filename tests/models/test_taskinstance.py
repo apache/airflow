@@ -609,7 +609,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         Test that task reschedules are handled properly
         """
-        # Return values of the python sensor callable, modified during tests
+        # Return values of the Python sensor callable, modified during tests
         done = False
         fail = False
 
@@ -704,7 +704,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         Test that task reschedules clearing are handled properly
         """
-        # Return values of the python sensor callable, modified during tests
+        # Return values of the Python sensor callable, modified during tests
         done = False
         fail = False
 

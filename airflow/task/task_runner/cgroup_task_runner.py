@@ -181,7 +181,7 @@ class CgroupTaskRunner(BaseTaskRunner):
         # TODO(plypaul) Monitoring the control file in the cgroup fs is better than
         # checking the return code here. The PR to use this is here:
         # https://github.com/plypaul/airflow/blob/e144e4d41996300ffa93947f136eab7785b114ed/airflow/contrib/task_runner/cgroup_task_runner.py#L43
-        # but there were some issues installing the python butter package and
+        # but there were some issues installing the Python butter package and
         # libseccomp-dev on some hosts for some reason.
         # I wasn't able to track down the root cause of the package install failures, but
         # we might want to revisit that approach at some other point.

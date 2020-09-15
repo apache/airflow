@@ -234,7 +234,7 @@
       default: "True"
     - name: dagbag_import_timeout
       description: |
-        How long before timing out a python file import
+        How long before timing out a Python file import
       version_added: ~
       type: string
       example: ~
@@ -474,7 +474,7 @@
       description: |
         Logging class
         Specify the class that will specify the logging configuration
-        This class has to be on the python classpath
+        This class has to be on the Python classpath
       version_added: ~
       type: string
       example: "my.path.default_local_settings.LOGGING_CONFIG"

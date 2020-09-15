@@ -443,7 +443,7 @@ class PodGenerator:
     @staticmethod
     def deserialize_model_dict(pod_dict: dict) -> k8s.V1Pod:
         """
-        Deserializes python dictionary to k8s.V1Pod
+        Deserializes Python dictionary to k8s.V1Pod
         @param pod_dict:
         @return:
         """

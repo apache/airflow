@@ -229,7 +229,7 @@ pip install apache-airflow==<VERSION>rc<X> \
   --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.6.txt"`
 ```
 
-Note that the constraints contain python version that you are installing it with.
+Note that the constraints contain Python version that you are installing it with.
 
 You can use any of the installation methods you prefer (you can even install it via the binary wheel
 downloaded from the SVN).

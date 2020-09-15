@@ -320,7 +320,7 @@ function build_images::print_build_info() {
 }
 
 function build_images::get_docker_image_names() {
-    # python image version to use
+    # Python image version to use
     export PYTHON_BASE_IMAGE_VERSION=${PYTHON_BASE_IMAGE_VERSION:=${PYTHON_MAJOR_MINOR_VERSION}}
 
     # Python base image to use
@@ -354,7 +354,7 @@ function build_images::get_docker_image_names() {
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 }
 
-# Prepares all variables needed by the CI build. Depending on the configuration used (python version
+# Prepares all variables needed by the CI build. Depending on the configuration used (Python version
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function build_images::prepare_ci_build() {
     export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
@@ -624,7 +624,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     fi
 }
 
-# Prepares all variables needed by the CI build. Depending on the configuration used (python version
+# Prepares all variables needed by the CI build. Depending on the configuration used (Python version
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function build_images::prepare_prod_build() {
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then

@@ -143,7 +143,7 @@ class PythonOperator(BaseOperator):
 
     def execute_callable(self):
         """
-        Calls the python callable with the given arguments.
+        Calls the Python callable with the given arguments.
 
         :return: the return value of the call.
         :rtype: any
@@ -156,7 +156,7 @@ class _PythonFunctionalOperator(BaseOperator):
     Wraps a Python callable and captures args/kwargs when called for execution.
 
     :param python_callable: A reference to an object that is callable
-    :type python_callable: python callable
+    :type python_callable: Python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function (templated)
     :type op_kwargs: dict
@@ -227,7 +227,7 @@ class _PythonFunctionalOperator(BaseOperator):
     @staticmethod
     def validate_python_callable(python_callable):
         """
-        Validate that python callable can be wrapped by operator.
+        Validate that Python callable can be wrapped by operator.
         Raises exception if invalid.
 
         :param python_callable: Python object to be validated
@@ -279,7 +279,7 @@ def task(
     """
     def wrapper(f: T):
         """
-        Python wrapper to generate PythonFunctionalOperator out of simple python functions.
+        Python wrapper to generate PythonFunctionalOperator out of simple Python functions.
         Used for Airflow functional interface
         """
         _PythonFunctionalOperator.validate_python_callable(f)
@@ -368,7 +368,7 @@ class PythonVirtualenvOperator(PythonOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:PythonVirtualenvOperator`
 
-    :param python_callable: A python function with no references to outside variables,
+    :param python_callable: A Python function with no references to outside variables,
         defined with def, which will be run in a virtualenv
     :type python_callable: function
     :param requirements: A list of requirements as specified in a pip install command

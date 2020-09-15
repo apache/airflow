@@ -43,7 +43,7 @@ You can use those variables when you try to reproduce the build locally.
 +=========================================+=============+=============+============+=================================================+
 |                                                           Basic variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``PYTHON_MAJOR_MINOR_VERSION``          |             |             |            | Major/Minor version of python used.             |
+| ``PYTHON_MAJOR_MINOR_VERSION``          |             |             |            | Major/Minor version of Python used.             |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``DB_RESET``                            |    false    |     true    |    true    | Determines whether database should be reset     |
 |                                         |             |             |            | at the container entry. By default locally      |
@@ -84,11 +84,11 @@ You can use those variables when you try to reproduce the build locally.
 | ``FORCE_PULL_IMAGES``                   |    true     |    true     |    true    | Determines if images are force-pulled,          |
 |                                         |             |             |            | no matter if they are already present           |
 |                                         |             |             |            | locally. This includes not only the             |
-|                                         |             |             |            | CI/PROD images but also the python base         |
-|                                         |             |             |            | images. Note that if python base images         |
+|                                         |             |             |            | CI/PROD images but also the Python base         |
+|                                         |             |             |            | images. Note that if Python base images         |
 |                                         |             |             |            | change, also the CI and PROD images             |
 |                                         |             |             |            | need to be fully rebuild unless they were       |
-|                                         |             |             |            | already built with that base python             |
+|                                         |             |             |            | already built with that base Python             |
 |                                         |             |             |            | image. This is false for local development      |
 |                                         |             |             |            | to avoid often pulling and rebuilding           |
 |                                         |             |             |            | the image. It is true for CI workflow in        |
@@ -429,8 +429,8 @@ committers so they can be used to do some housekeeping:
 The housekeeping is important - Python base images are refreshed with varying frequency (once every few months
 usually but sometimes several times per week) with the latest security and bug fixes.
 Those patch level images releases can occasionally break Airflow builds (specifically Docker image builds
-based on those images) therefore in PRs we only use latest "good" python image that we store in the
-private GitHub cache. The direct push/master builds are not using registry cache to pull the python images
+based on those images) therefore in PRs we only use latest "good" Python image that we store in the
+private GitHub cache. The direct push/master builds are not using registry cache to pull the Python images
 - they are directly pulling the images from DockerHub, therefore they will try the latest images
 after they are released and in case they are fine, CI Docker image is build and tests are passing -
 those jobs will push the base images to the private GitHub Registry so that they be used by subsequent
@@ -644,7 +644,7 @@ The image names follow the patterns:
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 | Image        | Name pattern               | Tag for format                 | Comment                                                                                    |
 +==============+============================+================================+============================================================================================+
-| Python image | python                     | <X.Y>-slim-buster-<RUN_ID>     | Base python image used by both production and CI image.                                    |
+| Python image | python                     | <X.Y>-slim-buster-<RUN_ID>     | Base Python image used by both production and CI image.                                    |
 |              |                            | <X.Y>-slim-buster-<COMMIT_SHA> | Python maintainer release new versions of those image with security fixes every few weeks. |
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 | CI image     | <BRANCH>-python<X.Y>-ci    | <RUN_ID>                       | CI image - this is the image used for most of the tests.                                   |
@@ -683,7 +683,7 @@ For example knowing that the CI build had 210056909 RUN_ID (you can find it from
 
 But you usually need to pass more variables amd complex setup if you want to connect to a database or
 enable some integrations. Therefore it is easiest to use `Breeze <BREEZE.rst>`_ for that. For example if
-you need to reproduce a MySQL environment with kerberos integration enabled for run 210056909, in python
+you need to reproduce a MySQL environment with kerberos integration enabled for run 210056909, in Python
 3.8 environment you can run:
 
 .. code-block:: bash

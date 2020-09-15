@@ -1232,7 +1232,7 @@ For example, don't run tasks without airflow owners:
       :end-before: [END example_cluster_policy_rule]
 
 If you have multiple checks to apply, it is best practice to curate these rules
-in a separate python module and have a single policy / task mutation hook that
+in a separate Python module and have a single policy / task mutation hook that
 performs multiple of these custom checks and aggregates the various error
 messages so that a single ``AirflowClusterPolicyViolation`` can be reported in
 the UI (and import errors table in the database).

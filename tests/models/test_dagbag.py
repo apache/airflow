@@ -117,7 +117,7 @@ class TestDagBag(unittest.TestCase):
             self.assertEqual(len(dagbag.dagbag_stats), 0)
 
     def test_safe_mode_disabled(self):
-        """With safe mode disabled, an empty python file should be discovered.
+        """With safe mode disabled, an empty Python file should be discovered.
         """
         with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as f:
             with conf_vars({('core', 'dags_folder'): self.empty_dir}):

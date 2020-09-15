@@ -651,7 +651,7 @@ tests whenever an operator/hook/sensor is added/modified in a given system.
   to complete), mark them with the ```@pytest.markers.long_running`` marker.
   Such tests are skipped by default unless you specify the ``--long-running`` flag to pytest.
 
-* The system test itself (python class) does not have any logic. Such a test runs
+* The system test itself (Python class) does not have any logic. Such a test runs
   the DAG specified by its ID. This DAG should contain the actual DAG logic
   to execute. Make sure to define the DAG in ``providers/<SYSTEM_NAME>/example_dags``. These example DAGs
   are also used to take some snippets of code out of them when documentation is generated. So, having these
@@ -752,7 +752,7 @@ This will:
 
 * install Airflow 1.10.9
 * restarts the whole environment (i.e. recreates metadata database from the scratch)
-* run Breeze with python 3.6 version
+* run Breeze with Python 3.6 version
 * reset the Airflow database
 * forward your local credentials to Breeze
 

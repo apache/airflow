@@ -204,7 +204,7 @@ for details.
 
 The First time you run Breeze, it pulls and builds a local version of Docker images.
 It pulls the latest Airflow CI images from `Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
-and uses them to build your local Docker images. Note that the first run (per python) might take up to 10
+and uses them to build your local Docker images. Note that the first run (per Python) might take up to 10
 minutes on a fast connection to start. Subsequent runs should be much faster.
 
 Once you enter the environment, you are dropped into bash shell of the Airflow container and you can
@@ -335,7 +335,7 @@ Managing CI environment:
 
 You can optionally reset database if specified as extra ``--db-reset`` flag and for CI image you can also
 start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
-chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
+chose which backend database should be used with ``--backend`` flag and Python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
 tmux session with three panes (one to monitor the scheduler, one for the webserver and one with a shell
@@ -353,7 +353,7 @@ Managing Prod environment (with ``--production-image`` flag):
     * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
 
 You can optionally reset database if specified as extra ``--db-reset`` flag. You can also
-chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
+chose which backend database should be used with ``--backend`` flag and Python version with ``--python`` flag.
 
 
 Manage and Interact with Kubernetes tests environment:
@@ -541,7 +541,7 @@ installation with selected extras and dependencies. Its tag follows the pattern 
 or ``apache/airflow:v1-10-test-python3.6``).
 
 However in many cases you want to add your own custom version of the image - with added apt dependencies,
-python dependencies, additional Airflow extras. Breeze's ``build-image`` command helps to build your own,
+Python dependencies, additional Airflow extras. Breeze's ``build-image`` command helps to build your own,
 customized variant of the image that contains everything you need.
 
 You can switch to building the production image by adding ``--production-image`` flag to the ``build_image``
@@ -570,7 +570,7 @@ This install additional pypi dependency - torchio in specified version.
         --additional-runtime-apt-deps "libasound2"
 
 This install additional apt dependencies - ``libasound2-dev`` in build image and ``libasound`` in the
-final image. Those are development dependencies that might be needed to build and use python packages added
+final image. Those are development dependencies that might be needed to build and use Python packages added
 via the ``--additional-python-deps`` flag. The ``dev`` dependencies are not installed in the final
 production image, they are only installed in the build "segment" of the production image that is used
 as an intermediate step to build the final image. Usually names of the ``dev`` dependencies end with ``-dev``
@@ -582,7 +582,7 @@ suffix and they need to also be paired with corresponding runtime dependency add
      ./breeze build-image --production-image --python 3.7 --additional-dev-deps "libasound2-dev" \
         --additional-runtime-apt-deps "libasound2"
 
-Same as above but uses python 3.7.
+Same as above but uses Python 3.7.
 
 .. raw:: html
 
@@ -716,7 +716,7 @@ Generating constraints
 
 Whenever setup.py gets modified, the CI master job will re-generate constraint files. Those constraint
 files are stored in separated orphan branches: ``constraints-master`` and ``constraint-1-10``.
-They are stored separately for each python version. Those are
+They are stored separately for each Python version. Those are
 constraint files as described in detail in the
 `<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
 
@@ -1243,7 +1243,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Additional extras to pass to build images The default is no additional extras.
 
   --additional-python-deps ADDITIONAL_PYTHON_DEPS
-          Additional python dependencies to use when building the images.
+          Additional Python dependencies to use when building the images.
 
   --dev-apt-command DEV_APT_COMMAND
           The basic command executed before dev apt deps are installed.
@@ -1427,7 +1427,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze generate-constraints [FLAGS]
 
         Generates pinned constraint files from setup.py. Those files are generated in files folder
-        - separate files for different python version. Those constraint files when pushed to orphan
+        - separate files for different Python version. Those constraint files when pushed to orphan
         constraint-master and constraint-1-10 branches are used to generate repeatable
         CI builds as well as run repeatable production image builds. You can use those constraints
         to predictably install released Airflow versions. This is mainly used to test the constraint
@@ -1756,7 +1756,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Additional extras to pass to build images The default is no additional extras.
 
   --additional-python-deps ADDITIONAL_PYTHON_DEPS
-          Additional python dependencies to use when building the images.
+          Additional Python dependencies to use when building the images.
 
   --dev-apt-command DEV_APT_COMMAND
           The basic command executed before dev apt deps are installed.
@@ -2219,7 +2219,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Additional extras to pass to build images The default is no additional extras.
 
   --additional-python-deps ADDITIONAL_PYTHON_DEPS
-          Additional python dependencies to use when building the images.
+          Additional Python dependencies to use when building the images.
 
   --dev-apt-command DEV_APT_COMMAND
           The basic command executed before dev apt deps are installed.

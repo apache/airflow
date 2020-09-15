@@ -24,7 +24,7 @@ Airflow has a simple plugin manager built-in that can integrate external
 features to its core by simply dropping files in your
 ``$AIRFLOW_HOME/plugins`` folder.
 
-The python modules in the ``plugins`` folder get imported,
+The Python modules in the ``plugins`` folder get imported,
 and **hooks**, **operators**, **sensors**, **macros** and web **views**
 get integrated to Airflow's main collections and become available for use.
 

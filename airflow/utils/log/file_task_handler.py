@@ -30,7 +30,7 @@ from airflow.utils.helpers import parse_template_string
 
 class FileTaskHandler(logging.Handler):
     """
-    FileTaskHandler is a python log handler that handles and reads
+    FileTaskHandler is a Python log handler that handles and reads
     task instance logs. It creates and delegates log handling
     to `logging.FileHandler` after receiving task instance context.
     It reads logs from task instance's host machine.
