@@ -62,6 +62,10 @@ howto/operator/gcp/translate.rst howto/operator/google/cloud/translate.rst
 howto/operator/gcp/translate_speech.rst howto/operator/google/cloud/translate_speech.rst
 howto/operator/gcp/video_intelligence.rst howto/operator/google/cloud/video_intelligence.rst
 howto/operator/gcp/vision.rst howto/operator/google/cloud/vision.rst
+
+# New URLs for CLI references
+cli-ref.rst cli-and-env-variables-ref.rst
+
 # Departments without a separate index yet
 howto/operator/google/suite/index.rst howto/operator/google/index.rst
 howto/operator/google/firebase/index.rst howto/operator/google/index.rst

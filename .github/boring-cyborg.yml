@@ -130,7 +130,7 @@ labelPRBasedOnFilePath:
     - airflow/bin/cli.py
     - airflow/cli/**/*.py
     - tests/cli/**/*.py
-    - docs/cli-ref.rst
+    - docs/cli-and-env-variables-ref.rst
     - docs/usage-cli.rst
 
   area:Lineage:
