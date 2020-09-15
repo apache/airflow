@@ -18,29 +18,32 @@
 # under the License.
 
 # Allowed values for the commands & flags used
-# Those cannot be made reaad-only as the breeze-complete must be re-sourceable
+# The values here should be synchronized with the ones in
+# the ./scripts/ci/libraries/_initialization.sh and it is verified
+# by the BATS tests automatically during pre-commit and CI
+# Those cannot be made read-only as the breeze-complete must be re-sourceable
 
 _breeze_allowed_python_major_minor_versions="2.7 3.5 3.6 3.7 3.8"
 _breeze_allowed_backends="sqlite mysql postgres"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap presto rabbitmq redis all"
-_breeze_allowed_kubernetes_modes="image git"
+_breeze_allowed_kubernetes_modes="image"
 _breeze_allowed_kubernetes_versions="v1.18.6 v1.17.5 v1.16.9"
 _breeze_allowed_helm_versions="v3.2.4"
 _breeze_allowed_kind_versions="v0.8.0"
-_breeze_allowed_mysql_versions="5.7 8"
+_breeze_allowed_mysql_versions="5.7"
 _breeze_allowed_postgres_versions="9.6 10"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell"
 
 # shellcheck disable=SC2034
 {
     # Default values for the commands & flags used
-    _breeze_default_backend="sqlite"
-    _breeze_default_kubernetes_mode="image"
-    _breeze_default_kubernetes_version="v1.18.6"
-    _breeze_default_kind_version="v0.8.0"
-    _breeze_default_helm_version="v3.2.4"
-    _breeze_default_postgres_version="9.6"
-    _breeze_default_mysql_version="5.7"
+    _breeze_default_backend=$(echo "${_breeze_allowed_backends}" | awk '{print $1}')
+    _breeze_default_kubernetes_mode=$(echo "${_breeze_allowed_kubernetes_modes}" | awk '{print $1}')
+    _breeze_default_kubernetes_version=$(echo "${_breeze_allowed_kubernetes_versions}" | awk '{print $1}')
+    _breeze_default_helm_version=$(echo "${_breeze_allowed_helm_versions}" | awk '{print $1}')
+    _breeze_default_kind_version=$(echo "${_breeze_allowed_kind_versions}" | awk '{print $1}')
+    _breeze_default_postgres_version=$(echo "${_breeze_allowed_postgres_versions}" | awk '{print $1}')
+    _breeze_default_mysql_version=$(echo "${_breeze_allowed_mysql_versions}" | awk '{print $1}')
 }
 
 _breeze_allowed_install_airflow_versions=$(cat <<-EOF

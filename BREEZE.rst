@@ -1601,7 +1601,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --mysql-version <MYSQL_VERSION>
           Mysql version used. One of:
 
-                 5.7 8
+                 5.7
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1926,7 +1926,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --mysql-version <MYSQL_VERSION>
           Mysql version used. One of:
 
-                 5.7 8
+                 5.7
 
   ****************************************************************************************************
    Enable production image
@@ -1971,7 +1971,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes mode - only used in case one of kind-cluster commands is used.
           One of:
 
-                 image git
+                 image
 
           Default: image
 
