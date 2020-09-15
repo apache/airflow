@@ -59,7 +59,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'LogModelView',
         'Docs',
         'Documentation',
-        'Github',
+        'GitHub',
         'About',
         'Version',
         'VersionView',

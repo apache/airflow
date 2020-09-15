@@ -305,7 +305,7 @@ Note that you need to set "CI" variable to true in order to get the same results
 +------------------------------+----------------------+-----------------------------------------------------+
 
 
-Github Registry Variables
+GitHub Registry Variables
 =========================
 
 Our CI uses GitHub Registry to pull and push images to/from by default. You can however make it interact with
@@ -315,7 +315,7 @@ DockerHub registry or change the GitHub registry to interact with and use your o
 +--------------------------------+---------------------------+----------------------------------------------+
 | Variable                       | Default                   | Comment                                      |
 +================================+===========================+==============================================+
-| USE_GITHUB_REGISTRY            | true                      | If set to "true", we interact with Github    |
+| USE_GITHUB_REGISTRY            | true                      | If set to "true", we interact with GitHub    |
 |                                |                           | Registry registry not the DockerHub one.     |
 +--------------------------------+---------------------------+----------------------------------------------+
 | GITHUB_REGISTRY                | ``docker.pkg.github.com`` | DNS name of the GitHub registry to           |
@@ -417,7 +417,7 @@ whether it still builds, all tests are green.
 This is needed because some of the conflicting changes from multiple PRs might cause build and test failures
 after merge even if they do not fail in isolation. Also those runs are already reviewed and confirmed by the
 committers so they can be used to do some housekeeping:
-- pushing most recent image build in the PR to the Github Private Registry (for caching)
+- pushing most recent image build in the PR to the GitHub Private Registry (for caching)
 - upgrading to latest constraints and pushing those constraints if all tests succeed
 - refresh latest Python base images in case new patch-level is released
 
@@ -460,7 +460,7 @@ Build Images Workflow
 ---------------------
 
 This workflow has two purposes - it builds images for the CI Workflow but also it cancels duplicate or
-failed builds in order to save job time in Github Actions and allow for faster feedback for developers.
+failed builds in order to save job time in GitHub Actions and allow for faster feedback for developers.
 
 It's a special type of workflow: ``workflow_run`` which means that it is triggered by other workflows (in our
 case it is triggered by the ``CI Build`` workflow). This also means that the workflow has Write permission to
@@ -645,7 +645,7 @@ The image names follow the patterns:
 * <BRANCH> might be either "master" or "v1-10-test"
 * <X.Y> - Python version (Major + Minor). For "master" it should be in ["3.6", "3.7", "3.8"]. For
   v1-10-test it should be in ["2.7", "3.5", "3.6". "3.7", "3.8"].
-* <RUN_ID> - Github Actions RUN_ID. You can get it from CI action job outputs (run id is printed in
+* <RUN_ID> - GitHub Actions RUN_ID. You can get it from CI action job outputs (run id is printed in
   logs and displayed as part of the step name. All PRs belong to some RUN_ID and this way you can
   pull the very exact version of image used in that RUN_ID
 * <COMMIT_SHA> - for images that get merged to "master" of "v1-10-test" the images are also tagged

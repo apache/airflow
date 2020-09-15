@@ -356,7 +356,7 @@ function build_images::prepare_ci_build() {
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
         fi
-        # Github Registry names must be lowercase :(
+        # GitHub Registry names must be lowercase :(
         github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
         export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_CI_BASE_TAG}"
         export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
@@ -625,7 +625,7 @@ function build_images::prepare_prod_build() {
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
         fi
-        # Github Registry names must be lowercase :(
+        # GitHub Registry names must be lowercase :(
         github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
         export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}"
         export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}-build"
@@ -713,7 +713,7 @@ function build_images::build_prod_images() {
     fi
 }
 
-# Waits for image tag to appear in Github Registry, pulls it and tags with the target tag
+# Waits for image tag to appear in GitHub Registry, pulls it and tags with the target tag
 # Parameters:
 #  $1 - image name to wait for
 #  $2 - suffix of the image to wait for
