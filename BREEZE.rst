@@ -1001,7 +1001,7 @@ Managing Dependencies
 ---------------------
 
 If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
-add javascript dependencies in ``package.json``, you can either add dependencies temporarily for a single
+add JavaScript dependencies in ``package.json``, you can either add dependencies temporarily for a single
 Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
 
 Installing Dependencies for a Single Breeze Session
