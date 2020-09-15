@@ -957,6 +957,13 @@
       type: string
       example: ~
       default: "#007A87"
+    - name: navbar_title
+      description: |
+        Define the title text used in the navigation bar
+      version_added: ~
+      type: string
+      example: ~
+      default: "Airflow"
     - name: default_dag_run_display_number
       description: |
         Default dagrun to show in UI

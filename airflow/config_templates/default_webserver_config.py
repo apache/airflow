@@ -31,7 +31,7 @@ from airflow.configuration import conf
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 # The SQLAlchemy connection string.
-SQLALCHEMY_DATABASE_URI = conf.get('core', 'SQL_ALCHEMY_CONN')
+SQLALCHEMY_DATABASE_URI = conf.get("core", "SQL_ALCHEMY_CONN")
 
 # Flask-WTF flag for CSRF
 WTF_CSRF_ENABLED = True
@@ -99,7 +99,7 @@ AUTH_TYPE = AUTH_DB
 # Flask App Builder comes up with a number of predefined themes
 # that you can use for Apache Airflow.
 # http://flask-appbuilder.readthedocs.io/en/latest/customizing.html#changing-themes
-# Please make sure to remove "navbar_color" configuration from airflow.cfg
+# Please make sure to remove "navbar_color" and "navbar_title" configuration from airflow.cfg
 # in order to fully utilize the theme. (or use that property in conjunction with theme)
 # APP_THEME = "bootstrap-theme.css"  # default bootstrap
 # APP_THEME = "amelia.css"
