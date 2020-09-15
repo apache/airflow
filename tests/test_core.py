@@ -27,6 +27,7 @@ import os
 import re
 import signal
 
+import pytest
 import sqlalchemy
 import subprocess
 import tempfile
@@ -1740,6 +1741,7 @@ class TestCliWebServer(unittest.TestCase):
             with timeout(60):
                 self.assertEqual(0, proc.wait())
 
+    @pytest.mark.quarantined
     def test_cli_webserver_background(self):
         import psutil
         with TemporaryDirectory(prefix="gunicorn") as tmpdir, \
