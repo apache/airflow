@@ -198,7 +198,7 @@ class BaseSerialization:
                 return cls._encode(var.timestamp(), type_=DAT.DATETIME)
             elif isinstance(var, datetime.timedelta):
                 return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
-            elif isinstance(var, (Timezone)):
+            elif isinstance(var, Timezone):
                 return cls._encode(str(var.name), type_=DAT.TIMEZONE)
             elif isinstance(var, relativedelta.relativedelta):
                 encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
