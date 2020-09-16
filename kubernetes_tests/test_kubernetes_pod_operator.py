@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 import textwrap
 import unittest
 from unittest import mock
@@ -684,6 +685,20 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             }
         ]
         self.assertEqual(self.expected_pod, actual_pod)
+
+    def test_pod_template_file_system(self):
+        fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'
+        k = KubernetesPodOperator(
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            pod_template_file=fixture,
+            do_xcom_push=True
+        )
+
+        context = create_context(k)
+        result = k.execute(context)
+        self.assertIsNotNone(result)
+        self.assertDictEqual(result, {"hello": "world"})
 
     def test_init_container(self):
         # GIVEN

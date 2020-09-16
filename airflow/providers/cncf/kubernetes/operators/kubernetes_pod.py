@@ -20,6 +20,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import yaml
 from kubernetes.client import models as k8s
+from kubernetes.client import CoreV1Api
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
@@ -200,7 +201,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(resources=None, **kwargs)
 
-        self.pod = None
         self.do_xcom_push = do_xcom_push
         self.image = image
         self.namespace = namespace
@@ -240,7 +240,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.pod_template_file = pod_template_file
         self.name = self._set_name(name)
         self.termination_grace_period = termination_grace_period
-        self.client = None
+        self.client: CoreV1Api = None
+        self.pod: k8s.V1Pod = None
 
     @staticmethod
     def create_labels_for_pod(context) -> dict:
@@ -276,12 +277,15 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 client = kube_client.get_kube_client(cluster_context=self.cluster_context,
                                                      config_file=self.config_file)
 
+            self.pod = self.create_pod_request_obj()
             self.client = client
 
             # Add combination of labels to uniquely identify a running pod
             labels = self.create_labels_for_pod(context)
 
             label_selector = self._get_pod_identifying_label_string(labels)
+
+            self.namespace = self.pod.metadata.namespace
 
             pod_list = client.list_namespaced_pod(self.namespace, label_selector=label_selector)
 
@@ -355,24 +359,12 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         validate_key(name, max_length=220)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
 
-    def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:
+    def create_pod_request_obj(self) -> k8s.V1Pod:
         """
-        Creates a new pod and monitors for duration of task
+        Creates a V1Pod based on user parameters. Note that a `pod` or `pod_template_file`
+        will supersede all other values.
 
-        :param labels: labels used to track pod
-        :param launcher: pod launcher that will manage launching and monitoring pods
-        :return:
         """
-        if not (self.full_pod_spec or self.pod_template_file):
-            # Add Airflow Version to the label
-            # And a label to identify that pod is launched by KubernetesPodOperator
-            self.labels.update(
-                {
-                    'airflow_version': airflow_version.replace('+', '-'),
-                    'kubernetes_pod_operator': 'True',
-                }
-            )
-            self.labels.update(labels)
         pod = pod_generator.PodGenerator(
             image=self.image,
             namespace=self.namespace,
@@ -410,23 +402,42 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             self.volumes +  # type: ignore
             self.volume_mounts  # type: ignore
         )
+        return pod
 
-        self.pod = pod
-        self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod.to_dict()))
+    def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:
+        """
+        Creates a new pod and monitors for duration of task
+
+        :param labels: labels used to track pod
+        :param launcher: pod launcher that will manage launching and monitoring pods
+        :return:
+        """
+        if not (self.full_pod_spec or self.pod_template_file):
+            # Add Airflow Version to the label
+            # And a label to identify that pod is launched by KubernetesPodOperator
+            self.labels.update(
+                {
+                    'airflow_version': airflow_version.replace('+', '-'),
+                    'kubernetes_pod_operator': 'True',
+                }
+            )
+            self.labels.update(labels)
+            self.pod.metadata.labels = self.labels
+        self.log.debug("Starting pod:\n%s", yaml.safe_dump(self.pod.to_dict()))
         try:
             launcher.start_pod(
-                pod,
+                self.pod,
                 startup_timeout=self.startup_timeout_seconds)
-            final_state, result = launcher.monitor_pod(pod=pod, get_logs=self.get_logs)
+            final_state, result = launcher.monitor_pod(pod=self.pod, get_logs=self.get_logs)
         except AirflowException:
             if self.log_events_on_failure:
-                for event in launcher.read_pod_events(pod).items:
+                for event in launcher.read_pod_events(self.pod).items:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
             raise
         finally:
             if self.is_delete_operator_pod:
-                launcher.delete_pod(pod)
-        return final_state, pod, result
+                launcher.delete_pod(self.pod)
+        return final_state, self.pod, result
 
     def monitor_launched_pod(self, launcher, pod) -> Tuple[State, Optional[str]]:
         """
