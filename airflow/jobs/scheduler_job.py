@@ -22,6 +22,8 @@ import logging
 import multiprocessing
 import os
 import signal
+import textwrap
+
 import sys
 import threading
 import time
@@ -524,14 +526,40 @@ class DagFileProcessor(LoggingMixin):
             session.query(errors.ImportError).filter(
                 errors.ImportError.filename == dagbag_file
             ).delete()
+        # TODO how to keep state of which import errors we already alerted on
+        #  if always cleared? New table? Make this table keep history and update
+        #  logic using import errors table in UI?
 
+        import_errors = dict()
         # Add the errors of the processed files
         for filename, stacktrace in dagbag.import_errors.items():
             session.add(errors.ImportError(
                 filename=filename,
                 timestamp=timezone.utcnow(),
                 stacktrace=stacktrace))
+            import_errors[filename] = stacktrace
+
+        # TODO fix this will send very spammy emails on every scheduler loop.
+        if import_errors:
+            email_content = "Airflow saw a new import error in the following" \
+                            "files:\n"
+            for filename, stacktrace in import_errors:
+                email_content += textwrap.dedent(
+                    f"""\
+                    Import Error for <pre><code>{filename}</code></pre>:
+                    <pre><code>{stacktrace}</code></pre>
+
+                    """)
+            # TODO add callback function similar to sla miss
+            #  (e.g. user brings code to send slack notification)
+            send_email(
+              # TODO add docs for this configuration.
+              conf.get("email", "IMPORT_ERROR_ALERT_EMAIL"),
+              f"[airflow] Import Errors on {datetime.datetime.now()}",
+              email_content)
+
         session.commit()
+
 
     # pylint: disable=too-many-return-statements,too-many-branches
     @provide_session

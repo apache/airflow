@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Boolean, Column, Integer, String, Text
 
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -32,3 +32,4 @@ class ImportError(Base):  # pylint: disable=redefined-builtin
     timestamp = Column(UtcDateTime)
     filename = Column(String(1024))
     stacktrace = Column(Text)
+    email_sent = Column(Boolean, default=False)
