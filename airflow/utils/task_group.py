@@ -178,6 +178,7 @@ class TaskGroup:
         Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids.
         """
         from airflow.models.baseoperator import BaseOperator
+        from airflow.models.xcom_arg import XComArg
 
         if upstream:
             for task in self.get_roots():
@@ -198,11 +199,14 @@ class TaskGroup:
             parent.upstream_group_ids.add(child.group_id)
             child.downstream_group_ids.add(parent.group_id)
         else:
-            # Handles TaskGroup and task or list of tasks
-            try:
-                task_list = list(task_or_task_list)  # type: ignore
-            except TypeError:
-                task_list = [task_or_task_list]  # type: ignore
+            if isinstance(task_or_task_list, XComArg):
+                task_list = [task_or_task_list.operator]
+            else:
+                # Handles TaskGroup and task or list of tasks
+                try:
+                    task_list = list(task_or_task_list)  # type: ignore
+                except TypeError:
+                    task_list = [task_or_task_list]  # type: ignore
 
             for task in task_list:
                 if not isinstance(task, BaseOperator):

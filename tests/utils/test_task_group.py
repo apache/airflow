@@ -302,8 +302,7 @@ def test_build_task_group_with_task_decorator():
 
         tsk_5 = task_5()
 
-        tsk_1 >> group234
-        tsk_5 << group234
+        tsk_1 >> group234 >> tsk_5
 
     # pylint: disable=no-member
     assert tsk_1.operator in tsk_2.operator.upstream_list
