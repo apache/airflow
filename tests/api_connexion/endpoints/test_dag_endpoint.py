@@ -145,6 +145,13 @@ class TestGetDag(TestDagEndpoint):
         )
         assert response.status_code == 403
 
+    def test_should_response_403_with_granular_access_for_different_dag(self):
+        self._create_dag_models(3)
+        response = self.client.get(
+            "/api/v1/dags/TEST_DAG_2", environ_overrides={'REMOTE_USER': "test_granular_permissions"}
+        )
+        assert response.status_code == 403
+
 
 class TestGetDagDetails(TestDagEndpoint):
     def test_should_response_200(self):
@@ -254,7 +261,6 @@ class TestGetDags(TestDagEndpoint):
         response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
-
         self.assertEqual(
             {
                 "dags": [
@@ -291,6 +297,15 @@ class TestGetDags(TestDagEndpoint):
             },
             response.json,
         )
+
+    def test_should_response_200_with_granular_dag_access(self):
+        self._create_dag_models(3)
+        response = self.client.get(
+            "/api/v1/dags", environ_overrides={'REMOTE_USER': "test_granular_permissions"}
+        )
+        assert response.status_code == 200
+        assert len(response.json['dags']) == 1
+        assert response.json['dags'][0]['dag_id'] == 'TEST_DAG_1'
 
     @parameterized.expand(
         [
@@ -346,6 +361,13 @@ class TestGetDags(TestDagEndpoint):
         response = self.client.get("api/v1/dags")
 
         assert_401(response)
+
+    def test_should_response_403_unauthorized(self):
+        self._create_dag_models(1)
+
+        response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test_no_permissions"})
+
+        assert response.status_code == 403
 
 
 class TestPatchDag(TestDagEndpoint):
@@ -485,3 +507,15 @@ class TestPatchDag(TestDagEndpoint):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json['detail'], error_message)
+
+    def test_should_response_403_unauthorized(self):
+        dag_model = self._create_dag_model()
+        response = self.client.patch(
+            f"/api/v1/dags/{dag_model.dag_id}",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+
+        assert response.status_code == 403

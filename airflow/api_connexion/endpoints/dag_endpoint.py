@@ -64,7 +64,8 @@ def get_dags(session, limit, offset=0):
     """
     Get all DAGs.
     """
-    dags = session.query(DagModel).order_by(DagModel.dag_id).offset(offset).limit(limit).all()
+    readable_dags = current_app.appbuilder.sm.get_readable_dags()
+    dags = readable_dags.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
 
     total_entries = session.query(func.count(DagModel.dag_id)).scalar()
 

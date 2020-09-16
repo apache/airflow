@@ -34,6 +34,14 @@ def check_authentication() -> None:
         raise Unauthenticated(headers=response.headers)
 
 
+def can_access_some_dags(action: str) -> bool:
+    """Checks if user has read or write access to some dags."""
+    appbuilder = current_app.appbuilder
+    if action == 'can_read':
+        return any(appbuilder.sm.get_readable_dags())
+    return any(appbuilder.sm.get_editable_dags())
+
+
 def check_authorization(
     permissions: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[int] = None
 ) -> None:
@@ -47,10 +55,13 @@ def check_authorization(
         if permission in (('can_read', 'Dag'), ('can_edit', 'Dag')):
             action = permission[0]
             has_access_to_all_dags = appbuilder.sm.has_access(*permission)
-            has_access_to_this_dag = appbuilder.sm.has_access(action, dag_id)
-
-            if has_access_to_all_dags or has_access_to_this_dag:
+            if has_access_to_all_dags:
                 continue
+            if dag_id and appbuilder.sm.has_access(action, dag_id):
+                continue
+            if can_access_some_dags(action):
+                continue
+
             raise PermissionDenied()
 
         elif not appbuilder.sm.has_access(*permission):
