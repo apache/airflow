@@ -1741,12 +1741,15 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             dag_id=self.dag_id,
             execution_date=execution_date or self.execution_date)
 
+    @provide_session
     def xcom_pull(      # pylint: disable=inconsistent-return-statements
-            self,
-            task_ids: Optional[Union[str, Iterable[str]]] = None,
-            dag_id: Optional[str] = None,
-            key: str = XCOM_RETURN_KEY,
-            include_prior_dates: bool = False) -> Any:
+        self,
+        task_ids: Optional[Union[str, Iterable[str]]] = None,
+        dag_id: Optional[str] = None,
+        key: str = XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
+        session: Session = None
+    ) -> Any:
         """
         Pull XComs that optionally meet certain criteria.
 
@@ -1775,6 +1778,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             execution_date are returned. If True, XComs from previous dates
             are returned as well.
         :type include_prior_dates: bool
+        :param session: Sqlalchemy ORM Session
+        :type session: Session
         """
         if dag_id is None:
             dag_id = self.dag_id
@@ -1784,7 +1789,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             key=key,
             dag_ids=dag_id,
             task_ids=task_ids,
-            include_prior_dates=include_prior_dates
+            include_prior_dates=include_prior_dates,
+            session=session
         ).with_entities(XCom.value)
 
         # Since we're only fetching the values field, and not the
