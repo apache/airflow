@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,11 +22,12 @@
 # with the default configuration
 
 
-from queue import Queue
 import unittest
+from queue import Queue
 
 try:
     from avmesos.client import MesosClient
+
     from airflow.executors.mesos_executor import AirflowMesosScheduler, MesosExecutor
     mock_mesos = True
 except ImportError:

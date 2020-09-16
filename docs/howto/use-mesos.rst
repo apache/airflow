@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Scaling Out with Mesos (community contributed)
 ==============================================
@@ -36,7 +38,7 @@ steps -
 3. On the Airflow server, use a database (such as mysql) which can be accessed from all mesos
    slaves and add configuration in ``airflow.cfg``.
 4. Change your ``airflow.cfg`` to point executor parameter to
-   `MesosExecutor` and provide related Mesos settings.
+   ``MesosExecutor`` and provide related Mesos settings.
 5. On all mesos slaves, install airflow. Copy the ``airflow.cfg`` from
    Airflow server (so that it uses same sql alchemy connection).
 6. On all mesos slaves, run the following for serving logs:
@@ -73,7 +75,7 @@ Tasks executed in containers on mesos slaves
   The configuration block remains the same as the default airflow configuration (default_airflow.cfg), but has the addition of an option ``docker_image_slave``. This should be set to the name of the image you would like mesos to use when running airflow tasks. Make sure you have the proper configuration of the DNS record for your mesos master and any sort of authorization if any exists.
 
 3. Change your ``airflow.cfg`` to point the executor parameter to
-   `MesosExecutor` (`executor = SequentialExecutor`).
+   ``MesosExecutor`` (``executor = SequentialExecutor``).
 
 4. Make sure your mesos slave has access to the docker repository you are using for your ``docker_image_slave``.
 

@@ -298,7 +298,7 @@ class AirflowMesosScheduler(MesosClient):
             # The map may not contain an item if the framework re-registered
             # after a failover.
             # Discard these tasks.
-            self.log.warn("Unrecognised task key %s", update['status']['task_id']['value'])
+            self.log.warning("Unrecognised task key %s", update['status']['task_id']['value'])
             return
 
         if update['status']['state'] == "TASK_RUNNING":
@@ -331,8 +331,12 @@ class MesosExecutor(BaseExecutor):
     elastic distributed systems to easily be built and run effectively.
     See http://mesos.apache.org/
     """
-    class MesosFramework(threading.Thread):  # pylint: disable=missing-class-docstring
 
+
+    class MesosFramework(threading.Thread):
+        """
+        MesosFramework class to start the threading
+        """
         def __init__(self, client):
             threading.Thread.__init__(self)
             self.client = client
