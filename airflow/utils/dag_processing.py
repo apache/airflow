@@ -30,7 +30,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Any, Callable, Dict, KeysView, List, NamedTuple, Optional, Union, cast
+from typing import Any, Callable, Dict, KeysView, List, NamedTuple, Optional, Tuple, Union, cast
 
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 from sqlalchemy import or_
@@ -149,12 +149,12 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def result(self) -> Optional[int]:
+    def result(self) -> Optional[Tuple[int, int]]:
         """
         A list of simple dags found, and the number of import errors
 
         :return: result of running SchedulerJob.process_file() if availlablle. Otherwise, none
-        :rtype: Optional[int]
+        :rtype: Optional[Tuple[int, int]]
         """
         raise NotImplementedError()
 
@@ -1036,17 +1036,17 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         last_finish_time = timezone.utcnow()
 
         if processor.result is not None:
-            count_import_errors = processor.result
+            num_dags, count_import_errors = processor.result
         else:
             self.log.error(
                 "Processor for %s exited with return code %s.",
                 processor.file_path, processor.exit_code
             )
             count_import_errors = -1
+            num_dags = 0
 
         stat = DagFileStat(
-            # TODO: Return number of dags, number of errors?
-            num_dags=0,
+            num_dags=num_dags,
             import_errors=count_import_errors,
             last_finish_time=last_finish_time,
             last_duration=(last_finish_time - processor.start_time).total_seconds(),

@@ -98,7 +98,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         # The process that was launched to process the given .
         self._process: Optional[multiprocessing.process.BaseProcess] = None
         # The result of Scheduler.process_file(file_path).
-        self._result: Optional[int] = None
+        self._result: Optional[Tuple[int, int]] = None
         # Whether the process is done running.
         self._done = False
         # When the process started.
@@ -175,7 +175,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
 
                 log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
                 dag_file_processor = DagFileProcessor(dag_ids=dag_ids, log=log)
-                result: int = dag_file_processor.process_file(
+                result: Tuple[int, int] = dag_file_processor.process_file(
                     file_path=file_path,
                     pickle_dags=pickle_dags,
                     failure_callback_requests=failure_callback_requests,
@@ -334,7 +334,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         return False
 
     @property
-    def result(self) -> Optional[int]:
+    def result(self) -> Optional[Tuple[int, int]]:
         """
         :return: result of running SchedulerJob.process_file()
         :rtype: int or None
@@ -601,7 +601,7 @@ class DagFileProcessor(LoggingMixin):
         failure_callback_requests: List[FailureCallbackRequest],
         pickle_dags: bool = False,
         session: Session = None
-    ) -> int:
+    ) -> Tuple[int, int]:
         """
         Process a Python file containing Airflow DAGs.
 
@@ -627,8 +627,8 @@ class DagFileProcessor(LoggingMixin):
         :type pickle_dags: bool
         :param session: Sqlalchemy ORM Session
         :type session: Session
-        :return: count of import errors
-        :rtype: int
+        :return: number of dags found, count of import errors
+        :rtype: Tuple[int, int]
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
 
@@ -637,14 +637,14 @@ class DagFileProcessor(LoggingMixin):
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
-            return 0
+            return 0, 0
 
         if len(dagbag.dags) > 0:
             self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)
             self.update_import_errors(session, dagbag)
-            return len(dagbag.import_errors)
+            return 0, len(dagbag.import_errors)
 
         try:
             self.execute_on_failure_callbacks(dagbag, failure_callback_requests)
@@ -671,7 +671,7 @@ class DagFileProcessor(LoggingMixin):
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Error logging import errors!")
 
-        return len(dagbag.import_errors)
+        return len(dagbag.dags), len(dagbag.import_errors)
 
 
 class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
