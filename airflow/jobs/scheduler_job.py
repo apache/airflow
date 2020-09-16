@@ -1227,7 +1227,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                       "task says its %s. (Info: %s) Was the task killed externally?"
                 self.log.error(msg, ti, state, ti.state, info)
                 self.processor_agent.send_callback_to_execute(
-                    full_filepath=ti.dag_model.full_filepath,
+                    full_filepath=ti.dag_model.fileloc,
                     task_instance=ti,
                     msg=msg % (ti, state, ti.state, info),
                 )
