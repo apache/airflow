@@ -305,7 +305,7 @@ class WorkerConfiguration(LoggingMixin):
         return list(volume_mounts.values())
 
     def _get_volumes(self) -> List[k8s.V1Volume]:
-        def _construct_volume(name, claim, host) -> k8s.V1Volume:
+        def _construct_volume(name: str, claim: str = '', host: str = '') -> k8s.V1Volume:
             volume = k8s.V1Volume(name=name)
 
             if claim:

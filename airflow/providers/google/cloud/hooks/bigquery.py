@@ -1430,7 +1430,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         location: Optional[str] = None,
     ) -> Union[CopyJob, QueryJob, LoadJob, ExtractJob]:
         """
-        Retrives a BigQuery job. For more information see:
+        Retrieves a BigQuery job. For more information see:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
         :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),

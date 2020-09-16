@@ -20,6 +20,7 @@
 import logging
 
 from airflow import DAG
+from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator, get_current_context, task
 from airflow.utils.dates import days_ago
 
@@ -43,7 +44,7 @@ with DAG(
     default_args={'owner': 'airflow'},
     start_date=days_ago(2),
     schedule_interval=None,
-    tags=['example']
+    tags=['example'],
 ) as dag:
     task1 = PythonOperator(
         task_id='generate_value',
@@ -51,3 +52,18 @@ with DAG(
     )
 
     print_value(task1.output)
+
+
+with DAG(
+    "example_xcom_args_with_operators",
+    default_args={'owner': 'airflow'},
+    start_date=days_ago(2),
+    schedule_interval=None,
+    tags=['example'],
+) as dag2:
+    bash_op1 = BashOperator(task_id="c", bash_command="echo c")
+    bash_op2 = BashOperator(task_id="d", bash_command="echo c")
+    xcom_args_a = print_value("first!")  # type: ignore
+    xcom_args_b = print_value("second!")  # type: ignore
+
+    bash_op1 >> xcom_args_a >> xcom_args_b >> bash_op2

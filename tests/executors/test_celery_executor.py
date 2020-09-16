@@ -159,13 +159,14 @@ class TestCeleryExecutor(unittest.TestCase):
                 dag=DAG(dag_id='id'),
                 start_date=datetime.datetime.now()
             )
+            when = datetime.datetime.now()
             value_tuple = 'command', 1, None, \
                 SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.datetime.now()))
-            key = ('fail', 'fake_simple_ti', datetime.datetime.now(), 0)
+            key = ('fail', 'fake_simple_ti', when, 0)
             executor.queued_tasks[key] = value_tuple
             executor.heartbeat()
-        self.assertEqual(1, len(executor.queued_tasks))
-        self.assertEqual(executor.queued_tasks[key], value_tuple)
+        self.assertEqual(0, len(executor.queued_tasks), "Task should no longer be queued")
+        self.assertEqual(executor.event_buffer[('fail', 'fake_simple_ti', when, 0)][0], State.FAILED)
 
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self):

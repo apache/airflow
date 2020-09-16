@@ -238,7 +238,7 @@ from the latest sources so that we are sure that latest dependencies are install
 
 The production image is a multi-segment image. The first segment "airflow-build-image" contains all the
 build essentials and related dependencies that allow to install airflow locally. By default the image is
-build from a released version of Airflow from Github, but by providing some extra arguments you can also
+build from a released version of Airflow from GitHub, but by providing some extra arguments you can also
 build it from local sources. This is particularly useful in CI environment where we are using the image
 to run Kubernetes tests. See below for the list of arguments that should be provided to build
 production image from the local sources.
@@ -383,7 +383,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_BRANCH``                       | ``master``                               | the branch from which PIP dependencies   |
 |                                          |                                          | are pre-installed initially              |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_CONSTRAINTS_REFERENCE``        | ``constraints-master``                   | reference (branch or tag) from Github    |
+| ``AIRFLOW_CONSTRAINTS_REFERENCE``        | ``constraints-master``                   | reference (branch or tag) from GitHub    |
 |                                          |                                          | repository from which constraints are    |
 |                                          |                                          | used. By default it is set to            |
 |                                          |                                          | ``constraints-master`` but can be        |
@@ -450,7 +450,7 @@ production image. There are three types of build:
 |                                   | "==1.10.10"                       |
 +-----------------------------------+-----------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE`` | reference (branch or tag) from    |
-|                                   | Github where constraints file     |
+|                                   | GitHub where constraints file     |
 |                                   | is taken from. By default it is   |
 |                                   | ``constraints-master`` but can be |
 |                                   | ``constraints-1-10`` for 1.10.*   |
@@ -487,7 +487,7 @@ of 2.0 currently):
   docker build .
 
 This builds the production image in version 3.7 with default extras from 1.10.12 tag and
-constraints taken from constraints-1-10-12 branch in Github.
+constraints taken from constraints-1-10-12 branch in GitHub.
 
 .. code-block:: bash
 
@@ -501,7 +501,7 @@ constraints taken from constraints-1-10-12 branch in Github.
     --build-arg AIRFLOW_SOURCES_TO="/empty"
 
 This builds the production image in version 3.7 with default extras from 1.10.12 Pypi package and
-constraints taken from 1.10.12 tag in Github and pre-installed pip dependencies from the top
+constraints taken from 1.10.12 tag in GitHub and pre-installed pip dependencies from the top
 of v1-10-test branch.
 
 .. code-block:: bash

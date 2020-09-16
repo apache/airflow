@@ -154,7 +154,7 @@ class AirflowLink2(BaseOperatorLink):
 
 class GithubLink(BaseOperatorLink):
     """
-    Operator Link for Apache Airflow Github
+    Operator Link for Apache Airflow GitHub
     """
     name = 'github'
 

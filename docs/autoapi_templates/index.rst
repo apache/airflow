@@ -414,6 +414,7 @@ All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
   airflow/providers/amazon/aws/secrets/index
   airflow/providers/hashicorp/secrets/index
   airflow/providers/google/cloud/secrets/index
+  airflow/providers/microsoft/azure/secrets/index
 
 Task Log Handlers
 -----------------

@@ -402,11 +402,11 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
         files: \.py$
         pass_filenames: true
-      - id: bat-tests
+      - id: bats-tests
         name: Run BATS bash tests for changed bash files
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh"
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|.bats$
         pass_filenames: false
       - id: stylelint
         name: stylelint

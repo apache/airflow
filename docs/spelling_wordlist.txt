@@ -301,7 +301,6 @@ Reddit
 Redhat
 ReidentifyContentResponse
 Reinitialising
-Retrives
 Riccomini
 Roadmap
 Robinhood
@@ -578,6 +577,7 @@ csv
 ctor
 cubeName
 customDataImportUids
+customizable
 cx
 dabf
 dagBag
@@ -627,7 +627,6 @@ dep
 deploymentUrl
 deps
 desc
-desecending
 deserialization
 deserialize
 deserialized
@@ -1042,7 +1041,6 @@ prestocmd
 prestodb
 prev
 profiler
-programatic
 programmatically
 projectId
 projectid
@@ -1210,7 +1208,6 @@ subpackages
 subpages
 subpartitioned
 subpath
-subproces
 subprocess
 subprocesses
 subquery

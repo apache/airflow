@@ -356,9 +356,10 @@ function build_images::prepare_ci_build() {
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
         fi
-        # Github Registry names must be lowercase :(
-        export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY_LOWERCASE}/${AIRFLOW_CI_BASE_TAG}"
-        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY_LOWERCASE}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+        # GitHub Registry names must be lowercase :(
+        github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
+        export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_CI_BASE_TAG}"
+        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     fi
     if [[ "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" == "${PYTHON_MAJOR_MINOR_VERSION}" ]]; then
         export DEFAULT_PROD_IMAGE="${AIRFLOW_CI_IMAGE_DEFAULT}"
@@ -526,6 +527,10 @@ function build_images::build_ci_image() {
         echo >&2
         exit 1
     fi
+    EXTRA_DOCKER_CI_BUILD_FLAGS=(
+        "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
+    )
+
     if [[ -n ${SPIN_PID=} ]]; then
         kill -HUP "${SPIN_PID}" || true
         wait "${SPIN_PID}" || true
@@ -546,6 +551,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     fi
     set +u
     docker build \
+        "${EXTRA_DOCKER_CI_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
@@ -594,6 +600,7 @@ function build_images::prepare_prod_build() {
     else
         # When no airflow version/reference is specified, production image is built from local sources
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+            "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
         )
     fi
     if [[ "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" == "${PYTHON_MAJOR_MINOR_VERSION}" ]]; then
@@ -618,10 +625,11 @@ function build_images::prepare_prod_build() {
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
         fi
-        # Github Registry names must be lowercase :(
-        export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY_LOWERCASE}/${AIRFLOW_PROD_BASE_TAG}"
-        export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY_LOWERCASE}/${AIRFLOW_PROD_BASE_TAG}-build"
-        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY_LOWERCASE}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+        # GitHub Registry names must be lowercase :(
+        github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
+        export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}"
+        export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}-build"
+        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     fi
 
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
@@ -705,7 +713,7 @@ function build_images::build_prod_images() {
     fi
 }
 
-# Waits for image tag to appear in Github Registry, pulls it and tags with the target tag
+# Waits for image tag to appear in GitHub Registry, pulls it and tags with the target tag
 # Parameters:
 #  $1 - image name to wait for
 #  $2 - suffix of the image to wait for

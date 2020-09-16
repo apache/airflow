@@ -40,12 +40,12 @@ roleRef:
 subjects:
 {{- if $grantScheduler }}
   - kind: ServiceAccount
-    name: {{ .Release.Name }}-scheduler-serviceaccount
+    name: {{ .Release.Name }}-scheduler
     namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- if $grantWorker }}
   - kind: ServiceAccount
-    name: {{ .Release.Name }}-worker-serviceaccount
+    name: {{ .Release.Name }}-worker
     namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- end }}

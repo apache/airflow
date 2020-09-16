@@ -30,7 +30,7 @@ NEXT TO "SUBMIT NEW ISSUE" BUTTON!!!
 PLEASE CHECK IF THIS ISSUE HAS BEEN REPORTED PREVIOUSLY USING SEARCH!!!
 
 Please complete the next sections or the issue will be closed.
-This questions are the first thing we need to know to understand the context.
+These questions are the first thing we need to know to understand the context.
 
 -->
 

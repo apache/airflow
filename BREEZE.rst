@@ -164,7 +164,7 @@ On macOS, 2GB of RAM are available for your Docker containers by default, but mo
 (4GB should be comfortable). For details see
 `Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
 
-On Windows WSL 2 expect the Linux Disto and Docker containers to use 7 - 8 GB of RAM.
+On Windows WSL 2 expect the Linux Distro and Docker containers to use 7 - 8 GB of RAM.
 
 Cleaning the environment
 ------------------------
@@ -311,8 +311,8 @@ Then run the failed command, copy-and-paste the output from your terminal to the
 `Airflow Slack <https://apache-airflow-slack.herokuapp.com/>`_  #airflow-breeze channel and
 describe your problem.
 
-Other uses the Airflow Breeze environment
-=========================================
+Other uses of the Airflow Breeze environment
+============================================
 
 Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testing. Under the
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
@@ -337,7 +337,7 @@ You can optionally reset database if specified as extra ``--db-reset`` flag and 
 start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
-You can also have breeze lunch Airflow automatically ``breeze --start-airflow``, this will drop you in a
+You can also have breeze launch Airflow automatically ``breeze --start-airflow``, this will drop you in a
 tmux session with three panes (one to monitor the scheduler, one for the webserver and one with a shell
 for additional commands.
 
@@ -1810,7 +1810,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all all-but-pylint airflow-config-yaml base-operator bat-tests black build
+                 all all-but-pylint airflow-config-yaml base-operator bats-tests black build
                  build-providers-dependencies check-apache-license check-builtin-literals
                  check-executables-have-shebangs check-hooks-apply check-integrations
                  check-merge-conflict check-xml consistent-pylint daysago-import-check

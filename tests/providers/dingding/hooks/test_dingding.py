@@ -171,7 +171,7 @@ class TestDingdingHook(unittest.TestCase):
             'btnOrientation': '0',
             'btns': [
                 {'title': 'Airflow Documentation', 'actionURL': 'http://airflow.apache.org'},
-                {'title': 'Airflow Github', 'actionURL': 'https://github.com/apache/airflow'},
+                {'title': 'Airflow GitHub', 'actionURL': 'https://github.com/apache/airflow'},
             ],
         }
         config = {'dingding_conn_id': self.conn_id, 'message_type': 'actionCard', 'message': msg}

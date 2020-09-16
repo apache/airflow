@@ -131,21 +131,38 @@ class TestBase(unittest.TestCase):
         self.client = self.app.test_client()
         self.login()
 
-    def login(self):
-        role_admin = self.appbuilder.sm.find_role('Admin')
-        tester = self.appbuilder.sm.find_user(username='test')
-        if not tester:
+    def login(self, username='test', password='test'):
+        if username == 'test' and not self.appbuilder.sm.find_user(username='test'):
             self.appbuilder.sm.add_user(
                 username='test',
                 first_name='test',
                 last_name='test',
                 email='test@fab.org',
-                role=role_admin,
-                password='test')
-        return self.client.post('/login/', data=dict(
-            username='test',
-            password='test'
-        ), follow_redirects=True)
+                role=self.appbuilder.sm.find_role('Admin'),
+                password='test',
+            )
+
+        if username == 'test_user' and not self.appbuilder.sm.find_user(username='test_user'):
+            self.appbuilder.sm.add_user(
+                username='test_user',
+                first_name='test_user',
+                last_name='test_user',
+                email='test_user@fab.org',
+                role=self.appbuilder.sm.find_role('User'),
+                password='test_user',
+            )
+
+        if username == 'test_viewer' and not self.appbuilder.sm.find_user(username='test_viewer'):
+            self.appbuilder.sm.add_user(
+                username='test_viewer',
+                first_name='test_viewer',
+                last_name='test_viewer',
+                email='test_viewer@fab.org',
+                role=self.appbuilder.sm.find_role('Viewer'),
+                password='test_viewer',
+            )
+
+        return self.client.post('/login/', data={"username": username, "password": password})
 
     def logout(self):
         return self.client.get('/logout/')
@@ -1676,97 +1693,55 @@ class TestDagACLView(TestBase):
         self.appbuilder.sm.sync_roles()
         self.add_permission_for_role()
 
-    def login(self, username=None, password=None):
-        role_admin = self.appbuilder.sm.find_role('Admin')
-        tester = self.appbuilder.sm.find_user(username='test')
-        if not tester:
-            self.appbuilder.sm.add_user(
-                username='test',
-                first_name='test',
-                last_name='test',
-                email='test@fab.org',
-                role=role_admin,
-                password='test')
-
-        role_user = self.appbuilder.sm.find_role('User')
-        test_user = self.appbuilder.sm.find_user(username='test_user')
-        if not test_user:
-            self.appbuilder.sm.add_user(
-                username='test_user',
-                first_name='test_user',
-                last_name='test_user',
-                email='test_user@fab.org',
-                role=role_user,
-                password='test_user')
-
-        role_viewer = self.appbuilder.sm.find_role('Viewer')
-        test_viewer = self.appbuilder.sm.find_user(username='test_viewer')
-        if not test_viewer:
-            self.appbuilder.sm.add_user(
-                username='test_viewer',
-                first_name='test_viewer',
-                last_name='test_viewer',
-                email='test_viewer@fab.org',
-                role=role_viewer,
-                password='test_viewer')
-
-        dag_acl_role = self.appbuilder.sm.add_role('dag_acl_tester')
-        dag_tester = self.appbuilder.sm.find_user(username='dag_tester')
-        if not dag_tester:
+    def login(self, username='dag_tester', password='dag_test'):
+        dag_tester_role = self.appbuilder.sm.add_role('dag_acl_tester')
+        if username == 'dag_tester' and not self.appbuilder.sm.find_user(username='dag_tester'):
             self.appbuilder.sm.add_user(
                 username='dag_tester',
                 first_name='dag_test',
                 last_name='dag_test',
                 email='dag_test@fab.org',
-                role=dag_acl_role,
-                password='dag_test')
+                role=dag_tester_role,
+                password='dag_test',
+            )
 
         # create an user without permission
         dag_no_role = self.appbuilder.sm.add_role('dag_acl_faker')
-        dag_faker = self.appbuilder.sm.find_user(username='dag_faker')
-        if not dag_faker:
+        if username == 'dag_faker' and not self.appbuilder.sm.find_user(username='dag_faker'):
             self.appbuilder.sm.add_user(
                 username='dag_faker',
                 first_name='dag_faker',
                 last_name='dag_faker',
                 email='dag_fake@fab.org',
                 role=dag_no_role,
-                password='dag_faker')
+                password='dag_faker',
+            )
 
         # create an user with only read permission
         dag_read_only_role = self.appbuilder.sm.add_role('dag_acl_read_only')
-        dag_read_only = self.appbuilder.sm.find_user(username='dag_read_only')
-        if not dag_read_only:
+        if username == 'dag_read_only' and not self.appbuilder.sm.find_user(username='dag_read_only'):
             self.appbuilder.sm.add_user(
                 username='dag_read_only',
                 first_name='dag_read_only',
                 last_name='dag_read_only',
                 email='dag_read_only@fab.org',
                 role=dag_read_only_role,
-                password='dag_read_only')
+                password='dag_read_only',
+            )
 
         # create an user that has all dag access
         all_dag_role = self.appbuilder.sm.add_role('all_dag_role')
-        all_dag_tester = self.appbuilder.sm.find_user(username='all_dag_user')
-        if not all_dag_tester:
+        if username == 'all_dag_user' and not self.appbuilder.sm.find_user(username='all_dag_user'):
             self.appbuilder.sm.add_user(
                 username='all_dag_user',
                 first_name='all_dag_user',
                 last_name='all_dag_user',
                 email='all_dag_user@fab.org',
                 role=all_dag_role,
-                password='all_dag_user')
+                password='all_dag_user',
+            )
 
-        user = username if username else 'dag_tester'
-        passwd = password if password else 'dag_test'
-
-        return self.client.post('/login/', data=dict(
-            username=user,
-            password=passwd
-        ))
-
-    def logout(self):
-        return self.client.get('/logout/')
+        return super().login(username, password)
 
     def add_permission_for_role(self):
         self.logout()
@@ -2549,24 +2524,7 @@ class TestExtraLinks(TestBase):
         self.app.dag_bag = mock.MagicMock(**{'get_dag.return_value': self.dag})
         super().setUp()
         self.logout()
-        self.login()
-
-    def login(self):
-        role_viewer = self.appbuilder.sm.find_role('Viewer')
-        test_viewer = self.appbuilder.sm.find_user(username='test_viewer')
-        if not test_viewer:
-            self.appbuilder.sm.add_user(
-                username='test_viewer',
-                first_name='test_viewer',
-                last_name='test_viewer',
-                email='test_viewer@fab.org',
-                role=role_viewer,
-                password='test_viewer')
-
-        return self.client.post('/login/', data=dict(
-            username='test_viewer',
-            password='test_viewer'
-        ))
+        self.login('test_viewer', 'test_viewer')
 
     def test_extra_links_works(self):
         response = self.client.get(

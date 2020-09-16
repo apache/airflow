@@ -53,8 +53,8 @@
     - name: executor
       description: |
         The executor class that airflow should use. Choices include
-        SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor, KubernetesExecutor
-        or the full import path to the class when using a custom executor.
+        SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor, KubernetesExecutor,
+        CeleryKubernetesExecutor or the full import path to the class when using a custom executor.
       version_added: ~
       type: string
       example: ~
@@ -1175,6 +1175,20 @@
       type: string
       example: ~
       default: ""
+- name: celery_kubernetes_executor
+  description: |
+    This section only applies if you are using the CeleryKubernetesExecutor in
+    ``[core]`` section above
+  options:
+    - name: kubernetes_queue
+      description: |
+        Define when to send a task to KubernetesExecutor when using CeleryKuebernetesExecutor.
+        When the queue of a task is kubernetes_queue, the task is executed via KubernetesExecutor,
+        otherwise via CeleryExecutor
+      version_added: ~
+      type: string
+      example: ~
+      default: "kubernetes"
 - name: celery
   description: |
     This section only applies if you are using the CeleryExecutor in

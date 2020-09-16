@@ -27,7 +27,7 @@ function parameters::save_to_file {
     echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
 }
 
-# check if parameter set for the variable is allowed (should be on the _BREEZE_ALLOWED list)
+# check if parameter set for the variable is allowed (should be on the _breeze_allowed list)
 # and if it is, it saves it to .build cache file. In case the parameter is wrong, the
 # saved variable is removed (so that bad value is not used again in case it comes from there)
 # and exits with an error
@@ -35,7 +35,7 @@ function parameters::check_and_save_allowed_param {
     _VARIABLE_NAME="${1}"
     _VARIABLE_DESCRIPTIVE_NAME="${2}"
     _FLAG="${3}"
-    _ALLOWED_VALUES_ENV_NAME="_BREEZE_ALLOWED_${_VARIABLE_NAME}S"
+    _ALLOWED_VALUES_ENV_NAME="_breeze_allowed_$(echo "${_VARIABLE_NAME}" | tr '[:upper:]' '[:lower:]')s"
     _ALLOWED_VALUES=" ${!_ALLOWED_VALUES_ENV_NAME//$'\n'/ } "
     _VALUE=${!_VARIABLE_NAME}
     if [[ ${_ALLOWED_VALUES:=} != *" ${_VALUE} "* ]]; then
