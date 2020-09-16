@@ -2388,21 +2388,21 @@
   description: ~
   options:
     - name: master
-      description: /
+      description: |
         Mesos `master` address which MesosExecutor will connect to.
       version_added: ~
       type: string
       example: ~
       default: "localhost:5050"
     - name: framework_name
-      description: /
+      description: |
         The framework name which Airflow scheduler will register itself as on mesos,
       version_added: ~
       type: string
       example: ~
       default: "Airflow"
     - name: task_cpu
-      description: /
+      description: |
         Number of cpu cores required for running one task instance using
         `airflow run <dag_id> <task_id> <execution_date> --local -p <pickle_id>`
         command on a mesos slave,
@@ -2411,7 +2411,7 @@
       example: ~
       default: "1"
     - name: task_memory
-      description: /
+      description: |
         Memory in MB required for running one task instance using
         `airflow run <dag_id> <task_id> <execution_date> --local -p <pickle_id>`
         command on a mesos slave.
@@ -2420,7 +2420,7 @@
       example: ~
       default: "20"
     - name: checkpoint
-      description: /
+      description: |
         Enable framework checkpointing for mesos
         See http://mesos.apache.org/documentation/latest/slave-recovery/
       version_added: ~
@@ -2428,7 +2428,7 @@
       example: ~
       default: "False"
     - name: failover_timeout
-      description: /
+      description: |
         Failover timeout in milliseconds.
         When checkpointing is enabled and this option is set, Mesos waits
         until the configured timeout for
@@ -2440,7 +2440,7 @@
       example: ~
       default: "604800"
     - name: authenticate
-      description: /
+      description: |
         Enable framework authentication for mesos
         See http://mesos.apache.org/documentation/latest/configuration/
       version_added: ~
@@ -2448,7 +2448,7 @@
       example: ~
       default: "False"
     - name: default_principal
-      description: /
+      description: |
         Mesos credentials, if authentication is enabled
       version_added: ~
       type: string
@@ -2461,7 +2461,7 @@
       example: ~
       default: ""
     - name: docker_image_slave
-      description: /
+      description: |
         Optional Docker Image to run on slave before running the command
         This image should be accessible from mesos slave i.e mesos slave
         should be able to pull this docker image before executing the command.
@@ -2470,7 +2470,7 @@
       example: ~
       default: "avhost/docker-airflow"
     - name: docker_volume_dag_driver
-      description: /
+      description: |
         Docker Volume Driver to mount the volume to the docker_image_slave which
         includes all DAG's
       version_added: ~
@@ -2478,14 +2478,14 @@
       example: ~
       default: "local"
     - name: docker_volume_dag_name
-      description: /
+      description: |
         Docker Volume Name which includes all DAG's to mount into the docker_image_slave
       version_added: ~
       type: string
       example: ~
       default: "airflowdags"
     - name: docker_volume_dag_container_path
-      description: /
+      description: |
         Docker Volume Container path where the docker_volume_dag_name have to mount,
         therefore airflow can find the DAG's
       version_added: ~
@@ -2493,7 +2493,7 @@
       example: ~
       default: "/usr/local/airflow/dags"
     - name: docker_sock
-      description: /
+      description: |
         Docker Sock path to mount into the airflow container. Thats important if we
         want to use the DockerOperator
       version_added: ~
