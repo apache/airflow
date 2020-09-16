@@ -106,7 +106,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pre-commit-descriptions``           Check if all pre-commits are described in docs.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``pydevd``                            Check for accidentally commited pydevd statements.
+``pydevd``                            Check for accidentally committed pydevd statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pydocstyle``                        Runs pydocstyle.
 ----------------------------------- ---------------------------------------------------------------- ------------
