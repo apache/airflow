@@ -560,6 +560,8 @@ class DAG(BaseDag, LoggingMixin):
             if next_run_date > min_task_end_date:
                 return None
 
+        return next_run_date
+
     def get_run_dates(self, start_date, end_date=None):
         """
         Returns a list of dates between the interval received as parameter using this
