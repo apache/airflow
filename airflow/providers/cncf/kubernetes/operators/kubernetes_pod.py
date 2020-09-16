@@ -16,7 +16,7 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 import re
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 import yaml
 from kubernetes.client import models as k8s
