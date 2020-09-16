@@ -923,7 +923,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .filter(TI.state == State.SCHEDULED)
             .options(selectinload('dag_model'))
             .limit(max_tis)
-            .with_for_update(**skip_locked(of=TI, session=session))
+            .with_for_update(of=TI, **skip_locked(session=session))
             .all()
         )
         # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
@@ -1589,4 +1589,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.log.info("Reset the following %s orphaned TaskInstances:\n\t%s",
                           len(to_reset), task_instance_str)
 
+        # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
+        # decide when to commit
+        session.flush()
         return len(to_reset)

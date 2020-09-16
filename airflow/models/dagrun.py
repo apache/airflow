@@ -178,7 +178,7 @@ class DagRun(Base, LoggingMixin):
         ).order_by(
             cls.last_scheduling_decision,
             cls.execution_date,
-        ).limit(max_number).with_for_update(**skip_locked(of=cls, session=session))
+        ).limit(max_number).with_for_update(of=cls, **skip_locked(session=session))
 
         return query
 

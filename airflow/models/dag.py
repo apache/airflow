@@ -2091,7 +2091,7 @@ class DagModel(Base):
             cls.next_dagrun_create_after <= func.now(),
         ).order_by(
             cls.next_dagrun_create_after
-        ).limit(10).with_for_update(**skip_locked(of=cls, session=session))
+        ).limit(10).with_for_update(of=cls, **skip_locked(session=session))
 
 
 STATICA_HACK = True

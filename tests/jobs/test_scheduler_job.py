@@ -3579,7 +3579,6 @@ class TestSchedulerJob(unittest.TestCase):
         DummyOperator(task_id='task1', dag=dag)
         DummyOperator(task_id='task2', dag=dag)
 
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         scheduler_job = SchedulerJob()
         session = settings.Session()
         scheduler_job.state = State.RUNNING
@@ -3592,7 +3591,14 @@ class TestSchedulerJob(unittest.TestCase):
         session.add(old_job)
         session.flush()
 
-        dr1 = dag_file_processor.create_dag_run(dag, session=session)
+        dr1 = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            session=session
+        )
+
         ti1, ti2 = dr1.get_task_instances(session=session)
         dr1.state = State.RUNNING
         ti1.state = State.SCHEDULED
@@ -3606,7 +3612,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.flush()
 
         num_reset_tis = scheduler_job.adopt_or_reset_orphaned_tasks(session=session)
-        session.flush()
+
         self.assertEqual(1, num_reset_tis)
 
         session.refresh(ti1)
