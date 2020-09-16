@@ -332,7 +332,6 @@ class MesosExecutor(BaseExecutor):
     See http://mesos.apache.org/
     """
 
-
     class MesosFramework(threading.Thread):
         """
         MesosFramework class to start the threading
