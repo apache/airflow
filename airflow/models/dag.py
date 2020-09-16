@@ -1773,6 +1773,10 @@ class DAG(BaseDag, LoggingMixin):
         if settings.STORE_DAG_CODE:
             DagCode.bulk_sync_to_db([dag.fileloc for dag in orm_dags])
 
+        # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
+        # decide when to commit
+        session.flush()
+
     @provide_session
     def sync_to_db(self, session=None):
         """
