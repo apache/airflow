@@ -479,7 +479,7 @@ EOF
 # This function maps CI-specific variables into a generic ones (prefixed with CI_) that
 # we used in other scripts
 function initialization::get_environment_for_builds_on_ci() {
-    if [[ ${GITHUB_ACTIONS:=} == "true" ]]; then
+    if [[ ${CI:=} == "true" ]]; then
         export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
         export CI_TARGET_BRANCH="${GITHUB_BASE_REF:="master"}"
         export CI_BUILD_ID="${GITHUB_RUN_ID}"
