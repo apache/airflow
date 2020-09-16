@@ -118,7 +118,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``provide-create-sessions``           Make sure provide-session and create-session imports are OK.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``pydevd``                            Check for accidentally commited pydevd statements.
+``pydevd``                            Check for accidentally committed pydevd statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pydocstyle``                        Runs pydocstyle.
 ----------------------------------- ---------------------------------------------------------------- ------------
