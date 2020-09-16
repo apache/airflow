@@ -1415,7 +1415,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 dag = dag_bag.get_dag(dag_model.dag_id, session=session)
                 next_run_date = dag_model.next_dagrun
                 dag.create_dagrun(
-                    run_type=DagRunType.SCHEDULED.value,
+                    run_type=DagRunType.SCHEDULED,
                     execution_date=next_run_date,
                     start_date=timezone.utcnow(),
                     state=State.RUNNING,
@@ -1425,11 +1425,11 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
                 # Check max_active_runs, to see if we are _now_ at the limit for this dag? (we've just created
                 # one after all)
-                active_runs_of_dag = dict(session.query(DagRun.dag_id, func.count('*')).filter(
+                active_runs_of_dag = session.query(func.count('*')).filter(
                     DagRun.dag_id == dag_model.dag_id,
                     DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
-                    DagRun.external_trigger.is_(False)
-                ).scalar())
+                    DagRun.external_trigger.is_(False),
+                ).scalar()
 
                 # TODO[HA]: add back in dagrun.timeout
 

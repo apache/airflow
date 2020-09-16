@@ -189,7 +189,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 root_dag_id = dag.parent_dag.dag_id  # type: ignore
 
         # If DAG Model is absent, we can't check last_expired property. Is the DAG not yet synchronized?
-        orm_dag = DagModel.get_current(root_dag_id)
+        orm_dag = DagModel.get_current(root_dag_id, session=session)
         if not orm_dag:
             return self.dags.get(dag_id)
 

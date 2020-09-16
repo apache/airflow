@@ -176,7 +176,7 @@ class DagRun(Base, LoggingMixin):
             DagModel.is_paused.is_(False),
             DagModel.is_active.is_(True),
         ).order_by(
-            cls.last_scheduling_decision.nullsfirst(),
+            cls.last_scheduling_decision,
             cls.execution_date,
         ).limit(max_number).with_for_update(**skip_locked(of=cls, session=session))
 
