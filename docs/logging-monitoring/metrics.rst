@@ -90,7 +90,7 @@ Name                                    Description
 ``scheduler.orphaned_tasks.cleared``    Number of Orphaned tasks cleared by the Scheduler
 ``scheduler.orphaned_tasks.adopted``    Number of Orphaned tasks adopted by the Scheduler
 ``scheduler.critical_section_busy``     Count of times a scheduler process tried to get a lock on the critical
-                                        seciton (needed to send tasks to the executor) and found it locked by
+                                        section (needed to send tasks to the executor) and found it locked by
                                         another process.
 ``sla_email_notification_failure``      Number of failed SLA miss email notification attempts
 ``ti.start.<dagid>.<taskid>``           Number of started task in a given dag. Similar to <job_name>_start but for task
@@ -137,6 +137,6 @@ Name                                        Description
 ``dagrun.duration.failed.<dag_id>``         Milliseconds taken for a DagRun to reach failed state
 ``dagrun.schedule_delay.<dag_id>``          Milliseconds of delay between the scheduled DagRun start date and
                                             the actual DagRun start date
-``scheduler.critical_section_duration``     Millseconds spent in the critical section of scheduler loop --
+``scheduler.critical_section_duration``     Milliseconds spent in the critical section of scheduler loop --
                                             only a single scheduler can enter this loop at a time
 =========================================== =================================================================

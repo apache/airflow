@@ -156,7 +156,7 @@ class DagRun(Base, LoggingMixin):
 
         This will return zero or more DagRun rows that are row-level-locked with a "SELECT ... FOR UPDATE"
         query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
-        the transaction is commited it will be unlocked.
+        the transaction is committed it will be unlocked.
 
         :rtype: list[DagRun]
         """

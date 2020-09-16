@@ -488,9 +488,9 @@ class DAG(BaseDag, LoggingMixin):
 
     def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
         """
-        Get the next execution date after the given ``date_last_automated_dagrun``, acording to
+        Get the next execution date after the given ``date_last_automated_dagrun``, according to
         schedule_interval, start_date, end_date etc.  This doesn't check max active run or any other
-        "concurrency" type limits, it only perofmrs calculations based on the varios date and interval fields
+        "concurrency" type limits, it only performs calculations based on the various date and interval fields
         of this dag and it's tasks.
 
         :param date_last_automated_dagrun: The execution_date of the last scheduler or
@@ -2075,7 +2075,7 @@ class DagModel(Base):
         Return (and lock) a list of Dag objects that are due to create a new DagRun This will return a
         resultset of rows  that is row-level-locked with a "SELECT ... FOR UPDATE" query, you should ensure
         that any scheduling decisions are made in a single transaction -- as soon as the transaction is
-        commited it will be unlocked.
+        committed it will be unlocked.
         """
 
         # TODO[HA]: Bake this query, it is run _A lot_
