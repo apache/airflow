@@ -230,7 +230,11 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         """
 
         if (
-                self.get("core", "executor") not in ('DebugExecutor', 'SequentialExecutor') and
+                self.get("core", "executor") not in (
+                    'DebugExecutor',
+                    'SequentialExecutor',
+                    'MesosExecutor'
+                ) and
                 "sqlite" in self.get('core', 'sql_alchemy_conn')):
             raise AirflowConfigException(
                 "error: cannot use sqlite with the {}".format(

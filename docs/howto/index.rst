@@ -43,3 +43,4 @@ configuring an Airflow environment.
     use-test-config
     define_extra_link
     email-config
+    use-mesos
