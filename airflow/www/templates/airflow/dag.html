@@ -92,7 +92,7 @@
       </div>
       <div class="col-md-2">
         <div class="btn-group pull-right">
-          <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.' + dag.get_default_view(), dag_id=dag.dag_id)) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-default">
+          <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id)) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-default">
             <span class="glyphicon glyphicon-play" aria-hidden="true"></span>
           </a>
           <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh DAG" aria-label="Refresh DAG" onclick="postAsForm(this.href); return false" class="btn btn-default">
@@ -120,7 +120,7 @@
         </div>
         <div class="modal-body">
           <div id="div_btn_subdag">
-            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.get_default_view()) }}">
+            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.default_view) }}">
               Zoom into Sub DAG
             </a>
             <hr/>
@@ -158,6 +158,7 @@
               <hr/>
             </div>
           {% endif %}
+          <h4>Task Actions</h4>
           <form method="POST" data-action="{{ url_for('Airflow.run') }}">
             <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
             <input name="dag_id" type="hidden" value="{{ dag.dag_id }}">
