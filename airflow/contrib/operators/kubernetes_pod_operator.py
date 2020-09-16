@@ -17,6 +17,7 @@
 """Executes task in a Kubernetes POD"""
 
 import re
+import yaml
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
@@ -266,6 +267,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             # Add combination of labels to uniquely identify a running pod
             labels = self.create_labels_for_pod(context)
 
+            self.pod = self.create_pod_request_obj()
+            self.namespace = self.pod.metadata.namespace
+
             label_selector = self._get_pod_identifying_label_string(labels)
 
             pod_list = client.list_namespaced_pod(self.namespace, label_selector=label_selector)
@@ -337,24 +341,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         validate_key(name, max_length=220)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
 
-    def create_new_pod_for_operator(self, labels, launcher):
+    def create_pod_request_obj(self):
         """
-        Creates a new pod and monitors for duration of task
-
-        @param labels: labels used to track pod
-        @param launcher: pod launcher that will manage launching and monitoring pods
-        @return:
+        Creates a V1Pod based on user parameters. Note that a `pod` or `pod_template_file`
+        will supersede all other values.
         """
-        if not (self.full_pod_spec or self.pod_template_file):
-            # Add Airflow Version to the label
-            # And a label to identify that pod is launched by KubernetesPodOperator
-            self.labels.update(
-                {
-                    'airflow_version': airflow_version.replace('+', '-'),
-                    'kubernetes_pod_operator': 'True',
-                }
-            )
-            self.labels.update(labels)
         pod = pod_generator.PodGenerator(
             image=self.image,
             namespace=self.namespace,
@@ -394,22 +385,43 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             self.volume_mounts  # type: ignore
         )
 
-        self.pod = pod
+        return pod
+
+    def create_new_pod_for_operator(self, labels, launcher):
+        """
+        Creates a new pod and monitors for duration of task
+
+        @param labels: labels used to track pod
+        @param launcher: pod launcher that will manage launching and monitoring pods
+        @return:
+        """
+        if not (self.full_pod_spec or self.pod_template_file):
+            # Add Airflow Version to the label
+            # And a label to identify that pod is launched by KubernetesPodOperator
+            self.labels.update(
+                {
+                    'airflow_version': airflow_version.replace('+', '-'),
+                    'kubernetes_pod_operator': 'True',
+                }
+            )
+            self.labels.update(labels)
+            self.pod.metadata.labels = self.labels
+        self.log.debug("Starting pod:\n%s", yaml.safe_dump(self.pod.to_dict()))
 
         try:
             launcher.start_pod(
-                pod,
+                self.pod,
                 startup_timeout=self.startup_timeout_seconds)
-            final_state, result = launcher.monitor_pod(pod=pod, get_logs=self.get_logs)
+            final_state, result = launcher.monitor_pod(pod=self.pod, get_logs=self.get_logs)
         except AirflowException as ex:
             if self.log_events_on_failure:
-                for event in launcher.read_pod_events(pod).items:
+                for event in launcher.read_pod_events(self.pod).items:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
         finally:
             if self.is_delete_operator_pod:
-                launcher.delete_pod(pod)
-        return final_state, pod, result
+                launcher.delete_pod(self.pod)
+        return final_state, self.pod, result
 
     def monitor_launched_pod(self, launcher, pod):
         """
