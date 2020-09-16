@@ -100,6 +100,8 @@ function resetdb_if_requested() {
 function startairflow_if_requested() {
     if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
 
+	. "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
+
         # initialize db and create the admin user if it's a new run
         airflow db init
         airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
