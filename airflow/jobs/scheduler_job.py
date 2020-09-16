@@ -18,7 +18,6 @@
 # under the License.
 #
 import datetime
-import enum
 import logging
 import multiprocessing
 import operator
@@ -31,7 +30,7 @@ from collections import defaultdict
 from contextlib import ExitStack, redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
@@ -706,12 +705,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     }
     heartrate: int = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
 
-    # Singleton object pattern, PEP-484 style
-    class _NoLockObtained(enum.Enum):
-        token = 0
-
-    NO_LOCK_OBTAINED = _NoLockObtained.token
-
     def __init__(
             self,
             dag_id: Optional[str] = None,
@@ -1116,7 +1109,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 queue=queue,
             )
 
-    def _execute_task_instances(self, dag_bag: DagBag, session: Session) -> int:
+    def _critical_section_execute_task_instances(self, dag_bag: DagBag, session: Session) -> int:
         """
         Attempts to execute TaskInstances that should be executed by the scheduler.
 
@@ -1125,6 +1118,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         and that we do exceed max_active_runs or pool limits.
         2. Change the state for the TIs above atomically.
         3. Enqueue the TIs in the executor.
+
+        HA note: This function is a "critical section" meaning that only a single executor process can execute
+        this function at the same time. This is achived by doing ``SELECT ... from pool FOR UPDATE``. For DBs
+        that support NOWAIT, a "blocked" scheduler will skip this and continue on with other tasks (creating
+        new DAG runs, progressing TIs from None to SCHEDULED etc.); DBs that don't support this (such as
+        MariaDB or MySQL 5.x) the other schedulers will wait for the lock before continuiung.
 
         :param dag_bag: TaskInstances associated with DAGs in the
             dag_bag will be fetched from the DB and executed
@@ -1349,17 +1348,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 self.processor_agent.wait_until_finished()
 
             with create_session() as session:
-                timer = Stats.timer('scheduler.critical_section_duration')
-                timer.start()
-                num_queued_tis = self._scheduler_loop_critical_section(dag_bag, session)
-
-                if num_queued_tis is self.NO_LOCK_OBTAINED:
-                    Stats.incr('scheduler.critical_section_lock_busy')
-                    num_queued_tis = 0
-                else:
-                    # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
-                    # metric, way down
-                    timer.stop(send=True)
+                num_queued_tis = self._do_scheduling(dag_bag, session)
 
                 self.executor.heartbeat()
                 session.expunge_all()
@@ -1388,8 +1377,22 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 )
                 break
 
-    def _scheduler_loop_critical_section(self, dag_bag, session) -> Union[int, _NoLockObtained]:
+    def _do_scheduling(self, dag_bag, session) -> int:
         """
+        This function is where the main scheduling decisions take places. It:
+
+        - Creates any necessary DAG runs by examining the next_dagrun_create_after column of DagModel
+
+        - Finds the "next n oldest" running DAG Runs to examine for scheduling (n=20 by default) and tries to
+          progress state (TIs to SCHEDULED, or DagRuns to SUCCESS/FAILURE etc)
+
+          By "next oldest", we mean hasn't been examined/scheduled in the most time.
+
+        - Then, via a Critical Section (locking the rows of the Pool model) we queue tasks, and then send them
+          to the executor.
+
+          See docs of _critical_section_execute_task_instances for more.
+
         :return: Number of TIs enqueued in this iteration
         :rtype: int
         """
@@ -1420,7 +1423,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     session=session
                 )
 
-                # Check max_active_runs, to see if we are now at the limit for this dag?
+                # Check max_active_runs, to see if we are _now_ at the limit for this dag? (we've just created
+                # one after all)
                 active_runs_of_dag = dict(session.query(DagRun.dag_id, func.count('*')).filter(
                     DagRun.dag_id == dag_model.dag_id,
                     DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
@@ -1477,24 +1481,42 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             session.expunge_all()
             # END: schedule TIs
 
-            # Find anything TIs in state SCHEDULED, try to QUEUE it (send it to the executor)
-
             # TODO[HA]: Do we need to call
             # _change_state_for_tis_without_dagrun (2x) that we were before
             # to tidy up manually tweaked TIs. Do we need to do it every
             # time?
 
-            return self._execute_task_instances(dag_bag, session=session)
+            try:
+                timer = Stats.timer('scheduler.critical_section_duration')
+                timer.start()
 
-            # End of loop, allowed/expected to commit
-        except OperationalError as e:
-            # Postgres: lock not available
-            if getattr(e.orig, 'pgcode') == '55P03':
-                # We could test if e.orig is an instance of psycopg2.errors.LockNotAvailable, but that
-                # involves importing it. This doesn't
-                self.log.debug("Critical section lock held by another Scheduler")
-                return self.NO_LOCK_OBTAINED
-            raise
+                # Find anything TIs in state SCHEDULED, try to QUEUE it (send it to the executor)
+                num_queued_tis = self._critical_section_execute_task_instances(dag_bag, session=session)
+
+                # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
+                # metric, way down
+                timer.stop(send=True)
+            except OperationalError as e:
+                timer.stop(send=False)
+
+                # DB specific error codes:
+                # Postgres: 55P03
+                # MySQL: 3572, 'Statement aborted because lock(s) could not be acquired immediately and NOWAIT
+                #               is set.'
+                # MySQL: 1205, 'Lock wait timeout exceeded; try restarting transaction
+                #              (when NOWAIT isn't available)
+                db_err_code = getattr(e.orig, 'pgcode', None) or e.orig.args[0]
+
+                # We could test if e.orig is an instance of
+                # psycopg2.errors.LockNotAvailable/_mysql_exceptions.OperationalError, but that involves
+                # importing it. This doesn't
+                if db_err_code in ('55P03', 1205, 3572):
+                    self.log.debug("Critical section lock held by another Scheduler")
+                    Stats.incr('scheduler.critical_section_busy')
+                    return 0
+                raise
+
+            return num_queued_tis
         finally:
             event.remove(session.bind, 'commit', validate_commit)
 
