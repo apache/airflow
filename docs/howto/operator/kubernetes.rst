@@ -60,7 +60,8 @@ like this:
 
   from kubernetes.client import models as k8s
 
-With this API object, you can have programatic access to all Kubernetes API objects. Using this method will ensure correctness
+With this API object, you can have access to all Kubernetes API objects in the form of python classes.
+Using this method will ensure correctness
 and type safety. While we have removed almost all Kubernetes convenience classes, we have kept the
 :class:`~airflow.kubernetes.secret.Secret` class to simplify the process of generating secret volumes/env variables.
 
