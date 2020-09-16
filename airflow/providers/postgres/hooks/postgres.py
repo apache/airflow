@@ -27,7 +27,7 @@ from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor, RealDictCursor, NamedTupleCursor
 
 from airflow.hooks.dbapi_hook import DbApiHook
-from airflow.models import Connection
+from airflow.models.connection import Connection
 
 CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
 
@@ -63,7 +63,7 @@ class PostgresHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.schema: Optional[str] = kwargs.pop("schema", None)
         self.connection: Optional[Connection] = kwargs.pop("connection", None)
-        self.conn: Optional[connection] = None
+        self.conn: connection = None
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
