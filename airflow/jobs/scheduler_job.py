@@ -57,7 +57,7 @@ from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.sqlalchemy import skip_locked
+from airflow.utils.sqlalchemy import nowait, skip_locked
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -901,7 +901,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
         # Throws an exception if lock cannot be obtained, rather than blocking
-        pools = models.Pool.slots_stats(with_for_update={'nowait': True}, session=session)
+        pools = models.Pool.slots_stats(with_for_update=nowait(session), session=session)
 
         # If the pools are full, there is no point doing anything!
         max_tis = min(max_tis, sum(map(operator.itemgetter('open'), pools.values())))
