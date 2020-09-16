@@ -66,4 +66,4 @@ with DAG(
     xcom_args_a = print_value("first!")  # type: ignore
     xcom_args_b = print_value("second!")  # type: ignore
 
-    bash_op1 >> xcom_args_a >> xcom_args_b >> bash_op2
+    bash_op1 >> xcom_args_a >> xcom_args_b >> bash_op2  # type: ignore
