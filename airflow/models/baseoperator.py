@@ -1116,13 +1116,15 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             item_set.add(item)
 
     @property
-    def operator(self) -> "BaseOperator":
+    def roots(self) -> List["BaseOperator"]:
         """Required by TaskMixin"""
-        return self
+        return [self]
 
-    def _set_relatives(self,
-                       task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
-                       upstream: bool = False) -> None:
+    def _set_relatives(
+        self,
+        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        upstream: bool = False,
+    ) -> None:
         """Sets relatives for the task or task list."""
 
         if isinstance(task_or_task_list, Sequence):
@@ -1130,7 +1132,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         else:
             task_like_object_list = [task_or_task_list]
 
-        task_list: List["BaseOperator"] = [t.operator for t in task_like_object_list]
+        task_list: List["BaseOperator"] = []
+        for task_object in task_like_object_list:
+            task_list.extend(task_object.roots)
 
         for task in task_list:
             if not isinstance(task, BaseOperator):
@@ -1141,8 +1145,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
         dags = {
-            task._dag.dag_id: task._dag  # type: ignore  # pylint: disable=protected-access
-            for task in [self] + task_list if task.has_dag()}
+            task._dag.dag_id: task._dag  # type: ignore  # pylint: disable=protected-access,no-member
+            for task in self.roots + task_list if task.has_dag()}  # pylint: disable=no-member
 
         if len(dags) > 1:
             raise AirflowException(

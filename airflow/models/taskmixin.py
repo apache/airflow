@@ -29,10 +29,8 @@ class TaskMixin:
     """
 
     @property
-    def operator(self):
-        """
-        Returns underlying operator
-        """
+    def roots(self):
+        """Should return list of root operator List[BaseOperator]"""
         raise NotImplementedError()
 
     @abstractmethod

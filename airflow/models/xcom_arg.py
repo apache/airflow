@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, Sequence, Union
+from typing import Any, Dict, List, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator  # pylint: disable=R0401
@@ -94,8 +94,13 @@ class XComArg(TaskMixin):
 
     @property
     def operator(self) -> BaseOperator:
-        """Returns operator of this XComArg. Required by TaskMixin"""
+        """Returns operator of this XComArg."""
         return self._operator
+
+    @property
+    def roots(self) -> List[BaseOperator]:
+        """Required by TaskMixin"""
+        return [self._operator]
 
     @property
     def key(self) -> str:
