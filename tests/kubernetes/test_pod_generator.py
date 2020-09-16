@@ -92,6 +92,13 @@ class TestPodGenerator(unittest.TestCase):
             'namespace': 'namespace',
             'annotations': self.annotations,
         }
+        self.lifecycle_dict = {
+            "postStart":{
+                "exec":{
+                    "command": ["echo", "hi"]
+                }
+            }
+        }
 
         self.resources = Resources('1Gi', 1, '2Gi', '2Gi', 2, 1, '4Gi')
         self.k8s_client = ApiClient()
@@ -193,7 +200,14 @@ class TestPodGenerator(unittest.TestCase):
             ),
             namespace='default',
             ports=[k8s.V1ContainerPort(name='foo', container_port=1234)],
-            configmaps=['configmap_a', 'configmap_b']
+            configmaps=['configmap_a', 'configmap_b'],
+            lifecycle=k8s.V1Lifecycle(
+                post_start = k8s.V1Handler(
+                    _exec = k8s.V1ExecAction(
+                        command = ["echo", "hi"]
+                    )
+                )
+            )
         )
         result = pod_generator.gen_pod()
         result = append_to_pod(result, self.secrets)
@@ -204,7 +218,9 @@ class TestPodGenerator(unittest.TestCase):
         result_dict['spec']['containers'][0]['envFrom'].sort(
             key=lambda x: list(x.values())[0]['name']
         )
+        self.expected['spec']['containers'][0]['lifecycle'] = self.lifecycle_dict
         self.assertDictEqual(self.expected, result_dict)
+        del self.expected['spec']['containers'][0]['lifecycle']
 
     @mock.patch('uuid.uuid4')
     def test_gen_pod_extract_xcom(self, mock_uuid):

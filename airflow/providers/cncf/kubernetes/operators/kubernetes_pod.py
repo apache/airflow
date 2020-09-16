@@ -195,6 +195,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
                  termination_grace_period: Optional[int] = None,
+                 lifecycle: Optional[Union[k8s.V1Lifecycle, dict]] = None,
                  **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
@@ -237,6 +238,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.init_containers = init_containers or []
         self.log_events_on_failure = log_events_on_failure
         self.priority_class_name = priority_class_name
+        self.lifecycle = lifecycle
         self.pod_template_file = pod_template_file
         self.name = self._set_name(name)
         self.termination_grace_period = termination_grace_period
@@ -397,6 +399,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             init_containers=self.init_containers,
             restart_policy='Never',
             priority_class_name=self.priority_class_name,
+            lifecycle=self.lifecycle,
             pod_template_file=self.pod_template_file,
             pod=self.full_pod_spec,
         ).gen_pod()

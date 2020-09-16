@@ -217,6 +217,7 @@ class PodGenerator:
         pod_template_file: Optional[str] = None,
         extract_xcom: bool = False,
         priority_class_name: Optional[str] = None,
+        lifecycle: Optional[Union[k8s.V1Lifecycle, dict]] = None,
     ):
         self.validate_pod_generator_args(locals())
 
@@ -266,6 +267,7 @@ class PodGenerator:
         self.container.ports = ports or []
         self.container.resources = resources
         self.container.volume_mounts = volume_mounts or []
+        self.container.lifecycle = lifecycle
 
         # Pod Spec
         self.spec = k8s.V1PodSpec(containers=[])
