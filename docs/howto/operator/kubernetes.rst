@@ -54,7 +54,7 @@ Ultimately, it allows Airflow to act a job orchestrator - no matter the language
 How to use cluster ConfigMaps, Secrets, and Volumes with Pod?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To add Configmaps, Volumes, and other Kubernetes native add-ons, we recommend that you import the Kubernetes model API
+To add ConfigMaps, Volumes, and other Kubernetes native objects, we recommend that you import the Kubernetes model API
 like this:
 .. code-block:: python
 
