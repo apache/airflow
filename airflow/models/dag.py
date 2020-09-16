@@ -57,7 +57,7 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import Interval, UtcDateTime
+from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -2087,7 +2087,7 @@ class DagModel(Base):
             cls.next_dagrun_create_after <= func.now(),
         ).order_by(
             cls.next_dagrun_create_after
-        ).limit(10).with_for_update(of=cls, skip_locked=True)
+        ).limit(10).with_for_update(**skip_locked(of=cls, session=session))
 
 
 STATICA_HACK = True
