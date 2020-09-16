@@ -40,7 +40,7 @@ function parameters::check_and_save_allowed_param {
     _VALUE=${!_VARIABLE_NAME}
     if [[ ${_ALLOWED_VALUES:=} != *" ${_VALUE} "* ]]; then
         echo >&2
-        echo >&2 "ERROR:  Allowed ${_VARIABLE_DESCRIPTIVE_NAME}: [${_ALLOWED_VALUES}]. Is: '${!_VARIABLE_NAME}'."
+        echo >&2 "ERROR:  Allowed ${_VARIABLE_DESCRIPTIVE_NAME}: [${_ALLOWED_VALUES}]. Passed: '${!_VARIABLE_NAME}'."
         echo >&2
         echo >&2 "Switch to supported value with ${_FLAG} flag."
 
