@@ -315,6 +315,7 @@ function kind::deploy_test_kubernetes_resources() {
     echo "Deploying Custom kubernetes resources"
     echo
     kubectl apply -f "scripts/ci/kubernetes/volumes.yaml" --namespace default
+    kubectl apply -f "scripts/ci/kubernetes/secrets.yaml" --namespace default
 }
 
 
