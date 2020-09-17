@@ -102,6 +102,14 @@ def provide_gcp_context(
         yield
 
 
+@contextmanager
+@provide_gcp_context(GCP_GCS_KEY)
+def provide_gcs_bucket(bucket_name: str):
+    GoogleSystemTest.create_gcs_bucket(bucket_name)
+    yield
+    GoogleSystemTest.delete_gcs_bucket(bucket_name)
+
+
 @pytest.mark.system("google")
 class GoogleSystemTest(SystemTest):
     @staticmethod

@@ -965,6 +965,11 @@ These integrations allow you to copy data from/to Google Cloud.
      -
      - :mod:`airflow.providers.google.cloud.transfers.adls_to_gcs`
 
+   * - `Azure FileShare <https://cloud.google.com/storage/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/google/transfer/azure_fileshare_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs`
+
    * - `Facebook Ads <http://business.facebook.com>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/google/transfer/facebook_ads_to_gcs>`
