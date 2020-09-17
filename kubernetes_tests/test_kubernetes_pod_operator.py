@@ -20,7 +20,6 @@ import json
 import os
 import shutil
 import sys
-import textwrap
 import unittest
 
 import kubernetes.client.models as k8s

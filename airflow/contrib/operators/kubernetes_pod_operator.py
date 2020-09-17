@@ -455,7 +455,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             )
         return final_state, result
 
-    def on_kill(self) -> None:
+    def on_kill(self):
         if self.pod:
             pod = self.pod
             namespace = pod.metadata.namespace
