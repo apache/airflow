@@ -458,6 +458,10 @@ production image. There are three types of build:
 |                                   | point to specific varsion         |
 |                                   | ``constraints-1.10.12             |
 +-----------------------------------+-----------------------------------+
+| ``SLUGIFY_USES_TEXT_UNIDECODE``   | In case of of installing airflow  |
+|                                   | 1.10.2 or 1.10.1 you need to      |
+|                                   | set this arg to ``yes``.          |
++-----------------------------------+-----------------------------------+
 | ``AIRFLOW_WWW``                   | In case of Airflow 2.0 it should  |
 |                                   | be "www", in case of Airflow 1.10 |
 |                                   | series it should be "www_rbac".   |
