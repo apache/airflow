@@ -1279,6 +1279,10 @@ class DAG(BaseDag, LoggingMixin):
                 if isinstance(child, BaseOperator):
                     if child.task_id not in dag.task_dict:
                         group.children.pop(child.task_id)
+                    else:
+                        # The tasks in the subdag are a copy of tasks in the original dag
+                        # so update the reference in the TaskGroups too.
+                        group.children[child.task_id] = dag.task_dict[child.task_id]
                 else:
                     remove_excluded(child)
 
