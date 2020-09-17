@@ -740,6 +740,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.max_tis_per_query: int = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent: Optional[DagFileProcessorAgent] = None
 
+        self.dagbag = DagBag(read_dags_from_db=True)
+
     def register_exit_signals(self) -> None:
         """
         Register signals that stop child processes
@@ -880,21 +882,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
     # pylint: disable=too-many-locals,too-many-statements
     @provide_session
-    def _executable_task_instances_to_queued(
-        self,
-        max_tis: int,
-        dag_bag: DagBag,
-        session: Session = None
-    ) -> List[TI]:
+    def _executable_task_instances_to_queued(self, max_tis: int, session: Session = None) -> List[TI]:
         """
         Finds TIs that are ready for execution with respect to pool limits,
         dag concurrency, executor state, and priority.
 
         :param max_tis: Maximum number of TIs to queue in this loop.
         :type max_tis: int
-        :param dag_bag: TaskInstances associated with DAGs in the
-            _dag_bag will be fetched from the DB and executed
-        :type dag_bag: airflow.models.DagBag
         :return: list[airflow.models.TaskInstance]
         """
         executable_tis: List[TI] = []
@@ -1014,7 +1008,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 if task_instance.dag_model.has_task_concurrency_limits:
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
                     # serialized DAG the better.
-                    serialized_dag = dag_bag.get_dag(dag_id)
+                    serialized_dag = self.dagbag.get_dag(dag_id, session=session)
                     if serialized_dag.has_task(task_instance.task_id):
                         task_concurrency_limit = serialized_dag.get_task(
                             task_instance.task_id).task_concurrency
@@ -1109,7 +1103,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 queue=queue,
             )
 
-    def _critical_section_execute_task_instances(self, dag_bag: DagBag, session: Session) -> int:
+    def _critical_section_execute_task_instances(self, session: Session) -> int:
         """
         Attempts to execute TaskInstances that should be executed by the scheduler.
 
@@ -1125,15 +1119,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         new DAG runs, progressing TIs from None to SCHEDULED etc.); DBs that don't support this (such as
         MariaDB or MySQL 5.x) the other schedulers will wait for the lock before continuiung.
 
-        :param dag_bag: TaskInstances associated with DAGs in the
-            dag_bag will be fetched from the DB and executed
-        :type dag_bag: airflow.models.DagBag
         :param session:
         :type session: sqlalchemy.orm.Session
         :return: Number of task instance with state changed.
         """
         max_tis = min(self.max_tis_per_query, self.executor.slots_available)
-        queued_tis = self._executable_task_instances_to_queued(max_tis, dag_bag, session=session)
+        queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
         self._enqueue_task_instances_with_queued_state(queued_tis)
         return len(queued_tis)
@@ -1334,8 +1325,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             raise ValueError("Processor agent is not started.")
         is_unit_test: bool = conf.getboolean('core', 'unit_test_mode')
 
-        dag_bag = DagBag()
-
         # For the execute duration, parse and schedule DAGs
         while True:
             loop_start_time = time.time()
@@ -1348,7 +1337,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 self.processor_agent.wait_until_finished()
 
             with create_session() as session:
-                num_queued_tis = self._do_scheduling(dag_bag, session)
+                num_queued_tis = self._do_scheduling(session)
 
                 self.executor.heartbeat()
                 session.expunge_all()
@@ -1377,7 +1366,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 )
                 break
 
-    def _do_scheduling(self, dag_bag, session) -> int:
+    def _do_scheduling(self, session) -> int:
         """
         This function is where the main scheduling decisions take places. It:
 
@@ -1412,54 +1401,16 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
             query = DagModel.dags_needing_dagruns(session)
             for dag_model in query:
-                dag = dag_bag.get_dag(dag_model.dag_id, session=session)
-                next_run_date = dag_model.next_dagrun
-                dag.create_dagrun(
-                    run_type=DagRunType.SCHEDULED,
-                    execution_date=next_run_date,
-                    start_date=timezone.utcnow(),
-                    state=State.RUNNING,
-                    external_trigger=False,
-                    session=session
-                )
-
-                # Check max_active_runs, to see if we are _now_ at the limit for this dag? (we've just created
-                # one after all)
-                active_runs_of_dag = session.query(func.count('*')).filter(
-                    DagRun.dag_id == dag_model.dag_id,
-                    DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
-                    DagRun.external_trigger.is_(False),
-                ).scalar()
-
-                # TODO[HA]: add back in dagrun.timeout
-
-                if dag.max_active_runs and dag.max_active_runs >= active_runs_of_dag:
-                    self.log.info(
-                        "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
-                        dag.dag_id, active_runs_of_dag, dag.max_active_runs
-                    )
-                    dag_model.next_dagrun = None
-                    dag_model.next_dagrun_create_after = None
-                else:
-                    next_dagrun_info = dag.next_dagrun_info(next_run_date)
-                    if next_dagrun_info:
-                        dag_model.next_dagrun = next_dagrun_info['execution_date']
-                        dag_model.next_dagrun_create_after = next_dagrun_info['can_be_created_after']
-                    else:
-                        dag_model.next_dagrun = None
-                        dag_model.next_dagrun_create_after = None
-
-                # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
-                # memory for larger dags? or expunge_all()
+                dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+                self._create_dag_run(dag_model, dag, session)
 
             # commit the session - Release the write lock on DagModel table.
             expected_commit = True
             session.commit()
             # END: create dagruns
 
-            # Tunable limit?, or select multiple dag runs for a single dag?
             for dag_run in DagRun.next_dagruns_to_examine(session):
-                dag_run.dag = dag_bag.get_dag(dag_run.dag_id, session=session)
+                dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
 
                 # TODO[HA]: Run verify_integrity, but only if the serialized_dag has changed
 
@@ -1491,7 +1442,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 timer.start()
 
                 # Find anything TIs in state SCHEDULED, try to QUEUE it (send it to the executor)
-                num_queued_tis = self._critical_section_execute_task_instances(dag_bag, session=session)
+                num_queued_tis = self._critical_section_execute_task_instances(session=session)
 
                 # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
                 # metric, way down
@@ -1519,6 +1470,50 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             return num_queued_tis
         finally:
             event.remove(session.bind, 'commit', validate_commit)
+
+    def _create_dag_run(self, dag_model, dag, session):
+        """
+        Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
+        if/when the next DAGRun should be created
+        """
+        next_run_date = dag_model.next_dagrun
+        dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=next_run_date,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            external_trigger=False,
+            session=session
+        )
+
+        # Check max_active_runs, to see if we are _now_ at the limit for this dag? (we've just created
+        # one after all)
+        active_runs_of_dag = session.query(func.count('*')).filter(
+            DagRun.dag_id == dag_model.dag_id,
+            DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
+            DagRun.external_trigger.is_(False),
+        ).scalar()
+
+        # TODO[HA]: add back in dagrun.timeout
+
+        if dag.max_active_runs and dag.max_active_runs >= active_runs_of_dag:
+            self.log.info(
+                "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
+                dag.dag_id, active_runs_of_dag, dag.max_active_runs
+            )
+            dag_model.next_dagrun = None
+            dag_model.next_dagrun_create_after = None
+        else:
+            next_dagrun_info = dag.next_dagrun_info(next_run_date)
+            if next_dagrun_info:
+                dag_model.next_dagrun = next_dagrun_info['execution_date']
+                dag_model.next_dagrun_create_after = next_dagrun_info['can_be_created_after']
+            else:
+                dag_model.next_dagrun = None
+                dag_model.next_dagrun_create_after = None
+
+        # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
+        # memory for larger dags? or expunge_all()
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = None) -> None:
