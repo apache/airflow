@@ -596,6 +596,11 @@ function build_images::prepare_prod_build() {
             "--build-arg" "AIRFLOW_INSTALL_VERSION===${INSTALL_AIRFLOW_VERSION}"
         )
         export AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
+        if [[ ${AIRFLOW_VERSION} == "1.10.2" || ${AIRFLOW_VERSION} == "1.10.1" ]]; then
+            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                "--build-arg" "SLUGIFY_USES_TEXT_UNIDECODE=yes"
+            )
+        fi
         build_images::add_build_args_for_remote_install
     else
         # When no airflow version/reference is specified, production image is built from local sources
