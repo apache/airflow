@@ -73,8 +73,12 @@ def init_plugins(app):
     appbuilder = app.appbuilder
 
     for view in plugins_manager.flask_appbuilder_views:
-        log.debug("Adding view %s", view["name"])
-        appbuilder.add_view(view["view"], view["name"], category=view["category"])
+        try:
+            log.debug("Adding view %s with menu", view["name"])
+            appbuilder.add_view(view["view"], view["name"], category=view["category"])
+        except KeyError:
+            log.debug("Adding view %s without menu", str(type(view["view"])))
+            appbuilder.add_view_no_menu(view["view"])
 
     for menu_link in sorted(plugins_manager.flask_appbuilder_menu_links, key=lambda x: x["name"]):
         log.debug("Adding menu link %s", menu_link["name"])
