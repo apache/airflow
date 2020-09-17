@@ -1132,21 +1132,25 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """Required by TaskMixin"""
         return [self]
 
+    @property
+    def leaves(self) -> List["BaseOperator"]:
+        """Required by TaskMixin"""
+        return [self]
+
     def _set_relatives(
         self,
         task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
         upstream: bool = False,
     ) -> None:
         """Sets relatives for the task or task list."""
-
-        if isinstance(task_or_task_list, Sequence):
-            task_like_object_list = task_or_task_list
-        else:
-            task_like_object_list = [task_or_task_list]
+        if not isinstance(task_or_task_list, Sequence):
+            task_or_task_list = [task_or_task_list]
 
         task_list: List["BaseOperator"] = []
-        for task_object in task_like_object_list:
-            task_list.extend(task_object.roots)
+        for task_object in task_or_task_list:
+            task_object.update_relative(self, not upstream)
+            relatives = task_object.leaves if upstream else task_object.roots
+            task_list.extend(relatives)
 
         for task in task_list:
             if not isinstance(task, BaseOperator):
@@ -1190,11 +1194,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         Set a task or a task list to be directly downstream from the current
         task. Required by TaskMixin.
         """
-        from airflow.utils.task_group import TaskGroup
-
-        if isinstance(task_or_task_list, TaskGroup):
-            task_or_task_list.upstream_task_ids.add(self.task_id)
-            task_or_task_list = list(task_or_task_list.get_roots())
         self._set_relatives(task_or_task_list, upstream=False)
 
     def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
@@ -1202,11 +1201,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         Set a task or a task list to be directly upstream from the current
         task. Required by TaskMixin.
         """
-        from airflow.utils.task_group import TaskGroup
-
-        if isinstance(task_or_task_list, TaskGroup):
-            task_or_task_list.downstream_task_ids.add(self.task_id)
-            task_or_task_list = list(task_or_task_list.get_leaves())
         self._set_relatives(task_or_task_list, upstream=True)
 
     @property

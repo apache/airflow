@@ -23,13 +23,14 @@ together when the DAG is displayed graphically.
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
+from airflow.models.taskmixin import TaskMixin
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
 
 
-class TaskGroup:
+class TaskGroup(TaskMixin):
     """
     A collection of tasks. When set_downstream() or set_upstream() are called on the
     TaskGroup, it is applied across all tasks within the group if necessary.
@@ -168,18 +169,45 @@ class TaskGroup:
         """
         return self._group_id
 
+    def update_relative(self, other: "TaskMixin", upstream=True) -> None:
+        """
+        Overrides TaskMixin.update_relative.
+
+        Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids
+        accordingly so that we can reduce the number of edges when displaying Graph View.
+        """
+        from airflow.models.baseoperator import BaseOperator
+
+        if isinstance(other, TaskGroup):
+            # Handles setting relationship between a TaskGroup and another TaskGroup
+            if upstream:
+                parent, child = (self, other)
+            else:
+                parent, child = (other, self)
+
+            parent.upstream_group_ids.add(child.group_id)
+            child.downstream_group_ids.add(parent.group_id)
+        else:
+            # Handles setting relationship between a TaskGroup and a task
+            for task in other.roots:
+                if not isinstance(task, BaseOperator):
+                    raise AirflowException("Relationships can only be set between TaskGroup "
+                                           f"or operators; received {task.__class__.__name__}")
+
+                if upstream:
+                    self.upstream_task_ids.add(task.task_id)
+                else:
+                    self.downstream_task_ids.add(task.task_id)
+
     def _set_relative(
             self,
-            task_or_task_list: Union['BaseOperator', Sequence['BaseOperator'], "TaskGroup"],
+            task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
             upstream: bool = False
     ) -> None:
         """
         Call set_upstream/set_downstream for all root/leaf tasks within this TaskGroup.
         Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids.
         """
-        from airflow.models.baseoperator import BaseOperator
-        from airflow.models.xcom_arg import XComArg
-
         if upstream:
             for task in self.get_roots():
                 task.set_upstream(task_or_task_list)
@@ -187,39 +215,14 @@ class TaskGroup:
             for task in self.get_leaves():
                 task.set_downstream(task_or_task_list)
 
-        # Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids
-        # accordingly so that we can reduce the number of edges when displaying Graph View.
-        if isinstance(task_or_task_list, TaskGroup):
-            # Handles TaskGroup and TaskGroup
-            if upstream:
-                parent, child = (self, task_or_task_list)
-            else:
-                parent, child = (task_or_task_list, self)
+        if not isinstance(task_or_task_list, Sequence):
+            task_or_task_list = [task_or_task_list]
 
-            parent.upstream_group_ids.add(child.group_id)
-            child.downstream_group_ids.add(parent.group_id)
-        else:
-            if isinstance(task_or_task_list, XComArg):
-                task_list = [task_or_task_list.operator]
-            else:
-                # Handles TaskGroup and task or list of tasks
-                try:
-                    task_list = list(task_or_task_list)  # type: ignore
-                except TypeError:
-                    task_list = [task_or_task_list]  # type: ignore
-
-            for task in task_list:
-                if not isinstance(task, BaseOperator):
-                    raise AirflowException("Relationships can only be set between TaskGroup or operators; "
-                                           f"received {task.__class__.__name__}")
-
-                if upstream:
-                    self.upstream_task_ids.add(task.task_id)
-                else:
-                    self.downstream_task_ids.add(task.task_id)
+        for task_like in task_or_task_list:
+            self.update_relative(task_like, upstream)
 
     def set_downstream(
-        self, task_or_task_list: Union['BaseOperator', Sequence['BaseOperator'], "TaskGroup"]
+        self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]
     ) -> None:
         """
         Set a TaskGroup/task/list of task downstream of this TaskGroup.
@@ -227,7 +230,7 @@ class TaskGroup:
         self._set_relative(task_or_task_list, upstream=False)
 
     def set_upstream(
-        self, task_or_task_list: Union['BaseOperator', Sequence['BaseOperator'], "TaskGroup"]
+        self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]
     ) -> None:
         """
         Set a TaskGroup/task/list of task upstream of this TaskGroup.
@@ -250,6 +253,16 @@ class TaskGroup:
 
         return any(child.has_task(task) for child in self.children.values() if isinstance(child, TaskGroup))
 
+    @property
+    def roots(self) -> List["BaseOperator"]:
+        """Required by TaskMixin"""
+        return list(self.get_roots())
+
+    @property
+    def leaves(self) -> List["BaseOperator"]:
+        """Required by TaskMixin"""
+        return list(self.get_leaves())
+
     def get_roots(self) -> Generator["BaseOperator", None, None]:
         """
         Returns a generator of tasks that are root tasks, i.e. those with no upstream
@@ -267,36 +280,6 @@ class TaskGroup:
         for task in self:
             if not any(self.has_task(child) for child in task.get_direct_relatives(upstream=False)):
                 yield task
-
-    def __rshift__(self, other):
-        """
-        Implements Self >> Other == self.set_downstream(other)
-        """
-        self.set_downstream(other)
-        return other
-
-    def __lshift__(self, other):
-        """
-        Implements Self << Other == self.set_upstream(other)
-        """
-        self.set_upstream(other)
-        return other
-
-    def __rrshift__(self, other):
-        """
-        Called for Operator >> [Operator] because list don't have
-        __rshift__ operators.
-        """
-        self.__lshift__(other)
-        return self
-
-    def __rlshift__(self, other):
-        """
-        Called for Operator << [Operator] because list don't have
-        __lshift__ operators.
-        """
-        self.__rshift__(other)
-        return self
 
     def child_id(self, label):
         """
