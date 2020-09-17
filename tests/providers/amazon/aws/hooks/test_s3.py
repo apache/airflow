@@ -425,3 +425,24 @@ class TestAwsS3Hook:
         params = {x[0]: x[1] for x in [x.split("=") for x in url[0:].split("&")]}
 
         assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))
+
+    def test_should_throw_error_if_extra_args_is_not_dict(self):
+        with pytest.raises(ValueError):
+            S3Hook(extra_args=1)
+
+    def test_should_throw_error_if_extra_args_contains_unknown_arg(self, s3_bucket):
+        hook = S3Hook(extra_args={"unknown_s3_args": "value"})
+        with tempfile.TemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            with pytest.raises(ValueError):
+                hook.load_file_obj(temp_file, "my_key", s3_bucket, acl_policy='public-read')
+
+    def test_should_pass_extra_args(self, s3_bucket):
+        hook = S3Hook(extra_args={"ContentLanguage": "value"})
+        with tempfile.TemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file_obj(temp_file, "my_key", s3_bucket, acl_policy='public-read')
+            resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+            assert resource.get()['ContentLanguage'] == "value"
