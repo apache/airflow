@@ -86,8 +86,7 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
             self.kubernetes_section, 'worker_container_repository')
         self.worker_container_tag = conf.get(
             self.kubernetes_section, 'worker_container_tag')
-        self.kube_image = '{}:{}'.format(
-            self.worker_container_repository, self.worker_container_tag)
+        self.kube_image = f'{self.worker_container_repository}:{self.worker_container_tag}'
 
         # The Kubernetes Namespace in which the Scheduler and Webserver reside. Note
         # that if your
