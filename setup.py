@@ -420,7 +420,8 @@ devel = [
     'jira',
     'mock;python_version<"3.3"',
     'mongomock',
-    'moto>=1.3.14,<2.0.0',
+    'moto==1.3.14',  # TODO - fix Datasync issues to get higher version of moto:
+                     #        See: https://github.com/apache/airflow/issues/10985
     'parameterized',
     'paramiko',
     'pre-commit',
