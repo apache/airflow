@@ -493,6 +493,7 @@ config:
     image_pull_secrets: '{{ template "registry_secret" . }}'
     dags_in_image: '{{ ternary "False" "True" (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}'
     delete_worker_pods: 'True'
+    delete_worker_pods_on_failure: 'False'
     run_as_user: '{{ .Values.uid }}'
     fs_group: '{{ .Values.gid }}'
     git_dags_folder_mount_point: '{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}{{ include "airflow_dags_mount_path" . }}{{end}}'
