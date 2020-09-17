@@ -47,8 +47,8 @@ data:
     {{- .Values.webserver.webserverConfig | nindent 4 }}
 {{- end }}
 
-{{- if .Values.scheduler.airflowLocalSettings }}
   airflow_local_settings.py: |
+{{- if .Values.scheduler.airflowLocalSettings }}
     {{ .Values.scheduler.airflowLocalSettings | nindent 4 }}
 {{- end }}
 {{- if and .Values.dags.gitSync.enabled  .Values.dags.gitSync.knownHosts }}
