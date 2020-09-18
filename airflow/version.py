@@ -18,4 +18,4 @@
 # under the License.
 #
 
-version = '1.10.9.affirm7'
+version = '1.10.9.affirm8'
