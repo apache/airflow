@@ -16,7 +16,6 @@
 # under the License.
 from flask import current_app, g, request
 from marshmallow import ValidationError
-from sqlalchemy import func
 
 from airflow import DAG
 from airflow.api_connexion import security
@@ -59,15 +58,13 @@ def get_dag_details(dag_id):
 
 @security.requires_access([("can_read", "Dag")])
 @format_parameters({'limit': check_limit})
-@provide_session
-def get_dags(session, limit, offset=0):
+def get_dags(limit, offset=0):
     """
     Get all DAGs.
     """
     readable_dags = DAG.get_readable_dags(g.user)
     dags = readable_dags.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
-
-    total_entries = session.query(func.count(DagModel.dag_id)).scalar()
+    total_entries = readable_dags.count()
 
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 

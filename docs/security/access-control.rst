@@ -159,7 +159,7 @@ Endpoint                                                                        
 /dags/{dag_id}/dagRuns                                                             POST   Dag.can_read, DagRun.can_create
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE Dag.can_read, DagRun.can_delete
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    Dag.can_read, DagRun.can_read
-/dags/{dag_id}/dagRuns/list                                                        POST   Dag.can_read, DagRun.can_read
+/dags/~/dagRuns/list                                                               POST   Dag.can_read, DagRun.can_read
 /eventLogs                                                                         GET    Log.can_read
 /eventLogs/{event_log_id}                                                          GET    Log.can_read
 /importErrors                                                                      GET    ImportError.can_read

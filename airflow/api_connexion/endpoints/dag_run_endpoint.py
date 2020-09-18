@@ -17,7 +17,6 @@
 from connexion import NoContent
 from flask import g, request
 from marshmallow import ValidationError
-from sqlalchemy import func
 
 from airflow import DAG
 from airflow.api_connexion import security
@@ -99,7 +98,6 @@ def get_dag_runs(
 
     dag_run, total_entries = _fetch_dag_runs(
         query,
-        session,
         end_date_gte,
         end_date_lte,
         execution_date_gte,
@@ -115,7 +113,6 @@ def get_dag_runs(
 
 def _fetch_dag_runs(
     query,
-    session,
     end_date_gte,
     end_date_lte,
     execution_date_gte,
@@ -125,6 +122,7 @@ def _fetch_dag_runs(
     limit,
     offset,
 ):
+    total_entries = query.count()
     query = _apply_date_filters_to_query(
         query,
         end_date_gte,
@@ -136,7 +134,6 @@ def _fetch_dag_runs(
     )
     # apply offset and limit
     dag_run = query.order_by(DagRun.id).offset(offset).limit(limit).all()
-    total_entries = session.query(func.count(DagRun.id)).scalar()
     return dag_run, total_entries
 
 
@@ -168,19 +165,21 @@ def get_dag_runs_batch(session):
     Get list of DAG Runs
     """
     body = request.get_json()
-    try:
+    try:  # TODO: Handle filtering.
         data = dagruns_batch_form_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
     query = session.query(DagRun)
-
-    if data["dag_ids"]:
-        query = query.filter(DagRun.dag_id.in_(data["dag_ids"]))
+    readable_dag_ids = DAG.get_readable_dag_ids(g.user)
+    if data.get("dag_ids"):
+        dag_ids = set(data["dag_ids"]) & set(readable_dag_ids)
+        query = query.filter(DagRun.dag_id.in_(dag_ids))
+    else:
+        query = query.filter(DagRun.dag_id.in_(readable_dag_ids))
 
     dag_runs, total_entries = _fetch_dag_runs(
         query,
-        session,
         data["end_date_gte"],
         data["end_date_lte"],
         data["execution_date_gte"],
