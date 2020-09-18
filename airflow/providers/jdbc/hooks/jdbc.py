@@ -18,7 +18,7 @@
 
 import jaydebeapi
 
-from typing import Any, Optional
+from typing import Optional
 
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.models.connection import Connection
