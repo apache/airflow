@@ -16,9 +16,11 @@
 # under the License.
 from typing import Optional
 
-from sqlalchemy import and_, func
+from flask import g
+from sqlalchemy import and_
 from sqlalchemy.orm.session import Session
 
+from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
@@ -51,17 +53,20 @@ def get_xcom_entries(
     """
 
     query = session.query(XCom)
-    if dag_id != '~':
+    if dag_id == '~':
+        readable_dag_ids = DAG.get_readable_dag_ids(g.user)
+        query = query.filter(XCom.dag_id.in_(readable_dag_ids))
+        query.join(DR, and_(XCom.dag_id.in_(readable_dag_ids), XCom.execution_date == DR.execution_date))
+    else:
         query = query.filter(XCom.dag_id == dag_id)
         query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
-    else:
-        query.join(DR, XCom.execution_date == DR.execution_date)
+
     if task_id != '~':
         query = query.filter(XCom.task_id == task_id)
     if dag_run_id != '~':
         query = query.filter(DR.run_id == dag_run_id)
     query = query.order_by(XCom.execution_date, XCom.task_id, XCom.dag_id, XCom.key)
-    total_entries = session.query(func.count(XCom.key)).scalar()
+    total_entries = query.count()
     query = query.offset(offset).limit(limit)
     return xcom_collection_schema.dump(XComCollection(xcom_entries=query.all(), total_entries=total_entries))
 

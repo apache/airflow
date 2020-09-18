@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 from connexion import NoContent
-from flask import request
+from flask import g, request
 from marshmallow import ValidationError
 from sqlalchemy import func
 
+from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
@@ -91,7 +92,9 @@ def get_dag_runs(
     query = session.query(DagRun)
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
-    if dag_id != "~":
+    if dag_id == "~":
+        query = query.filter(DagRun.dag_id.in_(DAG.get_readable_dag_ids(g.user)))
+    else:
         query = query.filter(DagRun.dag_id == dag_id)
 
     dag_run, total_entries = _fetch_dag_runs(

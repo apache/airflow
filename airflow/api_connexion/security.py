@@ -38,7 +38,7 @@ def check_authentication() -> None:
 def can_access_any_dags(action: str, dag_id: Optional[int] = None) -> bool:
     """Checks if user has read or write access to some dags."""
     appbuilder = current_app.appbuilder
-    if dag_id:
+    if dag_id and dag_id != '~':
         return appbuilder.sm.has_access(action, dag_id)
 
     user = g.user
@@ -54,7 +54,6 @@ def check_authorization(
 
     if not permissions:
         return
-
     appbuilder = current_app.appbuilder
     for permission in permissions:
         if permission in (('can_read', 'Dag'), ('can_edit', 'Dag')):

@@ -1675,6 +1675,16 @@ class DAG(BaseDag, LoggingMixin):
         """Gets the DAGs editable by authenticated user."""
         return cls.get_accessible_dags(security.CAN_EDIT, user)
 
+    @classmethod
+    def get_readable_dag_ids(cls, user):
+        """Gets the DAG IDs readable by authenticated user."""
+        return [dag.dag_id for dag in cls.get_readable_dags(user)]
+
+    @classmethod
+    def get_editable_dag_ids(cls, user):
+        """Gets the DAG IDs editable by authenticated user."""
+        return [dag.dag_id for dag in cls.get_editable_dags(user)]
+
     @staticmethod
     @provide_session
     def get_accessible_dags(user_action, user, session=None):
@@ -1691,7 +1701,6 @@ class DAG(BaseDag, LoggingMixin):
                 action = permission.permission.name
                 if action == user_action:
                     resources.add(resource)
-
         if 'Dag' in resources:
             return session.query(DagModel)
 

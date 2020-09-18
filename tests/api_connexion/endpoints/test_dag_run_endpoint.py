@@ -49,11 +49,21 @@ class TestDagRunEndpoint(unittest.TestCase):
                 ("can_delete", "DagRun"),
             ],
         )
+        create_user(
+            cls.app,  # type: ignore
+            username="test_granular_permissions",
+            role_name="TestGranularDag",
+            permissions=[("can_read", "DagRun")],
+        )
+        cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+            "TEST_DAG_ID", access_control={'TestGranularDag': ['can_edit', 'can_read']}
+        )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_granular_permissions")  # type: ignore
         delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     def setUp(self) -> None:
@@ -68,6 +78,7 @@ class TestDagRunEndpoint(unittest.TestCase):
 
     def _create_test_dag_run(self, state='running', extra_dag=False, commit=True):
         dag_runs = []
+        dags = [DagModel(dag_id="TEST_DAG_ID")]
         dagrun_model_1 = DagRun(
             dag_id="TEST_DAG_ID",
             run_id="TEST_DAG_RUN_ID_1",
@@ -88,21 +99,23 @@ class TestDagRunEndpoint(unittest.TestCase):
         )
         dag_runs.append(dagrun_model_2)
         if extra_dag:
-            dagrun_extra = [
-                DagRun(
-                    dag_id='TEST_DAG_ID_' + str(i),
-                    run_id='TEST_DAG_RUN_ID_' + str(i),
-                    run_type=DagRunType.MANUAL.value,
-                    execution_date=timezone.parse(self.default_time_2),
-                    start_date=timezone.parse(self.default_time),
-                    external_trigger=True,
+            for i in range(3, 5):
+
+                dags.append(DagModel(dag_id='TEST_DAG_ID_' + str(i)))
+                dag_runs.append(
+                    DagRun(
+                        dag_id='TEST_DAG_ID_' + str(i),
+                        run_id='TEST_DAG_RUN_ID_' + str(i),
+                        run_type=DagRunType.MANUAL.value,
+                        execution_date=timezone.parse(self.default_time_2),
+                        start_date=timezone.parse(self.default_time),
+                        external_trigger=True,
+                    )
                 )
-                for i in range(3, 5)
-            ]
-            dag_runs.extend(dagrun_extra)
         if commit:
             with create_session() as session:
                 session.add_all(dag_runs)
+                session.add_all(dags)
         return dag_runs
 
 
@@ -253,13 +266,20 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "total_entries": 2,
         }
 
-    @provide_session
-    def test_should_return_all_with_tilde_as_dag_id(self, session):
+    def test_should_return_all_with_tilde_as_dag_id_and_all_dag_permissions(self):
         self._create_test_dag_run(extra_dag=True)
         expected_dag_run_ids = ['TEST_DAG_ID', 'TEST_DAG_ID', "TEST_DAG_ID_3", "TEST_DAG_ID_4"]
-        result = session.query(DagRun).all()
-        assert len(result) == 4
         response = self.client.get("api/v1/dags/~/dagRuns", environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
+        assert dag_run_ids == expected_dag_run_ids
+
+    def test_should_return_accessible_with_tilde_as_dag_id_and_dag_level_permissions(self):
+        self._create_test_dag_run(extra_dag=True)
+        expected_dag_run_ids = ['TEST_DAG_ID', 'TEST_DAG_ID']
+        response = self.client.get(
+            "api/v1/dags/~/dagRuns", environ_overrides={'REMOTE_USER': "test_granular_permissions"}
+        )
         assert response.status_code == 200
         dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
@@ -797,12 +817,8 @@ class TestPostDagRun(TestDagRunEndpoint):
         self.assertEqual(response.status_code, 400, response.data)
         self.assertEqual(expected_response, response.json)
 
-    @provide_session
-    def test_response_409(self, session):
-        dag_instance = DagModel(dag_id="TEST_DAG_ID")
-        session.add(dag_instance)
-        session.add_all(self._create_test_dag_run())
-        session.commit()
+    def test_response_409(self):
+        self._create_test_dag_run()
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={
