@@ -16,11 +16,10 @@
 # under the License.
 from typing import Optional
 
-from flask import g
+from flask import current_app, g
 from sqlalchemy import and_
 from sqlalchemy.orm.session import Session
 
-from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
@@ -54,7 +53,8 @@ def get_xcom_entries(
 
     query = session.query(XCom)
     if dag_id == '~':
-        readable_dag_ids = DAG.get_readable_dag_ids(g.user)
+        appbuilder = current_app.appbuilder
+        readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
         query = query.filter(XCom.dag_id.in_(readable_dag_ids))
         query.join(DR, and_(XCom.dag_id.in_(readable_dag_ids), XCom.execution_date == DR.execution_date))
     else:

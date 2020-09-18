@@ -15,10 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 from connexion import NoContent
-from flask import g, request
+from flask import g, request, current_app
 from marshmallow import ValidationError
 
-from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
@@ -92,7 +91,8 @@ def get_dag_runs(
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
     if dag_id == "~":
-        query = query.filter(DagRun.dag_id.in_(DAG.get_readable_dag_ids(g.user)))
+        appbuilder = current_app.appbuilder
+        query = query.filter(DagRun.dag_id.in_(appbuilder.sm.get_readable_dag_ids(g.user)))
     else:
         query = query.filter(DagRun.dag_id == dag_id)
 
@@ -170,8 +170,9 @@ def get_dag_runs_batch(session):
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
+    appbuilder = current_app.appbuilder
+    readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
     query = session.query(DagRun)
-    readable_dag_ids = DAG.get_readable_dag_ids(g.user)
     if data.get("dag_ids"):
         dag_ids = set(data["dag_ids"]) & set(readable_dag_ids)
         query = query.filter(DagRun.dag_id.in_(dag_ids))

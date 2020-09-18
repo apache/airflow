@@ -24,6 +24,7 @@ from sqlalchemy import and_, or_
 
 from airflow import models
 from airflow.exceptions import AirflowException
+from airflow.models import DagModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.www.utils import CustomSQLAInterface
@@ -270,6 +271,41 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 {(perm_view.permission.name, perm_view.view_menu.name) for perm_view in role.permissions}
             )
         return perms_views
+
+    def get_readable_dags(self, user):
+        """Gets the DAGs readable by authenticated user."""
+        return self.get_accessible_dags(CAN_READ, user)
+
+    def get_editable_dags(self, user):
+        """Gets the DAGs editable by authenticated user."""
+        return self.get_accessible_dags(CAN_EDIT, user)
+
+    def get_readable_dag_ids(self, user):
+        """Gets the DAG IDs readable by authenticated user."""
+        return [dag.dag_id for dag in self.get_readable_dags(user)]
+
+    def get_editable_dag_ids(self, user):
+        """Gets the DAG IDs editable by authenticated user."""
+        return [dag.dag_id for dag in self.get_editable_dags(user)]
+
+    @provide_session
+    def get_accessible_dags(self, user_action, user, session=None):
+        """Generic function to get readable or writable DAGs for authenticated user."""
+
+        if user.is_anonymous:
+            return set()
+
+        resources = set()
+        for role in user.roles:
+            for permission in role.permissions:
+                resource = permission.view_menu.name
+                action = permission.permission.name
+                if action == user_action:
+                    resources.add(resource)
+        if 'Dag' in resources:
+            return session.query(DagModel)
+
+        return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
 
     def get_accessible_dag_ids(self, username=None):
         """

@@ -20,7 +20,6 @@ from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
 from flask import Response, current_app, g
 
-from airflow import DAG
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
@@ -43,8 +42,8 @@ def can_access_any_dags(action: str, dag_id: Optional[int] = None) -> bool:
 
     user = g.user
     if action == 'can_read':
-        return any(DAG.get_readable_dags(user))
-    return any(DAG.get_editable_dags(user))
+        return any(appbuilder.sm.get_readable_dags(user))
+    return any(appbuilder.sm.get_editable_dags(user))
 
 
 def check_authorization(

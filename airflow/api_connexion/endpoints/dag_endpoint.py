@@ -62,7 +62,7 @@ def get_dags(limit, offset=0):
     """
     Get all DAGs.
     """
-    readable_dags = DAG.get_readable_dags(g.user)
+    readable_dags = current_app.appbuilder.sm.get_readable_dags(g.user)
     dags = readable_dags.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
     total_entries = readable_dags.count()
 

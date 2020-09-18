@@ -58,7 +58,6 @@ from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from airflow.www import security
 
 log = logging.getLogger(__name__)
 
@@ -1664,47 +1663,6 @@ class DAG(BaseDag, LoggingMixin):
             dag.is_active = False
             session.merge(dag)
             session.commit()
-
-    @classmethod
-    def get_readable_dags(cls, user):
-        """Gets the DAGs readable by authenticated user."""
-        return cls.get_accessible_dags(security.CAN_READ, user)
-
-    @classmethod
-    def get_editable_dags(cls, user):
-        """Gets the DAGs editable by authenticated user."""
-        return cls.get_accessible_dags(security.CAN_EDIT, user)
-
-    @classmethod
-    def get_readable_dag_ids(cls, user):
-        """Gets the DAG IDs readable by authenticated user."""
-        return [dag.dag_id for dag in cls.get_readable_dags(user)]
-
-    @classmethod
-    def get_editable_dag_ids(cls, user):
-        """Gets the DAG IDs editable by authenticated user."""
-        return [dag.dag_id for dag in cls.get_editable_dags(user)]
-
-    @staticmethod
-    @provide_session
-    def get_accessible_dags(user_action, user, session=None):
-        """Generic function to get readable or writable DAGs for authenticated user."""
-
-        if user.is_anonymous or 'Public' in user.roles:
-            # return an empty set if the role is public
-            return set()
-
-        resources = set()
-        for role in user.roles:
-            for permission in role.permissions:
-                resource = permission.view_menu.name
-                action = permission.permission.name
-                if action == user_action:
-                    resources.add(resource)
-        if 'Dag' in resources:
-            return session.query(DagModel)
-
-        return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
 
     @staticmethod
     @provide_session
