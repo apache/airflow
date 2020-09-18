@@ -27,7 +27,7 @@ class JdbcHook(DbApiHook):
 
     JDBC URL, username and password will be taken from the predefined connection.
     Note that the whole JDBC URL must be specified in the "host" field in the DB.
-    Raises an airflow error if the given connection id doesn't exist.
+    Raises an airflow error if the given connection id doesn't exist
     """
 
     conn_name_attr = 'jdbc_conn_id'
