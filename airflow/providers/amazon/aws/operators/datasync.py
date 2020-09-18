@@ -348,9 +348,10 @@ class AWSDataSyncOperator(BaseOperator):
         # Log some meaningful statuses
         level = logging.ERROR if not result else logging.INFO
         self.log.log(level, 'Status=%s', task_execution_description['Status'])
-        for k, v in task_execution_description['Result'].items():
-            if 'Status' in k or 'Error' in k:
-                self.log.log(level, '%s=%s', k, v)
+        if 'Result' in task_execution_description:
+            for k, v in task_execution_description['Result'].items():
+                if 'Status' in k or 'Error' in k:
+                    self.log.log(level, '%s=%s', k, v)
 
         if not result:
             raise AirflowException("Failed TaskExecutionArn %s" % self.task_execution_arn)
