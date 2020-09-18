@@ -138,7 +138,6 @@ with third party services to the ``airflow.providers`` package.
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
 
-
 ### Breaking Change in OAuth
 
 The flask-ouathlib has been replaced with authlib because flask-outhlib has
@@ -153,6 +152,527 @@ The Old and New provider configuration keys that have changed are as follows
 | request_token_params| client_kwargs     |
 
 For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
+
+### Changes to the KubernetesExecutor
+
+#### The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations
+
+In Airflow 2.0, the KubernetesExecutor will require a base pod template written in yaml. This file can exist
+anywhere on the host machine and will be linked using the `pod_template_file` configuration in the airflow.cfg.
+
+The `airflow.cfg` will still accept values for the `worker_container_repository`, the `worker_container_tag`, and
+the default namespace.
+
+The following `airflow.cfg` values will be deprecated:
+
+```
+worker_container_image_pull_policy
+airflow_configmap
+airflow_local_settings_configmap
+dags_in_image
+dags_volume_subpath
+dags_volume_mount_point
+dags_volume_claim
+logs_volume_subpath
+logs_volume_claim
+dags_volume_host
+logs_volume_host
+env_from_configmap_ref
+env_from_secret_ref
+git_repo
+git_branch
+git_sync_depth
+git_subpath
+git_sync_rev
+git_user
+git_password
+git_sync_root
+git_sync_dest
+git_dags_folder_mount_point
+git_ssh_key_secret_name
+git_ssh_known_hosts_configmap_name
+git_sync_credentials_secret
+git_sync_container_repository
+git_sync_container_tag
+git_sync_init_container_name
+git_sync_run_as_user
+worker_service_account_name
+image_pull_secrets
+gcp_service_account_keys
+affinity
+tolerations
+run_as_user
+fs_group
+[kubernetes_node_selectors]
+[kubernetes_annotations]
+[kubernetes_environment_variables]
+[kubernetes_secrets]
+[kubernetes_labels]
+```
+
+#### The `executor_config` Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks
+
+In Airflow 1.10.x, users could modify task pods at runtime by passing a dictionary to the `executor_config` variable.
+Users will now have full access the Kubernetes API via the `kubernetes.client.models.V1Pod`.
+
+While in the deprecated version a user would mount a volume using the following dictionary:
+
+```python
+second_task = PythonOperator(
+    task_id="four_task",
+    python_callable=test_volume_mount,
+    executor_config={
+        "KubernetesExecutor": {
+            "volumes": [
+                {
+                    "name": "example-kubernetes-test-volume",
+                    "hostPath": {"path": "/tmp/"},
+                },
+            ],
+            "volume_mounts": [
+                {
+                    "mountPath": "/foo/",
+                    "name": "example-kubernetes-test-volume",
+                },
+            ]
+        }
+    }
+)
+```
+
+In the new model a user can accomplish the same thing using the following code under the ``pod_override`` key:
+
+```python
+from kubernetes.client import models as k8s
+
+second_task = PythonOperator(
+    task_id="four_task",
+    python_callable=test_volume_mount,
+    executor_config={"pod_override": k8s.V1Pod(
+        spec=k8s.V1PodSpec(
+            containers=[
+                k8s.V1Container(
+                    name="base",
+                    volume_mounts=[
+                        k8s.V1VolumeMount(
+                            mount_path="/foo/",
+                            name="example-kubernetes-test-volume"
+                        )
+                    ]
+                )
+            ],
+            volumes=[
+                k8s.V1Volume(
+                    name="example-kubernetes-test-volume",
+                    host_path=k8s.V1HostPathVolumeSource(
+                        path="/tmp/"
+                    )
+                )
+            ]
+        )
+    )
+    }
+)
+```
+For Airflow 2.0, the traditional `executor_config` will continue operation with a deprecation warning,
+but will be removed in a future version.
+
+### Changes to the KubernetesPodOperator
+
+Much like the `KubernetesExecutor`, the `KubernetesPodOperator` will no longer take Airflow custom classes and will
+instead expect either a pod_template yaml file, or `kubernetes.client.models` objects.
+
+The one notable exception is that we will continue to support the `airflow.kubernetes.secret.Secret` class.
+
+Whereas previously a user would import each individual class to build the pod as so:
+
+```python
+from airflow.kubernetes.pod import Port
+from airflow.kubernetes.volume import Volume
+from airflow.kubernetes.secret import Secret
+from airflow.kubernetes.volume_mount import VolumeMount
+
+
+volume_config = {
+    'persistentVolumeClaim': {
+        'claimName': 'test-volume'
+    }
+}
+volume = Volume(name='test-volume', configs=volume_config)
+volume_mount = VolumeMount('test-volume',
+                           mount_path='/root/mount_file',
+                           sub_path=None,
+                           read_only=True)
+
+port = Port('http', 80)
+secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
+secret_env = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo", "10"],
+    labels={"foo": "bar"},
+    secrets=[secret_file, secret_env],
+    ports=[port],
+    volumes=[volume],
+    volume_mounts=[volume_mount],
+    name="airflow-test-pod",
+    task_id="task",
+    affinity=affinity,
+    is_delete_operator_pod=True,
+    hostnetwork=False,
+    tolerations=tolerations,
+    configmaps=configmaps,
+    init_containers=[init_container],
+    priority_class_name="medium",
+)
+```
+Now the user can use the `kubernetes.client.models` class as a single point of entry for creating all k8s objects.
+
+```python
+from kubernetes.client import models as k8s
+from airflow.kubernetes.secret import Secret
+
+
+configmaps = ['test-configmap-1', 'test-configmap-2']
+
+volume = k8s.V1Volume(
+    name='test-volume',
+    persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name='test-volume'),
+)
+
+port = k8s.V1ContainerPort(name='http', container_port=80)
+secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
+secret_env = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
+secret_all_keys = Secret('env', None, 'airflow-secrets-2')
+volume_mount = k8s.V1VolumeMount(
+    name='test-volume', mount_path='/root/mount_file', sub_path=None, read_only=True
+)
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo", "10"],
+    labels={"foo": "bar"},
+    secrets=[secret_file, secret_env],
+    ports=[port],
+    volumes=[volume],
+    volume_mounts=[volume_mount],
+    name="airflow-test-pod",
+    task_id="task",
+    is_delete_operator_pod=True,
+    hostnetwork=False)
+```
+We decided to keep the Secret class as users seem to really like that simplifies the complexity of mounting
+Kubernetes secrets into workers.
+
+### Changed Parameters for the KubernetesPodOperator
+
+#### port has migrated from a List[Port] to a List[V1ContainerPort]
+Before:
+```python
+from airflow.kubernetes.pod import Port
+port = Port('http', 80)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    ports=[port],
+    task_id="task",
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+port = k8s.V1ContainerPort(name='http', container_port=80)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    ports=[port],
+    task_id="task",
+)
+```
+
+#### volume_mounts has migrated from a List[VolumeMount] to a List[V1VolumeMount]
+Before:
+```python
+from airflow.kubernetes.volume_mount import VolumeMount
+volume_mount = VolumeMount('test-volume',
+                           mount_path='/root/mount_file',
+                           sub_path=None,
+                           read_only=True)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    volume_mounts=[volume_mount],
+    task_id="task",
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+volume_mount = k8s.V1VolumeMount(
+    name='test-volume', mount_path='/root/mount_file', sub_path=None, read_only=True
+)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    volume_mounts=[volume_mount],
+    task_id="task",
+)
+```
+
+#### volumes has migrated from a List[Volume] to a List[V1Volume]
+Before:
+```python
+from airflow.kubernetes.volume import Volume
+
+volume_config = {
+    'persistentVolumeClaim': {
+        'claimName': 'test-volume'
+    }
+}
+volume = Volume(name='test-volume', configs=volume_config)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    volumes=[volume],
+    task_id="task",
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+volume = k8s.V1Volume(
+    name='test-volume',
+    persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name='test-volume'),
+)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    volumes=[volume],
+    task_id="task",
+)
+```
+#### env_vars has migrated from a Dict to a List[V1EnvVar]
+Before:
+```python
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    env_vars={"ENV1": "val1", "ENV2": "val2"},
+    task_id="task",
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+
+env_vars = [
+    k8s.V1EnvVar(
+        name="ENV1",
+        value="val1"
+    ),
+    k8s.V1EnvVar(
+        name="ENV2",
+        value="val2"
+    )]
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    env_vars=env_vars,
+    task_id="task",
+)
+```
+
+#### PodRuntimeInfoEnv has been removed
+
+PodRuntimeInfoEnv can now be added to the `env_vars` variable as a `V1EnvVarSource`
+
+Before:
+```python
+from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    pod_runtime_info_envs=[PodRuntimeInfoEnv("ENV3", "status.podIP")],
+    task_id="task",
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+
+env_vars = [
+    k8s.V1EnvVar(
+        name="ENV3",
+        value_from=k8s.V1EnvVarSource(
+            field_ref=k8s.V1ObjectFieldSelector(
+                field_path="status.podIP"
+            )
+        )
+    )
+]
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    env_vars=env_vars,
+    task_id="task",
+)
+```
+
+#### configmaps has been removed
+
+configmaps can now be added to the `env_from` variable as a `V1EnvVarSource`
+
+Before:
+```python
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    configmaps=['test-configmap'],
+    task_id="task"
+)
+```
+
+After:
+
+```python
+from kubernetes.client import models as k8s
+
+configmap ="test-configmap"
+env_from = [k8s.V1EnvFromSource(
+                config_map_ref=k8s.V1ConfigMapEnvSource(
+                    name=configmap
+                )
+            )]
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    env_from=env_from,
+    task_id="task"
+)
+```
+
+
+#### resources has migrated from a Dict to a V1ResourceRequirements
+
+Before:
+```python
+resources = {
+    'limit_cpu': 0.25,
+    'limit_memory': '64Mi',
+    'limit_ephemeral_storage': '2Gi',
+    'request_cpu': '250m',
+    'request_memory': '64Mi',
+    'request_ephemeral_storage': '1Gi',
+}
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    labels={"foo": "bar"},
+    name="test",
+    task_id="task" + self.get_current_task_name(),
+    in_cluster=False,
+    do_xcom_push=False,
+    resources=resources,
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+
+resources=k8s.V1ResourceRequirements(
+    requests={
+        'memory': '64Mi',
+        'cpu': '250m',
+        'ephemeral-storage': '1Gi'
+    },
+    limits={
+        'memory': '64Mi',
+        'cpu': 0.25,
+        'nvidia.com/gpu': None,
+        'ephemeral-storage': '2Gi'
+    }
+)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    labels={"foo": "bar"},
+    name="test-" + str(random.randint(0, 1000000)),
+    task_id="task" + self.get_current_task_name(),
+    in_cluster=False,
+    do_xcom_push=False,
+    resources=resources,
+)
+```
+#### image_pull_secrets has migrated from a String to a List[k8s.V1LocalObjectReference]
+
+Before:
+```python
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    name="test",
+    task_id="task",
+    image_pull_secrets="fake-secret",
+    cluster_context='default')
+```
+
+After:
+```python
+quay_k8s = KubernetesPodOperator(
+    namespace='default',
+    image='quay.io/apache/bash',
+    image_pull_secrets=[k8s.V1LocalObjectReference('testquay')],
+    cmds=["bash", "-cx"],
+    name="airflow-private-image-pod",
+    task_id="task-two",
+)
+
+```
 
 ### Migration Guide from Experimental API to Stable API v1
 In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.

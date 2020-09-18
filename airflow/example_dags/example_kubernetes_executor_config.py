@@ -67,10 +67,11 @@ with DAG(
     start_task = PythonOperator(
         task_id="start_task",
         python_callable=print_stuff,
-        executor_config={
-            "KubernetesExecutor": {
-                "annotations": {"test": "annotation"}
-            }
+        executor_config={"pod_override": k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                annotations={"test": "annotation"}
+            )
+        )
         }
     )
 
@@ -148,12 +149,13 @@ with DAG(
     third_task = PythonOperator(
         task_id="non_root_task",
         python_callable=print_stuff,
-        executor_config={
-            "KubernetesExecutor": {
-                "labels": {
+        executor_config={"pod_override": k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                labels={
                     "release": "stable"
                 }
-            }
+            )
+        )
         }
     )
 

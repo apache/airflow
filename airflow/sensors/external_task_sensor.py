@@ -18,7 +18,7 @@
 
 import datetime
 import os
-from typing import Optional, Union
+from typing import FrozenSet, Optional, Union
 
 from sqlalchemy import func
 
@@ -242,6 +242,9 @@ class ExternalTaskMarker(DummyOperator):
     template_fields = ['external_dag_id', 'external_task_id', 'execution_date']
     ui_color = '#19647e'
 
+    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
+    __serialized_fields: Optional[FrozenSet[str]] = None
+
     @apply_defaults
     def __init__(self, *,
                  external_dag_id,
@@ -262,3 +265,14 @@ class ExternalTaskMarker(DummyOperator):
         if recursion_depth <= 0:
             raise ValueError("recursion_depth should be a positive integer")
         self.recursion_depth = recursion_depth
+
+    @classmethod
+    def get_serialized_fields(cls):
+        """Serialized ExternalTaskMarker contain exactly these fields + templated_fields ."""
+        if not cls.__serialized_fields:
+            cls.__serialized_fields = frozenset(
+                super().get_serialized_fields() | {
+                    "recursion_depth"
+                }
+            )
+        return cls.__serialized_fields

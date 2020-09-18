@@ -50,7 +50,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``base-operator``                     Checks that BaseOperator is imported properly
 ----------------------------------- ---------------------------------------------------------------- ------------
-``bat-tests``                         Runs BATS bash unit tests
+``bats-tests``                        Runs BATS bash unit tests
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``black``                             Runs Black (the uncompromising Python code formatter)
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -118,7 +118,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``provide-create-sessions``           Make sure provide-session and create-session imports are OK.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``pydevd``                            Check for accidentally commited pydevd statements.
+``pydevd``                            Check for accidentally committed pydevd statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pydocstyle``                        Runs pydocstyle.
 ----------------------------------- ---------------------------------------------------------------- ------------

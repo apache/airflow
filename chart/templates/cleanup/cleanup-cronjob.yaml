@@ -51,7 +51,7 @@ spec:
 {{ toYaml .Values.affinity | indent 12 }}
           tolerations:
 {{ toYaml .Values.tolerations | indent 12 }}
-          serviceAccountName: {{ .Release.Name }}-cleanup-serviceaccount
+          serviceAccountName: {{ .Release.Name }}-cleanup
           {{- if or .Values.registry.secretName .Values.registry.connection }}
           imagePullSecrets:
             - name: {{ template "registry_secret" . }}

@@ -53,8 +53,8 @@
     - name: executor
       description: |
         The executor class that airflow should use. Choices include
-        SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor, KubernetesExecutor
-        or the full import path to the class when using a custom executor.
+        SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor, KubernetesExecutor,
+        CeleryKubernetesExecutor or the full import path to the class when using a custom executor.
       version_added: ~
       type: string
       example: ~
@@ -1175,6 +1175,20 @@
       type: string
       example: ~
       default: ""
+- name: celery_kubernetes_executor
+  description: |
+    This section only applies if you are using the CeleryKubernetesExecutor in
+    ``[core]`` section above
+  options:
+    - name: kubernetes_queue
+      description: |
+        Define when to send a task to KubernetesExecutor when using CeleryKuebernetesExecutor.
+        When the queue of a task is kubernetes_queue, the task is executed via KubernetesExecutor,
+        otherwise via CeleryExecutor
+      version_added: ~
+      type: string
+      example: ~
+      default: "kubernetes"
 - name: celery
   description: |
     This section only applies if you are using the CeleryExecutor in
@@ -1359,6 +1373,23 @@
       type: int
       example: ~
       default: "2"
+    - name: task_track_started
+      description: |
+        Celery task will report its status as 'started' when the task is executed by a worker.
+        This is used in Airflow to keep track of the running tasks and if a Scheduler is restarted
+        or run in HA mode, it can adopt the orphan tasks launched by previous SchedulerJob.
+      version_added: 2.0.0
+      type: boolean
+      example: ~
+      default: "True"
+    - name: task_adoption_timeout
+      description: |
+        Time in seconds after which Adopted tasks are cleared by CeleryExecutor. This is helpful to clear
+        stalled tasks.
+      version_added: 2.0.0
+      type: int
+      example: ~
+      default: "600"
 - name: celery_broker_transport_options
   description: |
     This section is for specifying options which can be passed to the
@@ -1818,17 +1849,17 @@
 - name: kubernetes
   description: ~
   options:
-    - name: worker_container_repository
-      description: |
-        The repository of the Kubernetes Image for the Worker to Run
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
     - name: pod_template_file
       description: |
         Path to the YAML pod file. If set, all other kubernetes-related fields are ignored.
       version_added: 1.10.11
+      type: string
+      example: ~
+      default: ""
+    - name: worker_container_repository
+      description: |
+        The repository of the Kubernetes Image for the Worker to Run
+      version_added: ~
       type: string
       example: ~
       default: ""
@@ -1839,13 +1870,13 @@
       type: string
       example: ~
       default: ""
-    - name: worker_container_image_pull_policy
+    - name: namespace
       description: |
-        The imagePullPolicy of the Kubernetes Image for the Worker to Run
-      version_added: 1.10.2
+        The Kubernetes namespace where airflow workers should be created. Defaults to ``default``
+      version_added: ~
       type: string
       example: ~
-      default: "IfNotPresent"
+      default: "default"
     - name: delete_worker_pods
       description: |
         If True, all worker pods will be deleted upon termination
@@ -1872,13 +1903,6 @@
       type: string
       example: ~
       default: "1"
-    - name: namespace
-      description: |
-        The Kubernetes namespace where airflow workers should be created. Defaults to ``default``
-      version_added: ~
-      type: string
-      example: ~
-      default: "default"
     - name: multi_namespace_mode
       description: |
         Allows users to launch pods in multiple namespaces.
@@ -1887,317 +1911,6 @@
       type: boolean
       example: ~
       default: "False"
-    - name: airflow_configmap
-      description: |
-        The name of the Kubernetes ConfigMap containing ``airflow.cfg`` file.
-
-        For example:
-
-        ``airflow_configmap = "airflow-configmap"`` if you have the following ConfigMap.
-
-        ``airflow-configmap.yaml``:
-
-        .. code-block:: yaml
-
-          ---
-          apiVersion: v1
-          kind: ConfigMap
-          metadata:
-            name: airflow-configmap
-          data:
-            airflow.cfg: |
-                ...
-
-        Note that the ``airflow_configmap`` and the ``airflow_local_settings_configmap``
-        can be the same configMap
-      version_added: ~
-      type: string
-      example: "airflow-configmap"
-      default: ""
-    - name: airflow_local_settings_configmap
-      description: |
-        The name of the Kubernetes ConfigMap containing ``airflow_local_settings.py`` file.
-
-        For example:
-
-        ``airflow_local_settings_configmap = "airflow-configmap"`` if you have the following ConfigMap.
-
-        ``airflow-configmap.yaml``:
-
-        .. code-block:: yaml
-
-          ---
-          apiVersion: v1
-          kind: ConfigMap
-          metadata:
-            name: airflow-configmap
-          data:
-            airflow_local_settings.py: |
-                def pod_mutation_hook(pod):
-                    ...
-            airflow.cfg: |
-                ...
-      version_added: 1.10.8
-      type: string
-      example: "airflow-configmap"
-      default: ""
-    - name: dags_in_image
-      description: |
-        For docker image already contains DAGs, this is set to ``True``, and the worker will
-        search for dags in dags_folder, otherwise use git sync or dags volume claim to mount DAGs
-      version_added: 1.10.2
-      type: string
-      example: ~
-      default: "False"
-    - name: dags_volume_subpath
-      description: |
-        For either git sync or volume mounted DAGs, the worker will look in this subpath for DAGs
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: dags_volume_mount_point
-      description: |
-        For either git sync or volume mounted DAGs, the worker will mount the volume in this path
-      version_added: 1.10.11
-      type: string
-      example: ~
-      default: ""
-    - name: dags_volume_claim
-      description: |
-        For DAGs mounted via a volume claim (mutually exclusive with git-sync and host path)
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: logs_volume_subpath
-      description: |
-        For volume mounted logs, the worker will look in this subpath for logs
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: logs_volume_claim
-      description: |
-        A shared volume claim for the logs
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: dags_volume_host
-      description: |
-        For DAGs mounted via a hostPath volume (mutually exclusive with volume claim and git-sync)
-        Useful in local environment, discouraged in production
-      version_added: 1.10.2
-      type: string
-      example: ~
-      default: ""
-    - name: logs_volume_host
-      description: |
-        A hostPath volume for the logs
-        Useful in local environment, discouraged in production
-      version_added: 1.10.2
-      type: string
-      example: ~
-      default: ""
-    - name: env_from_configmap_ref
-      description: |
-        A list of configMapsRefs to envFrom. If more than one configMap is
-        specified, provide a comma separated list: configmap_a,configmap_b
-      version_added: 1.10.3
-      type: string
-      example: ~
-      default: ""
-    - name: env_from_secret_ref
-      description: |
-        A list of secretRefs to envFrom. If more than one secret is
-        specified, provide a comma separated list: secret_a,secret_b
-      version_added: 1.10.3
-      type: string
-      example: ~
-      default: ""
-    - name: git_repo
-      description: |
-        Git credentials and repository for DAGs mounted via Git (mutually exclusive with volume claim)
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: git_branch
-      description: |
-        Branch of the git repo containing DAGs. This can be useful for users who wish to version their DAGs
-        using release branches.
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: git_sync_depth
-      description: |
-        Use a shallow clone with a history truncated to the specified number of commits.
-        0 - do not use shallow clone.
-      version_added: 1.10.11
-      type: string
-      example: ~
-      default: "1"
-    - name: git_subpath
-      description: |
-        Subpath of git repo to be pulled for DAGs. This allows users to maintain multiple DAG
-        repositories in a single git repo.
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: git_sync_rev
-      description: |
-        The specific rev or hash the git_sync init container will checkout
-        This becomes GIT_SYNC_REV environment variable in the git_sync init container for worker pods
-      version_added: 1.10.7
-      type: string
-      example: ~
-      default: ""
-    - name: git_user
-      description: |
-        Use git_user and git_password for user authentication or git_ssh_key_secret_name
-        and git_ssh_key_secret_key for SSH authentication
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: git_password
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: git_sync_root
-      description: ~
-      version_added: 1.10.2
-      type: string
-      example: ~
-      default: "/git"
-    - name: git_sync_dest
-      description: ~
-      version_added: 1.10.2
-      type: string
-      example: ~
-      default: "repo"
-    - name: git_dags_folder_mount_point
-      description: |
-        Mount point of the volume if git-sync is being used.
-        i.e. {AIRFLOW_HOME}/dags
-      version_added: 1.10.2
-      type: string
-      example: ~
-      default: ""
-    - name: git_ssh_key_secret_name
-      description: |
-        To get Git-sync SSH authentication set up follow this format
-
-        ``airflow-secrets.yaml``:
-
-        .. code-block:: yaml
-
-          ---
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: airflow-secrets
-          data:
-            # key needs to be gitSshKey
-            gitSshKey: <base64_encoded_data>
-      version_added: 1.10.3
-      type: string
-      example: "airflow-secrets"
-      default: ""
-    - name: git_ssh_known_hosts_configmap_name
-      description: |
-        To get Git-sync SSH authentication set up follow this format
-
-        ``airflow-configmap.yaml``:
-
-        .. code-block:: yaml
-
-          ---
-          apiVersion: v1
-          kind: ConfigMap
-          metadata:
-            name: airflow-configmap
-          data:
-            known_hosts: |
-                github.com ssh-rsa <...>
-            airflow.cfg: |
-                ...
-
-      version_added: 1.10.3
-      type: string
-      example: "airflow-configmap"
-      default: ""
-    - name: git_sync_credentials_secret
-      description: |
-        To give the git_sync init container credentials via a secret, create a secret
-        with two fields: GIT_SYNC_USERNAME and GIT_SYNC_PASSWORD (example below) and
-        add ``git_sync_credentials_secret = <secret_name>`` to your airflow config under the
-        ``kubernetes`` section
-
-        Secret Example:
-
-        .. code-block:: yaml
-
-          ---
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: git-credentials
-          data:
-            GIT_SYNC_USERNAME: <base64_encoded_git_username>
-            GIT_SYNC_PASSWORD: <base64_encoded_git_password>
-      version_added: 1.10.5
-      type: string
-      example: ~
-      default: ""
-    - name: git_sync_container_repository
-      description: |
-        For cloning DAGs from git repositories into volumes: https://github.com/kubernetes/git-sync
-      version_added: ~
-      type: string
-      example: ~
-      default: "k8s.gcr.io/git-sync"
-    - name: git_sync_container_tag
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "v3.1.1"
-    - name: git_sync_init_container_name
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "git-sync-clone"
-    - name: git_sync_run_as_user
-      description: ~
-      version_added: 1.10.5
-      type: string
-      example: ~
-      default: "65533"
-    - name: worker_service_account_name
-      description: |
-        The name of the Kubernetes service account to be associated with airflow workers, if any.
-        Service accounts are required for workers that require access to secrets or cluster resources.
-        See the Kubernetes RBAC documentation for more:
-        https://kubernetes.io/docs/admin/authorization/rbac/
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: image_pull_secrets
-      description: |
-        Any image pull secrets to be given to worker pods, If more than one secret is
-        required, provide a comma separated list: secret_a,secret_b
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
     - name: in_cluster
       description: |
         Use the service account kubernetes gives to pods to connect to kubernetes cluster.
@@ -2222,24 +1935,6 @@
       type: string
       example: ~
       default: ~
-    - name: affinity
-      description: |
-        Affinity configuration as a single line formatted JSON object.
-        See the affinity model for top-level key names (e.g. ``nodeAffinity``, etc.):
-        https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.12/#affinity-v1-core
-      version_added: 1.10.2
-      type: string
-      example: ~
-      default: ""
-    - name: tolerations
-      description: |
-        A list of toleration objects as a single line formatted JSON array
-        See:
-        https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.12/#toleration-v1-core
-      version_added: 1.10.2
-      type: string
-      example: ~
-      default: ""
     - name: kube_client_request_args
       description: |
         Keyword parameters to pass while calling a kubernetes client core_v1_api methods
@@ -2262,81 +1957,6 @@
       type: string
       example: '{"grace_period_seconds": 10}'
       default: ""
-    - name: run_as_user
-      description: |
-        Specifies the uid to run the first process of the worker pods containers as
-      version_added: 1.10.3
-      type: string
-      example: ~
-      default: ""
-    - name: fs_group
-      description: |
-        Specifies a gid to associate with all containers in the worker pods
-        if using a git_ssh_key_secret_name use an fs_group
-        that allows for the key to be read, e.g. 65533
-      version_added: 1.10.3
-      type: string
-      example: ~
-      default: ""
-    - name: worker_annotations
-      description: |
-        Annotations configuration as a single line formatted JSON object.
-        See the naming convention in:
-        https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    - name: worker_resources
-      description: |
-        Worker resources configuration as a single line formatted JSON object.
-      version_added: ~
-      type: string
-      example: '{ "limit_cpu": 0.25, "limit_memory": "64Mi", "request_cpu": "250m", "request_memory": "64Mi"}'
-      default: ""
-- name: kubernetes_node_selectors
-  description: |
-    The Key-value pairs to be given to worker pods.
-    The worker pods will be scheduled to the nodes of the specified key-value pairs.
-    Should be supplied in the format: key = value
-  options: []
-- name: kubernetes_environment_variables
-  description: |
-    The scheduler sets the following environment variables into your workers. You may define as
-    many environment variables as needed and the kubernetes launcher will set them in the launched workers.
-    Environment variables in this section are defined as followsa
-    ``<environment_variable_key> = <environment_variable_value>``
-
-    For example if you wanted to set an environment variable with value `prod` and key
-    ``ENVIRONMENT`` you would follow the following format:
-    ENVIRONMENT = prod
-
-    Additionally you may override worker airflow settings with the ``AIRFLOW__<SECTION>__<KEY>``
-    formatting as supported by airflow normally.
-  options: []
-- name: kubernetes_secrets
-  description: |
-    The scheduler mounts the following secrets into your workers as they are launched by the
-    scheduler. You may define as many secrets as needed and the kubernetes launcher will parse the
-    defined secrets and mount them as secret environment variables in the launched workers.
-    Secrets in this section are defined as follows
-    ``<environment_variable_mount> = <kubernetes_secret_object>=<kubernetes_secret_key>``
-
-    For example if you wanted to mount a kubernetes secret key named ``postgres_password`` from the
-    kubernetes secret object ``airflow-secret`` as the environment variable ``POSTGRES_PASSWORD`` into
-    your workers you would follow the following format:
-    ``POSTGRES_PASSWORD = airflow-secret=postgres_credentials``
-
-    Additionally you may override worker airflow settings with the ``AIRFLOW__<SECTION>__<KEY>``
-    formatting as supported by airflow normally.
-  options: []
-- name: kubernetes_labels
-  description: |
-    The Key-value pairs to be given to worker pods.
-    The worker pods will be given these static labels, as well as some additional dynamic labels
-    to identify the task.
-    Should be supplied in the format: ``key = value``
-  options: []
 - name: smart_sensor
   description: ~
   options:

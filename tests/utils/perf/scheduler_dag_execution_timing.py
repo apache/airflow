@@ -107,9 +107,10 @@ def get_executor_under_test(dotted_path):
 
     else:
         executor = ExecutorLoader.load_executor(dotted_path)
+        executor_cls = type(executor)
 
     # Change this to try other executors
-    class ShortCircuitExecutor(ShortCircuitExecutorMixin, executor):
+    class ShortCircuitExecutor(ShortCircuitExecutorMixin, executor_cls):
         """
         Placeholder class that implements the inheritance hierarchy
         """

@@ -42,6 +42,7 @@ from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.base import Operator
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.models.taskmixin import TaskMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -84,7 +85,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
 # pylint: disable=too-many-instance-attributes,too-many-public-methods
 @functools.total_ordering
-class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
+class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta):
     """
     Abstract base class for all operators. Since operators create objects that
     become nodes in the dag, BaseOperator contains many recursive methods for
@@ -490,38 +491,6 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
             except TypeError:
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
-
-    # Composing Operators -----------------------------------------------
-
-    def __rshift__(self, other):
-        """
-        Implements Self >> Other == self.set_downstream(other)
-        """
-        self.set_downstream(other)
-        return other
-
-    def __lshift__(self, other):
-        """
-        Implements Self << Other == self.set_upstream(other)
-        """
-        self.set_upstream(other)
-        return other
-
-    def __rrshift__(self, other):
-        """
-        Called for Operator >> [Operator] because list don't have
-        __rshift__ operators.
-        """
-        self.__lshift__(other)
-        return self
-
-    def __rlshift__(self, other):
-        """
-        Called for Operator << [Operator] because list don't have
-        __lshift__ operators.
-        """
-        self.__rshift__(other)
-        return self
 
     # including lineage information
     def __or__(self, other):
@@ -1146,27 +1115,26 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         else:
             item_set.add(item)
 
-    def _set_relatives(self,
-                       task_or_task_list: Union['BaseOperator', Sequence['BaseOperator']],
-                       upstream: bool = False) -> None:
+    @property
+    def roots(self) -> List["BaseOperator"]:
+        """Required by TaskMixin"""
+        return [self]
+
+    def _set_relatives(
+        self,
+        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        upstream: bool = False,
+    ) -> None:
         """Sets relatives for the task or task list."""
-        from airflow.models.xcom_arg import XComArg
 
-        if isinstance(task_or_task_list, XComArg):
-            # otherwise we will start to iterate over xcomarg
-            # because of the "list" check below
-            # with current XComArg.__getitem__ implementation
-            task_list = [task_or_task_list.operator]
+        if isinstance(task_or_task_list, Sequence):
+            task_like_object_list = task_or_task_list
         else:
-            try:
-                task_list = list(task_or_task_list)  # type: ignore
-            except TypeError:
-                task_list = [task_or_task_list]  # type: ignore
+            task_like_object_list = [task_or_task_list]
 
-            task_list = [
-                t.operator if isinstance(t, XComArg) else t
-                for t in task_list
-            ]
+        task_list: List["BaseOperator"] = []
+        for task_object in task_like_object_list:
+            task_list.extend(task_object.roots)
 
         for task in task_list:
             if not isinstance(task, BaseOperator):
@@ -1177,8 +1145,8 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
         dags = {
-            task._dag.dag_id: task._dag  # type: ignore  # pylint: disable=protected-access
-            for task in [self] + task_list if task.has_dag()}
+            task._dag.dag_id: task._dag  # type: ignore  # pylint: disable=protected-access,no-member
+            for task in self.roots + task_list if task.has_dag()}  # pylint: disable=no-member
 
         if len(dags) > 1:
             raise AirflowException(
@@ -1205,17 +1173,17 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
                 self.add_only_new(self._downstream_task_ids, task.task_id)
                 task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id)
 
-    def set_downstream(self, task_or_task_list: Union['BaseOperator', Sequence['BaseOperator']]) -> None:
+    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
         """
         Set a task or a task list to be directly downstream from the current
-        task.
+        task. Required by TaskMixin.
         """
         self._set_relatives(task_or_task_list, upstream=False)
 
-    def set_upstream(self, task_or_task_list: Union['BaseOperator', Sequence['BaseOperator']]) -> None:
+    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
         """
         Set a task or a task list to be directly upstream from the current
-        task.
+        task. Required by TaskMixin.
         """
         self._set_relatives(task_or_task_list, upstream=True)
 

@@ -105,8 +105,9 @@ function initialization::initialize_base_variables() {
 # Determine current branch
 function initialization::initialize_branch_variables() {
     # Default branch used - this will be different in different branches
-    export DEFAULT_BRANCH="master"
-    export DEFAULT_CONSTRAINTS_BRANCH="constraints-master"
+    export DEFAULT_BRANCH=${DEFAULT_BRANCH="master"}
+    export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-master"}
+    readonly DEFAULT_BRANCH
     readonly DEFAULT_CONSTRAINTS_BRANCH
 
     # Default branch name for triggered builds is the one configured in default branch
@@ -350,8 +351,6 @@ function initialization::initialize_github_variables() {
     export GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG:="latest"}
 
     export GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
-    GITHUB_REPOSITORY_LOWERCASE="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
-    export GITHUB_REPOSITORY_LOWERCASE
 
     # Used only in CI environment
     export GITHUB_TOKEN="${GITHUB_TOKEN=""}"
@@ -453,7 +452,6 @@ Detected GitHub environment:
     USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY}
     GITHUB_REGISTRY=${GITHUB_REGISTRY}
     GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
-    GITHUB_REPOSITORY_LOWERCASE=${GITHUB_REPOSITORY_LOWERCASE}
     GITHUB_USERNAME=${GITHUB_USERNAME}
     GITHUB_TOKEN=${GITHUB_TOKEN}
     GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE}
@@ -481,7 +479,7 @@ EOF
 # This function maps CI-specific variables into a generic ones (prefixed with CI_) that
 # we used in other scripts
 function initialization::get_environment_for_builds_on_ci() {
-    if [[ ${GITHUB_ACTIONS:=} == "true" ]]; then
+    if [[ ${CI:=} == "true" ]]; then
         export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
         export CI_TARGET_BRANCH="${GITHUB_BASE_REF:="master"}"
         export CI_BUILD_ID="${GITHUB_RUN_ID}"
@@ -600,7 +598,6 @@ function initialization::make_constants_read_only() {
     readonly GITHUB_REGISTRY_PUSH_IMAGE_TAG
 
     readonly GITHUB_REPOSITORY
-    readonly GITHUB_REPOSITORY_LOWERCASE
     readonly GITHUB_TOKEN
     readonly GITHUB_USERNAME
 

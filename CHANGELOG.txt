@@ -1787,7 +1787,7 @@ Improvements
 - [AIRFLOW-3034]: Readme updates : Add Slack & Twitter, remove Gitter
 - [AIRFLOW-3028] Update Text & Images in Readme.md
 - [AIRFLOW-208] Add badge to show supported Python versions (#3839)
-- [AIRFLOW-2238] Update PR tool to push directly to Github
+- [AIRFLOW-2238] Update PR tool to push directly to GitHub
 - [AIRFLOW-2238] Flake8 fixes on dev/airflow-pr
 - [AIRFLOW-2238] Update PR tool to remove outdated info (#3978)
 - [AIRFLOW-3005] Replace 'Airbnb Airflow' with 'Apache Airflow' (#3845)
@@ -2441,7 +2441,7 @@ Airflow 1.10.0, 2018-08-03
 - [AIRFLOW-2200] Add snowflake operator with tests
 - [AIRFLOW-2178] Add handling on SLA miss errors
 - [AIRFLOW-2169] Fix type 'bytes' is not JSON serializable in python3
-- [AIRFLOW-2215] Pass environment to subproces.Popen in base_task_runner
+- [AIRFLOW-2215] Pass environment to subprocess.Popen in base_task_runner
 - [AIRFLOW-2253] Add Airflow CLI instrumentation
 - [AIRFLOW-2274] Fix Dataflow tests
 - [AIRFLOW-2269] Add Custom Ink as an Airflow user
@@ -3863,7 +3863,7 @@ Airflow 1.7.1, 2016-05-19
 - Update plugins.rst for clarity on the example (#1309)
 - Fix s3 logging issue
 - Add twitter feed example dag
-- Github ISSUE_TEMPLATE & PR_TEMPLATE cleanup
+- GitHub ISSUE_TEMPLATE & PR_TEMPLATE cleanup
 - Reduce logger verbosity
 - Adding a PR Template
 - Add Lucid to list of users

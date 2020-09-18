@@ -20,6 +20,8 @@
 """
 This module contains the AWS DynamoDB hook
 """
+from typing import Iterable, List, Optional
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -40,12 +42,15 @@ class AwsDynamoDBHook(AwsBaseHook):
     :type table_name: str
     """
 
-    def __init__(self, *args, table_keys=None, table_name=None, **kwargs):
+    def __init__(
+        self, *args, table_keys: Optional[List] = None, table_name: Optional[str] = None, **kwargs
+    ) -> None:
         self.table_keys = table_keys
         self.table_name = table_name
-        super().__init__(resource_type='dynamodb', *args, **kwargs)
+        kwargs["resource_type"] = "dynamodb"
+        super().__init__(*args, **kwargs)
 
-    def write_batch_data(self, items):
+    def write_batch_data(self, items: Iterable):
         """
         Write batch items to DynamoDB table with provisioned throughout capacity.
         """
@@ -58,5 +63,5 @@ class AwsDynamoDBHook(AwsBaseHook):
             return True
         except Exception as general_error:
             raise AirflowException(
-                'Failed to insert items in dynamodb, error: {error}'.format(error=str(general_error))
+                "Failed to insert items in dynamodb, error: {error}".format(error=str(general_error))
             )

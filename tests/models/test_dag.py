@@ -58,9 +58,11 @@ class TestDag(unittest.TestCase):
 
     def setUp(self) -> None:
         clear_db_runs()
+        clear_db_dags()
 
     def tearDown(self) -> None:
         clear_db_runs()
+        clear_db_dags()
 
     @staticmethod
     def _clean_up(dag_id: str):
@@ -894,6 +896,15 @@ class TestDag(unittest.TestCase):
         # Since the dag didn't exist before, it should follow the pause flag upon creation
         self.assertTrue(orm_dag.is_paused)
         session.close()
+
+    def test_existing_dag_default_view(self):
+
+        with create_session() as session:
+            session.add(DagModel(dag_id='dag_default_view_old', default_view=None))
+            session.commit()
+            orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag_default_view_old').one()
+        self.assertIsNone(orm_dag.default_view)
+        self.assertEqual(orm_dag.get_default_view(), conf.get('webserver', 'dag_default_view').lower())
 
     def test_dag_is_deactivated_upon_dagfile_deletion(self):
         dag_id = 'old_existing_dag'

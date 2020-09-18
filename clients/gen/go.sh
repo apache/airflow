@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -22,22 +21,30 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+CLIENTS_GEN_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+readonly CLIENTS_GEN_DIR
+
 # shellcheck source=./clients/gen/common.sh
-source "${SCRIPT_DIR}/common.sh"
+source "${CLIENTS_GEN_DIR}/common.sh"
 
 VERSION=1.0.0
+readonly VERSION
+
 go_config=(
     "packageVersion=${VERSION}"
     "enumClassPrefix=true"
 )
 
 SPEC_PATH=$(realpath "$1")
+readonly SPEC_PATH
+
 if [ ! -d "$2" ]; then
     echo "$2 is not a valid directory or does not exist."
     exit 1
 fi
+
 OUTPUT_DIR=$(realpath "$2")
+readonly  OUTPUT_DIR
 
 # create openapi ignore file to keep generated code clean
 cat <<EOF > "${OUTPUT_DIR}/.openapi-generator-ignore"
@@ -48,9 +55,7 @@ EOF
 set -ex
 IFS=','
 
-SPEC_PATH="${SPEC_PATH}" \
-OUTPUT_DIR="${OUTPUT_DIR}" \
-    gen_client go \
+gen_client go \
     --package-name airflow \
     --git-repo-id airflow-client-go/airflow \
     --additional-properties "${go_config[*]}"
@@ -71,7 +76,7 @@ cd "${OUTPUT_DIR}" && patch -b <<'EOF'
  )
 EOF
 
-pushd "${OUTPUT_DIR}"
-    # prepend license headers
-    pre-commit run --all-files || true
-popd
+cd "${OUTPUT_DIR}"
+
+# prepend license headers
+pre-commit run --all-files || true

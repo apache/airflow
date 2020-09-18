@@ -37,6 +37,15 @@ class TestJSONFormatter(unittest.TestCase):
         json_fmt = JSONFormatter()
         self.assertIsNotNone(json_fmt)
 
+    def test_uses_time(self):
+        """
+        Test usesTime method from JSONFormatter
+        """
+        json_fmt_asctime = JSONFormatter(json_fields=["asctime", "label"])
+        json_fmt_no_asctime = JSONFormatter(json_fields=["label"])
+        self.assertTrue(json_fmt_asctime.usesTime())
+        self.assertFalse(json_fmt_no_asctime.usesTime())
+
     def test_format(self):
         """
         Test format method from JSONFormatter

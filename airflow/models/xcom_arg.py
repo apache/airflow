@@ -15,14 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator  # pylint: disable=R0401
+from airflow.models.taskmixin import TaskMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 
 
-class XComArg:
+class XComArg(TaskMixin):
     """
     Class that represents a XCom push from a previous operator.
     Defaults to "return_value" as only key.
@@ -65,20 +66,6 @@ class XComArg:
         return (self.operator == other.operator
                 and self.key == other.key)
 
-    def __lshift__(self, other):
-        """
-        Implements XComArg << op
-        """
-        self.set_upstream(other)
-        return self
-
-    def __rshift__(self, other):
-        """
-        Implements XComArg >> op
-        """
-        self.set_downstream(other)
-        return self
-
     def __getitem__(self, item):
         """
         Implements xcomresult['some_result_key']
@@ -107,25 +94,28 @@ class XComArg:
 
     @property
     def operator(self) -> BaseOperator:
-        """Returns operator of this XComArg"""
+        """Returns operator of this XComArg."""
         return self._operator
+
+    @property
+    def roots(self) -> List[BaseOperator]:
+        """Required by TaskMixin"""
+        return [self._operator]
 
     @property
     def key(self) -> str:
         """Returns keys of this XComArg"""
         return self._key
 
-    def set_upstream(self, task_or_task_list: Union[BaseOperator, List[BaseOperator]]):
+    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]):
         """
-        Proxy to underlying operator set_upstream method
+        Proxy to underlying operator set_upstream method. Required by TaskMixin.
         """
         self.operator.set_upstream(task_or_task_list)
 
-    def set_downstream(
-        self, task_or_task_list: Union[BaseOperator, List[BaseOperator]]
-    ):
+    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]):
         """
-        Proxy to underlying operator set_downstream method
+        Proxy to underlying operator set_downstream method. Required by TaskMixin.
         """
         self.operator.set_downstream(task_or_task_list)
 

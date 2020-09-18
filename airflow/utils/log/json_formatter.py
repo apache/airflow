@@ -40,6 +40,9 @@ class JSONFormatter(logging.Formatter):
         self.json_fields = json_fields
         self.extras = extras
 
+    def usesTime(self):
+        return self.json_fields.count('asctime') > 0
+
     def format(self, record):
         super().format(record)
         record_dict = {label: getattr(record, label, None)

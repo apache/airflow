@@ -71,7 +71,7 @@ spec:
     {{ toYaml .Values.affinity | indent 8 }}
   tolerations:
     {{ toYaml .Values.tolerations | indent 8 }}
-  serviceAccountName: '{{ .Release.Name }}-worker-serviceaccount'
+  serviceAccountName: '{{ .Release.Name }}-worker'
   volumes:
   {{- if .Values.dags.persistence.enabled }}
   - name: dags

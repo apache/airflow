@@ -34,6 +34,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
+from sqlalchemy.orm import load_only
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
@@ -59,6 +60,7 @@ from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import provide_session
+from airflow.utils.sqlalchemy import skip_locked
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -1387,7 +1389,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # set TIs to queued state
         filter_for_tis = TI.filter_for_tis(tis_to_set_to_queued)
         session.query(TI).filter(filter_for_tis).update(
-            {TI.state: State.QUEUED, TI.queued_dttm: timezone.utcnow()}, synchronize_session=False
+            {TI.state: State.QUEUED, TI.queued_dttm: timezone.utcnow(), TI.queued_by_job_id: self.id},
+            synchronize_session=False
         )
         session.commit()
 
@@ -1541,7 +1544,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 "exited with status %s for try_number %s",
                 ti_key.dag_id, ti_key.task_id, ti_key.execution_date, state, ti_key.try_number
             )
-            if state in (State.FAILED, State.SUCCESS):
+            if state in (State.FAILED, State.SUCCESS, State.QUEUED):
                 tis_with_right_state.append(ti_key)
 
         # Return if no finished tasks
@@ -1557,6 +1560,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             state, info = event_buffer.pop(buffer_key)
 
             # TODO: should we fail RUNNING as well, as we do in Backfills?
+            if state == State.QUEUED:
+                ti.external_executor_id = info
+                continue
+
             if ti.try_number == buffer_key.try_number and ti.state == State.QUEUED:
                 Stats.incr('scheduler.tasks.killed_externally')
                 msg = "Executor reports task instance %s finished (%s) although the " \
@@ -1597,7 +1604,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.executor.start()
 
             self.log.info("Resetting orphaned tasks for active dag runs")
-            self.reset_state_for_orphaned_tasks()
+            self.adopt_or_reset_orphaned_tasks()
 
             self.register_exit_signals()
 
@@ -1764,7 +1771,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         Stats.incr('scheduler_heartbeat', 1, 1)
 
     @provide_session
-    def reset_state_for_orphaned_tasks(self, session: Session = None):
+    def adopt_or_reset_orphaned_tasks(self, session: Session = None):
         """
         Reset any TaskInstance still in QUEUED or SCHEDULED states that were
         enqueued by a SchedulerJob that is no longer running.
@@ -1781,11 +1788,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         if num_failed:
             self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
+            Stats.incr(self.__class__.__name__.lower() + '_end', num_failed)
 
-        resettable_states = [State.SCHEDULED, State.QUEUED]
-        tis_to_reset = (
+        resettable_states = [State.SCHEDULED, State.QUEUED, State.RUNNING]
+        tis_to_reset_or_adopt = (
             session.query(TI).filter(TI.state.in_(resettable_states))
-            # outerjoin is becase we didn't use to have queued_by_job
+            # outerjoin is because we didn't use to have queued_by_job
             # set, so we need to pick up anything pre upgrade. This (and the
             # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
             # released.
@@ -1795,30 +1803,28 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .filter(DagRun.run_type != DagRunType.BACKFILL_JOB.value,
                     # pylint: disable=comparison-with-callable
                     DagRun.state == State.RUNNING)
-            .with_entities(TI.dag_id, TI.task_id, TI.execution_date)
+            .options(load_only(TI.dag_id, TI.task_id, TI.execution_date))
+            # Lock these rows, so that another scheduler can't try and adopt these too
+            .with_for_update(of=TI, **skip_locked(session=session))
+            .all()
         )
+        to_reset = self.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
 
-        if self.using_sqlite:
-            tis_to_reset = tis_to_reset.with_for_update(of=TI).all()
-            if tis_to_reset:
-                filter_for_tis = TI.filter_for_tis([
-                    TaskInstanceKey(dag_id, task_id, execution_date, 0)
-                    for (dag_id, task_id, execution_date) in tis_to_reset
-                ])
-                num_reset = session.query(TI).filter(
-                    filter_for_tis, TI.state.in_(resettable_states)
-                ).update({TI.state: State.NONE}, synchronize_session=False)
-            else:
-                num_reset = 0
-        else:
-            tis_to_reset = tis_to_reset.subquery('tis_to_reset')
-            num_reset = session.query(TI).filter(
-                TI.dag_id == tis_to_reset.c.dag_id,
-                TI.task_id == tis_to_reset.c.task_id,
-                TI.execution_date == tis_to_reset.c.execution_date,
-            ).update({TI.state: State.NONE}, synchronize_session=False)
+        reset_tis_message = []
+        for ti in to_reset:
+            reset_tis_message.append(repr(ti))
+            ti.state = State.NONE
+            ti.queued_by_job_id = None
 
-        if num_reset:
-            self.log.info("Reset %d orphaned TaskInstances that were in queued state", num_reset)
+        for ti in set(tis_to_reset_or_adopt) - set(to_reset):
+            ti.queued_by_job_id = self.id
 
-        return num_reset
+        Stats.incr('scheduler.orphaned_tasks.cleared', len(to_reset))
+        Stats.incr('scheduler.orphaned_tasks.adopted', len(tis_to_reset_or_adopt) - len(to_reset))
+
+        if to_reset:
+            task_instance_str = '\n\t'.join(reset_tis_message)
+            self.log.info("Reset the following %s orphaned TaskInstances:\n\t%s",
+                          len(to_reset), task_instance_str)
+
+        return len(to_reset)

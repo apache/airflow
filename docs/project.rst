@@ -70,7 +70,7 @@ Committers
 - @XD-DENG (Xiaodong Deng)
 - @zhongjiajie (Jiajie Zhong)
 
-For the full list of contributors, take a look at `Airflow's Github
+For the full list of contributors, take a look at `Airflow's GitHub
 Contributor page:
 <https://github.com/apache/airflow/graphs/contributors>`_
 

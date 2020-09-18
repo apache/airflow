@@ -389,7 +389,6 @@ def generate_pod_yaml(args):
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig
     from airflow.kubernetes import pod_generator
     from airflow.kubernetes.pod_generator import PodGenerator
-    from airflow.kubernetes.worker_configuration import WorkerConfiguration
     from airflow.settings import pod_mutation_hook
 
     execution_date = args.execution_date
@@ -410,7 +409,7 @@ def generate_pod_yaml(args):
             pod_override_object=PodGenerator.from_obj(ti.executor_config),
             worker_uuid="worker-config",
             namespace=kube_config.executor_namespace,
-            base_worker_pod=WorkerConfiguration(kube_config=kube_config).as_pod()
+            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file)
         )
         pod_mutation_hook(pod)
         api_client = ApiClient()

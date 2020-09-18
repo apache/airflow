@@ -518,6 +518,12 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_transform`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_tuning`
 
+   * - `Amazon SecretsManager <https://https://aws.amazon.com/secrets-manager/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.secrets_manager`
+     -
+     -
+
    * - `Amazon Simple Email Service (SES) <https://aws.amazon.com/ses/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.ses`
@@ -930,9 +936,8 @@ These integrations allow you to copy data from/to Google Cloud.
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     - :doc:`How to use <howto/operator/google/cloud/cloud_storage_transfer_service>`
-     - :mod:`airflow.providers.google.cloud.transfers.s3_to_gcs`,
-       :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
+     - :doc:`How to use <howto/operator/google/transfer/s3_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.transfers.s3_to_gcs`
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__

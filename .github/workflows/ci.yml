@@ -593,7 +593,7 @@ jobs:
           cache-name: cache-kubernetes-tests-virtualenv-v3
         with:
           path: .build/.kubernetes_venv
-          key: "${{ env.cache-name }}-${{ github.job }}-v1"
+          key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}-v1"
       - name: "Kubernetes Tests"
         run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
       - name: "Upload KinD logs"

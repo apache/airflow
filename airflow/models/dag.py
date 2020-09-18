@@ -1621,6 +1621,13 @@ class DAG(BaseDag, LoggingMixin):
         """
         self.bulk_sync_to_db([self], sync_time, session)
 
+    def get_default_view(self):
+        """This is only there for backward compatible jinja2 templates"""
+        if self.default_view is None:
+            return conf.get('webserver', 'dag_default_view').lower()
+        else:
+            return self.default_view
+
     @staticmethod
     @provide_session
     def deactivate_unknown_dags(active_dag_ids, session=None):
@@ -1819,6 +1826,14 @@ class DagModel(Base):
 
         paused_dag_ids = set(paused_dag_id for paused_dag_id, in paused_dag_ids)
         return paused_dag_ids
+
+    def get_default_view(self) -> str:
+        """
+        Get the Default DAG View, returns the default config value if DagModel does not
+        have a value
+        """
+        # This is for backwards-compatibility with old dags that don't have None as default_view
+        return self.default_view or conf.get('webserver', 'dag_default_view').lower()
 
     @property
     def safe_dag_id(self):

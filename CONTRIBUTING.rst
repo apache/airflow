@@ -116,7 +116,7 @@ Committers are responsible for:
 
 * Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__
 * Reviewing & Merging Pull-Requests
-* Scanning and responding to Github issues
+* Scanning and responding to GitHub issues
 * Responding to questions on the dev mailing list (dev@airflow.apache.org)
 
 Becoming a Committer
@@ -132,7 +132,7 @@ The key aspects of a committer are:
   contributions towards a more strategic goal
 * Understanding of contributor/committer guidelines: `Contributors' Guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__
 * Quality of the commits
-* Visibility in community discussions (dev mailing list, Slack and Github)
+* Visibility in community discussions (dev mailing list, Slack and GitHub)
 * Testing Release Candidates
 
 
@@ -172,7 +172,7 @@ In general, your contribution includes the following stages:
 2. Create a `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
    initialize the `Breeze environment <BREEZE.rst>`__, and
    install `pre-commit framework <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__.
-   If you want to add more changes in the future, set up your fork and enable Github Actions.
+   If you want to add more changes in the future, set up your fork and enable GitHub Actions.
 
 3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
    and set up a `Slack account <https://apache-airflow-slack.herokuapp.com>`__.
@@ -315,7 +315,7 @@ these guidelines:
 -   Include tests, either as doctests, unit tests, or both, to your pull
     request.
 
-    The airflow repo uses `Github Actions <https://help.github.com/en/actions>`__ to
+    The airflow repo uses `GitHub Actions <https://help.github.com/en/actions>`__ to
     run the tests and `codecov <https://codecov.io/gh/apache/airflow>`__ to track
     coverage. You can set up both for free on your fork. It will help you make sure you do not
     break the build with your PR and that you help increase coverage.
@@ -1041,15 +1041,15 @@ You can join the channels via links at the `Airflow Community page <https://airf
    * detailed discussions on big proposals (Airflow Improvement Proposals also name AIPs)
    * helpful, shared resources (for example Apache Airflow logos
    * information that can be re-used by others (for example instructions on preparing workshops)
-* Github `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
+* GitHub `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
    * discussing implementation details of PRs
    * not for architectural discussions (use the devlist for that)
 * The deprecated `JIRA issues <https://issues.apache.org/jira/projects/AIRFLOW/issues/AIRFLOW-4470?filter=allopenissues>`_ for:
-   * checking out old but still valuable issues that are not on Github yet
-   * mentioning the JIRA issue number in the title of the related PR you would like to open on Github
+   * checking out old but still valuable issues that are not on GitHub yet
+   * mentioning the JIRA issue number in the title of the related PR you would like to open on GitHub
 
 **IMPORTANT**
-We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable tickets inside of it. However, each new PR should be created on `Github issues <https://github.com/apache/airflow/issues>`_ as stated in `Contribution Workflow Example <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contribution-workflow-example>`_
+We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable tickets inside of it. However, each new PR should be created on `GitHub issues <https://github.com/apache/airflow/issues>`_ as stated in `Contribution Workflow Example <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contribution-workflow-example>`_
 
 * The `Apache Airflow Slack <https://apache-airflow-slack.herokuapp.com/>`_ for:
    * ad-hoc questions related to development (#development channel)

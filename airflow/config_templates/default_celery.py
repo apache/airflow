@@ -43,6 +43,7 @@ DEFAULT_CELERY_CONFIG = {
     'task_acks_late': True,
     'task_default_queue': conf.get('celery', 'DEFAULT_QUEUE'),
     'task_default_exchange': conf.get('celery', 'DEFAULT_QUEUE'),
+    'task_track_started': conf.get('celery', 'task_track_started', fallback=True),
     'broker_url': broker_url,
     'broker_transport_options': broker_transport_options,
     'result_backend': conf.get('celery', 'RESULT_BACKEND'),

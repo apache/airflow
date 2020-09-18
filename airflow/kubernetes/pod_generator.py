@@ -23,13 +23,12 @@ is supported and no serialization need be written.
 import copy
 import datetime
 import hashlib
-import inspect
 import os
 import re
 import uuid
 import warnings
 from functools import reduce
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 import yaml
 from dateutil import parser
@@ -37,6 +36,7 @@ from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import AirflowConfigException
+from airflow.kubernetes.pod_generator_deprecated import PodGenerator as PodGeneratorDeprecated
 from airflow.version import version as airflow_version
 
 MAX_POD_ID_LEN = 253
@@ -123,172 +123,30 @@ class PodGenerator:
     Any configuration that is container specific gets applied to
     the first container in the list of containers.
 
-    :param image: The docker image
-    :type image: Optional[str]
-    :param name: name in the metadata section (not the container name)
-    :type name: Optional[str]
-    :param namespace: pod namespace
-    :type namespace: Optional[str]
-    :param volume_mounts: list of kubernetes volumes mounts
-    :type volume_mounts: Optional[List[Union[k8s.V1VolumeMount, dict]]]
-    :param envs: A dict containing the environment variables
-    :type envs: Optional[Dict[str, str]]
-    :param cmds: The command to be run on the first container
-    :type cmds: Optional[List[str]]
-    :param args: The arguments to be run on the pod
-    :type args: Optional[List[str]]
-    :param labels: labels for the pod metadata
-    :type labels: Optional[Dict[str, str]]
-    :param node_selectors: node selectors for the pod
-    :type node_selectors: Optional[Dict[str, str]]
-    :param ports: list of ports. Applies to the first container.
-    :type ports: Optional[List[Union[k8s.V1ContainerPort, dict]]]
-    :param volumes: Volumes to be attached to the first container
-    :type volumes: Optional[List[Union[k8s.V1Volume, dict]]]
-    :param image_pull_policy: Specify a policy to cache or always pull an image
-    :type image_pull_policy: str
-    :param restart_policy: The restart policy of the pod
-    :type restart_policy: str
-    :param image_pull_secrets: Any image pull secrets to be given to the pod.
-        If more than one secret is required, provide a comma separated list:
-        secret_a,secret_b
-    :type image_pull_secrets: str
-    :param init_containers: A list of init containers
-    :type init_containers: Optional[List[k8s.V1Container]]
-    :param service_account_name: Identity for processes that run in a Pod
-    :type service_account_name: Optional[str]
-    :param resources: Resource requirements for the first containers
-    :type resources: Optional[Union[k8s.V1ResourceRequirements, dict]]
-    :param annotations: annotations for the pod
-    :type annotations: Optional[Dict[str, str]]
-    :param affinity: A dict containing a group of affinity scheduling rules
-    :type affinity: Optional[dict]
-    :param hostnetwork: If True enable host networking on the pod
-    :type hostnetwork: bool
-    :param tolerations: A list of kubernetes tolerations
-    :type tolerations: Optional[list]
-    :param security_context: A dict containing the security context for the pod
-    :type security_context: Optional[Union[k8s.V1PodSecurityContext, dict]]
-    :param configmaps: Any configmap refs to envfrom.
-        If more than one configmap is required, provide a comma separated list
-        configmap_a,configmap_b
-    :type configmaps: List[str]
-    :param dnspolicy: Specify a dnspolicy for the pod
-    :type dnspolicy: Optional[str]
-    :param schedulername: Specify a schedulername for the pod
-    :type schedulername: Optional[str]
     :param pod: The fully specified pod. Mutually exclusive with `path_or_string`
     :type pod: Optional[kubernetes.client.models.V1Pod]
     :param pod_template_file: Path to YAML file. Mutually exclusive with `pod`
     :type pod_template_file: Optional[str]
     :param extract_xcom: Whether to bring up a container for xcom
     :type extract_xcom: bool
-    :param priority_class_name: priority class name for the launched Pod
-    :type priority_class_name: str
     """
     def __init__(  # pylint: disable=too-many-arguments,too-many-locals
         self,
-        image: Optional[str] = None,
-        name: Optional[str] = None,
-        namespace: Optional[str] = None,
-        volume_mounts: Optional[List[Union[k8s.V1VolumeMount, dict]]] = None,
-        envs: Optional[Dict[str, str]] = None,
-        cmds: Optional[List[str]] = None,
-        args: Optional[List[str]] = None,
-        labels: Optional[Dict[str, str]] = None,
-        node_selectors: Optional[Dict[str, str]] = None,
-        ports: Optional[List[Union[k8s.V1ContainerPort, dict]]] = None,
-        volumes: Optional[List[Union[k8s.V1Volume, dict]]] = None,
-        image_pull_policy: Optional[str] = None,
-        restart_policy: Optional[str] = None,
-        image_pull_secrets: Optional[str] = None,
-        init_containers: Optional[List[k8s.V1Container]] = None,
-        service_account_name: Optional[str] = None,
-        resources: Optional[Union[k8s.V1ResourceRequirements, dict]] = None,
-        annotations: Optional[Dict[str, str]] = None,
-        affinity: Optional[dict] = None,
-        hostnetwork: bool = False,
-        tolerations: Optional[list] = None,
-        security_context: Optional[Union[k8s.V1PodSecurityContext, dict]] = None,
-        configmaps: Optional[List[str]] = None,
-        dnspolicy: Optional[str] = None,
-        schedulername: Optional[str] = None,
         pod: Optional[k8s.V1Pod] = None,
         pod_template_file: Optional[str] = None,
-        extract_xcom: bool = False,
-        priority_class_name: Optional[str] = None,
+        extract_xcom: bool = True
     ):
-        self.validate_pod_generator_args(locals())
+        if not pod_template_file and not pod:
+            raise AirflowConfigException("Podgenerator requires either a "
+                                         "`pod` or a `pod_template_file` argument")
+        if pod_template_file and pod:
+            raise AirflowConfigException("Cannot pass both `pod` "
+                                         "and `pod_template_file` arguments")
 
         if pod_template_file:
             self.ud_pod = self.deserialize_model_file(pod_template_file)
         else:
             self.ud_pod = pod
-
-        self.pod = k8s.V1Pod()
-        self.pod.api_version = 'v1'
-        self.pod.kind = 'Pod'
-
-        # Pod Metadata
-        self.metadata = k8s.V1ObjectMeta()
-        self.metadata.labels = labels
-        self.metadata.name = name
-        self.metadata.namespace = namespace
-        self.metadata.annotations = annotations
-
-        # Pod Container
-        self.container = k8s.V1Container(name='base')
-        self.container.image = image
-        self.container.env = []
-
-        if envs:
-            if isinstance(envs, dict):
-                for key, val in envs.items():
-                    self.container.env.append(k8s.V1EnvVar(
-                        name=key,
-                        value=val
-                    ))
-            elif isinstance(envs, list):
-                self.container.env.extend(envs)
-
-        configmaps = configmaps or []
-        self.container.env_from = []
-        for configmap in configmaps:
-            self.container.env_from.append(k8s.V1EnvFromSource(
-                config_map_ref=k8s.V1ConfigMapEnvSource(
-                    name=configmap
-                )
-            ))
-
-        self.container.command = cmds or []
-        self.container.args = args or []
-        self.container.image_pull_policy = image_pull_policy
-        self.container.ports = ports or []
-        self.container.resources = resources
-        self.container.volume_mounts = volume_mounts or []
-
-        # Pod Spec
-        self.spec = k8s.V1PodSpec(containers=[])
-        self.spec.security_context = security_context
-        self.spec.tolerations = tolerations
-        self.spec.dns_policy = dnspolicy
-        self.spec.scheduler_name = schedulername
-        self.spec.host_network = hostnetwork
-        self.spec.affinity = affinity
-        self.spec.service_account_name = service_account_name
-        self.spec.init_containers = init_containers
-        self.spec.volumes = volumes or []
-        self.spec.node_selector = node_selectors
-        self.spec.restart_policy = restart_policy
-        self.spec.priority_class_name = priority_class_name
-
-        self.spec.image_pull_secrets = []
-
-        if image_pull_secrets:
-            for image_pull_secret in image_pull_secrets.split(','):
-                self.spec.image_pull_secrets.append(k8s.V1LocalObjectReference(
-                    name=image_pull_secret
-                ))
 
         # Attach sidecar
         self.extract_xcom = extract_xcom
@@ -297,21 +155,15 @@ class PodGenerator:
         """Generates pod"""
         result = self.ud_pod
 
-        if result is None:
-            result = self.pod
-            result.spec = self.spec
-            result.metadata = self.metadata
-            result.spec.containers = [self.container]
-
         result.metadata.name = self.make_unique_pod_id(result.metadata.name)
 
         if self.extract_xcom:
-            result = self.add_sidecar(result)
+            result = self.add_xcom_sidecar(result)
 
         return result
 
     @staticmethod
-    def add_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
+    def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
         """Adds sidecar"""
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
@@ -323,7 +175,7 @@ class PodGenerator:
         return pod_cp
 
     @staticmethod
-    def from_obj(obj) -> Optional[k8s.V1Pod]:
+    def from_obj(obj) -> Optional[Union[dict, k8s.V1Pod]]:
         """Converts to pod from obj"""
 
         if obj is None:
@@ -359,14 +211,6 @@ class PodGenerator:
         if obj is None:
             return None
 
-        if isinstance(obj, PodGenerator):
-            return obj.gen_pod()
-
-        if not isinstance(obj, dict):
-            raise TypeError(
-                'Cannot convert a non-dictionary or non-PodGenerator '
-                'object into a KubernetesExecutorConfig')
-
         # We do not want to extract constant here from ExecutorLoader because it is just
         # A name in dictionary rather than executor selection mechanism and it causes cyclic import
         namespaced = obj.get("KubernetesExecutor", {})
@@ -396,7 +240,7 @@ class PodGenerator:
                     limits=limits
                 )
         namespaced['resources'] = resources
-        return PodGenerator(**namespaced).gen_pod()
+        return PodGeneratorDeprecated(**namespaced).gen_pod()
 
     @staticmethod
     def reconcile_pods(base_pod: k8s.V1Pod, client_pod: Optional[k8s.V1Pod]) -> k8s.V1Pod:
@@ -520,27 +364,43 @@ class PodGenerator:
             - executor_config
             - dynamic arguments
         """
-        dynamic_pod = PodGenerator(
-            namespace=namespace,
-            image=kube_image,
-            labels={
-                'airflow-worker': worker_uuid,
-                'dag_id': make_safe_label_value(dag_id),
-                'task_id': make_safe_label_value(task_id),
-                'execution_date': datetime_to_label_safe_datestring(date),
-                'try_number': str(try_number),
-                'airflow_version': airflow_version.replace('+', '-'),
-                'kubernetes_executor': 'True',
-            },
-            annotations={
-                'dag_id': dag_id,
-                'task_id': task_id,
-                'execution_date': date.isoformat(),
-                'try_number': str(try_number),
-            },
-            cmds=command,
-            name=pod_id
-        ).gen_pod()
+        try:
+            image = pod_override_object.spec.containers[0].image  # type: ignore
+            if not image:
+                image = kube_image
+        except Exception:  # pylint: disable=W0703
+            image = kube_image
+
+        dynamic_pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                namespace=namespace,
+                annotations={
+                    'dag_id': dag_id,
+                    'task_id': task_id,
+                    'execution_date': date.isoformat(),
+                    'try_number': str(try_number),
+                },
+                name=PodGenerator.make_unique_pod_id(pod_id),
+                labels={
+                    'airflow-worker': worker_uuid,
+                    'dag_id': dag_id,
+                    'task_id': task_id,
+                    'execution_date': datetime_to_label_safe_datestring(date),
+                    'try_number': str(try_number),
+                    'airflow_version': airflow_version.replace('+', '-'),
+                    'kubernetes_executor': 'True',
+                }
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        command=command,
+                        image=image,
+                    )
+                ]
+            )
+        )
 
         # Reconcile the pods starting with the first chronologically,
         # Pod from the pod_template_File -> Pod from executor_config arg -> Pod from the K8s executor
@@ -551,7 +411,9 @@ class PodGenerator:
     @staticmethod
     def serialize_pod(pod: k8s.V1Pod):
         """
+
         Converts a k8s.V1Pod into a jsonified object
+
         @param pod:
         @return:
         """
@@ -589,64 +451,22 @@ class PodGenerator:
             pod_dict, k8s.V1Pod)
 
     @staticmethod
-    def make_unique_pod_id(dag_id):
+    def make_unique_pod_id(pod_id):
         r"""
         Kubernetes pod names must be <= 253 chars and must pass the following regex for
         validation
         ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
 
-        :param dag_id: a dag_id with only alphanumeric characters
+        :param pod_id: a dag_id with only alphanumeric characters
         :return: ``str`` valid Pod name of appropriate length
         """
-        if not dag_id:
+        if not pod_id:
             return None
 
         safe_uuid = uuid.uuid4().hex
-        safe_pod_id = dag_id[:MAX_POD_ID_LEN - len(safe_uuid) - 1] + "-" + safe_uuid
+        safe_pod_id = pod_id[:MAX_POD_ID_LEN - len(safe_uuid) - 1] + "-" + safe_uuid
 
         return safe_pod_id
-
-    @staticmethod
-    def validate_pod_generator_args(given_args):
-        """
-        :param given_args: The arguments passed to the PodGenerator constructor.
-        :type given_args: dict
-        :return: None
-
-        Validate that if `pod` or `pod_template_file` are set that the user is not attempting
-        to configure the pod with the other arguments.
-        """
-        pod_args = list(inspect.signature(PodGenerator).parameters.items())
-
-        def predicate(k, v):
-            """
-            :param k: an arg to PodGenerator
-            :type k: string
-            :param v: the parameter of the given arg
-            :type v: inspect.Parameter
-            :return: bool
-
-            returns True if the PodGenerator argument has no default arguments
-            or the default argument is None, and it is not one of the listed field
-            in `non_empty_fields`.
-            """
-            non_empty_fields = {
-                'pod', 'pod_template_file', 'extract_xcom', 'service_account_name', 'image_pull_policy',
-                'restart_policy'
-            }
-
-            return (v.default is None or v.default is v.empty) and k not in non_empty_fields
-
-        args_without_defaults = {k: given_args[k] for k, v in pod_args if predicate(k, v) and given_args[k]}
-
-        if given_args['pod'] and given_args['pod_template_file']:
-            raise AirflowConfigException("Cannot pass both `pod` and `pod_template_file` arguments")
-        if args_without_defaults and (given_args['pod'] or given_args['pod_template_file']):
-            raise AirflowConfigException(
-                "Cannot configure pod and pass either `pod` or `pod_template_file`. Fields {} passed.".format(
-                    list(args_without_defaults.keys())
-                )
-            )
 
 
 def merge_objects(base_obj, client_obj):

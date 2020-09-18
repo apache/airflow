@@ -19,6 +19,8 @@
 """
 This module contains AWS Firehose hook
 """
+from typing import Iterable
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -36,11 +38,12 @@ class AwsFirehoseHook(AwsBaseHook):
     :type delivery_stream: str
     """
 
-    def __init__(self, delivery_stream, *args, **kwargs):
+    def __init__(self, delivery_stream, *args, **kwargs) -> None:
         self.delivery_stream = delivery_stream
-        super().__init__(client_type='firehose', *args, **kwargs)
+        kwargs["client_type"] = "firehose"
+        super().__init__(*args, **kwargs)
 
-    def put_records(self, records):
+    def put_records(self, records: Iterable):
         """
         Write batch records to Kinesis Firehose
         """

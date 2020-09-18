@@ -185,6 +185,9 @@ class BaseSerialization:
                     {str(k): cls._serialize(v) for k, v in var.items()},
                     type_=DAT.DICT
                 )
+            elif isinstance(var, k8s.V1Pod):
+                json_pod = PodGenerator.serialize_pod(var)
+                return cls._encode(json_pod, type_=DAT.POD)
             elif isinstance(var, list):
                 return [cls._serialize(v) for v in var]
             elif isinstance(var, k8s.V1Pod):
@@ -198,7 +201,7 @@ class BaseSerialization:
                 return cls._encode(var.timestamp(), type_=DAT.DATETIME)
             elif isinstance(var, datetime.timedelta):
                 return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
-            elif isinstance(var, (Timezone)):
+            elif isinstance(var, Timezone):
                 return cls._encode(str(var.name), type_=DAT.TIMEZONE)
             elif isinstance(var, relativedelta.relativedelta):
                 encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}

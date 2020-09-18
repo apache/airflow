@@ -17,35 +17,33 @@
 # specific language governing permissions and limitations
 # under the License.
 
-_BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS="2.7 3.5 3.6 3.7 3.8"
-_BREEZE_ALLOWED_BACKENDS="sqlite mysql postgres"
-_BREEZE_ALLOWED_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis all"
-_BREEZE_ALLOWED_KUBERNETES_MODES="image git"
-_BREEZE_ALLOWED_KUBERNETES_VERSIONS="v1.18.6 v1.17.5 v1.16.9"
-_BREEZE_ALLOWED_HELM_VERSIONS="v3.2.4"
-_BREEZE_ALLOWED_KIND_VERSIONS="v0.8.0"
-_BREEZE_ALLOWED_MYSQL_VERSIONS="5.7 8"
-_BREEZE_ALLOWED_POSTGRES_VERSIONS="9.6 10"
-_BREEZE_ALLOWED_KIND_OPERATIONS="start stop restart status deploy test shell"
+# Allowed values for the commands & flags used
+# Those cannot be made reaad-only as the breeze-complete must be re-sourceable
 
-# Default values for the flags used
+_breeze_allowed_python_major_minor_versions="2.7 3.5 3.6 3.7 3.8"
+_breeze_allowed_backends="sqlite mysql postgres"
+_breeze_allowed_integrations="cassandra kerberos mongo openldap presto rabbitmq redis all"
+_breeze_allowed_kubernetes_modes="image git"
+_breeze_allowed_kubernetes_versions="v1.18.6 v1.17.5 v1.16.9"
+_breeze_allowed_helm_versions="v3.2.4"
+_breeze_allowed_kind_versions="v0.8.0"
+_breeze_allowed_mysql_versions="5.7 8"
+_breeze_allowed_postgres_versions="9.6 10"
+_breeze_allowed_kind_operations="start stop restart status deploy test shell"
 
 # shellcheck disable=SC2034
-_BREEZE_DEFAULT_BACKEND="sqlite"
-# shellcheck disable=SC2034
-_BREEZE_DEFAULT_KUBERNETES_MODE="image"
-# shellcheck disable=SC2034
-_BREEZE_DEFAULT_KUBERNETES_VERSION="v1.18.6"
-# shellcheck disable=SC2034
-_BREEZE_DEFAULT_KIND_VERSION="v0.8.0"
-# shellcheck disable=SC2034
-_BREEZE_DEFAULT_HELM_VERSION="v3.2.4"
-# shellcheck disable=SC2034
-_BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
-# shellcheck disable=SC2034
-_BREEZE_DEFAULT_MYSQL_VERSION="5.7"
+{
+    # Default values for the commands & flags used
+    _breeze_default_backend="sqlite"
+    _breeze_default_kubernetes_mode="image"
+    _breeze_default_kubernetes_version="v1.18.6"
+    _breeze_default_kind_version="v0.8.0"
+    _breeze_default_helm_version="v3.2.4"
+    _breeze_default_postgres_version="9.6"
+    _breeze_default_mysql_version="5.7"
+}
 
-_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=$(cat <<-EOF
+_breeze_allowed_install_airflow_versions=$(cat <<-EOF
 1.10.12
 1.10.11
 1.10.10
@@ -62,12 +60,12 @@ v1-10-test
 EOF
 )
 
-_BREEZE_ALLOWED_STATIC_CHECKS=$(cat <<-EOF
+_breeze_allowed_static_checks=$(cat <<-EOF
 all
 all-but-pylint
 airflow-config-yaml
 base-operator
-bat-tests
+bats-tests
 black
 build
 build-providers-dependencies
@@ -120,12 +118,12 @@ yamllint
 EOF
 )
 
-_BREEZE_DEFAULT_DOCKERHUB_USER="apache"
-_BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
-_BREEZE_DEFAULT_GITHUB_REPOSITORY="apache/airflow"
-_BREEZE_DEFAULT_GITHUB_IMAGE_ID="latest"
+_breeze_default_dockerhub_user="apache"
+_breeze_default_dockerhub_repo="airflow"
+_breeze_default_github_repository="apache/airflow"
+_breeze_default_github_image_id="latest"
 
-_BREEZE_SHORT_OPTIONS="
+_breeze_short_options="
 h p: b: i:
 K: V:
 l a: t: d:
@@ -136,7 +134,7 @@ D: R: c g: s:
 S: N:
 "
 
-_BREEZE_LONG_OPTIONS="
+_breeze_long_options="
 help python: backend: integration:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
 skip-mounting-local-sources install-airflow-version: install-airflow-reference: db-reset
@@ -149,7 +147,7 @@ version-suffix-for-pypi: version-suffix-for-svn:
 additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps:
 "
 
-export BREEZE_COMMANDS="
+_breeze_commands="
 shell
 build-docs
 build-image
@@ -164,7 +162,7 @@ restart
 toggle-suppress-cheatsheet
 toggle-suppress-asciiart"
 
-export BREEZE_EXTRA_ARG_COMMANDS="
+_breeze_extra_arg_commands="
 docker-compose
 kind-cluster
 prepare-backport-readme
@@ -172,161 +170,233 @@ prepare-backport-packages
 static-check
 tests"
 
-export BREEZE_HELP_COMMANDS="
+_breeze_help_commands="
 flags
 help
 help-all"
 
-export ALL_BREEZE_COMMANDS="${BREEZE_COMMANDS} ${BREEZE_EXTRA_ARG_COMMANDS} ${BREEZE_HELP_COMMANDS}"
+_breeze_all_commands="${_breeze_commands} ${_breeze_extra_arg_commands} ${_breeze_help_commands}"
 
 # Note on OSX bash has no associative arrays (Bash 3.2) so we have to fake it
 
-_BREEZE_KNOWN_VALUES=""
+_breeze_known_values=""
 
-function _get_known_values_breeze() {
+#######################################################################################################
+#
+# Dynamically set list of values in _breeze_known_values variable depending on the command used
+#
+# Used variables:
+#   _breeze_allowed_*  for allowed values for the commands
+#
+# Arguments:
+#   $1 - command to get known values for
+#
+# Set variables:
+#   _breeze_known_values is set to list of known values for the command, separated with space
+#
+#######################################################################################################
+
+function breeze_complete::get_known_values_breeze() {
     case "$1" in
     -p | --python)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS}
+        _breeze_known_values=${_breeze_allowed_python_major_minor_versions}
         ;;
     -b | --backend)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_BACKENDS}
+        _breeze_known_values=${_breeze_allowed_backends}
         ;;
     -i | --integration)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_INTEGRATIONS}
+        _breeze_known_values=${_breeze_allowed_integrations}
         ;;
     -K | --kubernetes-mode)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_MODES}
+        _breeze_known_values=${_breeze_allowed_kubernetes_modes}
         ;;
     -V | --kubernetes-version)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_VERSIONS}
+        _breeze_known_values=${_breeze_allowed_kubernetes_versions}
         ;;
     --kind-version)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KIND_VERSIONS}
+        _breeze_known_values=${_breeze_allowed_kind_versions}
         ;;
     --helm-version)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_HELM_VERSIONS}
+        _breeze_known_values=${_breeze_allowed_helm_versions}
         ;;
     static-check)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS}
+        _breeze_known_values=${_breeze_allowed_static_checks}
         ;;
     -A | --install-airflow-version)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS}
+        _breeze_known_values=${_breeze_allowed_install_airflow_versions}
         ;;
     docker-compose)
         # shellcheck disable=SC2034
         if typeset -f "_docker_compose" >/dev/null; then
             _docker_compose
         fi
-        _BREEZE_KNOWN_VALUES=""
+        _breeze_known_values=""
         ;;
     --postgres-version)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_POSTGRES_VERSIONS}
+        _breeze_known_values=${_breeze_allowed_postgres_versions}
         ;;
     --mysql-version)
-        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_MYSQL_VERSIONS}
+        _breeze_known_values=${_breeze_allowed_mysql_versions}
         ;;
     -D | --dockerhub-user)
-        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_USER}"
+        _breeze_known_values="${_breeze_default_dockerhub_user}"
         ;;
     -R | --dockerhub-repo)
-        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}"
+        _breeze_known_values="${_breeze_default_dockerhub_repo}"
         ;;
     -g | --github-repository)
-        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_GITHUB_REPOSITORY}"
+        _breeze_known_values="${_breeze_default_github_repository}"
         ;;
     -s | --github-image-id)
-        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_GITHUB_IMAGE_ID}"
+        _breeze_known_values="${_breeze_default_github_image_id}"
         ;;
     kind-cluster)
-        _BREEZE_KNOWN_VALUES="${_BREEZE_ALLOWED_KIND_OPERATIONS}"
+        _breeze_known_values="${_breeze_allowed_kind_operations}"
         ;;
     *)
-        _BREEZE_KNOWN_VALUES=""
+        _breeze_known_values=""
         ;;
     esac
 }
 
-_BREEZE_GETOPT_SHORT_OPTIONS=""
-_BREEZE_GETOPT_LONG_OPTIONS=""
+_breeze_getopt_short_options=""
+_breeze_getopt_long_options=""
 
-function _build_options_breeze {
-    local SEPARATOR=""
-    local OPTION
+#######################################################################################################
+#
+# Retrieves list of short and long options from the constants in the form of EOL separated values
+# which is easy to maintain into comma separated list - usable for getopt.
+#
+# Used variables:
+#   _breeze_short_options
+#   _breeze_long_options
+#
+# Set variables:
+#   _breeze_getopt_short_options
+#   _breeze_getopt_long_options
+#######################################################################################################
+function breeze_complete::_build_options_breeze {
+    local separator=""
+    local option
 
-    for OPTION in ${_BREEZE_SHORT_OPTIONS}
+    for option in ${_breeze_short_options}
     do
-        _BREEZE_GETOPT_SHORT_OPTIONS="${_BREEZE_GETOPT_SHORT_OPTIONS}${SEPARATOR}${OPTION}"
-        SEPARATOR=","
+        _breeze_getopt_short_options="${_breeze_getopt_short_options}${separator}${option}"
+        separator=","
     done
 
-    SEPARATOR=""
-    for OPTION in ${_BREEZE_LONG_OPTIONS}
+    separator=""
+    for option in ${_breeze_long_options}
     do
-        _BREEZE_GETOPT_LONG_OPTIONS="${_BREEZE_GETOPT_LONG_OPTIONS}${SEPARATOR}${OPTION}"
-        SEPARATOR=","
+        _breeze_getopt_long_options="${_breeze_getopt_long_options}${separator}${option}"
+        separator=","
     done
 }
 
-function _listcontains_breeze {
-    local WORD
-    for WORD in $1; do
-    [[ ${WORD} = "$2" ]] && return 0
+#######################################################################################################
+#
+# Returns 0 if word to check is in the list of words
+# which is easy to maintain into comma separated list - usable for getopt.
+#
+# Arguments:
+#   $1 - space separated list of words
+#   $2 - word to look for
+#
+# Return:
+#   0 - if the word is found in the list
+#   1 - otherwise
+#######################################################################################################
+function breeze_complete::_listcontains_breeze {
+    local word
+    for word in $1; do
+        [[ ${word} = "$2" ]] && return 0
     done
     return 1
 }
 
+
+#######################################################################################################
+#
+# Convert options from the lists passed and add the options to appropriate variables.
+# The options are stripped of the trailing colon and if they do have a colon, they are added
+# to the options that require an argument. Options are prefixed with the prefix.
+#
+#   Arguments:
+#      $1 - prefix for the option
+#      $2 - list of options
+#
+#   Variables modified:
+#       all_options - space-separated all options
+#       options_with extra_args - space separate list of options with an extra argument
+#######################################################################################################
+function breeze_complete::_convert_options {
+    local option_with_prefix_without_colon
+    local option
+    local prefix=$1
+    for option in $2
+    do
+        last_character="${option:$((${#option} - 1)):1}"
+        option_with_prefix_without_colon=${prefix}${option//:/}
+        if [[ "${last_character}" == ":" ]]; then
+            options_with_extra_arguments="${options_with_extra_arguments} ${option_with_prefix_without_colon}"
+        fi
+        all_options="${all_options} ${option_with_prefix_without_colon}"
+    done
+}
+
+
+#######################################################################################################
+#
 # A completion function for breeze
-function _comp_breeze {
-    local ALL_OPTIONS=""
-    local EXTRA_ARG_OPTIONS=""
-    local OPTION
-    local GETOPT_OPTION
-    local LAST_COMMAND_PREFIX
-    local PREVIOUS_COMMAND
+#
+# See: https://www.gnu.org/software/bash/manual/html_node/Programmable-Completion.html#Programmable-Completion
+#
+#######################################################################################################
+function breeze_complete::_comp_breeze {
+    local all_options=""
+    local options_with_extra_arguments=""
+    local currently_typed_string
+    local previous_command_in_the_command_line
+    local last_character
 
-    for OPTION in ${_BREEZE_SHORT_OPTIONS}
-    do
-        LAST_CHAR="${OPTION:$((${#OPTION} - 1)):1}"
-        GETOPT_OPTION='-'${OPTION//:/}
-        if [[ "${LAST_CHAR}" == ":" ]]; then
-            EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${GETOPT_OPTION}"
-        fi
-        ALL_OPTIONS="${ALL_OPTIONS} ${GETOPT_OPTION}"
-    done
-    for OPTION in ${_BREEZE_LONG_OPTIONS}
-    do
-        LAST_CHAR="${OPTION:$((${#OPTION} - 1)):1}"
-        GETOPT_OPTION='--'${OPTION//:/}
-        ALL_OPTIONS="${ALL_OPTIONS} ${GETOPT_OPTION}"
-        if [[ "${LAST_CHAR}" == ":" ]]; then
-            EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${GETOPT_OPTION}"
-        fi
-    done
+    breeze_complete::_convert_options "-" "${_breeze_short_options}"
+    breeze_complete::_convert_options "--" "${_breeze_long_options}"
 
-    ALL_OPTIONS="${ALL_OPTIONS} ${ALL_BREEZE_COMMANDS}"
-    EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${BREEZE_EXTRA_ARG_COMMANDS}"
+    # Add all Breeze commands to list of all options
+    all_options="${all_options} ${_breeze_all_commands}"
 
-    LAST_COMMAND_PREFIX="${COMP_WORDS[${COMP_CWORD}]}"
+    # Add all Breeze commands with extra args to list of options with extra args
+    options_with_extra_arguments="${options_with_extra_arguments} ${_breeze_extra_arg_commands}"
 
+    # Retrieve typed beginning of current commands used so that we can use it as filter in the compgen utility
+    currently_typed_string="${COMP_WORDS[${COMP_CWORD}]}"
+
+    # if we have already typed more words, then we check what was the last previous command so that
+    # we can retrieve list of known values matching it.
     if [[ ${#COMP_WORDS[@]} -gt 1 ]]; then
-        PREVIOUS_COMMAND="${COMP_WORDS[${COMP_CWORD} - 1]}"
+        previous_command_in_the_command_line="${COMP_WORDS[${COMP_CWORD} - 1]}"
     else
-        PREVIOUS_COMMAND=""
+        previous_command_in_the_command_line=""
     fi
 
-    if _listcontains_breeze "${EXTRA_ARG_OPTIONS}" "${PREVIOUS_COMMAND}"; then
+    # if the previous command is in the list of options with extra args - check what are the known values
+    if breeze_complete::_listcontains_breeze \
+            "${options_with_extra_arguments}" "${previous_command_in_the_command_line}"; then
+        # Set COMPREPLY containing list of valid values matching currently typed string from known values
         COMPREPLY=()
-        _get_known_values_breeze "${PREVIOUS_COMMAND}"
-        while IFS='' read -r LINE; do COMPREPLY+=("$LINE"); done \
-            < <(compgen -W "${_BREEZE_KNOWN_VALUES}" -- "${LAST_COMMAND_PREFIX}")
+        breeze_complete::get_known_values_breeze "${previous_command_in_the_command_line}"
+        while IFS='' read -r line; do COMPREPLY+=("${line}"); done \
+            < <(compgen -W "${_breeze_known_values}" -- "${currently_typed_string}")
     else
+        # Set COMPREPLY containing list of valid commands/options matching currently typed string
         COMPREPLY=()
-        while IFS='' read -r LINE; do COMPREPLY+=("$LINE"); done \
-            < <(compgen -W "${ALL_OPTIONS}" -- "${LAST_COMMAND_PREFIX}")
+        while IFS='' read -r line; do COMPREPLY+=("${line}"); done \
+            < <(compgen -W "${all_options}" -- "${currently_typed_string}")
     fi
 }
 
-_build_options_breeze
+breeze_complete::_build_options_breeze
 
-complete -F _comp_breeze breeze
-complete -F _comp_breeze ./breeze
+# set autocompletion function for breeze
+complete -F breeze_complete::_comp_breeze breeze
+complete -F breeze_complete::_comp_breeze ./breeze
