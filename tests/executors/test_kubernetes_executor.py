@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import multiprocessing
 import random
 import re
 import string
@@ -30,12 +31,64 @@ from tests.test_utils.config import conf_vars
 try:
     from kubernetes.client.rest import ApiException
 
-    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubernetesExecutor
+    from airflow.executors.kubernetes_executor import (
+        AirflowKubernetesScheduler, KubernetesExecutor, KubernetesJobWatcher,
+    )
     from airflow.kubernetes import pod_generator
     from airflow.kubernetes.pod_generator import PodGenerator
     from airflow.utils.state import State
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
+
+
+class TestKubernetesJobWatcher(unittest.TestCase):
+    def setUp(self) -> None:
+        self.watcher_queue = multiprocessing.Manager().Queue()
+        self.watcher = KubernetesJobWatcher(
+            namespace="namespace",
+            multi_namespace_mode=False,
+            watcher_queue=self.watcher_queue,
+            resource_version="0",
+            worker_uuid="0",
+            kube_config=None,
+        )
+
+    def test_running_task(self):
+        self.watcher.process_status(
+            pod_id="pod_id",
+            namespace="namespace",
+            status="Running",
+            annotations={"foo": "bar"},
+            resource_version="5",
+            event={"type": "ADDED"}
+        )
+        self.assertTrue(self.watcher_queue.empty())
+
+    def test_succeeded_task(self):
+        self.watcher.process_status(
+            pod_id="pod_id",
+            namespace="namespace",
+            status="Succeeded",
+            annotations={"foo": "bar"},
+            resource_version="5",
+            event={"type": "ADDED"}
+        )
+        result = self.watcher_queue.get_nowait()
+        self.assertEqual(('pod_id', 'namespace', None, {'foo': 'bar'}, '5'), result)
+        self.assertTrue(self.watcher_queue.empty())
+
+    def test_failed_task(self):
+        self.watcher.process_status(
+            pod_id="pod_id",
+            namespace="namespace",
+            status="Failed",
+            annotations={"foo": "bar"},
+            resource_version="5",
+            event={"type": "ADDED"}
+        )
+        result = self.watcher_queue.get_nowait()
+        self.assertEqual(('pod_id', 'namespace', "failed", {'foo': 'bar'}, '5'), result)
+        self.assertTrue(self.watcher_queue.empty())
 
 
 # pylint: disable=unused-argument

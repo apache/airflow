@@ -125,7 +125,7 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
             return int(val)
 
 
-class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
+class KubernetesJobWatcher(LoggingMixin):
     """Watches for Kubernetes jobs"""
 
     def __init__(self,
@@ -142,6 +142,31 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self.watcher_queue = watcher_queue
         self.resource_version = resource_version
         self.kube_config = kube_config
+        self.watcher_process = multiprocessing.Process(target=self.run, args=())
+
+    def start(self):
+        """
+        Start the watcher process
+        """
+        self.watcher_process.start()
+
+    def is_alive(self):
+        """
+        Check if the watcher process is alive
+        """
+        self.watcher_process.is_alive()
+
+    def join(self):
+        """
+        Join watcher process
+        """
+        self.watcher_process.join()
+
+    def terminate(self):
+        """
+        Terminate watcher process
+        """
+        self.watcher_process.terminate()
 
     def run(self) -> None:
         """Performs watching"""
