@@ -175,7 +175,7 @@ Endpoint                                                                        
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}                        GET    Dag.can_read, DagRun.can_read, Task.can_read
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links                  GET    Dag.can_read, DagRun.can_read, Task.can_read
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number} GET    Dag.can_read, DagRun.can_read, Task.can_read
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list                             POST   Dag.can_read, DagRun.can_read, Task.can_read
+/dags/~/dagRuns/~/taskInstances/list                                               POST   Dag.can_read, DagRun.can_read, Task.can_read
 /variables                                                                         GET    Variable.can_read
 /variables                                                                         POST   Variable.can_create
 /variables/{variable_key}                                                          DELETE Variable.can_delete
