@@ -306,14 +306,14 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :return: dict
         """
         labels = {
-            'dag_id': context['dag'].dag_id,
-            'task_id': context['task'].task_id,
-            'execution_date': context['ts'],
-            'try_number': context['ti'].try_number,
+            'airflow.apache.org/dag_id': context['dag'].dag_id,
+            'airflow.apache.org/task_id': context['task'].task_id,
+            'airflow.apache.org/execution_date': context['ts'],
+            'airflow.apache.org/try_number': context['ti'].try_number,
         }
         # In the case of sub dags this is just useful
         if context['dag'].is_subdag:
-            labels['parent_dag_id'] = context['dag'].parent_dag.dag_id
+            labels['airflow.apache.org/parent_dag_id'] = context['dag'].parent_dag.dag_id
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
         for label_id, label in labels.items():
@@ -393,7 +393,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
         # In case of failed pods, should reattach the first time, but only once
         # as the task will have already failed.
-        if self.reattach_on_restart and not pod.metadata.labels.get("already_checked"):
+        if self.reattach_on_restart and not pod.metadata.labels.get("airflow.apache.org/already_checked"):
             log_line += " Will attach to this pod and monitor instead of starting new one"
             self.log.info(log_line)
             self.pod = pod
@@ -411,7 +411,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     @staticmethod
     def _try_numbers_match(context, pod) -> bool:
-        return pod.metadata.labels['try_number'] == context['ti'].try_number
+        return pod.metadata.labels['airflow.apache.org/try_number'] == context['ti'].try_number
 
     def _set_name(self, name):
         if name is None:
@@ -500,7 +500,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             self.log.debug("Adding k8spodoperator labels to pod before launch for task %s", self.task_id)
             self.labels.update(
                 {
-                    'airflow_version': airflow_version.replace('+', '-'),
+                    'airflow.apache.org/version': airflow_version.replace('+', '-'),
                     'kubernetes_pod_operator': 'True',
                 }
             )
@@ -523,7 +523,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     def patch_already_checked(self, pod: k8s.V1Pod):
         """Add an "already tried annotation to ensure we only retry once"""
-        pod.metadata.labels["already_checked"] = "True"
+        pod.metadata.labels["airflow.apache.org/already_checked"] = "True"
         body = PodGenerator.serialize_pod(pod)
         self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
 

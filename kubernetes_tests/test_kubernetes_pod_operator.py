@@ -79,11 +79,11 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'labels': {
                     'foo': 'bar',
                     'kubernetes_pod_operator': 'True',
-                    'airflow_version': airflow_version.replace('+', '-'),
-                    'execution_date': '2016-01-01T0100000100-a2f50a31f',
-                    'dag_id': 'dag',
-                    'task_id': ANY,
-                    'try_number': '1',
+                    'airflow.apache.org/version': airflow_version.replace('+', '-'),
+                    'airflow.apache.org/execution_date': '2016-01-01T0100000100-a2f50a31f',
+                    'airflow.apache.org/dag_id': 'dag',
+                    'airflow.apache.org/task_id': ANY,
+                    'airflow.apache.org/try_number': '1',
                 },
             },
             'spec': {
@@ -990,7 +990,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         with pytest.raises(AirflowException):
             k.execute(context)
         pod = client.read_namespaced_pod(name=name, namespace=namespace)
-        assert pod.metadata.labels["already_checked"] == "True"
+        assert pod.metadata.labels["airflow.apache.org/already_checked"] == "True"
         with mock.patch(
             "airflow.providers.cncf.kubernetes"
             ".operators.kubernetes_pod.KubernetesPodOperator"
