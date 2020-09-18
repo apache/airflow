@@ -60,6 +60,13 @@ class SalesforceToGcsOperator(BaseOperator):
     :type conn_id: str
     """
 
+    template_fields = (
+        'query',
+        'bucket_name',
+        'object_name',
+    )
+    template_ext = ('.sql',)
+
     def __init__(
         self,
         *,
@@ -96,7 +103,7 @@ class SalesforceToGcsOperator(BaseOperator):
         )
 
         with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, self.object_name)
+            path = os.path.join(tmp, "salesforce_temp_file")
             salesforce.write_object_to_file(
                 query_results=response["records"],
                 filename=path,
