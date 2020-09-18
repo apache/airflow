@@ -979,7 +979,7 @@ function breeze::parse_arguments() {
             ;;
         -s | --github-image-id)
             echo
-            echo "GitHub image id: ${2}}"
+            echo "GitHub image id: ${2}"
             echo
             echo "Force pulling the image, using github registry and skip mounting local sources."
             echo "This is in order to get the exact same version as used in CI environment for SHA/RUN_ID!."
