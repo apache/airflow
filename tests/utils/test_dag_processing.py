@@ -33,9 +33,9 @@ from airflow.jobs.scheduler_job import DagFileProcessorProcess
 from airflow.models import DagBag, DagModel, TaskInstance as TI
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
+from airflow.utils.callback_requests import TaskCallbackRequest
 from airflow.utils.dag_processing import (
     DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, DagParsingSignal, DagParsingStat,
-    FailureCallbackRequest,
 )
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import create_session
@@ -216,6 +216,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             self.assertEqual(1, len(requests))
             self.assertEqual(requests[0].full_filepath, dag.full_filepath)
             self.assertEqual(requests[0].msg, "Detected as zombie")
+            self.assertEqual(requests[0].is_failure_callback, True)
             self.assertIsInstance(requests[0].simple_task_instance, SimpleTaskInstance)
             self.assertEqual(ti.dag_id, requests[0].simple_task_instance.dag_id)
             self.assertEqual(ti.task_id, requests[0].simple_task_instance.task_id)
@@ -252,7 +253,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 session.commit()
 
                 fake_failure_callback_requests = [
-                    FailureCallbackRequest(
+                    TaskCallbackRequest(
                         full_filepath=dag.full_filepath,
                         simple_task_instance=SimpleTaskInstance(ti),
                         msg="Message"

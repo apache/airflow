@@ -28,6 +28,7 @@ from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.utils import timezone
+from airflow.utils.callback_requests import DagCallbackRequest
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
@@ -329,6 +330,8 @@ class TestDagRun(unittest.TestCase):
                                       task_states=initial_task_states)
         dag_run.update_state()
         self.assertEqual(State.SUCCESS, dag_run.state)
+        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        self.assertIsNone(dag_run.callback)
 
     def test_dagrun_failure_callback(self):
         def on_failure_callable(context):
@@ -360,6 +363,88 @@ class TestDagRun(unittest.TestCase):
                                       task_states=initial_task_states)
         dag_run.update_state()
         self.assertEqual(State.FAILED, dag_run.state)
+        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        self.assertIsNone(dag_run.callback)
+
+    def test_dagrun_update_state_with_handle_callback_success(self):
+        def on_success_callable(context):
+            self.assertEqual(
+                context['dag_run'].dag_id,
+                'test_dagrun_update_state_with_handle_callback_success'
+            )
+
+        dag = DAG(
+            dag_id='test_dagrun_update_state_with_handle_callback_success',
+            start_date=datetime.datetime(2017, 1, 1),
+            on_success_callback=on_success_callable,
+        )
+        dag_task1 = DummyOperator(
+            task_id='test_state_succeeded1',
+            dag=dag)
+        dag_task2 = DummyOperator(
+            task_id='test_state_succeeded2',
+            dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            'test_state_succeeded1': State.SUCCESS,
+            'test_state_succeeded2': State.SUCCESS,
+        }
+
+        dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
+        self.assertIsNone(dag_run.callback)
+
+        dag_run.update_state(execute_callbacks=False)
+        self.assertEqual(State.SUCCESS, dag_run.state)
+        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+
+        assert dag_run.callback == DagCallbackRequest(
+            full_filepath=dag_run.dag.fileloc,
+            dag_id="test_dagrun_update_state_with_handle_callback_success",
+            execution_date=dag_run.execution_date,
+            is_failure_callback=False,
+            msg="success"
+        )
+
+    def test_dagrun_update_state_with_handle_callback_failure(self):
+        def on_failure_callable(context):
+            self.assertEqual(
+                context['dag_run'].dag_id,
+                'test_dagrun_update_state_with_handle_callback_failure'
+            )
+
+        dag = DAG(
+            dag_id='test_dagrun_update_state_with_handle_callback_failure',
+            start_date=datetime.datetime(2017, 1, 1),
+            on_failure_callback=on_failure_callable,
+        )
+        dag_task1 = DummyOperator(
+            task_id='test_state_succeeded1',
+            dag=dag)
+        dag_task2 = DummyOperator(
+            task_id='test_state_failed2',
+            dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            'test_state_succeeded1': State.SUCCESS,
+            'test_state_failed2': State.FAILED,
+        }
+
+        dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
+        self.assertIsNone(dag_run.callback)
+
+        dag_run.update_state(execute_callbacks=False)
+        self.assertEqual(State.FAILED, dag_run.state)
+        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+
+        assert dag_run.callback == DagCallbackRequest(
+            full_filepath=dag_run.dag.fileloc,
+            dag_id="test_dagrun_update_state_with_handle_callback_failure",
+            execution_date=dag_run.execution_date,
+            is_failure_callback=True,
+            msg="task_failure"
+        )
 
     def test_dagrun_set_state_end_date(self):
         session = settings.Session()

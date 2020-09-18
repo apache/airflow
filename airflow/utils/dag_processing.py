@@ -41,11 +41,12 @@ from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.models import errors
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import STORE_DAG_CODE, STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.utils import timezone
+from airflow.utils.callback_requests import CallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
@@ -211,14 +212,6 @@ class DagParsingSignal(enum.Enum):
     END_MANAGER = 'end_manager'
 
 
-class FailureCallbackRequest(NamedTuple):
-    """A message with information about the callback to be executed."""
-
-    full_filepath: str
-    simple_task_instance: SimpleTaskInstance
-    msg: str
-
-
 class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     """
     Agent for DAG file processing. It is responsible for all DAG parsing
@@ -236,7 +229,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     :type max_runs: int
     :param processor_factory: function that creates processors for DAG
         definition files. Arguments are (dag_definition_path, log_file_path)
-    :type processor_factory: ([str, List[FailureCallbackRequest], Optional[List[str]], bool]) -> (
+    :type processor_factory: ([str, List[CallbackRequest], Optional[List[str]], bool]) -> (
         AbstractDagFileProcessorProcess
     )
     :param processor_timeout: How long to wait before timing out a DAG file processor
@@ -254,7 +247,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         dag_directory: str,
         max_runs: int,
         processor_factory: Callable[
-            [str, List[FailureCallbackRequest], Optional[List[str]], bool],
+            [str, List[CallbackRequest], Optional[List[str]], bool],
             AbstractDagFileProcessorProcess
         ],
         processor_timeout: timedelta,
@@ -333,27 +326,35 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             # when harvest_serialized_dags calls _heartbeat_manager.
             pass
 
-    def send_callback_to_execute(
-        self, full_filepath: str, task_instance: TaskInstance, msg: str
-    ) -> None:
+    def send_callback_to_execute(self, request: CallbackRequest) -> None:
         """
         Sends information about the callback to be executed by DagFileProcessor.
 
-        :param full_filepath: DAG File path
-        :type full_filepath: str
-        :param task_instance: Task Instance for which the callback is to be executed.
-        :type task_instance: airflow.models.taskinstance.TaskInstance
-        :param msg: Message sent in callback.
-        :type msg: str
+        :param request: Callback request to be executed.
+        :type request: CallbackRequest
         """
         if not self._parent_signal_conn:
             raise ValueError("Process not started.")
         try:
-            request = FailureCallbackRequest(
-                full_filepath=full_filepath,
-                simple_task_instance=SimpleTaskInstance(task_instance),
-                msg=msg
-            )
+            self._parent_signal_conn.send(request)
+        except ConnectionError:
+            # If this died cos of an error then we will noticed and restarted
+            # when harvest_serialized_dags calls _heartbeat_manager.
+            pass
+
+    def send_sla_callback_request_to_execute(self, full_filepath: str, dag_id: str) -> None:
+        """
+        Sends information about the SLA callback to be executed by DagFileProcessor.
+
+        :param full_filepath: DAG File path
+        :type full_filepath: str
+        :param dag_id: DAG ID
+        :type dag_id: str
+        """
+        if not self._parent_signal_conn:
+            raise ValueError("Process not started.")
+        try:
+            request = SlaCallbackRequest(full_filepath=full_filepath, dag_id=dag_id)
             self._parent_signal_conn.send(request)
         except ConnectionError:
             # If this died cos of an error then we will noticed and restarted
@@ -381,7 +382,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         dag_directory: str,
         max_runs: int,
         processor_factory: Callable[
-            [str, List[FailureCallbackRequest]],
+            [str, List[CallbackRequest]],
             AbstractDagFileProcessorProcess
         ],
         processor_timeout: timedelta,
@@ -550,7 +551,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                  dag_directory: str,
                  max_runs: int,
                  processor_factory: Callable[
-                     [str, List[FailureCallbackRequest]],
+                     [str, List[CallbackRequest]],
                      AbstractDagFileProcessorProcess
                  ],
                  processor_timeout: timedelta,
@@ -613,7 +614,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self.dag_dir_list_interval = conf.getint('scheduler', 'dag_dir_list_interval')
 
         # Mapping file name and callbacks requests
-        self._callback_to_execute: Dict[str, List[FailureCallbackRequest]] = defaultdict(list)
+        self._callback_to_execute: Dict[str, List[CallbackRequest]] = defaultdict(list)
 
         self._log = logging.getLogger('airflow.processor_manager')
 
@@ -692,7 +693,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 elif agent_signal == DagParsingSignal.AGENT_RUN_ONCE:
                     # continue the loop to parse dags
                     pass
-                elif isinstance(agent_signal, FailureCallbackRequest):
+                elif isinstance(agent_signal, CallbackRequest):
                     self._add_callback_to_queue(agent_signal)
                 else:
                     raise ValueError(f"Invalid message {type(agent_signal)}")
@@ -774,7 +775,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 else:
                     poll_time = 0.0
 
-    def _add_callback_to_queue(self, request: FailureCallbackRequest):
+    def _add_callback_to_queue(self, request: CallbackRequest):
         self._callback_to_execute[request.full_filepath].append(request)
         # Callback has a higher priority over DAG Run scheduling
         if request.full_filepath in self._file_path_queue:
@@ -1179,7 +1180,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
             self._last_zombie_query_time = timezone.utcnow()
             for ti, file_loc in zombies:
-                request = FailureCallbackRequest(
+                request = TaskCallbackRequest(
                     full_filepath=file_loc,
                     simple_task_instance=SimpleTaskInstance(ti),
                     msg="Detected as zombie",
