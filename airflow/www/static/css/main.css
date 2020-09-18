@@ -48,8 +48,8 @@ div.container {
   padding-right: 15px;
 }
 
-a.navbar-brand span {
-  color: #fff;
+.navbar-brand {
+  padding: 7px 15px;
 }
 
 .modal-backdrop {
@@ -59,10 +59,6 @@ a.navbar-brand span {
 
 .modal-content {
   z-index: 5;
-}
-
-a.navbar-brand {
-  cursor: default;
 }
 
 td > span.glyphicon {
