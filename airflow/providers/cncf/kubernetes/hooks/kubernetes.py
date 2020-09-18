@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import tempfile
+import warnings
 from typing import Generator, Optional, Tuple, Union, Any
 
 import yaml
@@ -113,6 +114,31 @@ class KubernetesHook(BaseHook):
         self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
     ):
         """
+        This method is deprecated. Please use `create_custom_object`.
+        Creates custom resource definition object in Kubernetes
+
+        :param group: api group
+        :type group: str
+        :param version: api version
+        :type version: str
+        :param plural: api plural
+        :type plural: str
+        :param body: crd object definition
+        :type body: Union[str, dict]
+        :param namespace: kubernetes namespace
+        :type namespace: str
+        """
+        warnings.warn(
+            "This method is deprecated. Please use `create_custom_object`.", DeprecationWarning, stacklevel=2
+        )
+        return self.create_custom_object(
+            group=group, version=version, plural=plural, body=body, namespace=namespace
+        )
+
+    def create_custom_object(
+        self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
+    ):
+        """
         Creates custom resource definition object in Kubernetes
 
         :param group: api group
@@ -138,9 +164,34 @@ class KubernetesHook(BaseHook):
             self.log.debug("Response: %s", response)
             return response
         except client.rest.ApiException as e:
-            raise AirflowException("Exception when calling -> create_custom_resource_definition: %s\n" % e)
+            raise AirflowException("Exception when calling -> create_custom_object: %s\n" % e)
 
     def get_custom_resource_definition(
+        self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
+    ):
+        """
+        This method is deprecated. Please use `get_custom_object`.
+        Get custom resource definition object from Kubernetes
+
+        :param group: api group
+        :type group: str
+        :param version: api version
+        :type version: str
+        :param plural: api plural
+        :type plural: str
+        :param name: crd object name
+        :type name: str
+        :param namespace: kubernetes namespace
+        :type namespace: str
+        """
+        warnings.warn(
+            "This method is deprecated. Please use `get_custom_object`.", DeprecationWarning, stacklevel=2
+        )
+        return self.get_custom_object(
+            group=group, version=version, plural=plural, name=name, namespace=namespace
+        )
+
+    def get_custom_object(
         self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
     ):
         """
@@ -157,16 +208,16 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         :type namespace: str
         """
-        custom_resource_definition_api = client.CustomObjectsApi(self.api_client)
+        api = client.CustomObjectsApi(self.api_client)
         if namespace is None:
             namespace = self.get_namespace()
         try:
-            response = custom_resource_definition_api.get_namespaced_custom_object(
+            response = api.get_namespaced_custom_object(
                 group=group, version=version, namespace=namespace, plural=plural, name=name
             )
             return response
         except client.rest.ApiException as e:
-            raise AirflowException("Exception when calling -> get_custom_resource_definition: %s\n" % e)
+            raise AirflowException("Exception when calling -> get_custom_object: %s\n" % e)
 
     def get_namespace(self) -> str:
         """
