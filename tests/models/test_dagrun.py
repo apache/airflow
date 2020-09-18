@@ -23,7 +23,7 @@ import mock
 from parameterized import parameterized
 
 from airflow import models, settings
-from airflow.models import DAG, DagBag, TaskInstance as TI, clear_task_instances
+from airflow.models import DAG, DagBag, DagModel, TaskInstance as TI, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
@@ -662,3 +662,45 @@ class TestDagRun(unittest.TestCase):
         ti.set_state(State.QUEUED)
         ti.run()
         self.assertEqual(ti.state == State.SUCCESS, is_ti_success)
+
+    def test_next_dagruns_to_examine_only_unpaused(self):
+        """
+        Check that "next_dagruns_to_examine" ignores runs from paused/inactive DAGs
+        """
+
+        dag = DAG(
+            dag_id='test_dags',
+            start_date=DEFAULT_DATE)
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            has_task_concurrency_limits=False,
+            next_dagrun=dag.start_date,
+            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
+            is_active=True,
+        )
+        session.add(orm_dag)
+        session.flush()
+        dr = dag.create_dagrun(run_type=DagRunType.SCHEDULED,
+                               state=State.RUNNING,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE,
+                               session=session)
+
+        runs = DagRun.next_dagruns_to_examine(session).all()
+
+        assert runs == [dr]
+
+        orm_dag.is_paused = True
+        session.flush()
+
+        runs = DagRun.next_dagruns_to_examine(session).all()
+        assert runs == []
+
+        session.rollback()
+        session.close()

@@ -18,6 +18,7 @@
 # under the License.
 #
 import datetime
+import itertools
 import logging
 import multiprocessing
 import operator
@@ -707,20 +708,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
     def __init__(
             self,
-            dag_id: Optional[str] = None,
-            dag_ids: Optional[List[str]] = None,
             subdir: str = settings.DAGS_FOLDER,
             num_runs: int = conf.getint('scheduler', 'num_runs'),
             processor_poll_interval: float = conf.getfloat('scheduler', 'processor_poll_interval'),
             do_pickle: bool = False,
             log: Any = None,
             *args, **kwargs):
-        # for BaseJob compatibility
-        self.dag_id = dag_id
-        self.dag_ids = [dag_id] if dag_id else []
-        if dag_ids:
-            self.dag_ids.extend(dag_ids)
-
         self.subdir = subdir
 
         self.num_runs = num_runs
@@ -898,11 +891,14 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         pools = models.Pool.slots_stats(with_for_update=nowait(session), session=session)
 
         # If the pools are full, there is no point doing anything!
-        max_tis = min(max_tis, sum(map(operator.itemgetter('open'), pools.values())))
+        # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
+        pool_slots_free = max(0, sum(map(operator.itemgetter('open'), pools.values())))
 
-        if max_tis == 0:
+        if pool_slots_free == 0:
             self.log.debug("All pools are full!")
             return executable_tis
+
+        max_tis = min(max_tis, pool_slots_free)
 
         # Get all task instances associated with scheduled
         # DagRuns which are not backfilled, in the given states,
@@ -910,8 +906,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         task_instances_to_examine: List[TI] = (
             session
             .query(TI)
-            .join(TI.dag_run)
-            .filter(DR.run_type != DagRunType.BACKFILL_JOB.value)
+            .outerjoin(TI.dag_run)
+            .filter(or_(DR.run_id.is_(None),
+                        DR.run_type != DagRunType.BACKFILL_JOB.value))
             .join(TI.dag_model)
             .filter(not_(DM.is_paused))
             .filter(TI.state == State.SCHEDULED)
@@ -1244,7 +1241,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             max_runs=self.num_runs,
             processor_factory=type(self)._create_dag_file_processor,
             processor_timeout=processor_timeout,
-            dag_ids=self.dag_ids,
+            dag_ids=[],
             pickle_dags=pickle_dags,
             async_mode=async_mode,
         )
@@ -1325,8 +1322,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             raise ValueError("Processor agent is not started.")
         is_unit_test: bool = conf.getboolean('core', 'unit_test_mode')
 
-        # For the execute duration, parse and schedule DAGs
-        while True:
+        for loop_count in itertools.count(start=1):
             loop_start_time = time.time()
 
             if self.using_sqlite:
@@ -1360,9 +1356,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 # usage when "idle"
                 time.sleep(self._processor_poll_interval)
 
-            if self.processor_agent.done:
+            if self.num_runs > 0 and loop_count >= self.num_runs and self.processor_agent.done:
                 self.log.info(
-                    "Exiting scheduler loop as all files have been processed %d times", self.num_runs
+                    "Exiting scheduler loop as requested number of runs (%d - got to %d) has been reached",
+                    self.num_runs, loop_count,
                 )
                 break
 
@@ -1389,6 +1386,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             from sqlalchemy import event
             expected_commit = False
 
+            # Put a check in place to make sure we don't commit unexpectedly
             @event.listens_for(session.bind, 'commit')
             def validate_commit(_):
                 nonlocal expected_commit
@@ -1396,8 +1394,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     expected_commit = False
                     return
                 raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
-
-            # Put a check in place to make sure we don't commit unexpectedly
 
             query = DagModel.dags_needing_dagruns(session)
             for dag_model in query:
@@ -1410,20 +1406,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # END: create dagruns
 
             for dag_run in DagRun.next_dagruns_to_examine(session):
-                dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-
-                # TODO[HA]: Run verify_integrity, but only if the serialized_dag has changed
-
-                # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
-                schedulable_tis = dag_run.update_state(session=session)
-                # TODO[HA]: Don't return, update these form in update_state
-                session.query(TI).filter(
-                    TI.dag_id == dag_run.dag_id,
-                    TI.execution_date == dag_run.execution_date,
-                    TI.task_id.in_(ti.task_id for ti in schedulable_tis)
-                ).update({TI.state: State.SCHEDULED}, synchronize_session=False)
-
-                # TODO[HA]: Manage SLAs
+                self._schedule_dag_run(dag_run, session)
 
             expected_commit = True
             session.commit()
@@ -1438,6 +1421,11 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # time?
 
             try:
+                if self.executor.slots_available <= 0:
+                    # We know we can't do anything here, so don't even try!
+                    self.log.debug("Executor full, skipping critical section")
+                    return 0
+
                 timer = Stats.timer('scheduler.critical_section_duration')
                 timer.start()
 
@@ -1471,7 +1459,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         finally:
             event.remove(session.bind, 'commit', validate_commit)
 
-    def _create_dag_run(self, dag_model, dag, session):
+    def _create_dag_run(self, dag_model: DagModel, dag: DAG, session: Session) -> None:
         """
         Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
         if/when the next DAGRun should be created
@@ -1496,7 +1484,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         # TODO[HA]: add back in dagrun.timeout
 
-        if dag.max_active_runs and dag.max_active_runs >= active_runs_of_dag:
+        if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
             self.log.info(
                 "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                 dag.dag_id, active_runs_of_dag, dag.max_active_runs
@@ -1514,6 +1502,60 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
+
+    def _schedule_dag_run(self, dag_run: DagRun, session: Session) -> int:
+        """
+        Make scheduling decisions about an individual dag run
+
+        :return: Number of tasks scheduled
+        """
+        dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+
+        if not dag_run.dag:
+            self.log.error(
+                "Couldn't find dag %s in DagBag/DB!", dag_run.dag_id
+            )
+            return 0
+
+        if dag_run.execution_date > timezone.utcnow() and not dag_run.dag.allow_future_exec_dates:
+            self.log.error(
+                "Execution date is in future: %s",
+                dag_run.execution_date
+            )
+            return 0
+
+        # TODO: This query is probably horribly inefficient (though there is an
+        # index on (dag_id,state)). It is to deal with the case when a user
+        # clears more than max_active_runs older tasks -- we don't want the
+        # scheduler to suddenly go and start running tasks from all of the
+        # runs. (AIRFLOW-137/GH #1442)
+        #
+        # The longer term fix would be to have `clear` do this, and put DagRuns
+        # in to the queued state, then take DRs out of queued before creating
+        # any new ones
+        if dag_run.dag.max_active_runs:
+            currently_active_runs = session.query(func.count(TI.execution_date.distinct())).filter(
+                TI.dag_id == dag_run.dag_id,
+                TI.state.notin_(State.finished())
+            ).scalar()
+
+            if currently_active_runs >= dag_run.dag.max_active_runs:
+                return 0
+
+        # TODO[HA]: Run verify_integrity, but only if the serialized_dag has changed
+
+        # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
+        schedulable_tis = dag_run.update_state(session=session)
+        # TODO[HA]: Don't return, update these from in update_state?
+        count = session.query(TI).filter(
+            TI.dag_id == dag_run.dag_id,
+            TI.execution_date == dag_run.execution_date,
+            TI.task_id.in_(ti.task_id for ti in schedulable_tis)
+        ).update({TI.state: State.SCHEDULED}, synchronize_session=False)
+
+        # TODO[HA]: Manage SLAs
+
+        return count
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = None) -> None:

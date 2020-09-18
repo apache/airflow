@@ -1335,7 +1335,7 @@ airflow_commands: List[CLICommand] = [
         help="Start a scheduler instance",
         func=lazy_load_command('airflow.cli.commands.scheduler_command.scheduler'),
         args=(
-            ARG_DAG_ID_OPT, ARG_SUBDIR, ARG_NUM_RUNS, ARG_DO_PICKLE, ARG_PID, ARG_DAEMON, ARG_STDOUT,
+            ARG_SUBDIR, ARG_NUM_RUNS, ARG_DO_PICKLE, ARG_PID, ARG_DAEMON, ARG_STDOUT,
             ARG_STDERR, ARG_LOG_FILE
         ),
     ),

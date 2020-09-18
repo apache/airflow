@@ -174,7 +174,10 @@ class DagBag(BaseDagBag, LoggingMixin):
                 dag_id in self.dags_last_fetched and
                 timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
             ):
-                sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(dag_id=dag_id)
+                sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(
+                    dag_id=dag_id,
+                    session=session,
+                )
                 if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
                     self._add_dag_from_db(dag_id=dag_id, session=session)
 
@@ -517,7 +520,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         """)
         return report
 
-    def sync_to_db(self):
+    @provide_session
+    def sync_to_db(self, session: Optional[Session] = None):
         """
         Save attributes about list of DAG to the DB.
         """
@@ -525,9 +529,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         from airflow.models.dag import DAG
         from airflow.models.serialized_dag import SerializedDagModel
         self.log.debug("Calling the DAG.bulk_sync_to_db method")
-        DAG.bulk_sync_to_db(self.dags.values())
+        DAG.bulk_sync_to_db(self.dags.values(), session=session)
         # Write Serialized DAGs to DB if DAG Serialization is turned on
         # Even though self.read_dags_from_db is False
         if settings.STORE_SERIALIZED_DAGS or self.read_dags_from_db:
             self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
-            SerializedDagModel.bulk_sync_to_db(self.dags.values())
+            SerializedDagModel.bulk_sync_to_db(self.dags.values(), session=session)

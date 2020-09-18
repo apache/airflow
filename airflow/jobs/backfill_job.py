@@ -630,6 +630,7 @@ class BackfillJob(BaseJob):
             _dag_runs = ti_status.active_runs[:]
             for run in _dag_runs:
                 run.update_state(session=session)
+                session.merge(run)
                 if run.state in State.finished():
                     ti_status.finished_runs += 1
                     ti_status.active_runs.remove(run)

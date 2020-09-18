@@ -25,10 +25,12 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
+import pytest
+
 from airflow.configuration import conf
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.jobs.scheduler_job import DagFileProcessorProcess
-from airflow.models import DagBag, TaskInstance as TI
+from airflow.models import DagBag, DagModel, TaskInstance as TI
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (
@@ -40,7 +42,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags')
@@ -321,6 +323,50 @@ class TestDagFileProcessorManager(unittest.TestCase):
         manager._processors = {'abc.txt': processor}
         manager._kill_timed_out_processors()
         mock_dag_file_processor.kill.assert_not_called()
+
+    @conf_vars({('core', 'load_examples'): 'False'})
+    @pytest.mark.execution_timeout(10)
+    def test_dag_with_system_exit(self):
+        """
+        Test to check that a DAG with a system.exit() doesn't break the scheduler.
+        """
+
+        # We need to _actually_ parse the files here to test the behaviour.
+        # Right now the parsing code lives in SchedulerJob, even though it's
+        # called via utils.dag_processing.
+        from airflow.jobs.scheduler_job import SchedulerJob
+
+        dag_id = 'exit_test_dag'
+        dag_directory = os.path.normpath(os.path.join(TEST_DAG_FOLDER, os.pardir, "dags_with_system_exit"))
+
+        # Delete the one valid DAG/SerializedDAG, and check that it gets re-created
+        clear_db_dags()
+        clear_db_serialized_dags()
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+
+        manager = DagFileProcessorManager(
+            dag_directory=dag_directory,
+            dag_ids=[],
+            max_runs=1,
+            processor_factory=SchedulerJob._create_dag_file_processor,
+            processor_timeout=timedelta(seconds=5),
+            signal_conn=child_pipe,
+            pickle_dags=False,
+            async_mode=True)
+
+        manager._run_parsing_loop()
+
+        while parent_pipe.poll(timeout=None):
+            result = parent_pipe.recv()
+            if isinstance(result, DagParsingStat) and result.done:
+                break
+
+        # Three files in folder should be processed
+        assert len(result.file_paths) == 3
+
+        with create_session() as session:
+            assert session.query(DagModel).get(dag_id) is not None
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):

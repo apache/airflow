@@ -476,14 +476,25 @@ class DAG(BaseDag, LoggingMixin):
             "automated" DagRuns for this dag (scheduled or backfill, but not
             manual)
         """
+        if (self.schedule_interval == "@once" and date_last_automated_dagrun) or \
+                self.schedule_interval is None:
+            # Manual trigger, or already created the run for @once, can short circuit
+            return None
         next_execution_date = self.next_dagrun_after_date(date_last_automated_dagrun)
 
-        if next_execution_date is None or self.schedule_interval in (None, '@once'):
+        if next_execution_date is None:
             return None
+
+        if self.schedule_interval == "@once":
+            # For "@once" it can be created "now"
+            return {
+                'execution_date': next_execution_date,
+                'can_be_created_after': next_execution_date,
+            }
 
         return {
             'execution_date': next_execution_date,
-            'can_be_created_after': self.following_schedule(next_execution_date)
+            'can_be_created_after': self.following_schedule(next_execution_date),
         }
 
     def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
@@ -704,10 +715,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return conf.getboolean(
-            'scheduler',
-            'allow_trigger_in_future',
-            fallback=False) and self.schedule_interval is None
+        return settings.ALLOW_FUTURE_EXEC_DATES and self.schedule_interval is None
 
     @provide_session
     def get_concurrency_reached(self, session=None) -> bool:
@@ -1710,6 +1718,7 @@ class DAG(BaseDag, LoggingMixin):
             or_(
                 DagRun.run_type == DagRunType.BACKFILL_JOB.value,
                 DagRun.run_type == DagRunType.SCHEDULED.value,
+                DagRun.external_trigger.is_(True),
             ),
         ).group_by(DagRun.dag_id).all())
 
@@ -1964,6 +1973,14 @@ class DagModel(Base):
         Index('idx_root_dag_id', root_dag_id, unique=False),
         Index('idx_next_dagrun_create_after', next_dagrun_create_after, unique=False),
     )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.concurrency is None:
+            self.concurrency = conf.getint('core', 'dag_concurrency'),
+        if self.has_task_concurrency_limits is None:
+            # Be safe -- this will be updated later once the DAG is parsed
+            self.has_task_concurrency_limits = True
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)

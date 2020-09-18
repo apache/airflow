@@ -26,6 +26,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship, synonym
 from sqlalchemy.orm.session import Session
 
+from airflow import settings
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
@@ -178,9 +179,12 @@ class DagRun(Base, LoggingMixin):
         ).order_by(
             cls.last_scheduling_decision,
             cls.execution_date,
-        ).limit(max_number).with_for_update(of=cls, **skip_locked(session=session))
+        )
 
-        return query
+        if not settings.ALLOW_FUTURE_EXEC_DATES:
+            query = query.filter(DagRun.execution_date <= func.now())
+
+        return query.limit(max_number).with_for_update(of=cls, **skip_locked(session=session))
 
     @staticmethod
     @provide_session
