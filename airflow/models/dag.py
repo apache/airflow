@@ -123,7 +123,7 @@ class DAG(BaseDag, LoggingMixin):
         default
     :type template_searchpath: str or list[str]
     :param template_undefined: Template undefined type.
-    :type template_undefined: jinja2.Undefined
+    :type template_undefined: jinja2.StrictUndefined
     :param user_defined_macros: a dictionary of macros that will be exposed
         in your jinja templates. For example, passing ``dict(foo='bar')``
         to this argument allows you to ``{{ foo }}`` in all jinja
@@ -224,7 +224,7 @@ class DAG(BaseDag, LoggingMixin):
         end_date: Optional[datetime] = None,
         full_filepath: Optional[str] = None,
         template_searchpath: Optional[Union[str, Iterable[str]]] = None,
-        template_undefined: Type[jinja2.Undefined] = jinja2.Undefined,
+        template_undefined: Type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
         user_defined_macros: Optional[Dict] = None,
         user_defined_filters: Optional[Dict] = None,
         default_args: Optional[Dict] = None,
