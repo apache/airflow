@@ -36,6 +36,8 @@ CONN_ID = 'test-postgres'
 CONN_URI = 'postgresql://airflow:airflow@host:5432/airflow'
 VAR_KEY = 'hello'
 VAR_VALUE = 'world'
+CONFIG_KEY = 'sql_alchemy_conn'
+CONFIG_VALUE = 'postgresql://airflow:airflow@host:5432/airflow'
 
 MODULE_NAME = "airflow.providers.google.cloud.secrets.secret_manager"
 CLIENT_MODULE_NAME = "airflow.providers.google.cloud._internal_client.secret_manager_client"
@@ -147,6 +149,24 @@ class TestCloudSecretManagerBackend(TestCase):
         secret_id = secrets_manager_backend.build_path(variables_prefix, VAR_KEY, SEP)
         returned_uri = secrets_manager_backend.get_variable(VAR_KEY)
         self.assertEqual(VAR_VALUE, returned_uri)
+        mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
+
+    @parameterized.expand(["airflow-config", "config", "airflow"])
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
+    def test_get_config(self, config_prefix, mock_client_callable, mock_get_creds):
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        mock_client = mock.MagicMock()
+        mock_client_callable.return_value = mock_client
+
+        test_response = AccessSecretVersionResponse()
+        test_response.payload.data = CONFIG_VALUE.encode("UTF-8")
+        mock_client.access_secret_version.return_value = test_response
+
+        secrets_manager_backend = CloudSecretManagerBackend(config_prefix=config_prefix)
+        secret_id = secrets_manager_backend.build_path(config_prefix, CONFIG_KEY, SEP)
+        returned_val = secrets_manager_backend.get_config(CONFIG_KEY)
+        self.assertEqual(CONFIG_VALUE, returned_val)
         mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
 
     @parameterized.expand(["airflow-variables", "variables", "airflow"])
