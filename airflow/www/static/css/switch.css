@@ -1,0 +1,65 @@
+.switch-label {
+  display: inline-block;
+  margin: 0;
+  cursor: pointer;
+}
+
+.switch-input {
+  /* Visusally hidden input but still accessible */
+  position: absolute;
+  overflow: hidden;
+  clip: rect(1px, 1px, 1px, 1px);
+  border: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.switch {
+  box-sizing: content-box;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  width: 2.5rem;
+  padding: 2px;
+  background-color: #c4c2c1;
+  cursor: pointer;
+}
+
+.switch::before {
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  content: '';
+  background-color: #edecec;
+  transition-timing-function: ease-in-out;
+  transition-duration: 0.25s;
+  transition-property: transform, background-color;
+}
+
+.switch-input:checked + .switch {
+  background-color: #005c66;
+}
+
+.switch-input:checked + .switch::before {
+  background-color: #fffefd;
+  transform: translateX(1rem);
+}
+
+.switch-input:focus + .switch {
+  box-shadow: 0 0 0 3px rgba(0, 92, 102, 0.4);
+}
+
+.switch-input:focus + .switch::before {
+  background-color: #fff;
+}
+
+.switch-input:not(:checked) + .switch:hover {
+  background-color: #9e9e9c;
+}
+
+.switch-input:not(:checked) + .switch:hover::before {
+  background-color: #f5f5f5;
+}
