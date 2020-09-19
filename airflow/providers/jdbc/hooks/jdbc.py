@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import jaydebeapi
-
 from typing import Optional
+
+import jaydebeapi
 
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.models.connection import Connection
