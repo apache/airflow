@@ -319,9 +319,6 @@
         </div>
         <div class="modal-body">
           <form method="POST">
-            <a id="btn_edit_dagrun" class="btn btn-primary" href="{{ url_for('DagModelView.edit', pk=dag.dag_id) }}">
-              Edit
-            </a>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input name="dag_id" type="hidden" value="{{ dag.dag_id }}">
             <input name="execution_date" type="hidden">
