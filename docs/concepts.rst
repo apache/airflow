@@ -939,6 +939,48 @@ See ``airflow/example_dags`` for a demonstration.
 Note that airflow pool is not honored by SubDagOperator. Hence resources could be
 consumed by SubdagOperators.
 
+
+TaskGroup
+=========
+TaskGroup can be used to organize tasks into hierarchical groups in Graph View. It is
+useful for creating repeating patterns and cutting down visual clutter. Unlike SubDagOperator,
+TaskGroup is a UI grouping concept. Tasks in TaskGroups live on the same original DAG. They
+honor all the pool configurations.
+
+Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<``
+operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1``
+and then puts both tasks upstream of ``task3``:
+
+.. code-block:: python
+
+    with TaskGroup("group1") as group1:
+        task1 = DummyOperator(task_id="task1")
+        task2 = DummyOperator(task_id="task2")
+
+    task3 = DummyOperator(task_id="task3")
+
+    group1 >> task3
+
+.. note::
+   By default, child tasks and TaskGroups have their task_id and group_id prefixed with the
+   group_id of their parent TaskGroup. This ensures uniqueness of group_id and task_id throughout
+   the DAG. To disable the prefixing, pass ``prefix_group_id=False`` when creating the TaskGroup.
+   This then gives the user full control over the actual group_id and task_id. They have to ensure
+   group_id and task_id are unique throughout the DAG. The option ``prefix_group_id=False`` is
+   mainly useful for putting tasks on existing DAGs into TaskGroup without altering their task_id.
+
+Here is a more complicated example DAG with multiple levels of nested TaskGroups:
+
+.. exampleinclude:: /../airflow/example_dags/example_task_group.py
+    :language: python
+    :start-after: [START howto_task_group]
+    :end-before: [END howto_task_group]
+
+This animated gif shows the UI interactions. TaskGroups are expanded or collapsed when clicked:
+
+.. image:: img/task_group.gif
+
+
 SLAs
 ====
 

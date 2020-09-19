@@ -189,3 +189,54 @@ class TestGCSToS3Operator(unittest.TestCase):
         uploaded_files = operator.execute(None)
         self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
         self.assertEqual(sorted(MOCK_FILES), sorted(hook.list_keys('bucket', delimiter='/')))
+
+    @mock_s3
+    @mock.patch('airflow.providers.google.cloud.operators.gcs.GCSHook')
+    @mock.patch('airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook')
+    @mock.patch('airflow.providers.amazon.aws.transfers.gcs_to_s3.S3Hook')
+    def test_execute_should_handle_with_default_dest_s3_extra_args(self, s3_mock_hook, mock_hook, mock_hook2):
+        mock_hook.return_value.list.return_value = MOCK_FILES
+        mock_hook.return_value.download.return_value = b"testing"
+        mock_hook2.return_value.list.return_value = MOCK_FILES
+        s3_mock_hook.return_value = mock.Mock()
+        s3_mock_hook.parse_s3_url.return_value = mock.Mock()
+
+        operator = GCSToS3Operator(
+            task_id=TASK_ID,
+            bucket=GCS_BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
+            dest_aws_conn_id="aws_default",
+            dest_s3_key=S3_BUCKET,
+            replace=True,
+        )
+        operator.execute(None)
+        s3_mock_hook.assert_called_once_with(aws_conn_id='aws_default', extra_args={}, verify=None)
+
+    @mock_s3
+    @mock.patch('airflow.providers.google.cloud.operators.gcs.GCSHook')
+    @mock.patch('airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook')
+    @mock.patch('airflow.providers.amazon.aws.transfers.gcs_to_s3.S3Hook')
+    def test_execute_should_pass_dest_s3_extra_args_to_s3_hook(self, s3_mock_hook, mock_hook, mock_hook2):
+        mock_hook.return_value.list.return_value = MOCK_FILES
+        mock_hook.return_value.download.return_value = b"testing"
+        mock_hook2.return_value.list.return_value = MOCK_FILES
+        s3_mock_hook.return_value = mock.Mock()
+        s3_mock_hook.parse_s3_url.return_value = mock.Mock()
+
+        operator = GCSToS3Operator(
+            task_id=TASK_ID,
+            bucket=GCS_BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
+            dest_aws_conn_id="aws_default",
+            dest_s3_key=S3_BUCKET,
+            replace=True,
+            dest_s3_extra_args={
+                "ContentLanguage": "value",
+            },
+        )
+        operator.execute(None)
+        s3_mock_hook.assert_called_once_with(
+            aws_conn_id='aws_default', extra_args={'ContentLanguage': 'value'}, verify=None
+        )

@@ -27,7 +27,9 @@ import traceback
 import warnings
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union, cast
+from typing import (
+    TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union, cast,
+)
 
 import jinja2
 import pendulum
@@ -58,6 +60,9 @@ from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.utils.task_group import TaskGroup
 
 log = logging.getLogger(__name__)
 
@@ -238,6 +243,8 @@ class DAG(BaseDag, LoggingMixin):
         jinja_environment_kwargs: Optional[Dict] = None,
         tags: Optional[List[str]] = None
     ):
+        from airflow.utils.task_group import TaskGroup
+
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
         self.default_args = copy.deepcopy(default_args or {})
@@ -329,6 +336,7 @@ class DAG(BaseDag, LoggingMixin):
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.tags = tags
+        self._task_group = TaskGroup.create_root(self)
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -569,6 +577,10 @@ class DAG(BaseDag, LoggingMixin):
     @property
     def task_ids(self) -> List[str]:
         return list(self.task_dict.keys())
+
+    @property
+    def task_group(self) -> "TaskGroup":
+        return self._task_group
 
     @property
     def filepath(self) -> str:
@@ -1240,7 +1252,6 @@ class DAG(BaseDag, LoggingMixin):
         based on a regex that should match one or many tasks, and includes
         upstream and downstream neighbours based on the flag passed.
         """
-
         # deep-copying self.task_dict takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
         task_dict = self.task_dict
@@ -1261,9 +1272,38 @@ class DAG(BaseDag, LoggingMixin):
         # Make sure to not recursively deepcopy the dag while copying the task
         dag.task_dict = {t.task_id: copy.deepcopy(t, {id(t.dag): dag})
                          for t in regex_match + also_include}
+
+        # Remove tasks not included in the subdag from task_group
+        def remove_excluded(group):
+            for child in list(group.children.values()):
+                if isinstance(child, BaseOperator):
+                    if child.task_id not in dag.task_dict:
+                        group.children.pop(child.task_id)
+                    else:
+                        # The tasks in the subdag are a copy of tasks in the original dag
+                        # so update the reference in the TaskGroups too.
+                        group.children[child.task_id] = dag.task_dict[child.task_id]
+                else:
+                    remove_excluded(child)
+
+                    # Remove this TaskGroup if it doesn't contain any tasks in this subdag
+                    if not child.children:
+                        group.children.pop(child.group_id)
+
+        remove_excluded(dag.task_group)
+
+        # Removing upstream/downstream references to tasks and TaskGroups that did not make
+        # the cut.
+        subdag_task_groups = dag.task_group.get_task_group_dict()
+        for group in subdag_task_groups.values():
+            group.upstream_group_ids = group.upstream_group_ids.intersection(subdag_task_groups.keys())
+            group.downstream_group_ids = group.downstream_group_ids.intersection(subdag_task_groups.keys())
+            group.upstream_task_ids = group.upstream_task_ids.intersection(dag.task_dict.keys())
+            group.downstream_task_ids = group.downstream_task_ids.intersection(dag.task_dict.keys())
+
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
-            # made the cut
+            # make the cut
             t._upstream_task_ids = t.upstream_task_ids.intersection(dag.task_dict.keys())
             t._downstream_task_ids = t.downstream_task_ids.intersection(
                 dag.task_dict.keys())
@@ -1357,12 +1397,15 @@ class DAG(BaseDag, LoggingMixin):
         elif task.end_date and self.end_date:
             task.end_date = min(task.end_date, self.end_date)
 
-        if task.task_id in self.task_dict and self.task_dict[task.task_id] is not task:
+        if ((task.task_id in self.task_dict and self.task_dict[task.task_id] is not task)
+                or task.task_id in self._task_group.used_group_ids):
             raise DuplicateTaskIdFound(
                 "Task id '{}' has already been added to the DAG".format(task.task_id))
         else:
             self.task_dict[task.task_id] = task
             task.dag = self
+            # Add task_id to used_group_ids to prevent group_id and task_id collisions.
+            self._task_group.used_group_ids.add(task.task_id)
 
         self.task_count = len(self.task_dict)
 

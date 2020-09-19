@@ -27,7 +27,8 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from typing import (
-    Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Sequence, Set, Tuple, Type, Union,
+    TYPE_CHECKING, Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Sequence, Set, Tuple,
+    Type, Union,
 )
 
 import attr
@@ -57,6 +58,9 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.session import provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+
+if TYPE_CHECKING:
+    from airflow.utils.task_group import TaskGroup  # pylint: disable=cyclic-import
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -360,9 +364,12 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         do_xcom_push: bool = True,
         inlets: Optional[Any] = None,
         outlets: Optional[Any] = None,
+        task_group: Optional["TaskGroup"] = None,
         **kwargs
     ):
         from airflow.models.dag import DagContext
+        from airflow.utils.task_group import TaskGroupContext
+
         super().__init__()
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
@@ -382,6 +389,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             )
         validate_key(task_id)
         self.task_id = task_id
+        self.label = task_id
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+        if task_group:
+            self.task_id = task_group.child_id(task_id)
+            task_group.add(self)
         self.owner = owner
         self.email = email
         self.email_on_retry = email_on_retry
@@ -609,7 +621,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
             dag.add_task(self)
 
-        self._dag = dag  # pylint: disable=attribute-defined-outside-init
+        self._dag = dag
 
     def has_dag(self):
         """
@@ -1120,21 +1132,25 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """Required by TaskMixin"""
         return [self]
 
+    @property
+    def leaves(self) -> List["BaseOperator"]:
+        """Required by TaskMixin"""
+        return [self]
+
     def _set_relatives(
         self,
         task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
         upstream: bool = False,
     ) -> None:
         """Sets relatives for the task or task list."""
-
-        if isinstance(task_or_task_list, Sequence):
-            task_like_object_list = task_or_task_list
-        else:
-            task_like_object_list = [task_or_task_list]
+        if not isinstance(task_or_task_list, Sequence):
+            task_or_task_list = [task_or_task_list]
 
         task_list: List["BaseOperator"] = []
-        for task_object in task_like_object_list:
-            task_list.extend(task_object.roots)
+        for task_object in task_or_task_list:
+            task_object.update_relative(self, not upstream)
+            relatives = task_object.leaves if upstream else task_object.roots
+            task_list.extend(relatives)
 
         for task in task_list:
             if not isinstance(task, BaseOperator):

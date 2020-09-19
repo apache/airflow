@@ -19,7 +19,7 @@
 This module contains Google Cloud Storage to S3 operator.
 """
 import warnings
-from typing import Iterable, Optional, Sequence, Union
+from typing import Iterable, Optional, Sequence, Union, Dict
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -108,6 +108,7 @@ class GCSToS3Operator(BaseOperator):
         dest_verify=None,
         replace=False,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        dest_s3_extra_args: Optional[Dict] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -131,6 +132,7 @@ class GCSToS3Operator(BaseOperator):
         self.dest_verify = dest_verify
         self.replace = replace
         self.google_impersonation_chain = google_impersonation_chain
+        self.dest_s3_extra_args = dest_s3_extra_args or {}
 
     def execute(self, context):
         # list all files in an Google Cloud Storage bucket
@@ -149,7 +151,9 @@ class GCSToS3Operator(BaseOperator):
 
         files = hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
 
-        s3_hook = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
+        s3_hook = S3Hook(
+            aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify, extra_args=self.dest_s3_extra_args
+        )
 
         if not self.replace:
             # if we are not replacing -> list all files in the S3 bucket

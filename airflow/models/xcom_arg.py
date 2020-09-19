@@ -103,6 +103,11 @@ class XComArg(TaskMixin):
         return [self._operator]
 
     @property
+    def leaves(self) -> List[BaseOperator]:
+        """Required by TaskMixin"""
+        return [self._operator]
+
+    @property
     def key(self) -> str:
         """Returns keys of this XComArg"""
         return self._key
