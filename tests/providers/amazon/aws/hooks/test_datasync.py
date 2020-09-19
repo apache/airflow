@@ -20,30 +20,14 @@ import unittest
 from unittest import mock
 
 import boto3
+import mock
+from moto import mock_datasync
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
 
 
-def no_datasync(x):
-    return x
-
-
-try:
-    from moto import mock_datasync
-    from moto.datasync.models import DataSyncBackend
-
-    # ToDo: Remove after the moto>1.3.14 is released and contains following commit:
-    # https://github.com/spulec/moto/commit/5cfbe2bb3d24886f2b33bb4480c60b26961226fc
-    if "create_task" not in dir(DataSyncBackend) or "delete_task" not in dir(DataSyncBackend):
-        mock_datasync = no_datasync
-except ImportError:
-    # flake8: noqa: F811
-    mock_datasync = no_datasync
-
-
 @mock_datasync
-@unittest.skipIf(mock_datasync == no_datasync, "moto datasync package missing")  # pylint: disable=W0143
 class TestAwsDataSyncHook(unittest.TestCase):
     def test_get_conn(self):
         hook = AWSDataSyncHook(aws_conn_id="aws_default")
@@ -65,7 +49,6 @@ class TestAwsDataSyncHook(unittest.TestCase):
 
 @mock_datasync
 @mock.patch.object(AWSDataSyncHook, "get_conn")
-@unittest.skipIf(mock_datasync == no_datasync, "moto datasync package missing")  # pylint: disable=W0143
 class TestAWSDataSyncHookMocked(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
