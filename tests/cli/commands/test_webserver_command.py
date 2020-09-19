@@ -414,7 +414,6 @@ class TestCliWebServer(unittest.TestCase):
 
             # Terminate webserver
             proc.terminate()
-            os.remove(access_logfile)
             # -15 - the server was stopped before it started
             #   0 - the server terminated correctly
             self.assertIn(proc.wait(60), (-15, 0))
