@@ -157,7 +157,7 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 . "${IN_CONTAINER_DIR}/configure_environment.sh"
 
 # shellcheck source=scripts/in_container/run_init_script.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
+. "${IN_CONTAINER_DIR}/run_init_script.sh"
 
 cd "${AIRFLOW_SOURCES}"
 

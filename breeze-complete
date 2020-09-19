@@ -138,7 +138,7 @@ _breeze_long_options="
 help python: backend: integration:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
 skip-mounting-local-sources install-airflow-version: install-airflow-reference: db-reset
-verbose assume-yes assume-no assume-quit forward-credentials start-airflow
+verbose assume-yes assume-no assume-quit forward-credentials start-airflow init-script:
 force-build-images force-pull-images production-image extras: force-clean-images skip-rebuild-check
 build-cache-local build-cache-pulled build-cache-disabled
 dockerhub-user: dockerhub-repo: github-registry github-repository: github-image-id:

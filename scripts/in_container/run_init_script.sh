@@ -16,20 +16,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-export FILES_DIR="/files"
-export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
-INIT_SCRIPT_FILE="init.sh"
+if [ -z ${FILES_DIR+x} ]; then
+    export FILES_DIR="/files"
+fi
+if [ -z ${AIRFLOW_BREEZE_CONFIG_DIR+x} ]; then
+    export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
+fi
 
+if [ -z ${INIT_SCRIPT_FILE} ]; then
+    export INIT_SCRIPT_FILE="init.sh"
+fi
 
 if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
     -f "${AIRFLOW_BREEZE_CONFIG_DIR}/${INIT_SCRIPT_FILE}" ]]; then
-    pushd "${AIRFLOW_BREEZE_CONFIG_DIR}" >/dev/null 2>&1 || exit 1
-    echo
-    echo "Sourcing the initialization script from ${INIT_SCRIPT_FILE} in ${AIRFLOW_BREEZE_CONFIG_DIR}"
-    echo
-     # shellcheck disable=1090
-    source "${INIT_SCRIPT_FILE}"
-    popd >/dev/null 2>&1 || exit 1
+
+        pushd "${AIRFLOW_BREEZE_CONFIG_DIR}" >/dev/null 2>&1 || exit 1
+        echo
+        echo "Sourcing the initialization script from ${INIT_SCRIPT_FILE} in ${AIRFLOW_BREEZE_CONFIG_DIR}"
+        echo
+         # shellcheck disable=1090
+        source "${INIT_SCRIPT_FILE}"
+        popd >/dev/null 2>&1 || exit 1
 else
     echo
     echo "You can add ${AIRFLOW_BREEZE_CONFIG_DIR} directory and place ${INIT_SCRIPT_FILE}"
