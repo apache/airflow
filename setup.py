@@ -463,7 +463,7 @@ devel = [
     'ipdb',
     'jira',
     'mongomock',
-    'moto',
+    'moto>=1.3.16, <2',
     'parameterized',
     'paramiko',
     'pipdeptree',
