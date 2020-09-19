@@ -79,6 +79,20 @@ class TestSsmSecrets(TestCase):
         self.assertEqual('world', returned_uri)
 
     @mock_ssm
+    def test_get_config(self):
+        param = {
+            'Name': '/airflow/config/sql_alchemy_conn',
+            'Type': 'String',
+            'Value': 'sqlite:///Users/test_user/airflow.db',
+        }
+
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        returned_uri = ssm_backend.get_config('sql_alchemy_conn')
+        self.assertEqual('sqlite:///Users/test_user/airflow.db', returned_uri)
+
+    @mock_ssm
     def test_get_variable_secret_string(self):
         param = {'Name': '/airflow/variables/hello', 'Type': 'SecureString', 'Value': 'world'}
         ssm_backend = SystemsManagerParameterStoreBackend()
