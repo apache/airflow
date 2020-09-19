@@ -69,7 +69,10 @@ class TestTaskEndpoint(unittest.TestCase):
 class TestGetTask(TestTaskEndpoint):
     def test_should_response_200(self):
         expected = {
-            "class_ref": {"class_name": "DummyOperator", "module_path": "airflow.operators.dummy_operator",},
+            "class_ref": {
+                "class_name": "DummyOperator",
+                "module_path": "airflow.operators.dummy_operator",
+            },
             "depends_on_past": False,
             "downstream_task_ids": [],
             "end_date": None,
@@ -109,7 +112,10 @@ class TestGetTask(TestTaskEndpoint):
         SerializedDagModel.write_dag(self.dag)
 
         expected = {
-            "class_ref": {"class_name": "DummyOperator", "module_path": "airflow.operators.dummy_operator",},
+            "class_ref": {
+                "class_name": "DummyOperator",
+                "module_path": "airflow.operators.dummy_operator",
+            },
             "depends_on_past": False,
             "downstream_task_ids": [],
             "end_date": None,

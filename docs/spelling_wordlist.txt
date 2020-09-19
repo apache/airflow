@@ -301,7 +301,6 @@ Reddit
 Redhat
 ReidentifyContentResponse
 Reinitialising
-Retrives
 Riccomini
 Roadmap
 Robinhood
@@ -344,7 +343,6 @@ Systemd
 TCP
 TLS
 TTY
-TThe
 TZ
 TaskInstance
 Taskfail
@@ -359,7 +357,6 @@ Tomasz
 Tooltip
 Tsai
 UA
-UNload
 Uellendall
 Umask
 Un
@@ -400,8 +397,6 @@ Zsh
 Zymergen
 abc
 accessor
-accountmaking
-acessible
 ack
 ackIds
 acknowledgement
@@ -546,7 +541,6 @@ codebase
 codecov
 colour
 colours
-commiter
 compat
 concat
 conda
@@ -583,6 +577,7 @@ csv
 ctor
 cubeName
 customDataImportUids
+customizable
 cx
 dabf
 dagBag
@@ -632,7 +627,6 @@ dep
 deploymentUrl
 deps
 desc
-desecending
 deserialization
 deserialize
 deserialized
@@ -829,7 +823,6 @@ instafail
 installable
 instanceTemplates
 instantiation
-instatiating
 integrations
 interdependencies
 internalIpOnly
@@ -1048,7 +1041,6 @@ prestocmd
 prestodb
 prev
 profiler
-programatic
 programmatically
 projectId
 projectid
@@ -1216,7 +1208,6 @@ subpackages
 subpages
 subpartitioned
 subpath
-subproces
 subprocess
 subprocesses
 subquery
@@ -1337,7 +1328,6 @@ webservers
 webservice
 whitespace
 whl
-wil
 winrm
 workgroup
 workgroups

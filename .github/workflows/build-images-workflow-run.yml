@@ -182,7 +182,7 @@ jobs:
     needs: [cancel-workflow-runs]
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
         image-type: [CI, PROD]
       fail-fast: true
     if: >
@@ -209,14 +209,38 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+      - name: "Retrieve DEFAULTS from the _initialization.sh"
+        # We cannot "source" the script here because that would be a security problem (we cannot run
+        # any code that comes from the sources coming from the PR. Therefore we extract the
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # Also 2.7 and 3.5 versions are not allowed to proceed on master
+        id: defaults
+        run: |
+          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "::set-env name=DEFAULT_BRANCH::${DEFAULT_BRANCH}"
+          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
+            scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "::set-env name=DEFAULT_CONSTRAINTS_BRANCH::${DEFAULT_CONSTRAINTS_BRANCH}"
+          if [[ \
+            ${DEFAULT_BRANCH} != "master" || \
+            ( ${PYTHON_MAJOR_MINOR_VERSION} != "2.7" && ${PYTHON_MAJOR_MINOR_VERSION} != "3.5" ) \
+          ]]; then
+              echo "::set-output name=proceed::true"
+          else
+              echo "::set-output name=proceed::false"
+          fi
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} ) to 'main-airflow' to use main scripts"
         uses: actions/checkout@v2
         with:
           path: "main-airflow"
+        if: steps.defaults.outputs.proceed == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
           python-version: 3.6
+        if: steps.defaults.outputs.proceed == 'true'
       - name: "Override 'scripts/ci' with the ${{ github.ref }} version so that the PR cannot override it."
         # We should not override those scripts which become part of the image as they will not be
         # changed in the image built - we should only override those that are executed to build
@@ -224,20 +248,22 @@ jobs:
         run: |
           rm -rf "scripts/ci"
           mv "main-airflow/scripts/ci" "scripts"
+        if: steps.defaults.outputs.proceed == 'true'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        if: steps.defaults.outputs.proceed == 'true'
       - name: "Build CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-        if: matrix.image-type == 'CI'
+        if: matrix.image-type == 'CI' && steps.defaults.outputs.proceed == 'true'
       - name: "Push CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
-        if: matrix.image-type == 'CI'
+        if: matrix.image-type == 'CI' && steps.defaults.outputs.proceed == 'true'
       - name: "Build PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-        if: matrix.image-type == 'PROD'
+        if: matrix.image-type == 'PROD' && steps.defaults.outputs.proceed == 'true'
       - name: "Push PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
-        if: matrix.image-type == 'PROD'
+        if: matrix.image-type == 'PROD' && steps.defaults.outputs.proceed == 'true'
       - name: "Canceling the CI Build source workflow in case of failure!"
         if: cancelled() || failure()
         uses: potiuk/cancel-workflow-runs@v2

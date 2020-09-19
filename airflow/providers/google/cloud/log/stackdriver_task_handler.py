@@ -244,7 +244,8 @@ class StackdriverTaskHandler(logging.Handler):
         """
         messages = []
         new_messages, next_page_token = self._read_single_logs_page(
-            log_filter=log_filter, page_token=next_page_token,
+            log_filter=log_filter,
+            page_token=next_page_token,
         )
         messages.append(new_messages)
         if all_pages:

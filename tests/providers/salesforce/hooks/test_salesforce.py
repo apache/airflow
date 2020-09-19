@@ -189,7 +189,8 @@ class TestSalesforceHook(unittest.TestCase):
         obj_name = "obj_name"
 
         data_frame = self.salesforce_hook.object_to_df(
-            query_results=[{"attributes": {"type": obj_name}}], coerce_to_timestamp=True,
+            query_results=[{"attributes": {"type": obj_name}}],
+            coerce_to_timestamp=True,
         )
 
         mock_describe_object.assert_called_once_with(obj_name)

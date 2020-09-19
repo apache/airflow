@@ -46,7 +46,8 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.wait.return_value = {"StatusCode": 0}
         self.client_mock.create_host_config.return_value = mock.Mock()
         self.client_class_patcher = mock.patch(
-            'airflow.providers.docker.operators.docker.APIClient', return_value=self.client_mock,
+            'airflow.providers.docker.operators.docker.APIClient',
+            return_value=self.client_mock,
         )
         self.client_class_mock = self.client_class_patcher.start()
 
@@ -253,11 +254,14 @@ class TestDockerOperator(unittest.TestCase):
         operator.execute(None)
         self.client_mock.create_container.assert_called_once()
         self.assertIn(
-            'host_config', self.client_mock.create_container.call_args.kwargs,
+            'host_config',
+            self.client_mock.create_container.call_args.kwargs,
         )
         self.assertIn(
-            'extra_hosts', self.client_mock.create_host_config.call_args.kwargs,
+            'extra_hosts',
+            self.client_mock.create_host_config.call_args.kwargs,
         )
         self.assertIs(
-            hosts_obj, self.client_mock.create_host_config.call_args.kwargs['extra_hosts'],
+            hosts_obj,
+            self.client_mock.create_host_config.call_args.kwargs['extra_hosts'],
         )

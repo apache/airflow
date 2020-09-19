@@ -885,7 +885,10 @@ class TestSparkSubmitHook(unittest.TestCase):
                 ("spark-submit", "foo", "--bar", "baz", '--password="sec\'ret"'),
                 'spark-submit foo --bar baz --password="******"',
             ),
-            (("spark-submit",), "spark-submit",),
+            (
+                ("spark-submit",),
+                "spark-submit",
+            ),
         )
     )
     def test_masks_passwords(self, command: str, expected: str) -> None:

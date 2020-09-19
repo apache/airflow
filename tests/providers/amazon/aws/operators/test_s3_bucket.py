@@ -30,7 +30,10 @@ TASK_ID = os.environ.get("TASK_ID", "test-s3-operator")
 
 class TestS3CreateBucketOperator(unittest.TestCase):
     def setUp(self):
-        self.create_bucket_operator = S3CreateBucketOperator(task_id=TASK_ID, bucket_name=BUCKET_NAME,)
+        self.create_bucket_operator = S3CreateBucketOperator(
+            task_id=TASK_ID,
+            bucket_name=BUCKET_NAME,
+        )
 
     @mock_s3
     @mock.patch.object(S3Hook, "create_bucket")
@@ -55,7 +58,10 @@ class TestS3CreateBucketOperator(unittest.TestCase):
 
 class TestS3DeleteBucketOperator(unittest.TestCase):
     def setUp(self):
-        self.delete_bucket_operator = S3DeleteBucketOperator(task_id=TASK_ID, bucket_name=BUCKET_NAME,)
+        self.delete_bucket_operator = S3DeleteBucketOperator(
+            task_id=TASK_ID,
+            bucket_name=BUCKET_NAME,
+        )
 
     @mock_s3
     @mock.patch.object(S3Hook, "delete_bucket")

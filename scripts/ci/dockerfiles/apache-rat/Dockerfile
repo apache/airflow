@@ -51,7 +51,7 @@ LABEL org.apache.airflow.component="apache-rat"
 LABEL org.apache.airflow.apache_rat.version="${APACHERAT_VERSION}"
 LABEL org.apache.airflow.airflow_apache_rat.version="${AIRFLOW_APACHERAT_VERSION}"
 LABEL org.apache.airflow.commit_sha="${COMMIT_SHA}"
-LABEL maintainer "Apache Airflow Community <dev@airflow.apache.org>"
+LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
 ENTRYPOINT ["java", "-jar", "apache-rat.jar" ]
 

@@ -205,7 +205,7 @@ _connection_types = [
     ('yandexcloud', 'Yandex Cloud'),
     ('livy', 'Apache Livy'),
     ('tableau', 'Tableau'),
-    ('kubernetes', 'Kubernetes cluster Connection'),
+    ('kubernetes', 'Kubernetes Cluster Connection'),
     ('spark', 'Spark'),
     ('imap', 'IMAP'),
     ('vault', 'Hashicorp Vault'),
@@ -312,6 +312,9 @@ class ConnectionForm(DynamicForm):
     )
     extra__kubernetes__in_cluster = BooleanField(
         lazy_gettext('In cluster configuration'))
+    extra__kubernetes__kube_config_path = StringField(
+        lazy_gettext('Kube config path'),
+        widget=BS3TextFieldWidget())
     extra__kubernetes__kube_config = StringField(
         lazy_gettext('Kube config (JSON format)'),
         widget=BS3TextFieldWidget())

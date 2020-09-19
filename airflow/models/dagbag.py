@@ -70,6 +70,9 @@ class DagBag(BaseDagBag, LoggingMixin):
     :param include_examples: whether to include the examples that ship
         with airflow or not
     :type include_examples: bool
+    :param include_smart_sensor: whether to include the smart sensor native
+        DAGs that create the smart sensor operators for whole cluster
+    :type include_smart_sensor: bool
     :param read_dags_from_db: Read DAGs from DB if store_serialized_dags is ``True``.
         If ``False`` DAGs are read from python files. This property is not used when
         determining whether or not to write Serialized DAGs, that is done by checking
@@ -84,6 +87,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self,
         dag_folder: Optional[str] = None,
         include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
+        include_smart_sensor: bool = conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
         read_dags_from_db: bool = False,
         store_serialized_dags: Optional[bool] = None,
@@ -113,6 +117,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.collect_dags(
             dag_folder=dag_folder,
             include_examples=include_examples,
+            include_smart_sensor=include_smart_sensor,
             safe_mode=safe_mode)
 
     def size(self) -> int:
@@ -391,6 +396,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             dag_folder=None,
             only_if_updated=True,
             include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+            include_smart_sensor=conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
             safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
         """
         Given a file path or a folder, this method looks for python modules,
@@ -414,8 +420,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
 
         dag_folder = correct_maybe_zipped(dag_folder)
-        for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
-                                           include_examples=include_examples):
+        for filepath in list_py_file_paths(dag_folder,
+                                           safe_mode=safe_mode,
+                                           include_examples=include_examples,
+                                           include_smart_sensor=include_smart_sensor):
             try:
                 file_parse_start_dttm = timezone.utcnow()
                 found_dags = self.process_file(

@@ -23,6 +23,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import pytest
+
 from airflow import settings
 from airflow.utils.file import find_path_from_directory
 
@@ -65,6 +67,8 @@ class TestIgnorePluginFile(unittest.TestCase):
         """
         shutil.rmtree(self.test_dir)
 
+    # See the issue: https://github.com/apache/airflow/issues/10988
+    @pytest.mark.heisentests
     def test_find_not_should_ignore_path(self):
         """
         Test that the .airflowignore work and whether the file is properly ignored.

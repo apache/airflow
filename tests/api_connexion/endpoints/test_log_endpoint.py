@@ -158,7 +158,8 @@ class TestGetLog(unittest.TestCase):
             self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(":", ".")
         )
         self.assertEqual(
-            response.json['content'], f"*** Reading local file: {expected_filename}\nLog for testing."
+            response.json['content'],
+            f"[('', '*** Reading local file: {expected_filename}\\nLog for testing.')]",
         )
         info = serializer.loads(response.json['continuation_token'])
         self.assertEqual(info, {'end_of_log': True})
@@ -182,7 +183,8 @@ class TestGetLog(unittest.TestCase):
         )
         self.assertEqual(200, response.status_code)
         self.assertEqual(
-            response.data.decode('utf-8'), f"*** Reading local file: {expected_filename}\nLog for testing.\n"
+            response.data.decode('utf-8'),
+            f"\n*** Reading local file: {expected_filename}\nLog for testing.\n",
         )
 
     @provide_session
@@ -204,10 +206,10 @@ class TestGetLog(unittest.TestCase):
     def test_get_logs_with_metadata_as_download_large_file(self, session):
         self._create_dagrun(session)
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
-            first_return = (['1st line'], [{}])
-            second_return = (['2nd line'], [{'end_of_log': False}])
-            third_return = (['3rd line'], [{'end_of_log': True}])
-            fourth_return = (['should never be read'], [{'end_of_log': True}])
+            first_return = ([[('', '1st line')]], [{}])
+            second_return = ([[('', '2nd line')]], [{'end_of_log': False}])
+            third_return = ([[('', '3rd line')]], [{'end_of_log': True}])
+            fourth_return = ([[('', 'should never be read')]], [{'end_of_log': True}])
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
 
             response = self.client.get(

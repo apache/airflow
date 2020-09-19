@@ -107,7 +107,8 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
 
     def poke(self, context):
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_cloud_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_cloud_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         run = hook.get_transfer_run(
             run_id=self.run_id,

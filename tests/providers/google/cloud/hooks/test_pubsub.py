@@ -50,7 +50,10 @@ LABELS = {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')}
 
 
 def mock_init(
-    self, gcp_conn_id, delegate_to=None, impersonation_chain=None,
+    self,
+    gcp_conn_id,
+    delegate_to=None,
+    impersonation_chain=None,
 ):  # pylint: disable=unused-argument
     pass
 
@@ -470,7 +473,9 @@ class TestPubSubHook(unittest.TestCase):
         ack_method = mock_service.acknowledge
 
         self.pubsub_hook.acknowledge(
-            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, messages=self._generate_messages(3),
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            messages=self._generate_messages(3),
         )
         ack_method.assert_called_once_with(
             subscription=EXPANDED_SUBSCRIPTION,

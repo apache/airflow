@@ -101,6 +101,8 @@
 <script src="{{ url_for_asset('d3.min.js') }}"></script>
 <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
 <script src="{{ url_for_asset('d3-tip.js') }}"></script>
+
+<script src="{{ url_for_asset('task-instances.js') }}"></script>
 <script>
 
     var highlight_color = "#000000";
@@ -113,6 +115,10 @@
     var edges = {{ edges|tojson }};
     var execution_date = "{{ execution_date }}";
     var arrange = "{{ arrange }}";
+    var task_group_tips = get_task_group_tips(nodes);
+    // This maps the actual task_id to the current graph node id that contains the task
+    // (because tasks may be grouped into a group node)
+    var map_task_to_node = new Map()
 
     // Below variables are being used in dag.js
     var tasks = {{ tasks|tojson }};
@@ -140,33 +146,94 @@
       });
 
     // Preparation of DagreD3 data structures
-    var g = new dagreD3.graphlib.Graph().setGraph({
+    // "compound" is set to true to make use of clusters to display TaskGroup.
+    var g = new dagreD3.graphlib.Graph({compound: true}).setGraph({
         nodesep: 15,
         ranksep: 15,
         rankdir: arrange,
       })
       .setDefaultEdgeLabel(function() { return { lineInterpolate: 'basis' } });
 
-    // Set all nodes and styles
-    nodes.forEach(function(node) {
-      g.setNode(node.id, node.value)
-    });
-
-    // Set edges
-    edges.forEach(function(edge) {
-      g.setEdge(edge.source_id, edge.target_id);
-    });
-
     var render = dagreD3.render(),
       svg = d3.select("svg"),
       innerSvg = d3.select("svg g");
 
-    innerSvg.call(render, g);
-    innerSvg.call(taskTip);
+    // Update the page to show the latest DAG.
+    function draw() {
+      innerSvg.remove()
+      innerSvg = svg.append("g")
+      // Run the renderer. This is what draws the final graph.
+      innerSvg.call(render, g);
+      innerSvg.call(taskTip)
+
+      // When an expanded group is clicked, collapse it.
+      d3.selectAll("g.cluster").on("click", function (node_id) {
+        if (d3.event.defaultPrevented) // Ignore dragging actions.
+            return;
+        node = g.node(node_id)
+        collapse_group(node_id, node)
+      })
+      // When a node is clicked, action depends on the node type.
+      d3.selectAll("g.node").on("click", function (node_id) {
+        node = g.node(node_id)
+        if (node.children != undefined && Object.keys(node.children).length > 0) {
+          // A group node
+          if (d3.event.defaultPrevented) // Ignore dragging actions.
+            return;
+          expand_group(node_id, node)
+        } else if (node_id in tasks) {
+          // A task node
+          task = tasks[node_id];
+          if (node_id in task_instances)
+            try_number = task_instances[node_id].try_number;
+          else
+            try_number = 0;
+
+          if (task.task_type == "SubDagOperator")
+            call_modal(node_id, execution_date, task.extra_links, try_number, true);
+          else
+            call_modal(node_id, execution_date, task.extra_links, try_number, undefined);
+        } else {
+          // join node between TaskGroup. Ignore.
+        }
+      });
+
+      d3.selectAll("g.node").on("mouseover", function (d) {
+        d3.select(this).selectAll("rect").style("stroke", highlight_color);
+        highlight_nodes(g.predecessors(d), upstream_color, highlightStrokeWidth);
+        highlight_nodes(g.successors(d), downstream_color, highlightStrokeWidth)
+        adjacent_node_names = [d, ...g.predecessors(d), ...g.successors(d)]
+        d3.selectAll("g.nodes g.node")
+          .filter(x => !adjacent_node_names.includes(x))
+          .style("opacity", 0.2);
+        adjacent_edges = g.nodeEdges(d)
+        d3.selectAll("g.edgePath")[0]
+          .filter(x => !adjacent_edges.includes(x.__data__))
+          .forEach(function (x) {
+            d3.select(x).style('opacity', .2)
+          })
+      });
+
+      d3.selectAll("g.node").on("mouseout", function (d) {
+        d3.select(this).selectAll("rect").style("stroke", null);
+        highlight_nodes(g.predecessors(d), null, initialStrokeWidth)
+        highlight_nodes(g.successors(d), null, initialStrokeWidth)
+        d3.selectAll("g.node")
+          .style("opacity", 1);
+        d3.selectAll("g.node rect")
+          .style("stroke-width", initialStrokeWidth);
+        d3.selectAll("g.edgePath")
+          .style("opacity", 1);
+      });
+      updateNodesStates(task_instances);
+      setUpZoomSupport();
+    }
+
+    var zoom = null;
 
     function setUpZoomSupport() {
       // Set up zoom support for Graph
-      var zoom = d3.behavior.zoom().on("zoom", function() {
+      zoom = d3.behavior.zoom().on("zoom", function() {
             innerSvg.attr("transform", "translate(" + d3.event.translate + ")" +
                                         "scale(" + d3.event.scale + ")");
           });
@@ -193,60 +260,15 @@
       zoom.event(innerSvg);
     }
 
-    setUpZoomSupport();
-    inject_node_ids(tasks);
-
-    d3.selectAll("g.node").on("click", function(d){
-        task = tasks[d];
-        if (d in task_instances)
-            try_number = task_instances[d].try_number;
-        else
-            try_number = 0;
-
-        if (task.task_type == "SubDagOperator")
-            call_modal(d, execution_date, task.extra_links, try_number, true);
-        else
-            call_modal(d, execution_date, task.extra_links, try_number, undefined);
-    });
-
-
     function highlight_nodes(nodes, color, stroke_width) {
         nodes.forEach (function (nodeid) {
-            my_node = d3.select('[id="' + nodeid + '"]').node().parentNode;
+            const my_node = g.node(nodeid).elem
             d3.select(my_node)
-                .selectAll("rect")
+                .selectAll("rect,circle")
                 .style("stroke", color)
                 .style("stroke-width", stroke_width) ;
         })
     }
-
-    d3.selectAll("g.node").on("mouseover", function(d){
-        d3.select(this).selectAll("rect").style("stroke", highlight_color) ;
-        highlight_nodes(g.predecessors(d), upstream_color, highlightStrokeWidth);
-        highlight_nodes(g.successors(d), downstream_color, highlightStrokeWidth)
-        adjacent_node_names = [d, ...g.predecessors(d), ...g.successors(d)]
-        d3.selectAll("g.nodes g.node")
-            .filter(x => !adjacent_node_names.includes(x))
-            .style("opacity", 0.2);
-        adjacent_edges = g.nodeEdges(d)
-        d3.selectAll("g.edgePath")[0]
-            .filter(x => !adjacent_edges.includes(x.__data__))
-            .forEach(function(x) {
-                d3.select(x).style('opacity', .2)
-            })
-    });
-
-    d3.selectAll("g.node").on("mouseout", function(d){
-        d3.select(this).selectAll("rect").style("stroke", null) ;
-        highlight_nodes(g.predecessors(d), null, initialStrokeWidth)
-        highlight_nodes(g.successors(d), null, initialStrokeWidth)
-        d3.selectAll("g.node")
-            .style("opacity", 1);
-        d3.selectAll("g.node rect")
-            .style("stroke-width", initialStrokeWidth);
-        d3.selectAll("g.edgePath")
-            .style("opacity", 1);
-    });
 
 
     {% if blur %}
@@ -283,11 +305,31 @@
             }
         });
 
-    d3.select("#searchbox").on("keyup", function(){
+    // Returns true if a node's id or its children's id matches search_text
+    function node_matches(node_id, search_text) {
+      if (node_id.indexOf(search_text) > -1)
+        return true;
+
+      // The node's own id does not match, it may have children that match
+      var node = g.node(node_id)
+      if (node.children != undefined) {
+        var children = get_children_ids(node);
+        for(const child of children) {
+          if(child.indexOf(search_text) > -1)
+            return true
+        }
+      }
+    }
+
+    d3.select("#searchbox").on("keyup", function() {
         var s = document.getElementById("searchbox").value;
+
+        if(s == "")
+          return;
+
         var match = null;
 
-        if (stateIsSet){
+        if (stateIsSet()){
             clearFocus();
             setFocusMap();
         }
@@ -307,7 +349,7 @@
                 d3.select("g.edgePaths")
                     .transition().duration(duration)
                     .style("opacity", 0.2);
-                if (d.indexOf(s) > -1) {
+                if (node_matches(d, s)) {
                     if (!match)
                         match = this;
                     d3.select(this)
@@ -315,8 +357,7 @@
                         .style("opacity", 1)
                         .selectAll("rect")
                         .style("stroke-width", highlightStrokeWidth);
-                }
-                else {
+                } else {
                     d3.select(this)
                         .transition()
                         .style("opacity", 0.2).duration(duration)
@@ -326,36 +367,24 @@
             }
         });
 
-        // This moves the matched node in the center of the graph area
-        // ToDo: Should we keep this here as it has no added value
-        // and does not fit the graph on small screens, and has to scroll
+        // This moves the matched node to the center of the graph area
         if(match) {
             var transform = d3.transform(d3.select(match).attr("transform"));
+
+            var svgBb = svg.node().getBoundingClientRect();
             transform.translate = [
-                -transform.translate[0] + 520,
-                -(transform.translate[1] - 400)
+              svgBb.width / 2 - transform.translate[0],
+              svgBb.height / 2 - transform.translate[1]
             ];
             transform.scale = [1, 1];
 
-            d3.select("g.zoom")
-                .transition()
-                .attr("transform", transform.toString());
-            innerSvg.attr("transform", "translate(" + transform.translate + ")" +
-                                        "scale(1)");
+            if(zoom != null) {
+              zoom.translate(transform.translate);
+              zoom.scale(1);
+              zoom.event(innerSvg);
+            }
         }
     });
-
-
-    // Injecting ids to be used for parent/child highlighting
-    // Separated from updateNodeStates since it must work even
-    // when there is no valid task instance available
-    function inject_node_ids(tasks) {
-        $.each(tasks, function(task_id, task) {
-            $('tspan').filter(function(index) { return $(this).text() === task_id; })
-                    .parent().parent().parent()
-                    .attr("id", task_id);
-        });
-    }
 
     function clearFocus(){
         d3.selectAll("g.node")
@@ -413,8 +442,9 @@
         $("div#svg_container").css("opacity", "0.2");
         $.get(getTaskInstanceURL)
           .done(
-            (task_instances) => {
-              updateNodesStates(JSON.parse(task_instances));
+            (tis) => {
+              task_instances = JSON.parse(tis)
+              updateNodesStates(task_instances);
               $("#loading").hide();
               $("div#svg_container").css("opacity", "1");
               $('#error').hide();
@@ -429,31 +459,249 @@
       });
     }
 
-    // Assigning css classes based on state to nodes
-    // Initiating the tooltips
-    function updateNodesStates(task_instances) {
-      $.each(task_instances, (task_id, ti) => {
-        $('tspan').filter((index, el) => {
-          return $(el).text() === task_id;
-        })
-          .parent().parent().parent().parent()
-          .attr("class", "node enter " + (ti.state ? ti.state : "no_status"))
-          .attr("data-toggle", "tooltip")
-          .on("mouseover", (evt) => {
-            const task = tasks[task_id];
-            const tt = tiTooltip(ti);
-            taskTip.show(tt, evt.target); // taskTip is defined in graph.html
-          })
-          .on('mouseout', taskTip.hide);
-      });
+    // Generate tooltip for a group node
+    function group_tooltip(node_id, tis) {
+      var num_map = new Map([["success", 0],
+                             ["failed", 0],
+                             ["upstream_failed", 0],
+                             ["up_for_retry", 0],
+                             ["running", 0],
+                             ["no_status", 0]]
+                           );
+      for(const child of get_children_ids(g.node(node_id))) {
+        if(child in tis) {
+          const ti = tis[child];
+          const state_key = ti.state == null ? "no_status" : ti.state;
+          if(num_map.has(state_key))
+            num_map.set(state_key, num_map.get(state_key) + 1);
+        }
+      }
+
+      const tip = task_group_tips.get(node_id);
+      let tt = `${escapeHtml(tip)}<br><br>`;
+      for(const [key, val] of num_map.entries())
+        tt += `<strong>${escapeHtml(key)}:</strong> ${val} <br>`;
+
+      return tt;
     }
 
-    updateNodesStates(task_instances);
+    // Build a map mapping node id to tooltip for all the TaskGroups.
+    function get_task_group_tips(node) {
+      var tips = new Map();
+      if(node.children != undefined) {
+        tips.set(node.id, node.tooltip);
+
+        for(const child of node.children.values()) {
+          for(const [key, val] of get_task_group_tips(child))
+            tips.set(key, val);
+        }
+      }
+      return tips;
+    }
+
+    // Assigning css classes based on state to nodes
+    // Initiating the tooltips
+    function updateNodesStates(tis) {
+      for(const node_id of g.nodes())
+      {
+        elem = g.node(node_id).elem;
+        elem.setAttribute("class", "node enter " + get_node_state(node_id, tis));
+        elem.setAttribute("data-toggle", "tooltip");
+
+        const task_id = node_id;
+        elem.onmouseover = (evt) => {
+          if(task_id in tis) {
+            const tt = tiTooltip(tis[task_id]);
+            taskTip.show(tt, evt.target); // taskTip is defined in graph.html
+          } else if(task_group_tips.has(task_id)) {
+            const tt = group_tooltip(task_id, tis)
+            taskTip.show(tt, evt.target);
+          }
+        };
+        elem.onmouseout = taskTip.hide;
+        elem.onclick = taskTip.hide;
+      }
+    }
+
+
+    // Returns list of children id of the given task group
+    function get_children_ids(group) {
+      var children = []
+      for(const [key, val] of Object.entries(group.children)) {
+        if(val.children == undefined) {
+          // node
+          children.push(val.id)
+        } else {
+          // group
+          const sub_group_children = get_children_ids(val)
+          for(const id of sub_group_children) {
+            children.push(id)
+          }
+        }
+      }
+      return children
+    }
+
+
+    // Return the state for the node based on the state of its taskinstance or that of its
+    // children if it's a group node
+    function get_node_state(node_id, tis) {
+      node = g.node(node_id)
+
+      if (node.children == undefined) {
+        if(node_id in tis)
+          return tis[node_id].state
+
+        return "no_status"
+      }
+      var children = get_children_ids(node)
+
+      children_states = new Set()
+      children.forEach(function(task_id) {
+        if (task_id in tis) {
+          var state = tis[task_id].state
+          children_states.add(state == null ? "no_status" : state)
+        }
+      })
+
+      // In this order, if any of these states appeared in children_states, return it as
+      // the group state.
+      var priority = ["failed", "upstream_failed", "up_for_retry","up_for_reschedule",
+                      "queued", "no_status", "success", "skipped"]
+      for(const state of priority) {
+        if (children_states.has(state))
+          return state
+      }
+      return "no_status"
+    }
+
+    // Focus the graph on the expanded/collapsed node
+    function focus_group(node_id) {
+      if(node_id != null && zoom != null) {
+          const x = g.node(node_id).x;
+          const y = g.node(node_id).y;
+          // This is the total canvas size.
+          const svg_box = svg.node().getBoundingClientRect();
+          const width = svg_box.width;
+          const height = svg_box.height;
+
+          // This is the size of the node or the cluster (i.e. group)
+          var rect = d3.selectAll("g.node").filter(x => {return x == node_id}).select('rect');
+          if (rect.empty())
+            rect = d3.selectAll("g.cluster").filter(x => {return x == node_id}).select('rect');
+
+          // Is there a better way to get node_width and node_height ?
+          const [node_width, node_height] = [rect[0][0].attributes.width.value, rect[0][0].attributes.height.value];
+
+          // Calculate zoom scale to fill most of the canvas with the the node/cluster in focus.
+          const scale = Math.min(
+            Math.min(width / node_width, height / node_height),
+            1.5,  // cap zoom level to 1.5 so nodes are not too large
+          ) * 0.9;
+
+          var [delta_x, delta_y] = [width / 2 - x * scale, height / 2 - y * scale];
+          zoom.translate([delta_x, delta_y]);
+          zoom.scale(scale);
+          zoom.event(innerSvg.transition().duration(duration));
+
+          const children = new Set(g.children(node_id))
+          // Change opacity to highlight the focused group.
+          d3.selectAll("g.nodes g.node").filter(function(d, i){
+            if (d == node_id || children.has(d)) {
+                d3.select(this)
+                    .transition().duration(duration)
+                    .style("opacity", 1)
+            } else {
+                d3.select(this)
+                    .transition()
+                    .style("opacity", 0.2).duration(duration)
+            }
+          });
+      }
+    }
+
+    // Expands a group node
+    function expand_group(node_id, node) {
+      node.children.forEach(function (val) {
+        // Set children nodes
+        g.setNode(val.id, val.value)
+        map_task_to_node.set(val.id, val.id)
+        g.node(val.id).id = val.id
+        if (val.children != undefined) {
+          // Set children attribute so that the group can be expanded later when needed.
+          group_node = g.node(val.id)
+          group_node.children = val.children
+          // Map task that are under this node to this node's id
+          for(const child_id of get_children_ids(val))
+            map_task_to_node.set(child_id, val.id)
+        }
+        // Only call setParent if node is not the root node.
+        if (node_id != null)
+          g.setParent(val.id, node_id)
+      })
+
+      // Add edges
+      edges.forEach(function(edge) {
+        source_id = map_task_to_node.get(edge.source_id)
+        target_id = map_task_to_node.get(edge.target_id)
+        if(source_id != target_id && !g.hasEdge(source_id, target_id))
+          g.setEdge(source_id, target_id)
+      })
+
+      g.edges().forEach(function (edge) {
+        // Remove edges that were associated with the expanded group node..
+        if(node_id == edge.v || node_id == edge.w)
+          g.removeEdge(edge.v, edge.w)
+      })
+
+      draw()
+      focus_group(node_id)
+  }
+
+  // Remove the node with this node_id from g.
+  function remove_node(node_id) {
+    if(g.hasNode(node_id)) {
+        node = g.node(node_id)
+        if(node.children != undefined) {
+          // If the child is an expanded group node, remove children too.
+          node.children.forEach(function (child) {
+            remove_node(child.id)
+          })
+        }
+    }
+    g.removeNode(node_id)
+  }
+
+  // Collapse the children of the given group node.
+  function collapse_group(node_id, node) {
+      // Remove children nodes
+      node.children.forEach(function(child) {
+        remove_node(child.id)
+      })
+      // Map task that are under this node to this node's id
+      for(const child_id of get_children_ids(node))
+        map_task_to_node.set(child_id, node_id)
+
+      node = g.node(node_id)
+
+      // Set children edges onto the group edge
+      edges.forEach(function(edge) {
+        source_id = map_task_to_node.get(edge.source_id)
+        target_id = map_task_to_node.get(edge.target_id)
+        if(source_id != target_id && !g.hasEdge(source_id, target_id))
+          g.setEdge(source_id, target_id)
+      })
+
+      draw()
+      focus_group(node_id)
+    }
+
+    expand_group(null, nodes)
+
     initRefreshButton();
 
 </script>
 <script src="{{ url_for_asset('graph.js') }}"></script>
-<script src="{{ url_for_asset('task-instances.js') }}"></script>
 
 
 {% endblock %}

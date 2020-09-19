@@ -107,7 +107,11 @@ class TestGetXComEntry(TestXComEndpoint):
     @provide_session
     def _create_xcom_entry(self, dag_id, dag_run_id, execution_date, task_id, xcom_key, session=None):
         XCom.set(
-            key=xcom_key, value="TEST_VALUE", execution_date=execution_date, task_id=task_id, dag_id=dag_id,
+            key=xcom_key,
+            value="TEST_VALUE",
+            execution_date=execution_date,
+            task_id=task_id,
+            dag_id=dag_id,
         )
         dagrun = DR(
             dag_id=dag_id,
@@ -205,11 +209,23 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
 
     @parameterized.expand(
         [
-            ("limit=1", ["TEST_XCOM_KEY1"],),
-            ("limit=2", ["TEST_XCOM_KEY1", "TEST_XCOM_KEY10"],),
+            (
+                "limit=1",
+                ["TEST_XCOM_KEY1"],
+            ),
+            (
+                "limit=2",
+                ["TEST_XCOM_KEY1", "TEST_XCOM_KEY10"],
+            ),
             (
                 "offset=5",
-                ["TEST_XCOM_KEY5", "TEST_XCOM_KEY6", "TEST_XCOM_KEY7", "TEST_XCOM_KEY8", "TEST_XCOM_KEY9",],
+                [
+                    "TEST_XCOM_KEY5",
+                    "TEST_XCOM_KEY6",
+                    "TEST_XCOM_KEY7",
+                    "TEST_XCOM_KEY8",
+                    "TEST_XCOM_KEY9",
+                ],
             ),
             (
                 "offset=0",
@@ -226,9 +242,18 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
                     "TEST_XCOM_KEY9",
                 ],
             ),
-            ("limit=1&offset=5", ["TEST_XCOM_KEY5"],),
-            ("limit=1&offset=1", ["TEST_XCOM_KEY10"],),
-            ("limit=2&offset=2", ["TEST_XCOM_KEY2", "TEST_XCOM_KEY3"],),
+            (
+                "limit=1&offset=5",
+                ["TEST_XCOM_KEY5"],
+            ),
+            (
+                "limit=1&offset=1",
+                ["TEST_XCOM_KEY10"],
+            ),
+            (
+                "limit=2&offset=2",
+                ["TEST_XCOM_KEY2", "TEST_XCOM_KEY3"],
+            ),
         ]
     )
     @provide_session

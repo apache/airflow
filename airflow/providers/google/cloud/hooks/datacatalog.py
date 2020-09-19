@@ -61,7 +61,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client: Optional[DataCatalogClient] = None
 
@@ -921,7 +923,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type page_size: int
         :param order_by: Specifies the ordering of results, currently supported case-sensitive choices are:
 
-            -  ``relevance``, only supports desecending
+            -  ``relevance``, only supports descending
             -  ``last_access_timestamp [asc|desc]``, defaults to descending if not specified
             -  ``last_modified_timestamp [asc|desc]``, defaults to descending if not specified
 

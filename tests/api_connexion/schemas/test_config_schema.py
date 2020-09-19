@@ -29,7 +29,12 @@ class TestConfigSchema:
                         ConfigOption(key='hello', value='world'),
                     ],
                 ),
-                ConfigSection(name='sec2', options=[ConfigOption(key='foo', value='bar'),]),
+                ConfigSection(
+                    name='sec2',
+                    options=[
+                        ConfigOption(key='foo', value='bar'),
+                    ],
+                ),
             ]
         )
         result = config_schema.dump(config)
@@ -37,9 +42,17 @@ class TestConfigSchema:
             'sections': [
                 {
                     'name': 'sec1',
-                    'options': [{'key': 'apache', 'value': 'airflow'}, {'key': 'hello', 'value': 'world'},],
+                    'options': [
+                        {'key': 'apache', 'value': 'airflow'},
+                        {'key': 'hello', 'value': 'world'},
+                    ],
                 },
-                {'name': 'sec2', 'options': [{'key': 'foo', 'value': 'bar'},]},
+                {
+                    'name': 'sec2',
+                    'options': [
+                        {'key': 'foo', 'value': 'bar'},
+                    ],
+                },
             ]
         }
         assert result == expected

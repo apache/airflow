@@ -26,7 +26,10 @@ class TestHeathSchema(unittest.TestCase):
     def test_serialize(self):
         payload = {
             "metadatabase": {"status": "healthy"},
-            "scheduler": {"status": "healthy", "latest_scheduler_heartbeat": self.default_datetime,},
+            "scheduler": {
+                "status": "healthy",
+                "latest_scheduler_heartbeat": self.default_datetime,
+            },
         }
         serialized_data = health_schema.dump(payload)
         self.assertDictEqual(serialized_data, payload)

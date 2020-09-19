@@ -967,7 +967,10 @@ class MLEngineListVersionsOperator(BaseOperator):
             impersonation_chain=self._impersonation_chain,
         )
 
-        return hook.list_versions(project_id=self._project_id, model_name=self._model_name,)
+        return hook.list_versions(
+            project_id=self._project_id,
+            model_name=self._model_name,
+        )
 
 
 class MLEngineDeleteVersionOperator(BaseOperator):

@@ -85,7 +85,9 @@ with models.DAG(
 
     # [START howto_operator_dlp_delete_inspect_template]
     delete_template = CloudDLPDeleteInspectTemplateOperator(
-        task_id="delete_template", template_id=TEMPLATE_ID, project_id=GCP_PROJECT,
+        task_id="delete_template",
+        template_id=TEMPLATE_ID,
+        project_id=GCP_PROJECT,
     )
     # [END howto_operator_dlp_delete_inspect_template]
 
@@ -129,7 +131,9 @@ with models.DAG(
     # [END howto_operator_dlp_update_info_type]
     # [START howto_operator_dlp_delete_info_type]
     delete_info_type = CloudDLPDeleteStoredInfoTypeOperator(
-        project_id=GCP_PROJECT, stored_info_type_id=CUSTOM_INFO_TYPE_ID, task_id="delete_info_type",
+        project_id=GCP_PROJECT,
+        stored_info_type_id=CUSTOM_INFO_TYPE_ID,
+        task_id="delete_info_type",
     )
     # [END howto_operator_dlp_delete_info_type]
     create_info_type >> update_info_type >> delete_info_type
@@ -150,7 +154,10 @@ with models.DAG(
     "example_gcp_dlp_job", schedule_interval=None, start_date=days_ago(1), tags=["example", "dlp_job"]
 ) as dag3:  # [START howto_operator_dlp_create_job_trigger]
     create_trigger = CloudDLPCreateJobTriggerOperator(
-        project_id=GCP_PROJECT, job_trigger=JOB_TRIGGER, trigger_id=TRIGGER_ID, task_id="create_trigger",
+        project_id=GCP_PROJECT,
+        job_trigger=JOB_TRIGGER,
+        trigger_id=TRIGGER_ID,
+        task_id="create_trigger",
     )
     # [END howto_operator_dlp_create_job_trigger]
 

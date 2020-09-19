@@ -109,6 +109,14 @@ class S3Hook(AwsBaseHook):
 
     def __init__(self, *args, **kwargs) -> None:
         kwargs['client_type'] = 's3'
+
+        self.extra_args = {}
+        if 'extra_args' in kwargs:
+            self.extra_args = kwargs['extra_args']
+            if not isinstance(self.extra_args, dict):
+                raise ValueError("extra_args '%r' must be of type %s" % (self.extra_args, dict))
+            del kwargs['extra_args']
+
         super().__init__(*args, **kwargs)
 
     @staticmethod
@@ -485,11 +493,10 @@ class S3Hook(AwsBaseHook):
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError("The key {key} already exists.".format(key=key))
 
-        extra_args = {}
+        extra_args = self.extra_args
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
         if gzip:
-            filename_gz = ''
             with open(filename, 'rb') as f_in:
                 filename_gz = f_in.name + '.gz'
                 with gz.open(filename_gz, 'wb') as f_out:
@@ -625,7 +632,7 @@ class S3Hook(AwsBaseHook):
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError("The key {key} already exists.".format(key=key))
 
-        extra_args = {}
+        extra_args = self.extra_args
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
         if acl_policy:

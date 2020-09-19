@@ -26,22 +26,30 @@ from airflow.providers.amazon.aws.sensors.sagemaker_endpoint import SageMakerEnd
 
 DESCRIBE_ENDPOINT_CREATING_RESPONSE = {
     'EndpointStatus': 'Creating',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
 }
 DESCRIBE_ENDPOINT_INSERVICE_RESPONSE = {
     'EndpointStatus': 'InService',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
 }
 
 DESCRIBE_ENDPOINT_FAILED_RESPONSE = {
     'EndpointStatus': 'Failed',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
     'FailureReason': 'Unknown',
 }
 
 DESCRIBE_ENDPOINT_UPDATING_RESPONSE = {
     'EndpointStatus': 'Updating',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
 }
 
 

@@ -145,7 +145,8 @@ class TestGetSource(unittest.TestCase):
         first_dag: DAG = next(iter(dagbag.dags.values()))
 
         response = self.client.get(
-            f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}", headers={"Accept": "text/plain"},
+            f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}",
+            headers={"Accept": "text/plain"},
         )
 
         assert_401(response)

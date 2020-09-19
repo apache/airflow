@@ -18,9 +18,10 @@
 
 import logging
 import sys
+from collections import defaultdict
 from datetime import datetime
 from time import time
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -35,6 +36,9 @@ from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+# Elasticsearch hosted log type
+EsLogMsgType = List[Tuple[str, str]]
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
@@ -118,7 +122,24 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         """
         return execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
-    def _read(self, ti: TaskInstance, try_number: int, metadata: Optional[dict] = None) -> Tuple[str, dict]:
+    @staticmethod
+    def _group_logs_by_host(logs):
+        grouped_logs = defaultdict(list)
+        for log in logs:
+            key = getattr(log, 'host', 'default_host')
+            grouped_logs[key].append(log)
+
+        # return items sorted by timestamp.
+        result = sorted(grouped_logs.items(), key=lambda kv: getattr(kv[1][0], 'message', '_'))
+
+        return result
+
+    def _read_grouped_logs(self):
+        return True
+
+    def _read(
+        self, ti: TaskInstance, try_number: int, metadata: Optional[dict] = None
+    ) -> Tuple[EsLogMsgType, dict]:
         """
         Endpoint for streaming log.
 
@@ -126,7 +147,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :param try_number: try_number of the task instance
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
-        :return: a list of log documents and metadata.
+        :return: a list of tuple with host and log documents, metadata.
         """
         if not metadata:
             metadata = {'offset': 0}
@@ -137,6 +158,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         log_id = self._render_log_id(ti, try_number)
 
         logs = self.es_read(log_id, offset, metadata)
+        logs_by_host = self._group_logs_by_host(logs)
 
         next_offset = offset if not logs else logs[-1].offset
 
@@ -147,7 +169,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # end_of_log_mark may contain characters like '\n' which is needed to
         # have the log uploaded but will not be stored in elasticsearch.
-        metadata['end_of_log'] = False if not logs else logs[-1].message == self.end_of_log_mark.strip()
+        loading_hosts = [
+            item[0] for item in logs_by_host if item[-1][-1].message != self.end_of_log_mark.strip()
+        ]
+        metadata['end_of_log'] = False if not logs else len(loading_hosts) == 0
 
         cur_ts = pendulum.now()
         # Assume end of log after not receiving new log for 5 min,
@@ -167,8 +192,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # If we hit the end of the log, remove the actual end_of_log message
         # to prevent it from showing in the UI.
-        i = len(logs) if not metadata['end_of_log'] else len(logs) - 1
-        message = '\n'.join([log.message for log in logs[0:i]])
+        def concat_logs(lines):
+            log_range = (len(lines) - 1) if lines[-1].message == self.end_of_log_mark.strip() else len(lines)
+            return '\n'.join([lines[i].message for i in range(log_range)])
+
+        message = [(host, concat_logs(hosted_log)) for host, hosted_log in logs_by_host]
 
         return message, metadata
 

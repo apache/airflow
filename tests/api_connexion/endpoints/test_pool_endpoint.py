@@ -100,9 +100,15 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
             ("/api/v1/pools?limit=2", ["default_pool", "test_pool1"]),
             ("/api/v1/pools?limit=1", ["default_pool"]),
             # Limit and offset test data
-            ("/api/v1/pools?limit=100&offset=1", [f"test_pool{i}" for i in range(1, 101)],),
+            (
+                "/api/v1/pools?limit=100&offset=1",
+                [f"test_pool{i}" for i in range(1, 101)],
+            ),
             ("/api/v1/pools?limit=2&offset=1", ["test_pool1", "test_pool2"]),
-            ("/api/v1/pools?limit=3&offset=2", ["test_pool2", "test_pool3", "test_pool4"],),
+            (
+                "/api/v1/pools?limit=3&offset=2",
+                ["test_pool2", "test_pool3", "test_pool4"],
+            ),
         ]
     )
     @provide_session
@@ -267,8 +273,16 @@ class TestPostPool(TestBasePoolEndpoints):
 
     @parameterized.expand(
         [
-            ("for missing pool name", {"slots": 3}, "'name' is a required property",),
-            ("for missing slots", {"name": "invalid_pool"}, "'slots' is a required property",),
+            (
+                "for missing pool name",
+                {"slots": 3},
+                "'name' is a required property",
+            ),
+            (
+                "for missing slots",
+                {"name": "invalid_pool"},
+                "'slots' is a required property",
+            ),
             (
                 "for extra fields",
                 {"name": "invalid_pool", "slots": 3, "extra_field_1": "extra"},
@@ -359,7 +373,10 @@ class TestPatchPool(TestBasePoolEndpoints):
         session.add(pool)
         session.commit()
 
-        response = self.client.patch("api/v1/pools/test_pool", json={"name": "test_pool_a", "slots": 3},)
+        response = self.client.patch(
+            "api/v1/pools/test_pool",
+            json={"name": "test_pool_a", "slots": 3},
+        )
 
         assert_401(response)
 
@@ -476,7 +493,12 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
                 "test_pool",
                 2,
             ),
-            ("api/v1/pools/test_pool?update_mask=slots", {"slots": 2}, "test_pool", 2,),
+            (
+                "api/v1/pools/test_pool?update_mask=slots",
+                {"slots": 2},
+                "test_pool",
+                2,
+            ),
         ]
     )
     @provide_session

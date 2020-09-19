@@ -295,7 +295,12 @@ class TestDataprocHook(unittest.TestCase):
             self.hook.cancel_job(job_id=JOB_ID, project_id=GCP_PROJECT)
         mock_client.assert_called_once_with(location='global')
         mock_client.return_value.cancel_job.assert_called_once_with(
-            region='global', job_id=JOB_ID, project_id=GCP_PROJECT, retry=None, timeout=None, metadata=None,
+            region='global',
+            job_id=JOB_ID,
+            project_id=GCP_PROJECT,
+            retry=None,
+            timeout=None,
+            metadata=None,
         )
 
 

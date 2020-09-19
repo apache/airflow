@@ -109,7 +109,7 @@ def create_user():
             )
 
 
-@pytest.mark.heisentests
+@pytest.mark.quarantined
 class TestImpersonation(unittest.TestCase):
 
     def setUp(self):

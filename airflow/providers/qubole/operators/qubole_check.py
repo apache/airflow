@@ -74,9 +74,7 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
 
     """
 
-    template_fields: Iterable[str] = (
-        set(QuboleOperator.template_fields) | set(CheckOperator.template_fields)
-    )
+    template_fields: Iterable[str] = set(QuboleOperator.template_fields) | set(CheckOperator.template_fields)
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 

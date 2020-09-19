@@ -63,6 +63,13 @@ class AirflowRescheduleException(AirflowException):
         self.reschedule_date = reschedule_date
 
 
+class AirflowSmartSensorException(AirflowException):
+    """
+    Raise after the task register itself in the smart sensor service
+    It should exit without failing a task
+    """
+
+
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid"""
 

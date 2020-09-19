@@ -106,7 +106,8 @@ class TestFallbackObjectUrlToObjectNameAndBucketName(unittest.TestCase):
 class TestGCSHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            GCS_STRING.format('GoogleBaseHook.__init__'), new=mock_base_gcp_hook_default_project_id,
+            GCS_STRING.format('GoogleBaseHook.__init__'),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.gcs_hook = gcs.GCSHook(gcp_conn_id='test')
 

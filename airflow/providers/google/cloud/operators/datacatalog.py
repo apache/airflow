@@ -1729,7 +1729,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
     :type page_size: int
     :param order_by: Specifies the ordering of results, currently supported case-sensitive choices are:
 
-        -  ``relevance``, only supports desecending
+        -  ``relevance``, only supports descending
         -  ``last_access_timestamp [asc|desc]``, defaults to descending if not specified
         -  ``last_modified_timestamp [asc|desc]``, defaults to descending if not specified
 

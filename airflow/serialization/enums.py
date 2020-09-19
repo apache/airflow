@@ -42,3 +42,5 @@ class DagAttributeTypes(str, Enum):
     DICT = 'dict'
     SET = 'set'
     TUPLE = 'tuple'
+    POD = 'k8s.V1Pod'
+    TASK_GROUP = 'taskgroup'

@@ -55,3 +55,11 @@ data:
   known_hosts: |
     {{ .Values.dags.gitSync.knownHosts | nindent 4 }}
 {{- end }}
+{{- if eq .Values.executor "KubernetesExecutor" }}
+  pod_template_file.yaml: |-
+{{- if .Values.podTemplate }}
+    {{ .Values.podTemplate | nindent 4 }}
+{{- else }}
+{{ tpl (.Files.Get "files/pod-template-file.yaml") . | nindent 4 }}
+{{- end }}
+{{- end }}

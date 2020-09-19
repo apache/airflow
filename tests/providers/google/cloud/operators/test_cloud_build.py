@@ -164,7 +164,9 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
         }
         hook_mock.create_build(body=expected_result, project_id=TEST_PROJECT_ID)
 
-    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook",)
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook",
+    )
     def test_repo_source_replace(self, hook_mock):
         hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY
         current_body = {

@@ -101,7 +101,15 @@ class TestWasbTaskHandler(unittest.TestCase):
         self.assertEqual(
             self.wasb_task_handler.read(self.ti),
             (
-                ['*** Reading remote log from wasb://container/remote/log/location/1.log.\nLog line\n'],
+                [
+                    [
+                        (
+                            '',
+                            '*** Reading remote log from wasb://container/remote/log/location/1.log.\n'
+                            'Log line\n',
+                        )
+                    ]
+                ],
                 [{'end_of_log': True}],
             ),
         )

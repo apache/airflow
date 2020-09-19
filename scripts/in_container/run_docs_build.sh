@@ -25,7 +25,7 @@ sudo rm -rf "${AIRFLOW_SOURCES}/docs/_api/*"
 
 sudo -E "${AIRFLOW_SOURCES}/docs/build_docs.py" "${@}"
 
-if [[ ${GITHUB_ACTIONS:="false"} == "true" && -d "${AIRFLOW_SOURCES}/docs/_build/html" ]]; then
+if [[ ${CI:="false"} == "true" && -d "${AIRFLOW_SOURCES}/docs/_build/html" ]]; then
     rm -rf "/files/documentation"
     cp -r "${AIRFLOW_SOURCES}/docs/_build/html" "/files/documentation"
 fi

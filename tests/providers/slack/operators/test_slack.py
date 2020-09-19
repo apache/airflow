@@ -115,7 +115,9 @@ class TestSlackAPIPostOperator(unittest.TestCase):
         test_slack_conn_id = 'test_slack_conn_id'
 
         slack_api_post_operator = SlackAPIPostOperator(
-            task_id='slack', username=self.test_username, slack_conn_id=test_slack_conn_id,
+            task_id='slack',
+            username=self.test_username,
+            slack_conn_id=test_slack_conn_id,
         )
 
         slack_api_post_operator.execute()
@@ -190,7 +192,10 @@ class TestSlackAPIFileOperator(unittest.TestCase):
     def test_api_call_params_with_default_args(self, mock_hook):
         test_slack_conn_id = 'test_slack_conn_id'
 
-        slack_api_post_operator = SlackAPIFileOperator(task_id='slack', slack_conn_id=test_slack_conn_id,)
+        slack_api_post_operator = SlackAPIFileOperator(
+            task_id='slack',
+            slack_conn_id=test_slack_conn_id,
+        )
 
         slack_api_post_operator.execute()
 

@@ -84,7 +84,8 @@ class TaskLogReader:
             metadata.pop('offset', None)
             while 'end_of_log' not in metadata or not metadata['end_of_log']:
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
-                yield "\n".join(logs) + "\n"
+                for host, log in logs[0]:
+                    yield "\n".join([host, log]) + "\n"
 
     @cached_property
     def log_handler(self):

@@ -29,6 +29,6 @@ LABEL org.apache.airflow.component="stress"
 LABEL org.apache.airflow.stress.version="${STRESS_VERSION}"
 LABEL org.apache.airflow.airflow_stress.version="${AIRFLOW_STRESS_VERSION}"
 LABEL org.apache.airflow.commit_sha="${COMMIT_SHA}"
-LABEL maintainer "Apache Airflow Community <dev@airflow.apache.org>"
+LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
 CMD ["/usr/local/bin/stress"]

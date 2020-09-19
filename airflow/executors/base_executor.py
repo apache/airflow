@@ -265,6 +265,20 @@ class BaseExecutor(LoggingMixin):
         """
         raise NotImplementedError()
 
+    def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
+        """
+        Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
+
+        Anything that is not adopted will be cleared by the scheduler (and then become eligible for
+        re-scheduling)
+
+        :return: any TaskInstances that were unable to be adopted
+        :rtype: list[airflow.models.TaskInstance]
+        """
+        # By default, assume Executors cannot adopt tasks, so just say we failed to adopt anything.
+        # Subclasses can do better!
+        return tis
+
     @staticmethod
     def validate_command(command: List[str]) -> None:
         """Check if the command to execute is airflow command"""

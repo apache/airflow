@@ -68,5 +68,8 @@ class TestKylinHook(unittest.TestCase):
         self.assertDictEqual(self.hook.cube_run('kylin_sales_cube', 'merge'), response_data)
         self.assertDictEqual(self.hook.cube_run('kylin_sales_cube', 'build_streaming'), response_data)
         self.assertRaises(
-            AirflowException, self.hook.cube_run, 'kylin_sales_cube', 'build123',
+            AirflowException,
+            self.hook.cube_run,
+            'kylin_sales_cube',
+            'build123',
         )

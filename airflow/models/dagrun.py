@@ -23,7 +23,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import synonym
+from sqlalchemy.orm import backref, relationship, synonym
 from sqlalchemy.orm.session import Session
 
 from airflow.exceptions import AirflowException
@@ -65,6 +65,13 @@ class DagRun(Base, LoggingMixin):
         Index('dag_id_state', dag_id, _state),
         UniqueConstraint('dag_id', 'execution_date'),
         UniqueConstraint('dag_id', 'run_id'),
+    )
+
+    task_instances = relationship(
+        TI,
+        primaryjoin=and_(TI.dag_id == dag_id, TI.execution_date == execution_date),  # type: ignore
+        foreign_keys=(dag_id, execution_date),
+        backref=backref('dag_run', uselist=False),
     )
 
     def __init__(

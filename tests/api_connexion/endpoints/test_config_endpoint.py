@@ -24,8 +24,13 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 
 MOCK_CONF = {
-    'core': {'parallelism': '1024',},
-    'smtp': {'smtp_host': 'localhost', 'smtp_mail_from': 'airflow@example.com',},
+    'core': {
+        'parallelism': '1024',
+    },
+    'smtp': {
+        'smtp_host': 'localhost',
+        'smtp_mail_from': 'airflow@example.com',
+    },
 }
 
 
@@ -73,7 +78,12 @@ class TestGetConfig:
         assert response.status_code == 200
         expected = {
             'sections': [
-                {'name': 'core', 'options': [{'key': 'parallelism', 'value': '1024'},]},
+                {
+                    'name': 'core',
+                    'options': [
+                        {'key': 'parallelism', 'value': '1024'},
+                    ],
+                },
                 {
                     'name': 'smtp',
                     'options': [

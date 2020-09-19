@@ -73,7 +73,9 @@ class TestDagEndpoint(unittest.TestCase):
     def _create_dag_models(self, count, session=None):
         for num in range(1, count + 1):
             dag_model = DagModel(
-                dag_id=f"TEST_DAG_{num}", fileloc=f"/tmp/dag_{num}.py", schedule_interval="2 2 * * *",
+                dag_id=f"TEST_DAG_{num}",
+                fileloc=f"/tmp/dag_{num}.py",
+                schedule_interval="2 2 * * *",
             )
             session.add(dag_model)
 
@@ -132,7 +134,12 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": [],
-            "schedule_interval": {"__type": "TimeDelta", "days": 1, "microseconds": 0, "seconds": 0,},
+            "schedule_interval": {
+                "__type": "TimeDelta",
+                "days": 1,
+                "microseconds": 0,
+                "seconds": 0,
+            },
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": None,
             "timezone": "Timezone('UTC')",
@@ -161,7 +168,12 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": [],
-            "schedule_interval": {"__type": "TimeDelta", "days": 1, "microseconds": 0, "seconds": 0,},
+            "schedule_interval": {
+                "__type": "TimeDelta",
+                "days": 1,
+                "microseconds": 0,
+                "seconds": 0,
+            },
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": None,
             "timezone": "Timezone('UTC')",
@@ -221,7 +233,10 @@ class TestGetDags(TestDagEndpoint):
                         "is_subdag": False,
                         "owners": [],
                         "root_dag_id": None,
-                        "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *",},
+                        "schedule_interval": {
+                            "__type": "CronExpression",
+                            "value": "2 2 * * *",
+                        },
                         "tags": [],
                     },
                     {
@@ -232,7 +247,10 @@ class TestGetDags(TestDagEndpoint):
                         "is_subdag": False,
                         "owners": [],
                         "root_dag_id": None,
-                        "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *",},
+                        "schedule_interval": {
+                            "__type": "CronExpression",
+                            "value": "2 2 * * *",
+                        },
                         "tags": [],
                     },
                 ],
@@ -245,7 +263,10 @@ class TestGetDags(TestDagEndpoint):
         [
             ("api/v1/dags?limit=1", ["TEST_DAG_1"]),
             ("api/v1/dags?limit=2", ["TEST_DAG_1", "TEST_DAG_10"]),
-            ("api/v1/dags?offset=5", ["TEST_DAG_5", "TEST_DAG_6", "TEST_DAG_7", "TEST_DAG_8", "TEST_DAG_9"],),
+            (
+                "api/v1/dags?offset=5",
+                ["TEST_DAG_5", "TEST_DAG_6", "TEST_DAG_7", "TEST_DAG_8", "TEST_DAG_9"],
+            ),
             (
                 "api/v1/dags?offset=0",
                 [
@@ -299,7 +320,9 @@ class TestPatchDag(TestDagEndpoint):
         dag_model = self._create_dag_model()
         response = self.client.patch(
             f"/api/v1/dags/{dag_model.dag_id}",
-            json={"is_paused": False,},
+            json={
+                "is_paused": False,
+            },
             environ_overrides={'REMOTE_USER': "test"},
         )
         self.assertEqual(response.status_code, 200)
@@ -311,7 +334,10 @@ class TestPatchDag(TestDagEndpoint):
             "is_subdag": False,
             "owners": [],
             "root_dag_id": None,
-            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *",},
+            "schedule_interval": {
+                "__type": "CronExpression",
+                "value": "2 2 * * *",
+            },
             "tags": [],
         }
         self.assertEqual(response.json, expected_response)
@@ -319,7 +345,10 @@ class TestPatchDag(TestDagEndpoint):
     def test_should_response_400_on_invalid_request(self):
         patch_body = {
             "is_paused": True,
-            "schedule_interval": {"__type": "CronExpression", "value": "1 1 * * *",},
+            "schedule_interval": {
+                "__type": "CronExpression",
+                "value": "1 1 * * *",
+            },
         }
         dag_model = self._create_dag_model()
         response = self.client.patch(f"/api/v1/dags/{dag_model.dag_id}", json=patch_body)
@@ -348,7 +377,12 @@ class TestPatchDag(TestDagEndpoint):
 
     def test_should_raises_401_unauthenticated(self):
         dag_model = self._create_dag_model()
-        response = self.client.patch(f"/api/v1/dags/{dag_model.dag_id}", json={"is_paused": False,},)
+        response = self.client.patch(
+            f"/api/v1/dags/{dag_model.dag_id}",
+            json={
+                "is_paused": False,
+            },
+        )
 
         assert_401(response)
 
@@ -371,7 +405,10 @@ class TestPatchDag(TestDagEndpoint):
             "is_subdag": False,
             "owners": [],
             "root_dag_id": None,
-            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *",},
+            "schedule_interval": {
+                "__type": "CronExpression",
+                "value": "2 2 * * *",
+            },
             "tags": [],
         }
         self.assertEqual(response.json, expected_response)
@@ -379,12 +416,16 @@ class TestPatchDag(TestDagEndpoint):
     @parameterized.expand(
         [
             (
-                {"is_paused": True,},
+                {
+                    "is_paused": True,
+                },
                 "update_mask=description",
                 "Only `is_paused` field can be updated through the REST API",
             ),
             (
-                {"is_paused": True,},
+                {
+                    "is_paused": True,
+                },
                 "update_mask=schedule_interval, description",
                 "Only `is_paused` field can be updated through the REST API",
             ),

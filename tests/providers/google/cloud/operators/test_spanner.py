@@ -57,7 +57,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.create_instance.assert_called_once_with(
             project_id=PROJECT_ID,
@@ -81,7 +82,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.create_instance.assert_called_once_with(
             project_id=None,
@@ -106,7 +108,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.update_instance.assert_called_once_with(
             project_id=PROJECT_ID,
@@ -130,7 +133,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.update_instance.assert_called_once_with(
             project_id=None,
@@ -155,13 +159,17 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.create_instance.assert_not_called()
         self.assertIsNone(result)
 
     @parameterized.expand(
-        [("", INSTANCE_ID, "project_id"), (PROJECT_ID, "", "instance_id"),]
+        [
+            ("", INSTANCE_ID, "project_id"),
+            (PROJECT_ID, "", "instance_id"),
+        ]
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_instance_create_ex_if_param_missing(self, project_id, instance_id, exp_msg, mock_hook):
@@ -184,7 +192,8 @@ class TestCloudSpanner(unittest.TestCase):
         op = SpannerDeleteInstanceOperator(project_id=PROJECT_ID, instance_id=INSTANCE_ID, task_id="id")
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID
@@ -197,7 +206,8 @@ class TestCloudSpanner(unittest.TestCase):
         op = SpannerDeleteInstanceOperator(instance_id=INSTANCE_ID, task_id="id")
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=None, instance_id=INSTANCE_ID
@@ -210,13 +220,17 @@ class TestCloudSpanner(unittest.TestCase):
         op = SpannerDeleteInstanceOperator(project_id=PROJECT_ID, instance_id=INSTANCE_ID, task_id="id")
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.delete_instance.assert_not_called()
         self.assertTrue(result)
 
     @parameterized.expand(
-        [("", INSTANCE_ID, "project_id"), (PROJECT_ID, "", "instance_id"),]
+        [
+            ("", INSTANCE_ID, "project_id"),
+            (PROJECT_ID, "", "instance_id"),
+        ]
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_instance_delete_ex_if_param_missing(self, project_id, instance_id, exp_msg, mock_hook):
@@ -238,7 +252,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.execute_dml.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID, queries=[INSERT_QUERY]
@@ -253,7 +268,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)  # pylint: disable=assignment-from-no-return
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.execute_dml.assert_called_once_with(
             project_id=None, instance_id=INSTANCE_ID, database_id=DB_ID, queries=[INSERT_QUERY]
@@ -296,7 +312,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.execute_dml.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID, queries=[INSERT_QUERY]
@@ -314,7 +331,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.execute_dml.assert_called_once_with(
             project_id=PROJECT_ID,
@@ -335,7 +353,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.create_database.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID, ddl_statements=DDL_STATEMENTS
@@ -351,7 +370,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.create_database.assert_called_once_with(
             project_id=None, instance_id=INSTANCE_ID, database_id=DB_ID, ddl_statements=DDL_STATEMENTS
@@ -371,7 +391,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.create_database.assert_not_called()
         mock_hook.return_value.update_database.assert_not_called()
@@ -412,7 +433,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.update_database.assert_called_once_with(
             project_id=PROJECT_ID,
@@ -431,7 +453,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.update_database.assert_called_once_with(
             project_id=None,
@@ -484,7 +507,8 @@ class TestCloudSpanner(unittest.TestCase):
             str(err),
         )
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
@@ -495,7 +519,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.delete_database.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID
@@ -508,7 +533,8 @@ class TestCloudSpanner(unittest.TestCase):
         op = SpannerDeleteDatabaseInstanceOperator(instance_id=INSTANCE_ID, database_id=DB_ID, task_id="id")
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.delete_database.assert_called_once_with(
             project_id=None, instance_id=INSTANCE_ID, database_id=DB_ID
@@ -523,7 +549,8 @@ class TestCloudSpanner(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default", impersonation_chain=None,
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         mock_hook.return_value.delete_database.assert_not_called()
         self.assertTrue(result)

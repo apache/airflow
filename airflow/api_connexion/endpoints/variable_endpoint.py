@@ -64,7 +64,12 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
     if limit:
         query = query.limit(limit)
     variables = query.all()
-    return variable_collection_schema.dump({"variables": variables, "total_entries": total_entries,})
+    return variable_collection_schema.dump(
+        {
+            "variables": variables,
+            "total_entries": total_entries,
+        }
+    )
 
 
 @security.requires_authentication

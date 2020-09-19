@@ -224,7 +224,9 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
         res = self.gce_hook.start_instance(
-            zone=GCE_ZONE, resource_id=GCE_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            zone=GCE_ZONE,
+            resource_id=GCE_INSTANCE,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         self.assertIsNone(res)
         start_method.assert_called_once_with(instance='instance', project='example-project', zone='zone')
@@ -265,7 +267,9 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
         res = self.gce_hook.stop_instance(
-            zone=GCE_ZONE, resource_id=GCE_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            zone=GCE_ZONE,
+            resource_id=GCE_INSTANCE,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         self.assertIsNone(res)
         stop_method.assert_called_once_with(instance='instance', project='example-project', zone='zone')
@@ -305,7 +309,10 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
         res = self.gce_hook.set_machine_type(
-            body={}, zone=GCE_ZONE, resource_id=GCE_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            body={},
+            zone=GCE_ZONE,
+            resource_id=GCE_INSTANCE,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         self.assertIsNone(res)
         execute_method.assert_called_once_with(num_retries=5)
@@ -382,7 +389,9 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
         res = self.gce_hook.insert_instance_template(
-            body={}, request_id=GCE_REQUEST_ID, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            body={},
+            request_id=GCE_REQUEST_ID,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         self.assertIsNone(res)
         insert_method.assert_called_once_with(body={}, project='example-project', requestId='request_id')
@@ -425,7 +434,9 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
         res = self.gce_hook.get_instance_group_manager(
-            zone=GCE_ZONE, resource_id=GCE_INSTANCE_GROUP_MANAGER, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            zone=GCE_ZONE,
+            resource_id=GCE_INSTANCE_GROUP_MANAGER,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         self.assertIsNotNone(res)
         get_method.assert_called_once_with(
