@@ -41,7 +41,7 @@ Logic behind scheduling is as follows:
 
 4. The cycle is repeated for all the files in the DAG Bag. If the process to parse DAG file is still running when the file's turn comes up in the next cycle, the file is skipped and the next file in the series will be assigned for the new processor. This isolation provides a non-blocking DAG parsing functionality.
 
-.. image:: images/ci/scheduler_flow.png
+.. image:: img/scheduler_flow.png
     :align: center
     :alt: Scheduler Workflow
 
