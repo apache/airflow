@@ -80,7 +80,6 @@ def get_kube_client(in_cluster: bool = conf.getboolean('kubernetes', 'in_cluster
     :return kubernetes client
     :rtype client.CoreV1Api
     """
-
     if not has_kubernetes:
         raise _import_err
 

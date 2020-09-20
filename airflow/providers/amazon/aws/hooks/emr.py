@@ -49,7 +49,6 @@ class EmrHook(AwsBaseHook):
         :type cluster_states: list
         :return: id of the EMR cluster
         """
-
         response = self.get_conn().list_clusters(ClusterStates=cluster_states)
 
         matching_clusters = list(
@@ -73,7 +72,6 @@ class EmrHook(AwsBaseHook):
         run_job_flow method.
         Overrides for this config may be passed as the job_flow_overrides.
         """
-
         if not self.emr_conn_id:
             raise AirflowException('emr_conn_id must be present to use create_job_flow')
 

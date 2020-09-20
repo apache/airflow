@@ -826,7 +826,6 @@ class DAG(BaseDag, LoggingMixin):
 
     def get_template_env(self) -> jinja2.Environment:
         """Build a Jinja2 environment."""
-
         # Collect directories to search for template files
         searchpath = [self.folder]
         if self.template_searchpath:
@@ -1683,7 +1682,6 @@ class DAG(BaseDag, LoggingMixin):
         :type active_dag_ids: list[unicode]
         :return: None
         """
-
         if len(active_dag_ids) == 0:
             return
         for dag in session.query(

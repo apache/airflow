@@ -56,7 +56,6 @@ class DAGSchema(SQLAlchemySchema):
     @staticmethod
     def get_owners(obj: DagModel):
         """Convert owners attribute to DAG representation"""
-
         if not getattr(obj, 'owners', None):
             return []
         return obj.owners.split(",")

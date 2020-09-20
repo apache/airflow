@@ -61,7 +61,6 @@ def send_email(
     .. note::
         For more information, see :ref:`email-configuration-sendgrid`
     """
-
     if files is None:
         files = []
 

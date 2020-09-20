@@ -117,7 +117,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
-
         client = self.get_conn()
 
         if queue_name:
@@ -180,7 +179,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
-
         client = self.get_conn()
 
         if queue_name and location:
@@ -230,7 +228,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
@@ -271,7 +268,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_location_path = CloudTasksClient.location_path(project_id, location)
@@ -315,7 +311,6 @@ class CloudTasksHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: sequence[tuple[str, str]]]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
@@ -352,7 +347,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
@@ -389,7 +383,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
@@ -426,7 +419,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
@@ -475,7 +467,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
-
         client = self.get_conn()
 
         if task_name:
@@ -534,7 +525,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
-
         client = self.get_conn()
 
         full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
@@ -585,7 +575,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Task]
         """
-
         client = self.get_conn()
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
         tasks = client.list_tasks(
@@ -631,7 +620,6 @@ class CloudTasksHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: sequence[tuple[str, str]]]
         """
-
         client = self.get_conn()
 
         full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
@@ -675,7 +663,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
-
         client = self.get_conn()
 
         full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)

@@ -47,7 +47,6 @@ def get_xcom_entries(
     """
     Get all XCom values
     """
-
     query = session.query(XCom)
     if dag_id != '~':
         query = query.filter(XCom.dag_id == dag_id)

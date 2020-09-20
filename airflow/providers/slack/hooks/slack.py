@@ -100,5 +100,4 @@ class SlackHook(BaseHook):  # noqa
         :param json: JSON for the body to attach to the request. Optional.
         :type json: dict
         """
-
         self.client.api_call(api_method, *args, **kwargs)

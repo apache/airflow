@@ -351,7 +351,6 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         policy_client = self._get_policy_client()
         try:
             policy_client.delete_alert_policy(name=name, retry=retry, timeout=timeout, metadata=metadata)
@@ -408,7 +407,6 @@ class StackdriverHook(GoogleBaseHook):
         :param project_id: The project to fetch notification channels from.
         :type project_id: str
         """
-
         client = self._get_channel_client()
         channels = client.list_notification_channels(
             name='projects/{project_id}'.format(project_id=project_id),
@@ -482,7 +480,6 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         self._toggle_channel_status(
             project_id=project_id,
             filter_=filter_,
@@ -521,7 +518,6 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         self._toggle_channel_status(
             filter_=filter_,
             project_id=project_id,
@@ -561,7 +557,6 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         channel_client = self._get_channel_client()
 
         record = json.loads(channels)
@@ -624,7 +619,6 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         channel_client = self._get_channel_client()
         try:
             channel_client.delete_notification_channel(

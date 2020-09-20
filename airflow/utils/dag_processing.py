@@ -651,7 +651,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         we can get parallelism and isolation from potentially harmful
         user code.
         """
-
         self.register_exit_signals()
 
         # Start a new process group
@@ -856,7 +855,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         :type known_file_paths: list[unicode]
         :return: None
         """
-
         # File Path: Path to the file containing the DAG definition
         # PID: PID associated with the process that's processing the file. May
         # be empty.
@@ -1263,7 +1261,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         This is called once every time around the parsing "loop" - i.e. after
         all files have been parsed.
         """
-
         parse_time = (timezone.utcnow() - self._parsing_start_time).total_seconds()
         Stats.gauge('dag_processing.total_parse_time', parse_time)
         Stats.gauge('dagbag_size', sum(stat.num_dags for stat in self._file_stats.values()))

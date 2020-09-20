@@ -70,7 +70,6 @@ class SQSPublishOperator(BaseOperator):
             For details of the returned dict see :py:meth:`botocore.client.SQS.send_message`
         :rtype: dict
         """
-
         hook = SQSHook(aws_conn_id=self.aws_conn_id)
 
         result = hook.send_message(

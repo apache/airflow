@@ -110,7 +110,6 @@ class TriggerRuleDep(BaseTIDep):
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
-
         task = ti.task
         upstream = len(task.upstream_task_ids)
         trigger_rule = task.trigger_rule
