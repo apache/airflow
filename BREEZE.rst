@@ -1959,7 +1959,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --init-script <INIT_SCRIPT_FILE>
           Initialization script name - Sourced from files/airflow-breeze-config. Default value
-          init.sh. I will be executed after the environment is configured and started (in case
+          init.sh. It will be executed after the environment is configured and started (in case
           --start-airflow is used).
 
   ****************************************************************************************************
