@@ -383,7 +383,6 @@ def dag_list_dag_runs(args, dag=None):
 @cli_utils.action_logging
 def generate_pod_yaml(args):
     """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor"""
-
     from kubernetes.client.api_client import ApiClient
 
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig

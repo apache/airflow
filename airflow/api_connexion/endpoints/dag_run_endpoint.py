@@ -87,7 +87,6 @@ def get_dag_runs(
     """
     Get all DAG Runs.
     """
-
     query = session.query(DagRun)
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.

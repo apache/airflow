@@ -63,7 +63,6 @@ class ImapHook(BaseHook):
         :return: an authorized ImapHook object.
         :rtype: ImapHook
         """
-
         if not self.mail_client:
             conn = self.get_connection(self.imap_conn_id)
             self.mail_client = imaplib.IMAP4_SSL(conn.host)

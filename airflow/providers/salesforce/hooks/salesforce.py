@@ -291,7 +291,6 @@ class SalesforceHook(BaseHook):
         :return: the dataframe.
         :rtype: pandas.Dataframe
         """
-
         # this line right here will convert all integers to floats
         # if there are any None/np.nan values in the column
         # that's because None/np.nan cannot exist in an integer column

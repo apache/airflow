@@ -263,7 +263,6 @@ class GCSHook(GoogleBaseHook):
         :param filename: If set, a local file path where the file should be written to.
         :type filename: str
         """
-
         # TODO: future improvement check file size before downloading,
         #  to check for local space availability
 
@@ -531,7 +530,6 @@ class GCSHook(GoogleBaseHook):
             allows to delete non empty bucket
         :type: bool
         """
-
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
 
@@ -698,7 +696,6 @@ class GCSHook(GoogleBaseHook):
         :type labels: dict
         :return: If successful, it returns the ``id`` of the bucket.
         """
-
         self.log.info(
             'Creating Bucket: %s; Location: %s; Storage Class: %s', bucket_name, location, storage_class
         )
@@ -806,7 +803,6 @@ class GCSHook(GoogleBaseHook):
         :param destination_object: The path of the object if given.
         :type destination_object: str
         """
-
         if not source_objects:
             raise ValueError('source_objects cannot be empty.')
 
@@ -995,7 +991,6 @@ def _parse_gcs_url(gsurl: str) -> Tuple[str, str]:
     Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
     tuple containing the corresponding bucket and blob.
     """
-
     parsed_url = urlparse(gsurl)
     if not parsed_url.netloc:
         raise AirflowException('Please provide a bucket name')

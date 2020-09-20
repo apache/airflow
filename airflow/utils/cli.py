@@ -105,7 +105,6 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
-
     metrics = {'sub_command': func_name, 'start_datetime': datetime.utcnow(),
                'full_command': '{}'.format(list(sys.argv)), 'user': getpass.getuser()}
 

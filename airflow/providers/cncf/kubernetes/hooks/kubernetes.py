@@ -193,7 +193,6 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         :type namespace: str
         """
-
         api = client.CoreV1Api(self.api_client)
         watcher = watch.Watch()
         return (
