@@ -14,3 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from datetime import timedelta
+
+
+# [START task_mutation_queue_timeout]
+def policy(task):
+    if task.__class__.__name__ == 'HivePartitionSensor':
+        task.queue = "sensor_queue"
+    if task.timeout > timedelta(hours=48):
+        task.timeout = timedelta(hours=48)
+# [END task_mutation_queue_timeout]

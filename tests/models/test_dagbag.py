@@ -32,7 +32,7 @@ from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
-from tests import cluster_policies
+from tests.cluster_policies import task_checks
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
@@ -721,7 +721,7 @@ class TestDagBag(unittest.TestCase):
             self.assertEqual(serialized_dag.dag_id, dag.dag_id)
             self.assertEqual(set(serialized_dag.task_dict), set(dag.task_dict))
 
-    @patch("airflow.settings.policy", cluster_policies.cluster_policy)
+    @patch("airflow.settings.policy", task_checks.cluster_policy)
     def test_cluster_policy_violation(self):
         """test that file processing results in import error when task does not
         obey cluster policy.
@@ -741,7 +741,7 @@ class TestDagBag(unittest.TestCase):
         }
         self.assertEqual(expected_import_errors, dagbag.import_errors)
 
-    @patch("airflow.settings.policy", cluster_policies.cluster_policy)
+    @patch("airflow.settings.policy", task_checks.cluster_policy)
     def test_cluster_policy_obeyed(self):
         """test that dag successfully imported without import errors when tasks
         obey cluster policy.

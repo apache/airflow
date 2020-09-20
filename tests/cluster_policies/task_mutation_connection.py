@@ -14,3 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from airflow.models.pool import Pool
+
+
+# [START task_mutation_connection]
+def policy(task):
+    if task.pool == Pool.DEFAULT_POOL_NAME:
+        conn_id = getattr(task, 'conn_id') or getattr(task, 'gcp_conn_id')
+        if conn_id:
+            task.pool = f"conn_{conn_id}"
+# [START task_mutation_connection]

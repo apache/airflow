@@ -1181,14 +1181,19 @@ that no tasks run for more than 48 hours. Here's an example of what this
 may look like inside your ``airflow_local_settings.py``:
 
 
-.. code-block:: python
+.. exampleinclude:: /../tests/cluster_policies/task_mutation_queue_timeout.py
+      :language: python
+      :start-after: [START task_mutation_queue_timeout]
+      :end-before: [END task_mutation_queue_timeout]
 
-    def policy(task):
-        if task.__class__.__name__ == 'HivePartitionSensor':
-            task.queue = "sensor_queue"
-        if task.timeout > timedelta(hours=48):
-            task.timeout = timedelta(hours=48)
+Another example, you can set a pool based on a connection ID to be able to restrict new tasks
+from starting if the server described by the connection is under maintenance.
 
+
+.. exampleinclude:: /../tests/cluster_policies/task_mutation_connection.py
+      :language: python
+      :start-after: [START task_mutation_connection]
+      :end-before: [END task_mutation_connection]
 
 Please note, cluster policy will have precedence over task
 attributes defined in DAG meaning if ``task.sla`` is defined
@@ -1226,7 +1231,7 @@ security controls.
 
 For example, don't run tasks without airflow owners:
 
-.. literalinclude:: /../tests/cluster_policies/__init__.py
+.. exampleinclude:: /../tests/cluster_policies/task_checks.py
       :language: python
       :start-after: [START example_cluster_policy_rule]
       :end-before: [END example_cluster_policy_rule]
@@ -1239,7 +1244,7 @@ the UI (and import errors table in the database).
 
 For Example in ``airflow_local_settings.py``:
 
-.. literalinclude:: /../tests/cluster_policies/__init__.py
+.. exampleinclude:: /../tests/cluster_policies/task_checks.py
       :language: python
       :start-after: [START example_list_of_cluster_policy_rules]
       :end-before: [END example_list_of_cluster_policy_rules]
