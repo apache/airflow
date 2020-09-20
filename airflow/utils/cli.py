@@ -243,6 +243,7 @@ class ColorMode:
     """
     Coloring modes. If `auto` is then automatically detected.
     """
+
     ON = "on"
     OFF = "off"
     AUTO = "auto"

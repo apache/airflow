@@ -155,6 +155,7 @@ class TaskInstanceKey(NamedTuple):
     """
     Key used to identify task instance.
     """
+
     dag_id: str
     task_id: str
     execution_date: datetime
@@ -1485,6 +1486,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             templates by using ``{{ var.value.variable_name }}`` or
             ``{{ var.value.get('variable_name', 'fallback') }}``.
             """
+
             def __init__(self):
                 self.var = None
 
@@ -1513,6 +1515,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             templates by using ``{{ var.json.variable_name }}`` or
             ``{{ var.json.get('variable_name', {'fall': 'back'}) }}``.
             """
+
             def __init__(self):
                 self.var = None
 
@@ -1839,6 +1842,7 @@ class SimpleTaskInstance:
 
     Used to send data between processes via Queues.
     """
+
     def __init__(self, ti: TaskInstance):
         self._dag_id: str = ti.dag_id
         self._task_id: str = ti.task_id

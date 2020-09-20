@@ -37,6 +37,7 @@ class PodDefaults:
     """
     Static defaults for Pods
     """
+
     XCOM_MOUNT_PATH = '/airflow/xcom'
     SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
     XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
@@ -149,6 +150,7 @@ class PodGenerator:
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
     """
+
     def __init__(  # pylint: disable=too-many-arguments,too-many-locals
         self,
         image: Optional[str] = None,

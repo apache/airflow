@@ -66,6 +66,7 @@ class PythonOperator(BaseOperator):
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
     """
+
     template_fields = ('templates_dict', 'op_args', 'op_kwargs')
     ui_color = '#ffefeb'
 

@@ -37,6 +37,7 @@ class LoggingMixin:
     """
     Convenience super-class to have a logger configured with the class name
     """
+
     def __init__(self, context=None):
         self._set_context(context)
 
@@ -63,6 +64,7 @@ class ExternalLoggingMixin:
     """
     Define a log handler based on an external service (e.g. ELK, StackDriver).
     """
+
     @abc.abstractproperty
     def log_name(self) -> str:
         """Return log name"""
@@ -79,6 +81,7 @@ class StreamLogWriter:
     """
     Allows to redirect stdout and stderr to logger
     """
+
     encoding: None = None
 
     def __init__(self, logger, level):
@@ -141,6 +144,7 @@ class RedirectStdHandler(StreamHandler):
     whatever sys.stderr/stderr is currently set to rather than the value of
     sys.stderr/stdout at handler construction time.
     """
+
     # pylint: disable=super-init-not-called
     def __init__(self, stream):
         if not isinstance(stream, str):

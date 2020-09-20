@@ -49,6 +49,7 @@ class LocalWorkerBase(Process, LoggingMixin):
 
     :param result_queue: the queue to store result state
     """
+
     def __init__(self, result_queue: 'Queue[TaskInstanceStateType]'):
         super().__init__()
         self.daemon: bool = True
@@ -81,6 +82,7 @@ class LocalWorker(LocalWorkerBase):
     :param key: key identifying task instance
     :param command: Command to execute
     """
+
     def __init__(self,
                  result_queue: 'Queue[TaskInstanceStateType]',
                  key: TaskInstanceKey,
@@ -102,6 +104,7 @@ class QueuedLocalWorker(LocalWorkerBase):
     :param task_queue: queue from which worker reads tasks
     :param result_queue: queue where worker puts results after finishing tasks
     """
+
     def __init__(self,
                  task_queue: 'Queue[ExecutorWorkType]',
                  result_queue: 'Queue[TaskInstanceStateType]'):
@@ -128,6 +131,7 @@ class LocalExecutor(BaseExecutor):
 
     :param parallelism: how many parallel processes are run in the executor
     """
+
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__(parallelism=parallelism)
         self.manager: Optional[SyncManager] = None
@@ -145,6 +149,7 @@ class LocalExecutor(BaseExecutor):
 
         :param executor: the executor instance to implement.
         """
+
         def __init__(self, executor: 'LocalExecutor'):
             self.executor: 'LocalExecutor' = executor
 
@@ -202,6 +207,7 @@ class LocalExecutor(BaseExecutor):
 
         :param executor: the executor instance to implement.
         """
+
         def __init__(self, executor: 'LocalExecutor'):
             self.executor: 'LocalExecutor' = executor
             self.queue: Optional['Queue[ExecutorWorkType]'] = None

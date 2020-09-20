@@ -51,6 +51,7 @@ class BackfillJob(BaseJob):
     triggers a set of task instance runs, in the right order and lasts for
     as long as it takes for the set of task instance to be completed.
     """
+
     STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
 
     __mapper_args__ = {
@@ -90,6 +91,7 @@ class BackfillJob(BaseJob):
         :param total_runs: Number of total dag runs able to run
         :type total_runs: int
         """
+
         # TODO(edgarRd): AIRFLOW-1444: Add consistency check on counts
         def __init__(self,  # pylint: disable=too-many-arguments
                      to_run=None,

@@ -37,6 +37,7 @@ def init_appbuilder(app):
         """
         Custom class to prevent side effects of the session.
         """
+
         def _check_and_init(self, baseview):
             if hasattr(baseview, 'datamodel'):
                 # Delete sessions if initiated previously to limit side effects. We want to use

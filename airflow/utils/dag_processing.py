@@ -187,6 +187,7 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
 
 class DagParsingStat(NamedTuple):
     """Information on processing progress"""
+
     file_paths: List[str]
     done: bool
     all_files_processed: bool
@@ -194,6 +195,7 @@ class DagParsingStat(NamedTuple):
 
 class DagFileStat(NamedTuple):
     """Information about single processing of one file"""
+
     num_dags: int
     import_errors: int
     last_finish_time: Optional[datetime]
@@ -203,6 +205,7 @@ class DagFileStat(NamedTuple):
 
 class DagParsingSignal(enum.Enum):
     """All signals sent to parser."""
+
     AGENT_RUN_ONCE = 'agent_run_once'
     TERMINATE_MANAGER = 'terminate_manager'
     END_MANAGER = 'end_manager'
@@ -210,6 +213,7 @@ class DagParsingSignal(enum.Enum):
 
 class FailureCallbackRequest(NamedTuple):
     """A message with information about the callback to be executed."""
+
     full_filepath: str
     simple_task_instance: SimpleTaskInstance
     msg: str
