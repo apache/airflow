@@ -104,6 +104,7 @@ class AwsGlueCatalogHook(AwsBaseHook):
         :param table_name: Name of hive table
         :type table_name: str
         :rtype: dict
+
         >>> hook = AwsGlueCatalogHook()
         >>> r = hook.get_table('db', 'table_foo')
         >>> r['Name'] = 'table_foo'
