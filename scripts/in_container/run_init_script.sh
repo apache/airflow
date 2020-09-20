@@ -16,14 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-if [ -z ${FILES_DIR+x} ]; then
+if [ -z "${FILES_DIR+x}" ]; then
     export FILES_DIR="/files"
 fi
-if [ -z ${AIRFLOW_BREEZE_CONFIG_DIR+x} ]; then
+if [ -z "${AIRFLOW_BREEZE_CONFIG_DIR+x}" ]; then
     export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
 fi
 
-if [ -z ${INIT_SCRIPT_FILE} ]; then
+if [ -z "${INIT_SCRIPT_FILE}" ]; then
     export INIT_SCRIPT_FILE="init.sh"
 fi
 
