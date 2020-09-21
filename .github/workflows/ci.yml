@@ -37,13 +37,13 @@ env:
   VERBOSE: "true"
   UPGRADE_TO_LATEST_CONSTRAINTS: ${{ github.event_name == 'push' || github.event_name == 'scheduled' }}
   DOCKER_CACHE: "pulled"
-  PYTHON_MAJOR_MINOR_VERSION: 3.6
   USE_GITHUB_REGISTRY: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+  TEST_TYPES: '["Core", "Integration", "Heisentests"]'
 
   # You can switch between building the image in "Build Images" workflow or building them in CI workflow
   # Separately for each job.
@@ -70,8 +70,29 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
+      pythonVersions: ${{ steps.versions.outputs.python-versions }}
+      defaultPythonVersion: ${{ steps.versions.outputs.default-python-version }}
+      kubernetesVersions: ${{ steps.versions.outputs.kubernetes-versions }}
+      defaultKubernetesVersion: ${{ steps.versions.outputs.default-kubernetes-version }}
+      kubernetesModes: ${{ steps.versions.outputs.kubernetes-modes }}
+      defaultKubernetesMode: ${{ steps.versions.outputs.default-kubernetes-mode }}
+      postgresVersions: ${{ steps.versions.outputs.postgres-versions }}
+      defaultPostgresVersion: ${{ steps.versions.outputs.default-postgres-version }}
+      mysqlVersions: ${{ steps.versions.outputs.mysql-versions }}
+      defaultMysqlVersion: ${{ steps.versions.outputs.default-mysql-version }}
+      helmVersions: ${{ steps.versions.outputs.helm-versions }}
+      defaultHelmVersion: ${{ steps.versions.outputs.default-helm-version }}
+      kindVersions: ${{ steps.versions.outputs.kind-versions }}
+      defaultKindVersion: ${{ steps.versions.outputs.default-kind-version }}
+      testTypes: ${{ steps.versions.outputs.test-types }}
+      postgresExclude: ${{ steps.versions.outputs.postgres-exclude }}
+      mysqlExclude: ${{ steps.versions.outputs.mysql-exclude }}
+      sqliteExclude: ${{ steps.versions.outputs.sqlite-exclude }}
+      kubernetesExclude: ${{ steps.versions.outputs.kubernetes-exclude }}
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
       - name: >
           Event: ${{ github.event_name }}
           Repo: ${{ github.repository }}
@@ -88,6 +109,48 @@ jobs:
           else
               echo "::set-output name=wait-for-image::false"
           fi
+      - name: Set versions
+        id: versions
+        run: |
+          . ./scripts/ci/libraries/_script_init.sh
+
+          initialization::ga_output python-versions \
+              "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
+          initialization::ga_output default-python-version "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+
+          initialization::ga_output kubernetes-versions \
+              "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_VERSIONS[@]}")"
+          initialization::ga_output default-kubernetes-version "${KUBERNETES_VERSION}"
+
+          initialization::ga_output kubernetes-modes \
+              "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_MODES[@]}")"
+          initialization::ga_output default-kubernetes-mode "${KUBERNETES_MODE}"
+
+          initialization::ga_output postgres-versions \
+              "$(initialization::parameters_to_json "${CURRENT_POSTGRES_VERSIONS[@]}")"
+          initialization::ga_output default-postgres-version "${POSTGRES_VERSION}"
+
+          initialization::ga_output mysql-versions \
+              "$(initialization::parameters_to_json "${CURRENT_MYSQL_VERSIONS[@]}")"
+          initialization::ga_output default-mysql-version "${MYSQL_VERSION}"
+
+          initialization::ga_output kind-versions \
+              "$(initialization::parameters_to_json "${CURRENT_KIND_VERSIONS[@]}")"
+          initialization::ga_output default-kind-version "${KIND_VERSION}"
+
+          initialization::ga_output helm-versions \
+              "$(initialization::parameters_to_json "${CURRENT_HELM_VERSIONS[@]}")"
+          initialization::ga_output default-helm-version "${HELM_VERSION}"
+
+          initialization::ga_output test-types "${TEST_TYPES}"
+
+          initialization::ga_output postgres-exclude '[{ "python-version": "3.6" }]'
+
+          initialization::ga_output mysql-exclude '[{ "python-version": "3.7" }]'
+
+          initialization::ga_output sqlite-exclude '[{ "python-version": "3.8" }]'
+
+          initialization::ga_output kubernetes-exclude '[]'
 
   trigger-tests:
     timeout-minutes: 5
@@ -117,11 +180,10 @@ jobs:
   ci-images:
     name: "Wait for CI images"
     runs-on: ubuntu-latest
-    needs: [build-info, helm-tests]
+    needs: [build-info]
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     env:
-      BACKEND: postgres
-      POSTGRES_VERSION: ${{ matrix.postgres-version }}
+      BACKEND: sqlite
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -129,12 +191,14 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
         if: needs.build-info.outputs.waitForImage == 'true'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
-      - name: Wait for CI images [3.6, 3.7, 3.8]:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
+      - name: >
+          Wait for CI images
+          ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         # We wait for the images to be available either from the build-ci-image step or from
         # "build-images-workflow-run.yml' run as pull_request_target (it has the write
         # permissions in case pull_request from fork is run.
@@ -147,9 +211,10 @@ jobs:
     timeout-minutes: 30
     name: "Static checks"
     runs-on: ubuntu-latest
-    needs: [ci-images]
+    needs: [build-info, ci-images]
     env:
       MOUNT_LOCAL_SOURCES: "true"
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     # We want to make sure we have latest sources as only in_container scripts are added
     # to the image but we want to static-check all of them
@@ -159,7 +224,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
       - name: Cache pre-commit env
         uses: actions/cache@v2
         env:
@@ -201,12 +266,13 @@ jobs:
     timeout-minutes: 60
     name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [trigger-tests, ci-images]
+    needs: [build-info, trigger-tests, ci-images]
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
-        postgres-version: [9.6, 10]
-        test-type: [Core, Integration]
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+        postgres-version: ${{ fromJson(needs.build-info.outputs.postgresVersions) }}
+        test-type: ${{ fromJson(needs.build-info.outputs.testTypes) }}
+        exclude: ${{ fromJson(needs.build-info.outputs.postgresExclude) }}
       fail-fast: false
     env:
       BACKEND: postgres
@@ -223,7 +289,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -247,12 +313,13 @@ jobs:
     timeout-minutes: 60
     name: "${{matrix.test-type}}:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [trigger-tests, ci-images]
+    needs: [build-info, trigger-tests, ci-images]
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
-        mysql-version: [5.6, 5.7]
-        test-type: [Core, Integration]
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+        mysql-version: ${{ fromJson(needs.build-info.outputs.mysqlVersions) }}
+        test-type: ${{ fromJson(needs.build-info.outputs.testTypes) }}
+        exclude: ${{ fromJson(needs.build-info.outputs.mysqlExclude) }}
       fail-fast: false
     env:
       BACKEND: mysql
@@ -269,7 +336,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -292,11 +359,12 @@ jobs:
     timeout-minutes: 60
     name: "${{matrix.test-type}}:Sqlite Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [trigger-tests, ci-images]
+    needs: [build-info, trigger-tests, ci-images]
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
-        test-type: [Core, Integration]
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+        test-type: ${{ fromJson(needs.build-info.outputs.testTypes) }}
+        exclude: ${{ fromJson(needs.build-info.outputs.sqliteExclude) }}
       fail-fast: false
     env:
       BACKEND: sqlite
@@ -311,7 +379,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -335,19 +403,14 @@ jobs:
     name: "Quarantined tests"
     runs-on: ubuntu-latest
     continue-on-error: true
-    needs: [trigger-tests, ci-images]
-    strategy:
-      matrix:
-        python-version: [3.6]
-        postgres-version: [9.6]
-      fail-fast: false
+    needs: [build-info, trigger-tests, ci-images]
     env:
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKEND: postgres
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      POSTGRES_VERSION: ${{ matrix.postgres-version }}
+      POSTGRES_VERSION: ${{needs.build-info.outputs.defaultPostgresVersion}}
       RUN_TESTS: true
       TEST_TYPE: Quarantined
-      NUM_RUNS: 20
+      NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: >
       (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
@@ -358,7 +421,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Set issue id for master"
         if: github.ref == 'refs/heads/master'
         run: |
@@ -424,8 +487,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-info]
     env:
-      BACKEND: postgres
-      POSTGRES_VERSION: ${{ matrix.postgres-version }}
+      BACKEND: sqlite
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -434,30 +497,28 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
         if: needs.build-info.outputs.waitForImage == 'true'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
-      - name: "Wait for PROD images [3.6, 3.7, 3.8]:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+      - name: >
+          Wait for PROD images
+          ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_wait_for_all_prod_images.sh
         if: needs.build-info.outputs.waitForImage == 'true'
 
   tests-kubernetes:
     timeout-minutes: 50
-    name: "K8s: ${{matrix.kube-mode}} ${{matrix.python-version}} ${{matrix.kubernetes-version}}"
+    name: "K8s: ${{matrix.python-version}} ${{matrix.kubernetes-version}} ${{matrix.kubernetes-mode}}"
     runs-on: ubuntu-latest
-    needs: [trigger-tests, prod-images]
+    needs: [build-info, trigger-tests, prod-images]
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
-        kube-mode:
-          - image
-        kubernetes-version: [v1.18.6, v1.17.5, v1.16.9]
-        kind-version:
-          - "v0.8.0"
-        helm-version:
-          - "v3.2.4"
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+        kubernetes-version: ${{ fromJson(needs.build-info.outputs.kubernetesVersions) }}
+        kubernetes-mode: ${{ fromJson(needs.build-info.outputs.kubernetesModes) }}
+        exclude: ${{ fromJson(needs.build-info.outputs.kubernetesExclude) }}
       fail-fast: false
     env:
       BACKEND: postgres
@@ -466,10 +527,10 @@ jobs:
       RUNTIME: "kubernetes"
       ENABLE_KIND_CLUSTER: "true"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
-      KUBERNETES_MODE: "${{ matrix.kube-mode }}"
+      KUBERNETES_MODE: "${{ matrix.kubernetes-mode }}"
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
-      KIND_VERSION: "${{ matrix.kind-version }}"
-      HELM_VERSION: "${{ matrix.helm-version }}"
+      KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
+      HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
     if: >
       (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -479,13 +540,13 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Setup Kind Cluster ${{ matrix.kind-version }}"
+      - name: "Setup Kind Cluster ${{ env.KIND_VERSION }}"
         uses: engineerd/setup-kind@v0.4.0
         with:
-          version: "${{ matrix.kind-version }}"
+          version: "${{ env.KIND_VERSION }}"
           name: airflow-python-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           config: "scripts/ci/kubernetes/kind-cluster-conf.yaml"
       - name: "Prepare PROD Image"
@@ -508,12 +569,14 @@ jobs:
         uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
+          name: >
+            kind-logs-${{matrix.kubernetes-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           path: /tmp/kind_logs_*
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
-          name: coverage-k8s-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
+          name: >
+            coverage-k8s-${{matrix.kubernetes-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           path: "./files/coverage.xml"
 
   push-prod-images-to-github-registry:
@@ -521,6 +584,7 @@ jobs:
     name: "Push PROD images"
     runs-on: ubuntu-latest
     needs:
+      - build-info
       - static-checks
       - tests-sqlite
       - tests-postgres
@@ -533,7 +597,7 @@ jobs:
       github.event_name != 'schedule'
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
@@ -543,7 +607,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -556,6 +620,7 @@ jobs:
     name: "Push CI images"
     runs-on: ubuntu-latest
     needs:
+      - build-info
       - static-checks
       - tests-sqlite
       - tests-postgres
@@ -568,7 +633,7 @@ jobs:
       github.event_name != 'schedule'
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
@@ -578,7 +643,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -592,9 +657,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
       fail-fast: false
     needs:
+      - build-info
       - static-checks
       - tests-sqlite
       - tests-mysql
@@ -612,7 +678,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ github.sha }}"
@@ -629,7 +695,7 @@ jobs:
     timeout-minutes: 10
     name: "Constraints push"
     runs-on: ubuntu-latest
-    needs: [constraints]
+    needs: [build-info, constraints]
     if: >
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
       github.event_name != 'pull' &&
@@ -649,7 +715,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: 'artifacts'
-      - name: "Commit changed constraint files"
+      - name: "Commit changed constraint files for ${{needs.build-info.outputs.pythonVersions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
       - name: "Push changes"
         uses: ad-m/github-push-action@master
