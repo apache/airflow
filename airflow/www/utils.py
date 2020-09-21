@@ -334,9 +334,8 @@ def wrapped_markdown(s, css_class=None):
         '<div class="rich_doc {css_class}" >'.format(css_class=css_class) + markdown.markdown(s) + "</div>"
     )
 
+
 # pylint: disable=no-member
-
-
 def get_attr_renderer():
     """Return Dictionary containing different Pygments Lexers for Rendering & Highlighting"""
     return {
@@ -348,9 +347,9 @@ def get_attr_renderer():
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
+        'json': lambda x: render(x, lexers.JsonLexer),
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
     }
-
 # pylint: enable=no-member
 
 
