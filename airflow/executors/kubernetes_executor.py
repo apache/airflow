@@ -62,6 +62,7 @@ KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
 
 class KubeConfig:  # pylint: disable=too-many-instance-attributes
     """Configuration for Kubernetes"""
+
     core_section = 'core'
     kubernetes_section = 'kubernetes'
     logging_section = 'logging'

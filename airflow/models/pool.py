@@ -31,6 +31,7 @@ from airflow.utils.state import State
 
 class PoolStats(TypedDict):
     """Dictionary containing Pool Stats"""
+
     total: int
     running: int
     queued: int
@@ -41,6 +42,7 @@ class Pool(Base):
     """
     the class to get Pool info.
     """
+
     __tablename__ = "slot_pool"
 
     id = Column(Integer, primary_key=True)

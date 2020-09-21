@@ -37,6 +37,7 @@ from airflow.utils.state import State
 
 class PodStatus:
     """Status of the PODs"""
+
     PENDING = 'pending'
     RUNNING = 'running'
     FAILED = 'failed'
@@ -45,6 +46,7 @@ class PodStatus:
 
 class PodLauncher(LoggingMixin):
     """Launches PODS"""
+
     def __init__(self,
                  kube_client: client.CoreV1Api = None,
                  in_cluster: bool = True,

@@ -66,6 +66,7 @@ class AirflowPluginException(Exception):
 
 class AirflowPlugin:
     """Class used to define AirflowPlugin."""
+
     name: Optional[str] = None
     operators: List[Any] = []
     sensors: List[Any] = []

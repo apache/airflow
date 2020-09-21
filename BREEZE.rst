@@ -1957,6 +1957,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
           available for the usual use cases. In case the database is not initialized it will
           run also 'airflow db init' and create an Admin user with credentials admin/admin.
 
+  --init-script <INIT_SCRIPT_FILE>
+          Initialization script name - Sourced from files/airflow-breeze-config. Default value
+          init.sh. It will be executed after the environment is configured and started (in case
+          --start-airflow is used).
+
   ****************************************************************************************************
    Kind kubernetes and Kubernetes tests configuration(optional)
 

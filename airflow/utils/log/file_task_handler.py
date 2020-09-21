@@ -38,6 +38,7 @@ class FileTaskHandler(logging.Handler):
     :param base_log_folder: Base log folder to place logs.
     :param filename_template: template filename string
     """
+
     def __init__(self, base_log_folder: str, filename_template: str):
         super().__init__()
         self.handler = None  # type: Optional[logging.FileHandler]

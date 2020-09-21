@@ -44,6 +44,7 @@ class DateTimeWithTimezoneField(Field):
     """
     A text field which stores a `datetime.datetime` matching a format.
     """
+
     widget = widgets.TextInput()
 
     def __init__(self, label=None, validators=None, datetime_format='%Y-%m-%d %H:%M:%S%Z', **kwargs):
@@ -88,6 +89,7 @@ class DateTimeForm(FlaskForm):
     """
     Date filter form needed for task views
     """
+
     execution_date = DateTimeWithTimezoneField(
         "Execution date", widget=AirflowDateTimePickerWidget())
 
@@ -113,11 +115,13 @@ class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
     """
     Date time and number of runs and dag runs form for graph and gantt view
     """
+
     execution_date = SelectField("DAG run")
 
 
 class DagRunForm(DynamicForm):
     """Form for editing and adding DAG Run"""
+
     dag_id = StringField(
         lazy_gettext('Dag Id'),
         validators=[DataRequired()],

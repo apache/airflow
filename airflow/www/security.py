@@ -39,6 +39,7 @@ EXISTING_ROLES = {
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
     """Custom security manager, which introduces an permission model adapted to Airflow"""
+
     ###########################################################################
     #                               VIEW MENUS
     ###########################################################################

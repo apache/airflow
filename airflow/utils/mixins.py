@@ -25,6 +25,7 @@ class MultiprocessingStartMethodMixin:
     """
     Convenience class to add support for different types of multiprocessing.
     """
+
     def _get_multiprocessing_start_method(self) -> str:
         """
         Determine method of creating new processes by checking if the

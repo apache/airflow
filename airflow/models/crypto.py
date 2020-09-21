@@ -29,6 +29,7 @@ log = logging.getLogger(__name__)
 
 class FernetProtocol(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)"""
+
     def decrypt(self, b):
         """Decrypt with Fernet"""
 
@@ -45,6 +46,7 @@ class NullFernet:
     difference, and to only display the message once, not 20 times when
     `airflow db init` is ran.
     """
+
     is_encrypted = False
 
     def decrypt(self, b):

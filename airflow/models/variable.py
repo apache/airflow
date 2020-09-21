@@ -36,6 +36,7 @@ class Variable(Base, LoggingMixin):
     Variables are a generic way to store and retrieve arbitrary content or settings
     as a simple key value store within Airflow.
     """
+
     __tablename__ = "variable"
     __NO_DEFAULT_SENTINEL = object()
 

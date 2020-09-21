@@ -670,6 +670,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
     """
     A JSON serializable representation of TaskGroup.
     """
+
     @classmethod
     def serialize_task_group(cls, task_group: TaskGroup) -> Optional[Union[Dict[str, Any]]]:
         """

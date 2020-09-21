@@ -93,6 +93,7 @@ class AWSDataSyncOperator(BaseOperator):
     :raises AirflowException: If ``choose_task`` or ``choose_location`` fails.
     :raises AirflowException: If Task creation, update, execution or delete fails.
     """
+
     template_fields = (
         "task_arn",
         "source_location_uri",

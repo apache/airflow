@@ -144,6 +144,7 @@ class PokeState:
     """
     Static class with poke states constants used in smart operator.
     """
+
     LANDED = 'landed'
     NOT_LANDED = 'not_landed'
     POKE_EXCEPTION = 'poke_exception'
