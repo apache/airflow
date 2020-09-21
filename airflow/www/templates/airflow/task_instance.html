@@ -17,28 +17,34 @@
  under the License.
 #}
 
-{% extends "airflow/dag.html" %}
+{% extends base_template %}
 
 {% block content %}
   {{ super() }}
-  <h4>
-<form method="get" id="daform" action="#">
-    <input type="hidden" name="dag_id" value="{{ dag.dag_id }}" >
-
-    <div class="form-inline">
-            <span class="text-muted">Task Instance: </span>
-            <span>
-              {{ task_id }}
-              <input type="hidden" value="{{ task_id }}" name="task_id">
-            </span>
-        {{ form.execution_date(class_="form-control") }}
-
-    </div>
-</form>
-  </h4>
+  {% set base_date_arg = request.args.get('base_date') %}
+  {% set num_runs_arg = request.args.get('num_runs') %}
+  {% if execution_date is defined %}
+    {% set execution_date_arg = execution_date %}
+  {% else %}
+    {% set execution_date_arg = request.args.get('execution_date') %}
+  {% endif %}
+  <a href="{{ url_for('Airflow.'+ dag.default_view, dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}" title="Go to parent DAG">
+    <span class="glyphicon glyphicon-menu-up" aria-hidden="true"></span>
+    {{ 'SUBDAG' if dag.parent_dag is defined and dag.parent_dag else 'DAG' }}: {{ dag.dag_id }}
+  </a>
+  <h3>
+    <form method="get" id="daform" action="#">
+      <input type="hidden" name="dag_id" value="{{ dag.dag_id }}" >
+      <input type="hidden" value="{{ task_id }}" name="task_id">
+      <div class="form-inline">
+        <span class="text-muted">Task Instance:</span> {{ task_id }}
+        <span class="text-muted">at</span> {{ form.execution_date(class_="form-control") }}
+      </div>
+    </form>
+  </h3>
   <ul class="nav nav-pills">
     <li><a href="{{ url_for("Airflow.task", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+        <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
       Task Instance Details</a></li>
     <li><a href="{{ url_for("Airflow.rendered", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
@@ -56,6 +62,9 @@
   {{ super() }}
   <script>
     $( document ).ready(function() {
+      // Pills highlighting
+      $('a[href*="' + this.location.pathname + '"]').parent().addClass('active');
+
       function date_change(e) {
           // We don't want to navigate away if the datetimepicker is still visible
           if ($(".datetimepicker bootstrap-datetimepicker-widget :visible").length > 0)
