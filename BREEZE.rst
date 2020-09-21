@@ -1829,6 +1829,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --rbac-ui
           Enable RBAC UI.
 
+  --init-script <INIT_SCRIPT_FILE>
+          Initialization script name - Sourced from files/airflow-breeze-config. Default value
+          init.sh. It will be executed after the environment is configured and started (in case
+          --start-airflow is used).
+
   ****************************************************************************************************
    Kind kubernetes and Kubernetes tests configuration(optional)
 

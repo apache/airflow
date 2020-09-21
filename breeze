@@ -1005,6 +1005,12 @@ function breeze::parse_arguments() {
             export START_AIRFLOW="true"
             shift
             ;;
+        --init-script)
+            export INIT_SCRIPT_FILE="${2}"
+            echo "The initialization file is in ${INIT_SCRIPT_FILE}"
+            echo
+            shift 2
+            ;;
         --rbac-ui)
             echo "Enable RBAC UI"
             echo
@@ -1877,6 +1883,11 @@ ${FORMATTED_INTEGRATIONS}
 
 --rbac-ui
         Enable RBAC UI.
+
+--init-script <INIT_SCRIPT_FILE>
+        Initialization script name - Sourced from files/airflow-breeze-config. Default value
+        init.sh. It will be executed after the environment is configured and started (in case
+        --start-airflow is used).
 
 "
 }

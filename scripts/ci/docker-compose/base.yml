@@ -59,6 +59,7 @@ services:
       - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
       - HOST_OS
       - PYTHONDONTWRITEBYTECODE
+      - INIT_SCRIPT_FILE
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock
