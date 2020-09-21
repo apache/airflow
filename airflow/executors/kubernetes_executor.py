@@ -24,6 +24,7 @@ KubernetesExecutor
 import base64
 import functools
 import json
+import logging
 import multiprocessing
 import time
 from queue import Empty, Queue  # pylint: disable=unused-import
@@ -126,7 +127,7 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
             return int(val)
 
 
-class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
+class KubernetesJobWatcher(LoggingMixin):
     """Watches for Kubernetes jobs"""
 
     def __init__(self,
@@ -143,33 +144,89 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self.watcher_queue = watcher_queue
         self.resource_version = resource_version
         self.kube_config = kube_config
+        self.watcher_process = multiprocessing.Process(
+            target=KubernetesJobWatcher.run,
+            kwargs={
+                "resource_version": resource_version,
+                "worker_uuid": worker_uuid,
+                "kube_config": kube_config,
+                "watcher_queue": watcher_queue,
+                "multi_namespace_mode": multi_namespace_mode,
+                "namespace": namespace, }
+        )
 
-    def run(self) -> None:
+    def start(self):
+        """
+        Start the watcher process
+        """
+        self.watcher_process.start()
+
+    def is_alive(self):
+        """
+        Check if the watcher process is alive
+        """
+        self.watcher_process.is_alive()
+
+    def join(self):
+        """
+        Join watcher process
+        """
+        self.watcher_process.join()
+
+    def terminate(self):
+        """
+        Terminate watcher process
+        """
+        self.watcher_process.terminate()
+
+    @staticmethod
+    def run(
+        namespace: Optional[str],
+        multi_namespace_mode: bool,
+        watcher_queue: 'Queue[KubernetesWatchType]',
+        resource_version: Optional[str],
+        worker_uuid: Optional[str],
+        kube_config: Configuration
+
+    ) -> None:
         """Performs watching"""
+        log: logging.Logger = logging.getLogger("airflow.processor")
         kube_client: client.CoreV1Api = get_kube_client()
-        if not self.worker_uuid:
+        if not worker_uuid:
             raise AirflowException(NOT_STARTED_MESSAGE)
         while True:
             try:
-                self.resource_version = self._run(kube_client, self.resource_version,
-                                                  self.worker_uuid, self.kube_config)
+                resource_version = KubernetesJobWatcher._run(
+                    kube_client=kube_client,
+                    resource_version=resource_version,
+                    worker_uuid=worker_uuid,
+                    kube_config=kube_config,
+                    watcher_queue=watcher_queue,
+                    multi_namespace_mode=multi_namespace_mode,
+                    namespace=namespace,
+                    log=log)
             except ReadTimeoutError:
-                self.log.warning("There was a timeout error accessing the Kube API. "
-                                 "Retrying request.", exc_info=True)
+                log.warning("There was a timeout error accessing the Kube API. "
+                            "Retrying request.", exc_info=True)
                 time.sleep(1)
             except Exception:
-                self.log.exception('Unknown error in KubernetesJobWatcher. Failing')
+                log.exception('Unknown error in KubernetesJobWatcher. Failing')
                 raise
             else:
-                self.log.warning('Watch died gracefully, starting back up with: '
-                                 'last resource_version: %s', self.resource_version)
+                log.warning('Watch died gracefully, starting back up with: '
+                            'last resource_version: %s', resource_version)
 
-    def _run(self,
-             kube_client: client.CoreV1Api,
+    @staticmethod
+    def _run(kube_client: client.CoreV1Api,
              resource_version: Optional[str],
              worker_uuid: str,
-             kube_config: Any) -> Optional[str]:
-        self.log.info(
+             kube_config: Any,
+             multi_namespace_mode: bool,
+             log: logging.Logger,
+             watcher_queue: 'Queue[KubernetesWatchType]',
+             namespace: Optional[str] = None,
+             ) -> Optional[str]:
+        log.info(
             'Event: and now my watch begins starting at resource_version: %s',
             resource_version
         )
@@ -183,23 +240,23 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 kwargs[key] = value
 
         last_resource_version: Optional[str] = None
-        if self.multi_namespace_mode:
+        if multi_namespace_mode:
             list_worker_pods = functools.partial(watcher.stream,
                                                  kube_client.list_pod_for_all_namespaces,
                                                  **kwargs)
         else:
             list_worker_pods = functools.partial(watcher.stream,
                                                  kube_client.list_namespaced_pod,
-                                                 self.namespace,
+                                                 namespace,
                                                  **kwargs)
         for event in list_worker_pods():
             task = event['object']
-            self.log.info(
+            log.info(
                 'Event: %s had an event of type %s',
                 task.metadata.name, event['type']
             )
             if event['type'] == 'ERROR':
-                return self.process_error(event)
+                return KubernetesJobWatcher.process_error(event, log)
             annotations = task.metadata.annotations
             task_instance_related_annotations = {
                 'dag_id': annotations['dag_id'],
@@ -208,27 +265,30 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 'try_number': annotations['try_number'],
             }
 
-            self.process_status(
+            KubernetesJobWatcher.process_status(
                 pod_id=task.metadata.name,
                 namespace=task.metadata.namespace,
                 status=task.status.phase,
                 annotations=task_instance_related_annotations,
                 resource_version=task.metadata.resource_version,
                 event=event,
+                watcher_queue=watcher_queue,
+                log=log
             )
             last_resource_version = task.metadata.resource_version
 
         return last_resource_version
 
-    def process_error(self, event: Any) -> str:
+    @staticmethod
+    def process_error(event: Any, log: logging.Logger) -> str:
         """Process error response"""
-        self.log.error(
+        log.error(
             'Encountered Error response from k8s list namespaced pod stream => %s',
             event
         )
         raw_object = event['raw_object']
         if raw_object['code'] == 410:
-            self.log.info(
+            log.info(
                 'Kubernetes resource version is too old, must reset to 0 => %s',
                 (raw_object['message'],)
             )
@@ -239,31 +299,34 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             (raw_object['reason'], raw_object['code'], raw_object['message'])
         )
 
-    def process_status(self, pod_id: str,
+    @staticmethod
+    def process_status(pod_id: str,
                        namespace: str,
                        status: str,
                        annotations: Dict[str, str],
                        resource_version: str,
-                       event: Any) -> None:
+                       event: Any,
+                       watcher_queue: 'Queue[KubernetesWatchType]',
+                       log: logging.Logger) -> None:
         """Process status response"""
         if status == 'Pending':
             if event['type'] == 'DELETED':
-                self.log.info('Event: Failed to start pod %s, will reschedule', pod_id)
-                self.watcher_queue.put(
+                log.info('Event: Failed to start pod %s, will reschedule', pod_id)
+                watcher_queue.put(
                     (pod_id, namespace, State.UP_FOR_RESCHEDULE, annotations, resource_version)
                 )
             else:
-                self.log.info('Event: %s Pending', pod_id)
+                log.info('Event: %s Pending', pod_id)
         elif status == 'Failed':
-            self.log.error('Event: %s Failed', pod_id)
-            self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
+            log.error('Event: %s Failed', pod_id)
+            watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
         elif status == 'Succeeded':
-            self.log.info('Event: %s Succeeded', pod_id)
-            self.watcher_queue.put((pod_id, namespace, None, annotations, resource_version))
+            log.info('Event: %s Succeeded', pod_id)
+            watcher_queue.put((pod_id, namespace, None, annotations, resource_version))
         elif status == 'Running':
-            self.log.info('Event: %s is Running', pod_id)
+            log.info('Event: %s is Running', pod_id)
         else:
-            self.log.warning(
+            log.warning(
                 'Event: Invalid state: %s on pod: %s in namespace %s with annotations: %s with '
                 'resource_version: %s', status, pod_id, namespace, annotations, resource_version
             )
