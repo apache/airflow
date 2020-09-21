@@ -525,41 +525,6 @@ class TestDagFileProcessor(unittest.TestCase):
             assert tis[1].state == State.SCHEDULED
 
     @pytest.mark.xfail(run=False, reason="TODO[HA]")
-    def test_dag_file_processor_do_not_schedule_removed_task(self):
-        dag = DAG(
-            dag_id='test_scheduler_do_not_schedule_removed_task',
-            start_date=DEFAULT_DATE)
-        DummyOperator(
-            task_id='dummy',
-            dag=dag,
-            owner='airflow')
-
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        session.merge(orm_dag)
-        session.commit()
-        session.close()
-
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag.clear()
-
-        dr = dag_file_processor.create_dag_run(dag)
-        self.assertIsNotNone(dr)
-
-        dr = DagRun.find(run_id=dr.run_id)[0]
-        # Re-create the DAG, but remove the task
-        dag = DAG(
-            dag_id='test_scheduler_do_not_schedule_removed_task',
-            start_date=DEFAULT_DATE)
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-        mock_list = dag_file_processor._process_task_instances(dag, dag_runs=[dr])
-
-        self.assertEqual([], mock_list)
-
-    @pytest.mark.xfail(run=False, reason="TODO[HA]")
     def test_dag_file_processor_add_new_task(self):
         """
         Test if a task instance will be added if the dag is updated
@@ -600,88 +565,6 @@ class TestDagFileProcessor(unittest.TestCase):
 
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 2)
-
-    @pytest.mark.xfail(run=False, reason="TODO[HA]")
-    def test_dag_file_processor_fail_dagrun_timeout(self):
-        """
-        Test if a a dagrun wil be set failed if timeout
-        """
-        dag = DAG(
-            dag_id='test_scheduler_fail_dagrun_timeout',
-            start_date=DEFAULT_DATE)
-        dag.dagrun_timeout = datetime.timedelta(seconds=60)
-
-        DummyOperator(
-            task_id='dummy',
-            dag=dag,
-            owner='airflow')
-
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        session.merge(orm_dag)
-        session.commit()
-
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag.clear()
-
-        dr = dag_file_processor.create_dag_run(dag)
-        self.assertIsNotNone(dr)
-        dr.start_date = timezone.utcnow() - datetime.timedelta(days=1)
-        session.merge(dr)
-        session.commit()
-
-        dr2 = dag_file_processor.create_dag_run(dag)
-        self.assertIsNotNone(dr2)
-
-        dr.refresh_from_db(session=session)
-        self.assertEqual(dr.state, State.FAILED)
-
-    @pytest.mark.xfail(run=False, reason="TODO[HA]")
-    def test_dag_file_processor_verify_max_active_runs_and_dagrun_timeout(self):
-        """
-        Test if a a dagrun will not be scheduled if max_dag_runs
-        has been reached and dagrun_timeout is not reached
-
-        Test if a a dagrun will be scheduled if max_dag_runs has
-        been reached but dagrun_timeout is also reached
-        """
-        dag = DAG(
-            dag_id='test_scheduler_verify_max_active_runs_and_dagrun_timeout',
-            start_date=DEFAULT_DATE)
-        dag.max_active_runs = 1
-        dag.dagrun_timeout = datetime.timedelta(seconds=60)
-
-        DummyOperator(
-            task_id='dummy',
-            dag=dag,
-            owner='airflow')
-
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        session.merge(orm_dag)
-        session.commit()
-        session.close()
-
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag.clear()
-
-        dr = dag_file_processor.create_dag_run(dag)
-        self.assertIsNotNone(dr)
-
-        # Should not be scheduled as DagRun has not timedout and max_active_runs is reached
-        new_dr = dag_file_processor.create_dag_run(dag)
-        self.assertIsNone(new_dr)
-
-        # Should be scheduled as dagrun_timeout has passed
-        dr.start_date = timezone.utcnow() - datetime.timedelta(days=1)
-        session.merge(dr)
-        session.commit()
-        new_dr = dag_file_processor.create_dag_run(dag)
-        self.assertIsNotNone(new_dr)
 
     def test_runs_respected_after_clear(self):
         """
@@ -2177,6 +2060,147 @@ class TestSchedulerJob(unittest.TestCase):
             self.assertEqual(ti.start_date, ti.end_date)
             self.assertIsNotNone(ti.duration)
 
+    def test_dagrun_timeout_verify_max_active_runs(self):
+        """
+        Test if a a dagrun will not be scheduled if max_dag_runs
+        has been reached and dagrun_timeout is not reached
+
+        Test if a a dagrun would be scheduled if max_dag_runs has
+        been reached but dagrun_timeout is also reached
+        """
+        dag = DAG(
+            dag_id='test_scheduler_verify_max_active_runs_and_dagrun_timeout',
+            start_date=DEFAULT_DATE)
+        dag.max_active_runs = 1
+        dag.dagrun_timeout = datetime.timedelta(seconds=60)
+
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        scheduler = SchedulerJob()
+        scheduler.dagbag.bag_dag(dag, root_dag=dag)
+        scheduler.dagbag.sync_to_db()
+
+        session = settings.Session()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        assert orm_dag is not None
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        scheduler = SchedulerJob()
+        scheduler._create_dag_run(orm_dag, dag, session)
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+
+        # Should not be able to create a new dag run, as we are at max active runs
+        assert orm_dag.next_dagrun_create_after is None
+        # But we should record the date of _what run_ it would be
+        assert isinstance(orm_dag.next_dagrun, datetime.datetime)
+
+        # Should be scheduled as dagrun_timeout has passed
+        dr.start_date = timezone.utcnow() - datetime.timedelta(days=1)
+        session.flush()
+
+        scheduler._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(dr)
+        assert dr.state == State.FAILED
+        session.refresh(orm_dag)
+        assert isinstance(orm_dag.next_dagrun, datetime.datetime)
+        assert isinstance(orm_dag.next_dagrun_create_after, datetime.datetime)
+
+        # TODO[HA] Verify dag failure callback request sent to file processor
+
+        session.rollback()
+        session.close()
+
+    def test_dagrun_timeout_fails_run(self):
+        """
+        Test if a a dagrun wil be set failed if timeout, even without max_active_runs
+        """
+        dag = DAG(
+            dag_id='test_scheduler_fail_dagrun_timeout',
+            start_date=DEFAULT_DATE)
+        dag.dagrun_timeout = datetime.timedelta(seconds=60)
+
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        scheduler = SchedulerJob()
+        scheduler.dagbag.bag_dag(dag, root_dag=dag)
+        scheduler.dagbag.sync_to_db()
+
+        session = settings.Session()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        assert orm_dag is not None
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        scheduler = SchedulerJob()
+        scheduler._create_dag_run(orm_dag, dag, session)
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1 
+        dr = drs[0]
+
+        # Should be scheduled as dagrun_timeout has passed
+        dr.start_date = timezone.utcnow() - datetime.timedelta(days=1)
+        session.flush()
+
+        scheduler._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(dr)
+        assert dr.state == State.FAILED
+
+        # TODO[HA] Verify dag failure callback request sent to file processor
+
+        session.rollback()
+        session.close()
+
+    def test_do_not_schedule_removed_task(self):
+        dag = DAG(
+            dag_id='test_scheduler_do_not_schedule_removed_task',
+            start_date=DEFAULT_DATE)
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+        session.flush()
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        dr = dag.create_dagrun(
+            execution_date=DEFAULT_DATE,
+            run_type=DagRunType.SCHEDULED,
+            state=State.RUNNING,
+            session=session,
+        )
+        self.assertIsNotNone(dr)
+
+        # Re-create the DAG, but remove the task
+        dag = DAG(
+            dag_id='test_scheduler_do_not_schedule_removed_task',
+            start_date=DEFAULT_DATE)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        scheduler = SchedulerJob()
+        res = scheduler._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        self.assertEqual([], res)
+        session.rollback()
+        session.close()
+
     @provide_session
     def evaluate_dagrun(
             self,
@@ -2310,7 +2334,6 @@ class TestSchedulerJob(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         dag.sync_to_db()
         scheduler = SchedulerJob(
-            dag_id,
             num_runs=1,
             executor=self.null_exec,
             subdir=dag.fileloc)
@@ -2407,7 +2430,6 @@ class TestSchedulerJob(unittest.TestCase):
 
             scheduler = SchedulerJob(dag_id,
                                      executor=self.null_exec,
-                                     subdir=dag.fileloc,
                                      num_runs=1)
             scheduler.run()
 
@@ -2455,8 +2477,7 @@ class TestSchedulerJob(unittest.TestCase):
             dag = self.dagbag.get_dag(dag_id)
             dag.clear()
 
-        scheduler = SchedulerJob(dag_ids=dag_ids,
-                                 executor=self.null_exec,
+        scheduler = SchedulerJob(executor=self.null_exec,
                                  subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
                                  num_runs=1)
         scheduler.run()
@@ -2478,8 +2499,7 @@ class TestSchedulerJob(unittest.TestCase):
             dag = self.dagbag.get_dag(dag_id)
             dag.clear()
 
-        scheduler = SchedulerJob(dag_ids=dag_ids,
-                                 executor=self.null_exec,
+        scheduler = SchedulerJob(executor=self.null_exec,
                                  subdir=os.path.join(
                                      TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
                                  num_runs=1)

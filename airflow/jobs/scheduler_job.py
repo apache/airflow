@@ -1464,15 +1464,21 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
         if/when the next DAGRun should be created
         """
-        next_run_date = dag_model.next_dagrun
         dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=next_run_date,
+            execution_date=dag_model.next_dagrun,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             external_trigger=False,
             session=session
         )
+
+        self._update_dag_next_dagrun(dag_model, dag, session)
+
+        # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
+        # memory for larger dags? or expunge_all()
+
+    def _update_dag_next_dagrun(self, dag_model: DagModel, dag: DAG, session: Session) -> None:
 
         # Check max_active_runs, to see if we are _now_ at the limit for this dag? (we've just created
         # one after all)
@@ -1489,19 +1495,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                 dag.dag_id, active_runs_of_dag, dag.max_active_runs
             )
-            dag_model.next_dagrun = None
             dag_model.next_dagrun_create_after = None
         else:
-            next_dagrun_info = dag.next_dagrun_info(next_run_date)
-            if next_dagrun_info:
-                dag_model.next_dagrun = next_dagrun_info['execution_date']
-                dag_model.next_dagrun_create_after = next_dagrun_info['can_be_created_after']
-            else:
-                dag_model.next_dagrun = None
-                dag_model.next_dagrun_create_after = None
-
-        # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
-        # memory for larger dags? or expunge_all()
+            dag_model.next_dagrun, dag_model.next_dagrun_create_after = dag.next_dagrun_info(dag_model.next_dagrun)
 
     def _schedule_dag_run(self, dag_run: DagRun, session: Session) -> int:
         """
@@ -1509,15 +1505,31 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         :return: Number of tasks scheduled
         """
-        dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+        dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
 
-        if not dag_run.dag:
+        if not dag:
             self.log.error(
                 "Couldn't find dag %s in DagBag/DB!", dag_run.dag_id
             )
             return 0
 
-        if dag_run.execution_date > timezone.utcnow() and not dag_run.dag.allow_future_exec_dates:
+        if (
+            dag_run.start_date and dag.dagrun_timeout and
+            dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
+        ):
+            dag_run.state = State.FAILED
+            dag_run.end_date = timezone.utcnow()
+            self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
+            session.flush()
+
+            # Work out if we should allow creating a new DagRun now?
+            self._update_dag_next_dagrun(session.query(DagModel).get(dag_run.dag_id), dag, session)
+
+            # TODO[HA] run `dag.handle_callback` via the DagFileProcessor
+
+            return 0
+
+        if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
             self.log.error(
                 "Execution date is in future: %s",
                 dag_run.execution_date
@@ -1533,13 +1545,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # The longer term fix would be to have `clear` do this, and put DagRuns
         # in to the queued state, then take DRs out of queued before creating
         # any new ones
-        if dag_run.dag.max_active_runs:
+        if dag.max_active_runs:
             currently_active_runs = session.query(func.count(TI.execution_date.distinct())).filter(
                 TI.dag_id == dag_run.dag_id,
                 TI.state.notin_(State.finished())
             ).scalar()
 
-            if currently_active_runs >= dag_run.dag.max_active_runs:
+            if currently_active_runs >= dag.max_active_runs:
                 return 0
 
         # TODO[HA]: Run verify_integrity, but only if the serialized_dag has changed

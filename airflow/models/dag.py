@@ -28,7 +28,7 @@ import warnings
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import (
-    TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union, cast,
+    TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union, cast,
 )
 
 import jinja2
@@ -156,8 +156,7 @@ class DAG(BaseDag, LoggingMixin):
     :type max_active_runs: int
     :param dagrun_timeout: specify how long a DagRun should be up before
         timing out / failing, so that new DagRuns can be created. The timeout
-        is only enforced for scheduled DagRuns, and only once the
-        # of active DagRuns == max_active_runs.
+        is only enforced for scheduled DagRuns.
     :type dagrun_timeout: datetime.timedelta
     :param sla_miss_callback: specify a function to call when reporting SLA
         timeouts.
@@ -467,7 +466,10 @@ class DAG(BaseDag, LoggingMixin):
         elif self.normalized_schedule_interval is not None:
             return timezone.convert_to_utc(dttm - self.normalized_schedule_interval)
 
-    def next_dagrun_info(self, date_last_automated_dagrun : Optional[pendulum.DateTime]):
+    def next_dagrun_info(
+        self,
+        date_last_automated_dagrun : Optional[pendulum.DateTime],
+    ) -> Tuple[Optional[pendulum.DateTime], Optional[pendulum.DateTime]]:
         """
         Get information about the next DagRun of this dag after ``date_last_automated_dagrun`` -- the
         execution date, and the earliest it could be scheduled
@@ -479,23 +481,17 @@ class DAG(BaseDag, LoggingMixin):
         if (self.schedule_interval == "@once" and date_last_automated_dagrun) or \
                 self.schedule_interval is None:
             # Manual trigger, or already created the run for @once, can short circuit
-            return None
+            return (None, None)
         next_execution_date = self.next_dagrun_after_date(date_last_automated_dagrun)
 
         if next_execution_date is None:
-            return None
+            return (None, None)
 
         if self.schedule_interval == "@once":
             # For "@once" it can be created "now"
-            return {
-                'execution_date': next_execution_date,
-                'can_be_created_after': next_execution_date,
-            }
+            return (next_execution_date, next_execution_date)
 
-        return {
-            'execution_date': next_execution_date,
-            'can_be_created_after': self.following_schedule(next_execution_date),
-        }
+        return (next_execution_date, self.following_schedule(next_execution_date))
 
     def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
         """
@@ -1748,17 +1744,13 @@ class DAG(BaseDag, LoggingMixin):
                 t.task_concurrency is not None for t in dag.tasks
             )
 
-            next_dagrun_info = dag.next_dagrun_info(most_recent_dag_runs.get(dag.dag_id))
-            if next_dagrun_info:
-                orm_dag.next_dagrun = next_dagrun_info['execution_date']
-                orm_dag.next_dagrun_create_after = next_dagrun_info['can_be_created_after']
-            else:
-                orm_dag.next_dagrun = None
-                orm_dag.next_dagrun_create_after = None
+            orm_dag.next_dagrun, orm_dag.next_dagrun_create_after = dag.next_dagrun_info(
+                most_recent_dag_runs.get(dag.dag_id),
+            )
 
             active_runs_of_dag = num_active_runs.get(dag.dag_id, 0)
             if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
-                # Since this happens every time the dag is parsed it would be quite spammy
+                # Since this happens every time the dag is parsed it would be quite spammy at info
                 log.debug(
                     "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                     dag.dag_id, active_runs_of_dag, dag.max_active_runs
