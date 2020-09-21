@@ -598,7 +598,7 @@ jobs:
         run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
       - name: "Upload KinD logs"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: failure()
         with:
           name: kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           path: /tmp/kind_logs_*
