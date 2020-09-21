@@ -33,5 +33,6 @@ has been moved to airflow.providers.
         email_conf = conf.get(section="email", key="email_backend")
         if email_conf.startswith("airflow.contrib"):
             email_provider_path = "airflow.providers.sendgrid.utils.emailer"
-            return "Email backend option uses airflow.contrib module. Please use new module: {}".format(
+            msg = "Email backend option uses airflow.contrib module. Please use new module: {}".format(
                 email_provider_path)
+            return [msg]
