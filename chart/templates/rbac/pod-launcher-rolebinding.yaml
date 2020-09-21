@@ -28,6 +28,9 @@ kind: RoleBinding
 {{- end }}
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
+{{- if not .Values.multiNamespaceMode }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
   name: {{ .Release.Name }}-pod-launcher-rolebinding
   labels:
     tier: airflow
