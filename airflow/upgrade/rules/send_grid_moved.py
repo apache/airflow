@@ -29,7 +29,7 @@ Removes the need for SendGrid email code to be in contrib package. The SendGrid 
 has been moved to airflow.providers.
     """
 
-    def check(self, session=None):
+    def check(self):
         email_conf = conf.get(section="email", key="email_backend")
         if email_conf.startswith("airflow.contrib"):
             email_backend_path = "airflow.providers.sendgrid.utils.emailer"
