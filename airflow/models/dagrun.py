@@ -128,7 +128,8 @@ class DagRun(Base, LoggingMixin):
         """
         DR = DagRun
 
-        exec_date = func.cast(self.execution_date, DateTime)
+        from airflow.utils.timezone import make_naive
+        exec_date = func.cast(make_naive(self.execution_date), DateTime)
 
         dr = session.query(DR).filter(
             DR.dag_id == self.dag_id,
