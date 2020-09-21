@@ -156,6 +156,9 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 # shellcheck source=scripts/in_container/configure_environment.sh
 . "${IN_CONTAINER_DIR}/configure_environment.sh"
 
+# shellcheck source=scripts/in_container/run_init_script.sh
+. "${IN_CONTAINER_DIR}/run_init_script.sh"
+
 cd "${AIRFLOW_SOURCES}"
 
 set +u

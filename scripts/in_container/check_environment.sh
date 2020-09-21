@@ -114,6 +114,8 @@ function startairflow_if_requested() {
             airflow create_user -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
         fi
 
+        . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
+
         #this is because I run docker in WSL - Hi Bill!
         export TMUX_TMPDIR=~/.tmux/tmp
         mkdir -p ~/.tmux/tmp
