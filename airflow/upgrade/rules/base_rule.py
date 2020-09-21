@@ -15,24 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from abc import ABCMeta, abstractmethod
-
-from six import add_metaclass
-
-RULES = []
+from abc import abstractmethod
 
 
-class BaseRuleMeta(ABCMeta):
-    def __new__(cls, clsname, bases, attrs):
-        clazz = super(BaseRuleMeta, cls).__new__(cls, clsname, bases, attrs)
-        if clsname != "BaseRule":
-            RULES.append(clazz)
-        return clazz
-
-
-@add_metaclass(BaseRuleMeta)
 class BaseRule(object):
-
     @property
     @abstractmethod
     def title(self):

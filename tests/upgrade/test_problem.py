@@ -22,8 +22,8 @@ from airflow.upgrade.problem import RuleStatus
 
 class TestRuleStatus:
     def test_is_success(self):
-        assert RuleStatus(rule=mock.MagicMock(), messages=[]).is_success is False
-        assert RuleStatus(rule=mock.MagicMock(), messages=["aaa"]).is_success is True
+        assert RuleStatus(rule=mock.MagicMock(), messages=[]).is_success is True
+        assert RuleStatus(rule=mock.MagicMock(), messages=["aaa"]).is_success is False
 
     def test_rule_status_from_rule(self):
         msgs = ["An interesting problem to solve"]
