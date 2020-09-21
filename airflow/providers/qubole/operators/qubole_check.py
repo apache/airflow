@@ -19,13 +19,13 @@
 from typing import Iterable
 
 from airflow.exceptions import AirflowException
-from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
+from airflow.operators.sql import SQLCheckOperator, SQLValueCheckOperator
 from airflow.providers.qubole.hooks.qubole_check import QuboleCheckHook
 from airflow.providers.qubole.operators.qubole import QuboleOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class QuboleCheckOperator(CheckOperator, QuboleOperator):
+class QuboleCheckOperator(SQLCheckOperator, QuboleOperator):
     """
     Performs checks against Qubole Commands. ``QuboleCheckOperator`` expects
     a command that will be executed on QDS.
@@ -70,11 +70,13 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
             which the checks have to be performed.
 
     .. note:: All fields in common with template fields of
-        QuboleOperator and CheckOperator are template-supported.
+        QuboleOperator and SQLCheckOperator are template-supported.
 
     """
 
-    template_fields: Iterable[str] = set(QuboleOperator.template_fields) | set(CheckOperator.template_fields)
+    template_fields: Iterable[str] = set(QuboleOperator.template_fields) | set(
+        SQLCheckOperator.template_fields
+    )
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 
@@ -117,7 +119,7 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
             object.__setattr__(self, name, value)
 
 
-class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
+class QuboleValueCheckOperator(SQLValueCheckOperator, QuboleOperator):
     """
     Performs a simple value check using Qubole command.
     By default, each value on the first row of this
@@ -152,10 +154,10 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
 
 
     .. note:: All fields in common with template fields of
-            QuboleOperator and ValueCheckOperator are template-supported.
+            QuboleOperator and SQLValueCheckOperator are template-supported.
     """
 
-    template_fields = set(QuboleOperator.template_fields) | set(ValueCheckOperator.template_fields)
+    template_fields = set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields)
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 
