@@ -1843,7 +1843,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes mode - only used in case one of kind-cluster commands is used.
           One of:
 
-                 image git
+                 image
 
           Default: image
 
