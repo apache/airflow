@@ -98,6 +98,7 @@ Content
     dag-serialization
     changelog
     best-practices
+    production-deployment
     faq
     privacy_notice
 
