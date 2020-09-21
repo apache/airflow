@@ -93,6 +93,7 @@ class Interval(TypeDecorator):
     """
     Base class representing a time interval.
     """
+
     impl = Text
 
     attr_keys = {

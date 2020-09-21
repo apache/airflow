@@ -90,6 +90,10 @@ function initialization::initialize_base_variables() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW=${START_AIRFLOW:="false"}
 
+    # If set the specified file will be used to initialized Airflow after the environment is created,
+    # otherwise it will use files/airflow-breeze-config/init.sh
+    export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
+
     # Read airflow version from the version.py
     AIRFLOW_VERSION=$(grep version "${AIRFLOW_SOURCES}/airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
     export AIRFLOW_VERSION
@@ -469,6 +473,10 @@ Detected CI build environment:
     CI_SOURCE_REPO=${CI_SOURCE_REPO}
     CI_SOURCE_BRANCH=${CI_SOURCE_BRANCH}
 
+Initialization variables:
+
+    INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE}
+
 EOF
 
 }
@@ -621,4 +629,6 @@ function initialization::make_constants_read_only() {
     readonly AIRFLOW_PROD_IMAGE_KUBERNETES
     readonly AIRFLOW_PROD_IMAGE_DEFAULT
     readonly BUILT_CI_IMAGE_FLAG_FILE
+    readonly INIT_SCRIPT_FILE
+
 }

@@ -340,6 +340,7 @@ def show_traceback(error):  # pylint: disable=unused-argument
 
 class AirflowBaseView(BaseView):  # noqa: D101
     """Base View to set Airflow related properties"""
+
     from airflow import macros
     route_base = ''
 
@@ -361,6 +362,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     """
     Main Airflow application.
     """
+
     @expose('/health')
     def health(self):
         """
@@ -1773,6 +1775,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
             """Graph Form class."""
+
             arrange = SelectField("Layout", choices=(
                 ('LR', "Left->Right"),
                 ('RL', "Right->Left"),
@@ -2310,6 +2313,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
 class VersionView(AirflowBaseView):
     """View to show Airflow Version and optionally Git commit SHA"""
+
     default_view = 'version'
 
     @expose('/version')
@@ -2334,6 +2338,7 @@ class VersionView(AirflowBaseView):
 
 class ConfigurationView(AirflowBaseView):
     """View to show Airflow Configurations"""
+
     default_view = 'conf'
 
     @expose('/configuration')
@@ -2376,6 +2381,7 @@ class ConfigurationView(AirflowBaseView):
 
 class RedocView(AirflowBaseView):
     """Redoc Open API documentation"""
+
     default_view = 'redoc'
 
     @expose('/redoc')
@@ -2391,6 +2397,7 @@ class RedocView(AirflowBaseView):
 
 class DagFilter(BaseFilter):
     """Filter using DagIDs"""
+
     def apply(self, query, func): # noqa pylint: disable=redefined-outer-name,unused-argument
         if current_app.appbuilder.sm.has_all_dags_access():
             return query
@@ -2400,6 +2407,7 @@ class DagFilter(BaseFilter):
 
 class AirflowModelView(ModelView):  # noqa: D101
     """Airflow Mode View."""
+
     list_widget = AirflowModelListWidget
     page_size = PAGE_SIZE
 
@@ -2408,6 +2416,7 @@ class AirflowModelView(ModelView):  # noqa: D101
 
 class SlaMissModelView(AirflowModelView):
     """View to show SlaMiss table"""
+
     route_base = '/slamiss'
 
     datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)  # noqa # type: ignore
@@ -2431,6 +2440,7 @@ class SlaMissModelView(AirflowModelView):
 
 class XComModelView(AirflowModelView):
     """View to show records from XCom table"""
+
     route_base = '/xcom'
 
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
@@ -2471,6 +2481,7 @@ class XComModelView(AirflowModelView):
 
 class ConnectionModelView(AirflowModelView):
     """View to show records from Connections table"""
+
     route_base = '/connection'
 
     datamodel = AirflowModelView.CustomSQLAInterface(Connection)  # noqa # type: ignore
@@ -2542,6 +2553,7 @@ class ConnectionModelView(AirflowModelView):
 
 class PoolModelView(AirflowModelView):
     """View to show records from Pool table"""
+
     route_base = '/pool'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Pool)  # noqa # type: ignore
@@ -2612,6 +2624,7 @@ class PoolModelView(AirflowModelView):
 
 class VariableModelView(AirflowModelView):
     """View to show records from Variable table"""
+
     route_base = '/variable'
 
     list_template = 'airflow/variable_list.html'
@@ -2710,6 +2723,7 @@ class VariableModelView(AirflowModelView):
 
 class JobModelView(AirflowModelView):
     """View to show records from Job table"""
+
     route_base = '/job'
 
     datamodel = AirflowModelView.CustomSQLAInterface(BaseJob)  # noqa # type: ignore
@@ -2738,6 +2752,7 @@ class JobModelView(AirflowModelView):
 
 class DagRunModelView(AirflowModelView):
     """View to show records from DagRun table"""
+
     route_base = '/dagrun'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.DagRun)  # noqa # type: ignore
@@ -2853,6 +2868,7 @@ class DagRunModelView(AirflowModelView):
 
 class LogModelView(AirflowModelView):
     """View to show records from Log table"""
+
     route_base = '/log'
 
     datamodel = AirflowModelView.CustomSQLAInterface(Log)  # noqa # type:ignore
@@ -2876,6 +2892,7 @@ class LogModelView(AirflowModelView):
 
 class TaskRescheduleModelView(AirflowModelView):
     """View to show records from Task Reschedule table"""
+
     route_base = '/taskreschedule'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskReschedule)  # noqa # type: ignore
@@ -2913,6 +2930,7 @@ class TaskRescheduleModelView(AirflowModelView):
 
 class TaskInstanceModelView(AirflowModelView):
     """View to show records from TaskInstance table"""
+
     route_base = '/taskinstance'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskInstance)  # noqa # type: ignore
@@ -3037,6 +3055,7 @@ class TaskInstanceModelView(AirflowModelView):
 
 class DagModelView(AirflowModelView):
     """View to show records from DAG table"""
+
     route_base = '/dagmodel'
 
     datamodel = AirflowModelView.CustomSQLAInterface(DagModel)  # noqa # type: ignore

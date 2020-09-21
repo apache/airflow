@@ -23,7 +23,7 @@
 
 {% block head_css %}
   {{ super() }}
-  <link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/switch.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -32,7 +32,10 @@
       {% if dag.parent_dag is defined and dag.parent_dag %}
         <span class="text-muted">SUBDAG:</span> {{ dag.dag_id }}
       {% else %}
-        <input id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
+        <label class="switch-label js-tooltip" title="Pause/Unpause DAG">
+          <input class="switch-input" id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} method="post">
+          <span class="switch" aria-hidden="true"></span>
+        </label>
         <span class="text-muted">DAG:</span> {{ dag.dag_id }}
         <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
       {% endif %}
@@ -343,7 +346,6 @@
 {% endblock %}
 {% block tail %}
   {{ super() }}
-  <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
   <script>
     function updateQueryStringParameter(uri, key, value) {
       var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
@@ -595,5 +597,6 @@
         $buttons.addClass('btn-danger');
       });
     });
+    $('.js-tooltip').tooltip();
   </script>
 {% endblock %}

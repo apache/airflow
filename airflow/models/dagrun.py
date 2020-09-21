@@ -46,6 +46,7 @@ class DagRun(Base, LoggingMixin):
     DagRun describes an instance of a Dag. It can be created
     by the scheduler (for regular runs) or by an external trigger
     """
+
     __tablename__ = "dag_run"
 
     id = Column(Integer, primary_key=True)

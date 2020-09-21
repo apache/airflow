@@ -1161,11 +1161,6 @@ bootstrap-3-typeahead@^4.0.2:
   resolved "https://registry.yarnpkg.com/bootstrap-3-typeahead/-/bootstrap-3-typeahead-4.0.2.tgz#cb1c969044856862096fc8c71cc21b3acbb50412"
   integrity sha1-yxyWkESFaGIJb8jHHMIbOsu1BBI=
 
-bootstrap-toggle@^2.2.2:
-  version "2.2.2"
-  resolved "https://registry.yarnpkg.com/bootstrap-toggle/-/bootstrap-toggle-2.2.2.tgz#2b88534fc1b998674f877f98ba0d8b5b743e96fe"
-  integrity sha1-K4hTT8G5mGdPh3+Yug2LW3Q+lv4=
-
 bootstrap@^3.3:
   version "3.4.1"
   resolved "https://registry.yarnpkg.com/bootstrap/-/bootstrap-3.4.1.tgz#c3a347d419e289ad11f4033e3c4132b87c081d72"

@@ -40,6 +40,7 @@ class SkippedStatePropagationOptions(Enum):
     """
     Available options for skipped state propagation of subdag's tasks to parent dag tasks.
     """
+
     ALL_LEAVES = 'all_leaves'
     ANY_LEAF = 'any_leaf'
 

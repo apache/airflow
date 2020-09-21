@@ -30,6 +30,7 @@ class ConnectorProtocol(Protocol):
     """
     A protocol where you can connect to a database.
     """
+
     def connect(self, host: str, port: int, username: str, schema: str) -> Any:
         """
         Connect to a database.
@@ -46,6 +47,7 @@ class DbApiHook(BaseHook):
     """
     Abstract base class for sql hooks.
     """
+
     # Override to provide the connection name.
     conn_name_attr = None  # type: str
     # Override to have a default connection id for a particular dbHook

@@ -271,6 +271,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         result
     :type do_xcom_push: bool
     """
+
     # For derived classes to define which fields will get jinjaified
     template_fields: Iterable[str] = ()
     # Defines which files extensions to look for in the templated fields
