@@ -34,7 +34,7 @@ has been moved to airflow.providers.
         email_contrib_path = "airflow.contrib.utils.sendgrid"
         if email_contrib_path in email_conf:
             email_provider_path = "airflow.providers.sendgrid.utils.emailer"
-            msg = "Email backend option uses airflow.contrib module. " \
+            msg = "Email backend option uses airflow.contrib Sendgrid module. " \
                   + "Please use new module: {}".format(email_provider_path)
             return [msg]
         else:
