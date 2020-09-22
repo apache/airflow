@@ -271,7 +271,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     template_fields: Iterable[str] = ()
     # Defines which files extensions to look for in the templated fields
     template_ext: Iterable[str] = ()
-    # Template filed renderers indicating type of the filed for example sql, json
+    # Template field renderers indicating type of the field, for example sql, json, bash
     template_fields_renderers: Dict[str, str] = {}
 
     # Defines the color in the UI
