@@ -408,7 +408,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the DATASET.
         :type exists_ok: bool
         """
-
         dataset_reference = dataset_reference or {"datasetReference": {}}
 
         for param, value in zip(["datasetId", "projectId"], [dataset_id, project_id]):
@@ -602,7 +601,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 }
         :type encryption_configuration: dict
         """
-
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.create_empty_table` method with"
             "pass passing the `table_resource` object. This gives more flexibility than this method.",
@@ -967,7 +965,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :rtype: dataset
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         """
-
         warnings.warn("This method is deprecated. Please use ``update_dataset``.", DeprecationWarning)
         project_id = project_id or self.project_id
         if not dataset_id or not isinstance(dataset_id, str):
@@ -2919,7 +2916,6 @@ def _validate_src_fmt_configs(
     :param backward_compatibility_configs: The top-level params for backward-compatibility
     :type backward_compatibility_configs: dict
     """
-
     if backward_compatibility_configs is None:
         backward_compatibility_configs = {}
 

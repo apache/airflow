@@ -179,7 +179,6 @@ class PodGenerator:
     @staticmethod
     def from_obj(obj) -> Optional[Union[dict, k8s.V1Pod]]:
         """Converts to pod from obj"""
-
         if obj is None:
             return None
 

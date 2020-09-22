@@ -109,7 +109,6 @@ class AwsGlueCatalogHook(AwsBaseHook):
         >>> r = hook.get_table('db', 'table_foo')
         >>> r['Name'] = 'table_foo'
         """
-
         result = self.get_conn().get_table(DatabaseName=database_name, Name=table_name)
 
         return result['Table']
@@ -124,7 +123,6 @@ class AwsGlueCatalogHook(AwsBaseHook):
         :type table_name: str
         :return: str
         """
-
         table = self.get_table(database_name, table_name)
 
         return table['StorageDescriptor']['Location']

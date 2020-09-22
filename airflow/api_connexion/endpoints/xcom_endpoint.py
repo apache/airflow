@@ -50,7 +50,6 @@ def get_xcom_entries(
     """
     Get all XCom values
     """
-
     query = session.query(XCom)
     if dag_id == '~':
         appbuilder = current_app.appbuilder

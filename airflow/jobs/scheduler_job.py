@@ -691,7 +691,6 @@ class DagFileProcessor(LoggingMixin):
         active DAG runs and adding task instances that should run to the
         queue.
         """
-
         # update the state of the previously active dag runs
         active_dag_runs = 0
         task_instances_list = []

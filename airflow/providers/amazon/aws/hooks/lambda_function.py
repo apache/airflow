@@ -62,7 +62,6 @@ class AwsLambdaHook(AwsBaseHook):
         """
         Invoke Lambda Function
         """
-
         response = self.conn.invoke(
             FunctionName=self.function_name,
             InvocationType=self.invocation_type,

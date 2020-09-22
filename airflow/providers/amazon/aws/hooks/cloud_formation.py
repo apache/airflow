@@ -42,7 +42,6 @@ class AWSCloudFormationHook(AwsBaseHook):
         """
         Get stack status from CloudFormation.
         """
-
         self.log.info('Poking for stack %s', stack_name)
 
         try:
@@ -63,7 +62,6 @@ class AWSCloudFormationHook(AwsBaseHook):
         :param params: parameters to be passed to CloudFormation.
         :type params: dict
         """
-
         if 'StackName' not in params:
             params['StackName'] = stack_name
         self.get_conn().create_stack(**params)
@@ -77,7 +75,6 @@ class AWSCloudFormationHook(AwsBaseHook):
         :param params: parameters to be passed to CloudFormation (optional).
         :type params: dict
         """
-
         params = params or {}
         if 'StackName' not in params:
             params['StackName'] = stack_name

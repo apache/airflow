@@ -222,7 +222,6 @@ class DbApiHook(BaseHook):
         :return: connection autocommit setting.
         :rtype: bool
         """
-
         return getattr(conn, 'autocommit', False) and self.supports_autocommit
 
     def get_cursor(self):
@@ -322,7 +321,6 @@ class DbApiHook(BaseHook):
         :return: The serialized cell
         :rtype: str
         """
-
         if cell is None:
             return None
         if isinstance(cell, datetime):

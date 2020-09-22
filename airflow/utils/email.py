@@ -153,7 +153,6 @@ def send_mime_email(e_from: str, e_to: List[str], mime_msg: MIMEMultipart, dryru
     """
     Send MIME email.
     """
-
     smtp_host = conf.get('smtp', 'SMTP_HOST')
     smtp_port = conf.getint('smtp', 'SMTP_PORT')
     smtp_starttls = conf.getboolean('smtp', 'SMTP_STARTTLS')

@@ -291,7 +291,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     @provide_session
     def get_accessible_dags(self, user_action, user, session=None):
         """Generic function to get readable or writable DAGs for authenticated user."""
-
         if user.is_anonymous:
             return set()
 

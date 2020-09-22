@@ -200,7 +200,7 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D104,D105,D107,D200,D202,D205,D400,D401
+          - --add-ignore=D100,D102,D104,D105,D107,D200,D205,D400,D401
         exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
   - repo: local
     hooks:

@@ -72,7 +72,6 @@ _KERBEROS_SERVICE = KerberosService()
 
 def init_app(app):
     """Initializes application with kerberos"""
-
     hostname = app.config.get('SERVER_NAME')
     if not hostname:
         hostname = getfqdn()

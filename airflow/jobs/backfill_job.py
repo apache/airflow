@@ -412,7 +412,6 @@ class BackfillJob(BaseJob):
         :return: the list of execution_dates for the finished dag runs
         :rtype: list
         """
-
         executed_run_dates = []
 
         while ((len(ti_status.to_run) > 0 or len(ti_status.running) > 0) and

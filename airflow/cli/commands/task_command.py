@@ -143,7 +143,6 @@ def _run_raw_task(args, ti):
 @cli_utils.action_logging
 def task_run(args, dag=None):
     """Runs a single task instance"""
-
     # Load custom airflow config
     if args.cfg_path:
         with open(args.cfg_path, 'r') as conf_file:
@@ -289,7 +288,6 @@ def _guess_debugger():
     * `ipdb <https://github.com/gotcha/ipdb>`__
     * `pdb <https://docs.python.org/3/library/pdb.html>`__
     """
-
     for mod in SUPPORTED_DEBUGGER_MODULES:
         try:
             return importlib.import_module(mod)

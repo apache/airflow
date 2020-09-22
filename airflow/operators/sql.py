@@ -465,7 +465,6 @@ class SQLThresholdCheckOperator(BaseOperator):
         Optional: Send data check info and metadata to an external database.
         Default functionality will log metadata.
         """
-
         info = "\n".join([f"""{key}: {item}""" for key, item in meta_data.items()])
         self.log.info("Log from %s:\n%s", self.dag_id, info)
 

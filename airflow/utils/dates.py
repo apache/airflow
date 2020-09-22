@@ -147,7 +147,6 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     >>> round_time(datetime(2015, 9, 13, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
     datetime.datetime(2015, 9, 14, 0, 0)
     """
-
     if isinstance(delta, str):
         # It's cron based, so it's easy
         time_zone = start_date.tzinfo

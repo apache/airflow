@@ -256,7 +256,7 @@ ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
 RUN \
-    if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" == "true" ]]; then \
+    if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" != "false" ]]; then \
         pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
     else \
         pip install -e ".[${AIRFLOW_EXTRAS}]" \

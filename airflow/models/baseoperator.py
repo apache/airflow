@@ -734,7 +734,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     @cached_property
     def operator_extra_link_dict(self) -> Dict[str, Any]:
         """Returns dictionary of all extra links for the operator"""
-
         op_extra_links_from_plugin: Dict[str, Any] = {}
         from airflow import plugins_manager
         plugins_manager.initialize_extra_operators_links_plugins()
@@ -831,7 +830,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         :param jinja_env: Jinja environment
         :type jinja_env: jinja2.Environment
         """
-
         if not jinja_env:
             jinja_env = self.get_template_env()
 
@@ -866,7 +864,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         :type seen_oids: set
         :return: Templated content
         """
-
         if not jinja_env:
             jinja_env = self.get_template_env()
 
@@ -1034,7 +1031,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """
         Get a flat set of relatives' ids, either upstream or downstream.
         """
-
         if not self._dag:
             return set()
 

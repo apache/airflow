@@ -938,7 +938,6 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         :return: whether the state was changed to running or not
         :rtype: bool
         """
-
         task = self.task
         self.refresh_from_task(task, pool_override=pool)
         self.test_mode = test_mode
@@ -1061,7 +1060,6 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         :param session: SQLAlchemy ORM Session
         :type session: Session
         """
-
         task = self.task
         self.test_mode = test_mode
         self.refresh_from_task(task, pool_override=pool)
@@ -1719,7 +1717,6 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             task on a future date without it being immediately visible.
         :type execution_date: datetime
         """
-
         if execution_date and execution_date < self.execution_date:
             raise ValueError(
                 'execution_date can not be in the past (current '
@@ -1768,7 +1765,6 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             are returned as well.
         :type include_prior_dates: bool
         """
-
         if dag_id is None:
             dag_id = self.dag_id
 
@@ -1922,7 +1918,6 @@ class SimpleTaskInstance:
             session is committed.
         :return: the task instance constructed
         """
-
         qry = session.query(TaskInstance).filter(
             TaskInstance.dag_id == self._dag_id,
             TaskInstance.task_id == self._task_id,

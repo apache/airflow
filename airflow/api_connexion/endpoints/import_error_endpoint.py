@@ -52,7 +52,6 @@ def get_import_errors(session, limit, offset=None):
     """
     Get all import errors
     """
-
     total_entries = session.query(func.count(ImportError.id)).scalar()
     import_errors = session.query(ImportError).order_by(ImportError.id).offset(offset).limit(limit).all()
     return import_error_collection_schema.dump(
