@@ -30,8 +30,8 @@ class TestSendGridEmailerMovedRule(TestCase):
         assert isinstance(rule.title, str)
 
         email_provider_path = "airflow.providers.sendgrid.utils.emailer"
-        msg = "Email backend option uses airflow.contrib module. Please use new module: {}".format(
-            email_provider_path)
+        msg = "Email backend option uses airflow.contrib Sendgrid module. " + \
+              "Please use new module: {}".format(email_provider_path)
         response = rule.check()
         assert response == [msg]
 
