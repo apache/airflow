@@ -215,7 +215,7 @@ from template field renders in Web UI. For example:
                     request_body: str,
                     **kwargs) -> None:
                 super().__init__(**kwargs)
-                self.request_body = name
+                self.request_body = request_body
 
 Currently available lexers:
 
@@ -228,7 +228,7 @@ Currently available lexers:
   - sql
   - yaml
 
-If you will use non existing lexer the value of the template filed be rendered as pretty printed object.
+If you use a non existing lexer then the value of the template field will be rendered as a pretty printed object.
 
 Define an operator extra link
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
