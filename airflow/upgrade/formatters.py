@@ -79,6 +79,7 @@ class ConsoleFormatter(BaseFormatter):
                 print("Problems:")
                 for message_no, message in enumerate(rule_status.messages, 1):
                     print('{:>3}.  {}'.format(message_no, message))
+            print()
 
     def on_next_rule_status(self, rule_status):
         status = "SUCCESS" if rule_status.is_success else "FAIL"

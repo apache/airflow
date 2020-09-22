@@ -33,12 +33,8 @@ class TestKubernetesWorkerAnnotationRule(unittest.TestCase):
         msg = rule.check()
 
         assert msg == \
-               ["For example:\n"
-                "\n"
-                "[kubernetes_annotations]\n"
-                "test_key = test-value\n"
-                "Should be written as:\n"
-                "\n"
-                "[kubernetes]\n"
-                'worker_annotations = {"test_key": "test-value"}'
+               ["These settings:\n"
+                   "\n[kubernetes_annotaions]\n"
+                   "test_key = test-value\n\n"
+                   "Should be in your YAML pod configuration file"
                 ]

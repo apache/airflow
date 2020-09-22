@@ -15,39 +15,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
-
-import json
-
 from airflow import conf
 from airflow.upgrade.rules.base_rule import BaseRule
 
 
 class KubernetesWorkerAnnotationsRule(BaseRule):
-
     title = "kubernetes_annotations configuration section has been removed"
 
-    description = ("A new key worker_annotations has been added to existing kubernetes section instead. "
-                   "That is to remove restriction on the character set for k8s annotation keys. "
-                   "All key/value pairs from kubernetes_annotations should now go to worker_annotations "
-                   "as a json."
+    description = ("A new key pod_template_file has been added in the kubernetes section. "
+                   "It should point to the YAML pod configuration file. This YAML pod file is "
+                   "where you add the kubernetes annotations key value pairs"
                    )
 
     def check(self):
         kub_annotations = conf.getsection('kubernetes_annotations')
         if kub_annotations:
-            annotations_json = json.dumps(kub_annotations)
             pairs = "\n".join(["%s = %s" % kv for kv in kub_annotations.items()])
-
-            return [
-                "For example:\n"
-                "\n"
-                "[kubernetes_annotations]\n"
-                '{pairs}'
-                "\n"
-                "Should be written as:\n"
-                "\n"
-                "[kubernetes]\n"
-                'worker_annotations = {annotations_json}'.format(pairs=pairs,
-                                                                 annotations_json=annotations_json)
-            ]
+            msg = ("These settings:\n"
+                   "\n[kubernetes_annotaions]\n"
+                   "{pairs}\n\n"
+                   "Should be in your YAML pod configuration file").format(pairs=pairs)
+            return [msg]
