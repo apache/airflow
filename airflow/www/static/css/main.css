@@ -93,6 +93,7 @@ div.container {
   display: inline-flex;
   justify-content: center;
   align-items: center;
+  vertical-align: middle;
   margin: -5px 0;
   width: 30px;
   height: 30px;
