@@ -165,7 +165,7 @@ def get_dag_runs_batch(session):
     Get list of DAG Runs
     """
     body = request.get_json()
-    try:  # TODO: Handle filtering.
+    try:
         data = dagruns_batch_form_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))

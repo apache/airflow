@@ -56,10 +56,10 @@ def get_xcom_entries(
         appbuilder = current_app.appbuilder
         readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
         query = query.filter(XCom.dag_id.in_(readable_dag_ids))
-        query.join(DR, and_(XCom.dag_id.in_(readable_dag_ids), XCom.execution_date == DR.execution_date))
+        query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
     else:
         query = query.filter(XCom.dag_id == dag_id)
-        query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
+        query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
 
     if task_id != '~':
         query = query.filter(XCom.task_id == task_id)
