@@ -615,6 +615,16 @@ This is manually triggered workflow (via GitHub UI manual run) that should only 
 When triggered, it will force-push the "apache/airflow" master to the fork's master. It's the easiest
 way to sync your fork master to the Apache Airflow's one.
 
+Delete old artifacts
+--------------------
+
+This workflow is introduced, to delete old artifacts from the Github Actions build. We set it to
+delete old artifacts that are > 7 days old. It only runs for the 'apache/airflow' repository.
+
+We also have a script that can help to clean-up the old artifacts:
+`remove_artifacts.sh <dev/remove_artifacts.sh>`_
+
+
 Naming conventions for stored images
 ====================================
 
