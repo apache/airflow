@@ -369,6 +369,7 @@ class UtcAwareFilterMixin:  # noqa: D101
     """
     Mixin for filter for UTC time.
     """
+
     def apply(self, query, value):
         """Apply the filter."""
         value = timezone.parse(value, timezone=timezone.utc)
@@ -421,6 +422,7 @@ class CustomSQLAInterface(SQLAInterface):
     '_' from the key to lookup the column names.
 
     """
+
     def __init__(self, obj, session=None):
         super().__init__(obj, session=session)
 

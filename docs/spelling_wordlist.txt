@@ -532,6 +532,7 @@ cloudant
 cloudml
 cloudsqldatabehook
 cloudwatch
+cmake
 cmd
 cmdline
 cmds
@@ -735,6 +736,7 @@ gRPC
 ga
 gantt
 gbq
+gcc
 gcloud
 gcp
 gcpcloudsql

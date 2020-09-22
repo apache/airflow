@@ -67,7 +67,7 @@
 <hr/>
 <div id="svg_container">
   <img id='loading' width="50" src="{{ url_for('static', filename='loading.gif') }}">
-  <svg class='tree' width="100%">
+  <svg id="tree-svg" class='tree' width="100%">
     <filter id="blur-effect-1">
       <feGaussianBlur stdDeviation="3"></feGaussianBlur>
     </filter>
@@ -183,7 +183,7 @@ const taskTip = d3.tip()
     return toolTipHtml;
 });
 
-var svg = d3.select("svg")
+var svg = d3.select("#tree-svg")
     //.attr("width", width + margin.left + margin.right)
   .append("g")
   .attr("class", "level")
@@ -208,7 +208,7 @@ var svg = d3.select("svg")
     (num_square * square_size) + ((num_square-1) * square_spacing) - (square_size/2)
   ]);
 
-  d3.select("svg")
+  d3.select("#tree-svg")
   .insert("g")
   .attr("transform",
     "translate("+ (square_x + margin.left) +", " + axisHeight + ")")
@@ -245,7 +245,7 @@ function update(source) {
 
   var height = Math.max(500, nodes.length * barHeight + margin.top + margin.bottom);
   var width = square_x + (num_square * (square_size + square_spacing)) + margin.left + margin.right + 50;
-  d3.select("svg").transition()
+  d3.select("#tree-svg").transition()
       .duration(duration)
       .attr("height", height)
       .attr("width", width);

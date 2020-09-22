@@ -187,6 +187,7 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
 
 class DagParsingStat(NamedTuple):
     """Information on processing progress"""
+
     file_paths: List[str]
     done: bool
     all_files_processed: bool
@@ -194,6 +195,7 @@ class DagParsingStat(NamedTuple):
 
 class DagFileStat(NamedTuple):
     """Information about single processing of one file"""
+
     num_dags: int
     import_errors: int
     last_finish_time: Optional[datetime]
@@ -203,6 +205,7 @@ class DagFileStat(NamedTuple):
 
 class DagParsingSignal(enum.Enum):
     """All signals sent to parser."""
+
     AGENT_RUN_ONCE = 'agent_run_once'
     TERMINATE_MANAGER = 'terminate_manager'
     END_MANAGER = 'end_manager'
@@ -210,6 +213,7 @@ class DagParsingSignal(enum.Enum):
 
 class FailureCallbackRequest(NamedTuple):
     """A message with information about the callback to be executed."""
+
     full_filepath: str
     simple_task_instance: SimpleTaskInstance
     msg: str
@@ -278,7 +282,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._parent_signal_conn: Optional[MultiprocessingConnection] = None
         self._collected_dag_buffer: List = []
 
-        self._last_parsing_stat_recieved_at: float = time.monotonic()
+        self._last_parsing_stat_received_at: float = time.monotonic()
 
     def start(self) -> None:
         """
@@ -286,7 +290,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         """
         mp_start_method = self._get_multiprocessing_start_method()
         context = multiprocessing.get_context(mp_start_method)
-        self._last_parsing_stat_recieved_at = time.monotonic()
+        self._last_parsing_stat_received_at = time.monotonic()
 
         self._parent_signal_conn, child_signal_conn = context.Pipe()
         process = context.Process(
@@ -465,7 +469,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         if self.done:
             return
 
-        parsing_stat_age = time.monotonic() - self._last_parsing_stat_recieved_at
+        parsing_stat_age = time.monotonic() - self._last_parsing_stat_received_at
         if parsing_stat_age > self._processor_timeout.total_seconds():
             Stats.incr('dag_processing.manager_stalls')
             self.log.error(
@@ -480,7 +484,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         """
         self._done = stat.done
         self._all_files_processed = stat.all_files_processed
-        self._last_parsing_stat_recieved_at = time.monotonic()
+        self._last_parsing_stat_received_at = time.monotonic()
 
     @property
     def done(self) -> bool:

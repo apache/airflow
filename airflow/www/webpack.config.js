@@ -40,6 +40,7 @@ const config = {
     'task-instances': `${STATIC_DIR}/js/task-instances.js`,
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
     main: `${STATIC_DIR}/css/main.css`,
+    switch: `${STATIC_DIR}/css/switch.css`,
     airflowDefaultTheme: `${STATIC_DIR}/css/bootstrap-theme.css`,
     moment: 'moment-timezone',
   },
@@ -145,9 +146,6 @@ const config = {
         }, {
           from: 'node_modules/bootstrap-3-typeahead/*min.*',
           flatten: true
-        }, {
-          from: 'node_modules/bootstrap-toggle/**/*bootstrap-toggle.min.*',
-          flatten: true,
         }, {
           from: 'node_modules/datatables.net/**/**.min.*',
           flatten: true

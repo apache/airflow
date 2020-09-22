@@ -94,6 +94,7 @@ _UNSET = object()
 
 class Arg:
     """Class to keep information about command line argument"""
+
     # pylint: disable=redefined-builtin,unused-argument
     def __init__(self, flags=_UNSET, help=_UNSET, action=_UNSET, default=_UNSET, nargs=_UNSET, type=_UNSET,
                  choices=_UNSET, required=_UNSET, metavar=_UNSET):
@@ -767,6 +768,7 @@ ALTERNATIVE_CONN_SPECS_ARGS = [
 
 class ActionCommand(NamedTuple):
     """Single CLI command"""
+
     name: str
     help: str
     func: Callable
@@ -777,6 +779,7 @@ class ActionCommand(NamedTuple):
 
 class GroupCommand(NamedTuple):
     """ClI command with subcommands"""
+
     name: str
     help: str
     subcommands: Iterable
@@ -1419,6 +1422,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
 
     It displays simple commands and groups of commands in separate sections.
     """
+
     def _format_action(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
 

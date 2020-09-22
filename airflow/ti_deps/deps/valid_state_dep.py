@@ -30,6 +30,7 @@ class ValidStateDep(BaseTIDep):
     :type valid_states: set(str)
     :return: whether or not the task instance's state is valid
     """
+
     NAME = "Task Instance State"
     IGNOREABLE = True
 

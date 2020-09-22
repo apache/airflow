@@ -425,6 +425,7 @@ class BulkStateFetcher(LoggingMixin):
     If DatabaseBackend is used as result backend, the SELECT ...WHERE task_id IN (...) query is used
     Otherwise, multiprocessing.Pool will be used. Each task status will be downloaded individually.
     """
+
     def __init__(self, sync_parralelism=None):
         super().__init__()
         self._sync_parallelism = sync_parralelism

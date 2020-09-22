@@ -25,6 +25,7 @@ class DagrunRunningDep(BaseTIDep):
     """
     Determines whether a task's DagRun is in valid state.
     """
+
     NAME = "Dagrun Running"
     IGNOREABLE = True
 

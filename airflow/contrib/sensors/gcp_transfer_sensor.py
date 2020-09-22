@@ -38,6 +38,7 @@ class GCPTransferServiceWaitForJobStatusSensor(CloudDataTransferServiceJobStatus
 
     Please use `airflow.providers.google.cloud.sensors.transfer.CloudDataTransferServiceJobStatusSensor`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
