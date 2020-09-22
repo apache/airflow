@@ -1301,7 +1301,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 vars(BaseOperator(task_id='test')).keys() - {
                     'inlets', 'outlets', '_upstream_task_ids', 'default_args', 'dag', '_dag',
                     '_BaseOperator__instantiated',
-                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields', 'template_fields_renderers'})
+                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor',
+                     'template_fields', 'template_fields_renderers'})
 
         return cls.__serialized_fields
 
