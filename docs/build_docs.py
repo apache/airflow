@@ -745,7 +745,7 @@ clean_files()
 CHANNEL_INVITATION = """\
 If you need help, write to #documentation channel on Airflow's Slack.
 Channel link: https://apache-airflow.slack.com/archives/CJ1LVREHX
-Invitation link: https://s.apache.org/airflow-slack/\
+Invitation link: https://s.apache.org/airflow-slack\
 """
 
 print_build_errors_and_exit("The documentation has errors. Fix them to build documentation.")

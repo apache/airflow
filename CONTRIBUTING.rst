@@ -1080,7 +1080,7 @@ You can join the channels via links at the `Airflow Community page <https://airf
 **IMPORTANT**
 We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable tickets inside of it. However, each new PR should be created on `GitHub issues <https://github.com/apache/airflow/issues>`_ as stated in `Contribution Workflow Example <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contribution-workflow-example>`_
 
-* The `Apache Airflow Slack <https://s.apache.org/airflow-slack/>`_ for:
+* The `Apache Airflow Slack <https://s.apache.org/airflow-slack>`_ for:
    * ad-hoc questions related to development (#development channel)
    * asking for review (#development channel)
    * asking for help with PRs (#how-to-pr channel)
