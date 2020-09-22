@@ -43,7 +43,7 @@ from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
-from sqlalchemy import and_, desc, func, or_, union_all
+from sqlalchemy import and_, desc, func, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 
@@ -790,9 +790,19 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             external_trigger=False
         )
 
+        tags = session.query(models.DagTag).filter(
+            models.DagTag.dag_id == dag_id).all()
+
         return self.render_template(
             'airflow/dag_details.html',
-            dag=dag, title=title, root=root, states=states, State=State, active_runs=active_runs)
+            dag=dag,
+            title=title,
+            root=root,
+            states=states,
+            State=State,
+            active_runs=active_runs,
+            tags=tags
+        )
 
     @expose('/rendered')
     @has_dag_access(can_dag_read=True)
@@ -2315,6 +2325,46 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         return json.dumps(task_instances)
 
+    @has_access
+    @permission_name("list")
+    @provide_session
+    @expose('/autocomplete')
+    def autocomplete(self, session=None):
+        """Autocomplete."""
+        query = unquote(request.args.get('query', ''))
+
+        if not query:
+            wwwutils.json_response([])
+
+        # Provide suggestions of dag_ids and owners
+        dag_ids_query = session.query(DagModel.dag_id.label('item')).filter(  # pylint: disable=no-member
+            ~DagModel.is_subdag, DagModel.is_active,
+            DagModel.dag_id.ilike('%' + query + '%'))  # noqa pylint: disable=no-member
+
+        owners_query = session.query(func.distinct(DagModel.owners).label('item')).filter(
+            ~DagModel.is_subdag, DagModel.is_active,
+            DagModel.owners.ilike('%' + query + '%'))  # noqa pylint: disable=no-member
+
+        # Hide DAGs if not showing status: "all"
+        status = flask_session.get(FILTER_STATUS_COOKIE)
+        if status == 'active':
+            dag_ids_query = dag_ids_query.filter(~DagModel.is_paused)
+            owners_query = owners_query.filter(~DagModel.is_paused)
+        elif status == 'paused':
+            dag_ids_query = dag_ids_query.filter(DagModel.is_paused)
+            owners_query = owners_query.filter(DagModel.is_paused)
+
+        filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids()
+        # pylint: disable=no-member
+        if 'all_dags' not in filter_dag_ids:
+            dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+            owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+        # pylint: enable=no-member
+
+        payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
+
+        return wwwutils.json_response(payload)
+
 
 class VersionView(AirflowBaseView):
     """View to show Airflow Version and optionally Git commit SHA"""
@@ -3056,83 +3106,3 @@ class TaskInstanceModelView(AirflowModelView):
         self.set_task_instance_state(tis, State.UP_FOR_RETRY)
         self.update_redirect()
         return redirect(self.get_redirect())
-
-
-class DagModelView(AirflowModelView):
-    """View to show records from DAG table"""
-
-    route_base = '/dagmodel'
-
-    datamodel = AirflowModelView.CustomSQLAInterface(DagModel)  # noqa # type: ignore
-
-    base_permissions = ['can_list', 'can_show']
-
-    list_columns = ['dag_id', 'is_paused', 'last_scheduler_run',
-                    'last_expired', 'scheduler_lock', 'fileloc', 'owners']
-
-    formatters_columns = {
-        'dag_id': wwwutils.dag_link
-    }
-
-    base_filters = [['dag_id', DagFilter, lambda: []]]
-
-    def get_query(self):
-        """
-        Default filters for model
-        """
-        return (
-            super().get_query()  # noqa pylint: disable=no-member
-            .filter(or_(models.DagModel.is_active,
-                        models.DagModel.is_paused))
-            .filter(~models.DagModel.is_subdag)
-        )
-
-    def get_count_query(self):
-        """
-        Default filters for model
-        """
-        return (
-            super().get_count_query()  # noqa pylint: disable=no-member
-            .filter(models.DagModel.is_active)
-            .filter(~models.DagModel.is_subdag)
-        )
-
-    @has_access
-    @permission_name("list")
-    @provide_session
-    @expose('/autocomplete')
-    def autocomplete(self, session=None):
-        """Autocomplete."""
-        query = unquote(request.args.get('query', ''))
-
-        if not query:
-            wwwutils.json_response([])
-
-        # Provide suggestions of dag_ids and owners
-        dag_ids_query = session.query(DagModel.dag_id.label('item')).filter(  # pylint: disable=no-member
-            ~DagModel.is_subdag, DagModel.is_active,
-            DagModel.dag_id.ilike('%' + query + '%'))  # noqa pylint: disable=no-member
-
-        owners_query = session.query(func.distinct(DagModel.owners).label('item')).filter(
-            ~DagModel.is_subdag, DagModel.is_active,
-            DagModel.owners.ilike('%' + query + '%'))  # noqa pylint: disable=no-member
-
-        # Hide DAGs if not showing status: "all"
-        status = flask_session.get(FILTER_STATUS_COOKIE)
-        if status == 'active':
-            dag_ids_query = dag_ids_query.filter(~DagModel.is_paused)
-            owners_query = owners_query.filter(~DagModel.is_paused)
-        elif status == 'paused':
-            dag_ids_query = dag_ids_query.filter(DagModel.is_paused)
-            owners_query = owners_query.filter(DagModel.is_paused)
-
-        filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids()
-        # pylint: disable=no-member
-        if 'all_dags' not in filter_dag_ids:
-            dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-            owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-        # pylint: enable=no-member
-
-        payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
-
-        return wwwutils.json_response(payload)

@@ -54,7 +54,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     # [START security_viewer_vms]
     VIEWER_VMS = {
         'Airflow',
-        'DagModelView',
         'Browse',
         'Config',
         'DAG Runs',
