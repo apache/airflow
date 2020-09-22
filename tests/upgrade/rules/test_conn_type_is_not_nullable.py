@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from unittest import TestCase
 
 from airflow.models import Connection
 from airflow.upgrade.rules.conn_type_is_not_nullable import ConnTypeIsNotNullableRule
@@ -21,7 +22,7 @@ from airflow.utils.db import create_session
 from tests.test_utils.db import clear_db_connections
 
 
-class TestConnTypeIsNotNullableRule:
+class TestConnTypeIsNotNullableRule(TestCase):
     def tearDown(self):
         clear_db_connections()
 
