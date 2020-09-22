@@ -200,7 +200,8 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | stored in separated "orphan" branches           |
 |                                         |             |             |            | of the airflow repository                       |
 |                                         |             |             |            | ("constraints-master, "constraints-1-10")       |
-|                                         |             |             |            | but when this flag is set, they are not         |
+|                                         |             |             |            | but when this flag is set to anything but false |
+|                                         |             |             |            | (for example commit SHA), they are not used     |
 |                                         |             |             |            | used and "eager" upgrade strategy is used       |
 |                                         |             |             |            | when installing dependencies. We set it         |
 |                                         |             |             |            | to true in case of direct pushes (merges)       |
@@ -209,6 +210,10 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | in case we determine that the tests pass        |
 |                                         |             |             |            | we automatically push latest set of             |
 |                                         |             |             |            | "tested" constraints to the repository.         |
+|                                         |             |             |            |                                                 |
+|                                         |             |             |            | Setting the value to commit SHA is best way     |
+|                                         |             |             |            | to assure that constraints are upgraded even if |
+|                                         |             |             |            | there is no change to setup.py                  |
 |                                         |             |             |            |                                                 |
 |                                         |             |             |            | This way our constraints are automatically      |
 |                                         |             |             |            | tested and updated whenever new versions        |
@@ -614,6 +619,16 @@ Force sync master from apache/airflow
 This is manually triggered workflow (via GitHub UI manual run) that should only be run in GitHub forks.
 When triggered, it will force-push the "apache/airflow" master to the fork's master. It's the easiest
 way to sync your fork master to the Apache Airflow's one.
+
+Delete old artifacts
+--------------------
+
+This workflow is introduced, to delete old artifacts from the Github Actions build. We set it to
+delete old artifacts that are > 7 days old. It only runs for the 'apache/airflow' repository.
+
+We also have a script that can help to clean-up the old artifacts:
+`remove_artifacts.sh <dev/remove_artifacts.sh>`_
+
 
 Naming conventions for stored images
 ====================================

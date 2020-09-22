@@ -1,11 +1,12 @@
 name: 'Delete old artifacts'
 on:
   schedule:
-    - cron: '0 * * * *' # every hour
+    - cron: '27 */6 * * *' # run every 6 hours
 
 jobs:
   delete-artifacts:
     runs-on: ubuntu-latest
+    if: github.repository == 'apache/airflow'
     steps:
       - uses: kolpav/purge-artifacts-action@v1
         with:

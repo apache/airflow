@@ -169,7 +169,6 @@ class SSHHook(BaseHook):
 
         :rtype: paramiko.client.SSHClient
         """
-
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
         client = paramiko.SSHClient()
 
@@ -240,7 +239,6 @@ class SSHHook(BaseHook):
 
         :return: sshtunnel.SSHTunnelForwarder object
         """
-
         if local_port:
             local_bind_address = ('localhost', local_port)
         else:

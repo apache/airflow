@@ -49,7 +49,6 @@ def get_event_logs(session, limit, offset=None):
     """
     Get all log entries from event log
     """
-
     total_entries = session.query(func.count(Log.id)).scalar()
     event_logs = session.query(Log).order_by(Log.id).offset(offset).limit(limit).all()
     return event_log_collection_schema.dump(

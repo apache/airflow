@@ -43,7 +43,6 @@ def set_common_options(
     :param password: JDBC resource password
     :param driver: JDBC resource driver
     """
-
     spark_source = (
         spark_source.format('jdbc')
         .option('url', url)
@@ -110,7 +109,6 @@ def spark_read_from_jdbc(
     """
     Transfer data from JDBC source to Spark
     """
-
     # first set common options
     reader = set_common_options(spark_session.read, url, jdbc_table, user, password, driver)
 

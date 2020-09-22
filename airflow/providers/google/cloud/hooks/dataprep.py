@@ -63,7 +63,6 @@ class GoogleDataprepHook(BaseHook):
         :param job_id: The ID of the job that will be fetched
         :type job_id: int
         """
-
         endpoint_path = f"v4/jobGroups/{job_id}/jobs"
         url: str = os.path.join(self._base_url, endpoint_path)
         response = requests.get(url, headers=self._headers)
@@ -83,7 +82,6 @@ class GoogleDataprepHook(BaseHook):
         :param include_deleted: if set to "true", will include deleted objects
         :type include_deleted: bool
         """
-
         params: Dict[str, Any] = {"embed": embed, "includeDeleted": include_deleted}
         endpoint_path = f"v4/jobGroups/{job_group_id}"
         url: str = os.path.join(self._base_url, endpoint_path)
@@ -102,7 +100,6 @@ class GoogleDataprepHook(BaseHook):
         :param body_request: The identifier for the recipe you would like to run.
         :type body_request: dict
         """
-
         endpoint_path = "v4/jobGroups"
         url: str = os.path.join(self._base_url, endpoint_path)
         response = requests.post(url, headers=self._headers, data=json.dumps(body_request))

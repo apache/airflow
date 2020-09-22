@@ -67,7 +67,6 @@ def correct_maybe_zipped(fileloc):
     If the path contains a folder with a .zip suffix, then
     the folder is treated as a zip archive and path to zip is returned.
     """
-
     _, archive, _ = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
         return archive
@@ -99,7 +98,6 @@ def find_path_from_directory(
 
     :return : file path not to be ignored.
     """
-
     patterns_by_dir: Dict[str, List[Pattern[str]]] = {}
 
     for root, dirs, files in os.walk(str(base_dir_path), followlinks=True):
@@ -174,7 +172,6 @@ def list_py_file_paths(directory: str,
 
 def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
     """Finds file paths of all DAG files."""
-
     for file_path in find_path_from_directory(
             directory, ".airflowignore"):
         try:

@@ -232,7 +232,6 @@ def dag_edges(dag):
         upstream_join_id >> task5
         upstream_join_id >> task6
     """
-
     # Edges to add between TaskGroup
     edges_to_add = set()
     # Edges to remove between individual tasks that are replaced by edges_to_add.
@@ -370,7 +369,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         An endpoint helping check the health status of the Airflow instance,
         including metadatabase and scheduler.
         """
-
         payload = {
             'metadatabase': {'status': 'unhealthy'}
         }

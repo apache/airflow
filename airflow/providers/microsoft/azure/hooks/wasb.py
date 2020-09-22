@@ -184,7 +184,6 @@ class WasbHook(BaseHook):
             `BlockBlobService.create_blob_from_path()` takes.
         :type kwargs: object
         """
-
         if is_prefix:
             blobs_to_delete = [
                 blob.name for blob in self.connection.list_blobs(container_name, prefix=blob_name, **kwargs)

@@ -361,7 +361,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         Adds the DAG into the bag, recurses into sub dags.
         Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
-
         test_cycle(dag)  # throws if a task cycle is found
 
         dag.resolve_template_files()

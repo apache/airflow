@@ -110,7 +110,6 @@ class TransferJobPreprocessor:
         :return: Preprocessed body
         :rtype: dict
         """
-
         self._inject_aws_credentials()
         self._reformat_schedule()
         return self.body

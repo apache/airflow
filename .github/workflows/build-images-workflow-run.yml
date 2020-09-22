@@ -53,6 +53,7 @@ jobs:
       sourceEvent: ${{ steps.cancel.outputs.sourceEvent }}
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
       buildImages: ${{ steps.build-images.outputs.buildImages }}
+      upgradeToLatestConstraints: ${{ steps.upgrade-constraints.upgradeToLatestConstraints }}
     if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
       - name: "Cancel duplicated 'CI Build' runs"
@@ -140,6 +141,15 @@ jobs:
           else
               echo "::set-output name=docker-cache::pulled"
           fi
+      - name: "Set upgrade to latest constraints"
+        id: upgrade-constraints
+        run: |
+          if [[ ${{ needs.cancel-workflow-runs.outputs.sourceEvent == 'push' ||
+              needs.cancel-workflow-runs.outputs.sourceEvent == 'scheduled' }} == 'true' ]]; then
+              echo "::set-output name=upgradeToLatestConstraints::${{ github.sha }}"
+          else
+              echo "::set-output name=upgradeToLatestConstraints::false"
+          fi
 
   build-info:
     # The name is such long because we are using it to cancel duplicated 'Build Images' runs
@@ -210,9 +220,7 @@ jobs:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.workflow_run.id }}
-      UPGRADE_TO_LATEST_CONSTRAINTS: >
-        ${{ needs.cancel-workflow-runs.outputs.sourceEvent == 'push' ||
-        needs.cancel-workflow-runs.outputs.sourceEvent == 'scheduled' }}
+      UPGRADE_TO_LATEST_CONSTRAINTS: ${{ needs.cancel-workflow-runs.outputs.upgradeToLatestConstraints }}
       DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
     steps:
       - name: >

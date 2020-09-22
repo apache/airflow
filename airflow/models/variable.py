@@ -156,7 +156,6 @@ class Variable(Base, LoggingMixin):
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Sessions
         """
-
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:

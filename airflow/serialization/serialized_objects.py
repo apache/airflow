@@ -129,7 +129,6 @@ class BaseSerialization:
     @classmethod
     def _is_excluded(cls, var: Any, attrname: str, instance: Any) -> bool:
         """Types excluded from serialization."""
-
         if var is None:
             if not cls._is_constructor_param(attrname, instance):
                 # Any instance attribute, that is not a constructor argument, we exclude None as the default

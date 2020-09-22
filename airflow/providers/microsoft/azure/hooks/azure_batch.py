@@ -192,7 +192,6 @@ class AzureBatchHook(BaseHook):
         :param sku_starts_with: The start name of the sku to search
         :type sku_starts_with: str
         """
-
         options = batch_models.AccountListSupportedImagesOptions(filter="verificationType eq 'verified'")
         images = self.connection.account.list_supported_images(account_list_supported_images_options=options)
         # pick the latest supported sku
@@ -243,7 +242,6 @@ class AzureBatchHook(BaseHook):
         :param display_name: The display name for the job
         :type display_name: str
         """
-
         job = batch_models.JobAddParameter(
             id=job_id,
             pool_info=batch_models.PoolInformation(pool_id=pool_id),

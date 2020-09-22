@@ -212,7 +212,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :param metadata: log metadata, used for steaming log download.
         :type metadata: dict
         """
-
         # Offset is the unique key for sorting logs given log_id.
         search = Search(using=self.client).query('match_phrase', log_id=log_id).sort('offset')
 

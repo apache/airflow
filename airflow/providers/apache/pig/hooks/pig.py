@@ -49,7 +49,6 @@ class PigCliHook(BaseHook):
         >>> ("hdfs://" in result)
         True
         """
-
         with TemporaryDirectory(prefix='airflow_pigop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:
                 f.write(pig.encode('utf-8'))

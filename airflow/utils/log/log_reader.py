@@ -54,7 +54,6 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-
         logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
         metadata = metadatas[0]
         return logs, metadata
@@ -72,7 +71,6 @@ class TaskLogReader:
         :type metadata: dict
         :rtype: Iterator[str]
         """
-
         if try_number is None:
             next_try = ti.next_try_number
             try_numbers = list(range(1, next_try))
@@ -90,7 +88,6 @@ class TaskLogReader:
     @cached_property
     def log_handler(self):
         """Log handler, which is configured to read logs."""
-
         logger = logging.getLogger('airflow.task')
         task_log_reader = conf.get('logging', 'task_log_reader')
         handler = next((handler for handler in logger.handlers if handler.name == task_log_reader), None)
@@ -99,7 +96,6 @@ class TaskLogReader:
     @property
     def supports_read(self):
         """Checks if a read operation is supported by a current log handler."""
-
         return hasattr(self.log_handler, 'read')
 
     @property
@@ -117,7 +113,6 @@ class TaskLogReader:
         :type try_number: Optional[int]
         :rtype: str
         """
-
         filename_template = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
         attachment_filename = render_log_filename(
             ti=ti,

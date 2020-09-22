@@ -176,7 +176,6 @@ class HiveToDruidOperator(BaseOperator):
         :param columns: List of all the columns that are available
         :type columns: list
         """
-
         # backward compatibility for num_shards,
         # but target_partition_size is the default setting
         # and overwrites the num_shards
