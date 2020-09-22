@@ -51,15 +51,10 @@ class ImportChange(
 
     @classmethod
     def from_new_old_paths(cls, new_path, old_path):
-        providers_package = new_path.split(".")[1] if "providers" in new_path else None
+        providers_package = new_path.split(".")[2] if "providers" in new_path else None
         return cls(
             old_path=old_path, new_path=new_path, providers_package=providers_package
         )
-
-
-ALL_CHANGES = [
-    ImportChange.from_new_old_paths(*args) for args in ALL
-]  # type: List[ImportChange]
 
 
 class ImportChangesRule(BaseRule):
@@ -71,12 +66,16 @@ class ImportChangesRule(BaseRule):
         "https://github.com/apache/airflow#backport-packages"
     )
 
+    ALL_CHANGES = [
+        ImportChange.from_new_old_paths(*args) for args in ALL
+    ]  # type: List[ImportChange]
+
     @staticmethod
     def _check_file(file_path):
         problems = []
         with open(file_path, "r") as file:
             content = file.read()
-            for change in ALL_CHANGES:
+            for change in ImportChangesRule.ALL_CHANGES:
                 if change.old_class in content:
                     problems.append(change.info(file_path))
         return problems
