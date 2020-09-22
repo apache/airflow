@@ -308,7 +308,7 @@ In case the problems are not solved, you can set the VERBOSE_COMMANDS variable t
 
 
 Then run the failed command, copy-and-paste the output from your terminal to the
-`Airflow Slack <https://apache-airflow-slack.herokuapp.com/>`_  #airflow-breeze channel and
+`Airflow Slack <https://s.apache.org/airflow-slack/>`_  #airflow-breeze channel and
 describe your problem.
 
 Other uses of the Airflow Breeze environment

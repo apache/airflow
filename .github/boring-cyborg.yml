@@ -221,7 +221,7 @@ firstPRWelcomeComment: >
 
   Mailing List: dev@airflow.apache.org
 
-  Slack: https://apache-airflow-slack.herokuapp.com/
+  Slack: https://s.apache.org/airflow-slack/
 
 # Comment to be posted to congratulate user on their first merged PR
 firstPRMergeComment: >
