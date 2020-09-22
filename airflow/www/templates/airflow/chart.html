@@ -25,6 +25,8 @@
   {{ super() }}
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('tree.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('nv.d3.min.css') }}">
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('nv.d3.min.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -59,10 +61,4 @@
 {% block tail %}
   {{ super() }}
   <div class="container"></div>
-{% endblock %}
-
-{% block tail_js %}
-  {{ super() }}
-  <script src="{{ url_for_asset('d3.min.js') }}"></script>
-  <script src="{{ url_for_asset('nv.d3.min.js') }}"></script>
 {% endblock %}
