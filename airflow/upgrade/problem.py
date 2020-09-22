@@ -16,7 +16,7 @@
 # under the License.
 
 from __future__ import absolute_import
-from typing import NamedTuple, List
+from typing import NamedTuple, List, Iterable
 
 from airflow.upgrade.rules.base_rule import BaseRule
 
@@ -36,5 +36,10 @@ class RuleStatus(NamedTuple(
     @classmethod
     def from_rule(cls, rule):
         # type: (BaseRule) -> RuleStatus
-        messages = rule.check()
-        return cls(rule=rule, messages=list(messages))
+        messages = []  # type: List[str]
+        result = rule.check()
+        if isinstance(result, str):
+            messages = [result]
+        elif isinstance(result, Iterable):
+            messages = list(result)
+        return cls(rule=rule, messages=messages)
