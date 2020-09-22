@@ -616,3 +616,4 @@ dags:
     containerRepository: k8s.gcr.io/git-sync
     containerTag: v3.1.6
     containerName: git-sync
+    uid: 65533
