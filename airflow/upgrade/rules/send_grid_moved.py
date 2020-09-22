@@ -37,7 +37,5 @@ has been moved to airflow.providers.
             msg = "Email backend option uses airflow.contrib module. Please use new module: {}".format(
                 email_provider_path)
             return [msg]
-
-
-
-
+        else:
+            return []
