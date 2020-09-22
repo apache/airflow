@@ -32,7 +32,7 @@ such as :ref:`Google Cloud Secret Manager<google_cloud_secret_manager_backend>`,
     If you use an alternative secrets backend, check inside your backend to view the values of your variables and connections.
 
 You can also get Airflow configurations with sensitive data from the Secrets Backend.
-See :doc:`../../howto/set-config` for more details.
+See :doc:`../../../howto/set-config` for more details.
 
 Search path
 ^^^^^^^^^^^
