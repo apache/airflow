@@ -31,7 +31,6 @@ has been moved to airflow.providers.
 
     def check(self):
         email_conf = conf.get(section="email", key="email_backend")
-
         email_contrib_path = "airflow.contrib.utils.sendgrid"
         if email_contrib_path in email_conf:
             email_provider_path = "airflow.providers.sendgrid.utils.emailer"
