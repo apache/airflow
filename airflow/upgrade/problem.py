@@ -31,7 +31,7 @@ class RuleStatus(NamedTuple(
 
     @property
     def is_success(self):
-        return bool(self.messages)
+        return len(self.messages) == 0
 
     @classmethod
     def from_rule(cls, rule):

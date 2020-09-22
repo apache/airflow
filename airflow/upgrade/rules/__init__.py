@@ -14,3 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
+
+
+def get_rules():
+    """Automatically discover all rules"""
+    rule_classes = []
+    path = os.path.dirname(os.path.abspath(__file__))
+    for file in os.listdir(path):
+        if not file.endswith(".py") or file in ("__init__.py", "base_rule.py"):
+            continue
+        py_file = file[:-3]
+        mod = __import__(".".join([__name__, py_file]), fromlist=[py_file])
+        classes = [getattr(mod, x) for x in dir(mod) if isinstance(getattr(mod, x), type)]
+        for cls in classes:
+            bases = [b.__name__ for b in cls.__bases__]
+            if cls.__name__ != "BaseRule" and "BaseRule" in bases:
+                rule_classes.append(cls)
+    return rule_classes
