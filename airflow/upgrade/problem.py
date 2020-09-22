@@ -36,5 +36,11 @@ class RuleStatus(NamedTuple(
     @classmethod
     def from_rule(cls, rule):
         # type: (BaseRule) -> RuleStatus
-        messages = rule.check()
-        return cls(rule=rule, messages=list(messages))
+        result = rule.check()
+        if not result:
+            messages = []
+        elif isinstance(result, str):
+            messages = [result]
+        else:
+            messages = list(result)
+        return cls(rule=rule, messages=messages)
