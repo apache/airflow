@@ -20,9 +20,10 @@ from typing import List
 
 from airflow.upgrade.formatters import BaseFormatter
 from airflow.upgrade.problem import RuleStatus
-from airflow.upgrade.rules.base_rule import BaseRule, RULES
+from airflow.upgrade.rules import get_rules
+from airflow.upgrade.rules.base_rule import BaseRule
 
-ALL_RULES = [cls() for cls in RULES]  # type: List[BaseRule]
+ALL_RULES = [cls() for cls in get_rules()]  # type: List[BaseRule]
 
 
 def check_upgrade(formatter):
