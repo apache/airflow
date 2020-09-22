@@ -1071,35 +1071,35 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             # pylint: disable=bad-whitespace
             # expected, dag_count, task_count, start_ago, schedule_interval, shape
             # One DAG with one task per DAG file
-            ( 1,  1,  1, "1d",  "None",  "no_structure"),  # noqa
-            ( 1,  1,  1, "1d",  "None",        "linear"),  # noqa
-            (13,  1,  1, "1d", "@once",  "no_structure"),  # noqa
-            (13,  1,  1, "1d", "@once",        "linear"),  # noqa
-            (13,  1,  1, "1d",   "30m",  "no_structure"),  # noqa
-            (13,  1,  1, "1d",   "30m",        "linear"),  # noqa
-            (13,  1,  1, "1d",   "30m",   "binary_tree"),  # noqa
-            (13,  1,  1, "1d",   "30m",          "star"),  # noqa
-            (13,  1,  1, "1d",   "30m",          "grid"),  # noqa
+            ([ 1,   1,   1,  1],  1,  1, "1d",  "None",  "no_structure"),  # noqa
+            ([ 1,   1,   1,  1],  1,  1, "1d",  "None",        "linear"),  # noqa
+            ([ 9,   5,   5,  5],  1,  1, "1d", "@once",  "no_structure"),  # noqa
+            ([ 9,   5,   5,  5],  1,  1, "1d", "@once",        "linear"),  # noqa
+            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",  "no_structure"),  # noqa
+            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",        "linear"),  # noqa
+            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",   "binary_tree"),  # noqa
+            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",          "star"),  # noqa
+            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",          "grid"),  # noqa
             # One DAG with five tasks per DAG  file
-            ( 1,  1,  5, "1d",  "None",  "no_structure"),  # noqa
-            ( 1,  1,  5, "1d",  "None",        "linear"),  # noqa
-            (13,  1,  5, "1d", "@once",  "no_structure"),  # noqa
-            (14,  1,  5, "1d", "@once",        "linear"),  # noqa
-            (13,  1,  5, "1d",   "30m",  "no_structure"),  # noqa
-            (14,  1,  5, "1d",   "30m",        "linear"),  # noqa
-            (14,  1,  5, "1d",   "30m",   "binary_tree"),  # noqa
-            (14,  1,  5, "1d",   "30m",          "star"),  # noqa
-            (14,  1,  5, "1d",   "30m",          "grid"),  # noqa
+            ([ 1,   1,   1,  1],  1,  5, "1d",  "None",  "no_structure"),  # noqa
+            ([ 1,   1,   1,  1],  1,  5, "1d",  "None",        "linear"),  # noqa
+            ([ 9,   5,   5,  5],  1,  5, "1d", "@once",  "no_structure"),  # noqa
+            ([10,   6,   6,  6],  1,  5, "1d", "@once",        "linear"),  # noqa
+            ([ 9,  12,  15, 18],  1,  5, "1d",   "30m",  "no_structure"),  # noqa
+            ([10,  14,  18, 22],  1,  5, "1d",   "30m",        "linear"),  # noqa
+            ([10,  14,  18, 22],  1,  5, "1d",   "30m",   "binary_tree"),  # noqa
+            ([10,  14,  18, 22],  1,  5, "1d",   "30m",          "star"),  # noqa
+            ([10,  14,  18, 22],  1,  5, "1d",   "30m",          "grid"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
-            ( 1, 10, 10, "1d",  "None",  "no_structure"),  # noqa
-            ( 1, 10, 10, "1d",  "None",        "linear"),  # noqa
-            (121, 10, 10, "1d", "@once",  "no_structure"),  # noqa
-            (131, 10, 10, "1d", "@once",        "linear"),  # noqa
-            (121, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
-            (131, 10, 10, "1d",   "30m",        "linear"),  # noqa
-            (131, 10, 10, "1d",   "30m",   "binary_tree"),  # noqa
-            (131, 10, 10, "1d",   "30m",          "star"),  # noqa
-            (131, 10, 10, "1d",   "30m",          "grid"),  # noqa
+            ([ 1,   1,   1,   1], 10, 10, "1d",  "None",  "no_structure"),  # noqa
+            ([ 1,   1,   1,   1], 10, 10, "1d",  "None",        "linear"),  # noqa
+            ([81,  41,  41,  41], 10, 10, "1d", "@once",  "no_structure"),  # noqa
+            ([91,  51,  51,  51], 10, 10, "1d", "@once",        "linear"),  # noqa
+            ([81, 111, 111, 111], 10, 10, "1d",   "30m",  "no_structure"),  # noqa
+            ([91, 131, 131, 131], 10, 10, "1d",   "30m",        "linear"),  # noqa
+            ([91, 131, 131, 131], 10, 10, "1d",   "30m",   "binary_tree"),  # noqa
+            ([91, 131, 131, 131], 10, 10, "1d",   "30m",          "star"),  # noqa
+            ([91, 131, 131, 131], 10, 10, "1d",   "30m",          "grid"),  # noqa
             # pylint: enable=bad-whitespace
         ]
     )
