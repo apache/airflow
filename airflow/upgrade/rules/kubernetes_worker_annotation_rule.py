@@ -17,11 +17,13 @@
 
 from __future__ import absolute_import
 
+import json
+
 from airflow import conf
 from airflow.upgrade.rules.base_rule import BaseRule
 
 
-class KubernetesWorkerAnnotationRule(BaseRule):
+class KubernetesWorkerAnnotationsRule(BaseRule):
 
     title = "kubernetes_annotations configuration section has been removed"
 
@@ -34,16 +36,18 @@ class KubernetesWorkerAnnotationRule(BaseRule):
     def check(self):
         kub_annotations = conf.getsection('kubernetes_annotations')
         if kub_annotations:
-            return (
+            annotations_json = json.dumps(kub_annotations)
+            pairs = "\n".join(["%s = %s" % kv for kv in kub_annotations.items()])
+
+            return [
                 "For example:\n"
                 "\n"
                 "[kubernetes_annotations]\n"
-                "annotation_key = annotation_value\n"
-                "annotation_key2 = annotation_value2\n"
+                '{pairs}'
                 "\n"
                 "Should be written as:\n"
                 "\n"
                 "[kubernetes]\n"
-                'worker_annotations = { "annotation_key" : "annotation_value",'
-                ' "annotation_key2" : "annotation_value2" }'
-            )
+                'worker_annotations = {annotations_json}'.format(pairs=pairs,
+                                                                 annotations_json=annotations_json)
+            ]
