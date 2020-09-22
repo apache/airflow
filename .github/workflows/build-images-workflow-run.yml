@@ -32,7 +32,6 @@ env:
   DB_RESET: "true"
   VERBOSE: "true"
   UPGRADE_TO_LATEST_CONSTRAINTS: false
-  PYTHON_MAJOR_MINOR_VERSION: 3.6
   USE_GITHUB_REGISTRY: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
@@ -160,10 +159,16 @@ jobs:
     needs: [cancel-workflow-runs]
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
+    outputs:
+      pythonVersions: ${{ steps.versions.outputs.python-versions }}
+      allPythonVersions: ${{ steps.versions.outputs.all-python-versions }}
+      defaultPythonVersion: ${{ steps.versions.outputs.default-python-version }}
     if: >
       needs.cancel-workflow-runs.outputs.buildImages == 'true' &&
       (github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule')
     steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
       - name: >
           Event: ${{ needs.cancel-workflow-runs.outputs.sourceEvent }}
           Repo: ${{ needs.cancel-workflow-runs.outputs.sourceHeadRepo }}
@@ -174,15 +179,28 @@ jobs:
           Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
         run: |
           printenv
+      - name: Set versions
+        id: versions
+        run: |
+          . ./scripts/ci/libraries/_script_init.sh
+
+          initialization::ga_output python-versions \
+              "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
+          initialization::ga_output default-python-version "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[0]}"
+
+          initialization::ga_output all-python-versions \
+              "$(initialization::parameters_to_json "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
 
   build-images:
     timeout-minutes: 80
     name: "Build ${{matrix.image-type}} images ${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [cancel-workflow-runs]
+    needs: [build-info, cancel-workflow-runs]
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
+      # We need to attempt to build all possible versions here because workflow_run
+      # event is run from master for both master and v1-10-tests
+        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
         image-type: [CI, PROD]
       fail-fast: true
     if: >
@@ -239,7 +257,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: 3.6
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Override 'scripts/ci' with the ${{ github.ref }} version so that the PR cannot override it."
         # We should not override those scripts which become part of the image as they will not be

@@ -62,6 +62,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         or DAG does not exist (default value: False).
     :type check_existence: bool
     """
+
     template_fields = ['external_dag_id', 'external_task_id']
     ui_color = '#19647e'
 
@@ -239,6 +240,7 @@ class ExternalTaskMarker(DummyOperator):
         this number if necessary. However, too many levels of transitive dependencies will make
         it slower to clear tasks in the web UI.
     """
+
     template_fields = ['external_dag_id', 'external_task_id', 'execution_date']
     ui_color = '#19647e'
 

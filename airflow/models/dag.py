@@ -201,6 +201,7 @@ class DAG(BaseDag, LoggingMixin):
     :param tags: List of tags to help filtering DAGS in the UI.
     :type tags: List[str]
     """
+
     _comps = {
         'dag_id',
         'task_ids',
@@ -1770,6 +1771,7 @@ class DagTag(Base):
     """
     A tag name per dag, to allow quick filtering in the DAG view.
     """
+
     __tablename__ = "dag_tag"
     name = Column(String(100), primary_key=True)
     dag_id = Column(String(ID_LEN), ForeignKey('dag.dag_id'), primary_key=True)

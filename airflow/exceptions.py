@@ -30,16 +30,19 @@ class AirflowException(Exception):
     Base class for all Airflow's errors.
     Each custom exception should be derived from this class
     """
+
     status_code = 500
 
 
 class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request"""
+
     status_code = 400
 
 
 class AirflowNotFoundException(AirflowException):
     """Raise when the requested object/resource is not available in the system"""
+
     status_code = 404
 
 
@@ -58,6 +61,7 @@ class AirflowRescheduleException(AirflowException):
     :param reschedule_date: The date when the task should be rescheduled
     :type reschedule_date: datetime.datetime
     """
+
     def __init__(self, reschedule_date):
         super().__init__()
         self.reschedule_date = reschedule_date
@@ -153,6 +157,7 @@ class BackfillUnfinished(AirflowException):
     :param message: The human-readable description of the exception
     :param ti_status: The information about all task statuses
     """
+
     def __init__(self, message, ti_status):
         super().__init__(message)
         self.ti_status = ti_status
@@ -160,6 +165,7 @@ class BackfillUnfinished(AirflowException):
 
 class FileSyntaxError(NamedTuple):
     """Information about a single error in a file."""
+
     line_no: Optional[int]
     message: str
 
@@ -175,6 +181,7 @@ class AirflowFileParseException(AirflowException):
     :param file_path: A processed file that contains errors
     :param parse_errors: File syntax errors
     """
+
     def __init__(self, msg: str, file_path: str, parse_errors: List[FileSyntaxError]) -> None:
         super().__init__(msg)
         self.msg = msg

@@ -140,6 +140,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         defaults to kubernetes default
     :type termination_grace_period: int
     """
+
     template_fields: Iterable[str] = (
         'image', 'cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
 

@@ -55,6 +55,7 @@ class BaseExecutor(LoggingMixin):
     :param parallelism: how many jobs should run at one time. Set to
         ``0`` for infinity
     """
+
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism

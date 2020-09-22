@@ -48,6 +48,7 @@ class PodDefaults:
     """
     Static defaults for Pods
     """
+
     XCOM_MOUNT_PATH = '/airflow/xcom'
     SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
     XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
@@ -130,6 +131,7 @@ class PodGenerator:
     :param extract_xcom: Whether to bring up a container for xcom
     :type extract_xcom: bool
     """
+
     def __init__(  # pylint: disable=too-many-arguments,too-many-locals
         self,
         pod: Optional[k8s.V1Pod] = None,

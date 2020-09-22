@@ -48,6 +48,7 @@ class FileLoadStat(NamedTuple):
     """
     Information about single file
     """
+
     file: str
     duration: timedelta
     dag_num: int

@@ -149,6 +149,7 @@ class TIDepStatus(NamedTuple):
     Dependency status for a specific task instance indicating whether or not the task
     instance passed the dependency.
     """
+
     dep_name: str
     passed: bool
     reason: str

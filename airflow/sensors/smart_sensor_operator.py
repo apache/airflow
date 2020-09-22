@@ -70,6 +70,7 @@ class SensorWork:
 
     :param si: The sensor_instance ORM object.
     """
+
     def __init__(self, si):
         self.dag_id = si.dag_id
         self.task_id = si.task_id
@@ -170,6 +171,7 @@ class CachedPokeWork:
     last_poke_time: The latest time this cached work being called.
     to_flush: If we should flush the cached work.
     """
+
     def __init__(self):
         self.state = None
         self.sensor_task = None
@@ -209,6 +211,7 @@ class SensorExceptionInfo:
     Hold sensor exception information and the type of exception. For possible transient
     infra failure, give the task more chance to retry before fail it.
     """
+
     def __init__(self,
                  exception_info,
                  is_infra_failure=False,
@@ -312,6 +315,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
     :param poke_timeout: Time, in seconds before the task times out and fails.
     :type poke_timeout: int
     """
+
     ui_color = '#e6f1f2'
 
     @apply_defaults

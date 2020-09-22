@@ -1000,6 +1000,12 @@ function breeze::parse_arguments() {
             export START_AIRFLOW="true"
             shift
             ;;
+        --init-script)
+            export INIT_SCRIPT_FILE="${2}"
+            echo "The initialization file is in ${INIT_SCRIPT_FILE}"
+            echo
+            shift 2
+            ;;
         -S | --version-suffix-for-pypi)
             if [[ -n ${VERSION_SUFFIX_FOR_SVN=} ]]; then
                 echo
@@ -1965,6 +1971,11 @@ ${FORMATTED_INTEGRATIONS}
         Starts the Airflow Scheduler and Webserver in two tmux panes, a third one will be
         available for the usual use cases. In case the database is not initialized it will
         run also 'airflow db init' and create an Admin user with credentials admin/admin.
+
+--init-script <INIT_SCRIPT_FILE>
+        Initialization script name - Sourced from files/airflow-breeze-config. Default value
+        init.sh. It will be executed after the environment is configured and started (in case
+        --start-airflow is used).
 
 "
 }

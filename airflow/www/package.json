@@ -60,7 +60,6 @@
   },
   "dependencies": {
     "bootstrap-3-typeahead": "^4.0.2",
-    "bootstrap-toggle": "^2.2.2",
     "d3": "^3.4.4",
     "d3-tip": "^0.9.1",
     "dagre-d3": "^0.6.4",

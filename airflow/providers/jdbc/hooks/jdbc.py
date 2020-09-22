@@ -16,9 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Optional
+
 import jaydebeapi
 
 from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.models.connection import Connection
 
 
 class JdbcHook(DbApiHook):
@@ -34,23 +37,23 @@ class JdbcHook(DbApiHook):
     default_conn_name = 'jdbc_default'
     supports_autocommit = True
 
-    def get_conn(self):
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
-        host = conn.host
-        login = conn.login
-        psw = conn.password
-        jdbc_driver_loc = conn.extra_dejson.get('extra__jdbc__drv_path')
-        jdbc_driver_name = conn.extra_dejson.get('extra__jdbc__drv_clsname')
+    def get_conn(self) -> jaydebeapi.Connection:
+        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        host: str = conn.host
+        login: str = conn.login
+        psw: str = conn.password
+        jdbc_driver_loc: Optional[str] = conn.extra_dejson.get('extra__jdbc__drv_path')
+        jdbc_driver_name: Optional[str] = conn.extra_dejson.get('extra__jdbc__drv_clsname')
 
         conn = jaydebeapi.connect(
             jclassname=jdbc_driver_name,
             url=str(host),
             driver_args=[str(login), str(psw)],
-            jars=jdbc_driver_loc.split(","),
+            jars=jdbc_driver_loc.split(",") if jdbc_driver_loc else None,
         )
         return conn
 
-    def set_autocommit(self, conn, autocommit):
+    def set_autocommit(self, conn: jaydebeapi.Connection, autocommit: bool) -> None:
         """
         Enable or disable autocommit for the given connection.
 
@@ -61,7 +64,7 @@ class JdbcHook(DbApiHook):
         """
         conn.jconn.setAutoCommit(autocommit)
 
-    def get_autocommit(self, conn):
+    def get_autocommit(self, conn: jaydebeapi.Connection) -> bool:
         """
         Get autocommit setting for the provided connection.
         Return True if conn.autocommit is set to True.

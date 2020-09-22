@@ -39,6 +39,7 @@ class FileSensor(BaseSensorOperator):
         the base path set within the connection), can be a glob.
     :type filepath: str
     """
+
     template_fields = ('filepath',)
     ui_color = '#91818a'
 

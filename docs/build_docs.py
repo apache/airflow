@@ -42,6 +42,7 @@ class DocBuildError(NamedTuple):
     """
     Errors found in docs build.
     """
+
     file_path: Optional[str]
     line_no: Optional[int]
     message: str
@@ -67,6 +68,7 @@ class SpellingError(NamedTuple):
     """
     Spelling errors found when building docs.
     """
+
     file_path: Optional[str]
     line_no: Optional[int]
     spelling: Optional[str]

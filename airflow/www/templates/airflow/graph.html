@@ -84,7 +84,7 @@
 </button>
 <div id="svg_container">
 
-  <svg width="{{ width }}" height="{{ height }}">
+  <svg id="graph-svg" width="{{ width }}" height="{{ height }}">
     <g id='dig' transform="translate(20,20)"></g>
     <filter id="blur-effect-1">
       <feGaussianBlur stdDeviation="3"></feGaussianBlur>
@@ -155,8 +155,8 @@
       .setDefaultEdgeLabel(function() { return { lineInterpolate: 'basis' } });
 
     var render = dagreD3.render(),
-      svg = d3.select("svg"),
-      innerSvg = d3.select("svg g");
+      svg = d3.select("#graph-svg"),
+      innerSvg = d3.select("#graph-svg g");
 
     // Update the page to show the latest DAG.
     function draw() {

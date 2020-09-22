@@ -33,6 +33,7 @@ class AirflowJsonEncoder(json.JSONEncoder):
     """
     Custom Airflow json encoder implementation.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.default = self._default

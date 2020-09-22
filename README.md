@@ -44,6 +44,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
 - [Official source code](#official-source-code)
+- [Convenience packages](#convenience-packages)
 - [Project Focus](#project-focus)
 - [Principles](#principles)
 - [User Interface](#user-interface)
@@ -87,7 +88,7 @@ Official Docker (container) images for Apache Airflow are described in [IMAGES.r
 
 ## Installing from PyPI
 
-Airflow is published as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
+We publish Apache Airflow as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
 because Airflow is a bit of both a library and application. Libraries usually keep their dependencies open and
 applications usually pin them, but we should do neither and both at the same time. We decided to keep
 our dependencies as open as possible (in `setup.py`) so users can install different versions of libraries
@@ -116,31 +117,42 @@ pip install apache-airflow[postgres,google]==1.10.12 \
 
 ## Official source code
 
-Apache Airflow is an [Apache Software Foundation](http://www.apache.org) (ASF) project, and our official source code releases:
+Apache Airflow is an [Apache Software Foundation](http://www.apache.org) (ASF) project,
+and our official source code releases:
 
 - Follow the [ASF Release Policy](http://www.apache.org/legal/release-policy.html)
 - Can be downloaded from [the ASF Distribution Directory](https://downloads.apache.org)
 - Are cryptographically signed by the release manager
-- Are officially voted on by the PMC members during the [Release Approval Process](http://www.apache.org/legal/release-policy.html#release-approval)
+- Are officially voted on by the PMC members during the
+  [Release Approval Process](http://www.apache.org/legal/release-policy.html#release-approval)
 
-Following the ASF rules, the source packages released must be sufficient for a user to build and test the release provided they have access to the appropriate platform and tools.
+Following the ASF rules, the source packages released must be sufficient for a user to build and test the
+release provided they have access to the appropriate platform and tools.
 
-Other ways of retrieving source code are "convenience" methods. For example:
+## Convenience packages
 
-- Tagging in GitHub to mark the git project sources that were used to generate official source packages
+There are other ways of installing and using Airflow. Those are "convenience" methods - they are
+not "official releases" as stated by the `ASF Release Policy`, but they can be used by the users
+who do not want to build the software themselves.
 
-We also have binary "convenience" packages:
+Those are - in the order of most common ways people install Airflow:
 
-- PyPI releases to install Airflow using standard python tools
-- Docker Images published in the [Apache Airflow DockerHub](https://hub.docker.com/repository/docker/apache/airflow).
+- [PyPI releases](https://pypi.org/project/apache-airflow/) to install Airflow using standard `pip` tool
+- [Docker Images](https://hub.docker.com/repository/docker/apache/airflow) to install airflow via
+  `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm` etc. You can
+  read more about using, customising, and extending the images in the
+  [Latest docs](https://airflow.readthedocs.io/en/latest/production-deployment.html), and
+  learn details on the internals in the [IMAGES.rst](IMAGES.rst) document.
+- [Tags in GitHub](https://github.com/apache/airflow/tags) to retrieve the git project sources that
+  were used to generate official source packages via git
 
-These artifacts are not official releases, but they are built using officially released sources.
-
-> Note: Airflow Summit 2020's ["Production Docker Image talk"](https://youtu.be/wDr3Y7q2XoI) explains context, architecture and customization/extension methods.
+All those artifacts are not official releases, but they are prepared using officially released sources.
+Some of those artifacts are "development" or "pre-release" ones, and they are clearly marked as such
+following the ASF Policy.
 
 ## Project Focus
 
-Airflow works best with workflows that are mostly static and slowly changing. When the structure is similar from one run to the next, it allows for clarity around unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](http://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
+Airflow works best with workflows that are mostly static and slowly changing. When the structure is similarfrom one run to the next, it allows for clarity around unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](http://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
 
 Airflow is commonly used to process data, but has the opinion that tasks should ideally be idempotent, and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [Xcom feature](https://airflow.apache.org/docs/stable/concepts.html#xcoms)). For high-volume, data-intensive tasks, a best practice is to delegate to external services that specialize on that type of work.
 

@@ -44,6 +44,7 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
     by adding attributes to message arguments and coloring error
     traceback.
     """
+
     def __init__(self, *args, **kwargs):
         kwargs["stream"] = sys.stdout or kwargs.get("stream")
         kwargs["log_colors"] = DEFAULT_COLORS

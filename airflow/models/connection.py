@@ -145,6 +145,7 @@ class Connection(Base, LoggingMixin):
     :param uri: URI address describing connection parameters.
     :type uri: str
     """
+
     __tablename__ = "connection"
 
     id = Column(Integer(), primary_key=True)

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -66,7 +66,7 @@ class EmrHook(AwsBaseHook):
             self.log.info('No cluster found for name %s', emr_cluster_name)
             return None
 
-    def create_job_flow(self, job_flow_overrides: Dict):
+    def create_job_flow(self, job_flow_overrides: Dict[str, Any]) -> Dict[str, Any]:
         """
         Creates a job flow using the config from the EMR connection.
         Keys of the json extra hash may have the arguments of the boto3

@@ -23,6 +23,7 @@ class TriggerRule:
     """
     Class with task's trigger rules.
     """
+
     ALL_SUCCESS = 'all_success'
     ALL_FAILED = 'all_failed'
     ALL_DONE = 'all_done'
