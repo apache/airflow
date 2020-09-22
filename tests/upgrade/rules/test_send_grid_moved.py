@@ -33,7 +33,7 @@ class TestSendGridEmailerMovedRule(TestCase):
         msg = "Email backend option uses airflow.contrib module. Please use new module: {}".format(
             email_provider_path)
         response = rule.check()
-        assert response, msg
+        assert response, [msg]
 
     @conf_vars({("email", "email_backend"): "airflow.providers.sendgrid.utils.emailer"})
     def test_valid_check(self):
