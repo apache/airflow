@@ -178,8 +178,8 @@ class TestSecurity(unittest.TestCase):
                 '.get_all_permissions_views')
     @mock.patch('airflow.www.security.AirflowSecurityManager'
                 '.get_user_roles')
-    def test_get_accessible_dag_ids(self, mock_get_user_roles,
-                                    mock_get_all_permissions_views):
+    def test_get_readable_dag_ids(self, mock_get_user_roles,
+                                  mock_get_all_permissions_views):
         user = mock.MagicMock()
         role_name = 'MyRole1'
         role_perms = ['can_dag_read']
@@ -192,7 +192,7 @@ class TestSecurity(unittest.TestCase):
 
         mock_get_user_roles.return_value = [role]
         self.assertEqual(self.security_manager
-                         .get_accessible_dag_ids(user), {'dag_id'})
+                         .get_readable_dag_ids(user), {'dag_id'})
 
     @mock.patch('airflow.www.security.AirflowSecurityManager._has_view_access')
     def test_has_access(self, mock_has_view_access):
