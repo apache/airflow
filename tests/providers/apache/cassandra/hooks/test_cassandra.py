@@ -43,7 +43,7 @@ class TestCassandraHook(unittest.TestCase):
                 host='host-1,host-2',
                 port='9042',
                 schema='test_keyspace',
-                extra='{"load_balancing_policy":"TokenAwarePolicy","protocol_version":"4"}',
+                extra='{"load_balancing_policy":"TokenAwarePolicy","protocol_version":4}',
             )
         )
         db.merge_conn(
