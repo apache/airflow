@@ -57,7 +57,8 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
     :type variables_prefix: str
-    :param config_prefix: Specifies the prefix of the secret to read to get Variables.
+    :param config_prefix: Specifies the prefix of the secret to read to get Airflow Configurations
+        containing secrets.
     :type config_prefix: str
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON). Mutually exclusive with
         gcp_keyfile_dict. use default credentials in the current environment if not provided.
