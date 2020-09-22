@@ -17,6 +17,8 @@
 # under the License.
 #
 
+from typing import Set
+
 from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
@@ -307,7 +309,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
 
-    def get_accessible_dag_ids(self, username=None):
+    def get_accessible_dag_ids(self, username=None) -> Set[str]:
         """
         Return a set of dags that user has access to(either read or write).
 
