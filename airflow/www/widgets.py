@@ -32,7 +32,7 @@ class AirflowDateTimePickerWidget:
 
     data_template = (
         '<div class="input-group datetime datetimepicker">'
-        '<span class="input-group-addon"><i class="fa fa-calendar cursor-hand"></i>'
+        '<span class="input-group-addon"><span class="material-icons cursor-hand">calendar_today</span>'
         "</span>"
         '<input class="form-control" %(text)s />'
         "</div>"

@@ -774,7 +774,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Get Dag details."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
-        title = "DAG details"
+        title = "DAG Details"
         root = request.args.get('root', '')
 
         states = (
@@ -827,7 +827,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         except AirflowException as e:  # pylint: disable=broad-except
             msg = "Error rendering template: " + escape(e)
             if e.__cause__:  # pylint: disable=using-constant-test
-                msg += Markup("<br/><br/>OriginalError: ") + escape(e.__cause__)
+                msg += Markup("<br><br>OriginalError: ") + escape(e.__cause__)
             flash(msg, "error")
         except Exception as e:  # pylint: disable=broad-except
             flash("Error rendering template: " + str(e), "error")
@@ -1062,11 +1062,11 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             "Unknown",
             "All dependencies are met but the task instance is not running. In most "
             "cases this just means that the task will probably be scheduled soon "
-            "unless:<br/>\n- The scheduler is down or under heavy load<br/>\n{}\n"
-            "<br/>\nIf this task instance does not start soon please contact your "
+            "unless:<br>\n- The scheduler is down or under heavy load<br>\n{}\n"
+            "<br>\nIf this task instance does not start soon please contact your "
             "Airflow administrator for assistance.".format(
                 "- This task instance already ran and had it's state changed manually "
-                "(e.g. cleared in the UI)<br/>" if ti.state == State.NONE else ""))]
+                "(e.g. cleared in the UI)<br>" if ti.state == State.NONE else ""))]
 
         # Use the scheduler's context to figure out which dependencies are not met
         dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
@@ -1792,10 +1792,10 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             """Graph Form class."""
 
             arrange = SelectField("Layout", choices=(
-                ('LR', "Left->Right"),
-                ('RL', "Right->Left"),
-                ('TB', "Top->Bottom"),
-                ('BT', "Bottom->Top"),
+                ('LR', "Left > Right"),
+                ('RL', "Right > Left"),
+                ('TB', "Top > Bottom"),
+                ('BT', "Bottom > Top"),
             ))
 
         form = GraphForm(data=dt_nr_dr_data)
@@ -2971,9 +2971,8 @@ class TaskInstanceModelView(AirflowModelView):
         """Formats log URL."""
         log_url = self.get('log_url')  # noqa pylint: disable=no-member
         return Markup(  # noqa
-            '<a href="{log_url}">'
-            '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
-            '</span></a>').format(log_url=log_url)
+            '<a href="{log_url}"><span class="material-icons" aria-hidden="true">reorder</span></a>'
+        ).format(log_url=log_url)
 
     def duration_f(self):
         """Formats duration."""

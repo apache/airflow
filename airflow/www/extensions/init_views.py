@@ -58,7 +58,6 @@ def init_appbuilder_views(app):
     appbuilder.add_view(views.PoolModelView, "Pools", category="Admin")
     appbuilder.add_view(views.VariableModelView, "Variables", category="Admin")
     appbuilder.add_view(views.XComModelView, "XComs", category="Admin")
-    appbuilder.add_view(views.VersionView, 'Version', category='About', category_icon='fa-th')
     # add_view_no_menu to change item position.
     # I added link in extensions.init_appbuilder_links.init_appbuilder_links
     appbuilder.add_view_no_menu(views.RedocView)

@@ -18,7 +18,6 @@
  */
 // global tiTooltip, taskTip
 
-
 // Assigning css classes based on state to nodes
 // Initiating the tooltips
 function update_nodes_states(task_instances) {
@@ -27,9 +26,9 @@ function update_nodes_states(task_instances) {
       return $(this).text() === task_id;
     })
       .parent().parent().parent().parent()
-      .attr("class", "node enter " + (ti.state ? ti.state : "no_status"))
-      .attr("data-toggle", "tooltip")
-      .on("mouseover", function (d) {
+      .attr('class', 'node enter ' + (ti.state ? ti.state : 'no_status'))
+      .attr('data-toggle', 'tooltip')
+      .on('mouseover', function (d) {
         const tt = tiTooltip(task_instances[task_id]);
         taskTip.show(tt, this);
       })
@@ -38,16 +37,16 @@ function update_nodes_states(task_instances) {
 }
 
 function initRefreshButton() {
-  d3.select("#refresh_button").on("click",
+  d3.select('#refresh_button').on('click',
     function () {
-      $("#loading").css("display", "block");
-      $("div#svg_container").css("opacity", "0.2");
+      $('#loading').css('display', 'block');
+      $('div#svg_container').css('opacity', '0.2');
       $.get(getTaskInstanceURL)
         .done(
           function (task_instances) {
             update_nodes_states(JSON.parse(task_instances));
-            $("#loading").hide();
-            $("div#svg_container").css("opacity", "1");
+            $('#loading').hide();
+            $('div#svg_container').css('opacity', '1');
             $('#error').hide();
           }
         ).fail(function (jqxhr, textStatus, err) {
@@ -57,8 +56,7 @@ function initRefreshButton() {
         $('#chart_section').hide(1000);
         $('#datatable_section').hide(1000);
       });
-    }
-  );
+    });
 }
 
 initRefreshButton();

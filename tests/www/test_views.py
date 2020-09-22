@@ -624,7 +624,7 @@ class TestAirflowBaseViews(TestBase):
     def test_dag_details(self):
         url = 'dag_details?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
-        self.check_content_in_response('DAG details', resp)
+        self.check_content_in_response('DAG Details', resp)
 
     @parameterized.expand(["graph", "tree", "dag_details"])
     def test_view_uses_existing_dagbag(self, endpoint):
@@ -687,7 +687,7 @@ class TestAirflowBaseViews(TestBase):
     def test_dag_details_subdag(self):
         url = 'dag_details?dag_id=example_subdag_operator.section-1'
         resp = self.client.get(url, follow_redirects=True)
-        self.check_content_in_response('DAG details', resp)
+        self.check_content_in_response('DAG Details', resp)
 
     def test_graph(self):
         url = 'graph?dag_id=example_bash_operator'
@@ -1939,7 +1939,7 @@ class TestDagACLView(TestBase):
         self.login()
         url = 'dag_details?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
-        self.check_content_in_response('DAG details', resp)
+        self.check_content_in_response('DAG Details', resp)
 
     def test_dag_details_failure(self):
         self.logout()
@@ -1947,7 +1947,7 @@ class TestDagACLView(TestBase):
                    password='dag_faker')
         url = 'dag_details?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
-        self.check_content_not_in_response('DAG details', resp)
+        self.check_content_not_in_response('DAG Details', resp)
 
     def test_dag_details_success_for_all_dag_user(self):
         self.logout()
@@ -2388,7 +2388,7 @@ class TestRenderedView(TestBase):
             "Webserver does not have access to User-defined Macros or Filters "
             "when Dag Serialization is enabled. Hence for the task that have not yet "
             "started running, please use &#39;airflow tasks render&#39; for debugging the "
-            "rendering of template_fields.<br/><br/>OriginalError: no filter named &#39;hello&#39",
+            "rendering of template_fields.<br><br>OriginalError: no filter named &#39;hello&#39",
             resp
         )
 

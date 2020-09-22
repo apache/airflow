@@ -17,62 +17,56 @@
  under the License.
 #}
 
-<!-- Adapted from: https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/templates/appbuilder/flash.html -->
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/flash.css') }}">
+{#
+  Adapted from: https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/templates/appbuilder/flash.html
+#}
+<link rel="stylesheet" type="text/css" href="{{ url_for_asset('flash.css') }}">
 
-<!-- Split messages into two arrays: one for regular alerts, another for DAG import errors -->
+{#
+  Split messages into two arrays: one for regular alerts, another for DAG import errors
+#}
 {% with messages = get_flashed_messages(with_categories=true) %}
-    {% set dag_import_errors = [] %}
-    {% set regular_alerts = [] %}
+  {% set dag_import_errors = [] %}
+  {% set regular_alerts = [] %}
 
-    {% if messages %}
-        {% for category, m in messages %}
-            {% if category == 'dag_import_error' %}
-                {{ dag_import_errors.append((category, m)) if dag_import_errors.append((category, m)) != None else '' }}
-            {% else %}
-                {{ regular_alerts.append((category, m)) if regular_alerts.append((category, m)) != None else '' }}
-            {% endif %}
-        {% endfor %}
-    {% endif %}
+  {% if messages %}
+    {% for category, m in messages %}
+      {% if category == 'dag_import_error' %}
+        {{ dag_import_errors.append((category, m)) if dag_import_errors.append((category, m)) != None else '' }}
+      {% else %}
+        {{ regular_alerts.append((category, m)) if regular_alerts.append((category, m)) != None else '' }}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
 
-    <div>
-    {% if regular_alerts %}
-        {% for category, m in regular_alerts %}
-            {% if category %}
-                <div class="alert alert-{{ category }}">
-            {% else %}
-                <div class="alert alert-info">
-            {% endif %}
-            <button type="button" class="close" data-dismiss="alert">&times;</button>
-            {{ m }}
-            </div>
-        {% endfor %}
-    {% endif %}
-    </div>
+  {% if regular_alerts %}
+    {% for category, m in regular_alerts %}
+      <div class="alert alert-{{ category if category else 'info' }}">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        {{ m }}
+      </div>
+    {% endfor %}
+  {% endif %}
 
-    <div>
-    {% if dag_import_errors %}
-        <div class="panel-group" id="accordion">
-            <div class="panel panel-default">
-                <div class="panel-heading" id="errorHeading">
-                  <h4 class="panel-title">
-                    <a id="alerts-accordion-toggle" data-toggle="collapse" data-parent="#accordion" href="#alerts" aria-expanded="false" >
-                      DAG Import Errors ({{ dag_import_errors|length }})
-                    </a>
-                  </h4>
-                </div>
-
-                <div id="alerts" class="panel-collapse collapse in">
-                  <div class="panel-body" >
-                    {% for category, m in dag_import_errors %}
-                        <div class="alert alert-error dag-import-error">{{ m }}</div>
-                    {% endfor %}
-                  </div>
-                </div>
-              </div>
-            </div>
+  {% if dag_import_errors %}
+    <div class="panel-group" id="accordion">
+      <div class="panel panel-default">
+        <div class="panel-heading" id="errorHeading">
+          <h4 class="panel-title">
+            <a id="alerts-accordion-toggle" data-toggle="collapse" data-parent="#accordion" href="#alerts" aria-expanded="false">
+              DAG Import Errors ({{ dag_import_errors|length }})
+            </a>
+          </h4>
         </div>
-    {% endif %}
-    </div>
 
+        <div id="alerts" class="panel-collapse collapse in">
+          <div class="panel-body">
+            {% for category, m in dag_import_errors %}
+              <div class="alert alert-error dag-import-error">{{ m }}</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
 {% endwith %}

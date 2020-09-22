@@ -971,7 +971,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "#007A87"
+      default: "#fff"
     - name: default_dag_run_display_number
       description: |
         Default dagrun to show in UI
