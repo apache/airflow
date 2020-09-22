@@ -40,7 +40,10 @@ class TestGoogleDisplayVideo360Hook(TestCase):
     def test_gen_conn(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            "doubleclickbidmanager", API_VERSION, http=mock_authorize.return_value, cache_discovery=False,
+            "doubleclickbidmanager",
+            API_VERSION,
+            http=mock_authorize.return_value,
+            cache_discovery=False,
         )
         self.assertEqual(mock_build.return_value, result)
 
@@ -52,7 +55,10 @@ class TestGoogleDisplayVideo360Hook(TestCase):
     def test_get_conn_to_display_video(self, mock_build, mock_authorize):
         result = self.hook.get_conn_to_display_video()
         mock_build.assert_called_once_with(
-            "displayvideo", API_VERSION, http=mock_authorize.return_value, cache_discovery=False,
+            "displayvideo",
+            API_VERSION,
+            http=mock_authorize.return_value,
+            cache_discovery=False,
         )
         self.assertEqual(mock_build.return_value, result)
 

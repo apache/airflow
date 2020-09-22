@@ -36,6 +36,7 @@ class GceBaseOperator(ComputeEngineBaseOperator):
     This class is deprecated.
     Please use `airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
@@ -51,6 +52,7 @@ class GceInstanceGroupManagerUpdateTemplateOperator(ComputeEngineInstanceGroupUp
     Please use `airflow.providers.google.cloud.operators.compute
     .ComputeEngineInstanceGroupUpdateManagerTemplateOperator`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated. Please use
@@ -67,6 +69,7 @@ class GceInstanceStartOperator(ComputeEngineStartInstanceOperator):
     Please use `airflow.providers.google.cloud.operators
     .compute.ComputeEngineStartInstanceOperator`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
@@ -82,6 +85,7 @@ class GceInstanceStopOperator(ComputeEngineStopInstanceOperator):
     This class is deprecated.
     Please use `airflow.providers.google.cloud.operators.compute.ComputeEngineStopInstanceOperator`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
@@ -97,6 +101,7 @@ class GceInstanceTemplateCopyOperator(ComputeEngineCopyInstanceTemplateOperator)
     This class is deprecated.
     Please use `airflow.providers.google.cloud.operators.compute.ComputeEngineCopyInstanceTemplateOperator`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """"This class is deprecated.
@@ -112,6 +117,7 @@ class GceSetMachineTypeOperator(ComputeEngineSetMachineTypeOperator):
     This class is deprecated.
     Please use `airflow.providers.google.cloud.operators.compute.ComputeEngineSetMachineTypeOperator`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.

@@ -23,7 +23,7 @@ from random import random  # noqa
 
 import dateutil  # noqa
 
-from . import hive  # noqa
+from airflow.macros import hive  # noqa
 
 
 def ds_add(ds, days):

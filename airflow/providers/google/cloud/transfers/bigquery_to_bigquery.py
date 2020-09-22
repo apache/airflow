@@ -47,9 +47,9 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :type write_disposition: str
     :param create_disposition: The create disposition if the table doesn't exist.
     :type create_disposition: str
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
+    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,

@@ -135,9 +135,15 @@ class TestScheduleIntervalSchema(unittest.TestCase):
         expected_instance = relativedelta.relativedelta(days=+12)
         self.assertEqual(expected_instance, result)
 
-    def test_should_serialize_cron_expresssion(self):
+    def test_should_serialize_cron_expression(self):
         instance = "5 4 * * *"
         schema_instance = ScheduleIntervalSchema()
         result = schema_instance.dump(instance)
         expected_instance = {"__type": "CronExpression", "value": "5 4 * * *"}
         self.assertEqual(expected_instance, result)
+
+    def test_should_error_unknown_obj_type(self):
+        instance = 342
+        schema_instance = ScheduleIntervalSchema()
+        with self.assertRaisesRegex(Exception, "Unknown object type: int"):
+            schema_instance.dump(instance)

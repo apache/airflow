@@ -506,7 +506,10 @@ class StackdriverDeleteAlertOperator(BaseOperator):
                 impersonation_chain=self.impersonation_chain,
             )
         self.hook.delete_alert_policy(
-            name=self.name, retry=self.retry, timeout=self.timeout, metadata=self.metadata,
+            name=self.name,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
         )
 
 

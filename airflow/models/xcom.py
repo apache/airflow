@@ -46,6 +46,7 @@ class BaseXCom(Base, LoggingMixin):
     """
     Base class for XCom objects.
     """
+
     __tablename__ = "xcom"
 
     key = Column(String(512, **COLLATION_ARGS), primary_key=True)

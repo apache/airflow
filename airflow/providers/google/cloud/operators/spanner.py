@@ -51,7 +51,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
     :param project_id: Optional, the ID of the project which owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -105,7 +105,10 @@ class SpannerDeployInstanceOperator(BaseOperator):
             raise AirflowException("The required parameter 'instance_id' " "is empty or None")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         if not hook.get_instance(project_id=self.project_id, instance_id=self.instance_id):
             self.log.info("Creating Cloud Spanner instance '%s'", self.instance_id)
             func = hook.create_instance
@@ -135,7 +138,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -181,7 +184,10 @@ class SpannerDeleteInstanceOperator(BaseOperator):
             raise AirflowException("The required parameter 'instance_id' " "is empty or None")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         if hook.get_instance(project_id=self.project_id, instance_id=self.instance_id):
             return hook.delete_instance(project_id=self.project_id, instance_id=self.instance_id)
         else:
@@ -211,7 +217,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -268,7 +274,10 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
             raise AirflowException("The required parameter 'query' is empty")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queries = self.query
         if isinstance(self.query, str):
             queries = [x.strip() for x in self.query.split(';')]
@@ -318,7 +327,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -373,7 +382,10 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
             raise AirflowException("The required parameter 'database_id' is empty" " or None")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         if not hook.get_database(
             project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
         ):
@@ -420,7 +432,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
     :param operation_id: (Optional) Unique per database operation id that can
            be specified to implement idempotency check.
     :type operation_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -479,7 +491,10 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
             raise AirflowException("The required parameter 'ddl_statements' is empty" " or None")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         if not hook.get_database(
             project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
         ):
@@ -513,7 +528,7 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -564,7 +579,10 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
             raise AirflowException("The required parameter 'database_id' is empty" " or None")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         database = hook.get_database(
             project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
         )

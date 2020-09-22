@@ -191,6 +191,9 @@ ENV AIRFLOW_INSTALL_SOURCES=${AIRFLOW_INSTALL_SOURCES}
 ARG AIRFLOW_INSTALL_VERSION=""
 ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 
+ARG SLUGIFY_USES_TEXT_UNIDECODE=""
+ENV SLUGIFY_USES_TEXT_UNIDECODE=${SLUGIFY_USES_TEXT_UNIDECODE}
+
 WORKDIR /opt/airflow
 
 RUN pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
@@ -349,8 +352,8 @@ RUN mkdir -pv "${AIRFLOW_HOME}"; \
 
 COPY --chown=airflow:root --from=airflow-build-image /root/.local "${AIRFLOW_USER_HOME_DIR}/.local"
 
-COPY scripts/in_container/prod/entrypoint_prod.sh /entrypoint
-COPY scripts/in_container/prod/clean-logs.sh /clean-logs
+COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoint
+COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 RUN chmod a+x /entrypoint /clean-logs
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift

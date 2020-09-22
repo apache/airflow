@@ -50,7 +50,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     :type bucket: str
     :param obj: GCS path to save the object. Must be the full file path (ex. `path/to/file.txt`)
     :type obj: str
-    :param gcp_conn_id: Airflow Google Cloud Platform connection ID
+    :param gcp_conn_id: Airflow Google Cloud connection ID
     :type gcp_conn_id: str
     :param facebook_conn_id: Airflow Facebook Ads connection ID
     :type facebook_conn_id: str
@@ -126,7 +126,10 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                 writer.writeheader()
                 writer.writerows(converted_rows)
                 csvfile.flush()
-                hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+                hook = GCSHook(
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                )
                 hook.upload(
                     bucket_name=self.bucket_name,
                     object_name=self.object_name,

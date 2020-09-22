@@ -553,6 +553,7 @@ redoc = [
         'spec': OPENAPI_FILE,
         'opts': {
             'hide-hostname': True,
+            'no-auto-auth': True,
         }
     },
 ]

@@ -44,8 +44,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         Job. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud
-        Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -87,7 +86,8 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
 
     def poke(self, context):
         hook = CloudDataTransferServiceHook(
-            gcp_conn_id=self.gcp_cloud_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_cloud_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         operations = hook.list_transfer_operations(
             request_filter={'project_id': self.project_id, 'job_names': [self.job_name]}

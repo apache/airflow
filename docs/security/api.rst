@@ -57,6 +57,8 @@ If you wish to have the experimental API work, and aware of the risks of enablin
     [api]
     auth_backend = airflow.api.auth.backend.default
 
+See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+
 Kerberos authentication
 '''''''''''''''''''''''
 

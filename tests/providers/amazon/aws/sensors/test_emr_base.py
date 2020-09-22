@@ -58,7 +58,10 @@ class EmrBaseSensorSubclass(EmrBaseSensor):
 
 class TestEmrBaseSensor(unittest.TestCase):
     def test_poke_returns_true_when_state_is_in_target_states(self):
-        operator = EmrBaseSensorSubclass(task_id='test_task', poke_interval=2,)
+        operator = EmrBaseSensorSubclass(
+            task_id='test_task',
+            poke_interval=2,
+        )
         operator.response = {
             'SomeKey': {'State': TARGET_STATE},
             'ResponseMetadata': {'HTTPStatusCode': GOOD_HTTP_STATUS},
@@ -67,7 +70,10 @@ class TestEmrBaseSensor(unittest.TestCase):
         operator.execute(None)
 
     def test_poke_returns_false_when_state_is_not_in_target_states(self):
-        operator = EmrBaseSensorSubclass(task_id='test_task', poke_interval=2,)
+        operator = EmrBaseSensorSubclass(
+            task_id='test_task',
+            poke_interval=2,
+        )
         operator.response = {
             'SomeKey': {'State': NON_TARGET_STATE},
             'ResponseMetadata': {'HTTPStatusCode': GOOD_HTTP_STATUS},
@@ -76,7 +82,10 @@ class TestEmrBaseSensor(unittest.TestCase):
         self.assertEqual(operator.poke(None), False)
 
     def test_poke_returns_false_when_http_response_is_bad(self):
-        operator = EmrBaseSensorSubclass(task_id='test_task', poke_interval=2,)
+        operator = EmrBaseSensorSubclass(
+            task_id='test_task',
+            poke_interval=2,
+        )
         operator.response = {
             'SomeKey': {'State': TARGET_STATE},
             'ResponseMetadata': {'HTTPStatusCode': BAD_HTTP_STATUS},
@@ -85,7 +94,10 @@ class TestEmrBaseSensor(unittest.TestCase):
         self.assertEqual(operator.poke(None), False)
 
     def test_poke_raises_error_when_state_is_in_failed_states(self):
-        operator = EmrBaseSensorSubclass(task_id='test_task', poke_interval=2,)
+        operator = EmrBaseSensorSubclass(
+            task_id='test_task',
+            poke_interval=2,
+        )
         operator.response = {
             'SomeKey': {'State': FAILED_STATE, 'StateChangeReason': {'Code': EXPECTED_CODE}},
             'ResponseMetadata': {'HTTPStatusCode': GOOD_HTTP_STATUS},

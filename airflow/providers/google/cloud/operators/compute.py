@@ -79,16 +79,16 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:ComputeEngineStartInstanceOperator`
 
-    :param zone: Google Cloud Platform zone where the instance exists.
+    :param zone: Google Cloud zone where the instance exists.
     :type zone: str
     :param resource_id: Name of the Compute Engine instance resource.
     :type resource_id: str
-    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
+    :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
@@ -156,16 +156,16 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:ComputeEngineStopInstanceOperator`
 
-    :param zone: Google Cloud Platform zone where the instance exists.
+    :param zone: Google Cloud zone where the instance exists.
     :type zone: str
     :param resource_id: Name of the Compute Engine instance resource.
     :type resource_id: str
-    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
+    :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
@@ -239,19 +239,19 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:ComputeEngineSetMachineTypeOperator`
 
-    :param zone: Google Cloud Platform zone where the instance exists.
+    :param zone: Google Cloud zone where the instance exists.
     :type zone: str
     :param resource_id: Name of the Compute Engine instance resource.
     :type resource_id: str
     :param body: Body required by the Compute Engine setMachineType API, as described in
         https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType#request-body
     :type body: dict
-    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
+    :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
@@ -405,7 +405,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         - arrays are replaced fully, so if you need to update an array you should
         provide the whole target array as patch element.
     :type body_patch: dict
-    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
+    :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
@@ -414,8 +414,8 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         with the same request id will not create a new instance template again).
         It should be in UUID format as defined in RFC 4122.
     :type request_id: str
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
@@ -536,13 +536,13 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
 
     :param resource_id: Name of the Instance Group Manager
     :type resource_id: str
-    :param zone: Google Cloud Platform zone where the Instance Group Manager exists.
+    :param zone: Google Cloud zone where the Instance Group Manager exists.
     :type zone: str
     :param source_template: URL of the template to replace.
     :type source_template: str
     :param destination_template: URL of the target template.
     :type destination_template: str
-    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
+    :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
     :type project_id: str
@@ -551,8 +551,8 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
         with the same request id will not create a new instance template again).
         It should be in UUID format as defined in RFC 4122.
     :type request_id: str
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to 'google_cloud_default'.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.

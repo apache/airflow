@@ -51,7 +51,7 @@ CONN_TYPE_TO_HOOK = {
     ),
     "cassandra": ("airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook", "cassandra_conn_id"),
     "cloudant": ("airflow.providers.cloudant.hooks.cloudant.CloudantHook", "cloudant_conn_id"),
-    "dataprep": ("airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook", "dataprep_conn_id"),
+    "dataprep": ("airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook", "dataprep_default"),
     "docker": ("airflow.providers.docker.hooks.docker.DockerHook", "docker_conn_id"),
     "elasticsearch": (
         "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
@@ -145,6 +145,7 @@ class Connection(Base, LoggingMixin):
     :param uri: URI address describing connection parameters.
     :type uri: str
     """
+
     __tablename__ = "connection"
 
     id = Column(Integer(), primary_key=True)

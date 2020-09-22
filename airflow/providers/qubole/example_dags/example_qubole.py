@@ -81,7 +81,9 @@ with DAG(
         # To attach tags to qubole command, auto attach 3 tags - dag_id, task_id, run_id
         qubole_conn_id='qubole_default',
         # Connection id to submit commands inside QDS, if not set "qubole_default" is used
-        params={'cluster_label': 'default',},
+        params={
+            'cluster_label': 'default',
+        },
     )
 
     hive_s3_location = QuboleOperator(
@@ -120,7 +122,9 @@ with DAG(
         's3://paid-qubole/HadoopAPITests/data/3_wc',
         cluster_label='{{ params.cluster_label }}',
         fetch_logs=True,
-        params={'cluster_label': 'default',},
+        params={
+            'cluster_label': 'default',
+        },
     )
 
     pig_cmd = QuboleOperator(

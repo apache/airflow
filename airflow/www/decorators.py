@@ -43,11 +43,12 @@ def action_logging(f: T) -> T:
             else:
                 user = g.user.username
 
+            fields_skip_logging = {'csrf_token', '_csrf_token'}
             log = Log(
                 event=f.__name__,
                 task_instance=None,
                 owner=user,
-                extra=str(list(request.values.items())),
+                extra=str([(k, v) for k, v in request.values.items() if k not in fields_skip_logging]),
                 task_id=request.values.get('task_id'),
                 dag_id=request.values.get('dag_id'))
 

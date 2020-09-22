@@ -38,6 +38,7 @@ class DaskExecutor(BaseExecutor):
     """
     DaskExecutor submits tasks to a Dask Distributed cluster.
     """
+
     def __init__(self, cluster_address=None):
         super().__init__(parallelism=0)
         if cluster_address is None:

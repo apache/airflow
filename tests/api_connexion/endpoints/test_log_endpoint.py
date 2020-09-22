@@ -27,6 +27,7 @@ from unittest.mock import PropertyMock
 from itsdangerous.url_safe import URLSafeSerializer
 
 from airflow import DAG, settings
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
@@ -34,7 +35,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
-from tests.test_utils.api_connexion_utils import assert_401, create_role, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 
@@ -51,22 +52,18 @@ class TestGetLog(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)
 
-        # TODO: Add new role for each view to test permission.
-        create_role(
+        create_user(
             cls.app,
-            name="Test",
+            username="test",
+            role_name="Test",
             permissions=[('can_read', 'Dag'), ('can_read', 'DagRun'), ('can_read', 'Task')],
         )
-        create_user(cls.app, username="test", role="Test")
-        create_role(cls.app, name="TestNoPermissions", permissions=[])
-        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")
-        cls.app.appbuilder.sm.delete_role("Test")  # pylint: disable=no-member
         delete_user(cls.app, username="test_no_permissions")
-        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # pylint: disable=no-member
 
     def setUp(self) -> None:
         self.default_time = "2020-06-10T20:00:00+00:00"
@@ -168,7 +165,8 @@ class TestGetLog(unittest.TestCase):
             self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(":", ".")
         )
         self.assertEqual(
-            response.json['content'], f"*** Reading local file: {expected_filename}\nLog for testing."
+            response.json['content'],
+            f"[('', '*** Reading local file: {expected_filename}\\nLog for testing.')]",
         )
         info = serializer.loads(response.json['continuation_token'])
         self.assertEqual(info, {'end_of_log': True})
@@ -192,7 +190,8 @@ class TestGetLog(unittest.TestCase):
         )
         self.assertEqual(200, response.status_code)
         self.assertEqual(
-            response.data.decode('utf-8'), f"*** Reading local file: {expected_filename}\nLog for testing.\n"
+            response.data.decode('utf-8'),
+            f"\n*** Reading local file: {expected_filename}\nLog for testing.\n",
         )
 
     @provide_session
@@ -214,10 +213,10 @@ class TestGetLog(unittest.TestCase):
     def test_get_logs_with_metadata_as_download_large_file(self, session):
         self._create_dagrun(session)
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
-            first_return = (['1st line'], [{}])
-            second_return = (['2nd line'], [{'end_of_log': False}])
-            third_return = (['3rd line'], [{'end_of_log': True}])
-            fourth_return = (['should never be read'], [{'end_of_log': True}])
+            first_return = ([[('', '1st line')]], [{}])
+            second_return = ([[('', '2nd line')]], [{'end_of_log': False}])
+            third_return = ([[('', '3rd line')]], [{'end_of_log': True}])
+            fourth_return = ([[('', 'should never be read')]], [{'end_of_log': True}])
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
 
             response = self.client.get(
@@ -267,7 +266,7 @@ class TestGetLog(unittest.TestCase):
                 'detail': None,
                 'status': 400,
                 'title': "Bad Signature. Please use only the tokens provided by the API.",
-                'type': 'about:blank',
+                'type': EXCEPTIONS_LINK_MAP[400],
             },
         )
 
@@ -280,7 +279,7 @@ class TestGetLog(unittest.TestCase):
         )
         self.assertEqual(
             response.json,
-            {'detail': None, 'status': 404, 'title': "DAG Run not found", 'type': 'about:blank'},
+            {'detail': None, 'status': 404, 'title': "DAG Run not found", 'type': EXCEPTIONS_LINK_MAP[404]},
         )
 
     def test_should_raises_401_unauthenticated(self):

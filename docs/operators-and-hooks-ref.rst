@@ -131,6 +131,10 @@ Fundamentals
    * - :mod:`airflow.hooks.filesystem`
      -
 
+   * - :mod:`airflow.sensors.smart_sensor_operator`
+     -
+
+
 .. _Apache:
 
 ASF: Apache Software Foundation
@@ -514,6 +518,12 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_transform`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_tuning`
 
+   * - `Amazon SecretsManager <https://https://aws.amazon.com/secrets-manager/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.secrets_manager`
+     -
+     -
+
    * - `Amazon Simple Email Service (SES) <https://aws.amazon.com/ses/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.ses`
@@ -671,15 +681,15 @@ Google Cloud
 Airflow has extensive support for the `Google Cloud <https://cloud.google.com/>`__.
 
 .. note::
-    You can learn how to use Google Cloud Platform integrations by analyzing the
-    `source code of the Google Cloud Platform example DAGs
+    You can learn how to use Google Cloud integrations by analyzing the
+    `source code of the Google Cloud example DAGs
     <https://github.com/apache/airflow/tree/master/airflow/providers/google/cloud/example_dags/>`_
 
 
 Service operators and hooks
 """""""""""""""""""""""""""
 
-These integrations allow you to perform various operations within the Google Cloud Platform.
+These integrations allow you to perform various operations within the Google Cloud.
 
 ..
   PLEASE KEEP THE ALPHABETICAL ORDER OF THE LIST BELOW, BUT OMIT THE "Cloud" PREFIX
@@ -764,7 +774,7 @@ These integrations allow you to perform various operations within the Google Clo
      - :doc:`How to use <howto/operator/google/cloud/dataproc>`
      - :mod:`airflow.providers.google.cloud.hooks.dataproc`
      - :mod:`airflow.providers.google.cloud.operators.dataproc`
-     -
+     - :mod:`airflow.providers.google.cloud.sensors.dataproc`
 
    * - `Datastore <https://cloud.google.com/datastore/>`__
      - :doc:`How to use <howto/operator/google/cloud/datastore>`
@@ -906,7 +916,7 @@ These integrations allow you to perform various operations within the Google Clo
 Transfer operators and hooks
 """"""""""""""""""""""""""""
 
-These integrations allow you to copy data from/to Google Cloud Platform.
+These integrations allow you to copy data from/to Google Cloud.
 
 .. list-table::
    :header-rows: 1
@@ -926,9 +936,8 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     - :doc:`How to use <howto/operator/google/cloud/cloud_storage_transfer_service>`
-     - :mod:`airflow.providers.google.cloud.transfers.s3_to_gcs`,
-       :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
+     - :doc:`How to use <howto/operator/google/transfer/s3_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.transfers.s3_to_gcs`
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -1267,6 +1276,12 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.providers.opsgenie.hooks.opsgenie_alert`
      - :mod:`airflow.providers.opsgenie.operators.opsgenie_alert`
+     -
+
+   * - `Plexus <https://plexus.corescientific.com/>`__
+     -
+     - :mod:`airflow.providers.plexus.hooks.plexus`
+     - :mod:`airflow.providers.plexus.operators.job`
      -
 
    * - `Qubole <https://www.qubole.com/>`__

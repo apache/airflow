@@ -224,7 +224,7 @@ def task_failed_deps(args):
     Returns the unmet dependencies for a task instance from the perspective of the
     scheduler (i.e. why a task instance doesn't get scheduled and then queued by the
     scheduler, and then run by an executor).
-    >>> airflow tasks failed_deps tutorial sleep 2015-01-01
+    >>> airflow tasks failed-deps tutorial sleep 2015-01-01
     Task instance dependencies not met:
     Dagrun Running: Task instance's dagrun did not exist: Unknown reason
     Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks

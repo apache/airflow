@@ -73,7 +73,8 @@ class TestCloudMemorystoreCreateInstanceOperator(TestCase):
         )
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.create_instance.assert_called_once_with(
             location=TEST_LOCATION,
@@ -102,7 +103,8 @@ class TestCloudMemorystoreDeleteInstanceOperator(TestCase):
         )
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             location=TEST_LOCATION,
@@ -131,7 +133,8 @@ class TestCloudMemorystoreExportInstanceOperator(TestCase):
         )
         task.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.export_instance.assert_called_once_with(
             location=TEST_LOCATION,
@@ -161,7 +164,8 @@ class TestCloudMemorystoreFailoverInstanceOperator(TestCase):
         )
         task.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.failover_instance.assert_called_once_with(
             location=TEST_LOCATION,
@@ -190,7 +194,8 @@ class TestCloudMemorystoreGetInstanceOperator(TestCase):
         )
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.get_instance.assert_called_once_with(
             location=TEST_LOCATION,
@@ -219,7 +224,8 @@ class TestCloudMemorystoreImportOperator(TestCase):
         )
         task.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.import_instance.assert_called_once_with(
             location=TEST_LOCATION,
@@ -248,7 +254,8 @@ class TestCloudMemorystoreListInstancesOperator(TestCase):
         )
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list_instances.assert_called_once_with(
             location=TEST_LOCATION,
@@ -278,7 +285,8 @@ class TestCloudMemorystoreUpdateInstanceOperator(TestCase):
         )
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_instance.assert_called_once_with(
             update_mask=TEST_UPDATE_MASK,
@@ -309,7 +317,8 @@ class TestCloudMemorystoreScaleInstanceOperator(TestCase):
         )
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_instance.assert_called_once_with(
             update_mask={"paths": ["memory_size_gb"]},
@@ -342,7 +351,10 @@ class TestCloudMemorystoreCreateInstanceAndImportOperatorOperator(TestCase):
         task.execute(mock.MagicMock())
         mock_hook.assert_has_calls(
             [
-                mock.call(gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,),
+                mock.call(
+                    gcp_conn_id=TEST_GCP_CONN_ID,
+                    impersonation_chain=TEST_IMPERSONATION_CHAIN,
+                ),
                 mock.call().create_instance(
                     location=TEST_LOCATION,
                     instance_id=TEST_INSTANCE_ID,

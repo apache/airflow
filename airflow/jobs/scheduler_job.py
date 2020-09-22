@@ -34,6 +34,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
+from sqlalchemy.orm import load_only
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
@@ -46,18 +47,20 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULED_DEPS
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
-    AbstractDagFileProcessorProcess, DagFileProcessorAgent, FailureCallbackRequest, SimpleDag, SimpleDagBag,
+    AbstractDagFileProcessorProcess, DagFileProcessorAgent, FailureCallbackRequest, SimpleDagBag,
 )
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import provide_session
+from airflow.utils.sqlalchemy import skip_locked
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -98,7 +101,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         # The process that was launched to process the given .
         self._process: Optional[multiprocessing.process.BaseProcess] = None
         # The result of Scheduler.process_file(file_path).
-        self._result: Optional[Tuple[List[SimpleDag], int]] = None
+        self._result: Optional[Tuple[List[dict], int]] = None
         # Whether the process is done running.
         self._done = False
         # When the process started.
@@ -165,7 +168,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
 
                 log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
                 dag_file_processor = DagFileProcessor(dag_ids=dag_ids, log=log)
-                result: Tuple[List[SimpleDag], int] = dag_file_processor.process_file(
+                result: Tuple[List[dict], int] = dag_file_processor.process_file(
                     file_path=file_path,
                     pickle_dags=pickle_dags,
                     failure_callback_requests=failure_callback_requests,
@@ -302,10 +305,10 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         return False
 
     @property
-    def result(self) -> Optional[Tuple[List[SimpleDag], int]]:
+    def result(self) -> Optional[Tuple[List[dict], int]]:
         """
         :return: result of running SchedulerJob.process_file()
-        :rtype: Optional[Tuple[List[SimpleDag], int]]
+        :rtype: Optional[Tuple[List[dict], int]]
         """
         if not self.done:
             raise AirflowException("Tried to get the result before it's done!")
@@ -826,8 +829,9 @@ class DagFileProcessor(LoggingMixin):
         self,
         file_path: str,
         failure_callback_requests: List[FailureCallbackRequest],
-        pickle_dags: bool = False, session: Session = None
-    ) -> Tuple[List[SimpleDag], int]:
+        pickle_dags: bool = False,
+        session: Session = None
+    ) -> Tuple[List[dict], int]:
         """
         Process a Python file containing Airflow DAGs.
 
@@ -841,7 +845,7 @@ class DagFileProcessor(LoggingMixin):
         5. Kill (in ORM) any task instances belonging to the DAGs that haven't
         issued a heartbeat in a while.
 
-        Returns a list of SimpleDag objects that represent the DAGs found in
+        Returns a list of serialized_dag dicts that represent the DAGs found in
         the file
 
         :param file_path: the path to the Python file that should be executed
@@ -851,14 +855,16 @@ class DagFileProcessor(LoggingMixin):
         :param pickle_dags: whether serialize the DAGs found in the file and
             save them to the db
         :type pickle_dags: bool
+        :param session: Sqlalchemy ORM Session
+        :type session: Session
         :return: a tuple with list of SimpleDags made from the Dags found in the file and
             count of import errors.
-        :rtype: Tuple[List[SimpleDag], int]
+        :rtype: Tuple[List[dict], int]
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
 
         try:
-            dagbag = DagBag(file_path, include_examples=False)
+            dagbag = DagBag(file_path, include_examples=False, include_smart_sensor=False)
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
@@ -885,7 +891,7 @@ class DagFileProcessor(LoggingMixin):
             dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids
         ]
 
-        simple_dags = self._prepare_simple_dags(unpaused_dags, pickle_dags, session)
+        serialized_dags = self._prepare_serialized_dags(unpaused_dags, pickle_dags, session)
 
         dags = self._find_dags_to_process(unpaused_dags)
 
@@ -899,7 +905,7 @@ class DagFileProcessor(LoggingMixin):
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Error logging import errors!")
 
-        return simple_dags, len(dagbag.import_errors)
+        return serialized_dags, len(dagbag.import_errors)
 
     @provide_session
     def _schedule_task_instances(
@@ -914,7 +920,7 @@ class DagFileProcessor(LoggingMixin):
 
         :param dagbag: DagBag
         :type dagbag: DagBag
-        :param ti_keys_to_schedule: List of task instnace keys which can be scheduled.
+        :param ti_keys_to_schedule: List of task instance keys which can be scheduled.
         :type ti_keys_to_schedule: list
         """
         # Refresh all task instances that will be scheduled
@@ -961,25 +967,23 @@ class DagFileProcessor(LoggingMixin):
         session.commit()
 
     @provide_session
-    def _prepare_simple_dags(
+    def _prepare_serialized_dags(
         self, dags: List[DAG], pickle_dags: bool, session: Session = None
-    ) -> List[SimpleDag]:
+    ) -> List[dict]:
         """
-        Convert DAGS to  SimpleDags. If necessary, it also Pickle the DAGs
+        Convert DAGS to SimpleDags. If necessary, it also Pickle the DAGs
 
         :param dags: List of DAGs
-        :param pickle_dags: whether serialize the DAGs found in the file and
-            save them to the db
-        :type pickle_dags: bool
         :return: List of SimpleDag
-        :rtype: List[airflow.utils.dag_processing.SimpleDag]
+        :rtype: List[dict]
         """
-        simple_dags: List[SimpleDag] = []
-        # Pickle the DAGs (if necessary) and put them into a SimpleDag
+        serialized_dags: List[dict] = []
+        # Pickle the DAGs (if necessary) and put them into a SimpleDagBag
         for dag in dags:
-            pickle_id: int = dag.pickle(session).id if pickle_dags else None
-            simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
-        return simple_dags
+            if pickle_dags:
+                dag.pickle(session)
+            serialized_dags.append(SerializedDAG.to_dict(dag))
+        return serialized_dags
 
 
 class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
@@ -1278,7 +1282,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 # Check to make sure that the task concurrency of the DAG hasn't been
                 # reached.
                 dag_id = task_instance.dag_id
-                simple_dag = simple_dag_bag.get_dag(dag_id)
+                serialized_dag = simple_dag_bag.get_dag(dag_id)
 
                 current_dag_concurrency = dag_concurrency_map[dag_id]
                 dag_concurrency_limit = simple_dag_bag.get_dag(dag_id).concurrency
@@ -1294,9 +1298,11 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     )
                     continue
 
-                task_concurrency_limit: Optional[int] = simple_dag.get_task_special_arg(
-                    task_instance.task_id,
-                    'task_concurrency')
+                task_concurrency_limit: Optional[int] = None
+                if serialized_dag.has_task(task_instance.task_id):
+                    task_concurrency_limit = serialized_dag.get_task(
+                        task_instance.task_id).task_concurrency
+
                 if task_concurrency_limit is not None:
                     current_task_concurrency = task_concurrency_map[
                         (task_instance.dag_id, task_instance.task_id)
@@ -1383,7 +1389,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # set TIs to queued state
         filter_for_tis = TI.filter_for_tis(tis_to_set_to_queued)
         session.query(TI).filter(filter_for_tis).update(
-            {TI.state: State.QUEUED, TI.queued_dttm: timezone.utcnow()}, synchronize_session=False
+            {TI.state: State.QUEUED, TI.queued_dttm: timezone.utcnow(), TI.queued_by_job_id: self.id},
+            synchronize_session=False
         )
         session.commit()
 
@@ -1412,7 +1419,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         """
         # actually enqueue them
         for simple_task_instance in simple_task_instances:
-            simple_dag = simple_dag_bag.get_dag(simple_task_instance.dag_id)
+            serialized_dag = simple_dag_bag.get_dag(simple_task_instance.dag_id)
             command = TI.generate_command(
                 simple_task_instance.dag_id,
                 simple_task_instance.task_id,
@@ -1424,8 +1431,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 ignore_task_deps=False,
                 ignore_ti_state=False,
                 pool=simple_task_instance.pool,
-                file_path=simple_dag.full_filepath,
-                pickle_id=simple_dag.pickle_id,
+                file_path=serialized_dag.full_filepath,
+                pickle_id=serialized_dag.pickle_id,
             )
 
             priority = simple_task_instance.priority_weight
@@ -1537,7 +1544,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 "exited with status %s for try_number %s",
                 ti_key.dag_id, ti_key.task_id, ti_key.execution_date, state, ti_key.try_number
             )
-            if state in (State.FAILED, State.SUCCESS):
+            if state in (State.FAILED, State.SUCCESS, State.QUEUED):
                 tis_with_right_state.append(ti_key)
 
         # Return if no finished tasks
@@ -1553,14 +1560,18 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             state, info = event_buffer.pop(buffer_key)
 
             # TODO: should we fail RUNNING as well, as we do in Backfills?
+            if state == State.QUEUED:
+                ti.external_executor_id = info
+                continue
+
             if ti.try_number == buffer_key.try_number and ti.state == State.QUEUED:
                 Stats.incr('scheduler.tasks.killed_externally')
                 msg = "Executor reports task instance %s finished (%s) although the " \
                       "task says its %s. (Info: %s) Was the task killed externally?"
                 self.log.error(msg, ti, state, ti.state, info)
-                simple_dag = simple_dag_bag.get_dag(ti.dag_id)
+                serialized_dag = simple_dag_bag.get_dag(ti.dag_id)
                 self.processor_agent.send_callback_to_execute(
-                    full_filepath=simple_dag.full_filepath,
+                    full_filepath=serialized_dag.full_filepath,
                     task_instance=ti,
                     msg=msg % (ti, state, ti.state, info),
                 )
@@ -1593,7 +1604,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.executor.start()
 
             self.log.info("Resetting orphaned tasks for active dag runs")
-            self.reset_state_for_orphaned_tasks()
+            self.adopt_or_reset_orphaned_tasks()
 
             self.register_exit_signals()
 
@@ -1621,7 +1632,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
             settings.Session.remove()  # type: ignore
         except Exception:  # pylint: disable=broad-except
-            self.log.exception("Exception when executing execute_helper")
+            self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
         finally:
             self.processor_agent.end()
             self.log.info("Exited execute loop")
@@ -1675,12 +1686,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 self.log.debug("Waiting for processors to finish since we're using sqlite")
                 self.processor_agent.wait_until_finished()
 
-            simple_dags = self.processor_agent.harvest_simple_dags()
+            serialized_dags = self.processor_agent.harvest_serialized_dags()
 
-            self.log.debug("Harvested %d SimpleDAGs", len(simple_dags))
+            self.log.debug("Harvested %d SimpleDAGs", len(serialized_dags))
 
             # Send tasks for execution if available
-            simple_dag_bag = SimpleDagBag(simple_dags)
+            simple_dag_bag = SimpleDagBag(serialized_dags)
 
             if not self._validate_and_run_task_instances(simple_dag_bag=simple_dag_bag):
                 continue
@@ -1704,7 +1715,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 break
 
     def _validate_and_run_task_instances(self, simple_dag_bag: SimpleDagBag) -> bool:
-        if simple_dag_bag.simple_dags:
+        if simple_dag_bag.serialized_dags:
             try:
                 self._process_and_execute_tasks(simple_dag_bag)
             except Exception as e:  # pylint: disable=broad-except
@@ -1739,7 +1750,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # NONE so we don't try to re-run it.
         self._change_state_for_tis_without_dagrun(
             simple_dag_bag=simple_dag_bag,
-            old_states=[State.QUEUED, State.SCHEDULED, State.UP_FOR_RESCHEDULE],
+            old_states=[State.QUEUED,
+                        State.SCHEDULED,
+                        State.UP_FOR_RESCHEDULE,
+                        State.SENSING],
             new_state=State.NONE
         )
         self._execute_task_instances(simple_dag_bag)
@@ -1755,3 +1769,62 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     @provide_session
     def heartbeat_callback(self, session: Session = None) -> None:
         Stats.incr('scheduler_heartbeat', 1, 1)
+
+    @provide_session
+    def adopt_or_reset_orphaned_tasks(self, session: Session = None):
+        """
+        Reset any TaskInstance still in QUEUED or SCHEDULED states that were
+        enqueued by a SchedulerJob that is no longer running.
+
+        :return: the number of TIs reset
+        :rtype: int
+        """
+        timeout = conf.getint('scheduler', 'scheduler_health_check_threshold')
+
+        num_failed = session.query(SchedulerJob).filter(
+            SchedulerJob.state == State.RUNNING,
+            SchedulerJob.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout))
+        ).update({"state": State.FAILED})
+
+        if num_failed:
+            self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
+            Stats.incr(self.__class__.__name__.lower() + '_end', num_failed)
+
+        resettable_states = [State.SCHEDULED, State.QUEUED, State.RUNNING]
+        tis_to_reset_or_adopt = (
+            session.query(TI).filter(TI.state.in_(resettable_states))
+            # outerjoin is because we didn't use to have queued_by_job
+            # set, so we need to pick up anything pre upgrade. This (and the
+            # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
+            # released.
+            .outerjoin(TI.queued_by_job)
+            .filter(or_(TI.queued_by_job_id.is_(None), SchedulerJob.state != State.RUNNING))
+            .join(TI.dag_run)
+            .filter(DagRun.run_type != DagRunType.BACKFILL_JOB.value,
+                    # pylint: disable=comparison-with-callable
+                    DagRun.state == State.RUNNING)
+            .options(load_only(TI.dag_id, TI.task_id, TI.execution_date))
+            # Lock these rows, so that another scheduler can't try and adopt these too
+            .with_for_update(of=TI, **skip_locked(session=session))
+            .all()
+        )
+        to_reset = self.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
+
+        reset_tis_message = []
+        for ti in to_reset:
+            reset_tis_message.append(repr(ti))
+            ti.state = State.NONE
+            ti.queued_by_job_id = None
+
+        for ti in set(tis_to_reset_or_adopt) - set(to_reset):
+            ti.queued_by_job_id = self.id
+
+        Stats.incr('scheduler.orphaned_tasks.cleared', len(to_reset))
+        Stats.incr('scheduler.orphaned_tasks.adopted', len(tis_to_reset_or_adopt) - len(to_reset))
+
+        if to_reset:
+            task_instance_str = '\n\t'.join(reset_tis_message)
+            self.log.info("Reset the following %s orphaned TaskInstances:\n\t%s",
+                          len(to_reset), task_instance_str)
+
+        return len(to_reset)

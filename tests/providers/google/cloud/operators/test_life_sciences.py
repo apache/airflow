@@ -50,6 +50,10 @@ class TestLifeSciencesRunPipelineOperator(unittest.TestCase):
     def test_executes_without_project_id(self, mock_hook):
         mock_instance = mock_hook.return_value
         mock_instance.run_pipeline.return_value = TEST_OPERATION
-        operator = LifeSciencesRunPipelineOperator(task_id='task-id', body=TEST_BODY, location=TEST_LOCATION,)
+        operator = LifeSciencesRunPipelineOperator(
+            task_id='task-id',
+            body=TEST_BODY,
+            location=TEST_LOCATION,
+        )
         result = operator.execute(None)
         self.assertEqual(result, TEST_OPERATION)

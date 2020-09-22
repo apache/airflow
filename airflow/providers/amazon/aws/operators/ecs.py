@@ -86,6 +86,9 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     :param placement_constraints: an array of placement constraint objects to use for
         the task
     :type placement_constraints: list
+    :param placement_strategy: an array of placement strategy objects to use for
+        the task
+    :type placement_strategy: list
     :param platform_version: the platform version on which your task is running
     :type platform_version: str
     :param network_configuration: the network configuration for the task
@@ -124,6 +127,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         launch_type='EC2',
         group=None,
         placement_constraints=None,
+        placement_strategy=None,
         platform_version='LATEST',
         network_configuration=None,
         tags=None,
@@ -143,6 +147,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.launch_type = launch_type
         self.group = group
         self.placement_constraints = placement_constraints
+        self.placement_strategy = placement_strategy
         self.platform_version = platform_version
         self.network_configuration = network_configuration
 
@@ -180,6 +185,8 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             run_opts['group'] = self.group
         if self.placement_constraints is not None:
             run_opts['placementConstraints'] = self.placement_constraints
+        if self.placement_strategy is not None:
+            run_opts['placementStrategy'] = self.placement_strategy
         if self.network_configuration is not None:
             run_opts['networkConfiguration'] = self.network_configuration
         if self.tags is not None:

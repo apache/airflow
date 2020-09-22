@@ -15,18 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-
 import pytest
 
+from airflow.providers.google.cloud.example_dags.example_dataproc import PYSPARK_MAIN, BUCKET, SPARKR_MAIN
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DATAPROC_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
-BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
-PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
-PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
-SPARKR_MAIN = os.environ.get("SPARKR_MAIN", "hello_world.R")
-SPARKR_URI = "gs://{}/{}".format(BUCKET, SPARKR_MAIN)
+GCS_URI = f"gs://{BUCKET}"
 
 pyspark_file = """
 #!/usr/bin/python
@@ -57,8 +52,8 @@ class DataprocExampleDagsTest(GoogleSystemTest):
     def setUp(self):
         super().setUp()
         self.create_gcs_bucket(BUCKET)
-        self.upload_content_to_gcs(lines=pyspark_file, bucket=PYSPARK_URI, filename=PYSPARK_MAIN)
-        self.upload_content_to_gcs(lines=sparkr_file, bucket=SPARKR_URI, filename=SPARKR_MAIN)
+        self.upload_content_to_gcs(lines=pyspark_file, bucket=GCS_URI, filename=PYSPARK_MAIN)
+        self.upload_content_to_gcs(lines=sparkr_file, bucket=GCS_URI, filename=SPARKR_MAIN)
 
     @provide_gcp_context(GCP_DATAPROC_KEY)
     def tearDown(self):

@@ -22,8 +22,8 @@ Engine instance.
 
 This DAG relies on the following OS environment variables
 
-* GCP_PROJECT_ID - Google Cloud Platform project where the Compute Engine instance exists.
-* GCE_ZONE - Google Cloud Platform zone where the instance exists.
+* GCP_PROJECT_ID - Google Cloud project where the Compute Engine instance exists.
+* GCE_ZONE - Google Cloud zone where the instance exists.
 * GCE_INSTANCE - Name of the Compute Engine instance.
 * GCE_SHORT_MACHINE_TYPE_NAME - Machine type resource name to set, e.g. 'n1-standard-1'.
     See https://cloud.google.com/compute/docs/machine-types

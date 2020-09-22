@@ -153,7 +153,7 @@ class GoogleSystemTest(SystemTest):
             with open(tmp_path, "w") as file:
                 file.writelines(lines)
                 file.flush()
-            os.chmod(tmp_path, 555)
+            os.chmod(tmp_path, 777)
             cls.upload_to_gcs(tmp_path, bucket_name)
 
     @classmethod

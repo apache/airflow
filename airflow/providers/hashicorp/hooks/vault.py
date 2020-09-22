@@ -223,7 +223,9 @@ class VaultHook(BaseHook):
         return kubernetes_jwt_path, kubernetes_role
 
     def _get_gcp_parameters_from_connection(
-        self, gcp_key_path: Optional[str], gcp_scopes: Optional[str],
+        self,
+        gcp_key_path: Optional[str],
+        gcp_scopes: Optional[str],
     ) -> Tuple[Optional[str], Optional[dict], Optional[str]]:
         if not gcp_scopes:
             gcp_scopes = self.connection.extra_dejson.get("gcp_scopes")

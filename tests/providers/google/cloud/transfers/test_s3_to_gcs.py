@@ -116,7 +116,9 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
 
         operator.execute(None)
         gcs_mock_hook.assert_called_once_with(
-            google_cloud_storage_conn_id=GCS_CONN_ID, delegate_to=None, impersonation_chain=None,
+            google_cloud_storage_conn_id=GCS_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=None,
         )
         gcs_mock_hook.return_value.upload.assert_has_calls(
             [

@@ -132,7 +132,9 @@ def find_path_from_directory(
 
 def list_py_file_paths(directory: str,
                        safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
-                       include_examples: Optional[bool] = None):
+                       include_examples: Optional[bool] = None,
+                       include_smart_sensor: Optional[bool] =
+                       conf.getboolean('smart_sensor', 'use_smart_sensor')):
     """
     Traverse a directory and look for Python files.
 
@@ -145,6 +147,8 @@ def list_py_file_paths(directory: str,
     :type safe_mode: bool
     :param include_examples: include example DAGs
     :type include_examples: bool
+    :param include_smart_sensor: include smart sensor native control DAGs
+    :type include_examples: bool
     :return: a list of paths to Python files in the specified directory
     :rtype: list[unicode]
     """
@@ -152,15 +156,19 @@ def list_py_file_paths(directory: str,
         include_examples = conf.getboolean('core', 'LOAD_EXAMPLES')
     file_paths: List[str] = []
     if directory is None:
-        return []
+        file_paths = []
     elif os.path.isfile(directory):
-        return [directory]
+        file_paths = [directory]
     elif os.path.isdir(directory):
         find_dag_file_paths(directory, file_paths, safe_mode)
     if include_examples:
         from airflow import example_dags
         example_dag_folder = example_dags.__path__[0]  # type: ignore
-        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False))
+        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False, False))
+    if include_smart_sensor:
+        from airflow import smart_sensor_dags
+        smart_sensor_dag_folder = smart_sensor_dags.__path__[0]  # type: ignore
+        file_paths.extend(list_py_file_paths(smart_sensor_dag_folder, safe_mode, False, False))
     return file_paths
 
 

@@ -35,7 +35,7 @@ echo
 echo "Airflow home: ${AIRFLOW_HOME}"
 echo "Airflow sources: ${AIRFLOW_SOURCES}"
 echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
-if [[ -n "${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS:=}" ]]; then
+if [[ -n "${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS=}" ]]; then
     echo "Airflow collation for IDs: ${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS}"
 fi
 
@@ -57,7 +57,7 @@ else
     export RUN_AIRFLOW_1_10="false"
 fi
 
-if [[ ${INSTALL_AIRFLOW_VERSION} == "" ]]; then
+if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
         echo
         echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
@@ -156,6 +156,9 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 # shellcheck source=scripts/in_container/configure_environment.sh
 . "${IN_CONTAINER_DIR}/configure_environment.sh"
 
+# shellcheck source=scripts/in_container/run_init_script.sh
+. "${IN_CONTAINER_DIR}/run_init_script.sh"
+
 cd "${AIRFLOW_SOURCES}"
 
 set +u
@@ -192,7 +195,7 @@ if [[ ${#@} -gt 0 && -n "$1" ]]; then
     TESTS_TO_RUN=("${@}")
 fi
 
-if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
+if [[ -n ${RUN_INTEGRATION_TESTS=} ]]; then
     # Integration tests
     for INT in ${RUN_INTEGRATION_TESTS}
     do
@@ -215,6 +218,15 @@ elif [[ ${ONLY_RUN_LONG_RUNNING_TESTS:=""} == "true" ]]; then
         "--setup-timeout=30"
         "--execution-timeout=120"
         "--teardown-timeout=30"
+    )
+elif [[ ${ONLY_RUN_HEISEN_TESTS:=""} == "true" ]]; then
+    EXTRA_PYTEST_ARGS+=(
+        "-m" "heisentests"
+        "--include-heisentests"
+        "--verbosity=1"
+        "--setup-timeout=20"
+        "--execution-timeout=50"
+        "--teardown-timeout=20"
     )
 elif [[ ${ONLY_RUN_QUARANTINED_TESTS:=""} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(

@@ -435,7 +435,9 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         )
         self.log.info("Running report %s", self.report_id)
         response = hook.run_report(
-            profile_id=self.profile_id, report_id=self.report_id, synchronous=self.synchronous,
+            profile_id=self.profile_id,
+            report_id=self.report_id,
+            synchronous=self.synchronous,
         )
         file_id = response.get("id")
         self.xcom_push(context, key="file_id", value=file_id)

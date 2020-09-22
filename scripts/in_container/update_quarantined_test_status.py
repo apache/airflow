@@ -200,7 +200,7 @@ if __name__ == '__main__':
     print(f"Token: {token}")
     github_repository = os.environ.get('GITHUB_REPOSITORY')
     if not github_repository:
-        raise Exception("Github Repository must be defined!")
+        raise Exception("GitHub Repository must be defined!")
     user, repo = github_repository.split("/")
     print(f"User: {user}, Repo: {repo}")
     issue_id = int(os.environ.get('ISSUE_ID', 0))

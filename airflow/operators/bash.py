@@ -93,6 +93,7 @@ class BashOperator(BaseOperator):
         )
 
     """
+
     template_fields = ('bash_command', 'env')
     template_ext = ('.sh', '.bash',)
     ui_color = '#f0ede4'

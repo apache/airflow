@@ -56,7 +56,7 @@ class AutoMLTrainModelOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -102,7 +102,10 @@ class AutoMLTrainModelOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Creating model.")
         operation = hook.create_model(
             model=self.model,
@@ -147,7 +150,7 @@ class AutoMLPredictOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -197,7 +200,10 @@ class AutoMLPredictOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         result = hook.predict(
             model_id=self.model_id,
             payload=self.payload,
@@ -234,9 +240,9 @@ class AutoMLBatchPredictOperator(BaseOperator):
         written. If a dict is provided, it must be of the same form as the protobuf message
         `google.cloud.automl_v1beta1.types.BatchPredictOutputConfig`
     :type output_config: Union[dict, ~google.cloud.automl_v1beta1.types.BatchPredictOutputConfig]
-    :param params: Additional domain-specific parameters for the predictions, any string must be up to
-        25000 characters long.
-    :type params: Optional[Dict[str, str]]
+    :param prediction_params: Additional domain-specific parameters for the predictions,
+        any string must be up to 25000 characters long.
+    :type prediction_params: Optional[Dict[str, str]]
     :param project_id: ID of the Google Cloud project where model is located if None then
         default project_id is used.
     :type project_id: str
@@ -250,7 +256,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -281,7 +287,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
         output_config: dict,
         location: str,
         project_id: Optional[str] = None,
-        params: Optional[Dict[str, str]] = None,
+        prediction_params: Optional[Dict[str, str]] = None,
         metadata: Optional[MetaData] = None,
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
@@ -294,7 +300,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
         self.model_id = model_id
         self.location = location
         self.project_id = project_id
-        self.params = params  # type: ignore
+        self.prediction_params = prediction_params
         self.metadata = metadata
         self.timeout = timeout
         self.retry = retry
@@ -304,7 +310,10 @@ class AutoMLBatchPredictOperator(BaseOperator):
         self.output_config = output_config
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Fetch batch prediction.")
         operation = hook.batch_predict(
             model_id=self.model_id,
@@ -312,7 +321,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
             output_config=self.output_config,
             project_id=self.project_id,
             location=self.location,
-            params=self.params,
+            params=self.prediction_params,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
@@ -348,7 +357,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -394,7 +403,10 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Creating dataset")
         result = hook.create_dataset(
             dataset=self.dataset,
@@ -440,7 +452,7 @@ class AutoMLImportDataOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -489,7 +501,10 @@ class AutoMLImportDataOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Importing dataset")
         operation = hook.import_data(
             dataset_id=self.dataset_id,
@@ -541,7 +556,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -597,7 +612,10 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Requesting column specs.")
         page_iterator = hook.list_column_specs(
             dataset_id=self.dataset_id,
@@ -643,7 +661,7 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -689,7 +707,10 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Updating AutoML dataset %s.", self.dataset["name"])
         result = hook.update_dataset(
             dataset=self.dataset,
@@ -727,7 +748,7 @@ class AutoMLGetModelOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -773,7 +794,10 @@ class AutoMLGetModelOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         result = hook.get_model(
             model_id=self.model_id,
             location=self.location,
@@ -810,7 +834,7 @@ class AutoMLDeleteModelOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -856,7 +880,10 @@ class AutoMLDeleteModelOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         operation = hook.delete_model(
             model_id=self.model_id,
             location=self.location,
@@ -903,7 +930,7 @@ class AutoMLDeployModelOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -951,7 +978,10 @@ class AutoMLDeployModelOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Deploying model_id %s", self.model_id)
 
         operation = hook.deploy_model(
@@ -999,7 +1029,7 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1049,7 +1079,10 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Requesting table specs for %s.", self.dataset_id)
         page_iterator = hook.list_table_specs(
             dataset_id=self.dataset_id,
@@ -1088,7 +1121,7 @@ class AutoMLListDatasetOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1130,7 +1163,10 @@ class AutoMLListDatasetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Requesting datasets")
         page_iterator = hook.list_datasets(
             location=self.location,
@@ -1143,7 +1179,9 @@ class AutoMLListDatasetOperator(BaseOperator):
         self.log.info("Datasets obtained.")
 
         self.xcom_push(
-            context, key="dataset_id_list", value=[hook.extract_object_id(d) for d in result],
+            context,
+            key="dataset_id_list",
+            value=[hook.extract_object_id(d) for d in result],
         )
         return result
 
@@ -1172,7 +1210,7 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1227,7 +1265,10 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
             return dataset_id.split(",")
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         dataset_id_list = self._parse_dataset_id(self.dataset_id)
         for dataset_id in dataset_id_list:
             self.log.info("Deleting dataset %s", dataset_id)

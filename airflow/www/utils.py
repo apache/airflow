@@ -269,6 +269,15 @@ def datetime_f(attr_name):
 # pylint: enable=invalid-name
 
 
+def json_f(attr_name):
+    """Returns a formatted string with HTML for given JSON serializable"""
+    def json_(attr):
+        f = attr.get(attr_name)
+        serialized = json.dumps(f)
+        return Markup('<nobr>{}</nobr>').format(serialized)  # noqa
+    return json_
+
+
 def dag_link(attr):
     """Generates a URL to the Graph View for a Dag."""
     dag_id = attr.get('dag_id')
@@ -360,6 +369,7 @@ class UtcAwareFilterMixin:  # noqa: D101
     """
     Mixin for filter for UTC time.
     """
+
     def apply(self, query, value):
         """Apply the filter."""
         value = timezone.parse(value, timezone=timezone.utc)
@@ -412,6 +422,7 @@ class CustomSQLAInterface(SQLAInterface):
     '_' from the key to lookup the column names.
 
     """
+
     def __init__(self, obj, session=None):
         super().__init__(obj, session=session)
 

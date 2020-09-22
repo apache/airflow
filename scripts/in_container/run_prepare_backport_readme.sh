@@ -20,10 +20,7 @@
 
 OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
-# adding trap to exiting trap
-HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
-# shellcheck disable=SC2064
-trap "${HANDLERS}${HANDLERS:+;}in_container_fix_ownership" EXIT
+add_trap "in_container_fix_ownership" EXIT HUP INT TERM
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 

@@ -382,6 +382,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
             self.assertFalse(os.path.isfile(log_file_loc))
 
+    @conf_vars({('core', 'load_examples'): 'False'})
     def test_parse_once(self):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
@@ -399,7 +400,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         while not processor_agent.done:
             if not async_mode:
                 processor_agent.wait_until_finished()
-            parsing_result.extend(processor_agent.harvest_simple_dags())
+            parsing_result.extend(processor_agent.harvest_serialized_dags())
 
         dag_ids = [result.dag_id for result in parsing_result]
         self.assertEqual(dag_ids.count('test_start_date_scheduling'), 1)

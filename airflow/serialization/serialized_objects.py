@@ -25,9 +25,16 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Union
 import cattr
 import pendulum
 from dateutil import relativedelta
+
+try:
+    from kubernetes.client import models as k8s
+except ImportError:
+    k8s = None
+
 from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowException
+from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -37,6 +44,7 @@ from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.module_loading import import_string
+from airflow.utils.task_group import TaskGroup
 
 log = logging.getLogger(__name__)
 FAILED = 'serialization_failed'
@@ -178,8 +186,14 @@ class BaseSerialization:
                     {str(k): cls._serialize(v) for k, v in var.items()},
                     type_=DAT.DICT
                 )
+            elif isinstance(var, k8s.V1Pod):
+                json_pod = PodGenerator.serialize_pod(var)
+                return cls._encode(json_pod, type_=DAT.POD)
             elif isinstance(var, list):
                 return [cls._serialize(v) for v in var]
+            elif isinstance(var, k8s.V1Pod):
+                json_pod = PodGenerator.serialize_pod(var)
+                return cls._encode(json_pod, type_=DAT.POD)
             elif isinstance(var, DAG):
                 return SerializedDAG.serialize_dag(var)
             elif isinstance(var, BaseOperator):
@@ -188,7 +202,7 @@ class BaseSerialization:
                 return cls._encode(var.timestamp(), type_=DAT.DATETIME)
             elif isinstance(var, datetime.timedelta):
                 return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
-            elif isinstance(var, (Timezone)):
+            elif isinstance(var, Timezone):
                 return cls._encode(str(var.name), type_=DAT.TIMEZONE)
             elif isinstance(var, relativedelta.relativedelta):
                 encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
@@ -208,6 +222,8 @@ class BaseSerialization:
                 # FIXME: casts tuple to list in customized serialization in future.
                 return cls._encode(
                     [cls._serialize(v) for v in var], type_=DAT.TUPLE)
+            elif isinstance(var, TaskGroup):
+                return SerializedTaskGroup.serialize_task_group(var)
             else:
                 log.debug('Cast type %s to str in serialization.', type(var))
                 return str(var)
@@ -239,6 +255,9 @@ class BaseSerialization:
             return SerializedBaseOperator.deserialize_operator(var)
         elif type_ == DAT.DATETIME:
             return pendulum.from_timestamp(var)
+        elif type_ == DAT.POD:
+            pod = PodGenerator.deserialize_model_dict(var)
+            return pod
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
         elif type_ == DAT.TIMEZONE:
@@ -359,6 +378,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Extra Operator Links defined in Plugins
         op_extra_links_from_plugin = {}
+
+        if "label" not in encoded_op:
+            # Handle deserialization of old data before the introduction of TaskGroup
+            encoded_op["label"] = encoded_op["task_id"]
 
         for ope in plugins_manager.operator_extra_links:
             for operator in ope.operators:
@@ -554,6 +577,7 @@ class SerializedDAG(DAG, BaseSerialization):
         serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
         serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
+        serialize_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
         return serialize_dag
 
     @classmethod
@@ -581,6 +605,22 @@ class SerializedDAG(DAG, BaseSerialization):
             # else use v as it is
 
             setattr(dag, k, v)
+
+        # Set _task_group
+        # pylint: disable=protected-access
+        if "_task_group" in encoded_dag:
+            dag._task_group = SerializedTaskGroup.deserialize_task_group(  # type: ignore
+                encoded_dag["_task_group"],
+                None,
+                dag.task_dict
+            )
+        else:
+            # This must be old data that had no task_group. Create a root TaskGroup and add
+            # all tasks to it.
+            dag._task_group = TaskGroup.create_root(dag)
+            for task in dag.tasks:
+                dag.task_group.add(task)
+        # pylint: enable=protected-access
 
         keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:
@@ -625,3 +665,72 @@ class SerializedDAG(DAG, BaseSerialization):
         if ver != cls.SERIALIZER_VERSION:
             raise ValueError("Unsure how to deserialize version {!r}".format(ver))
         return cls.deserialize_dag(serialized_obj['dag'])
+
+
+class SerializedTaskGroup(TaskGroup, BaseSerialization):
+    """
+    A JSON serializable representation of TaskGroup.
+    """
+
+    @classmethod
+    def serialize_task_group(cls, task_group: TaskGroup) -> Optional[Union[Dict[str, Any]]]:
+        """
+        Serializes TaskGroup into a JSON object.
+        """
+        if not task_group:
+            return None
+
+        serialize_group = {
+            "_group_id": task_group._group_id,  # pylint: disable=protected-access
+            "prefix_group_id": task_group.prefix_group_id,
+            "tooltip": task_group.tooltip,
+            "ui_color": task_group.ui_color,
+            "ui_fgcolor": task_group.ui_fgcolor,
+            "children": {
+                label: (DAT.OP, child.task_id)
+                if isinstance(child, BaseOperator) else
+                (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
+                for label, child in task_group.children.items()
+            },
+            "upstream_group_ids": cls._serialize(list(task_group.upstream_group_ids)),
+            "downstream_group_ids": cls._serialize(list(task_group.downstream_group_ids)),
+            "upstream_task_ids": cls._serialize(list(task_group.upstream_task_ids)),
+            "downstream_task_ids": cls._serialize(list(task_group.downstream_task_ids)),
+
+        }
+
+        return serialize_group
+
+    @classmethod
+    def deserialize_task_group(
+        cls,
+        encoded_group: Dict[str, Any],
+        parent_group: Optional[TaskGroup],
+        task_dict: Dict[str, BaseOperator]
+    ) -> Optional[TaskGroup]:
+        """
+        Deserializes a TaskGroup from a JSON object.
+        """
+        if not encoded_group:
+            return None
+
+        group_id = cls._deserialize(encoded_group["_group_id"])
+        kwargs = {
+            key: cls._deserialize(encoded_group[key])
+            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
+        }
+        group = SerializedTaskGroup(
+            group_id=group_id,
+            parent_group=parent_group,
+            **kwargs
+        )
+        group.children = {
+            label: task_dict[val] if _type == DAT.OP  # type: ignore
+            else SerializedTaskGroup.deserialize_task_group(val, group, task_dict) for label, (_type, val)
+            in encoded_group["children"].items()
+        }
+        group.upstream_group_ids = set(cls._deserialize(encoded_group["upstream_group_ids"]))
+        group.downstream_group_ids = set(cls._deserialize(encoded_group["downstream_group_ids"]))
+        group.upstream_task_ids = set(cls._deserialize(encoded_group["upstream_task_ids"]))
+        group.downstream_task_ids = set(cls._deserialize(encoded_group["downstream_task_ids"]))
+        return group

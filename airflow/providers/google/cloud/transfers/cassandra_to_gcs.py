@@ -67,10 +67,10 @@ class CassandraToGCSOperator(BaseOperator):
     :type cassandra_conn_id: str
     :param gzip: Option to compress file for upload
     :type gzip: bool
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
-        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have

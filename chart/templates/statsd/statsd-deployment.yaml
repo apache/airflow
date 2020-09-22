@@ -61,7 +61,7 @@ spec:
           image: {{- include "statsd_image" . | indent 1 }}
           imagePullPolicy: {{ .Values.images.statsd.pullPolicy }}
           args:
-            - "-statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
+            - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           resources:
 {{ toYaml .Values.statsd.resources | indent 12 }}
           ports:

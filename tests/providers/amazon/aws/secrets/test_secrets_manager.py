@@ -23,7 +23,7 @@ from airflow.providers.amazon.aws.secrets.secrets_manager import SecretsManagerB
 
 
 class TestSecretsManagerBackend(TestCase):
-    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager." "SecretsManagerBackend.get_conn_uri")
+    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.get_conn_uri")
     def test_aws_secrets_manager_get_connections(self, mock_get_uri):
         mock_get_uri.return_value = "scheme://user:pass@host:100"
         conn_list = SecretsManagerBackend().get_connections("fake_conn")

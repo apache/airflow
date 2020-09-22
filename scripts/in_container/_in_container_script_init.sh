@@ -28,4 +28,4 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
-trap in_container_script_end EXIT
+add_trap in_container_script_end EXIT HUP INT TERM

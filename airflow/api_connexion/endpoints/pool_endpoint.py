@@ -27,7 +27,6 @@ from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
 @security.requires_access([("can_delete", "Pool")])
 @provide_session
 def delete_pool(pool_name: str, session):
@@ -42,7 +41,6 @@ def delete_pool(pool_name: str, session):
         return Response(status=204)
 
 
-@security.requires_authentication
 @security.requires_access([("can_read", "Pool")])
 @provide_session
 def get_pool(pool_name, session):
@@ -55,7 +53,6 @@ def get_pool(pool_name, session):
     return pool_schema.dump(obj)
 
 
-@security.requires_authentication
 @security.requires_access([("can_read", "Pool")])
 @format_parameters({'limit': check_limit})
 @provide_session
@@ -68,7 +65,6 @@ def get_pools(session, limit, offset=None):
     return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
 
 
-@security.requires_authentication
 @security.requires_access([("can_edit", "Pool")])
 @provide_session
 def patch_pool(pool_name, session, update_mask=None):
@@ -120,7 +116,6 @@ def patch_pool(pool_name, session, update_mask=None):
     return pool_schema.dump(pool)
 
 
-@security.requires_authentication
 @security.requires_access([("can_create", "Pool")])
 @provide_session
 def post_pool(session):

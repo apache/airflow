@@ -71,7 +71,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -121,7 +121,10 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         try:
             return hook.create_product_set(
                 location=self.location,
@@ -165,7 +168,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -213,7 +216,10 @@ class CloudVisionGetProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         return hook.get_product_set(
             location=self.location,
             product_set_id=self.product_set_id,
@@ -268,7 +274,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -320,7 +326,10 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         return hook.update_product_set(
             location=self.location,
             product_set_id=self.product_set_id,
@@ -360,7 +369,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -408,7 +417,10 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook.delete_product_set(
             location=self.location,
             product_set_id=self.product_set_id,
@@ -456,7 +468,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -506,7 +518,10 @@ class CloudVisionCreateProductOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         try:
             return hook.create_product(
                 location=self.location,
@@ -553,7 +568,7 @@ class CloudVisionGetProductOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -601,7 +616,10 @@ class CloudVisionGetProductOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         return hook.get_product(
             location=self.location,
             product_id=self.product_id,
@@ -667,7 +685,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -719,7 +737,10 @@ class CloudVisionUpdateProductOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         return hook.update_product(
             product=self.product,
             location=self.location,
@@ -764,7 +785,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -812,7 +833,10 @@ class CloudVisionDeleteProductOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook.delete_product(
             location=self.location,
             product_id=self.product_id,
@@ -843,7 +867,7 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
         complete. Note that if retry is specified, the timeout applies to each individual
         attempt.
     :type timeout: float
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -883,7 +907,10 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         if not isinstance(self.request, list):
             response = hook.annotate_image(request=self.request, retry=self.retry, timeout=self.timeout)
@@ -930,7 +957,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -986,7 +1013,8 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
     def execute(self, context):
         try:
             hook = CloudVisionHook(
-                gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
             )
             return hook.create_reference_image(
                 location=self.location,
@@ -1036,7 +1064,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1087,7 +1115,10 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook.delete_reference_image(
             location=self.location,
             product_id=self.product_id,
@@ -1132,7 +1163,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1183,7 +1214,10 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         return hook.add_product_to_product_set(
             product_set_id=self.product_set_id,
             product_id=self.product_id,
@@ -1222,7 +1256,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
     :type metadata: sequence[tuple[str, str]]
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1273,7 +1307,10 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         return hook.remove_product_from_product_set(
             product_set_id=self.product_set_id,
             product_id=self.product_id,
@@ -1312,7 +1349,7 @@ class CloudVisionDetectTextOperator(BaseOperator):
     :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
         :class:`google.cloud.vision_v1.types.AnnotateImageRequest`
     :type additional_properties: dict
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1363,7 +1400,10 @@ class CloudVisionDetectTextOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         return hook.text_detection(
             image=self.image,
             max_results=self.max_results,
@@ -1400,7 +1440,7 @@ class CloudVisionTextDetectOperator(BaseOperator):
     :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
     :type additional_properties: dict
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1450,7 +1490,10 @@ class CloudVisionTextDetectOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         return hook.document_text_detection(
             image=self.image,
             max_results=self.max_results,
@@ -1481,7 +1524,7 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
     :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
     :type additional_properties: dict
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1525,7 +1568,10 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         return hook.label_detection(
             image=self.image,
             max_results=self.max_results,
@@ -1556,7 +1602,7 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
     :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
     :type additional_properties: dict
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1600,7 +1646,10 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = CloudVisionHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         return hook.safe_search_detection(
             image=self.image,
             max_results=self.max_results,

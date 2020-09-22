@@ -43,7 +43,13 @@ def _deep_string_coerce(content, json_path='json'):
     coerce = _deep_string_coerce
     if isinstance(content, str):
         return content
-    elif isinstance(content, (int, float,)):
+    elif isinstance(
+        content,
+        (
+            int,
+            float,
+        ),
+    ):
         # Databricks can tolerate either numeric or string types in the API backend.
         return str(content)
     elif isinstance(content, (list, tuple)):

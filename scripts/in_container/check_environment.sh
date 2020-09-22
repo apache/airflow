@@ -43,7 +43,7 @@ function check_service {
             MAX_CHECK=$((MAX_CHECK-1))
         fi
         if [[ ${MAX_CHECK} == 0 ]]; then
-            echo -e " \e[31mERROR!\e[30m"
+            echo -e " \e[31mERROR!\e[0m"
             echo "Maximum number of retries while checking service. Exiting"
             break
         else
@@ -53,6 +53,7 @@ function check_service {
     if [[ ${RES} != 0 ]]; then
         echo "Service could not be started!"
         echo
+        echo "$ ${CALL}"
         echo "${LAST_CHECK_RESULT}"
         echo
         EXIT_CODE=${RES}
@@ -96,11 +97,53 @@ function resetdb_if_requested() {
     return $?
 }
 
+function startairflow_if_requested() {
+    if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+
+        . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
+
+        # initialize db and create the admin user if it's a new run
+        airflow db init
+        airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
+
+        . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
+
+        #this is because I run docker in WSL - Hi Bill!
+        export TMUX_TMPDIR=~/.tmux/tmp
+        mkdir -p ~/.tmux/tmp
+        chmod 777 -R ~/.tmux/tmp
+
+        # Set Session Name
+        SESSION="Airflow"
+
+        # Start New Session with our name
+        tmux new-session -d -s $SESSION
+
+        # Name first Pane and start bash
+        tmux rename-window -t 0 'Main'
+        tmux send-keys -t 'Main' 'bash' C-m 'clear' C-m
+
+        tmux split-window -v
+        tmux select-pane -t 1
+        tmux send-keys 'airflow scheduler' C-m
+
+        tmux split-window -h
+        tmux select-pane -t 2
+        tmux send-keys 'airflow webserver' C-m
+
+        # Attach Session, on the Main window
+        tmux select-pane -t 0
+        tmux send-keys 'cd /opt/airflow/' C-m 'clear' C-m
+
+        tmux attach-session -t $SESSION:0
+    fi
+    return $?
+}
 
 echo "==============================================================================================="
 echo "             Checking integrations and backends"
 echo "==============================================================================================="
-if [[ -n ${BACKEND:=} ]]; then
+if [[ -n ${BACKEND=} ]]; then
     check_db_backend 20
     echo "-----------------------------------------------------------------------------------------------"
 fi
@@ -123,8 +166,9 @@ if [[ ${EXIT_CODE} != 0 ]]; then
 fi
 
 resetdb_if_requested
+startairflow_if_requested
 
-if [[ ${DISABLED_INTEGRATIONS} != "" ]]; then
+if [[ -n ${DISABLED_INTEGRATIONS=} ]]; then
     echo
     echo "Disabled integrations:${DISABLED_INTEGRATIONS}"
     echo

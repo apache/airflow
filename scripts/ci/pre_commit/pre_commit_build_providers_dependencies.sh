@@ -18,13 +18,18 @@
 set -euo pipefail
 
 PRE_COMMIT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+readonly PRE_COMMIT_DIR
+
 AIRFLOW_SOURCES=$(cd "${PRE_COMMIT_DIR}/../../../" && pwd);
+readonly AIRFLOW_SOURCES
 cd "${AIRFLOW_SOURCES}" || exit 1
+
 export PRINT_INFO_FROM_SCRIPTS="false"
 export SKIP_CHECK_REMOTE_IMAGE="true"
 
 PYTHONPATH="$(pwd)"
 export PYTHONPATH
+
 find airflow/providers -name '*.py' -print0 | \
     xargs -0 python3 tests/build_provider_packages_dependencies.py \
         --provider-dependencies-file "airflow/providers/dependencies.json" \

@@ -30,7 +30,6 @@ configuring an Airflow environment.
     :maxdepth: 2
 
     add-dag-tags
-    add-new-role
     set-config
     initialize-database
     operator/index

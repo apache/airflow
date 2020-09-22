@@ -158,7 +158,7 @@ it means that your service account does not have the correct Cloud IAM permissio
    service account.
 
 The typical way of assigning Cloud IAM permissions with ``gcloud`` is
-shown below. Just replace PROJECT_ID with ID of your Google Cloud Platform project
+shown below. Just replace PROJECT_ID with ID of your Google Cloud project
 and SERVICE_ACCOUNT_EMAIL with the email ID of your service account.
 
 .. code-block:: bash

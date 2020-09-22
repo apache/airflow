@@ -178,7 +178,7 @@
 {{- end }}
 
 {{ define "flower_image" -}}
-{{ printf "%s:%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.airflow.tag | default .Values.defaultAirflowTag) }}
+{{ printf "%s:%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.images.flower.tag | default .Values.defaultAirflowTag) }}
 {{- end }}
 
 {{ define "statsd_image" -}}
@@ -211,6 +211,10 @@
 
 {{ define "airflow_result_backend_secret" -}}
 {{ default (printf "%s-airflow-result-backend" .Release.Name) .Values.data.resultBackendSecretName }}
+{{- end }}
+
+{{ define "airflow_pod_template_file" -}}
+{{ (printf "%s/pod_templates" .Values.airflowHome) }}
 {{- end }}
 
 {{ define "pgbouncer_config_secret" -}}

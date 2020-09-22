@@ -29,12 +29,19 @@ from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 class TestRedshiftToS3Transfer(unittest.TestCase):
     @parameterized.expand(
-        [[True, "key/table_"], [False, "key"],]
+        [
+            [True, "key/table_"],
+            [False, "key"],
+        ]
     )
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
     def test_execute(
-        self, table_as_file_name, expected_s3_key, mock_run, mock_session,
+        self,
+        table_as_file_name,
+        expected_s3_key,
+        mock_run,
+        mock_session,
     ):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"

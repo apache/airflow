@@ -18,4 +18,7 @@
 # shellcheck source=scripts/in_container/configure_environment.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
 
+# shellcheck source=scripts/in_container/run_init_script.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
+
 exec /bin/bash "${@}"

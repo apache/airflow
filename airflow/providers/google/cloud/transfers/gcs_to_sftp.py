@@ -56,7 +56,7 @@ class GCSToSFTPOperator(BaseOperator):
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :type move_object: bool
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
@@ -142,13 +142,20 @@ class GCSToSFTPOperator(BaseOperator):
             self.log.info("Done. Uploaded '%s' file to %s", self.source_object, destination_path)
 
     def _copy_single_object(
-        self, gcs_hook: GCSHook, sftp_hook: SFTPHook, source_object: str, destination_path: str,
+        self,
+        gcs_hook: GCSHook,
+        sftp_hook: SFTPHook,
+        source_object: str,
+        destination_path: str,
     ) -> None:
         """
         Helper function to copy single object.
         """
         self.log.info(
-            "Executing copy of gs://%s/%s to %s", self.source_bucket, source_object, destination_path,
+            "Executing copy of gs://%s/%s to %s",
+            self.source_bucket,
+            source_object,
+            destination_path,
         )
 
         dir_path = os.path.dirname(destination_path)
@@ -156,7 +163,9 @@ class GCSToSFTPOperator(BaseOperator):
 
         with NamedTemporaryFile("w") as tmp:
             gcs_hook.download(
-                bucket_name=self.source_bucket, object_name=source_object, filename=tmp.name,
+                bucket_name=self.source_bucket,
+                object_name=source_object,
+                filename=tmp.name,
             )
             sftp_hook.store_file(destination_path, tmp.name)
 

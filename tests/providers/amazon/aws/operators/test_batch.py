@@ -96,7 +96,14 @@ class TestAwsBatchOperator(unittest.TestCase):
         self.get_client_type_mock.assert_called_once_with("batch", region_name="eu-west-1")
 
     def test_template_fields_overrides(self):
-        self.assertEqual(self.batch.template_fields, ("job_name", "overrides", "parameters",))
+        self.assertEqual(
+            self.batch.template_fields,
+            (
+                "job_name",
+                "overrides",
+                "parameters",
+            ),
+        )
 
     @mock.patch.object(AwsBatchClientHook, "wait_for_job")
     @mock.patch.object(AwsBatchClientHook, "check_job_success")

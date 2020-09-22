@@ -92,7 +92,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     :type timeout: int
     :param timeout: (optional) timeout (in seconds) for instance creation.
                     If None is not specified, Operator will wait indefinitely.
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -154,7 +154,10 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         super().__init__(**kwargs)
 
     def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if instance:
             # Based on Instance.__eq__ instance with the same ID and client is
@@ -211,7 +214,7 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
     :type timeout: int
     :param timeout: (optional) timeout (in seconds) for instance update.
                     If None is not specified, Operator will wait indefinitely.
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -257,7 +260,10 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         super().__init__(**kwargs)
 
     def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
@@ -292,7 +298,7 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
     :param project_id: Optional, the ID of the Google Cloud project.  If set to None or missing,
             the default project_id from the Google Cloud connection is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -330,7 +336,10 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         super().__init__(**kwargs)
 
     def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         try:
             hook.delete_instance(project_id=self.project_id, instance_id=self.instance_id)
         except google.api_core.exceptions.NotFound:
@@ -370,7 +379,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
     :param column_families: (Optional) A map columns to create.
                             The key is the column_id str and the value is a
                             :class:`google.cloud.bigtable.column_family.GarbageCollectionRule`
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -436,7 +445,10 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         return True
 
     def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             raise AirflowException(
@@ -479,7 +491,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
             the default project_id from the Google Cloud connection is used.
     :type app_profile_id: str
     :param app_profile_id: Application profile.
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -522,14 +534,19 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         super().__init__(**kwargs)
 
     def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             raise AirflowException("Dependency: instance '{}' does not exist.".format(self.instance_id))
 
         try:
             hook.delete_table(
-                project_id=self.project_id, instance_id=self.instance_id, table_id=self.table_id,
+                project_id=self.project_id,
+                instance_id=self.instance_id,
+                table_id=self.table_id,
             )
         except google.api_core.exceptions.NotFound:
             # It's OK if table doesn't exists.
@@ -559,7 +576,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
     :param nodes: The desired number of nodes for the Cloud Bigtable cluster.
     :type project_id: str
     :param project_id: Optional, the ID of the Google Cloud project.
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -603,7 +620,10 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         super().__init__(**kwargs)
 
     def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             raise AirflowException("Dependency: instance '{}' does not exist.".format(self.instance_id))

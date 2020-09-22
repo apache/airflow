@@ -95,7 +95,11 @@ class AWSDataSyncTestCaseBase(unittest.TestCase):
             "start_date": DEFAULT_DATE,
         }
 
-        self.dag = DAG(TEST_DAG_ID + "test_schedule_dag_once", default_args=args, schedule_interval="@once",)
+        self.dag = DAG(
+            TEST_DAG_ID + "test_schedule_dag_once",
+            default_args=args,
+            schedule_interval="@once",
+        )
 
         self.client = boto3.client("datasync", region_name="us-east-1")
 
@@ -106,7 +110,8 @@ class AWSDataSyncTestCaseBase(unittest.TestCase):
             **MOCK_DATA["create_destination_location_kwargs"]
         )["LocationArn"]
         self.task_arn = self.client.create_task(
-            SourceLocationArn=self.source_location_arn, DestinationLocationArn=self.destination_location_arn,
+            SourceLocationArn=self.source_location_arn,
+            DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
     def tearDown(self):
@@ -166,14 +171,17 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
         # Assignments
         self.assertEqual(self.datasync.source_location_uri, MOCK_DATA["source_location_uri"])
         self.assertEqual(
-            self.datasync.destination_location_uri, MOCK_DATA["destination_location_uri"],
+            self.datasync.destination_location_uri,
+            MOCK_DATA["destination_location_uri"],
         )
         self.assertEqual(self.datasync.create_task_kwargs, MOCK_DATA["create_task_kwargs"])
         self.assertEqual(
-            self.datasync.create_source_location_kwargs, MOCK_DATA["create_source_location_kwargs"],
+            self.datasync.create_source_location_kwargs,
+            MOCK_DATA["create_source_location_kwargs"],
         )
         self.assertEqual(
-            self.datasync.create_destination_location_kwargs, MOCK_DATA["create_destination_location_kwargs"],
+            self.datasync.create_destination_location_kwargs,
+            MOCK_DATA["create_destination_location_kwargs"],
         )
         self.assertFalse(self.datasync.allow_random_location_choice)
         # ### Check mocks:
@@ -299,7 +307,8 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
         mock_get_conn.return_value = self.client
         # ### Begin tests:
         task_arn = self.client.create_task(
-            SourceLocationArn=self.source_location_arn, DestinationLocationArn=self.destination_location_arn,
+            SourceLocationArn=self.source_location_arn,
+            DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
         self.set_up_operator(task_arn=task_arn)
@@ -359,7 +368,8 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         # Assignments
         self.assertEqual(self.datasync.source_location_uri, MOCK_DATA["source_location_uri"])
         self.assertEqual(
-            self.datasync.destination_location_uri, MOCK_DATA["destination_location_uri"],
+            self.datasync.destination_location_uri,
+            MOCK_DATA["destination_location_uri"],
         )
         self.assertFalse(self.datasync.allow_random_task_choice)
         # ### Check mocks:
@@ -461,7 +471,8 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         self.set_up_operator()
 
         self.client.create_task(
-            SourceLocationArn=self.source_location_arn, DestinationLocationArn=self.destination_location_arn,
+            SourceLocationArn=self.source_location_arn,
+            DestinationLocationArn=self.destination_location_arn,
         )
 
         # Check how many tasks and locations we have
@@ -490,7 +501,8 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         mock_get_conn.return_value = self.client
         # ### Begin tests:
         task_arn = self.client.create_task(
-            SourceLocationArn=self.source_location_arn, DestinationLocationArn=self.destination_location_arn,
+            SourceLocationArn=self.source_location_arn,
+            DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
         self.set_up_operator(task_arn=task_arn)
@@ -588,7 +600,8 @@ class TestAWSDataSyncOperatorUpdate(AWSDataSyncTestCaseBase):
         mock_get_conn.return_value = self.client
         # ### Begin tests:
         task_arn = self.client.create_task(
-            SourceLocationArn=self.source_location_arn, DestinationLocationArn=self.destination_location_arn,
+            SourceLocationArn=self.source_location_arn,
+            DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
         self.set_up_operator(task_arn=task_arn)
@@ -741,7 +754,8 @@ class TestAWSDataSyncOperator(AWSDataSyncTestCaseBase):
         mock_get_conn.return_value = self.client
         # ### Begin tests:
         task_arn = self.client.create_task(
-            SourceLocationArn=self.source_location_arn, DestinationLocationArn=self.destination_location_arn,
+            SourceLocationArn=self.source_location_arn,
+            DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
         self.set_up_operator(task_arn=task_arn)
@@ -834,7 +848,8 @@ class TestAWSDataSyncOperatorDelete(AWSDataSyncTestCaseBase):
         mock_get_conn.return_value = self.client
         # ### Begin tests:
         task_arn = self.client.create_task(
-            SourceLocationArn=self.source_location_arn, DestinationLocationArn=self.destination_location_arn,
+            SourceLocationArn=self.source_location_arn,
+            DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
         self.set_up_operator(task_arn=task_arn)

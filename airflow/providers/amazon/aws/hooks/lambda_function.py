@@ -44,20 +44,21 @@ class AwsLambdaHook(AwsBaseHook):
 
     def __init__(
         self,
-        function_name,
-        log_type='None',
-        qualifier='$LATEST',
-        invocation_type='RequestResponse',
+        function_name: str,
+        log_type: str = 'None',
+        qualifier: str = '$LATEST',
+        invocation_type: str = 'RequestResponse',
         *args,
         **kwargs,
-    ):
+    ) -> None:
         self.function_name = function_name
         self.log_type = log_type
         self.invocation_type = invocation_type
         self.qualifier = qualifier
-        super().__init__(client_type='lambda', *args, **kwargs)
+        kwargs["client_type"] = "lambda"
+        super().__init__(*args, **kwargs)
 
-    def invoke_lambda(self, payload):
+    def invoke_lambda(self, payload: str) -> str:
         """
         Invoke Lambda Function
         """

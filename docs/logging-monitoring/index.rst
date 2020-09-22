@@ -18,10 +18,21 @@
 Logging & Monitoring
 ====================
 
-This section contains guides on how to keep your instance and your workflows in good condition.
+Since data pipelines are generally run without any manual supervision, observability is critical.
+
+Airflow has support for multiple logging mechanisms, as well as a built-in mechanism to emit metrics for gathering, processing, and visualization in other downstream systems. The logging capabilities are critical for diagnosis of problems which may occur in the process of running data pipelines.
+
+In addition to the standard logging and metrics capabilities, Airflow supports the ability to detect errors in the operation of Airflow itself, using an Airflow health check. Since Airflow is generally used for running data pipelines in production, it also supports real-time error notification via integration with Sentry.
 
 .. toctree::
     :maxdepth: 1
     :glob:
 
-    *
+    logging-architecture
+    logging-tasks
+    metrics
+
+    check-health
+    errors
+
+    tracking-user-activity

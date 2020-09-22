@@ -49,7 +49,10 @@ MODEL = {
 # Example dataset
 DATASET = {
     "display_name": "test_translation_dataset",
-    "translation_dataset_metadata": {"source_language_code": "en", "target_language_code": "es",},
+    "translation_dataset_metadata": {
+        "source_language_code": "en",
+        "target_language_code": "es",
+    },
 }
 
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_TRANSLATION_BUCKET]}}

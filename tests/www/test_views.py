@@ -131,21 +131,38 @@ class TestBase(unittest.TestCase):
         self.client = self.app.test_client()
         self.login()
 
-    def login(self):
-        role_admin = self.appbuilder.sm.find_role('Admin')
-        tester = self.appbuilder.sm.find_user(username='test')
-        if not tester:
+    def login(self, username='test', password='test'):
+        if username == 'test' and not self.appbuilder.sm.find_user(username='test'):
             self.appbuilder.sm.add_user(
                 username='test',
                 first_name='test',
                 last_name='test',
                 email='test@fab.org',
-                role=role_admin,
-                password='test')
-        return self.client.post('/login/', data=dict(
-            username='test',
-            password='test'
-        ), follow_redirects=True)
+                role=self.appbuilder.sm.find_role('Admin'),
+                password='test',
+            )
+
+        if username == 'test_user' and not self.appbuilder.sm.find_user(username='test_user'):
+            self.appbuilder.sm.add_user(
+                username='test_user',
+                first_name='test_user',
+                last_name='test_user',
+                email='test_user@fab.org',
+                role=self.appbuilder.sm.find_role('User'),
+                password='test_user',
+            )
+
+        if username == 'test_viewer' and not self.appbuilder.sm.find_user(username='test_viewer'):
+            self.appbuilder.sm.add_user(
+                username='test_viewer',
+                first_name='test_viewer',
+                last_name='test_viewer',
+                email='test_viewer@fab.org',
+                role=self.appbuilder.sm.find_role('Viewer'),
+                password='test_viewer',
+            )
+
+        return self.client.post('/login/', data={"username": username, "password": password})
 
     def logout(self):
         return self.client.get('/logout/')
@@ -506,9 +523,9 @@ class TestAirflowBaseViews(TestBase):
             val_state_color_mapping = 'const STATE_COLOR = {"failed": "red", ' \
                                       '"null": "lightblue", "queued": "gray", ' \
                                       '"removed": "lightgrey", "running": "lime", ' \
-                                      '"scheduled": "tan", "shutdown": "blue", ' \
-                                      '"skipped": "pink", "success": "green", ' \
-                                      '"up_for_reschedule": "turquoise", ' \
+                                      '"scheduled": "tan", "sensing": "lightseagreen", ' \
+                                      '"shutdown": "blue", "skipped": "pink", ' \
+                                      '"success": "green", "up_for_reschedule": "turquoise", ' \
                                       '"up_for_retry": "gold", "upstream_failed": "orange"};'
             self.check_content_in_response(val_state_color_mapping, resp)
 
@@ -1163,9 +1180,9 @@ class TestLogView(TestBase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('Log by attempts', response.data.decode('utf-8'))
         for num in range(1, expected_num_logs_visible + 1):
-            self.assertIn('try-{}'.format(num), response.data.decode('utf-8'))
-        self.assertNotIn('try-0', response.data.decode('utf-8'))
-        self.assertNotIn('try-{}'.format(expected_num_logs_visible + 1), response.data.decode('utf-8'))
+            self.assertIn('log-group-{}'.format(num), response.data.decode('utf-8'))
+        self.assertNotIn('log-group-0', response.data.decode('utf-8'))
+        self.assertNotIn('log-group-{}'.format(expected_num_logs_visible + 1), response.data.decode('utf-8'))
 
     def test_get_logs_with_metadata_as_download_file(self):
         url_template = "get_logs_with_metadata?dag_id={}&" \
@@ -1191,10 +1208,10 @@ class TestLogView(TestBase):
 
     def test_get_logs_with_metadata_as_download_large_file(self):
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
-            first_return = (['1st line'], [{}])
-            second_return = (['2nd line'], [{'end_of_log': False}])
-            third_return = (['3rd line'], [{'end_of_log': True}])
-            fourth_return = (['should never be read'], [{'end_of_log': True}])
+            first_return = ([[('default_log', '1st line')]], [{}])
+            second_return = ([[('default_log', '2nd line')]], [{'end_of_log': False}])
+            third_return = ([[('default_log', '3rd line')]], [{'end_of_log': True}])
+            fourth_return = ([[('default_log', 'should never be read')]], [{'end_of_log': True}])
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
             url_template = "get_logs_with_metadata?dag_id={}&" \
                            "task_id={}&execution_date={}&" \
@@ -1300,7 +1317,7 @@ class TestLogView(TestBase):
         response = self.client.get(url)
         self.assertIn('message', response.json)
         self.assertIn('metadata', response.json)
-        self.assertIn('Log for testing.', response.json['message'])
+        self.assertIn('Log for testing.', response.json['message'][0][1])
         self.assertEqual(200, response.status_code)
 
     @mock.patch("airflow.www.views.TaskLogReader")
@@ -1676,97 +1693,55 @@ class TestDagACLView(TestBase):
         self.appbuilder.sm.sync_roles()
         self.add_permission_for_role()
 
-    def login(self, username=None, password=None):
-        role_admin = self.appbuilder.sm.find_role('Admin')
-        tester = self.appbuilder.sm.find_user(username='test')
-        if not tester:
-            self.appbuilder.sm.add_user(
-                username='test',
-                first_name='test',
-                last_name='test',
-                email='test@fab.org',
-                role=role_admin,
-                password='test')
-
-        role_user = self.appbuilder.sm.find_role('User')
-        test_user = self.appbuilder.sm.find_user(username='test_user')
-        if not test_user:
-            self.appbuilder.sm.add_user(
-                username='test_user',
-                first_name='test_user',
-                last_name='test_user',
-                email='test_user@fab.org',
-                role=role_user,
-                password='test_user')
-
-        role_viewer = self.appbuilder.sm.find_role('Viewer')
-        test_viewer = self.appbuilder.sm.find_user(username='test_viewer')
-        if not test_viewer:
-            self.appbuilder.sm.add_user(
-                username='test_viewer',
-                first_name='test_viewer',
-                last_name='test_viewer',
-                email='test_viewer@fab.org',
-                role=role_viewer,
-                password='test_viewer')
-
-        dag_acl_role = self.appbuilder.sm.add_role('dag_acl_tester')
-        dag_tester = self.appbuilder.sm.find_user(username='dag_tester')
-        if not dag_tester:
+    def login(self, username='dag_tester', password='dag_test'):
+        dag_tester_role = self.appbuilder.sm.add_role('dag_acl_tester')
+        if username == 'dag_tester' and not self.appbuilder.sm.find_user(username='dag_tester'):
             self.appbuilder.sm.add_user(
                 username='dag_tester',
                 first_name='dag_test',
                 last_name='dag_test',
                 email='dag_test@fab.org',
-                role=dag_acl_role,
-                password='dag_test')
+                role=dag_tester_role,
+                password='dag_test',
+            )
 
         # create an user without permission
         dag_no_role = self.appbuilder.sm.add_role('dag_acl_faker')
-        dag_faker = self.appbuilder.sm.find_user(username='dag_faker')
-        if not dag_faker:
+        if username == 'dag_faker' and not self.appbuilder.sm.find_user(username='dag_faker'):
             self.appbuilder.sm.add_user(
                 username='dag_faker',
                 first_name='dag_faker',
                 last_name='dag_faker',
                 email='dag_fake@fab.org',
                 role=dag_no_role,
-                password='dag_faker')
+                password='dag_faker',
+            )
 
         # create an user with only read permission
         dag_read_only_role = self.appbuilder.sm.add_role('dag_acl_read_only')
-        dag_read_only = self.appbuilder.sm.find_user(username='dag_read_only')
-        if not dag_read_only:
+        if username == 'dag_read_only' and not self.appbuilder.sm.find_user(username='dag_read_only'):
             self.appbuilder.sm.add_user(
                 username='dag_read_only',
                 first_name='dag_read_only',
                 last_name='dag_read_only',
                 email='dag_read_only@fab.org',
                 role=dag_read_only_role,
-                password='dag_read_only')
+                password='dag_read_only',
+            )
 
         # create an user that has all dag access
         all_dag_role = self.appbuilder.sm.add_role('all_dag_role')
-        all_dag_tester = self.appbuilder.sm.find_user(username='all_dag_user')
-        if not all_dag_tester:
+        if username == 'all_dag_user' and not self.appbuilder.sm.find_user(username='all_dag_user'):
             self.appbuilder.sm.add_user(
                 username='all_dag_user',
                 first_name='all_dag_user',
                 last_name='all_dag_user',
                 email='all_dag_user@fab.org',
                 role=all_dag_role,
-                password='all_dag_user')
+                password='all_dag_user',
+            )
 
-        user = username if username else 'dag_tester'
-        passwd = password if password else 'dag_test'
-
-        return self.client.post('/login/', data=dict(
-            username=user,
-            password=passwd
-        ))
-
-    def logout(self):
-        return self.client.get('/logout/')
+        return super().login(username, password)
 
     def add_permission_for_role(self):
         self.logout()
@@ -1796,10 +1771,17 @@ class TestDagACLView(TestBase):
                    password='test')
         test_view_menu = self.appbuilder.sm.find_view_menu('example_bash_operator')
         perms_views = self.appbuilder.sm.find_permissions_view_menu(test_view_menu)
-        self.assertEqual(len(perms_views), 2)
-        # each dag view will create one write, and one read permission
-        self.assertTrue(str(perms_views[0]).startswith('can dag'))
-        self.assertTrue(str(perms_views[1]).startswith('can dag'))
+        self.assertEqual(len(perms_views), 4)
+
+        permissions = [str(perm) for perm in perms_views]
+        expected_permissions = [
+            'can read on example_bash_operator',
+            'can dag edit on example_bash_operator',
+            'can dag read on example_bash_operator',
+            'can edit on example_bash_operator',
+        ]
+        for perm in expected_permissions:
+            self.assertIn(perm, permissions)
 
     def test_role_permission_associate(self):
         self.logout()
@@ -2411,7 +2393,6 @@ class TestRenderedView(TestBase):
         )
 
 
-@pytest.mark.quarantined
 class TestTriggerDag(TestBase):
 
     def setUp(self):
@@ -2549,6 +2530,8 @@ class TestExtraLinks(TestBase):
 
         self.app.dag_bag = mock.MagicMock(**{'get_dag.return_value': self.dag})
         super().setUp()
+        self.logout()
+        self.login('test_viewer', 'test_viewer')
 
     def test_extra_links_works(self):
         response = self.client.get(
@@ -2860,7 +2843,7 @@ class TestDagRunModelView(TestBase):
         self.assertEqual(dr.conf, {"include": "me"})
 
         resp = self.client.get('/dagrun/list', follow_redirects=True)
-        self.check_content_in_response("{&#39;include&#39;: &#39;me&#39;}", resp)
+        self.check_content_in_response("{&#34;include&#34;: &#34;me&#34;}", resp)
 
 
 class TestDecorators(TestBase):

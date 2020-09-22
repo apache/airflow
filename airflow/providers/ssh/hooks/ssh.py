@@ -258,9 +258,13 @@ class SSHHook(BaseHook):
 
         if self.password:
             password = self.password.strip()
-            tunnel_kwargs.update(ssh_password=password,)
+            tunnel_kwargs.update(
+                ssh_password=password,
+            )
         else:
-            tunnel_kwargs.update(host_pkey_directories=[],)
+            tunnel_kwargs.update(
+                host_pkey_directories=[],
+            )
 
         client = SSHTunnelForwarder(self.remote_host, **tunnel_kwargs)
 

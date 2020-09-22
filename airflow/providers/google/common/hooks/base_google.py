@@ -126,7 +126,7 @@ class GoogleBaseHook(BaseHook):
 
     The class also contains some miscellaneous helper functions.
 
-    All hook derived from this base hook use the 'Google Cloud Platform' connection
+    All hook derived from this base hook use the 'Google Cloud' connection
     type. Three ways of authentication are supported:
 
     Default credentials: Only the 'Project Id' is required. You'll need to
@@ -285,7 +285,7 @@ class GoogleBaseHook(BaseHook):
         It allows for better errors tracking.
 
         This object is only used by the google-cloud-* libraries that are built specifically for
-        the Google Cloud Platform. It is not supported by The Google APIs Python Client that use Discovery
+        the Google Cloud. It is not supported by The Google APIs Python Client that use Discovery
         based APIs.
         """
         client_info = ClientInfo(client_library_version='airflow_v' + version.version)
@@ -345,7 +345,7 @@ class GoogleBaseHook(BaseHook):
     @staticmethod
     def fallback_to_default_project_id(func: Callable[..., RT]) -> Callable[..., RT]:
         """
-        Decorator that provides fallback for Google Cloud Platform project id. If
+        Decorator that provides fallback for Google Cloud project id. If
         the project is None it will be replaced with the project_id from the
         service account the Hook is authenticated with. Project id can be specified
         either via project_id kwarg or via first parameter in positional args.

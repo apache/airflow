@@ -53,7 +53,7 @@ class SFTPToGCSOperator(BaseOperator):
         If a wildcard is supplied in the destination_path argument, this is the
         prefix that will be prepended to the final destination objects' paths.
     :type destination_path: str
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
@@ -150,13 +150,20 @@ class SFTPToGCSOperator(BaseOperator):
             self._copy_single_object(gcs_hook, sftp_hook, self.source_path, destination_object)
 
     def _copy_single_object(
-        self, gcs_hook: GCSHook, sftp_hook: SFTPHook, source_path: str, destination_object: str,
+        self,
+        gcs_hook: GCSHook,
+        sftp_hook: SFTPHook,
+        source_path: str,
+        destination_object: str,
     ) -> None:
         """
         Helper function to copy single object.
         """
         self.log.info(
-            "Executing copy of %s to gs://%s/%s", source_path, self.destination_bucket, destination_object,
+            "Executing copy of %s to gs://%s/%s",
+            source_path,
+            self.destination_bucket,
+            destination_object,
         )
 
         with NamedTemporaryFile("w") as tmp:

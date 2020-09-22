@@ -46,7 +46,10 @@ class TestGoogleCampaignManagerHook(TestCase):
     def test_gen_conn(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            "dfareporting", API_VERSION, http=mock_authorize.return_value, cache_discovery=False,
+            "dfareporting",
+            API_VERSION,
+            http=mock_authorize.return_value,
+            cache_discovery=False,
         )
         self.assertEqual(mock_build.return_value, result)
 

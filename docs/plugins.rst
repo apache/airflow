@@ -326,3 +326,6 @@ you should set ``reload_on_plugin_change`` option in ``[webserver]`` section to 
 
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`
+
+.. note::
+    See :doc:`modules_management` for details on how Python and Airflow manage modules.

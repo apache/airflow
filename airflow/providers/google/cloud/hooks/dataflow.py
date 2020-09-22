@@ -125,7 +125,7 @@ class _DataflowJobsController(LoggingMixin):
     It's not use Apache Beam, but only Google Dataflow API.
 
     :param dataflow: Discovery resource
-    :param project_number: The Google Cloud Platform Project ID.
+    :param project_number: The Google Cloud Project ID.
     :param location: Job location.
     :param poll_sleep: The status refresh rate for pending operations.
     :param name: The Job ID prefix used when the multiple_jobs option is passed is set to True.
@@ -422,7 +422,9 @@ class DataflowHook(GoogleBaseHook):
     ) -> None:
         self.poll_sleep = poll_sleep
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
 
     def get_conn(self):

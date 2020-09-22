@@ -41,7 +41,11 @@ class GcsToSftpExampleDagsSystemTest(GoogleSystemTest):
 
         # 2. Prepare files
         for bucket_src, object_source in product(
-            (BUCKET_SRC, "{}/subdir-1".format(BUCKET_SRC), "{}/subdir-2".format(BUCKET_SRC),),
+            (
+                BUCKET_SRC,
+                "{}/subdir-1".format(BUCKET_SRC),
+                "{}/subdir-2".format(BUCKET_SRC),
+            ),
             (OBJECT_SRC_1, OBJECT_SRC_2),
         ):
             source_path = "gs://{}/{}".format(bucket_src, object_source)

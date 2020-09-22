@@ -88,7 +88,9 @@ class CloudSQLHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
         self._conn = None
@@ -248,7 +250,13 @@ class CloudSQLHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
-    def patch_database(self, instance: str, database: str, body: Dict, project_id: str,) -> None:
+    def patch_database(
+        self,
+        instance: str,
+        database: str,
+        body: Dict,
+        project_id: str,
+    ) -> None:
         """
         Updates a database resource inside a Cloud SQL instance.
 
@@ -416,7 +424,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         for UNIX socket connections and in the form of
         ``<project>:<region>:<instance>=tcp:<port>`` for TCP connections.
     :type instance_specification: str
-    :param gcp_conn_id: Id of Google Cloud Platform connection to use for
+    :param gcp_conn_id: Id of Google Cloud connection to use for
         authentication
     :type gcp_conn_id: str
     :param project_id: Optional id of the Google Cloud project to connect to - it overwrites
@@ -679,7 +687,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
 
     Remaining parameters are retrieved from the extras (URI query parameters):
 
-    * **project_id** - Optional, Google Cloud Platform project where the Cloud SQL
+    * **project_id** - Optional, Google Cloud project where the Cloud SQL
        instance exists. If missing, default project id passed is used.
     * **instance** -  Name of the instance of the Cloud SQL database instance.
     * **location** - The location of the Cloud SQL instance (for example europe-west1).
@@ -700,7 +708,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
 
     :param gcp_cloudsql_conn_id: URL of the connection
     :type gcp_cloudsql_conn_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform for
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud for
         cloud-sql-proxy authentication.
     :type gcp_conn_id: str
     :param default_gcp_project_id: Default project id used if project_id not specified

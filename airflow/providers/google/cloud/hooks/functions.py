@@ -49,7 +49,9 @@ class CloudFunctionsHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
@@ -171,7 +173,10 @@ class CloudFunctionsHook(GoogleBaseHook):
                 # Those two headers needs to be specified according to:
                 # https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/generateUploadUrl
                 # nopep8
-                headers={'Content-type': 'application/zip', 'x-goog-content-length-range': '0,104857600',},
+                headers={
+                    'Content-type': 'application/zip',
+                    'x-goog-content-length-range': '0,104857600',
+                },
             )
         return upload_url
 
@@ -191,7 +196,13 @@ class CloudFunctionsHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def call_function(self, function_id: str, input_data: Dict, location: str, project_id: str,) -> Dict:
+    def call_function(
+        self,
+        function_id: str,
+        input_data: Dict,
+        location: str,
+        project_id: str,
+    ) -> Dict:
         """
         Synchronously invokes a deployed Cloud Function. To be used for testing
         purposes as very limited traffic is allowed.

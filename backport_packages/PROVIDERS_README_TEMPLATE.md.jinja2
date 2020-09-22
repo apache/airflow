@@ -25,7 +25,6 @@ Release: {{ RELEASE_NO_LEADING_ZEROS }}
 
 - [Backport package](#backport-package)
 - [Installation](#installation)
-- [Compatibility](#compatibility)
 {%- if PIP_REQUIREMENTS %}
 - [PIP requirements](#pip-requirements)
 {%- endif %}
@@ -68,11 +67,6 @@ want to use this backport package.
 
 You can install this package on top of an existing airflow 1.10.* installation via
 `pip install {{PACKAGE_PIP_NAME}}`
-
-## Compatibility
-
-For full compatibility and test status of the backport packages check
-[Airflow Backport Package Compatibility](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
 
 {%- if PIP_REQUIREMENTS %}
 

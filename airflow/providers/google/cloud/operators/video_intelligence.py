@@ -61,8 +61,8 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
     :param timeout: Optional, The amount of time, in seconds, to wait for the request to complete.
         Note that if retry is specified, the timeout applies to each individual attempt.
     :type timeout: float
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to ``google_cloud_default``.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to ``google_cloud_default``.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -112,7 +112,8 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudVideoIntelligenceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         operation = hook.annotate_video(
             input_uri=self.input_uri,
@@ -161,7 +162,7 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
         Note that if retry is specified, the timeout applies to each individual attempt.
     :type timeout: float
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to ``google_cloud_default``.
+        Defaults to ``google_cloud_default``.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -211,7 +212,8 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudVideoIntelligenceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         operation = hook.annotate_video(
             input_uri=self.input_uri,
@@ -259,8 +261,8 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
     :param timeout: Optional, The amount of time, in seconds, to wait for the request to complete.
         Note that if retry is specified, the timeout applies to each individual attempt.
     :type timeout: float
-    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
-        Platform. Defaults to ``google_cloud_default``.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to ``google_cloud_default``.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -310,7 +312,8 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudVideoIntelligenceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         operation = hook.annotate_video(
             input_uri=self.input_uri,

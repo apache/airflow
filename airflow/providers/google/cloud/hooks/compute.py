@@ -59,7 +59,9 @@ class ComputeEngineHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
@@ -81,11 +83,11 @@ class ComputeEngineHook(GoogleBaseHook):
         Starts an existing instance defined by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
 
-        :param zone: Google Cloud Platform zone where the instance exists
+        :param zone: Google Cloud zone where the instance exists
         :type zone: str
         :param resource_id: Name of the Compute Engine instance resource
         :type resource_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -112,11 +114,11 @@ class ComputeEngineHook(GoogleBaseHook):
         Stops an instance defined by project_id, zone and resource_id
         Must be called with keyword arguments rather than positional.
 
-        :param zone: Google Cloud Platform zone where the instance exists
+        :param zone: Google Cloud zone where the instance exists
         :type zone: str
         :param resource_id: Name of the Compute Engine instance resource
         :type resource_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -143,7 +145,7 @@ class ComputeEngineHook(GoogleBaseHook):
         Sets machine type of an instance defined by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
 
-        :param zone: Google Cloud Platform zone where the instance exists.
+        :param zone: Google Cloud zone where the instance exists.
         :type zone: str
         :param resource_id: Name of the Compute Engine instance resource
         :type resource_id: str
@@ -151,7 +153,7 @@ class ComputeEngineHook(GoogleBaseHook):
             as described in
             https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType
         :type body: dict
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -183,7 +185,7 @@ class ComputeEngineHook(GoogleBaseHook):
 
         :param resource_id: Name of the instance template
         :type resource_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -202,7 +204,10 @@ class ComputeEngineHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_instance_template(
-        self, body: Dict, project_id: str, request_id: Optional[str] = None,
+        self,
+        body: Dict,
+        project_id: str,
+        request_id: Optional[str] = None,
     ) -> None:
         """
         Inserts instance template using body specified
@@ -216,7 +221,7 @@ class ComputeEngineHook(GoogleBaseHook):
             with the same request id will not create a new instance template again)
             It should be in UUID format as defined in RFC 4122
         :type request_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -238,16 +243,21 @@ class ComputeEngineHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance_group_manager(self, zone: str, resource_id: str, project_id: str,) -> Dict:
+    def get_instance_group_manager(
+        self,
+        zone: str,
+        resource_id: str,
+        project_id: str,
+    ) -> Dict:
         """
         Retrieves Instance Group Manager by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
 
-        :param zone: Google Cloud Platform zone where the Instance Group Manager exists
+        :param zone: Google Cloud zone where the Instance Group Manager exists
         :type zone: str
         :param resource_id: Name of the Instance Group Manager
         :type resource_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -266,13 +276,18 @@ class ComputeEngineHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def patch_instance_group_manager(
-        self, zone: str, resource_id: str, body: Dict, project_id: str, request_id: Optional[str] = None,
+        self,
+        zone: str,
+        resource_id: str,
+        body: Dict,
+        project_id: str,
+        request_id: Optional[str] = None,
     ) -> None:
         """
         Patches Instance Group Manager with the specified body.
         Must be called with keyword arguments rather than positional.
 
-        :param zone: Google Cloud Platform zone where the Instance Group Manager exists
+        :param zone: Google Cloud zone where the Instance Group Manager exists
         :type zone: str
         :param resource_id: Name of the Instance Group Manager
         :type resource_id: str
@@ -285,7 +300,7 @@ class ComputeEngineHook(GoogleBaseHook):
             with the same request id will not create a new instance template again).
             It should be in UUID format as defined in RFC 4122
         :type request_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str

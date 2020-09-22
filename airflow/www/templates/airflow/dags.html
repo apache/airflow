@@ -29,8 +29,8 @@
 
 {% block head_css %}
   {{ super() }}
-  <link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css">
-  <link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('dataTables.bootstrap.min.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('switch.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -102,13 +102,16 @@
 
             <!-- Column 2: Turn dag on/off -->
             <td>
-              <input id="toggle-{{ dag.dag_id }}" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
+              <label class="switch-label js-tooltip" title="Pause/Unpause DAG">
+                <input class="switch-input" id="toggle-{{ dag.dag_id }}" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} method="post">
+                <span class="switch" aria-hidden="true"></span>
+              </label>
             </td>
 
             <!-- Column 3: Name -->
             <td>
               <span>
-                <a href="{{ url_for('Airflow.'+ dag.default_view, dag_id=dag.dag_id) }}"
+                <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}"
                    title="{{ dag.description[0:80] + '…' if dag.description and dag.description|length > 80 else dag.description|default('', true) }}">
                   {{ dag.dag_id }}
                 </a>
@@ -138,7 +141,7 @@
             </td>
 
             <!-- Column 6: Recent Tasks -->
-            <td style="padding:0; width:200px; height:10px;">
+            <td style="padding:0; width:323px; height:10px;">
               <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
             </td>
 
@@ -245,7 +248,6 @@
   <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script src="{{ url_for_asset('jquery.dataTables.min.js') }}"></script>
   <script src="{{ url_for_asset('dataTables.bootstrap.min.js') }}"></script>
-  <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
   <script>
 
     const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
@@ -467,7 +469,7 @@
     function drawTaskStatsForDag(dag_id, states) {
       g = d3.select('svg#task-run-' + dag_id.replace(/\./g, '__dot__'))
         .attr('height', diameter + (stroke_width_hover * 2))
-        .attr('width', '300px')
+        .attr('width', (states.length * (diameter + circle_margin)) + circle_margin)
         .selectAll("g")
         .data(states)
         .enter()
@@ -593,5 +595,6 @@
         hideSvgTooltip();
       });
     });
+    $('.js-tooltip').tooltip();
   </script>
 {% endblock %}

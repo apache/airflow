@@ -46,7 +46,7 @@ class TestCliSyncPerm(unittest.TestCase):
         appbuilder.sm = mock.Mock()
 
         args = self.parser.parse_args([
-            'sync_perm'
+            'sync-perm'
         ])
         sync_perm_command.sync_perm(args)
 

@@ -21,12 +21,13 @@ from datetime import datetime
 from parameterized import parameterized
 
 from airflow import DAG
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.session import provide_session
 from airflow.www import app
-from tests.test_utils.api_connexion_utils import assert_401, create_role, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -46,10 +47,10 @@ class TestDagEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_role(
+        create_user(
             cls.app,  # type: ignore
-            name="Test",
+            username="test",
+            role_name="Test",
             permissions=[
                 ("can_create", "Dag"),
                 ("can_read", "Dag"),
@@ -57,11 +58,10 @@ class TestDagEndpoint(unittest.TestCase):
                 ("can_delete", "Dag"),
             ],
         )
-        create_user(cls.app, username="test", role="Test")  # type: ignore
-        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
-        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
-        create_role(cls.app, name="TestGranularDag")  # type: ignore
-        create_user(cls.app, username="test_granular_permissions", role="TestGranularDag")  # type: ignore
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+        create_user(
+            cls.app, username="test_granular_permissions", role_name="TestGranularDag"  # type: ignore
+        )
         cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
             "TEST_DAG_1", access_control={'TestGranularDag': ['can_edit', 'can_read']}
         )
@@ -77,11 +77,8 @@ class TestDagEndpoint(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
         delete_user(cls.app, username="test_no_permissions")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
         delete_user(cls.app, username="test_granular_permissions")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("TestGranularDag")  # type: ignore  # pylint: disable=no-member
 
     def setUp(self) -> None:
         self.clean_db()
@@ -148,6 +145,13 @@ class TestGetDag(TestDagEndpoint):
         )
         assert response.status_code == 403
 
+    def test_should_response_403_with_granular_access_for_different_dag(self):
+        self._create_dag_models(3)
+        response = self.client.get(
+            "/api/v1/dags/TEST_DAG_2", environ_overrides={'REMOTE_USER': "test_granular_permissions"}
+        )
+        assert response.status_code == 403
+
 
 class TestGetDagDetails(TestDagEndpoint):
     def test_should_response_200(self):
@@ -184,7 +188,6 @@ class TestGetDagDetails(TestDagEndpoint):
         # Create empty app with empty dagbag to check if DAG is read from db
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             app_serialized = app.create_app(testing=True)
-        create_user(app_serialized, username="test", role="Test")
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         app_serialized.dag_bag = dag_bag
         client = app_serialized.test_client()
@@ -258,7 +261,6 @@ class TestGetDags(TestDagEndpoint):
         response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
-
         self.assertEqual(
             {
                 "dags": [
@@ -295,6 +297,15 @@ class TestGetDags(TestDagEndpoint):
             },
             response.json,
         )
+
+    def test_should_response_200_with_granular_dag_access(self):
+        self._create_dag_models(3)
+        response = self.client.get(
+            "/api/v1/dags", environ_overrides={'REMOTE_USER': "test_granular_permissions"}
+        )
+        assert response.status_code == 200
+        assert len(response.json['dags']) == 1
+        assert response.json['dags'][0]['dag_id'] == 'TEST_DAG_1'
 
     @parameterized.expand(
         [
@@ -350,6 +361,13 @@ class TestGetDags(TestDagEndpoint):
         response = self.client.get("api/v1/dags")
 
         assert_401(response)
+
+    def test_should_response_403_unauthorized(self):
+        self._create_dag_models(1)
+
+        response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test_no_permissions"})
+
+        assert response.status_code == 403
 
 
 class TestPatchDag(TestDagEndpoint):
@@ -407,7 +425,7 @@ class TestPatchDag(TestDagEndpoint):
                 'detail': "Property is read-only - 'schedule_interval'",
                 'status': 400,
                 'title': 'Bad Request',
-                'type': 'about:blank',
+                'type': EXCEPTIONS_LINK_MAP[400],
             },
         )
 
@@ -489,3 +507,15 @@ class TestPatchDag(TestDagEndpoint):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json['detail'], error_message)
+
+    def test_should_response_403_unauthorized(self):
+        dag_model = self._create_dag_model()
+        response = self.client.patch(
+            f"/api/v1/dags/{dag_model.dag_id}",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+
+        assert response.status_code == 403

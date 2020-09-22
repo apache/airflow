@@ -381,7 +381,7 @@ class RefactorBackportPackages:
         """
         Fixes to "amazon" providers package.
 
-        Copies some of the classes used from core Airflow to "common.utils" package of the
+        Copies some of the classes used from core Airflow to "common.utils" package of
         the provider and renames imports to use them from there.
 
         We copy typing_compat.py and change import as in example diff:

@@ -18,9 +18,10 @@ import unittest
 
 from parameterized import parameterized
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Variable
 from airflow.www import app
-from tests.test_utils.api_connexion_utils import assert_401, create_role, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_variables
 
@@ -31,10 +32,11 @@ class TestVariableEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_role(
+
+        create_user(
             cls.app,  # type: ignore
-            name="Test",
+            username="test",
+            role_name="Test",
             permissions=[
                 ("can_create", "Variable"),
                 ("can_read", "Variable"),
@@ -42,16 +44,12 @@ class TestVariableEndpoint(unittest.TestCase):
                 ("can_delete", "Variable"),
             ],
         )
-        create_user(cls.app, username="test", role="Test")  # type: ignore
-        create_role(cls.app, name="TestNoPermissions", permissions=[])  # type: ignore
-        create_user(cls.app, username="test_no_permissions", role="TestNoPermissions")  # type: ignore
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("Test")  # type: ignore  # pylint: disable=no-member
         delete_user(cls.app, username="test_no_permissions")  # type: ignore
-        cls.app.appbuilder.sm.delete_role("TestNoPermissions")  # type: ignore  # pylint: disable=no-member
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -225,7 +223,7 @@ class TestPatchVariable(TestVariableEndpoint):
         assert response.json == {
             "title": "Invalid post body",
             "status": 400,
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "key from request body doesn't match uri parameter",
         }
 
@@ -239,7 +237,7 @@ class TestPatchVariable(TestVariableEndpoint):
         assert response.json == {
             "title": "Invalid Variable schema",
             "status": 400,
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "{'value': ['Missing data for required field.']}",
         }
 
@@ -287,7 +285,7 @@ class TestPostVariables(TestVariableEndpoint):
         assert response.json == {
             "title": "Invalid Variable schema",
             "status": 400,
-            "type": "about:blank",
+            "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "{'value': ['Missing data for required field.'], 'v': ['Unknown field.']}",
         }
 

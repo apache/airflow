@@ -63,8 +63,7 @@ BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
 # pylint: disable=too-many-public-methods
 class BigQueryHook(GoogleBaseHook, DbApiHook):
     """
-    Interact with BigQuery. This hook uses the Google Cloud Platform
-    connection.
+    Interact with BigQuery. This hook uses the Google Cloud connection.
     """
 
     conn_name_attr = 'gcp_conn_id'  # type: str
@@ -90,7 +89,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             )
             gcp_conn_id = bigquery_conn_id
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.use_legacy_sql = use_legacy_sql
         self.location = location
@@ -370,7 +371,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         table_resource = table_resource or _table_resource
         table_resource = self._resolve_table_reference(
-            table_resource=table_resource, project_id=project_id, dataset_id=dataset_id, table_id=table_id,
+            table_resource=table_resource,
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
         )
         table = Table.from_api_repr(table_resource)
         return self.get_client(project_id=project_id, location=location).create_table(
@@ -794,7 +798,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         """
         warnings.warn(
-            "This method is deprecated, please use ``BigQueryHook.update_table`` method.", DeprecationWarning,
+            "This method is deprecated, please use ``BigQueryHook.update_table`` method.",
+            DeprecationWarning,
         )
         table_resource: Dict[str, Any] = {}
 
@@ -935,7 +940,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         self.log.info('Start updating dataset')
         dataset = self.get_client(project_id=project_id).update_dataset(
-            dataset=Dataset.from_api_repr(dataset_resource), fields=fields, retry=retry,
+            dataset=Dataset.from_api_repr(dataset_resource),
+            fields=fields,
+            retry=retry,
         )
         self.log.info("Dataset successfully updated: %s", dataset)
         return dataset
@@ -975,7 +982,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.log.info('Start patching dataset: %s:%s', dataset_project_id, dataset_id)
         dataset = (
             service.datasets()  # pylint: disable=no-member
-            .patch(datasetId=dataset_id, projectId=dataset_project_id, body=dataset_resource,)
+            .patch(
+                datasetId=dataset_id,
+                projectId=dataset_project_id,
+                body=dataset_resource,
+            )
             .execute(num_retries=self.num_retries)
         )
         self.log.info("Dataset successfully patched: %s", dataset)
@@ -1010,7 +1021,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         warnings.warn("This method is deprecated. Please use ``get_dataset_tables``.", DeprecationWarning)
         project_id = project_id or self.project_id
         tables = self.get_client().list_tables(
-            dataset=DatasetReference(project=project_id, dataset_id=dataset_id), max_results=max_results,
+            dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
+            max_results=max_results,
         )
 
         if table_prefix:
@@ -1119,7 +1131,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if source_project:
             project_id = source_project
             warnings.warn(
-                "Parameter ``source_project`` is deprecated. Use ``project_id``.", DeprecationWarning,
+                "Parameter ``source_project`` is deprecated. Use ``project_id``.",
+                DeprecationWarning,
             )
         view_project = view_project or project_id
         view_access = AccessEntry(
@@ -1209,7 +1222,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_table(
-        self, table_id: str, not_found_ok: bool = True, project_id: Optional[str] = None,
+        self,
+        table_id: str,
+        not_found_ok: bool = True,
+        project_id: Optional[str] = None,
     ) -> None:
         """
         Delete an existing table from the dataset. If the table does not exist, return an error
@@ -1225,7 +1241,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type project_id: str
         """
         self.get_client(project_id=project_id).delete_table(
-            table=Table.from_string(table_id), not_found_ok=not_found_ok,
+            table=Table.from_string(table_id),
+            not_found_ok=not_found_ok,
         )
         self.log.info('Deleted table %s', table_id)
 
@@ -1290,7 +1307,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             selected_fields = selected_fields.split(",")
 
         table = self._resolve_table_reference(
-            table_resource={}, project_id=project_id, dataset_id=dataset_id, table_id=table_id,
+            table_resource={},
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
         )
 
         result = self.get_client(project_id=project_id, location=location).list_rows(
@@ -1348,7 +1368,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         Cancel all started queries that have not yet completed
         """
         warnings.warn(
-            "This method is deprecated. Please use `BigQueryHook.cancel_job`.", DeprecationWarning,
+            "This method is deprecated. Please use `BigQueryHook.cancel_job`.",
+            DeprecationWarning,
         )
         if self.running_job_id:
             self.cancel_job(job_id=self.running_job_id)
@@ -1357,7 +1378,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_job(
-        self, job_id: str, project_id: Optional[str] = None, location: Optional[str] = None,
+        self,
+        job_id: str,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
     ) -> None:
         """
         Cancels a job an wait for cancellation to complete
@@ -1400,10 +1424,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_job(
-        self, job_id: Optional[str] = None, project_id: Optional[str] = None, location: Optional[str] = None,
+        self,
+        job_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
     ) -> Union[CopyJob, QueryJob, LoadJob, ExtractJob]:
         """
-        Retrives a BigQuery job. For more information see:
+        Retrieves a BigQuery job. For more information see:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
         :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),

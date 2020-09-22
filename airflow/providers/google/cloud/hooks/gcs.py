@@ -109,7 +109,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
 class GCSHook(GoogleBaseHook):
     """
-    Interact with Google Cloud Storage. This hook uses the Google Cloud Platform
+    Interact with Google Cloud Storage. This hook uses the Google Cloud
     connection.
     """
 
@@ -133,7 +133,9 @@ class GCSHook(GoogleBaseHook):
             )
             gcp_conn_id = google_cloud_storage_conn_id
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
 
     def get_conn(self):

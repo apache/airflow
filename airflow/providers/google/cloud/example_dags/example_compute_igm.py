@@ -23,7 +23,7 @@ Example Airflow DAG that uses IGM-type compute operations:
 
 This DAG relies on the following OS environment variables
 
-* GCP_PROJECT_ID - the Google Cloud Platform project where the Compute Engine instance exists
+* GCP_PROJECT_ID - the Google Cloud project where the Compute Engine instance exists
 * GCE_ZONE - the zone where the Compute Engine instance exists
 
 Variables for copy template operator:

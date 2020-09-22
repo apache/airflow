@@ -78,6 +78,7 @@ class GunicornMonitor(LoggingMixin):
     :param reload_on_plugin_change: If set to True, Airflow will track files in plugins_folder directory.
         When it detects changes, then reload the gunicorn.
     """
+
     def __init__(
         self,
         gunicorn_master_pid: int,

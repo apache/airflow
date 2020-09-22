@@ -71,6 +71,7 @@ class TestDagRun(unittest.TestCase):
             for task_id, task_state in task_states.items():
                 ti = dag_run.get_task_instance(task_id)
                 ti.set_state(task_state, session)
+            session.commit()
             session.close()
 
         return dag_run

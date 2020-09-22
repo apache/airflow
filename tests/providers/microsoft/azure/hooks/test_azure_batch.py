@@ -87,12 +87,20 @@ class TestAzureBatchHook(unittest.TestCase):
 
     def test_configure_pool_with_vm_config(self):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
-        pool = hook.configure_pool(pool_id='mypool', vm_size="test_vm_size", target_dedicated_nodes=1,)
+        pool = hook.configure_pool(
+            pool_id='mypool',
+            vm_size="test_vm_size",
+            target_dedicated_nodes=1,
+        )
         self.assertIsInstance(pool, batch_models.PoolAddParameter)
 
     def test_configure_pool_with_cloud_config(self):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
-        pool = hook.configure_pool(pool_id='mypool', vm_size="test_vm_size", target_dedicated_nodes=1,)
+        pool = hook.configure_pool(
+            pool_id='mypool',
+            vm_size="test_vm_size",
+            target_dedicated_nodes=1,
+        )
         self.assertIsInstance(pool, batch_models.PoolAddParameter)
 
     def test_configure_pool_with_latest_vm(self):
@@ -104,7 +112,9 @@ class TestAzureBatchHook(unittest.TestCase):
             getvm_instance = mock_getvm
             getvm_instance.return_value = ['test-image', 'test-sku']
             pool = hook.configure_pool(
-                pool_id='mypool', vm_size="test_vm_size", use_latest_image_and_sku=True,
+                pool_id='mypool',
+                vm_size="test_vm_size",
+                use_latest_image_and_sku=True,
             )
             self.assertIsInstance(pool, batch_models.PoolAddParameter)
 
@@ -112,7 +122,11 @@ class TestAzureBatchHook(unittest.TestCase):
     def test_create_pool_with_vm_config(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
         mock_instance = mock_batch.return_value.pool.add
-        pool = hook.configure_pool(pool_id='mypool', vm_size="test_vm_size", target_dedicated_nodes=1,)
+        pool = hook.configure_pool(
+            pool_id='mypool',
+            vm_size="test_vm_size",
+            target_dedicated_nodes=1,
+        )
         hook.create_pool(pool=pool)
         mock_instance.assert_called_once_with(pool)
 
@@ -120,7 +134,11 @@ class TestAzureBatchHook(unittest.TestCase):
     def test_create_pool_with_cloud_config(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
         mock_instance = mock_batch.return_value.pool.add
-        pool = hook.configure_pool(pool_id='mypool', vm_size="test_vm_size", target_dedicated_nodes=1,)
+        pool = hook.configure_pool(
+            pool_id='mypool',
+            vm_size="test_vm_size",
+            target_dedicated_nodes=1,
+        )
         hook.create_pool(pool=pool)
         mock_instance.assert_called_once_with(pool)
 

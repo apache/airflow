@@ -74,13 +74,17 @@ class TestAwsBatchClient(unittest.TestCase):
         self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
 
         with mock.patch.object(
-            self.batch_client, "poll_for_job_running", wraps=self.batch_client.poll_for_job_running,
+            self.batch_client,
+            "poll_for_job_running",
+            wraps=self.batch_client.poll_for_job_running,
         ) as job_running:
             self.batch_client.wait_for_job(JOB_ID)
             job_running.assert_called_once_with(JOB_ID, None)
 
         with mock.patch.object(
-            self.batch_client, "poll_for_job_complete", wraps=self.batch_client.poll_for_job_complete,
+            self.batch_client,
+            "poll_for_job_complete",
+            wraps=self.batch_client.poll_for_job_complete,
         ) as job_complete:
             self.batch_client.wait_for_job(JOB_ID)
             job_complete.assert_called_once_with(JOB_ID, None)
@@ -91,13 +95,17 @@ class TestAwsBatchClient(unittest.TestCase):
         self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "FAILED"}]}
 
         with mock.patch.object(
-            self.batch_client, "poll_for_job_running", wraps=self.batch_client.poll_for_job_running,
+            self.batch_client,
+            "poll_for_job_running",
+            wraps=self.batch_client.poll_for_job_running,
         ) as job_running:
             self.batch_client.wait_for_job(JOB_ID)
             job_running.assert_called_once_with(JOB_ID, None)
 
         with mock.patch.object(
-            self.batch_client, "poll_for_job_complete", wraps=self.batch_client.poll_for_job_complete,
+            self.batch_client,
+            "poll_for_job_complete",
+            wraps=self.batch_client.poll_for_job_complete,
         ) as job_complete:
             self.batch_client.wait_for_job(JOB_ID)
             job_complete.assert_called_once_with(JOB_ID, None)
@@ -138,7 +146,8 @@ class TestAwsBatchClient(unittest.TestCase):
 
     def test_poll_job_status_with_client_error(self):
         self.client_mock.describe_jobs.side_effect = botocore.exceptions.ClientError(
-            error_response={"Error": {"Code": "InvalidClientTokenId"}}, operation_name="get job description",
+            error_response={"Error": {"Code": "InvalidClientTokenId"}},
+            operation_name="get job description",
         )
         with self.assertRaises(AirflowException) as e:
             self.batch_client.poll_for_job_complete(JOB_ID)

@@ -136,7 +136,9 @@ class CloudVisionHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -440,7 +442,12 @@ class CloudVisionHook(GoogleBaseHook):
             project=project_id, location=location, product=product_id, reference_image=reference_image_id
         )
         # pylint: disable=assignment-from-no-return
-        response = client.delete_reference_image(name=name, retry=retry, timeout=timeout, metadata=metadata,)
+        response = client.delete_reference_image(
+            name=name,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
 
         self.log.info('ReferenceImage with the name [%s] deleted.', name)
         return MessageToDict(response)

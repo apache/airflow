@@ -25,7 +25,10 @@ from airflow.api_connexion.schemas.version_schema import version_info_schema
 
 class TestVersionInfoSchema(unittest.TestCase):
     @parameterized.expand(
-        [("GIT_COMMIT",), (None,),]
+        [
+            ("GIT_COMMIT",),
+            (None,),
+        ]
     )
     def test_serialize(self, git_commit):
         version_info = VersionInfo("VERSION", git_commit)

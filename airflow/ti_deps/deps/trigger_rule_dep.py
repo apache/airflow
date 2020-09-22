@@ -29,6 +29,7 @@ class TriggerRuleDep(BaseTIDep):
     Determines if a task's upstream tasks are in a state that allows a given task instance
     to run.
     """
+
     NAME = "Trigger Rule"
     IGNOREABLE = True
     IS_TASK_DEP = True

@@ -61,7 +61,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client: Optional[DataCatalogClient] = None
 
@@ -782,10 +784,10 @@ class CloudDataCatalogHook(GoogleBaseHook):
         r"""
         Get an entry by target resource name.
 
-        This method allows clients to use the resource name from the source Google Cloud Platform service
+        This method allows clients to use the resource name from the source Google Cloud service
         to get the Data Catalog Entry.
 
-        :param linked_resource: The full name of the Google Cloud Platform resource the Data Catalog entry
+        :param linked_resource: The full name of the Google Cloud resource the Data Catalog entry
             represents. See: https://cloud.google.com/apis/design/resource\_names#full\_resource\_name. Full
             names are case-sensitive.
 
@@ -921,7 +923,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type page_size: int
         :param order_by: Specifies the ordering of results, currently supported case-sensitive choices are:
 
-            -  ``relevance``, only supports desecending
+            -  ``relevance``, only supports descending
             -  ``last_access_timestamp [asc|desc]``, defaults to descending if not specified
             -  ``last_modified_timestamp [asc|desc]``, defaults to descending if not specified
 

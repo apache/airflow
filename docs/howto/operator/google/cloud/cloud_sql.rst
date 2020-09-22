@@ -164,7 +164,7 @@ See Google Cloud SQL API documentation to `update a database
 CloudSQLDeleteInstanceOperator
 ------------------------------
 
-Deletes a Cloud SQL instance in Google Cloud Platform.
+Deletes a Cloud SQL instance in Google Cloud.
 
 It is also used for deleting read and failover replicas.
 
@@ -369,7 +369,7 @@ as shown in the example:
 CloudSQLCreateInstanceOperator
 ------------------------------
 
-Creates a new Cloud SQL instance in Google Cloud Platform.
+Creates a new Cloud SQL instance in Google Cloud.
 
 It is also used for creating read replicas.
 
@@ -431,7 +431,7 @@ See Google Cloud SQL API documentation to `create an instance
 CloudSQLInstancePatchOperator
 -----------------------------
 
-Updates settings of a Cloud SQL instance in Google Cloud Platform (partial update).
+Updates settings of a Cloud SQL instance in Google Cloud (partial update).
 
 For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLInstancePatchOperator`.

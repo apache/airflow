@@ -123,7 +123,9 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
                 gcs_hook.delete(self.bucket, obj)
 
         ds_hook = DatastoreHook(
-            self.datastore_conn_id, self.delegate_to, impersonation_chain=self.impersonation_chain,
+            self.datastore_conn_id,
+            self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
         result = ds_hook.export_to_storage_bucket(
             bucket=self.bucket,
@@ -225,7 +227,9 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Importing data from Cloud Storage bucket %s', self.bucket)
         ds_hook = DatastoreHook(
-            self.datastore_conn_id, self.delegate_to, impersonation_chain=self.impersonation_chain,
+            self.datastore_conn_id,
+            self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
         result = ds_hook.import_from_storage_bucket(
             bucket=self.bucket,
@@ -258,13 +262,13 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
 
     :param partial_keys: a list of partial keys.
     :type partial_keys: list
-    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :param project_id: Google Cloud project ID against which to make the request.
     :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -302,8 +306,14 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
-        keys = hook.allocate_ids(partial_keys=self.partial_keys, project_id=self.project_id,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        keys = hook.allocate_ids(
+            partial_keys=self.partial_keys,
+            project_id=self.project_id,
+        )
         return keys
 
 
@@ -320,13 +330,13 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
 
     :param transaction_options: Options for a new transaction.
     :type transaction_options: Dict[str, Any]
-    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :param project_id: Google Cloud project ID against which to make the request.
     :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -364,9 +374,13 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         handle = hook.begin_transaction(
-            transaction_options=self.transaction_options, project_id=self.project_id,
+            transaction_options=self.transaction_options,
+            project_id=self.project_id,
         )
         return handle
 
@@ -384,13 +398,13 @@ class CloudDatastoreCommitOperator(BaseOperator):
 
     :param body: the body of the commit request.
     :type body: dict
-    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :param project_id: Google Cloud project ID against which to make the request.
     :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -428,8 +442,14 @@ class CloudDatastoreCommitOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
-        response = hook.commit(body=self.body, project_id=self.project_id,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        response = hook.commit(
+            body=self.body,
+            project_id=self.project_id,
+        )
         return response
 
 
@@ -446,13 +466,13 @@ class CloudDatastoreRollbackOperator(BaseOperator):
 
     :param transaction: the transaction to roll back.
     :type transaction: str
-    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :param project_id: Google Cloud project ID against which to make the request.
     :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -490,9 +510,13 @@ class CloudDatastoreRollbackOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook.rollback(
-            transaction=self.transaction, project_id=self.project_id,
+            transaction=self.transaction,
+            project_id=self.project_id,
         )
 
 
@@ -509,13 +533,13 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
 
     :param body: the body of the query request.
     :type body: dict
-    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :param project_id: Google Cloud project ID against which to make the request.
     :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -553,8 +577,14 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
-        response = hook.run_query(body=self.body, project_id=self.project_id,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        response = hook.run_query(
+            body=self.body,
+            project_id=self.project_id,
+        )
         return response
 
 
@@ -571,7 +601,7 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -607,7 +637,10 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         op = hook.get_operation(name=self.name)
         return op
 
@@ -625,7 +658,7 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -661,5 +694,8 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DatastoreHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook.delete_operation(name=self.name)

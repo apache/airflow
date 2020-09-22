@@ -49,7 +49,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
     :type bucket: str
     :param object_name: GCS path to save the csv file. Must be the full file path (ex. `path/to/file.csv`)
     :type object_name: str
-    :param gcp_conn_id: Airflow Google Cloud Platform connection ID
+    :param gcp_conn_id: Airflow Google Cloud connection ID
     :type gcp_conn_id: str
     :param google_ads_conn_id: Airflow Google Ads connection ID
     :type google_ads_conn_id: str

@@ -20,7 +20,7 @@
 Google Cloud Life Sciences Operators
 ====================================
 The `Google Cloud Life Sciences <https://cloud.google.com/life-sciences/>`__ is a service that executes
-series of compute engine containers on the Google Cloud Platform. It is used to process, analyze and annotate genomics
+series of compute engine containers on the Google Cloud. It is used to process, analyze and annotate genomics
 and biomedical data at scale.
 
 .. contents::

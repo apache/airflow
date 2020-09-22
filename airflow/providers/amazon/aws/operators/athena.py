@@ -127,7 +127,7 @@ class AWSAthenaOperator(BaseOperator):
         Cancel the submitted athena query
         """
         if self.query_execution_id:
-            self.log.info('⚰️⚰️⚰️ Received a kill Signal. Time to Die')
+            self.log.info('Received a kill signal.')
             self.log.info('Stopping Query with executionId - %s', self.query_execution_id)
             response = self.hook.stop_query(self.query_execution_id)
             http_status_code = None

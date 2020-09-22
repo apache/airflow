@@ -18,12 +18,14 @@
 """
 This module contains Google Dataprep hook.
 """
+import json
+import os
 from typing import Any, Dict
 
 import requests
+from requests import HTTPError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -37,10 +39,13 @@ class GoogleDataprepHook(BaseHook):
 
     """
 
-    def __init__(self, dataprep_conn_id: str = "dataprep_conn_id") -> None:
+    def __init__(self, dataprep_conn_id: str = "dataprep_default") -> None:
         super().__init__()
         self.dataprep_conn_id = dataprep_conn_id
-        self._url = "https://api.clouddataprep.com/v4/jobGroups"
+        conn = self.get_connection(self.dataprep_conn_id)
+        extra_dejson = conn.extra_dejson
+        self._token = extra_dejson.get("extra__dataprep__token")
+        self._base_url = extra_dejson.get("extra__dataprep__base_url", "https://api.clouddataprep.com")
 
     @property
     def _headers(self) -> Dict[str, str]:
@@ -50,26 +55,63 @@ class GoogleDataprepHook(BaseHook):
         }
         return headers
 
-    @property
-    def _token(self) -> str:
-        conn = self.get_connection(self.dataprep_conn_id)
-        token = conn.extra_dejson.get("token")
-        if token is None:
-            raise AirflowException(
-                "Dataprep token is missing or has invalid format. "
-                "Please make sure that Dataprep token is added to the Airflow Connections."
-            )
-        return token
-
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
     def get_jobs_for_job_group(self, job_id: int) -> Dict[str, Any]:
         """
         Get information about the batch jobs within a Cloud Dataprep job.
 
-        :param job_id The ID of the job that will be fetched.
+        :param job_id: The ID of the job that will be fetched
         :type job_id: int
         """
-        url: str = f"{self._url}/{job_id}/jobs"
+
+        endpoint_path = f"v4/jobGroups/{job_id}/jobs"
+        url: str = os.path.join(self._base_url, endpoint_path)
         response = requests.get(url, headers=self._headers)
-        response.raise_for_status()
+        self._raise_for_status(response)
         return response.json()
+
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
+    def get_job_group(self, job_group_id: int, embed: str, include_deleted: bool) -> Dict[str, Any]:
+        """
+        Get the specified job group.
+        A job group is a job that is executed from a specific node in a flow.
+
+        :param job_group_id: The ID of the job that will be fetched
+        :type job_group_id: int
+        :param embed: Comma-separated list of objects to pull in as part of the response
+        :type embed: str
+        :param include_deleted: if set to "true", will include deleted objects
+        :type include_deleted: bool
+        """
+
+        params: Dict[str, Any] = {"embed": embed, "includeDeleted": include_deleted}
+        endpoint_path = f"v4/jobGroups/{job_group_id}"
+        url: str = os.path.join(self._base_url, endpoint_path)
+        response = requests.get(url, headers=self._headers, params=params)
+        self._raise_for_status(response)
+        return response.json()
+
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
+    def run_job_group(self, body_request: dict) -> Dict[str, Any]:
+        """
+        Creates a ``jobGroup``, which launches the specified job as the authenticated user.
+        This performs the same action as clicking on the Run Job button in the application.
+        To get recipe_id please follow the Dataprep API documentation
+        https://clouddataprep.com/documentation/api#operation/runJobGroup
+
+        :param body_request: The identifier for the recipe you would like to run.
+        :type body_request: dict
+        """
+
+        endpoint_path = "v4/jobGroups"
+        url: str = os.path.join(self._base_url, endpoint_path)
+        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        self._raise_for_status(response)
+        return response.json()
+
+    def _raise_for_status(self, response: requests.models.Response) -> None:
+        try:
+            response.raise_for_status()
+        except HTTPError:
+            self.log.error(response.json().get('exception'))
+            raise

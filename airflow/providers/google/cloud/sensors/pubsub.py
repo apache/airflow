@@ -75,7 +75,7 @@ class PubSubPullSensor(BaseSensorOperator):
         immediately rather than by any downstream tasks
     :type ack_messages: bool
     :param gcp_conn_id: The connection ID to use connecting to
-        Google Cloud Platform.
+        Google Cloud.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -181,7 +181,9 @@ class PubSubPullSensor(BaseSensorOperator):
 
         if pulled_messages and self.ack_messages:
             hook.acknowledge(
-                project_id=self.project_id, subscription=self.subscription, messages=pulled_messages,
+                project_id=self.project_id,
+                subscription=self.subscription,
+                messages=pulled_messages,
             )
 
         return bool(pulled_messages)

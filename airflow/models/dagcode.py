@@ -44,6 +44,7 @@ class DagCode(Base):
 
     For details on dag serialization see SerializedDagModel
     """
+
     __tablename__ = 'dag_code'
 
     fileloc_hash = Column(

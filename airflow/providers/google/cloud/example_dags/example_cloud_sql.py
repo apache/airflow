@@ -18,11 +18,11 @@
 
 """
 Example Airflow DAG that creates, patches and deletes a Cloud SQL instance, and also
-creates, patches and deletes a database inside the instance, in Google Cloud Platform.
+creates, patches and deletes a database inside the instance, in Google Cloud.
 
 This DAG relies on the following OS environment variables
 https://airflow.apache.org/concepts.html#variables
-* GCP_PROJECT_ID - Google Cloud Platform project for the Cloud SQL instance.
+* GCP_PROJECT_ID - Google Cloud project for the Cloud SQL instance.
 * INSTANCE_NAME - Name of the Cloud SQL instance.
 * DB_NAME - Name of the database inside a Cloud SQL instance.
 """
@@ -71,7 +71,10 @@ body = {
         "dataDiskSizeGb": 30,
         "dataDiskType": "PD_SSD",
         "databaseFlags": [],
-        "ipConfiguration": {"ipv4Enabled": True, "requireSsl": True,},
+        "ipConfiguration": {
+            "ipv4Enabled": True,
+            "requireSsl": True,
+        },
         "locationPreference": {"zone": "europe-west4-a"},
         "maintenanceWindow": {"hour": 5, "day": 7, "updateTrack": "canary"},
         "pricingPlan": "PER_USE",
@@ -88,7 +91,9 @@ body = {
 
 body2 = {
     "name": INSTANCE_NAME2,
-    "settings": {"tier": "db-n1-standard-1",},
+    "settings": {
+        "tier": "db-n1-standard-1",
+    },
     "databaseVersion": "MYSQL_5_7",
     "region": "europe-west4",
 }
@@ -96,7 +101,9 @@ body2 = {
 # [START howto_operator_cloudsql_create_replica]
 read_replica_body = {
     "name": READ_REPLICA_NAME,
-    "settings": {"tier": "db-n1-standard-1",},
+    "settings": {
+        "tier": "db-n1-standard-1",
+    },
     "databaseVersion": "MYSQL_5_7",
     "region": "europe-west4",
     "masterInstanceName": INSTANCE_NAME,

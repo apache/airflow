@@ -48,7 +48,9 @@ class BigtableHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -70,7 +72,7 @@ class BigtableHook(GoogleBaseHook):
 
         :param instance_id: The ID of the Cloud Bigtable instance.
         :type instance_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud  project ID where the
             BigTable exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -87,7 +89,7 @@ class BigtableHook(GoogleBaseHook):
         Raises google.api_core.exceptions.NotFound if the Cloud Bigtable instance does
         not exist.
 
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type project_id: str
@@ -130,7 +132,7 @@ class BigtableHook(GoogleBaseHook):
         :param main_cluster_zone: The zone for main cluster.
             See https://cloud.google.com/bigtable/docs/locations for more details.
         :type project_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type replica_clusters: List[Dict[str, str]]
@@ -213,7 +215,7 @@ class BigtableHook(GoogleBaseHook):
         :type instance_id: str
         :param instance_id: The ID for the existing instance.
         :type project_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         :type instance_display_name: str
@@ -283,7 +285,7 @@ class BigtableHook(GoogleBaseHook):
         :type table_id: str
         :param table_id: The ID of the table in Cloud Bigtable.
         :type project_id: str
-        :param project_id: Optional, Google Cloud Platform project ID where the
+        :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         """

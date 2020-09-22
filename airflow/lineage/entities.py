@@ -30,6 +30,7 @@ class File:
     """
     File entity. Refers to a file
     """
+
     url: str = attr.ib()
     type_hint: Optional[str] = None
 
@@ -39,6 +40,7 @@ class User:
     """
     User entity. Identifies a user
     """
+
     email: str = attr.ib()
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -49,6 +51,7 @@ class Tag:
     """
     Tag or classification entity.
     """
+
     tag_name: str = attr.ib()
 
 
@@ -57,6 +60,7 @@ class Column:
     """
     Column of a Table
     """
+
     name: str = attr.ib()
     description: Optional[str] = None
     data_type: str = attr.ib()
@@ -76,6 +80,7 @@ class Table:
     """
     Table entity
     """
+
     database: str = attr.ib()
     cluster: str = attr.ib()
     name: str = attr.ib()
