@@ -697,8 +697,8 @@ function initialization::ga_output() {
 
 function initialization::intialize_airflow_variables(){
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
-    export START_AIRFLOW="false"
+    export START_AIRFLOW="False"
 
-    export AIRFLOW__CORE__LOAD_EXAMPLES="true"
-    export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS="true"
+    export AIRFLOW__CORE__LOAD_EXAMPLES="True"
+    export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS="True"
 }
