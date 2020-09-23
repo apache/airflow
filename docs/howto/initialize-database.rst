@@ -24,7 +24,7 @@ If you want to take a real test drive of Airflow, you should consider
 setting up a real database backend and switching to the LocalExecutor.
 
 Airflow was built to interact with its metadata using SqlAlchemy
-with **MySQL** and **Postgres** as supported backends.
+with **MySQL**,  **Postgres** and **SQLite** as supported backends (SQLite is used primarily for development purpose).
 
 .. note:: We rely on more strict ANSI SQL settings for MySQL in order to have
    sane defaults. Make sure to have specified ``explicit_defaults_for_timestamp=1``
