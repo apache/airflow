@@ -3110,6 +3110,8 @@ breeze::setup_default_breeze_constants
 
 initialization::initialize_common_environment
 
+initialization::intialize_airflow_variables
+
 breeze::determine_python_version_to_use_in_breeze
 
 sanity_checks::basic_sanity_checks
