@@ -25,8 +25,7 @@ class SendGridEmailerMovedRule(BaseRule):
     title = "SendGrid email uses old airflow.contrib module"
 
     description = """
-Removes the need for SendGrid email code to be in contrib package. The SendGrid email function \
-has been moved to airflow.providers.
+The SendGrid module `airflow.contrib.utils.sendgrid` was moved to `airflow.providers.sendgrid.utils.emailer`.
     """
 
     def check(self):
