@@ -1006,6 +1006,27 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
+        --skip-example-dags)
+            export AIRFLOW__CORE__LOAD_EXAMPLES="False"
+            echo "Airflow sample dags will be skipped"
+            echo
+            shift
+            ;;
+        --skip-default-connections)
+            export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS="False"
+            echo "Airflow default connections will be skipped"
+            echo
+            shift
+            ;;
+        -T | --skip-tutorial-objects)
+            export AIRFLOW__CORE__LOAD_EXAMPLES="False"
+            export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS="False"
+            echo "Airflow sample dags will be skipped"
+            echo
+            echo "Airflow default connections will be skipped"
+            echo
+            shift
+            ;;
         -S | --version-suffix-for-pypi)
             if [[ -n ${VERSION_SUFFIX_FOR_SVN=} ]]; then
                 echo
@@ -1976,6 +1997,16 @@ ${FORMATTED_INTEGRATIONS}
         Initialization script name - Sourced from files/airflow-breeze-config. Default value
         init.sh. It will be executed after the environment is configured and started (in case
         --start-airflow is used).
+
+--skip-example-dags
+        Airflow example dags will not be included.
+
+--skip-default-connections
+        Airflow Default Connections will not be created.
+
+-T, --skip-tutorial-objects
+        Default Connections and sample dags will not be created. Use this to have a clean
+        Airflow without tutorial objects.
 
 "
 }
