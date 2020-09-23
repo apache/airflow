@@ -155,7 +155,6 @@ def nowait(session: Session) -> Dict[str, Any]:
 
     See https://jira.mariadb.org/browse/MDEV-13115
     """
-
     dialect = session.bind.dialect
 
     if dialect.name != "mysql" or dialect.supports_for_update_of:

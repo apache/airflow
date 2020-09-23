@@ -32,6 +32,7 @@ log = logging.getLogger(__name__)
 
 class TimerProtocol(Protocol):
     """Type protocol for StatsLogger.timer"""
+
     def __enter__(self):
         ...
 
@@ -73,6 +74,7 @@ class StatsLogger(Protocol):
 
 class DummyTimer:
     """No-op timer"""
+
     def __enter__(self):
         return self
 

@@ -164,7 +164,7 @@ class DagRun(Base, LoggingMixin):
         query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
         the transaction is committed it will be unlocked.
 
-        :rtype: list[DagRun]
+        :rtype: list[airflow.models.DagRun]
         """
         from airflow.models.dag import DagModel
 
@@ -366,7 +366,6 @@ class DagRun(Base, LoggingMixin):
         :return: ready_tis: the tis that can be scheduled in the current loop
         :rtype ready_tis: list[airflow.models.TaskInstance]
         """
-
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
 

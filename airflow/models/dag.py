@@ -28,7 +28,8 @@ import warnings
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import (
-    TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union, cast,
+    TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union,
+    cast,
 )
 
 import jinja2
@@ -2093,7 +2094,6 @@ class DagModel(Base):
         that any scheduling decisions are made in a single transaction -- as soon as the transaction is
         committed it will be unlocked.
         """
-
         # TODO[HA]: Bake this query, it is run _A lot_
         # TODO[HA]: Make this limit a tunable. We limit so that _one_ scheduler
         # doesn't try to do all the creation of dag runs

@@ -1522,7 +1522,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             )
             dag_model.next_dagrun_create_after = None
         else:
-            dag_model.next_dagrun, dag_model.next_dagrun_create_after = dag.next_dagrun_info(dag_model.next_dagrun)
+            dag_model.next_dagrun, dag_model.next_dagrun_create_after = \
+                dag.next_dagrun_info(dag_model.next_dagrun)
 
     def _schedule_dag_run(self, dag_run: DagRun, session: Session) -> int:
         """
