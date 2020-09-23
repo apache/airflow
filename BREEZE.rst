@@ -1962,16 +1962,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           init.sh. It will be executed after the environment is configured and started (in case
           --start-airflow is used).
 
-  --skip-example-dags
-          Airflow example dags will not be included.
-
-  --skip-default-connections
-          Airflow Default Connections will not be created.
-
-  -T, --skip-tutorial-objects
-          Default Connections and sample dags will not be created. Use this to have a clean
-          Airflow without tutorial objects.
-
   ****************************************************************************************************
    Kind kubernetes and Kubernetes tests configuration(optional)
 

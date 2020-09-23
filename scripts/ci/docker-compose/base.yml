@@ -60,8 +60,6 @@ services:
       - HOST_OS
       - PYTHONDONTWRITEBYTECODE
       - INIT_SCRIPT_FILE
-      - AIRFLOW__CORE__LOAD_EXAMPLES
-      - AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock

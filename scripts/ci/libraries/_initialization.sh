@@ -415,8 +415,6 @@ function initialization::initialize_common_environment() {
     initialization::initialize_kubernetes_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables
-    initialization::intialize_airflow_variables
-
 }
 
 function initialization::set_default_python_version_if_empty() {
@@ -514,8 +512,6 @@ Detected CI build environment:
 Initialization variables:
 
     INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE}
-    AIRFLOW__CORE__LOAD_EXAMPLES: ${AIRFLOW__CORE__LOAD_EXAMPLES}
-    AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: ${AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS}
 
 EOF
 
@@ -671,9 +667,6 @@ function initialization::make_constants_read_only() {
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
 
-    readonly AIRFLOW__CORE__LOAD_EXAMPLES
-    readonly AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS
-
 }
 
 
@@ -695,12 +688,4 @@ function initialization::parameters_to_json() {
 function initialization::ga_output() {
     echo "::set-output name=${1}::${2}"
     echo "${1}=${2}"
-}
-
-function initialization::intialize_airflow_variables(){
-    # If set to true, the database will be initialized, a user created and webserver and scheduler started
-    export START_AIRFLOW="False"
-
-    export AIRFLOW__CORE__LOAD_EXAMPLES="True"
-    export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS="True"
 }

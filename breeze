@@ -68,8 +68,6 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    FORCE_BUILD_IMAGES
 #    PRODUCTION_IMAGE
 #    PYTHON_MAJOR_MINOR_VERSION
-#    AIRFLOW__CORE__LOAD_EXAMPLES
-#    AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS
 #
 # Global variables:
 #
@@ -115,6 +113,9 @@ function breeze::setup_default_breeze_constants() {
 
     # If set to true, the database will be reset at entry. Works for Postgres and MySQL
     export DB_RESET="false"
+
+    # If set to true, the database will be initialized, a user created and webserver and scheduler started
+    export START_AIRFLOW="false"
 
     # If it set is set to specified version, then the source version of Airflow
     # is removed and the specified version of Airflow is installed from PyPi
@@ -1004,27 +1005,6 @@ function breeze::parse_arguments() {
             echo "The initialization file is in ${INIT_SCRIPT_FILE}"
             echo
             shift 2
-            ;;
-        --skip-example-dags)
-            export AIRFLOW__CORE__LOAD_EXAMPLES="False"
-            echo "Airflow sample dags will be skipped"
-            echo
-            shift
-            ;;
-        --skip-default-connections)
-            export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS="False"
-            echo "Airflow default connections will be skipped"
-            echo
-            shift
-            ;;
-        -T | --skip-tutorial-objects)
-            export AIRFLOW__CORE__LOAD_EXAMPLES="False"
-            export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS="False"
-            echo "Airflow sample dags will be skipped"
-            echo
-            echo "Airflow default connections will be skipped"
-            echo
-            shift
             ;;
         -S | --version-suffix-for-pypi)
             if [[ -n ${VERSION_SUFFIX_FOR_SVN=} ]]; then
@@ -1996,16 +1976,6 @@ ${FORMATTED_INTEGRATIONS}
         Initialization script name - Sourced from files/airflow-breeze-config. Default value
         init.sh. It will be executed after the environment is configured and started (in case
         --start-airflow is used).
-
---skip-example-dags
-        Airflow example dags will not be included.
-
---skip-default-connections
-        Airflow Default Connections will not be created.
-
--T, --skip-tutorial-objects
-        Default Connections and sample dags will not be created. Use this to have a clean
-        Airflow without tutorial objects.
 
 "
 }
