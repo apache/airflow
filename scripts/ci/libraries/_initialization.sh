@@ -415,6 +415,8 @@ function initialization::initialize_common_environment() {
     initialization::initialize_kubernetes_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables
+    initialization::intialize_airflow_variables
+
 }
 
 function initialization::set_default_python_version_if_empty() {
