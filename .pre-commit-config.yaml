@@ -433,3 +433,10 @@ repos:
         language: system
         files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
         require_serial: true
+      - id: helm-lint
+        name: Lint Helm Chart
+        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.sh
+        language: system
+        pass_filenames: false
+        files: ^chart
+        require_serial: true
