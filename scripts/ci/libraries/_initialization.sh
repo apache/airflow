@@ -669,6 +669,9 @@ function initialization::make_constants_read_only() {
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
 
+    readonly AIRFLOW__CORE__LOAD_EXAMPLES
+    readonly AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS
+
 }
 
 
@@ -690,4 +693,12 @@ function initialization::parameters_to_json() {
 function initialization::ga_output() {
     echo "::set-output name=${1}::${2}"
     echo "${1}=${2}"
+}
+
+function initialization::intialize_airflow_variables(){
+    # If set to true, the database will be initialized, a user created and webserver and scheduler started
+    export START_AIRFLOW="false"
+
+    export AIRFLOW__CORE__LOAD_EXAMPLES="true"
+    export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS="true"
 }

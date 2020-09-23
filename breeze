@@ -116,12 +116,6 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, the database will be reset at entry. Works for Postgres and MySQL
     export DB_RESET="false"
 
-    # If set to true, the database will be initialized, a user created and webserver and scheduler started
-    export START_AIRFLOW="false"
-
-    export AIRFLOW__CORE__LOAD_EXAMPLES="true"
-    export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS="true"
-
     # If it set is set to specified version, then the source version of Airflow
     # is removed and the specified version of Airflow is installed from PyPi
     export INSTALL_AIRFLOW_VERSION=""
@@ -2997,6 +2991,8 @@ function breeze::determine_python_version_to_use_in_breeze() {
 breeze::setup_default_breeze_constants
 
 initialization::initialize_common_environment
+
+initialization::intialize_airflow_variables
 
 breeze::determine_python_version_to_use_in_breeze
 
