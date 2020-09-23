@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import pytest
-from psycopg2 import ProgrammingError
+from psycopg2 import ProgrammingError, OperationalError
 
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.google.cloud.example_dags.example_mysql_to_gcs import GCS_BUCKET
@@ -56,7 +56,7 @@ class MySQLToGCSSystemTest(GoogleSystemTest):
             hook = MySqlHook()
             hook.run(CREATE_QUERY)
             hook.run(LOAD_QUERY)
-        except ProgrammingError:
+        except (OperationalError, ProgrammingError):
             pass
 
     @staticmethod

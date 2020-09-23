@@ -20,7 +20,7 @@ from airflow import models
 from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
 from airflow.utils import dates
 
-GCS_BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-bucket-name")
+GCS_BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-airflow-mysql-gcs")
 FILENAME = 'test_file'
 
 SQL_QUERY = "SELECT * from test_table"

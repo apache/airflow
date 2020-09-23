@@ -37,9 +37,9 @@ MySQLToGCSOperator
 ~~~~~~~~~~~~~~~~~~
 
 :class:`~airflow.providers.google.cloud.transfers.mysql_to_gcs.MySQLToGCSOperator` allows you to upload
-data from MySQL to GCS.
+data from MySQL database to GCS.
 
-When you use this operator, you can optionally compress the data being uploaded.
+When you use this operator, you can optionally compress the data being uploaded to gzip format.
 
 Below is an example of using this operator to upload data to GCS.
 
