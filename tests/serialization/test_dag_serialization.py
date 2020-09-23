@@ -82,7 +82,7 @@ serialized_simple_dag_ground_truth = {
                 "ui_color": "#f0ede4",
                 "ui_fgcolor": "#000",
                 "template_fields": ['bash_command', 'env'],
-                "template_fields_renderers": {},
+                "template_fields_renderers": {'bash_command': 'bash'},
                 "bash_command": "echo {{ task.task_id }}",
                 "_task_type": "BashOperator",
                 "_task_module": "airflow.operators.bash",
