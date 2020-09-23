@@ -68,6 +68,8 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    FORCE_BUILD_IMAGES
 #    PRODUCTION_IMAGE
 #    PYTHON_MAJOR_MINOR_VERSION
+#    AIRFLOW__CORE__LOAD_EXAMPLES
+#    AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS
 #
 # Global variables:
 #
@@ -116,6 +118,9 @@ function breeze::setup_default_breeze_constants() {
 
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW="false"
+
+    export AIRFLOW__CORE__LOAD_EXAMPLES="true"
+    export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS="true"
 
     # If it set is set to specified version, then the source version of Airflow
     # is removed and the specified version of Airflow is installed from PyPi
