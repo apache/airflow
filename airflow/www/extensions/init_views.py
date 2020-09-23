@@ -46,6 +46,7 @@ def init_appbuilder_views(app):
     # reusing a session with a disconnected connection
     appbuilder.session.remove()
     appbuilder.add_view_no_menu(views.Airflow())
+    appbuilder.add_view_no_menu(views.DagModelView())
     appbuilder.add_view(views.DagRunModelView, "DAG Runs", category="Browse", category_icon="fa-globe")
     appbuilder.add_view(views.JobModelView, "Jobs", category="Browse")
     appbuilder.add_view(views.LogModelView, "Logs", category="Browse")

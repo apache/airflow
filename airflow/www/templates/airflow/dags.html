@@ -314,7 +314,7 @@
 
     $(".typeahead").typeahead({
       source: function (query, callback) {
-        return $.ajax("{{ url_for('Airflow.autocomplete') }}",
+        return $.ajax("{{ url_for('DagModelView.autocomplete') }}",
           {
             data: {
               "query": encodeURIComponent(query),
