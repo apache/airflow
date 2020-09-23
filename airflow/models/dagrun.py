@@ -454,6 +454,8 @@ class DagRun(Base, LoggingMixin):
 
         self._emit_duration_stats_for_finished_state()
 
+        session.merge(self)
+
         return ready_tis
 
     def _get_ready_tis(

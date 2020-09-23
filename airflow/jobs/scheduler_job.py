@@ -713,9 +713,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     :param subdir: directory containing Python files with Airflow DAG
         definitions, or a specific path to a file
     :type subdir: str
-    :param num_runs: The number of times to try to schedule each DAG file.
-        -1 for unlimited times.
+    :param num_runs: The number of times to run the scheduling loop. If you
+        have a large number of DAG files this could complete before each file
+        has been parsed. -1 for unlimited times.
     :type num_runs: int
+    :param num_times_parse_dags: The number of times to try to parse each DAG file.
+        -1 for unlimited times.
+    :type num_times_parse_dags: int
     :param processor_poll_interval: The number of seconds to wait between
         polls of running processors
     :type processor_poll_interval: int
@@ -733,6 +737,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self,
             subdir: str = settings.DAGS_FOLDER,
             num_runs: int = conf.getint('scheduler', 'num_runs'),
+            num_times_parse_dags: int = -1,
             processor_poll_interval: float = conf.getfloat('scheduler', 'processor_poll_interval'),
             do_pickle: bool = False,
             log: Any = None,
@@ -740,6 +745,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.subdir = subdir
 
         self.num_runs = num_runs
+        self.num_times_parse_dags = num_times_parse_dags
         self._processor_poll_interval = processor_poll_interval
 
         self.do_pickle = do_pickle
@@ -1253,7 +1259,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # DAGs can be pickled for easier remote execution by some executors
         pickle_dags = self.do_pickle and self.executor_class not in UNPICKLEABLE_EXECUTORS
 
-        self.log.info("Processing each file at most %s times", self.num_runs)
+        self.log.info("Processing each file at most %s times", self.num_times_parse_dags)
 
         # When using sqlite, we do not use async_mode
         # so the scheduler job and DAG parser don't access the DB at the same time.
@@ -1263,7 +1269,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
         self.processor_agent = DagFileProcessorAgent(
             dag_directory=self.subdir,
-            max_runs=self.num_runs,
+            max_runs=self.num_times_parse_dags,
             processor_factory=type(self)._create_dag_file_processor,
             processor_timeout=processor_timeout,
             dag_ids=[],
@@ -1381,10 +1387,16 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 # usage when "idle"
                 time.sleep(self._processor_poll_interval)
 
-            if self.num_runs > 0 and loop_count >= self.num_runs and self.processor_agent.done:
+            if self.num_runs > 0 and loop_count >= self.num_runs:
                 self.log.info(
                     "Exiting scheduler loop as requested number of runs (%d - got to %d) has been reached",
                     self.num_runs, loop_count,
+                )
+                break
+            if self.processor_agent.done:
+                self.log.info(
+                    "Exiting scheduler loop as requested DAG parse count (%d) has been reached",
+                    self.num_times_parse_dags, loop_count,
                 )
                 break
 

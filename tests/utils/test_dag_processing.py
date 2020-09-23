@@ -31,6 +31,7 @@ from airflow.configuration import conf
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.jobs.scheduler_job import DagFileProcessorProcess
 from airflow.models import DagBag, DagModel, TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
 from airflow.utils.callback_requests import TaskCallbackRequest
@@ -431,6 +432,9 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
     @conf_vars({('core', 'load_examples'): 'False'})
     def test_parse_once(self):
+        clear_db_serialized_dags()
+        clear_db_dags()
+
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
         processor_agent = DagFileProcessorAgent(test_dag_path,
@@ -447,10 +451,18 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         while not processor_agent.done:
             if not async_mode:
                 processor_agent.wait_until_finished()
-            parsing_result.extend(processor_agent.harvest_serialized_dags())
+            processor_agent.heartbeat()
 
-        dag_ids = [result.dag_id for result in parsing_result]
-        self.assertEqual(dag_ids.count('test_start_date_scheduling'), 1)
+        assert processor_agent.all_files_processed
+        assert processor_agent.done
+
+
+        with create_session() as session:
+            dag_ids = session.query(DagModel.dag_id).order_by("dag_id").all()
+            assert dag_ids == [('test_start_date_scheduling',), ('test_task_start_date_scheduling',)]
+
+            dag_ids = session.query(SerializedDagModel.dag_id).order_by("dag_id").all()
+            assert dag_ids == [('test_start_date_scheduling',), ('test_task_start_date_scheduling',)]
 
     def test_launch_process(self):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')

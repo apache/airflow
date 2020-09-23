@@ -1184,10 +1184,15 @@ class TestDag(unittest.TestCase):
             task_id="faketastic",
             owner='Also fake',
             start_date=TEST_DATE))
+
+        # Sync once to create the DagModel
+        dag.sync_to_db()
+
         dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                           execution_date=TEST_DATE,
                           state=State.SUCCESS)
 
+        # Then sync again after creating the dag run -- this should update next_dagrun
         dag.sync_to_db()
         with create_session() as session:
             model = session.query(DagModel).get((dag.dag_id,))
