@@ -446,8 +446,6 @@ devel = [
     'contextdecorator;python_version<"3.4"',
     'coverage',
     'docutils',
-    'flake8>=3.6.0',
-    'flake8-colors',
     'flaky',
     'freezegun',
     'github3.py',

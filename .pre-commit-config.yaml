@@ -202,6 +202,12 @@ repos:
           - --convention=pep257
           - --add-ignore=D100,D102,D104,D105,D107,D200,D205,D400,D401
         exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.8.3
+    hooks:
+      - id: flake8
+        additional_dependencies:
+          - flake8-colors
   - repo: local
     hooks:
       - id: shellcheck
@@ -396,12 +402,6 @@ repos:
         exclude: ^scripts/.*\.py$|^dev|^backport_packages
         pass_filenames: true
         require_serial: true
-      - id: flake8
-        name: Run flake8
-        language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
-        files: \.py$
-        pass_filenames: true
       - id: bats-tests
         name: Run BATS bash tests for changed bash files
         language: system
