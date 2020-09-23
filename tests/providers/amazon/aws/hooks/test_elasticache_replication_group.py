@@ -34,12 +34,12 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         'CacheNodeType': 'cache.m5.large',
         'Engine': 'redis',
         'EngineVersion': '5.0.4',
-        'CacheParameterGroupName': 'default.redis5.0'
+        'CacheParameterGroupName': 'default.redis5.0',
     }
 
-    VALID_STATES = frozenset({
-        'creating', 'available', 'modifying', 'deleting', 'create - failed', 'snapshotting'
-    })
+    VALID_STATES = frozenset(
+        {'creating', 'available', 'modifying', 'deleting', 'create - failed', 'snapshotting'}
+    )
 
     def setUp(self):
         self.hook = ElastiCacheReplicationGroupHook()
@@ -48,10 +48,7 @@ class TestElastiCacheReplicationGroupHook(TestCase):
 
         # We need this for every test
         self.hook.conn.create_replication_group.return_value = {
-            "ReplicationGroup": {
-                "ReplicationGroupId": self.REPLICATION_GROUP_ID,
-                "Status": "creating"
-            }
+            "ReplicationGroup": {"ReplicationGroupId": self.REPLICATION_GROUP_ID, "Status": "creating"}
         }
 
     def _create_replication_group(self):
@@ -69,11 +66,7 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         self._create_replication_group()
 
         self.hook.conn.describe_replication_groups.return_value = {
-            "ReplicationGroups": [
-                {
-                    "ReplicationGroupId": self.REPLICATION_GROUP_ID
-                }
-            ]
+            "ReplicationGroups": [{"ReplicationGroupId": self.REPLICATION_GROUP_ID}]
         }
 
         response = self.hook.describe_replication_group(replication_group_id=self.REPLICATION_GROUP_ID)
@@ -83,12 +76,7 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         self._create_replication_group()
 
         self.hook.conn.describe_replication_groups.return_value = {
-            "ReplicationGroups": [
-                {
-                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
-                    "Status": "available"
-                }
-            ]
+            "ReplicationGroups": [{"ReplicationGroupId": self.REPLICATION_GROUP_ID, "Status": "available"}]
         }
 
         response = self.hook.get_replication_group_status(replication_group_id=self.REPLICATION_GROUP_ID)
@@ -98,12 +86,7 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         self._create_replication_group()
 
         self.hook.conn.describe_replication_groups.return_value = {
-            "ReplicationGroups": [
-                {
-                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
-                    "Status": "available"
-                }
-            ]
+            "ReplicationGroups": [{"ReplicationGroupId": self.REPLICATION_GROUP_ID, "Status": "available"}]
         }
 
         response = self.hook.is_replication_group_available(replication_group_id=self.REPLICATION_GROUP_ID)
@@ -114,35 +97,21 @@ class TestElastiCacheReplicationGroupHook(TestCase):
 
         # Test non availability
         self.hook.conn.describe_replication_groups.return_value = {
-            "ReplicationGroups": [
-                {
-                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
-                    "Status": "creating"
-                }
-            ]
+            "ReplicationGroups": [{"ReplicationGroupId": self.REPLICATION_GROUP_ID, "Status": "creating"}]
         }
 
         response = self.hook.wait_for_availability(
-            replication_group_id=self.REPLICATION_GROUP_ID,
-            max_retries=1,
-            initial_sleep_time=1,  # seconds
+            replication_group_id=self.REPLICATION_GROUP_ID, max_retries=1, initial_sleep_time=1,  # seconds
         )
         assert response is False
 
         # Test availability
         self.hook.conn.describe_replication_groups.return_value = {
-            "ReplicationGroups": [
-                {
-                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
-                    "Status": "available"
-                }
-            ]
+            "ReplicationGroups": [{"ReplicationGroupId": self.REPLICATION_GROUP_ID, "Status": "available"}]
         }
 
         response = self.hook.wait_for_availability(
-            replication_group_id=self.REPLICATION_GROUP_ID,
-            max_retries=1,
-            initial_sleep_time=1,  # seconds
+            replication_group_id=self.REPLICATION_GROUP_ID, max_retries=1, initial_sleep_time=1,  # seconds
         )
         assert response is True
 
@@ -150,26 +119,16 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         self._create_replication_group()
 
         self.hook.conn.delete_replication_group.return_value = {
-            "ReplicationGroup": {
-                "ReplicationGroupId": self.REPLICATION_GROUP_ID,
-                "Status": "deleting"
-            }
+            "ReplicationGroup": {"ReplicationGroupId": self.REPLICATION_GROUP_ID, "Status": "deleting"}
         }
 
         # Wait for availability, can only delete when replication group is available
         self.hook.conn.describe_replication_groups.return_value = {
-            "ReplicationGroups": [
-                {
-                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
-                    "Status": "available"
-                }
-            ]
+            "ReplicationGroups": [{"ReplicationGroupId": self.REPLICATION_GROUP_ID, "Status": "available"}]
         }
 
         response = self.hook.wait_for_availability(
-            replication_group_id=self.REPLICATION_GROUP_ID,
-            max_retries=1,
-            initial_sleep_time=1,  # seconds
+            replication_group_id=self.REPLICATION_GROUP_ID, max_retries=1, initial_sleep_time=1,  # seconds
         )
         assert response is True
 
@@ -186,28 +145,11 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         return [
             # On first call replication group is in available state, this will allow to initiate a delete
             # A replication group can only be deleted when it is in `available` state
-
-            {
-                "ReplicationGroups": [
-                    {
-                        "ReplicationGroupId": self.REPLICATION_GROUP_ID,
-                        "Status": "available"
-                    }
-                ]
-            },
-
+            {"ReplicationGroups": [{"ReplicationGroupId": self.REPLICATION_GROUP_ID, "Status": "available"}]},
             # On second call replication group is in deleting state
-            {
-                "ReplicationGroups": [
-                    {
-                        "ReplicationGroupId": self.REPLICATION_GROUP_ID,
-                        "Status": "deleting"
-                    }
-                ]
-            },
-
+            {"ReplicationGroups": [{"ReplicationGroupId": self.REPLICATION_GROUP_ID, "Status": "deleting"}]},
             # On further calls we will assume the replication group is deleted
-            self._raise_replication_group_not_found_exp()
+            self._raise_replication_group_not_found_exp(),
         ]
 
     def test_wait_for_deletion(self):
@@ -216,9 +158,7 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect()
 
         self.hook.conn.delete_replication_group.return_value = {
-            "ReplicationGroup": {
-                "ReplicationGroupId": self.REPLICATION_GROUP_ID
-            }
+            "ReplicationGroup": {"ReplicationGroupId": self.REPLICATION_GROUP_ID}
         }
 
         response, deleted = self.hook.wait_for_deletion(
@@ -227,7 +167,7 @@ class TestElastiCacheReplicationGroupHook(TestCase):
             # 1st retry - status is `deleting`
             # 2nd retry - Replication group is deleted
             max_retries=2,
-            initial_sleep_time=1
+            initial_sleep_time=1,
         )
         assert response["ReplicationGroup"]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
         assert deleted is True
@@ -238,15 +178,11 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect()
 
         self.hook.conn.delete_replication_group.return_value = {
-            "ReplicationGroup": {
-                "ReplicationGroupId": self.REPLICATION_GROUP_ID
-            }
+            "ReplicationGroup": {"ReplicationGroupId": self.REPLICATION_GROUP_ID}
         }
 
         response = self.hook.ensure_delete_replication_group(
-            replication_group_id=self.REPLICATION_GROUP_ID,
-            initial_sleep_time=1,
-            max_retries=2
+            replication_group_id=self.REPLICATION_GROUP_ID, initial_sleep_time=1, max_retries=2
         )
 
         assert response["ReplicationGroup"]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
@@ -257,16 +193,12 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect()
 
         self.hook.conn.delete_replication_group.return_value = {
-            "ReplicationGroup": {
-                "ReplicationGroupId": self.REPLICATION_GROUP_ID
-            }
+            "ReplicationGroup": {"ReplicationGroupId": self.REPLICATION_GROUP_ID}
         }
 
         with self.assertRaises(AirflowException):
             # Try only 1 once with 1 sec buffer time. This will ensure that the `wait_for_deletion` loop
             # breaks quickly before the group is deleted and we get the Airflow exception
             self.hook.ensure_delete_replication_group(
-                replication_group_id=self.REPLICATION_GROUP_ID,
-                initial_sleep_time=1,
-                max_retries=1
+                replication_group_id=self.REPLICATION_GROUP_ID, initial_sleep_time=1, max_retries=1
             )

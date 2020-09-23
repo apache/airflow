@@ -108,7 +108,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         replication_group_id,
         initial_sleep_time=None,
         exponential_back_off_factor=None,
-        max_retries=None
+        max_retries=None,
     ):
         """
         Check if replication group is available or not by performing a describe over it
@@ -139,9 +139,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
             stop_poking = status in self.TERMINAL_STATES
 
             self.log.info(
-                'Current status of replication group with ID %s is %s',
-                replication_group_id,
-                status
+                'Current status of replication group with ID %s is %s', replication_group_id, status
             )
 
             if not stop_poking:
@@ -169,7 +167,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         replication_group_id,
         initial_sleep_time=None,
         exponential_back_off_factor=None,
-        max_retries=None
+        max_retries=None,
     ):
         """
         Helper for deleting a replication group ensuring it is either deleted or can't be deleted
@@ -200,9 +198,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
                 status = self.get_replication_group_status(replication_group_id=replication_group_id)
 
                 self.log.info(
-                    'Current status of replication group with ID %s is %s',
-                    replication_group_id,
-                    status
+                    'Current status of replication group with ID %s is %s', replication_group_id, status
                 )
 
                 # Can only delete if status is `available`
@@ -251,7 +247,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         replication_group_id,
         initial_sleep_time=None,
         exponential_back_off_factor=None,
-        max_retries=None
+        max_retries=None,
     ):
         """
         Delete a replication group ensuring it is either deleted or can't be deleted
@@ -277,12 +273,10 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
             replication_group_id=replication_group_id,
             initial_sleep_time=initial_sleep_time,
             exponential_back_off_factor=exponential_back_off_factor,
-            max_retries=max_retries
+            max_retries=max_retries,
         )
 
         if not deleted:
-            raise AirflowException(
-                f'Replication group could not be deleted. Response "{response}"'
-            )
+            raise AirflowException(f'Replication group could not be deleted. Response "{response}"')
 
         return response
