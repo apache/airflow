@@ -29,8 +29,7 @@ class TestFernetEnabledRule(TestCase):
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
 
-        msg = """
-        fernet_key must be explicitly set empty as fernet mechanism is enabled by default
+        msg = """fernet_key in airflow.cfg must be explicitly set empty as fernet mechanism is enabled by default
         this means that the apache-airflow[crypto] extra-packages are always installed.
         However, this requires that your operating system has libffi-dev installed.
         """

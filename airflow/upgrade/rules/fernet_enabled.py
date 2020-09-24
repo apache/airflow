@@ -24,15 +24,15 @@ from airflow.upgrade.rules.base_rule import BaseRule
 class FernetEnabledRule(BaseRule):
     title = "Fernet is enabled by default"
 
-    description = """
-The fernet mechanism is enabled by default to increase the security of the default installation.
-"""
+    description = (
+        "The fernet mechanism is enabled by default "
+        + "to increase the security of the default installation."
+    )
 
     def check(self):
         fernet_key = conf.get("core", "fernet_key")
         if not fernet_key:
-            return"""
-        fernet_key must be explicitly set empty as fernet mechanism is enabled by default
+            return """fernet_key in airflow.cfg must be explicitly set empty as fernet mechanism is enabled by default
         this means that the apache-airflow[crypto] extra-packages are always installed.
         However, this requires that your operating system has libffi-dev installed.
         """
