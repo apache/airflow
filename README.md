@@ -121,7 +121,7 @@ Apache Airflow is an [Apache Software Foundation](http://www.apache.org) (ASF) p
 and our official source code releases:
 
 - Follow the [ASF Release Policy](http://www.apache.org/legal/release-policy.html)
-- Can be downloaded from [the ASF Distribution Directory](https://downloads.apache.org)
+- Can be downloaded from [the ASF Distribution Directory](https://downloads.apache.org/airflow)
 - Are cryptographically signed by the release manager
 - Are officially voted on by the PMC members during the
   [Release Approval Process](http://www.apache.org/legal/release-policy.html#release-approval)
