@@ -26,13 +26,14 @@ class FernetEnabledRule(BaseRule):
 
     description = (
         "The fernet mechanism is enabled by default "
-        + "to increase the security of the default installation."
+        "to increase the security of the default installation."
     )
 
     def check(self):
         fernet_key = conf.get("core", "fernet_key")
         if not fernet_key:
-            return """fernet_key in airflow.cfg must be explicitly set empty as fernet mechanism is enabled by default
-        this means that the apache-airflow[crypto] extra-packages are always installed.
-        However, this requires that your operating system has libffi-dev installed.
-        """
+            return (
+                "fernet_key in airflow.cfg must be explicitly set empty as fernet mechanism is enabled"
+                "by default. This means that the apache-airflow[crypto] extra-packages are always installed."
+                "However, this requires that your operating system has libffi-dev installed."
+            )

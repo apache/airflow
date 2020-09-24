@@ -21,7 +21,6 @@ from tests.test_utils.config import conf_vars
 
 
 class TestFernetEnabledRule(TestCase):
-
     @conf_vars({("core", "fernet_key"): ""})
     def test_invalid_check(self):
         rule = FernetEnabledRule()
@@ -29,10 +28,11 @@ class TestFernetEnabledRule(TestCase):
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
 
-        msg = """fernet_key in airflow.cfg must be explicitly set empty as fernet mechanism is enabled by default
-        this means that the apache-airflow[crypto] extra-packages are always installed.
-        However, this requires that your operating system has libffi-dev installed.
-        """
+        msg = (
+            "fernet_key in airflow.cfg must be explicitly set empty as fernet mechanism is enabled"
+            "by default. This means that the apache-airflow[crypto] extra-packages are always installed."
+            "However, this requires that your operating system has libffi-dev installed."
+        )
         response = rule.check()
         assert response == msg
 
