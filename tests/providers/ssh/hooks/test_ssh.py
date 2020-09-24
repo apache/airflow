@@ -337,3 +337,4 @@ class TestSSHHook(unittest.TestCase):
                 sock=None,
                 look_for_keys=True,
             )
+            
