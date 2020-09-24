@@ -363,15 +363,15 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     def generate_command(dag_id: str,     # pylint: disable=too-many-arguments
                          task_id: str,
                          execution_date: datetime,
-                         mark_success: Optional[bool] = False,
-                         ignore_all_deps: Optional[bool] = False,
-                         ignore_depends_on_past: Optional[bool] = False,
-                         ignore_task_deps: Optional[bool] = False,
-                         ignore_ti_state: Optional[bool] = False,
-                         local: Optional[bool] = False,
+                         mark_success: bool = False,
+                         ignore_all_deps: bool = False,
+                         ignore_depends_on_past: bool = False,
+                         ignore_task_deps: bool = False,
+                         ignore_ti_state: bool = False,
+                         local: bool = False,
                          pickle_id: Optional[int] = None,
                          file_path: Optional[str] = None,
-                         raw: Optional[bool] = False,
+                         raw: bool = False,
                          job_id: Optional[str] = None,
                          pool: Optional[str] = None,
                          cfg_path: Optional[str] = None
@@ -386,20 +386,20 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         :param execution_date: Execution date for the task
         :type execution_date: datetime
         :param mark_success: Whether to mark the task as successful
-        :type mark_success: Optional[bool]
+        :type mark_success: bool
         :param ignore_all_deps: Ignore all ignorable dependencies.
             Overrides the other ignore_* parameters.
-        :type ignore_all_deps: Optional[bool]
+        :type ignore_all_deps: bool
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
             (e.g. for Backfills)
-        :type ignore_depends_on_past: Optional[bool]
+        :type ignore_depends_on_past: bool
         :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past
             and trigger rule
-        :type ignore_task_deps: Optional[bool]
+        :type ignore_task_deps: bool
         :param ignore_ti_state: Ignore the task instance's previous failure/success
-        :type ignore_ti_state: Optional[bool]
+        :type ignore_ti_state: bool
         :param local: Whether to run the task locally
-        :type local: Optional[bool]
+        :type local: bool
         :param pickle_id: If the DAG was serialized to the DB, the ID
             associated with the pickled DAG
         :type pickle_id: Optional[int]
