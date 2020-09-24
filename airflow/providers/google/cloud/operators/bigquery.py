@@ -2219,7 +2219,7 @@ class GreatExpectationsBigQueryOperator(BaseOperator):
 
     def execute(self, context):
         conn = BaseHook.get_connection(self.bigquery_conn_id)
-        connection_json = json.loads(conn.extra)
+        connection_json = conn.extra_dejson
 
         project_config = DataContextConfig(
             config_version=2,
