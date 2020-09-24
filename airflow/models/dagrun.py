@@ -63,6 +63,7 @@ class DagRun(Base, LoggingMixin):
     conf = Column(PickleType)
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
+    dag_hash = Column(String(32))
 
     dag = None
 
@@ -91,7 +92,8 @@ class DagRun(Base, LoggingMixin):
         external_trigger: Optional[bool] = None,
         conf: Optional[Any] = None,
         state: Optional[str] = None,
-        run_type: Optional[str] = None
+        run_type: Optional[str] = None,
+        dag_hash: Optional[str] = None,
     ):
         self.dag_id = dag_id
         self.run_id = run_id
@@ -101,6 +103,7 @@ class DagRun(Base, LoggingMixin):
         self.conf = conf or {}
         self.state = state
         self.run_type = run_type
+        self.dag_hash = dag_hash
         self.callback: Optional[callback_requests.DagCallbackRequest] = None
         super().__init__()
 
@@ -578,7 +581,7 @@ class DagRun(Base, LoggingMixin):
             self.log.info('Hit IntegrityError while creating the TIs for '
                           f'{dag.dag_id} - {self.execution_date}.')
             self.log.info('Doing session rollback.')
-            # TODO[HA]: We probaly need to savepoint this so we can keep the transaction alive.
+            # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
 
     @staticmethod

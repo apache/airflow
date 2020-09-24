@@ -47,6 +47,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagModel, SlaMiss, errors
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
@@ -1502,13 +1503,16 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
         if/when the next DAGRun should be created
         """
+        dag_hash = self.dagbag.dags_hash.get(dag.dag_id, None)
+
         dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=dag_model.next_dagrun,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             external_trigger=False,
-            session=session
+            session=session,
+            dag_hash=dag_hash
         )
 
         self._update_dag_next_dagrun(dag_model, dag, session)
@@ -1602,8 +1606,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             if currently_active_runs >= dag.max_active_runs:
                 return 0
 
-        # TODO[HA]: Run verify_integrity, but only if the serialized_dag has changed
-
+        self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session)
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis = dag_run.update_state(session=session, execute_callbacks=False)
         # TODO[HA]: Don't return, update these from in update_state?
@@ -1614,6 +1617,22 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         ).update({TI.state: State.SCHEDULED}, synchronize_session=False)
 
         return count
+
+    @provide_session
+    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session=None):
+        """Only run DagRun.verify integrity if Serialized DAG has changed since it is slow"""
+        latest_version = SerializedDagModel.get_latest_version_hash(dag_run.dag_id, session=session)
+        if dag_run.dag_hash == latest_version:
+            self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
+            return
+
+        dag_run.dag_hash = latest_version
+
+        # Refresh the DAG
+        dag_run.dag = self.dagbag.get_dag(dag_id=dag_run.dag_id)
+
+        # Verify integrity also takes care of session.flush
+        dag_run.verify_integrity(session=session)
 
     def _send_dag_callbacks_to_processor(self, dag_run: DagRun):
         if not self.processor_agent:

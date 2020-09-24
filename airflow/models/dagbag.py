@@ -117,6 +117,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.read_dags_from_db = read_dags_from_db
         # Only used by read_dags_from_db=True
         self.dags_last_fetched: Dict[str, datetime] = {}
+        # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
+        self.dags_hash: Dict[str, str] = {}
 
         self.dagbag_import_error_tracebacks = conf.getboolean('core', 'dagbag_import_error_tracebacks')
         self.dagbag_import_error_traceback_depth = conf.getint('core', 'dagbag_import_error_traceback_depth')
@@ -223,6 +225,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             self.dags[subdag.dag_id] = subdag
         self.dags[dag.dag_id] = dag
         self.dags_last_fetched[dag.dag_id] = timezone.utcnow()
+        self.dags_hash[dag.dag_id] = row.dag_hash
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """

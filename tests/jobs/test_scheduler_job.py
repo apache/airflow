@@ -31,6 +31,7 @@ import pytest
 import six
 from mock import MagicMock, patch
 from parameterized import parameterized
+from sqlalchemy import func
 
 import airflow.example_dags
 import airflow.smart_sensor_dags
@@ -42,6 +43,7 @@ from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import DagFileProcessor, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, Pool, SlaMiss, TaskInstance, errors
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -57,8 +59,8 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
-    clear_db_dags, clear_db_errors, clear_db_jobs, clear_db_pools, clear_db_runs, clear_db_sla_miss,
-    set_default_pool_slots,
+    clear_db_dags, clear_db_errors, clear_db_jobs, clear_db_pools, clear_db_runs, clear_db_serialized_dags,
+    clear_db_sla_miss, set_default_pool_slots,
 )
 from tests.test_utils.mock_executor import MockExecutor
 
@@ -105,6 +107,7 @@ class TestDagFileProcessor(unittest.TestCase):
         clear_db_sla_miss()
         clear_db_errors()
         clear_db_jobs()
+        clear_db_serialized_dags()
 
     def setUp(self):
         self.clean_db()
@@ -525,44 +528,42 @@ class TestDagFileProcessor(unittest.TestCase):
             assert tis[0].state == State.SCHEDULED
             assert tis[1].state == State.SCHEDULED
 
-    @pytest.mark.xfail(run=False, reason="TODO[HA]")
-    def test_dag_file_processor_add_new_task(self):
+    def test_scheduler_job_add_new_task(self):
         """
         Test if a task instance will be added if the dag is updated
         """
-        dag = DAG(
-            dag_id='test_scheduler_add_new_task',
-            start_date=DEFAULT_DATE)
+        dag = DAG(dag_id='test_scheduler_add_new_task', start_date=DEFAULT_DATE)
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
-        DummyOperator(
-            task_id='dummy',
-            dag=dag,
-            owner='airflow')
+        scheduler = SchedulerJob()
+        scheduler.dagbag.bag_dag(dag, root_dag=dag)
+        scheduler.dagbag.sync_to_db()
 
         session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        session.merge(orm_dag)
-        session.commit()
-        session.close()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        assert orm_dag is not None
 
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        scheduler = SchedulerJob()
+        dag = scheduler.dagbag.get_dag('test_scheduler_add_new_task', session=session)
+        scheduler._create_dag_run(orm_dag, dag, session)
 
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag.clear()
-
-        dr = dag_file_processor.create_dag_run(dag)
-        self.assertIsNotNone(dr)
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
 
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 1)
 
-        DummyOperator(
-            task_id='dummy2',
-            dag=dag,
-            owner='airflow')
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        DummyOperator(task_id='dummy2', dag=dag, owner='airflow')
+        SerializedDagModel.write_dag(dag=dag)
 
-        dag_file_processor._process_task_instances(dag, dag_runs=[dr])
+        scheduled_tis = scheduler._schedule_dag_run(dr, session)
+        session.flush()
+        assert scheduled_tis == 2
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
 
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 2)
@@ -914,6 +915,7 @@ class TestSchedulerJob(unittest.TestCase):
         clear_db_dags()
         clear_db_sla_miss()
         clear_db_errors()
+        clear_db_serialized_dags()
 
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
@@ -2721,6 +2723,105 @@ class TestSchedulerJob(unittest.TestCase):
         ti2 = session.query(TaskInstance)\
             .filter(TaskInstance.task_id == 'test_scheduler_verify_priority_and_slots_t2').first()
         self.assertEqual(ti2.state, State.QUEUED)
+
+    def test_verify_integrity_if_dag_not_changed(self):
+        dag = DAG(dag_id='test_verify_integrity_if_dag_not_changed', start_date=DEFAULT_DATE)
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        scheduler = SchedulerJob()
+        scheduler.dagbag.bag_dag(dag, root_dag=dag)
+        scheduler.dagbag.sync_to_db()
+
+        session = settings.Session()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        assert orm_dag is not None
+
+        scheduler = SchedulerJob()
+        dag = scheduler.dagbag.get_dag('test_verify_integrity_if_dag_not_changed', session=session)
+        scheduler._create_dag_run(orm_dag, dag, session)
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+
+        # Verify that DagRun.verify_integrity is not called
+        with mock.patch('airflow.jobs.scheduler_job.DagRun.verify_integrity') as mock_verify_integrity:
+            scheduled_tis = scheduler._schedule_dag_run(dr, session)
+            mock_verify_integrity.assert_not_called()
+        session.flush()
+
+        assert scheduled_tis == 1
+
+        tis_count = session.query(func.count(TaskInstance.task_id)).filter(
+            TaskInstance.dag_id == dr.dag_id,
+            TaskInstance.execution_date == dr.execution_date,
+            TaskInstance.task_id == dr.dag.tasks[0].task_id,
+            TaskInstance.state == State.SCHEDULED
+        ).scalar()
+        assert tis_count == 1
+
+        latest_dag_version = SerializedDagModel.get_latest_version_hash(dr.dag_id, session=session)
+        assert dr.dag_hash == latest_dag_version
+
+        session.rollback()
+        session.close()
+
+    def test_verify_integrity_if_dag_changed(self):
+        dag = DAG(dag_id='test_verify_integrity_if_dag_changed', start_date=DEFAULT_DATE)
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        scheduler = SchedulerJob()
+        scheduler.dagbag.bag_dag(dag, root_dag=dag)
+        scheduler.dagbag.sync_to_db()
+
+        session = settings.Session()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        assert orm_dag is not None
+
+        scheduler = SchedulerJob()
+        dag = scheduler.dagbag.get_dag('test_verify_integrity_if_dag_changed', session=session)
+        scheduler._create_dag_run(orm_dag, dag, session)
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+
+        dag_version_1 = SerializedDagModel.get_latest_version_hash(dr.dag_id, session=session)
+        assert dr.dag_hash == dag_version_1
+        assert scheduler.dagbag.dags == {'test_verify_integrity_if_dag_changed': dag}
+        assert len(scheduler.dagbag.dags.get("test_verify_integrity_if_dag_changed").tasks) == 1
+
+        # Now let's say the DAG got updated (new task got added)
+        BashOperator(task_id='bash_task_1', dag=dag, bash_command='echo hi')
+        SerializedDagModel.write_dag(dag=dag)
+
+        dag_version_2 = SerializedDagModel.get_latest_version_hash(dr.dag_id, session=session)
+        assert dag_version_2 != dag_version_1
+
+        scheduled_tis = scheduler._schedule_dag_run(dr, session)
+        session.flush()
+
+        assert scheduled_tis == 2
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+        assert dr.dag_hash == dag_version_2
+        assert scheduler.dagbag.dags == {'test_verify_integrity_if_dag_changed': dag}
+        assert len(scheduler.dagbag.dags.get("test_verify_integrity_if_dag_changed").tasks) == 2
+
+        tis_count = session.query(func.count(TaskInstance.task_id)).filter(
+            TaskInstance.dag_id == dr.dag_id,
+            TaskInstance.execution_date == dr.execution_date,
+            TaskInstance.state == State.SCHEDULED
+        ).scalar()
+        assert tis_count == 2
+
+        latest_dag_version = SerializedDagModel.get_latest_version_hash(dr.dag_id, session=session)
+        assert dr.dag_hash == latest_dag_version
+
+        session.rollback()
+        session.close()
 
     def test_retry_still_in_executor(self):
         """

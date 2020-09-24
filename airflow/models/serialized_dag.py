@@ -264,3 +264,18 @@ class SerializedDagModel(Base):
         :type session: Session
         """
         return session.query(cls.last_updated).filter(cls.dag_id == dag_id).scalar()
+
+    @classmethod
+    @provide_session
+    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> str:
+        """
+        Get the latest DAG version for a given DAG ID.
+
+        :param dag_id: DAG ID
+        :type dag_id: str
+        :param session: ORM Session
+        :type session: Session
+        :return: DAG Hash
+        :rtype: str
+        """
+        return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()

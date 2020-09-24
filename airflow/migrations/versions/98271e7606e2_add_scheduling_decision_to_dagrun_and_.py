@@ -39,6 +39,7 @@ def upgrade():
     with op.batch_alter_table('dag_run', schema=None) as batch_op:
         batch_op.add_column(sa.Column('last_scheduling_decision', sa.DateTime(timezone=True), nullable=True))
         batch_op.create_index('idx_last_scheduling_decision', ['last_scheduling_decision'], unique=False)
+        batch_op.add_column(sa.Column('dag_hash', sa.String(32), nullable=True))
 
     with op.batch_alter_table('dag', schema=None) as batch_op:
         batch_op.add_column(sa.Column('next_dagrun', sa.DateTime(timezone=True), nullable=True))
@@ -71,6 +72,7 @@ def downgrade():
     with op.batch_alter_table('dag_run', schema=None) as batch_op:
         batch_op.drop_index('idx_last_scheduling_decision')
         batch_op.drop_column('last_scheduling_decision')
+        batch_op.drop_column('dag_hash')
 
     with op.batch_alter_table('dag', schema=None) as batch_op:
         batch_op.drop_index('idx_next_dagrun_create_after')
