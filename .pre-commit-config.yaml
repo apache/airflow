@@ -186,7 +186,7 @@ repos:
         exclude:
           ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.4.2
+    rev: 5.5.3
     hooks:
       - id: isort
         name: Run isort to sort imports
@@ -194,7 +194,7 @@ repos:
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^build/.*$|^.tox/.*$|^venv/.*$|.*api_connexion/.*\.py|.*providers.*\.py
   - repo: https://github.com/pycqa/pydocstyle
-    rev: 5.0.2
+    rev: 5.1.1
     hooks:
       - id: pydocstyle
         name: Run pydocstyle
