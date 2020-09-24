@@ -393,6 +393,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/home')
     @has_access
+    @permission_name()
     def index(self):  # pylint: disable=too-many-locals,too-many-statements
         """Home view."""
         hide_paused_dags_by_default = conf.getboolean('webserver',
@@ -538,6 +539,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/dag_stats', methods=['POST'])
     @has_access
+    @permission_name()
     @provide_session
     def dag_stats(self, session=None):
         """Dag statistics."""
@@ -585,6 +587,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/task_stats', methods=['POST'])
     @has_access
+    @permission_name()
     @provide_session
     def task_stats(self, session=None):
         """Task Statistics"""
@@ -699,6 +702,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/last_dagruns', methods=['POST'])
     @has_access
+    @permission_name()
     @provide_session
     def last_dagruns(self, session=None):
         """Last DAG runs"""
@@ -738,6 +742,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/code')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @provide_session
     def code(self, session=None):
         """Dag Code."""
@@ -769,6 +774,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/dag_details')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @provide_session
     def dag_details(self, session=None):
         """Get Dag details."""
@@ -797,6 +803,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/rendered')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     def rendered(self):
         """Get rendered Dag."""
@@ -844,6 +851,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/get_logs_with_metadata')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     @provide_session
     def get_logs_with_metadata(self, session=None):
@@ -929,6 +937,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/log')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     @provide_session
     def log(self, session=None):
@@ -963,6 +972,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/redirect_to_external_log')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     @provide_session
     def redirect_to_external_log(self, session=None):
@@ -994,6 +1004,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/task')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     def task(self):
         """Retrieve task."""
@@ -1075,6 +1086,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/xcom')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     @provide_session
     def xcom(self, session=None):
@@ -1121,6 +1133,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/run', methods=['POST'])
     @has_dag_access(can_dag_edit=True)
     @has_access
+    @permission_name()
     @action_logging
     def run(self):
         """Retrieves Run."""
@@ -1189,6 +1202,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/delete', methods=['POST'])
     @has_dag_access(can_dag_edit=True)
     @has_access
+    @permission_name()
     @action_logging
     def delete(self):
         """Deletes DAG."""
@@ -1218,6 +1232,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/trigger', methods=['POST', 'GET'])
     @has_dag_access(can_dag_edit=True)
     @has_access
+    @permission_name()
     @action_logging
     @provide_session
     def trigger(self, session=None):
@@ -1317,6 +1332,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/clear', methods=['POST'])
     @has_dag_access(can_dag_edit=True)
     @has_access
+    @permission_name()
     @action_logging
     def clear(self):
         """Clears the Dag."""
@@ -1349,6 +1365,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/dagrun_clear', methods=['POST'])
     @has_dag_access(can_dag_edit=True)
     @has_access
+    @permission_name()
     @action_logging
     def dagrun_clear(self):
         """Clears the DagRun"""
@@ -1367,6 +1384,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/blocked', methods=['POST'])
     @has_access
+    @permission_name()
     @provide_session
     def blocked(self, session=None):
         """Mark Dag Blocked."""
@@ -1471,6 +1489,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/dagrun_failed', methods=['POST'])
     @has_dag_access(can_dag_edit=True)
     @has_access
+    @permission_name()
     @action_logging
     def dagrun_failed(self):
         """Mark DagRun failed."""
@@ -1484,6 +1503,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/dagrun_success', methods=['POST'])
     @has_dag_access(can_dag_edit=True)
     @has_access
+    @permission_name()
     @action_logging
     def dagrun_success(self):
         """Mark DagRun success"""
@@ -1537,6 +1557,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/failed', methods=['POST'])
     @has_dag_access(can_dag_edit=True)
     @has_access
+    @permission_name()
     @action_logging
     def failed(self):
         """Mark task as failed."""
@@ -1558,6 +1579,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/success', methods=['POST'])
     @has_dag_access(can_dag_edit=True)
     @has_access
+    @permission_name()
     @action_logging
     def success(self):
         """Mark task as success."""
@@ -1579,6 +1601,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/tree')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @gzipped
     @action_logging
     def tree(self):  # pylint: disable=too-many-locals
@@ -1745,6 +1768,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/graph')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @gzipped
     @action_logging
     @provide_session
@@ -1830,6 +1854,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/duration')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     @provide_session
     def duration(self, session=None):  # pylint: disable=too-many-locals
@@ -1943,6 +1968,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/tries')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     @provide_session
     def tries(self, session=None):
@@ -2009,6 +2035,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/landing_times')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     @provide_session
     def landing_times(self, session=None):
@@ -2089,6 +2116,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/paused', methods=['POST'])
     @has_dag_access(can_dag_edit=True)
     @has_access
+    @permission_name()
     @action_logging
     def paused(self):
         """Toggle paused."""
@@ -2101,6 +2129,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/refresh', methods=['POST'])
     @has_dag_access(can_dag_edit=True)
     @has_access
+    @permission_name()
     @action_logging
     @provide_session
     def refresh(self, session=None):
@@ -2123,6 +2152,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
     @expose('/refresh_all', methods=['POST'])
     @has_access
+    @permission_name()
     @action_logging
     def refresh_all(self):
         """Refresh everything"""
@@ -2140,6 +2170,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/gantt')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     @provide_session
     def gantt(self, session=None):
@@ -2233,6 +2264,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/extra_links')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     def extra_links(self):
         """
@@ -2292,6 +2324,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/object/task_instances')
     @has_dag_access(can_dag_read=True)
     @has_access
+    @permission_name()
     @action_logging
     def task_instances(self):
         """Shows task instances."""
@@ -2318,6 +2351,7 @@ class VersionView(AirflowBaseView):
 
     @expose('/version')
     @has_access
+    @permission_name()
     def version(self):
         """Shows Airflow version."""
         try:
@@ -2343,6 +2377,7 @@ class ConfigurationView(AirflowBaseView):
 
     @expose('/configuration')
     @has_access
+    @permission_name()
     def conf(self):
         """Shows configuration."""
         raw = request.args.get('raw') == "true"
@@ -2726,6 +2761,7 @@ class VariableModelView(AirflowModelView):
 
     @expose('/varimport', methods=["POST"])
     @has_access
+    @permission_name()
     @action_logging
     def varimport(self):
         """Import variables"""
@@ -3160,6 +3196,7 @@ class DagModelView(AirflowModelView):
         )
 
     @has_access
+    @permission_name()
     @permission_name("list")
     @provide_session
     @expose('/autocomplete')
