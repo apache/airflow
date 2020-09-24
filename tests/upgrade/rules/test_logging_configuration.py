@@ -31,7 +31,7 @@ class TestLoggingConfigurationRule(TestCase):
 
         # Remove the fallback option
         conf.remove_option("logging", "logging_level")
-        msg = "Logging configuration has been to moved from [core] to the new [logging] section."
+        msg = "The logging configurations have been to moved from [core] to the new [logging] section."
         response = rule.check()
         assert response == msg
 

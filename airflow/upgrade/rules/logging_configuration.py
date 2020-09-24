@@ -28,4 +28,4 @@ class LoggingConfigurationRule(BaseRule):
 
     def check(self):
         if not conf.has_option("logging", "logging_level"):
-            return "The logging configuration has been to moved from [core] to the new [logging] section."
+            return "The logging configurations have been to moved from [core] to the new [logging] section."
