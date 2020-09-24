@@ -103,3 +103,7 @@ installed "airflow" folder to the "providers" folder where you installed your ba
 If you installed it with -e, this link should be created in your airflow sources,
 if you installed it with the ``--user`` flag it should be from the ``~/.local/lib/pythonX.Y/site-packages/airflow/``
 folder.
+
+.. spelling::
+
+  backported
