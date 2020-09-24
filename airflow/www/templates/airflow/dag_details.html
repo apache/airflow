@@ -40,7 +40,7 @@
       <tr>
         <th>Parent DAG</th>
         <td>
-          <a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}">{{ dag.parent_dag.dag_id }}</a>
+          <a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id) }}">{{ dag.parent_dag.dag_id }}</a>
         </td>
       </tr>
     {% endif %}
