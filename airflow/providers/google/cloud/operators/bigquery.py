@@ -2338,7 +2338,7 @@ class GreatExpectationsBigQueryOperator(BaseOperator):
         data_docs_url = \
             data_context.get_docs_sites_urls(resource_identifier=validation_result_identifier, site_name='GCS_site')[0][
                 'site_url']
-        log.info("Data docs url is: " + data_docs_url)
+        log.info("Data docs url is: %s", data_docs_url)
         if results["success"]:
             self.log.info('All expectations met')
         else:
