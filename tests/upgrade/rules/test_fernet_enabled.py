@@ -23,7 +23,7 @@ from tests.test_utils.config import conf_vars
 class TestFernetEnabledRule(TestCase):
 
     @conf_vars({("core", "fernet_key"): ""})
-    def test_check(self):
+    def test_invalid_check(self):
         rule = FernetEnabledRule()
 
         assert isinstance(rule.description, str)
@@ -36,3 +36,13 @@ class TestFernetEnabledRule(TestCase):
         """
         response = rule.check()
         assert response == msg
+
+    @conf_vars({("core", "fernet_key"): "dummyfernet"})
+    def test_valid_check(self):
+        rule = FernetEnabledRule()
+
+        assert isinstance(rule.description, str)
+        assert isinstance(rule.title, str)
+
+        response = rule.check()
+        assert response is None
