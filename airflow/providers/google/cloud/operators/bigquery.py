@@ -2355,7 +2355,7 @@ class GreatExpectationsBigQueryOperator(BaseOperator):
         name_start = "temp_great_expectations_" + now + '_'
         full_name = name_start + ''.join(random.choices(string.ascii_uppercase +
                                                         string.digits, k=5))
-        log.info("Generated name for temporary table: " + full_name)
+        log.info("Generated name for temporary table: %s", full_name)
         return full_name
 
     def send_alert(self, data_docs_url):
