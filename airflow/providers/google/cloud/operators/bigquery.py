@@ -2132,7 +2132,7 @@ class BigQueryInsertJobOperator(BaseOperator):
 
 class GreatExpectationsBigQueryOperator(BaseOperator):
     """
-         Use Great Expectations to validate data expectations against a BigQuery table or the result of a SQL query.
+    Use Great Expectations to validate data expectations against a BigQuery table or the result of a SQL query.
          The expectations need to be stored in a JSON file sitting in an accessible GCS bucket.  The validation results
          are output to GCS in both JSON and HTML formats.
          Here's the current list of expectations types:
@@ -2389,4 +2389,3 @@ class GreatExpectationsBigQueryOperator(BaseOperator):
         send_email(self.email_to, 'expectations in ' + self.expectations_file_name + ' not met', email_content,
                    files=None, cc=None, bcc=None,
                    mime_subtype='mixed', mime_charset='us_ascii')
-
