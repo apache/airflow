@@ -25,9 +25,10 @@ retrieve data from it, and write that data to a file for other uses.
 """
 import logging
 import time
+from typing import Optional, List, Iterable
 
 import pandas as pd
-from simple_salesforce import Salesforce
+from simple_salesforce import Salesforce, api
 
 from airflow.hooks.base_hook import BaseHook
 
@@ -54,12 +55,12 @@ class SalesforceHook(BaseHook):
 
     """
 
-    def __init__(self, conn_id):
+    def __init__(self, conn_id: str) -> None:
         super().__init__()
         self.conn_id = conn_id
         self.conn = None
 
-    def get_conn(self):
+    def get_conn(self) -> api.Salesforce:
         """
         Sign into Salesforce, only if we are not already signed in.
         """
@@ -75,7 +76,9 @@ class SalesforceHook(BaseHook):
             )
         return self.conn
 
-    def make_query(self, query, include_deleted=False, query_params=None):
+    def make_query(
+        self, query: str, include_deleted: bool = False, query_params: Optional[dict] = None
+    ) -> dict:
         """
         Make a query to Salesforce.
 
@@ -100,7 +103,7 @@ class SalesforceHook(BaseHook):
 
         return query_results
 
-    def describe_object(self, obj):
+    def describe_object(self, obj: str) -> dict:
         """
         Get the description of an object from Salesforce.
         This description is the object's schema and
@@ -115,7 +118,7 @@ class SalesforceHook(BaseHook):
 
         return conn.__getattr__(obj).describe()
 
-    def get_available_fields(self, obj):
+    def get_available_fields(self, obj: str) -> List[str]:
         """
         Get a list of all available fields for an object.
 
@@ -130,7 +133,7 @@ class SalesforceHook(BaseHook):
 
         return [field['name'] for field in obj_description['fields']]
 
-    def get_object_from_salesforce(self, obj, fields):
+    def get_object_from_salesforce(self, obj: str, fields: Iterable[str]) -> dict:
         """
         Get all instances of the `object` from Salesforce.
         For each model, only get the fields specified in fields.
@@ -155,7 +158,7 @@ class SalesforceHook(BaseHook):
         return self.make_query(query)
 
     @classmethod
-    def _to_timestamp(cls, column):
+    def _to_timestamp(cls, column: pd.Series) -> pd.Series:
         """
         Convert a column of a dataframe to UNIX timestamps if applicable
 
@@ -193,8 +196,13 @@ class SalesforceHook(BaseHook):
         return pd.Series(converted, index=column.index)
 
     def write_object_to_file(
-        self, query_results, filename, fmt="csv", coerce_to_timestamp=False, record_time_added=False
-    ):
+        self,
+        query_results: List[dict],
+        filename: str,
+        fmt: str = "csv",
+        coerce_to_timestamp: bool = False,
+        record_time_added: bool = False,
+    ) -> pd.DataFrame:
         """
         Write query results to file.
 
@@ -270,7 +278,9 @@ class SalesforceHook(BaseHook):
 
         return df
 
-    def object_to_df(self, query_results, coerce_to_timestamp=False, record_time_added=False):
+    def object_to_df(
+        self, query_results: List[dict], coerce_to_timestamp: bool = False, record_time_added: bool = False
+    ) -> pd.DataFrame:
         """
         Export query results to dataframe.
 
