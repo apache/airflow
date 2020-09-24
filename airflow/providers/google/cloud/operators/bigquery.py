@@ -2215,7 +2215,7 @@ class GreatExpectationsBigQueryOperator(BaseOperator):
         self.include_datadocs_link_in_email = include_datadocs_link_in_email
         self.fail_if_expectations_not_met = fail_if_expectations_not_met
 
-        super(GreatExpectationsBigQueryOperator, self).__init__(*args, **kwargs)
+        super(self).__init__(*args, **kwargs)
 
     def execute(self, context):
         conn = BaseHook.get_connection(self.bigquery_conn_id)
