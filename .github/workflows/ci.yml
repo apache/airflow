@@ -178,6 +178,7 @@ jobs:
         run: ./scripts/ci/kubernetes/ci_run_helm_testing.sh
 
   ci-images:
+    timeout-minutes: 50
     name: "Wait for CI images"
     runs-on: ubuntu-latest
     needs: [build-info]
@@ -483,6 +484,7 @@ jobs:
           directory: "./coverage-files"
 
   prod-images:
+    timeout-minutes: 50
     name: "Wait for PROD images"
     runs-on: ubuntu-latest
     needs: [build-info]
