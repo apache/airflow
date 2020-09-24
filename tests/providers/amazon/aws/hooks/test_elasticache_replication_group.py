@@ -101,7 +101,9 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         }
 
         response = self.hook.wait_for_availability(
-            replication_group_id=self.REPLICATION_GROUP_ID, max_retries=1, initial_sleep_time=1,  # seconds
+            replication_group_id=self.REPLICATION_GROUP_ID,
+            max_retries=1,
+            initial_sleep_time=1,  # seconds
         )
         assert response is False
 
@@ -111,7 +113,9 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         }
 
         response = self.hook.wait_for_availability(
-            replication_group_id=self.REPLICATION_GROUP_ID, max_retries=1, initial_sleep_time=1,  # seconds
+            replication_group_id=self.REPLICATION_GROUP_ID,
+            max_retries=1,
+            initial_sleep_time=1,  # seconds
         )
         assert response is True
 
@@ -128,7 +132,9 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         }
 
         response = self.hook.wait_for_availability(
-            replication_group_id=self.REPLICATION_GROUP_ID, max_retries=1, initial_sleep_time=1,  # seconds
+            replication_group_id=self.REPLICATION_GROUP_ID,
+            max_retries=1,
+            initial_sleep_time=1,  # seconds
         )
         assert response is True
 
