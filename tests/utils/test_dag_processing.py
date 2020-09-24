@@ -54,14 +54,14 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 class FakeDagFileProcessorRunner(DagFileProcessorProcess):
     # This fake processor will return the zombies it received in constructor
     # as its processing result w/o actually parsing anything.
-    def __init__(self, file_path, pickle_dags, dag_ids, zombies):
-        super().__init__(file_path, pickle_dags, dag_ids, zombies)
+    def __init__(self, file_path, pickle_dags, dag_ids, callbacks):
+        super().__init__(file_path, pickle_dags, dag_ids, callbacks)
         # We need a "real" selectable handle for waitable_handle to work
         readable, writable = multiprocessing.Pipe(duplex=False)
         writable.send('abc')
         writable.close()
         self._waitable_handle = readable
-        self._result = zombies, 0
+        self._result = 0, 0
 
     def start(self):
         pass
@@ -83,12 +83,12 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
         return self._result
 
     @staticmethod
-    def _fake_dag_processor_factory(file_path, zombies, dag_ids, pickle_dags):
+    def _fake_dag_processor_factory(file_path, callbacks, dag_ids, pickle_dags):
         return FakeDagFileProcessorRunner(
             file_path,
             pickle_dags,
             dag_ids,
-            zombies
+            callbacks,
         )
 
     @property
@@ -253,7 +253,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 ti.job_id = local_job.id
                 session.commit()
 
-                fake_failure_callback_requests = [
+                expected_failure_callback_requests = [
                     TaskCallbackRequest(
                         full_filepath=dag.full_filepath,
                         simple_task_instance=SimpleTaskInstance(ti),
@@ -266,23 +266,38 @@ class TestDagFileProcessorManager(unittest.TestCase):
             child_pipe, parent_pipe = multiprocessing.Pipe()
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
 
+            fake_processors = []
+
+            def fake_processor_factory(*args, **kwargs):
+                nonlocal fake_processors
+                processor = FakeDagFileProcessorRunner._fake_dag_processor_factory(*args, **kwargs)
+                fake_processors.append(processor)
+                return processor
+
             manager = DagFileProcessorManager(
                 dag_directory=test_dag_path,
                 max_runs=1,
-                processor_factory=FakeDagFileProcessorRunner._fake_dag_processor_factory,
+                processor_factory=fake_processor_factory,
                 processor_timeout=timedelta.max,
                 signal_conn=child_pipe,
                 dag_ids=[],
                 pickle_dags=False,
                 async_mode=async_mode)
 
-            parsing_result = self.run_processor_manager_one_loop(manager, parent_pipe)
+            self.run_processor_manager_one_loop(manager, parent_pipe)
 
-            self.assertEqual(len(fake_failure_callback_requests), len(parsing_result))
-            self.assertEqual(
-                set(zombie.simple_task_instance.key for zombie in fake_failure_callback_requests),
-                set(result.simple_task_instance.key for result in parsing_result)
+            # Once for initial parse, and then again for the add_callback_to_queue
+            assert len(fake_processors) == 2
+
+            assert fake_processors[0]._file_path == test_dag_path
+            assert fake_processors[0]._callback_requests == []
+            assert fake_processors[1]._file_path == test_dag_path
+            callback_requests = fake_processors[1]._callback_requests
+            assert (
+                set(zombie.simple_task_instance.key for zombie in expected_failure_callback_requests) ==
+                set(result.simple_task_instance.key for result in callback_requests)
             )
+
             child_pipe.close()
             parent_pipe.close()
 
@@ -445,7 +460,6 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 False,
                                                 async_mode)
         processor_agent.start()
-        parsing_result = []
         if not async_mode:
             processor_agent.run_single_parsing_loop()
         while not processor_agent.done:
