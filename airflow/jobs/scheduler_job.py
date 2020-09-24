@@ -1610,11 +1610,36 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis = dag_run.update_state(session=session, execute_callbacks=False)
         # TODO[HA]: Don't return, update these from in update_state?
+
+        # Get list of TIs that do not need to executed, these are
+        # tasks using DummyOperator and without on_execute_callback / on_success_callback
+        dummy_tis = [
+            ti for ti in schedulable_tis
+            if
+            (
+                ti.task.task_type == "DummyOperator"
+                and not ti.task.on_execute_callback
+                and not ti.task.on_success_callback
+            )
+        ]
+
         count = session.query(TI).filter(
             TI.dag_id == dag_run.dag_id,
             TI.execution_date == dag_run.execution_date,
-            TI.task_id.in_(ti.task_id for ti in schedulable_tis)
+            TI.task_id.in_(ti.task_id for ti in schedulable_tis if ti not in dummy_tis)
         ).update({TI.state: State.SCHEDULED}, synchronize_session=False)
+
+        # Tasks using DummyOperator should not be executed, mark them as success
+        session.query(TI).filter(
+            TI.dag_id == dag_run.dag_id,
+            TI.execution_date == dag_run.execution_date,
+            TI.task_id.in_(ti.task_id for ti in dummy_tis)
+        ).update({
+            TI.state: State.SUCCESS,
+            TI.start_date: timezone.utcnow(),
+            TI.end_date: timezone.utcnow(),
+            TI.duration: 0
+        }, synchronize_session=False)
 
         return count
 

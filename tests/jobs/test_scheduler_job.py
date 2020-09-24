@@ -715,29 +715,34 @@ class TestDagFileProcessor(unittest.TestCase):
             self.assertEqual("Callback fired", content)
             os.remove(callback_file.name)
 
-    @pytest.mark.skip
     def test_should_mark_dummy_task_as_success(self):
         dag_file = os.path.join(
             os.path.dirname(os.path.realpath(__file__)), '../dags/test_only_dummy_tasks.py'
         )
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        with create_session() as session:
-            session.query(TaskInstance).delete()
-            session.query(DagModel).delete()
 
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
-        dagbag.sync_to_db()
+        # Write DAGs to dag and serialized_dag table
+        with mock.patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", return_value=True):
+            dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+            dagbag.sync_to_db()
 
-        serialized_dags, import_errors_count = dag_file_processor.process_file(
-            file_path=dag_file, callback_requests=[]
-        )
+        scheduler_job = SchedulerJob()
+        dag = scheduler_job.dagbag.get_dag("test_only_dummy_tasks")
 
-        dags = [SerializedDAG.from_dict(serialized_dag) for serialized_dag in serialized_dags]
+        # Create DagRun
+        session = settings.Session()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        scheduler_job._create_dag_run(orm_dag, dag, session)
 
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+
+        # Schedule TaskInstances
+        scheduler_job._schedule_dag_run(dr, session)
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
-        self.assertEqual(0, import_errors_count)
+        dags = scheduler_job.dagbag.dags.values()
         self.assertEqual(['test_only_dummy_tasks'], [dag.dag_id for dag in dags])
         self.assertEqual(5, len(tis))
         self.assertEqual({
@@ -758,9 +763,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 self.assertIsNone(end_date)
                 self.assertIsNone(duration)
 
-        dag_file_processor.process_file(
-            file_path=dag_file, callback_requests=[]
-        )
+        scheduler_job._schedule_dag_run(dr, session)
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
