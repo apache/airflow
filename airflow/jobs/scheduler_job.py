@@ -1395,7 +1395,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 break
             if self.processor_agent.done:
                 self.log.info(
-                    "Exiting scheduler loop as requested DAG parse count (%d) has been reached",
+                    "Exiting scheduler loop as requested DAG parse count (%d) has been reached after %d "
+                    " scheduler loops",
                     self.num_times_parse_dags, loop_count,
                 )
                 break

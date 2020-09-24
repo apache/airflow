@@ -1665,8 +1665,8 @@ class TestDagModel:
         session.add(orm_dag)
         session.flush()
 
-        models = DagModel.dags_needing_dagruns(session).all()
-        assert models == [orm_dag]
+        needed = DagModel.dags_needing_dagruns(session).all()
+        assert needed == [orm_dag]
 
         orm_dag.is_paused = True
         session.flush()

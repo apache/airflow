@@ -470,7 +470,6 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         assert processor_agent.all_files_processed
         assert processor_agent.done
 
-
         with create_session() as session:
             dag_ids = session.query(DagModel.dag_id).order_by("dag_id").all()
             assert dag_ids == [('test_start_date_scheduling',), ('test_task_start_date_scheduling',)]
