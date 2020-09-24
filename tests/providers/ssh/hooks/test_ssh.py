@@ -19,6 +19,9 @@ import json
 import unittest
 from io import StringIO
 
+from typing import Optional
+import random
+import string
 import mock
 import paramiko
 
@@ -26,10 +29,6 @@ from airflow.models import Connection
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils import db
 from airflow.utils.session import create_session
-
-from typing import Optional
-import random
-import string
 
 HELLO_SERVER_CMD = """
 import socket, sys
@@ -57,6 +56,7 @@ TEST_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY)
 
 PASSPHRASE = ''.join(random.choice(string.ascii_letters) for i in range(10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
+
 
 class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_PRIVATE_KEY_EXTRA = 'ssh_with_private_key_extra'
@@ -112,9 +112,7 @@ class TestSSHHook(unittest.TestCase):
                 host='localhost',
                 conn_type='ssh',
                 extra=json.dumps(
-                    {   "private_key": TEST_ENCRYPTED_PRIVATE_KEY,
-                        "private_key_passphrase": PASSPHRASE
-                    }
+                    {"private_key": TEST_ENCRYPTED_PRIVATE_KEY, "private_key_passphrase": PASSPHRASE}
                 ),
             )
         )
@@ -237,6 +235,7 @@ class TestSSHHook(unittest.TestCase):
                 host_pkey_directories=[],
                 logger=hook.log,
             )
+
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
     def test_tunnel_with_private_key_passphrase(self, ssh_mock):
         hook = SSHHook(
