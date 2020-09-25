@@ -385,10 +385,12 @@ class TestDagFileProcessor(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_process_execute_task',
             start_date=DEFAULT_DATE)
-        DummyOperator(
+        BashOperator(
             task_id='dummy',
             dag=dag,
-            owner='airflow')
+            owner='airflow',
+            bash_command='echo hi'
+        )
 
         with create_session() as session:
             orm_dag = DagModel(dag_id=dag.dag_id)
@@ -435,11 +437,13 @@ class TestDagFileProcessor(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_process_execute_task_with_task_concurrency',
             start_date=DEFAULT_DATE)
-        DummyOperator(
+        BashOperator(
             task_id='dummy',
             task_concurrency=2,
             dag=dag,
-            owner='airflow')
+            owner='airflow',
+            bash_command='echo Hi'
+        )
 
         with create_session() as session:
             orm_dag = DagModel(dag_id=dag.dag_id)
@@ -488,14 +492,18 @@ class TestDagFileProcessor(unittest.TestCase):
                 'depends_on_past': True,
             },
         )
-        DummyOperator(
+        BashOperator(
             task_id='dummy1',
             dag=dag,
-            owner='airflow')
-        DummyOperator(
+            owner='airflow',
+            bash_command='echo hi'
+        )
+        BashOperator(
             task_id='dummy2',
             dag=dag,
-            owner='airflow')
+            owner='airflow',
+            bash_command='echo hi'
+        )
 
         with create_session() as session:
             orm_dag = DagModel(dag_id=dag.dag_id)
@@ -533,7 +541,7 @@ class TestDagFileProcessor(unittest.TestCase):
         Test if a task instance will be added if the dag is updated
         """
         dag = DAG(dag_id='test_scheduler_add_new_task', start_date=DEFAULT_DATE)
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo test')
 
         scheduler = SchedulerJob()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
@@ -554,7 +562,7 @@ class TestDagFileProcessor(unittest.TestCase):
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 1)
 
-        DummyOperator(task_id='dummy2', dag=dag, owner='airflow')
+        BashOperator(task_id='dummy2', dag=dag, owner='airflow', bash_command='echo test')
         SerializedDagModel.write_dag(dag=dag)
 
         scheduled_tis = scheduler._schedule_dag_run(dr, session)
@@ -578,10 +586,12 @@ class TestDagFileProcessor(unittest.TestCase):
             start_date=DEFAULT_DATE)
         dag.max_active_runs = 3
 
-        DummyOperator(
+        BashOperator(
             task_id='dummy',
             dag=dag,
-            owner='airflow')
+            owner='airflow',
+            bash_command='echo Hi'
+        )
 
         session = settings.Session()
         orm_dag = DagModel(dag_id=dag.dag_id)
