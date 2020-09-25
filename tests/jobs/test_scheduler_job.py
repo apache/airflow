@@ -918,7 +918,6 @@ class TestSchedulerJob(unittest.TestCase):
         clear_db_dags()
         clear_db_sla_miss()
         clear_db_errors()
-        clear_db_serialized_dags()
 
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
