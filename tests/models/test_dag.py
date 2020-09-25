@@ -918,9 +918,9 @@ class DagTest(unittest.TestCase):
     def test_duplicate_task_ids_raise_warning_with_dag_context_manager(self):
         """Verify tasks with Duplicate task_id show warning"""
 
-        deprecation_msg = "The requested task could not be added to the DAG because a task with " \
-                          "task_id t1 is already in the DAG. Starting in Airflow 2.0, trying to " \
-                          "overwrite a task will raise an exception."
+        deprecation_msg = "The requested task could not be added to the DAG with dag_id test_dag because " \
+                          "a task with task_id t1 is already in the DAG. Starting in Airflow 2.0, trying " \
+                          "to overwrite a task will raise an exception."
 
         with pytest.warns(PendingDeprecationWarning) as record:
             with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
@@ -937,9 +937,9 @@ class DagTest(unittest.TestCase):
     def test_duplicate_task_ids_raise_warning(self):
         """Verify tasks with Duplicate task_id show warning"""
 
-        deprecation_msg = "The requested task could not be added to the DAG because a task with " \
-                          "task_id t1 is already in the DAG. Starting in Airflow 2.0, trying to " \
-                          "overwrite a task will raise an exception."
+        deprecation_msg = "The requested task could not be added to the DAG with dag_id test_dag " \
+                          "because a task with task_id t1 is already in the DAG. Starting in Airflow 2.0, " \
+                          "trying to overwrite a task will raise an exception."
 
         with pytest.warns(PendingDeprecationWarning) as record:
             dag = DAG("test_dag", start_date=DEFAULT_DATE)
