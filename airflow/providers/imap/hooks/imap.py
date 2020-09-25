@@ -47,7 +47,7 @@ class ImapHook(BaseHook):
         self.imap_conn_id = imap_conn_id
         self.mail_client: Optional[imaplib.IMAP4_SSL] = None
 
-    def __enter__(self):
+    def __enter__(self) -> 'ImapHook':
         return self.get_conn()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -145,7 +145,7 @@ class ImapHook(BaseHook):
         mail_folder: str = 'INBOX',
         mail_filter: str = 'All',
         not_found_mode: str = 'raise',
-    ):
+    ) -> None:
         """
         Downloads mail's attachments in the mail folder by its name to the local directory.
 
@@ -179,7 +179,7 @@ class ImapHook(BaseHook):
 
         self._create_files(mail_attachments, local_output_directory)
 
-    def _handle_not_found_mode(self, not_found_mode: str):
+    def _handle_not_found_mode(self, not_found_mode: str) -> None:
         if not_found_mode == 'raise':
             raise AirflowException('No mail attachments found!')
         if not_found_mode == 'warn':
@@ -235,7 +235,7 @@ class ImapHook(BaseHook):
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
         return []
 
-    def _create_files(self, mail_attachments: List, local_output_directory: str):
+    def _create_files(self, mail_attachments: List, local_output_directory: str) -> None:
         for name, payload in mail_attachments:
             if self._is_symlink(name):
                 self.log.error('Can not create file because it is a symlink!')
@@ -244,22 +244,22 @@ class ImapHook(BaseHook):
             else:
                 self._create_file(name, payload, local_output_directory)
 
-    def _is_symlink(self, name: str):
+    def _is_symlink(self, name: str) -> bool:
         # IMPORTANT NOTE: os.path.islink is not working for windows symlinks
         # See: https://stackoverflow.com/a/11068434
         return os.path.islink(name)
 
-    def _is_escaping_current_directory(self, name: str):
+    def _is_escaping_current_directory(self, name: str) -> bool:
         return '../' in name
 
-    def _correct_path(self, name: str, local_output_directory: str):
+    def _correct_path(self, name: str, local_output_directory: str) -> str:
         return (
             local_output_directory + name
             if local_output_directory.endswith('/')
             else local_output_directory + '/' + name
         )
 
-    def _create_file(self, name: str, payload: Any, local_output_directory: str):
+    def _create_file(self, name: str, payload: Any, local_output_directory: str) -> None:
         file_path = self._correct_path(name, local_output_directory)
 
         with open(file_path, 'wb') as file:
