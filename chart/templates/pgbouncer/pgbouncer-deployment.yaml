@@ -69,7 +69,7 @@ spec:
           command:
             - pgbouncer
             - -u
-            - pgbouncer
+            - nobody
             - /etc/pgbouncer/pgbouncer.ini
           resources:
 {{ toYaml .Values.pgbouncer.resources | indent 12 }}
