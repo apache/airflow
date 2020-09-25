@@ -96,6 +96,7 @@ Content
     kubernetes
     lineage
     dag-serialization
+    backport-providers
     changelog
     best-practices
     production-deployment
