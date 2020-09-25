@@ -117,6 +117,12 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW="false"
 
+    # If set to true, the test connections will be created
+    export LOAD_DEFAULT_CONNECTIONS="false"
+
+    # If set to true, the sample dags will be created
+    export LOAD_EXAMPLES="false"
+
     # If it set is set to specified version, then the source version of Airflow
     # is removed and the specified version of Airflow is installed from PyPi
     export INSTALL_AIRFLOW_VERSION=""
@@ -1025,13 +1031,13 @@ function breeze::parse_arguments() {
             shift 2
             ;;
         --load-example-dags)
-            export LOAD_EXAMPLES="True"
+            export LOAD_EXAMPLES="true"
             echo "Include Airflow sample dags"
             echo
             shift
             ;;
         --load-default-connections)
-            export LOAD_DEFAULT_CONNECTIONS="True"
+            export LOAD_DEFAULT_CONNECTIONS="true"
             echo "Include Airflow default connections"
             echo
             shift
@@ -1176,8 +1182,6 @@ function breeze::parse_arguments() {
         start-airflow)
             last_subcommand="${1}"
             export START_AIRFLOW="true"
-            export LOAD_DEFAULT_CONNECTIONS="false"
-            export LOAD_EXAMPLES="false"
             shift
             ;;
         stop)
