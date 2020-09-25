@@ -52,7 +52,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
         self,
         *,
         application_name: str,
-        attach_log: Optional[bool] = False,
+        attach_log: bool = False,
         namespace: Optional[str] = None,
         kubernetes_conn_id: str = "kubernetes_default",
         **kwargs,

@@ -73,14 +73,14 @@ class PinotAdminHook(BaseHook):
     def get_conn(self) -> Any:
         return self.conn
 
-    def add_schema(self, schema_file: str, with_exec: Optional[bool] = True) -> Any:
+    def add_schema(self, schema_file: str, with_exec: bool = True) -> Any:
         """
         Add Pinot schema by run AddSchema command
 
         :param schema_file: Pinot schema file
         :type schema_file: str
         :param with_exec: bool
-        :type with_exec: Optional[bool]
+        :type with_exec: bool
         """
         cmd = ["AddSchema"]
         cmd += ["-controllerHost", self.host]
@@ -90,14 +90,14 @@ class PinotAdminHook(BaseHook):
             cmd += ["-exec"]
         self.run_cli(cmd)
 
-    def add_table(self, file_path: str, with_exec: Optional[bool] = True) -> Any:
+    def add_table(self, file_path: str, with_exec: bool = True) -> Any:
         """
         Add Pinot table with run AddTable command
 
         :param file_path: Pinot table configure file
         :type file_path: str
         :param with_exec: bool
-        :type with_exec: Optional[bool]
+        :type with_exec: bool
         """
         cmd = ["AddTable"]
         cmd += ["-controllerHost", self.host]
@@ -206,14 +206,14 @@ class PinotAdminHook(BaseHook):
             cmd += ["-tableName", table_name]
         self.run_cli(cmd)
 
-    def run_cli(self, cmd: List[str], verbose: Optional[bool] = True) -> str:
+    def run_cli(self, cmd: List[str], verbose: bool = True) -> str:
         """
         Run command with pinot-admin.sh
 
         :param cmd: List of command going to be run by pinot-admin.sh script
         :type cmd: list
         :param verbose:
-        :type verbose: Optional[bool]
+        :type verbose: bool
         """
         command = [self.cmd_path]
         command.extend(cmd)

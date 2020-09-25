@@ -71,7 +71,6 @@ class TestBaseOperator(unittest.TestCase):
     @parameterized.expand(
         [
             ("{{ foo }}", {"foo": "bar"}, "bar"),
-            ("{{ foo }}", {}, ""),
             (["{{ foo }}_1", "{{ foo }}_2"], {"foo": "bar"}, ["bar_1", "bar_2"]),
             (("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, ("bar_1", "bar_2")),
             (
@@ -184,6 +183,14 @@ class TestBaseOperator(unittest.TestCase):
         result = task.render_template(content, {"foo": "bar"})
         self.assertEqual(content, result)
 
+    def test_render_template_field_undefined_default(self):
+        """Test render_template with template_undefined unchanged."""
+        with DAG("test-dag", start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id="op1")
+
+        with self.assertRaises(jinja2.UndefinedError):
+            task.render_template("{{ foo }}", {})
+
     def test_render_template_field_undefined_strict(self):
         """Test render_template with template_undefined configured."""
         with DAG("test-dag", start_date=DEFAULT_DATE, template_undefined=jinja2.StrictUndefined):
@@ -191,6 +198,13 @@ class TestBaseOperator(unittest.TestCase):
 
         with self.assertRaises(jinja2.UndefinedError):
             task.render_template("{{ foo }}", {})
+
+    def test_render_template_field_undefined_not_strict(self):
+        """Test render_template with template_undefined configured to silently error."""
+        with DAG("test-dag", start_date=DEFAULT_DATE, template_undefined=jinja2.Undefined):
+            task = DummyOperator(task_id="op1")
+
+        self.assertEqual(task.render_template("{{ foo }}", {}), "")
 
     def test_nested_template_fields_declared_must_exist(self):
         """Test render_template when a nested template field is missing."""

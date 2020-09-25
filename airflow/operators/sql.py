@@ -273,7 +273,7 @@ class SQLIntervalCheckOperator(BaseOperator):
         date_filter_column: Optional[str] = "ds",
         days_back: SupportsAbs[int] = -7,
         ratio_formula: Optional[str] = "max_over_min",
-        ignore_zero: Optional[bool] = True,
+        ignore_zero: bool = True,
         conn_id: Optional[str] = None,
         **kwargs,
     ):

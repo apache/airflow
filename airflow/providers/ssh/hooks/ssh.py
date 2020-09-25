@@ -106,7 +106,12 @@ class SSHHook(BaseHook):
                     self.key_file = extra_options.get("key_file")
 
                 private_key = extra_options.get('private_key')
-                if private_key:
+                private_key_passphrase = extra_options.get('private_key_passphrase')
+                if private_key and private_key_passphrase:
+                    self.pkey = paramiko.RSAKey.from_private_key(
+                        StringIO(private_key), password=private_key_passphrase
+                    )
+                elif private_key and not private_key_passphrase:
                     self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
 
                 if "timeout" in extra_options:

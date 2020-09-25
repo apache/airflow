@@ -147,7 +147,7 @@ class DagRun(Base, LoggingMixin):
         execution_date: Optional[datetime] = None,
         state: Optional[str] = None,
         external_trigger: Optional[bool] = None,
-        no_backfills: Optional[bool] = False,
+        no_backfills: bool = False,
         run_type: Optional[DagRunType] = None,
         session: Session = None,
         execution_start_date: Optional[datetime] = None,
