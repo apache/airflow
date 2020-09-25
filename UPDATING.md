@@ -138,6 +138,20 @@ with third party services to the ``airflow.providers`` package.
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
 
+#### Change to undefined variable handling in templates
+
+Prior to Airflow 2.0 Jinja Templates would permit the use of undefined variables. They would render as an
+empty string, with no indication to the user an undefined variable was used. With this release, any template
+rendering involving undefined variables will fail the task, as well as displaying an error in the UI when
+rendering.
+
+The behavior can be reverted when instantiating a DAG.
+```python
+import jinja2
+
+dag = DAG('simple_dag', template_undefined=jinja2.Undefined)
+```
+
 ### Breaking Change in OAuth
 
 The flask-ouathlib has been replaced with authlib because flask-outhlib has

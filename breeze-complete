@@ -89,6 +89,7 @@ end-of-file-fixer
 fix-encoding-pragma
 flake8
 forbid-tabs
+helm-lint
 incorrect-use-of-LoggingMixin
 insert-license
 isort

@@ -416,7 +416,7 @@ def check_exampleinclude_for_example_dags():
             file_path=doc_file,
             pattern=r"literalinclude::.+example_dags",
             message=(
-                "literalinclude directive is is prohibited for example DAGs. \n"
+                "literalinclude directive is prohibited for example DAGs. \n"
                 "You should use the exampleinclude directive to include example DAGs."
             )
         )

@@ -125,7 +125,7 @@ class KylinCubeOperator(BaseOperator):
         offset_start: Optional[str] = None,
         offset_end: Optional[str] = None,
         segment_name: Optional[str] = None,
-        is_track_job: Optional[bool] = False,
+        is_track_job: bool = False,
         interval: int = 60,
         timeout: int = 60 * 60 * 24,
         eager_error_status=("ERROR", "DISCARDED", "KILLED", "SUICIDAL", "STOPPED"),

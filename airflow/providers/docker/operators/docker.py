@@ -165,7 +165,7 @@ class DockerOperator(BaseOperator):
         dns_search: Optional[List[str]] = None,
         auto_remove: bool = False,
         shm_size: Optional[int] = None,
-        tty: Optional[bool] = False,
+        tty: bool = False,
         cap_add: Optional[Iterable[str]] = None,
         extra_hosts: Optional[Dict[str, str]] = None,
         **kwargs,
