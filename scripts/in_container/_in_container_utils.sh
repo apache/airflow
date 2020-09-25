@@ -41,6 +41,8 @@ function container_utils::add_trap() {
 #
 # Asserts and warns the user if this script is called out of the breeze env.
 #
+# Used globals:
+#   VERBOSE
 #######################################################################################################
 function container_utils::assert_in_container() {
     export VERBOSE=${VERBOSE:="false"}
@@ -54,25 +56,40 @@ function container_utils::assert_in_container() {
         exit 1
     fi
 }
+
 #######################################################################################################
 #
 # Prints more verbose output of the scripts
 #
+# Modified globals:
+#   VERBOSE_COMMANDS
+#
+# Returns:
+#   None
 #######################################################################################################
 function container_utils::in_container_script_start() {
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
     fi
 }
+
 #######################################################################################################
 #
+# Prints the output of the error before exiting the script
 #
+# Arguments:
+#   exit_code
+#
+# Globals used:
+#   PRINT_INFO_FROM_SCRIPTS
+#   OUT_FILE_PRINTED_ON_ERROR
 #
 #######################################################################################################
 function container_utils::in_container_script_end() {
     #shellcheck disable=2181
-    EXIT_CODE=$?
-    if [[ ${EXIT_CODE} != 0 ]]; then
+    local exit_code
+    exit_code=$?
+    if [[ ${exit_code} != 0 ]]; then
         if [[ "${PRINT_INFO_FROM_SCRIPTS=="true"}" == "true" ]] ;then
             if [[ -n ${OUT_FILE_PRINTED_ON_ERROR=} ]]; then
                 echo "  ERROR ENCOUNTERED!"
@@ -83,7 +100,7 @@ function container_utils::in_container_script_end() {
                 echo "###########################################################################################"
             fi
             echo "###########################################################################################"
-            echo "  [IN CONTAINER]   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
+            echo "  [IN CONTAINER]   EXITING ${0} WITH STATUS CODE ${exit_code}"
             echo "###########################################################################################"
         fi
     fi
@@ -133,22 +150,31 @@ function container_utils::in_container_cleanup_pycache() {
 # The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
 # changed to the Host user via osxfs filesystem
 #
+# Used globals:
+#   AIRFLOW_SOURCES
+#   VERBOSE
+#   HOST_USER_ID
+#   HOST_GROUP_ID
+#
+# Modified globals:
+#   HOST_OS
 #######################################################################################################
 function container_utils::in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "Linux" ]]; then
-        DIRECTORIES_TO_FIX=(
-            "/tmp"
-            "/files"
-            "/root/.aws"
-            "/root/.azure"
-            "/root/.config/gcloud"
-            "/root/.docker"
-            "${AIRFLOW_SOURCES}"
+        local directories_to_fix
+        directories_to_fix=(
+                "/tmp"
+                "/files"
+                "/root/.aws"
+                "/root/.azure"
+                "/root/.config/gcloud"
+                "/root/.docker"
+                "${AIRFLOW_SOURCES}"
         )
         if [[ ${VERBOSE} == "true" ]]; then
             echo "Fixing ownership of mounted files"
         fi
-        sudo find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null \
+        sudo find "${directories_to_fix[@]}" -print0 -user root 2>/dev/null \
             | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference ||
                 true >/dev/null 2>&1
         if [[ ${VERBOSE} == "true" ]]; then
@@ -159,6 +185,10 @@ function container_utils::in_container_fix_ownership() {
 #######################################################################################################
 #
 # Cleans up the temp dir in container.
+#
+# Used globals:
+#   VERBOSE
+#   AIRFLOW_SOURCES
 #
 #######################################################################################################
 function container_utils::in_container_clear_tmp() {
@@ -175,6 +205,8 @@ function container_utils::in_container_clear_tmp() {
 #
 # Pushes the airflow sources to the stack for easy access thoroughout the script.
 #
+# Used globals:
+#   AIRFLOW_SOURCES
 #######################################################################################################
 function container_utils::in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}"  &>/dev/null || exit 1
@@ -196,6 +228,11 @@ function container_utils::in_container_basic_sanity_check() {
 #######################################################################################################
 #
 # Sets up the pylint
+#
+# Used globals:
+#   VERBOSE
+#   AIRFLOW_SOURCES
+#   DISABLE_CHECKS_FOR_TESTS
 #
 #######################################################################################################
 function container_utils::in_container_refresh_pylint_todo() {
@@ -256,22 +293,28 @@ function container_utils::in_container_refresh_pylint_todo() {
 }
 
 export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
+
 #######################################################################################################
 #
 # Starts up the scheduler heartbeat and binds the PID to env variable
 #
+# Modified globals:
+#   HEARTBEAT_PID
+#
 #######################################################################################################
 function container_utils::start_output_heartbeat() {
-    MESSAGE=${1:-"Still working!"}
-    INTERVAL=${2:=10}
+    local message
+    local interval
+    message=${1:-"Still working!"}
+    interval=${2:=10}
     echo
     echo "Starting output heartbeat"
     echo
 
     bash 2> /dev/null <<EOF &
 while true; do
-  echo "\$(date): ${MESSAGE} "
-  sleep ${INTERVAL}
+  echo "\$(date): ${message} "
+  sleep ${interval}
 done
 EOF
     export HEARTBEAT_PID=$!
@@ -281,13 +324,26 @@ EOF
 #
 # Clears the resourses associated with the scheduler heartbeat.
 #
+# Used globals:
+#   HEARTBEAT_PID
+#
 #######################################################################################################
 function container_utils::stop_output_heartbeat() {
     kill "${HEARTBEAT_PID}"
     wait "${HEARTBEAT_PID}" || true 2> /dev/null
 }
 
-function dump_airflow_logs() {
+#######################################################################################################
+#
+# Dumps the airflow logs to the files directory in the container.
+#
+# Used globals:
+#   AIRFLOW_HOME
+#   CI_BUILD_ID
+#   CI_JOB_ID
+#
+#######################################################################################################
+function container_utils::dump_airflow_logs() {
     local dump_file
     dump_file=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz
     echo "###########################################################################################"
@@ -301,15 +357,28 @@ function dump_airflow_logs() {
 }
 
 
+#######################################################################################################
+# TODO(werbolis) wrong description
+# Dumps the airflow logs to the files directory in the container.
+#
+# Arguments:
+#   AIRFLOW
+# Used globals:
+#   AIRFLOW_SOURCES
+#
+# Modify globals:
+#   SLUGIFY_USES_TEXT_UNIDECODE
+#######################################################################################################
 function container_utils::install_released_airflow_version() {
+    local installs
     pip uninstall -y apache-airflow || true
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --
     if [[ ${1} == "1.10.2" || ${1} == "1.10.1" ]]; then
         export SLUGIFY_USES_TEXT_UNIDECODE=yes
     fi
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    INSTALLS=("apache-airflow==${1}" "werkzeug<1.0.0")
-    pip install --upgrade "${INSTALLS[@]}"
+    installs=("apache-airflow==${1}" "werkzeug<1.0.0")
+    pip install --upgrade "${installs[@]}"
 }
 
 function setup_backport_packages() {

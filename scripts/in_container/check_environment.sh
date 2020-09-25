@@ -21,7 +21,7 @@
 
 EXIT_CODE=0
 
-DISABLED_INTEGRATIONS=""
+export DISABLED_INTEGRATIONS=""
 
 #######################################################################################################
 #
@@ -35,27 +35,34 @@ DISABLED_INTEGRATIONS=""
 # Returns:
 #   None
 #
+# Modified globals:
+#   EXIT_CODE
 #######################################################################################################
 function check_environment::check_service {
-    INTEGRATION_NAME=$1
-    CALL=$2
-    MAX_CHECK=${3:=1}
+    local integration_name
+    local call
+    local max_check
+    local last_check_result
+    local res
+    integration_name=$1
+    call=$2
+    max_check=${3:=1}
 
-    echo -n "${INTEGRATION_NAME}: "
+    echo -n "${integration_name}: "
     while true
     do
         set +e
-        LAST_CHECK_RESULT=$(eval "${CALL}" 2>&1)
-        RES=$?
+        last_check_result=$(eval "${call}" 2>&1)
+        res=$?
         set -e
-        if [[ ${RES} == 0 ]]; then
+        if [[ ${res} == 0 ]]; then
             echo -e " \e[32mOK.\e[0m"
             break
         else
             echo -n "."
-            MAX_CHECK=$((MAX_CHECK-1))
+            max_check=$((max_check-1))
         fi
-        if [[ ${MAX_CHECK} == 0 ]]; then
+        if [[ ${max_check} == 0 ]]; then
             echo -e " \e[31mERROR!\e[0m"
             echo "Maximum number of retries while checking service. Exiting"
             break
@@ -63,13 +70,13 @@ function check_environment::check_service {
             sleep 1
         fi
     done
-    if [[ ${RES} != 0 ]]; then
+    if [[ ${res} != 0 ]]; then
         echo "Service could not be started!"
         echo
-        echo "$ ${CALL}"
-        echo "${LAST_CHECK_RESULT}"
+        echo "$ ${call}"
+        echo "${last_check_result}"
         echo
-        EXIT_CODE=${RES}
+        EXIT_CODE=${res}
     fi
 }
 
@@ -154,7 +161,21 @@ function check_environment::resetdb_if_requested() {
     return $?
 }
 
-function startairflow_if_requested() {
+#######################################################################################################
+#
+# Starts airflow if requested.
+#
+# Used globals:
+#   BASH_SOURCE
+#   SESSION
+#
+# Modified globals:
+#   START_AIRFLOW
+#
+# Returns:
+#   0 if the db is reset, non-zero on error.
+#######################################################################################################
+function check_environment::startairflow_if_requested() {
     if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
 
 
@@ -206,8 +227,8 @@ if [[ ${EXIT_CODE} != 0 ]]; then
     exit 254
 fi
 
-resetdb_if_requested
-startairflow_if_requested
+check_environment::resetdb_if_requested
+check_environment::startairflow_if_requested
 
 if [[ -n ${DISABLED_INTEGRATIONS=} ]]; then
     echo
