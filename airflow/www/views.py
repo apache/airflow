@@ -1627,6 +1627,24 @@ class Airflow(AirflowBaseView):
             edges=edges,
             show_external_logs=bool(external_logs))
 
+    @staticmethod
+    def populate_autocomplete_taskids():
+        dag_id = request.args.get('dag_id')
+        dag = dagbag.get_dag(dag_id)
+        if not dag:
+            flash('DAG "{0}" seems to be missing from DagBag.'.format(dag_id), "error")
+            return redirect(url_for('Airflow.index'))
+        root = request.args.get('root')
+        if root:
+            dag = dag.sub_dag(
+                task_regex=root,
+                include_downstream=False,
+                include_upstream=True)
+        auto_complete_data = set()
+        for t in dag.tasks:
+            auto_complete_data.add(t.task_id)
+        return auto_complete_data
+
     @expose('/duration')
     @has_dag_access(can_dag_read=True)
     @has_access
@@ -1736,7 +1754,8 @@ class Airflow(AirflowBaseView):
             root=root,
             form=form,
             chart=chart.htmlcontent,
-            cum_chart=cum_chart.htmlcontent
+            cum_chart=cum_chart.htmlcontent,
+            auto_complete_data=self.populate_autocomplete_taskids()
         )
 
     @expose('/tries')
@@ -1787,7 +1806,7 @@ class Airflow(AirflowBaseView):
         tries = sorted(list({ti.try_number for ti in tis}))
         max_date = max([ti.execution_date for ti in tis]) if tries else None
 
-        session.commit()
+        session.commit()airflow/_vendor/nvd3/templates/content.html
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
@@ -1802,6 +1821,7 @@ class Airflow(AirflowBaseView):
             form=form,
             chart=chart.htmlcontent,
             tab_title='Tries',
+            auto_complete_data=self.populate_autocomplete_taskids(),
         )
 
     @expose('/landing_times')
@@ -1881,6 +1901,7 @@ class Airflow(AirflowBaseView):
             root=root,
             form=form,
             tab_title='Landing times',
+            auto_complete_data=self.populate_autocomplete_taskids(),
         )
 
     @expose('/paused', methods=['POST'])

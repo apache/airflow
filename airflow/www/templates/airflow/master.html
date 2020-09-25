@@ -64,6 +64,9 @@
     var hostName = '{{ hostname }}';
     var csrfToken = '{{ csrf_token() }}';
     $("time[title]").tooltip()
+
+    // This is required for legend Search
+    var tok = "Initialized";
   </script>
   <!--[if IE ]>
   <script src="{{ url_for_asset('ie.js') }}" type="text/javascript"></script>

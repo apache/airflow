@@ -47,6 +47,18 @@
          action="" method="get">
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     </form>
+         <div align="right" style="float:right;">
+           &nbsp &nbsp Legend Search
+        <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true"
+             title="Use this feature if you like to drill down on specific tasks and see how the graph reflect their
+                  data. When a specific task is picked from the textbox it toggles the `checked` status(below).
+                  checked becomes unchecked and vice-versa."></span>:
+     <input id="task_query" type="text" class="typeahead form-control" data-provide="typeahead"
+            value="{{search_query}}" autocomplete="off" oninput="onInput()" placeholder="Enter Job Name">
+
+    <button id="btnEnable" onclick="disableAllSeries()" class="btn btn-default">Disable All</button>
+    <button id="btnDisable" onclick="enableAllSeries()" class="btn btn-default">Enable All</button>
+   </div>
 </div>
 <div id="dur_chart" style="clear: both;">{{ chart |safe }}</div>
 <div id="cum_dur_chart" style="clear: both;">{{ cum_chart | safe}}</div>
@@ -70,6 +82,128 @@
     $('#isCumulative').click(function() {
       handleCheck();
     });
+
+    function disableAllSeries(dt) {
+     if ($('#isCumulative').is(':checked')) {
+        if (!dt) dt = d3.select('#cum_dur_chart svg').datum();
+        for (var k in dt) {
+           if(!dt[k].key.includes('Dag Duration'))
+            dt[k].disabled = true;
+        }
+     d3.select('#cum_dur_chart svg').datum(dt).transition().duration(0).call(chart);
+      } else {
+        if (!dt) dt = d3.select('#dur_chart svg').datum();
+        for (var k in dt) {
+           if(!dt[k].key.includes('Dag Duration'))
+            dt[k].disabled = true;
+        }
+     d3.select('#dur_chart svg').datum(dt).transition().duration(0).call(chart);
+      };
+    }
+
+   function enableAllSeries(dt) {
+     if ($('#isCumulative').is(':checked')) {
+        if (!dt) dt = d3.select('#cum_dur_chart svg').datum();
+        for (var k in dt) {
+           if(!dt[k].key.includes('Dag Duration'))
+            dt[k].disabled = false;
+        }
+     d3.select('#cum_dur_chart svg').datum(dt).transition().duration(0).call(chart);
+      } else {
+        if (!dt) dt = d3.select('#dur_chart svg').datum();
+        for (var k in dt) {
+           if(!dt[k].key.includes('Dag Duration'))
+            dt[k].disabled = false;
+        }
+     d3.select('#dur_chart svg').datum(dt).transition().duration(0).call(chart);
+      };
+    }
+
+  function enableSpecificLegend(dt){
+      if ($('#isCumulative').is(':checked')) {
+       if (!dt) dt = d3.select('#cum_dur_chart svg').datum();
+      for (var k in dt) {
+        if (dt[k].key.includes(tok))
+          dt[k].disabled = false;
+    }
+     d3.select('#cum_dur_chart svg').datum(dt).transition().duration(0).call(chart);
+      }
+      else {
+        if (!dt) dt = d3.select('#dur_chart svg').datum();
+      for (var k in dt) {
+        if (dt[k].key.includes(tok))
+          dt[k].disabled = false;
+    }
+     d3.select('#dur_chart svg').datum(dt).transition().duration(0).call(chart);
+      };
+  }
+
+  function onInput(){
+      if (tok === 'initialized'){
+       if ($('#isCumulative').is(':checked')) {
+         if (!dt) dt = d3.select('#cum_dur_chart svg').datum();
+        dt.sort(function(a,b){
+        return a.key.localeCompare(b.key);
+        })
+      d3.select('#cum_dur_chart svg').datum(dt).transition().duration(0).call(chart);
+       }
+       else{
+         if (!dt) dt = d3.select('#dur_chart svg').datum();
+        dt.sort(function(a,b){
+        return a.key.localeCompare(b.key);
+        })
+      d3.select('#dur_chart svg').datum(dt).transition().duration(0).call(chart);
+
+       };
+  }
+  }
+
+  function toggleSpecificLegend(dt){
+   if ($('#isCumulative').is(':checked')) {
+      if (!dt) dt = d3.select('#cum_dur_chart svg').datum();
+      for (var k in dt) {
+        if(!dt[k].key.includes('Dag Duration'))
+          if (dt[k].key.includes(tok))
+            if (dt[k].disabled)
+            dt[k].disabled = false;
+            else
+            dt[k].disabled = true;
+    }
+     d3.select('#cum_dur_chart svg').datum(dt).transition().duration(0).call(chart);
+   }
+   else {
+      if (!dt) dt = d3.select('#dur_chart svg').datum();
+      for (var k in dt) {
+       if(!dt[k].key.includes('Dag Duration'))
+          if (dt[k].key.includes(tok))
+            if (dt[k].disabled)
+            dt[k].disabled = false;
+            else
+            dt[k].disabled = true;
+    }
+     d3.select('#dur_chart svg').datum(dt).transition().duration(0).call(chart);
+   };
+
+  }
+  </script>
+  <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
+  <script>
+    var $input = $(".typeahead");
+        unique_options_search = new Set([
+          {% for token in auto_complete_data %}"{{token}}", {% endfor %}
+        ]);
+
+        $input.typeahead({
+          source: [...unique_options_search],
+          autoSelect: false,
+          afterSelect: function(value) {
+            search_query = value.trim()
+            if (search_query) {
+              tok = value;
+              toggleSpecificLegend();
+            }
+          }
+        });
   </script>
   {{ super() }}
 {% endblock %}
