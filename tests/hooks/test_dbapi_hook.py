@@ -36,6 +36,7 @@ class TestDbApiHook(unittest.TestCase):
 
         class UnitTestDbApiHook(DbApiHook):
             conn_name_attr = 'test_conn_id'
+            log = mock.MagicMock()
 
             def get_conn(self):
                 return conn
@@ -76,8 +77,8 @@ class TestDbApiHook(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.db_hook.get_records(statement)
 
-        self.conn.close.call_count == 1
-        self.cur.close.call_count == 1
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
     def test_insert_rows(self):
@@ -171,3 +172,8 @@ class TestDbApiHook(unittest.TestCase):
             port=1
         ))
         self.assertEqual("conn_type://login:password@host:1/", self.db_hook.get_uri())
+
+    def test_run_log(self):
+        statement = 'SQL'
+        self.db_hook.run(statement)
+        assert self.db_hook.log.info.call_count == 2

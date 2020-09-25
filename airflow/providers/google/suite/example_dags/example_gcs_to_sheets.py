@@ -19,19 +19,17 @@
 import os
 
 from airflow import models
-from airflow.providers.google.cloud.operators.sheets_to_gcs import GoogleSheetsToGCSOperator
-from airflow.providers.google.suite.operators.gcs_to_sheets import GCSToGoogleSheetsOperator
+from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
+from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
 from airflow.utils.dates import days_ago
 
 BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-test-bucket3")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "example-spreadsheetID")
 NEW_SPREADSHEET_ID = os.environ.get("NEW_SPREADSHEET_ID", "1234567890qwerty")
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_gcs_to_sheets",
-    default_args=default_args,
+    start_date=days_ago(1),
     schedule_interval=None,  # Override to match your needs
     tags=["example"],
 ) as dag:

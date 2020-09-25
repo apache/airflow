@@ -35,7 +35,7 @@ depends_on = None
 RESOURCE_TABLE = "kube_resource_version"
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     columns_and_constraints = [
         sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
         sa.Column("resource_version", sa.String(255))
@@ -63,5 +63,5 @@ def upgrade():
     ])
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_table(RESOURCE_TABLE)

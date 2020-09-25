@@ -29,8 +29,7 @@ except ImportError:
     mock_glue = None
 
 
-@unittest.skipIf(mock_glue is None,
-                 "Skipping test because moto.mock_glue is not available")
+@unittest.skipIf(mock_glue is None, "Skipping test because moto.mock_glue is not available")
 class TestAwsGlueCatalogPartitionSensor(unittest.TestCase):
 
     task_id = 'test_glue_catalog_partition_sensor'
@@ -39,31 +38,26 @@ class TestAwsGlueCatalogPartitionSensor(unittest.TestCase):
     @mock.patch.object(AwsGlueCatalogHook, 'check_for_partition')
     def test_poke(self, mock_check_for_partition):
         mock_check_for_partition.return_value = True
-        op = AwsGlueCatalogPartitionSensor(task_id=self.task_id,
-                                           table_name='tbl')
+        op = AwsGlueCatalogPartitionSensor(task_id=self.task_id, table_name='tbl')
         self.assertTrue(op.poke(None))
 
     @mock_glue
     @mock.patch.object(AwsGlueCatalogHook, 'check_for_partition')
     def test_poke_false(self, mock_check_for_partition):
         mock_check_for_partition.return_value = False
-        op = AwsGlueCatalogPartitionSensor(task_id=self.task_id,
-                                           table_name='tbl')
+        op = AwsGlueCatalogPartitionSensor(task_id=self.task_id, table_name='tbl')
         self.assertFalse(op.poke(None))
 
     @mock_glue
     @mock.patch.object(AwsGlueCatalogHook, 'check_for_partition')
     def test_poke_default_args(self, mock_check_for_partition):
         table_name = 'test_glue_catalog_partition_sensor_tbl'
-        op = AwsGlueCatalogPartitionSensor(task_id=self.task_id,
-                                           table_name=table_name)
+        op = AwsGlueCatalogPartitionSensor(task_id=self.task_id, table_name=table_name)
         op.poke(None)
 
         self.assertEqual(op.hook.region_name, None)
         self.assertEqual(op.hook.aws_conn_id, 'aws_default')
-        mock_check_for_partition.assert_called_once_with('default',
-                                                         table_name,
-                                                         "ds='{{ ds }}'")
+        mock_check_for_partition.assert_called_once_with('default', table_name, "ds='{{ ds }}'")
 
     @mock_glue
     @mock.patch.object(AwsGlueCatalogHook, 'check_for_partition')
@@ -75,32 +69,29 @@ class TestAwsGlueCatalogPartitionSensor(unittest.TestCase):
         database_name = 'my_db'
         poke_interval = 2
         timeout = 3
-        op = AwsGlueCatalogPartitionSensor(task_id=self.task_id,
-                                           table_name=table_name,
-                                           expression=expression,
-                                           aws_conn_id=aws_conn_id,
-                                           region_name=region_name,
-                                           database_name=database_name,
-                                           poke_interval=poke_interval,
-                                           timeout=timeout)
+        op = AwsGlueCatalogPartitionSensor(
+            task_id=self.task_id,
+            table_name=table_name,
+            expression=expression,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            database_name=database_name,
+            poke_interval=poke_interval,
+            timeout=timeout,
+        )
         op.poke(None)
 
         self.assertEqual(op.hook.region_name, region_name)
         self.assertEqual(op.hook.aws_conn_id, aws_conn_id)
         self.assertEqual(op.poke_interval, poke_interval)
         self.assertEqual(op.timeout, timeout)
-        mock_check_for_partition.assert_called_once_with(database_name,
-                                                         table_name,
-                                                         expression)
+        mock_check_for_partition.assert_called_once_with(database_name, table_name, expression)
 
     @mock_glue
     @mock.patch.object(AwsGlueCatalogHook, 'check_for_partition')
     def test_dot_notation(self, mock_check_for_partition):
         db_table = 'my_db.my_tbl'
-        op = AwsGlueCatalogPartitionSensor(task_id=self.task_id,
-                                           table_name=db_table)
+        op = AwsGlueCatalogPartitionSensor(task_id=self.task_id, table_name=db_table)
         op.poke(None)
 
-        mock_check_for_partition.assert_called_once_with('my_db',
-                                                         'my_tbl',
-                                                         "ds='{{ ds }}'")
+        mock_check_for_partition.assert_called_once_with('my_db', 'my_tbl', "ds='{{ ds }}'")

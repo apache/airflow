@@ -33,12 +33,7 @@ os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = (os.environ.get("AWS_DEFAULT_REGION") or "us-east-1")
 os.environ["CREDENTIALS_DIR"] = (os.environ.get('CREDENTIALS_DIR') or "/files/airflow-breeze-config/keys")
 
-perf_directory = os.path.abspath(os.path.join(tests_directory, os.pardir, 'scripts', 'perf'))
-if perf_directory not in sys.path:
-    sys.path.append(perf_directory)
-
-
-from perf_kit.sqlalchemy import (  # noqa: E402 isort:skip # pylint: disable=wrong-import-position
+from tests.utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip # pylint: disable=wrong-import-position
     count_queries, trace_queries
 )
 
@@ -144,12 +139,6 @@ def pytest_addoption(parser):
         help="only run tests matching the backend: [sqlite,postgres,mysql].",
     )
     group.addoption(
-        "--runtime",
-        action="store",
-        metavar="RUNTIME",
-        help="only run tests matching the runtime: [kubernetes].",
-    )
-    group.addoption(
         "--system",
         action="append",
         metavar="SYSTEMS",
@@ -164,6 +153,11 @@ def pytest_addoption(parser):
         "--include-quarantined",
         action="store_true",
         help="Includes quarantined tests (marked with quarantined marker). They are skipped by default.",
+    )
+    group.addoption(
+        "--include-heisentests",
+        action="store_true",
+        help="Includes heisentests (marked with heisentests marker). They are skipped by default.",
     )
     allowed_trace_sql_columns_list = ",".join(ALLOWED_TRACE_SQL_COLUMNS)
     group.addoption(
@@ -248,9 +242,6 @@ def pytest_configure(config):
         "markers", "backend(name): mark test to run with named backend"
     )
     config.addinivalue_line(
-        "markers", "runtime(name): mark test to run with named runtime"
-    )
-    config.addinivalue_line(
         "markers", "system(name): mark test to run with named system"
     )
     config.addinivalue_line(
@@ -258,6 +249,9 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers", "quarantined: mark test that are in quarantine (i.e. flaky, need to be isolated and fixed)"
+    )
+    config.addinivalue_line(
+        "markers", "heisentests: mark test that should be run in isolation due to resource consumption"
     )
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
@@ -287,16 +281,6 @@ def skip_if_not_marked_with_backend(selected_backend, item):
                 "Only tests marked with pytest.mark.backend('{backend}') are run"
                 ": {item}".
                 format(backend=selected_backend, item=item))
-
-
-def skip_if_not_marked_with_runtime(selected_runtime, item):
-    for marker in item.iter_markers(name="runtime"):
-        runtime_name = marker.args[0]
-        if runtime_name == selected_runtime:
-            return
-    pytest.skip("The test is skipped because it has not been selected via --runtime switch. "
-                "Only tests marked with pytest.mark.runtime('{runtime}') are run: {item}".
-                format(runtime=selected_runtime, item=item))
 
 
 def skip_if_not_marked_with_system(selected_systems, item):
@@ -332,6 +316,13 @@ def skip_quarantined_test(item):
                     format(item=item))
 
 
+def skip_heisen_test(item):
+    for _ in item.iter_markers(name="heisentests"):
+        pytest.skip("The test is skipped because it has heisentests marker. "
+                    "And --include-heisentests flag is passed to pytest. {item}".
+                    format(item=item))
+
+
 def skip_if_integration_disabled(marker, item):
     integration_name = marker.args[0]
     environment_variable_name = "INTEGRATION_" + integration_name.upper()
@@ -343,19 +334,6 @@ def skip_if_integration_disabled(marker, item):
                     ": {item}".
                     format(name=environment_variable_name, value=environment_variable_value,
                            integration_name=integration_name, item=item))
-
-
-def skip_if_runtime_disabled(marker, item):
-    runtime_name = marker.args[0]
-    environment_variable_name = "RUNTIME"
-    environment_variable_value = os.environ.get(environment_variable_name)
-    if not environment_variable_value or environment_variable_value != runtime_name:
-        pytest.skip("The test requires {runtime_name} integration started and "
-                    "{name} environment variable to be set to true (it is '{value}')."
-                    " It can be set by specifying '--kind-cluster-start' at breeze startup"
-                    ": {item}".
-                    format(name=environment_variable_name, value=environment_variable_value,
-                           runtime_name=runtime_name, item=item))
 
 
 def skip_if_wrong_backend(marker, item):
@@ -392,6 +370,7 @@ def pytest_runtest_setup(item):
 
     include_long_running = item.config.getoption("--include-long-running")
     include_quarantined = item.config.getoption("--include-quarantined")
+    include_heisentests = item.config.getoption("--include-heisentests")
 
     for marker in item.iter_markers(name="integration"):
         skip_if_integration_disabled(marker, item)
@@ -406,15 +385,12 @@ def pytest_runtest_setup(item):
     selected_backend = item.config.getoption("--backend")
     if selected_backend:
         skip_if_not_marked_with_backend(selected_backend, item)
-    for marker in item.iter_markers(name="runtime"):
-        skip_if_runtime_disabled(marker, item)
-    selected_runtime = item.config.getoption("--runtime")
-    if selected_runtime:
-        skip_if_not_marked_with_runtime(selected_runtime, item)
     if not include_long_running:
         skip_long_running_test(item)
     if not include_quarantined:
         skip_quarantined_test(item)
+    if not include_heisentests:
+        skip_heisen_test(item)
     skip_if_credential_file_missing(item)
     skip_if_airflow_2_test(item)
 

@@ -22,16 +22,21 @@ import os
 from typing import Dict
 
 from airflow import models
-from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
+from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.marketing_platform.operators.display_video import (
-    GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
-    GoogleDisplayVideo360DeleteReportOperator, GoogleDisplayVideo360DownloadLineItemsOperator,
-    GoogleDisplayVideo360DownloadReportOperator, GoogleDisplayVideo360RunReportOperator,
-    GoogleDisplayVideo360SDFtoGCSOperator, GoogleDisplayVideo360UploadLineItemsOperator,
+    GoogleDisplayVideo360CreateReportOperator,
+    GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
+    GoogleDisplayVideo360DeleteReportOperator,
+    GoogleDisplayVideo360DownloadLineItemsOperator,
+    GoogleDisplayVideo360DownloadReportOperator,
+    GoogleDisplayVideo360RunReportOperator,
+    GoogleDisplayVideo360SDFtoGCSOperator,
+    GoogleDisplayVideo360UploadLineItemsOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.display_video import (
-    GoogleDisplayVideo360GetSDFDownloadOperationSensor, GoogleDisplayVideo360ReportSensor,
+    GoogleDisplayVideo360GetSDFDownloadOperationSensor,
+    GoogleDisplayVideo360ReportSensor,
 )
 from airflow.utils import dates
 
@@ -74,23 +79,16 @@ CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: Dict = {
     "inventorySourceFilter": {"inventorySourceIds": []},
 }
 
-DOWNLOAD_LINE_ITEMS_REQUEST: Dict = {
-    "filterType": ADVERTISER_ID,
-    "format": "CSV",
-    "fileSpec": "EWF"}
+DOWNLOAD_LINE_ITEMS_REQUEST: Dict = {"filterType": ADVERTISER_ID, "format": "CSV", "fileSpec": "EWF"}
 # [END howto_display_video_env_variables]
-
-default_args = {"start_date": dates.days_ago(1)}
 
 with models.DAG(
     "example_display_video",
-    default_args=default_args,
-    schedule_interval=None,  # Override to match your needs
-) as dag:
+    schedule_interval=None,  # Override to match your needs,
+    start_date=dates.days_ago(1),
+) as dag1:
     # [START howto_google_display_video_createquery_report_operator]
-    create_report = GoogleDisplayVideo360CreateReportOperator(
-        body=REPORT, task_id="create_report"
-    )
+    create_report = GoogleDisplayVideo360CreateReportOperator(body=REPORT, task_id="create_report")
     report_id = "{{ task_instance.xcom_pull('create_report', key='report_id') }}"
     # [END howto_google_display_video_createquery_report_operator]
 
@@ -101,9 +99,7 @@ with models.DAG(
     # [END howto_google_display_video_runquery_report_operator]
 
     # [START howto_google_display_video_wait_report_operator]
-    wait_for_report = GoogleDisplayVideo360ReportSensor(
-        task_id="wait_for_report", report_id=report_id
-    )
+    wait_for_report = GoogleDisplayVideo360ReportSensor(task_id="wait_for_report", report_id=report_id)
     # [END howto_google_display_video_wait_report_operator]
 
     # [START howto_google_display_video_getquery_report_operator]
@@ -116,11 +112,16 @@ with models.DAG(
     # [END howto_google_display_video_getquery_report_operator]
 
     # [START howto_google_display_video_deletequery_report_operator]
-    delete_report = GoogleDisplayVideo360DeleteReportOperator(
-        report_id=report_id, task_id="delete_report"
-    )
+    delete_report = GoogleDisplayVideo360DeleteReportOperator(report_id=report_id, task_id="delete_report")
     # [END howto_google_display_video_deletequery_report_operator]
 
+    create_report >> run_report >> wait_for_report >> get_report >> delete_report
+
+with models.DAG(
+    "example_display_video_misc",
+    schedule_interval=None,  # Override to match your needs,
+    start_date=dates.days_ago(1),
+) as dag2:
     # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
     upload_erf_to_bq = GCSToBigQueryOperator(
         task_id='upload_erf_to_bq',
@@ -128,7 +129,7 @@ with models.DAG(
         source_objects=ERF_SOURCE_OBJECT,
         destination_project_dataset_table=f"{BQ_DATA_SET}.gcs_to_bq_table",
         write_disposition='WRITE_TRUNCATE',
-        dag=dag)
+    )
     # [END howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
 
     # [START howto_google_display_video_download_line_items_operator]
@@ -149,6 +150,11 @@ with models.DAG(
     )
     # [END howto_google_display_video_upload_line_items_operator]
 
+with models.DAG(
+    "example_display_video_sdf",
+    schedule_interval=None,  # Override to match your needs,
+    start_date=dates.days_ago(1),
+) as dag3:
     # [START howto_google_display_video_create_sdf_download_task_operator]
     create_sdf_download_task = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(
         task_id="create_sdf_download_task", body_request=CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST
@@ -158,7 +164,8 @@ with models.DAG(
 
     # [START howto_google_display_video_wait_for_operation_sensor]
     wait_for_operation = GoogleDisplayVideo360GetSDFDownloadOperationSensor(
-        task_id="wait_for_operation", operation_name=operation_name,
+        task_id="wait_for_operation",
+        operation_name=operation_name,
     )
     # [END howto_google_display_video_wait_for_operation_sensor]
 
@@ -183,9 +190,7 @@ with models.DAG(
             {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"},
         ],
         write_disposition="WRITE_TRUNCATE",
-        dag=dag,
     )
     # [END howto_google_display_video_gcs_to_big_query_operator]
 
-    create_report >> run_report >> wait_for_report >> get_report >> delete_report
     create_sdf_download_task >> wait_for_operation >> save_sdf_in_gcs >> upload_sdf_to_big_query

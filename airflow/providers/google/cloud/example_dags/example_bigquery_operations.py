@@ -26,14 +26,18 @@ from urllib.parse import urlparse
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
-    BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator, BigQueryGetDatasetOperator,
-    BigQueryGetDatasetTablesOperator, BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator,
+    BigQueryDeleteTableOperator,
+    BigQueryGetDatasetOperator,
+    BigQueryGetDatasetTablesOperator,
+    BigQueryPatchDatasetOperator,
+    BigQueryUpdateDatasetOperator,
     BigQueryUpsertTableOperator,
 )
 from airflow.utils.dates import days_ago
-
-default_args = {"start_date": days_ago(1)}
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BQ_LOCATION = "europe-north1"
@@ -52,8 +56,8 @@ DATA_SAMPLE_GCS_OBJECT_NAME = DATA_SAMPLE_GCS_URL_PARTS.path[1:]
 
 with models.DAG(
     "example_bigquery_operations",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
     # [START howto_operator_bigquery_create_table]
@@ -119,9 +123,7 @@ with models.DAG(
     # [END howto_operator_bigquery_upsert_table]
 
     # [START howto_operator_bigquery_create_dataset]
-    create_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create-dataset", dataset_id=DATASET_NAME
-    )
+    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
     # [END howto_operator_bigquery_create_dataset]
 
     # [START howto_operator_bigquery_get_dataset_tables]
@@ -131,9 +133,7 @@ with models.DAG(
     # [END howto_operator_bigquery_get_dataset_tables]
 
     # [START howto_operator_bigquery_get_dataset]
-    get_dataset = BigQueryGetDatasetOperator(
-        task_id="get-dataset", dataset_id=DATASET_NAME
-    )
+    get_dataset = BigQueryGetDatasetOperator(task_id="get-dataset", dataset_id=DATASET_NAME)
     # [END howto_operator_bigquery_get_dataset]
 
     get_dataset_result = BashOperator(
@@ -176,8 +176,8 @@ with models.DAG(
 
 with models.DAG(
     "example_bigquery_operations_location",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=["example"],
 ):
     create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(

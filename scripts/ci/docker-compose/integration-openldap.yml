@@ -18,8 +18,8 @@
 version: "2.2"
 services:
   openldap:
-    image: osixia/openldap:1.2.0
-    command: --copy-service
+    image: apache/airflow:openldap-2020.07.10-2.4.50
+    command: "--copy-service"
     environment:
       - LDAP_DOMAIN=example.com
       - LDAP_ADMIN_PASSWORD=insecure

@@ -18,12 +18,14 @@
 """Hook for Web HDFS"""
 import logging
 import socket
+from typing import Any, Optional
 
 from hdfs import HdfsError, InsecureClient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.models.connection import Connection
 
 log = logging.getLogger(__name__)
 
@@ -50,12 +52,12 @@ class WebHDFSHook(BaseHook):
     :type proxy_user: str
     """
 
-    def __init__(self, webhdfs_conn_id='webhdfs_default', proxy_user=None):
+    def __init__(self, webhdfs_conn_id: str = 'webhdfs_default', proxy_user: Optional[str] = None):
         super().__init__()
         self.webhdfs_conn_id = webhdfs_conn_id
         self.proxy_user = proxy_user
 
-    def get_conn(self):
+    def get_conn(self) -> Any:
         """
         Establishes a connection depending on the security mode set via config or environment variable.
         :return: a hdfscli InsecureClient or KerberosClient object.
@@ -66,7 +68,7 @@ class WebHDFSHook(BaseHook):
             raise AirflowWebHDFSHookException("Failed to locate the valid server.")
         return connection
 
-    def _find_valid_server(self):
+    def _find_valid_server(self) -> Any:
         connections = self.get_connections(self.webhdfs_conn_id)
         for connection in connections:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -84,11 +86,12 @@ class WebHDFSHook(BaseHook):
                     self.log.error("Could not connect to %s:%s", connection.host, connection.port)
                 host_socket.close()
             except HdfsError as hdfs_error:
-                self.log.error('Read operation on namenode %s failed with error: %s',
-                               connection.host, hdfs_error)
+                self.log.error(
+                    'Read operation on namenode %s failed with error: %s', connection.host, hdfs_error
+                )
         return None
 
-    def _get_client(self, connection):
+    def _get_client(self, connection: Connection) -> Any:
         connection_str = 'http://{host}:{port}'.format(host=connection.host, port=connection.port)
 
         if _kerberos_security_mode:
@@ -99,7 +102,7 @@ class WebHDFSHook(BaseHook):
 
         return client
 
-    def check_for_path(self, hdfs_path):
+    def check_for_path(self, hdfs_path: str) -> bool:
         """
         Check for the existence of a path in HDFS by querying FileStatus.
 
@@ -113,7 +116,9 @@ class WebHDFSHook(BaseHook):
         status = conn.status(hdfs_path, strict=False)
         return bool(status)
 
-    def load_file(self, source, destination, overwrite=True, parallelism=1, **kwargs):
+    def load_file(
+        self, source: str, destination: str, overwrite: bool = True, parallelism: int = 1, **kwargs: Any
+    ) -> None:
         r"""
         Uploads a file to HDFS.
 
@@ -134,9 +139,7 @@ class WebHDFSHook(BaseHook):
         """
         conn = self.get_conn()
 
-        conn.upload(hdfs_path=destination,
-                    local_path=source,
-                    overwrite=overwrite,
-                    n_threads=parallelism,
-                    **kwargs)
+        conn.upload(
+            hdfs_path=destination, local_path=source, overwrite=overwrite, n_threads=parallelism, **kwargs
+        )
         self.log.debug("Uploaded file %s to %s", source, destination)

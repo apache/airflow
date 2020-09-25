@@ -40,6 +40,7 @@ class TestSqliteOperator(unittest.TestCase):
     def tearDown(self):
         tables_to_drop = ['test_airflow', 'test_airflow2']
         from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+
         with SqliteHook().get_conn() as conn:
             cur = conn.cursor()
             for table in tables_to_drop:
@@ -59,8 +60,7 @@ class TestSqliteOperator(unittest.TestCase):
             "CREATE TABLE IF NOT EXISTS test_airflow (dummy VARCHAR(50))",
             "INSERT INTO test_airflow VALUES ('X')",
         ]
-        op = SqliteOperator(
-            task_id='sqlite_operator_with_multiple_statements', sql=sql, dag=self.dag)
+        op = SqliteOperator(task_id='sqlite_operator_with_multiple_statements', sql=sql, dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_sqlite_operator_with_invalid_sql(self):
@@ -70,9 +70,9 @@ class TestSqliteOperator(unittest.TestCase):
         ]
 
         from sqlite3 import OperationalError
+
         try:
-            op = SqliteOperator(
-                task_id='sqlite_operator_with_multiple_statements', sql=sql, dag=self.dag)
+            op = SqliteOperator(task_id='sqlite_operator_with_multiple_statements', sql=sql, dag=self.dag)
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             pytest.fail("An exception should have been thrown")
         except OperationalError as e:

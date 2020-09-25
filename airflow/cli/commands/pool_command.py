@@ -20,6 +20,7 @@ Pools sub-commands
 """
 import json
 import os
+from json import JSONDecodeError
 
 from tabulate import tabulate
 
@@ -90,7 +91,7 @@ def pool_import_helper(filepath):
         data = poolfile.read()
     try:  # pylint: disable=too-many-nested-blocks
         pools_json = json.loads(data)
-    except Exception as e:  # pylint: disable=broad-except
+    except JSONDecodeError as e:
         print("Please check the validity of the json file: " + str(e))
     else:
         try:

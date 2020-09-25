@@ -34,11 +34,12 @@ class DataFlowJavaOperator(DataflowCreateJavaJobOperator):
     This class is deprecated.
     Please use `airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -48,12 +49,13 @@ class DataFlowPythonOperator(DataflowCreatePythonJobOperator):
     This class is deprecated.
     Please use `airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -63,11 +65,12 @@ class DataflowTemplateOperator(DataflowTemplatedJobStartOperator):
     This class is deprecated.
     Please use `airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator`.
     """
+
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

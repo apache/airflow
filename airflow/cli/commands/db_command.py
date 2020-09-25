@@ -40,7 +40,7 @@ def resetdb(args):
                          "(y/n)").upper() == "Y":
         db.resetdb()
     else:
-        print("Bail.")
+        print("Cancelled")
 
 
 @cli_utils.action_logging
@@ -51,11 +51,7 @@ def upgradedb(args):
 
 
 def check_migrations(args):
-    """
-    Function to wait for all airflow migrations to complete. Used for launching airflow in k8s
-    @param timeout:
-    @return:
-    """
+    """Function to wait for all airflow migrations to complete. Used for launching airflow in k8s"""
     db.check_migrations(timeout=args.migration_wait_timeout)
 
 

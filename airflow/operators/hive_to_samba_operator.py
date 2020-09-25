@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.apache.hive.operators.hive_to_samba`."""
+"""This module is deprecated. Please use `airflow.providers.apache.hive.transfers.hive_to_samba`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.apache.hive.operators.hive_to_samba import Hive2SambaOperator  # noqa
+from airflow.providers.apache.hive.transfers.hive_to_samba import HiveToSambaOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.apache.hive.operators.hive_to_samba`.",
+    "This module is deprecated. Please use `airflow.providers.apache.hive.transfers.hive_to_samba`.",
     DeprecationWarning, stacklevel=2
 )

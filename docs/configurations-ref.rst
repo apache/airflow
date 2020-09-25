@@ -33,8 +33,8 @@ can set in ``airflow.cfg`` file or using environment variables.
 
     {% for section in configs %}
 
-    {{ section["name"] }}
-    {{ "=" * section["name"]|length }}
+    [{{ section["name"] }}]
+    {{ "=" * (section["name"]|length + 2) }}
 
     {% if section["description"] %}
     {{ section["description"] }}

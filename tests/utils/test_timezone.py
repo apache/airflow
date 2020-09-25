@@ -23,9 +23,9 @@ import pendulum
 
 from airflow.utils import timezone
 
-CET = pendulum.timezone("Europe/Paris")
-EAT = pendulum.timezone('Africa/Nairobi')  # Africa/Nairobi
-ICT = pendulum.timezone('Asia/Bangkok')  # Asia/Bangkok
+CET = pendulum.tz.timezone("Europe/Paris")
+EAT = pendulum.tz.timezone('Africa/Nairobi')  # Africa/Nairobi
+ICT = pendulum.tz.timezone('Asia/Bangkok')  # Asia/Bangkok
 UTC = timezone.utc
 
 

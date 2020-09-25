@@ -25,6 +25,7 @@ class DagrunRunningDep(BaseTIDep):
     """
     Determines whether a task's DagRun is in valid state.
     """
+
     NAME = "Dagrun Running"
     IGNOREABLE = True
 
@@ -34,7 +35,7 @@ class DagrunRunningDep(BaseTIDep):
         dagrun = ti.get_dagrun(session)
         if not dagrun:
             # The import is needed here to avoid a circular dependency
-            from airflow.models import DagRun
+            from airflow.models.dagrun import DagRun
             running_dagruns = DagRun.find(
                 dag_id=dag.dag_id,
                 state=State.RUNNING,

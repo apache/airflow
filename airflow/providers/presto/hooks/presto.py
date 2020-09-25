@@ -55,7 +55,7 @@ class PrestoHook(DbApiHook):
             catalog=db.extra_dejson.get('catalog', 'hive'),
             schema=db.schema,
             auth=auth,
-            isolation_level=self.get_isolation_level()
+            isolation_level=self.get_isolation_level(),
         )
 
     def get_isolation_level(self):
@@ -73,8 +73,7 @@ class PrestoHook(DbApiHook):
         Get a set of records from Presto
         """
         try:
-            return super().get_records(
-                self._strip_sql(hql), parameters)
+            return super().get_records(self._strip_sql(hql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
@@ -84,16 +83,16 @@ class PrestoHook(DbApiHook):
         returns.
         """
         try:
-            return super().get_first(
-                self._strip_sql(hql), parameters)
+            return super().get_first(self._strip_sql(hql), parameters)
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_pandas_df(self, hql, parameters=None):
+    def get_pandas_df(self, hql, parameters=None, **kwargs):
         """
         Get a pandas dataframe from a sql query.
         """
         import pandas
+
         cursor = self.get_cursor()
         try:
             cursor.execute(self._strip_sql(hql), parameters)
@@ -102,10 +101,10 @@ class PrestoHook(DbApiHook):
             raise PrestoException(e)
         column_descriptions = cursor.description
         if data:
-            df = pandas.DataFrame(data)
+            df = pandas.DataFrame(data, **kwargs)
             df.columns = [c[0] for c in column_descriptions]
         else:
-            df = pandas.DataFrame()
+            df = pandas.DataFrame(**kwargs)
         return df
 
     def run(self, hql, parameters=None):

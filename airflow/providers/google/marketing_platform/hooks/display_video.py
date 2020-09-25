@@ -19,7 +19,7 @@
 This module contains Google DisplayVideo hook.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build
 
@@ -38,8 +38,13 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
@@ -89,7 +94,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         LineItem, Creative, Pixel, InventorySource, UserList, UniversalChannel, and summary.
         :type entity_type: str
         """
-
         return [f"gdbm-{partner_id}/entity/{{{{ ds_nodash }}}}.*.{entity_type}.json"]
 
     def create_query(self, query: Dict[str, Any]) -> Dict:
@@ -136,7 +140,9 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         )
         return response
 
-    def list_queries(self, ) -> List[Dict]:
+    def list_queries(
+        self,
+    ) -> List[Dict]:
         """
         Retrieves stored queries.
 
@@ -174,7 +180,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :return: response body.
         :rtype: List[Dict[str, Any]]
         """
-
         request_body = {
             "lineItems": line_items,
             "dryRun": False,
@@ -198,7 +203,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             https://developers.google.com/bid-manager/v1.1/lineitems/downloadlineitems
         :type request_body: Dict[str, Any]
         """
-
         response = (
             self.get_conn()  # pylint: disable=no-member
             .lineitems()
@@ -217,7 +221,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         More information about body request n be found here:
         https://developers.google.com/display-video/api/reference/rest/v1/sdfdownloadtasks/create
         """
-
         result = (
             self.get_conn_to_display_video()  # pylint: disable=no-member
             .sdfdownloadtasks()
@@ -233,7 +236,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param operation_name: The name of the operation resource.
         :type operation_name: str
         """
-
         result = (
             self.get_conn_to_display_video()  # pylint: disable=no-member
             .sdfdownloadtasks()
@@ -250,7 +252,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param resource_name: of the media that is being downloaded.
         :type resource_name: str
         """
-
         request = (
             self.get_conn_to_display_video()  # pylint: disable=no-member
             .media()

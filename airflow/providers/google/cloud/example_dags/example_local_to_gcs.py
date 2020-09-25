@@ -19,7 +19,7 @@
 import os
 
 from airflow import models
-from airflow.providers.google.cloud.operators.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils import dates
 
 # [START howto_gcs_environment_variables]
@@ -32,7 +32,7 @@ with models.DAG(
     'example_local_to_gcs',
     default_args=dict(start_date=dates.days_ago(1)),
     schedule_interval=None,
-    tags=['example']
+    tags=['example'],
 ) as dag:
     # [START howto_operator_local_filesystem_to_gcs]
     upload_file = LocalFilesystemToGCSOperator(

@@ -19,7 +19,10 @@
 """
 Utilities for creating a virtual environment
 """
+import os
 from typing import List, Optional
+
+import jinja2
 
 from airflow.utils.process_utils import execute_in_subprocess
 
@@ -69,3 +72,22 @@ def prepare_virtualenv(
         execute_in_subprocess(pip_cmd)
 
     return '{}/bin/python'.format(venv_directory)
+
+
+def write_python_script(jinja_context: dict, filename: str):
+    """
+    Renders the python script to a file to execute in the virtual environment.
+
+    :param jinja_context: The jinja context variables to unpack and replace with its placeholders in the
+        template file.
+    :type jinja_context: dict
+    :param filename: The name of the file to dump the rendered script to.
+    :type filename: str
+    """
+    template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
+    template_env = jinja2.Environment(
+        loader=template_loader,
+        undefined=jinja2.StrictUndefined
+    )
+    template = template_env.get_template('python_virtualenv_script.jinja2')
+    template.stream(**jinja_context).dump(filename)

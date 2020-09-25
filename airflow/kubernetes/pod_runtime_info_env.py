@@ -17,10 +17,9 @@
 """
 Classes for interacting with Kubernetes API
 """
-
 import copy
 
-import kubernetes.client.models as k8s
+from kubernetes.client import models as k8s
 
 from airflow.kubernetes.k8s_model import K8SModel
 
@@ -49,7 +48,7 @@ class PodRuntimeInfoEnv(K8SModel):
             name=self.name,
             value_from=k8s.V1EnvVarSource(
                 field_ref=k8s.V1ObjectFieldSelector(
-                    self.field_path
+                    field_path=self.field_path
                 )
             )
         )

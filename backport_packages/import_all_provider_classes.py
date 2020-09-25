@@ -45,9 +45,9 @@ def import_all_provider_classes(source_path: str,
 
     imported_classes = []
     tracebacks = []
-    for root, dirs, files in os.walk(source_path):
-        if all([not root.startswith(prefix_provider_path)
-                for prefix_provider_path in prefixed_provider_paths]) or root.endswith("__pycache__"):
+    for root, _, files in os.walk(source_path):
+        if all(not root.startswith(prefix_provider_path)
+                for prefix_provider_path in prefixed_provider_paths) or root.endswith("__pycache__"):
             # Skip loading module if it is not in the list of providers that we are looking for
             continue
         package_name = root[len(source_path) + 1:].replace("/", ".")
@@ -56,7 +56,6 @@ def import_all_provider_classes(source_path: str,
                 module_name = package_name + "." + file[:-3] if file != "__init__.py" else package_name
                 if print_imports:
                     print(f"Importing module: {module_name}")
-                # noinspection PyBroadException
                 try:
                     _module = importlib.import_module(module_name)
                     for attribute_name in dir(_module):
@@ -66,7 +65,7 @@ def import_all_provider_classes(source_path: str,
                             if print_imports:
                                 print(f"Imported {class_name}")
                             imported_classes.append(class_name)
-                except Exception:
+                except Exception:  # noqa
                     exception_str = traceback.format_exc()
                     tracebacks.append(exception_str)
     if tracebacks:

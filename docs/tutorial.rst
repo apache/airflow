@@ -30,7 +30,7 @@ Example Pipeline definition
 Here is an example of a basic pipeline definition. Do not worry if this looks
 complicated, a line by line explanation follows below.
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
@@ -60,10 +60,13 @@ Importing Modules
 An Airflow pipeline is just a Python script that happens to define an
 Airflow DAG object. Let's start by importing the libraries we will need.
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START import_module]
     :end-before: [END import_module]
+
+
+See :doc:`modules_management` for details on how Python and Airflow manage modules.
 
 Default Arguments
 -----------------
@@ -72,7 +75,7 @@ explicitly pass a set of arguments to each task's constructor
 (which would become redundant), or (better!) we can define a dictionary
 of default parameters that we can use when creating tasks.
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START default_args]
     :end-before: [END default_args]
@@ -93,7 +96,7 @@ that defines the ``dag_id``, which serves as a unique identifier for your DAG.
 We also pass the default argument dictionary that we just defined and
 define a ``schedule_interval`` of 1 day for the DAG.
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START instantiate_dag]
     :end-before: [END instantiate_dag]
@@ -104,7 +107,7 @@ Tasks are generated when instantiating operator objects. An object
 instantiated from an operator is called a constructor. The first argument
 ``task_id`` acts as a unique identifier for the task.
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START basic_task]
     :end-before: [END basic_task]
@@ -127,7 +130,7 @@ otherwise Airflow will raise an exception.
 Templating with Jinja
 ---------------------
 Airflow leverages the power of
-`Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  and provides
+`Jinja Templating <https://jinja.palletsprojects.com/>`_  and provides
 the pipeline author
 with a set of built-in parameters and macros. Airflow also provides
 hooks for the pipeline author to define their own parameters, macros and
@@ -139,7 +142,7 @@ this feature exists, get you familiar with double curly brackets, and
 point to the most common template variable: ``{{ ds }}`` (today's "date
 stamp").
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START jinja_template]
     :end-before: [END jinja_template]
@@ -166,7 +169,7 @@ Using that same DAG constructor call, it is possible to define
 ``user_defined_macros`` which allow you to specify your own variables.
 For example, passing ``dict(foo='bar')`` to this argument allows you
 to use ``{{ foo }}`` in your templates. Moreover, specifying
-``user_defined_filters`` allow you to register you own filters. For example,
+``user_defined_filters`` allows you to register your own filters. For example,
 passing ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
 you to use ``{{ 'world' | hello }}`` in your templates. For more information
 regarding custom filters have a look at the
@@ -181,7 +184,7 @@ We can add documentation for DAG or each single task. DAG documentation only sup
 markdown so far and task documentation support plain text, markdown, reStructuredText,
 json, yaml
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START documentation]
     :end-before: [END documentation]
@@ -191,7 +194,7 @@ Setting up Dependencies
 We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
 you can define dependencies between them:
 
-.. code:: python
+.. code-block:: python
 
     t1.set_downstream(t2)
 
@@ -228,7 +231,7 @@ Recap
 Alright, so we have a pretty basic DAG. At this point your code should look
 something like this:
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
@@ -343,7 +346,9 @@ which are used to populate the run schedule with task instances from this dag.
     # airflow webserver --debug &
 
     # start your backfill on a date range
-    airflow dags backfill tutorial -s 2015-06-01 -e 2015-06-07
+    airflow dags backfill tutorial \
+        --start-date 2015-06-01 \
+        --end-date 2015-06-07
 
 What's Next?
 -------------

@@ -18,12 +18,18 @@
 
 import os
 from contextlib import closing
+from typing import Iterable, Optional, Tuple, Union
 
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
+from psycopg2.extensions import connection
+from psycopg2.extras import DictCursor, RealDictCursor, NamedTupleCursor
 
 from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.models.connection import Connection
+
+CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
 
 
 class PostgresHook(DbApiHook):
@@ -48,17 +54,18 @@ class PostgresHook(DbApiHook):
     the host field, so is optional. It can however be overridden in the extra field.
     extras example: ``{"iam":true, "redshift":true, "cluster-identifier": "my_cluster_id"}``
     """
+
     conn_name_attr = 'postgres_conn_id'
     default_conn_name = 'postgres_default'
     supports_autocommit = True
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.schema = kwargs.pop("schema", None)
-        self.connection = kwargs.pop("connection", None)
-        self.conn = None
+        self.schema: Optional[str] = kwargs.pop("schema", None)
+        self.connection: Optional[Connection] = kwargs.pop("connection", None)
+        self.conn: connection = None
 
-    def _get_cursor(self, raw_cursor):
+    def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
         if _cursor == 'dictcursor':
             return psycopg2.extras.DictCursor
@@ -68,8 +75,10 @@ class PostgresHook(DbApiHook):
             return psycopg2.extras.NamedTupleCursor
         raise ValueError('Invalid cursor passed {}'.format(_cursor))
 
-    def get_conn(self):
-
+    def get_conn(self) -> connection:
+        """
+        Establishes a connection to a postgres database.
+        """
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
 
@@ -82,21 +91,28 @@ class PostgresHook(DbApiHook):
             user=conn.login,
             password=conn.password,
             dbname=self.schema or conn.schema,
-            port=conn.port)
+            port=conn.port,
+        )
         raw_cursor = conn.extra_dejson.get('cursor', False)
         if raw_cursor:
             conn_args['cursor_factory'] = self._get_cursor(raw_cursor)
         # check for ssl parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
-            if arg_name in ['sslmode', 'sslcert', 'sslkey',
-                            'sslrootcert', 'sslcrl', 'application_name',
-                            'keepalives_idle']:
+            if arg_name in [
+                'sslmode',
+                'sslcert',
+                'sslkey',
+                'sslrootcert',
+                'sslcrl',
+                'application_name',
+                'keepalives_idle',
+            ]:
                 conn_args[arg_name] = arg_val
 
         self.conn = psycopg2.connect(**conn_args)
         return self.conn
 
-    def copy_expert(self, sql, filename):
+    def copy_expert(self, sql: str, filename: str) -> None:
         """
         Executes SQL using psycopg2 copy_expert method.
         Necessary to execute COPY command without access to a superuser.
@@ -118,13 +134,13 @@ class PostgresHook(DbApiHook):
                     file.truncate(file.tell())
                     conn.commit()
 
-    def bulk_load(self, table, tmp_file):
+    def bulk_load(self, table: str, tmp_file: str) -> None:
         """
         Loads a tab-delimited file into a database table
         """
         self.copy_expert("COPY {table} FROM STDIN".format(table=table), tmp_file)
 
-    def bulk_dump(self, table, tmp_file):
+    def bulk_dump(self, table: str, tmp_file: str) -> None:
         """
         Dumps a database table into a tab-delimited file
         """
@@ -132,7 +148,7 @@ class PostgresHook(DbApiHook):
 
     # pylint: disable=signature-differs
     @staticmethod
-    def _serialize_cell(cell, conn):
+    def _serialize_cell(cell: object, conn: Optional[connection] = None) -> object:
         """
         Postgresql will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
@@ -149,7 +165,7 @@ class PostgresHook(DbApiHook):
         """
         return cell
 
-    def get_iam_token(self, conn):
+    def get_iam_token(self, conn: Connection) -> Tuple[str, str, int]:
         """
         Uses AWSHook to retrieve a temporary password to connect to Postgres
         or Redshift. Port is required. If none is provided, default is used for
@@ -174,7 +190,8 @@ class PostgresHook(DbApiHook):
                 DbUser=conn.login,
                 DbName=self.schema or conn.schema,
                 ClusterIdentifier=cluster_identifier,
-                AutoCreate=False)
+                AutoCreate=False,
+            )
             token = cluster_creds['DbPassword']
             login = cluster_creds['DbUser']
         else:
@@ -182,7 +199,9 @@ class PostgresHook(DbApiHook):
         return login, token, port
 
     @staticmethod
-    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+    def _generate_insert_sql(
+        table: str, values: Tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
+    ) -> str:
         """
         Static helper method that generate the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
@@ -201,7 +220,9 @@ class PostgresHook(DbApiHook):
         :return: The generated INSERT or REPLACE SQL statement
         :rtype: str
         """
-        placeholders = ["%s", ] * len(values)
+        placeholders = [
+            "%s",
+        ] * len(values)
         replace_index = kwargs.get("replace_index", None)
 
         if target_fields:
@@ -210,10 +231,7 @@ class PostgresHook(DbApiHook):
         else:
             target_fields_fragment = ''
 
-        sql = "INSERT INTO {0} {1} VALUES ({2})".format(
-            table,
-            target_fields_fragment,
-            ",".join(placeholders))
+        sql = "INSERT INTO {0} {1} VALUES ({2})".format(table, target_fields_fragment, ",".join(placeholders))
 
         if replace:
             if target_fields is None:
@@ -225,9 +243,7 @@ class PostgresHook(DbApiHook):
             replace_index_set = set(replace_index)
 
             replace_target = [
-                "{0} = excluded.{0}".format(col)
-                for col in target_fields
-                if col not in replace_index_set
+                "{0} = excluded.{0}".format(col) for col in target_fields if col not in replace_index_set
             ]
             sql += " ON CONFLICT ({0}) DO UPDATE SET {1}".format(
                 ", ".join(replace_index),

@@ -18,7 +18,7 @@
 import unittest
 from enum import Enum
 
-from airflow.contrib.utils.weekday import WeekDay
+from airflow.utils.weekday import WeekDay
 
 
 class TestWeekDay(unittest.TestCase):

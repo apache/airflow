@@ -36,12 +36,7 @@ class AwsGlueCatalogHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type='glue', *args, **kwargs)
 
-    def get_partitions(self,
-                       database_name,
-                       table_name,
-                       expression='',
-                       page_size=None,
-                       max_items=None):
+    def get_partitions(self, database_name, table_name, expression='', page_size=None, max_items=None):
         """
         Retrieves the partition values for a table.
 
@@ -68,10 +63,7 @@ class AwsGlueCatalogHook(AwsBaseHook):
 
         paginator = self.get_conn().get_paginator('get_partitions')
         response = paginator.paginate(
-            DatabaseName=database_name,
-            TableName=table_name,
-            Expression=expression,
-            PaginationConfig=config
+            DatabaseName=database_name, TableName=table_name, Expression=expression, PaginationConfig=config
         )
 
         partitions = set()
@@ -117,7 +109,6 @@ class AwsGlueCatalogHook(AwsBaseHook):
         >>> r = hook.get_table('db', 'table_foo')
         >>> r['Name'] = 'table_foo'
         """
-
         result = self.get_conn().get_table(DatabaseName=database_name, Name=table_name)
 
         return result['Table']
@@ -132,7 +123,6 @@ class AwsGlueCatalogHook(AwsBaseHook):
         :type table_name: str
         :return: str
         """
-
         table = self.get_table(database_name, table_name)
 
         return table['StorageDescriptor']['Location']

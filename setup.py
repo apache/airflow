@@ -33,18 +33,16 @@ from setuptools import Command, find_packages, setup
 logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
-# noinspection PyUnresolvedReferences
-spec = util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
-# noinspection PyUnresolvedReferences
+spec = util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))  # noqa
 mod = util.module_from_spec(spec)
 spec.loader.exec_module(mod)  # type: ignore
 version = mod.version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
+PY38 = PY3 and sys.version_info[1] >= 8
 
 my_dir = dirname(__file__)
 
-# noinspection PyUnboundLocalVariable
 try:
     with io.open(os.path.join(my_dir, 'README.md'), encoding='utf-8') as f:
         long_description = f.read()
@@ -74,8 +72,7 @@ class CleanCommand(Command):
     def finalize_options(self):
         """Set final values for options."""
 
-    # noinspection PyMethodMayBeStatic
-    def run(self):
+    def run(self):  # noqa
         """Run command to remove temporary files and directories."""
         os.chdir(my_dir)
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
@@ -96,8 +93,7 @@ class CompileAssets(Command):
     def finalize_options(self):
         """Set final values for options."""
 
-    # noinspection PyMethodMayBeStatic
-    def run(self):
+    def run(self):  # noqa
         """Run a command to compile and build assets."""
         subprocess.check_call('./airflow/www/compile_assets.sh')
 
@@ -117,8 +113,7 @@ class ListExtras(Command):
     def finalize_options(self):
         """Set final values for options."""
 
-    # noinspection PyMethodMayBeStatic
-    def run(self):
+    def run(self):  # noqa
         """List extras."""
         print("\n".join(wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)))
 
@@ -178,7 +173,7 @@ amazon = [
     'watchtower~=0.7.3',
 ]
 apache_beam = [
-    'apache-beam[gcp]<2.20.0',
+    'apache-beam[gcp]',
 ]
 async_packages = [
     'eventlet>= 0.9.7',
@@ -192,11 +187,13 @@ azure = [
     'azure-batch>=8.0.0',
     'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
-    'azure-kusto-data>=0.0.43',
-    'azure-mgmt-containerinstance>=1.5.0',
+    'azure-identity>=1.3.1',
+    'azure-keyvault>=4.1.0',
+    'azure-kusto-data>=0.0.43,<0.1',
+    'azure-mgmt-containerinstance>=1.5.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage>=0.34.0,<0.37.0',
+    'azure-storage>=0.34.0, <0.37.0',
     'azure-storage-blob<12.0',
 ]
 cassandra = [
@@ -205,7 +202,7 @@ cassandra = [
 celery = [
     'celery~=4.4.2',
     'flower>=0.7.3, <1.0',
-    'tornado>=4.2.0, <6.0',  # Dep of flower. Pin to a version that works on Py3.5.2
+    'vine~=1.3',  # https://stackoverflow.com/questions/32757259/celery-no-module-named-five
 ]
 cgroups = [
     'cgroupspy>=0.1.4',
@@ -214,7 +211,8 @@ cloudant = [
     'cloudant>=2.0',
 ]
 dask = [
-    'distributed>=2.11.1, <3',
+    'cloudpickle>=1.4.1, <1.5.0',
+    'distributed>=2.11.1, <2.20'
 ]
 databricks = [
     'requests>=2.20.0, <3',
@@ -226,15 +224,18 @@ doc = [
     'sphinx>=2.1.2',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
+    'sphinx-copybutton',
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
+    "sphinxcontrib-redoc>=1.6.0",
+    "sphinxcontrib-spelling==5.2.1"
 ]
 docker = [
     'docker~=3.0',
 ]
 druid = [
-    'pydruid>=0.4.1,<=0.5.8',
+    'pydruid>=0.4.1',
 ]
 elasticsearch = [
     'elasticsearch>7, <7.6.0',
@@ -248,40 +249,39 @@ facebook = [
     'facebook-business>=6.0.2',
 ]
 flask_oauth = [
-    'Flask-OAuthlib>=0.9.1',
+    'Flask-OAuthlib>=0.9.1,<0.9.6',  # Flask OAuthLib 0.9.6 requires Flask-Login 0.5.0 - breaks FAB
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
     'requests-oauthlib==1.1.0',
 ]
 google = [
     'PyOpenSSL',
     'google-ads>=4.0.0',
-    'google-api-python-client>=1.6.0, <2.0.0dev',
-    'google-auth>=1.0.0, <2.0.0dev',
+    'google-api-python-client>=1.6.0,<2.0.0',
+    'google-auth>=1.0.0,<2.0.0',
     'google-auth-httplib2>=0.0.1',
-    'google-cloud-automl>=0.4.0',
-    'google-cloud-bigquery-datatransfer>=0.4.0',
-    'google-cloud-bigtable>=1.0.0',
-    'google-cloud-container>=0.1.1',
-    'google-cloud-datacatalog>=0.5.0,<0.8',
-    'google-cloud-dataproc>=0.5.0',
-    'google-cloud-dlp>=0.11.0',
-    'google-cloud-kms>=1.2.1',
-    'google-cloud-language>=1.1.1',
-    'google-cloud-logging>=1.14.0',
-    'google-cloud-monitoring>=0.34.0',
-    'google-cloud-pubsub>=1.0.0',
-    'google-cloud-redis>=0.3.0',
-    'google-cloud-secret-manager>=0.2.0',
-    'google-cloud-spanner>=1.10.0',
-    'google-cloud-speech>=0.36.3',
-    'google-cloud-storage>=1.16',
-    'google-cloud-tasks>=1.2.1',
-    'google-cloud-texttospeech>=0.4.0',
-    'google-cloud-translate>=1.5.0',
-    'google-cloud-videointelligence>=1.7.0',
-    'google-cloud-vision>=0.35.2',
+    'google-cloud-automl>=0.4.0,<2.0.0',
+    'google-cloud-bigquery-datatransfer>=0.4.0,<2.0.0',
+    'google-cloud-bigtable>=1.0.0,<2.0.0',
+    'google-cloud-container>=0.1.1,<2.0.0',
+    'google-cloud-datacatalog>=0.5.0, <0.8',  # TODO: we should migrate to 1.0 likely and add <2.0.0 then
+    'google-cloud-dataproc>=1.0.1,<2.0.0',
+    'google-cloud-dlp>=0.11.0,<2.0.0',
+    'google-cloud-kms>=1.2.1,<2.0.0',
+    'google-cloud-language>=1.1.1,<2.0.0',
+    'google-cloud-logging>=1.14.0,<2.0.0',
+    'google-cloud-monitoring>=0.34.0,<2.0.0',
+    'google-cloud-pubsub>=1.0.0,<2.0.0',
+    'google-cloud-redis>=0.3.0,<2.0.0',
+    'google-cloud-secret-manager>=0.2.0,<2.0.0',
+    'google-cloud-spanner>=1.10.0,<2.0.0',
+    'google-cloud-speech>=0.36.3,<2.0.0',
+    'google-cloud-storage>=1.16,<2.0.0',
+    'google-cloud-tasks>=1.2.1,<2.0.0',
+    'google-cloud-texttospeech>=0.4.0,<2.0.0',
+    'google-cloud-translate>=1.5.0,<2.0.0',
+    'google-cloud-videointelligence>=1.7.0,<2.0.0',
+    'google-cloud-vision>=0.35.2,<2.0.0',
     'grpcio-gcp>=0.2.2',
-    'httplib2~=0.15',  # not sure we're ready for 1.0 here; test before updating
     'pandas-gbq',
 ]
 grpc = [
@@ -311,12 +311,14 @@ jira = [
 kerberos = [
     'pykerberos>=1.1.13',
     'requests_kerberos>=0.10.0',
-    'snakebite[kerberos]>=2.7.8',
     'thrift_sasl>=0.2.0',
 ]
 kubernetes = [
     'cryptography>=2.0.0',
     'kubernetes>=3.0.0',
+]
+kylin = [
+    'kylinpy>=2.6'
 ]
 ldap = [
     'ldap3>=2.5.1',
@@ -351,6 +353,9 @@ password = [
 ]
 pinot = [
     'pinotdb==0.1.1',
+]
+plexus = [
+    'arrow>=0.16.0',
 ]
 postgres = [
     'psycopg2-binary>=2.7.4',
@@ -403,7 +408,7 @@ statsd = [
     'statsd>=3.3.0, <4.0',
 ]
 tableau = [
-    'tableauserverclient==0.9',
+    'tableauserverclient~=0.12',
 ]
 vertica = [
     'vertica-python>=0.5.1',
@@ -445,22 +450,24 @@ devel = [
     'flake8-colors',
     'flaky',
     'freezegun',
+    'github3.py',
     'gitpython',
     'ipdb',
     'jira',
     'mongomock',
-    'moto>=1.3.14,<2.0.0',
+    'moto==1.3.14',  # TODO - fix Datasync issues to get higher version of moto:
+                     #        See: https://github.com/apache/airflow/issues/10985
     'parameterized',
     'paramiko',
     'pipdeptree',
     'pre-commit',
-    'pylint==2.4.4',
+    'pylint==2.5.3',
     'pysftp',
     'pytest',
     'pytest-cov',
     'pytest-instafail',
     'pytest-rerunfailures',
-    'pytest-timeout',
+    'pytest-timeouts',
     'pytest-xdist',
     'pywinrm',
     'qds-sdk>=1.9.6',
@@ -489,6 +496,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
+    "apache.kylin": kylin,
     "apache.livy": [],
     "apache.pig": [],
     "apache.pinot": pinot,
@@ -503,7 +511,6 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "discord": [],
     "docker": docker,
     "elasticsearch": [],
-    "email": [],
     "exasol": exasol,
     "facebook": facebook,
     "ftp": [],
@@ -526,6 +533,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "oracle": oracle,
     "pagerduty": pagerduty,
     "papermill": papermill,
+    "plexus": plexus,
     "postgres": postgres,
     "presto": presto,
     "qubole": qds,
@@ -548,11 +556,12 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'all_dbs': all_dbs,
     'amazon': amazon,
     'apache.atlas': atlas,
-    'apache_beam': apache_beam,
+    'apache.beam': apache_beam,
     "apache.cassandra": cassandra,
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
+    "apache.kylin": kylin,
     "apache.pinot": pinot,
     "apache.webhdfs": webhdfs,
     'async': async_packages,
@@ -601,6 +610,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'papermill': papermill,
     'password': password,
     'pinot': pinot,  # TODO: remove this in Airflow 2.1
+    'plexus': plexus,
     'postgres': postgres,
     'presto': presto,
     'qds': qds,
@@ -634,9 +644,13 @@ PACKAGES_EXCLUDED_FOR_ALL = [
 ]
 
 if PY3:
-    # Snakebite is not Python 3 compatible :'(
     PACKAGES_EXCLUDED_FOR_ALL.extend([
         'snakebite',
+    ])
+
+if PY38:
+    PACKAGES_EXCLUDED_FOR_ALL.extend([
+        'pymssql',
     ])
 
 # Those packages are excluded because they break tests (downgrading mock) and they are
@@ -684,12 +698,13 @@ INSTALL_REQUIREMENTS = [
     'cached_property~=1.5',
     'cattrs~=1.0',
     'colorlog==4.0.2',
+    'connexion[swagger-ui,flask]>=2.6.0,<3',
     'croniter>=0.3.17, <0.4',
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
     'flask>=1.1.0, <2.0',
-    'flask-appbuilder~=2.3.4',
-    'flask-caching>=1.3.3, <1.4.0',
+    'flask-appbuilder>2.3.4,~=3.0',
+    'flask-caching>=1.3.3, <2.0.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
     'flask-wtf>=0.14.2, <0.15',
@@ -697,27 +712,30 @@ INSTALL_REQUIREMENTS = [
     'graphviz>=0.12',
     'gunicorn>=19.5.0, <20.0',
     'iso8601>=0.1.12',
-    'jinja2>=2.10.1, <2.11.0',
+    'jinja2>=2.10.1, <2.12.0',
     'json-merge-patch==0.2',
     'jsonschema~=3.0',
     'lazy_object_proxy~=1.3',
     'lockfile>=0.12.2',
     'markdown>=2.5.2, <3.0',
+    'markupsafe>=1.1.1, <2.0',
+    'marshmallow-oneofschema>=2.0.1',
     'pandas>=0.17.1, <2.0',
-    'pendulum==1.4.4',
+    'pendulum~=2.0',
     'pep562~=1.0;python_version<"3.7"',
     'psutil>=4.2.0, <6.0.0',
     'pygments>=2.0.1, <3.0',
-    'python-daemon>=2.1.1, <2.2',
+    'python-daemon>=2.1.1',
     'python-dateutil>=2.3, <3',
+    'python-nvd3~=0.15.0',
+    'python-slugify>=3.0.0,<5.0',
     'requests>=2.20.0, <3',
     'setproctitle>=1.1.8, <2',
-    'sqlalchemy~=1.3',
+    'sqlalchemy>=1.3.18, <2',
     'sqlalchemy_jsonfield~=0.9',
     'tabulate>=0.7.5, <0.9',
-    'tenacity==4.12.0',
-    'termcolor==1.1.0',
-    'text-unidecode==1.2',
+    'tenacity>=4.12.0, <5.2',
+    'termcolor>=1.1.0',
     'thrift>=0.9.2',
     'typing;python_version<"3.6"',
     'typing-extensions>=3.7.4;python_version<"3.8"',
@@ -737,10 +755,12 @@ def do_setup():
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(exclude=['tests*']),
+        packages=find_packages(include=['airflow', 'airflow.*']),
         package_data={
+            'airflow': ['py.typed'],
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
                  "airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
+            'airflow.api_connexion.openapi': ['*.yaml'],
             'airflow.serialization': ["*.json"],
         },
         include_package_data=True,
@@ -768,6 +788,7 @@ def do_setup():
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',

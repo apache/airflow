@@ -17,11 +17,11 @@
 # under the License.
 
 """
-This module contains GCP Stackdriver operators.
+This module contains Google Cloud Stackdriver operators.
 """
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence, Union
 
 from google.api_core.exceptions import InvalidArgument
 from google.api_core.gapic_v1.method import DEFAULT
@@ -35,11 +35,20 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class StackdriverHook(GoogleBaseHook):
     """
-    Stackdriver Hook for connecting with GCP Stackdriver
+    Stackdriver Hook for connecting with Google Cloud Stackdriver
     """
 
-    def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
-        super().__init__(gcp_conn_id, delegate_to)
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self._policy_client = None
         self._channel_client = None
 
@@ -63,7 +72,7 @@ class StackdriverHook(GoogleBaseHook):
         page_size: Optional[int] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None
+        metadata: Optional[str] = None,
     ) -> Any:
         """
         Fetches all the Alert Policies identified by the filter passed as
@@ -128,7 +137,7 @@ class StackdriverHook(GoogleBaseHook):
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None
+        metadata: Optional[str] = None,
     ):
         client = self._get_policy_client()
         policies_ = self.list_alert_policies(project_id=project_id, filter_=filter_)
@@ -138,11 +147,7 @@ class StackdriverHook(GoogleBaseHook):
                 mask = monitoring_v3.types.field_mask_pb2.FieldMask()
                 mask.paths.append('enabled')  # pylint: disable=no-member
                 client.update_alert_policy(
-                    alert_policy=policy,
-                    update_mask=mask,
-                    retry=retry,
-                    timeout=timeout,
-                    metadata=metadata
+                    alert_policy=policy, update_mask=mask, retry=retry, timeout=timeout, metadata=metadata
                 )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -152,7 +157,7 @@ class StackdriverHook(GoogleBaseHook):
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None
+        metadata: Optional[str] = None,
     ) -> None:
         """
         Enables one or more disabled alerting policies identified by filter
@@ -180,7 +185,7 @@ class StackdriverHook(GoogleBaseHook):
             filter_=filter_,
             retry=retry,
             timeout=timeout,
-            metadata=metadata
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -190,7 +195,7 @@ class StackdriverHook(GoogleBaseHook):
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None
+        metadata: Optional[str] = None,
     ) -> None:
         """
         Disables one or more enabled alerting policies identified by filter
@@ -218,7 +223,7 @@ class StackdriverHook(GoogleBaseHook):
             new_state=False,
             retry=retry,
             timeout=timeout,
-            metadata=metadata
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -228,7 +233,7 @@ class StackdriverHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None
+        metadata: Optional[str] = None,
     ) -> None:
         """
          Creates a new alert or updates an existing policy identified
@@ -255,10 +260,13 @@ class StackdriverHook(GoogleBaseHook):
         channel_client = self._get_channel_client()
 
         record = json.loads(alerts)
-        existing_policies = [policy['name'] for policy in
-                             self.list_alert_policies(project_id=project_id, format_='dict')]
-        existing_channels = [channel['name'] for channel in
-                             self.list_notification_channels(project_id=project_id, format_='dict')]
+        existing_policies = [
+            policy['name'] for policy in self.list_alert_policies(project_id=project_id, format_='dict')
+        ]
+        existing_channels = [
+            channel['name']
+            for channel in self.list_notification_channels(project_id=project_id, format_='dict')
+        ]
         policies_ = []
         channels = []
 
@@ -272,15 +280,13 @@ class StackdriverHook(GoogleBaseHook):
         channel_name_map = {}
 
         for channel in channels:
-            channel.verification_status = monitoring_v3.enums.NotificationChannel. \
-                VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
+            channel.verification_status = (
+                monitoring_v3.enums.NotificationChannel.VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
+            )
 
             if channel.name in existing_channels:
                 channel_client.update_notification_channel(
-                    notification_channel=channel,
-                    retry=retry,
-                    timeout=timeout,
-                    metadata=metadata
+                    notification_channel=channel, retry=retry, timeout=timeout, metadata=metadata
                 )
             else:
                 old_name = channel.name
@@ -290,7 +296,7 @@ class StackdriverHook(GoogleBaseHook):
                     notification_channel=channel,
                     retry=retry,
                     timeout=timeout,
-                    metadata=metadata
+                    metadata=metadata,
                 )
                 channel_name_map[old_name] = new_channel.name
 
@@ -306,10 +312,7 @@ class StackdriverHook(GoogleBaseHook):
             if policy.name in existing_policies:
                 try:
                     policy_client.update_alert_policy(
-                        alert_policy=policy,
-                        retry=retry,
-                        timeout=timeout,
-                        metadata=metadata
+                        alert_policy=policy, retry=retry, timeout=timeout, metadata=metadata
                     )
                 except InvalidArgument:
                     pass
@@ -322,7 +325,7 @@ class StackdriverHook(GoogleBaseHook):
                     alert_policy=policy,
                     retry=retry,
                     timeout=timeout,
-                    metadata=None
+                    metadata=None,
                 )
 
     def delete_alert_policy(
@@ -330,7 +333,7 @@ class StackdriverHook(GoogleBaseHook):
         name: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None
+        metadata: Optional[str] = None,
     ) -> None:
         """
         Deletes an alerting policy.
@@ -348,19 +351,11 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         policy_client = self._get_policy_client()
         try:
-            policy_client.delete_alert_policy(
-                name=name,
-                retry=retry,
-                timeout=timeout,
-                metadata=metadata
-            )
+            policy_client.delete_alert_policy(name=name, retry=retry, timeout=timeout, metadata=metadata)
         except HttpError as err:
-            raise AirflowException(
-                'Delete alerting policy failed. Error was {}'.format(err.content)
-            )
+            raise AirflowException('Delete alerting policy failed. Error was {}'.format(err.content))
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_notification_channels(
@@ -412,7 +407,6 @@ class StackdriverHook(GoogleBaseHook):
         :param project_id: The project to fetch notification channels from.
         :type project_id: str
         """
-
         client = self._get_channel_client()
         channels = client.list_notification_channels(
             name='projects/{project_id}'.format(project_id=project_id),
@@ -438,12 +432,11 @@ class StackdriverHook(GoogleBaseHook):
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
-        metadata: Optional[str] = None
+        metadata: Optional[str] = None,
     ) -> None:
         client = self._get_channel_client()
         channels = client.list_notification_channels(
-            name='projects/{project_id}'.format(project_id=project_id),
-            filter_=filter_
+            name='projects/{project_id}'.format(project_id=project_id), filter_=filter_
         )
         for channel in channels:
             if channel.enabled.value != bool(new_state):
@@ -455,7 +448,7 @@ class StackdriverHook(GoogleBaseHook):
                     update_mask=mask,
                     retry=retry,
                     timeout=timeout,
-                    metadata=metadata
+                    metadata=metadata,
                 )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -465,7 +458,7 @@ class StackdriverHook(GoogleBaseHook):
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
-        metadata: Optional[str] = None
+        metadata: Optional[str] = None,
     ) -> None:
         """
         Enables one or more disabled alerting policies identified by filter
@@ -487,14 +480,13 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         self._toggle_channel_status(
             project_id=project_id,
             filter_=filter_,
             new_state=True,
             retry=retry,
             timeout=timeout,
-            metadata=metadata
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -504,7 +496,7 @@ class StackdriverHook(GoogleBaseHook):
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
-        metadata: Optional[str] = None
+        metadata: Optional[str] = None,
     ) -> None:
         """
         Disables one or more enabled notification channels identified by filter
@@ -526,14 +518,13 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         self._toggle_channel_status(
             filter_=filter_,
             project_id=project_id,
             new_state=False,
             retry=retry,
             timeout=timeout,
-            metadata=metadata
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -543,7 +534,7 @@ class StackdriverHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None
+        metadata: Optional[str] = None,
     ) -> Dict:
         """
         Creates a new notification or updates an existing notification channel
@@ -566,12 +557,13 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         channel_client = self._get_channel_client()
 
         record = json.loads(channels)
-        existing_channels = [channel["name"] for channel in
-                             self.list_notification_channels(project_id=project_id, format_="dict")]
+        existing_channels = [
+            channel["name"]
+            for channel in self.list_notification_channels(project_id=project_id, format_="dict")
+        ]
         channels_list = []
         channel_name_map = {}
 
@@ -582,15 +574,13 @@ class StackdriverHook(GoogleBaseHook):
             )
 
         for channel in channels_list:
-            channel.verification_status = monitoring_v3.enums.NotificationChannel. \
-                VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
+            channel.verification_status = (
+                monitoring_v3.enums.NotificationChannel.VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
+            )
 
             if channel.name in existing_channels:
                 channel_client.update_notification_channel(
-                    notification_channel=channel,
-                    retry=retry,
-                    timeout=timeout,
-                    metadata=metadata
+                    notification_channel=channel, retry=retry, timeout=timeout, metadata=metadata
                 )
             else:
                 old_name = channel.name
@@ -600,7 +590,7 @@ class StackdriverHook(GoogleBaseHook):
                     notification_channel=channel,
                     retry=retry,
                     timeout=timeout,
-                    metadata=metadata
+                    metadata=metadata,
                 )
                 channel_name_map[old_name] = new_channel.name
 
@@ -611,7 +601,7 @@ class StackdriverHook(GoogleBaseHook):
         name: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
-        metadata: Optional[str] = None
+        metadata: Optional[str] = None,
     ) -> None:
         """
         Deletes a notification channel.
@@ -629,16 +619,10 @@ class StackdriverHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
         """
-
         channel_client = self._get_channel_client()
         try:
             channel_client.delete_notification_channel(
-                name=name,
-                retry=retry,
-                timeout=timeout,
-                metadata=metadata
+                name=name, retry=retry, timeout=timeout, metadata=metadata
             )
         except HttpError as err:
-            raise AirflowException(
-                'Delete notification channel failed. Error was {}'.format(err.content)
-            )
+            raise AirflowException('Delete notification channel failed. Error was {}'.format(err.content))

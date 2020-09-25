@@ -33,7 +33,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     op.create_index(
         'ti_dag_date',
         'task_instance',
@@ -42,5 +42,5 @@ def upgrade():
     )
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_index('ti_dag_date', table_name='task_instance')

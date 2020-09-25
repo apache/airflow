@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
 
@@ -33,10 +32,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
         self, ti, session, dep_context
     ):  # pylint: disable=signature-differs
         from airflow.models.skipmixin import (
-            SkipMixin,
-            XCOM_SKIPMIXIN_KEY,
-            XCOM_SKIPMIXIN_SKIPPED,
-            XCOM_SKIPMIXIN_FOLLOWED,
+            XCOM_SKIPMIXIN_FOLLOWED, XCOM_SKIPMIXIN_KEY, XCOM_SKIPMIXIN_SKIPPED, SkipMixin,
         )
         from airflow.utils.state import State
 

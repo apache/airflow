@@ -71,17 +71,15 @@ class TestBaseSecretsBackend(unittest.TestCase):
         self.assertEqual(sample_conn_1.host.lower(), conn.host)
 
     def test_connection_metastore_secrets_backend(self):
-        sample_conn_2a = SampleConn("sample_2", "A")
-        sample_conn_2b = SampleConn("sample_2", "B")
+        sample_conn_2 = SampleConn("sample_2", "A")
         with create_session() as session:
-            session.add(sample_conn_2a.conn)
-            session.add(sample_conn_2b.conn)
+            session.add(sample_conn_2.conn)
             session.commit()
         metastore_backend = MetastoreBackend()
         conn_list = metastore_backend.get_connections("sample_2")
         host_list = {x.host for x in conn_list}
         self.assertEqual(
-            {sample_conn_2a.host.lower(), sample_conn_2b.host.lower()}, set(host_list)
+            {sample_conn_2.host.lower()}, set(host_list)
         )
 
     @mock.patch.dict('os.environ', {

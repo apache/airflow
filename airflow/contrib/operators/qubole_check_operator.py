@@ -21,7 +21,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.qubole.operators.qubole_check import (  # noqa
-    QuboleCheckOperator, QuboleValueCheckOperator, ValueCheckOperator,
+    QuboleCheckOperator, QuboleValueCheckOperator,
 )
 
 warnings.warn(

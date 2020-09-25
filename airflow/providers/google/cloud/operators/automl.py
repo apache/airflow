@@ -56,15 +56,30 @@ class AutoMLTrainModelOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
-     """
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
 
-    template_fields = ("model", "location", "project_id")
+    template_fields = (
+        "model",
+        "location",
+        "project_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         model: dict,
         location: str,
         project_id: Optional[str] = None,
@@ -72,10 +87,10 @@ class AutoMLTrainModelOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model = model
         self.location = location
@@ -84,9 +99,13 @@ class AutoMLTrainModelOperator(BaseOperator):
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Creating model.")
         operation = hook.create_model(
             model=self.model,
@@ -131,15 +150,30 @@ class AutoMLPredictOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("model_id", "location", "project_id")
+    template_fields = (
+        "model_id",
+        "location",
+        "project_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         model_id: str,
         location: str,
         payload: dict,
@@ -149,10 +183,10 @@ class AutoMLPredictOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model_id = model_id
         self.params = params  # type: ignore
@@ -163,9 +197,13 @@ class AutoMLPredictOperator(BaseOperator):
         self.retry = retry
         self.payload = payload
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         result = hook.predict(
             model_id=self.model_id,
             payload=self.payload,
@@ -202,9 +240,9 @@ class AutoMLBatchPredictOperator(BaseOperator):
         written. If a dict is provided, it must be of the same form as the protobuf message
         `google.cloud.automl_v1beta1.types.BatchPredictOutputConfig`
     :type output_config: Union[dict, ~google.cloud.automl_v1beta1.types.BatchPredictOutputConfig]
-    :param params: Additional domain-specific parameters for the predictions, any string must be up to
-        25000 characters long.
-    :type params: Optional[Dict[str, str]]
+    :param prediction_params: Additional domain-specific parameters for the predictions,
+        any string must be up to 25000 characters long.
+    :type prediction_params: Optional[Dict[str, str]]
     :param project_id: ID of the Google Cloud project where model is located if None then
         default project_id is used.
     :type project_id: str
@@ -218,8 +256,17 @@ class AutoMLBatchPredictOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -228,39 +275,45 @@ class AutoMLBatchPredictOperator(BaseOperator):
         "output_config",
         "location",
         "project_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
+        *,
         model_id: str,
         input_config: dict,
         output_config: dict,
         location: str,
         project_id: Optional[str] = None,
-        params: Optional[Dict[str, str]] = None,
+        prediction_params: Optional[Dict[str, str]] = None,
         metadata: Optional[MetaData] = None,
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model_id = model_id
         self.location = location
         self.project_id = project_id
-        self.params = params  # type: ignore
+        self.prediction_params = prediction_params
         self.metadata = metadata
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
         self.input_config = input_config
         self.output_config = output_config
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Fetch batch prediction.")
         operation = hook.batch_predict(
             model_id=self.model_id,
@@ -268,7 +321,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
             output_config=self.output_config,
             project_id=self.project_id,
             location=self.location,
-            params=self.params,
+            params=self.prediction_params,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
@@ -304,15 +357,30 @@ class AutoMLCreateDatasetOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("dataset", "location", "project_id")
+    template_fields = (
+        "dataset",
+        "location",
+        "project_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         dataset: dict,
         location: str,
         project_id: Optional[str] = None,
@@ -320,10 +388,10 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.dataset = dataset
         self.location = location
@@ -332,9 +400,13 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Creating dataset")
         result = hook.create_dataset(
             dataset=self.dataset,
@@ -380,15 +452,31 @@ class AutoMLImportDataOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("dataset_id", "input_config", "location", "project_id")
+    template_fields = (
+        "dataset_id",
+        "input_config",
+        "location",
+        "project_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         dataset_id: str,
         location: str,
         input_config: dict,
@@ -397,10 +485,10 @@ class AutoMLImportDataOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.dataset_id = dataset_id
         self.input_config = input_config
@@ -410,9 +498,13 @@ class AutoMLImportDataOperator(BaseOperator):
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Importing dataset")
         operation = hook.import_data(
             dataset_id=self.dataset_id,
@@ -464,8 +556,17 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -475,11 +576,13 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         "filter_",
         "location",
         "project_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
+        *,
         dataset_id: str,
         table_spec_id: str,
         location: str,
@@ -491,10 +594,10 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.dataset_id = dataset_id
         self.table_spec_id = table_spec_id
         self.field_mask = field_mask
@@ -506,9 +609,13 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Requesting column specs.")
         page_iterator = hook.list_column_specs(
             dataset_id=self.dataset_id,
@@ -554,15 +661,30 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("dataset", "update_mask", "location")
+    template_fields = (
+        "dataset",
+        "update_mask",
+        "location",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         dataset: dict,
         location: str,
         update_mask: Optional[dict] = None,
@@ -570,10 +692,10 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.dataset = dataset
         self.update_mask = update_mask
@@ -582,9 +704,13 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Updating AutoML dataset %s.", self.dataset["name"])
         result = hook.update_dataset(
             dataset=self.dataset,
@@ -622,15 +748,30 @@ class AutoMLGetModelOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("model_id", "location", "project_id")
+    template_fields = (
+        "model_id",
+        "location",
+        "project_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         model_id: str,
         location: str,
         project_id: Optional[str] = None,
@@ -638,10 +779,10 @@ class AutoMLGetModelOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model_id = model_id
         self.location = location
@@ -650,9 +791,13 @@ class AutoMLGetModelOperator(BaseOperator):
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         result = hook.get_model(
             model_id=self.model_id,
             location=self.location,
@@ -689,15 +834,30 @@ class AutoMLDeleteModelOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("model_id", "location", "project_id")
+    template_fields = (
+        "model_id",
+        "location",
+        "project_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         model_id: str,
         location: str,
         project_id: Optional[str] = None,
@@ -705,10 +865,10 @@ class AutoMLDeleteModelOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model_id = model_id
         self.location = location
@@ -717,9 +877,13 @@ class AutoMLDeleteModelOperator(BaseOperator):
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         operation = hook.delete_model(
             model_id=self.model_id,
             location=self.location,
@@ -735,7 +899,7 @@ class AutoMLDeleteModelOperator(BaseOperator):
 class AutoMLDeployModelOperator(BaseOperator):
     """
     Deploys a model. If a model is already deployed, deploying it with the same parameters
-    has no effect. Deploying with different parametrs (as e.g. changing node_number) will
+    has no effect. Deploying with different parameters (as e.g. changing node_number) will
     reset the deployment state without pausing the model_id’s availability.
 
     Only applicable for Text Classification, Image Object Detection and Tables; all other
@@ -766,15 +930,30 @@ class AutoMLDeployModelOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("model_id", "location", "project_id")
+    template_fields = (
+        "model_id",
+        "location",
+        "project_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         model_id: str,
         location: str,
         project_id: Optional[str] = None,
@@ -783,10 +962,10 @@ class AutoMLDeployModelOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model_id = model_id
         self.image_detection_metadata = image_detection_metadata
@@ -796,9 +975,13 @@ class AutoMLDeployModelOperator(BaseOperator):
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Deploying model_id %s", self.model_id)
 
         operation = hook.deploy_model(
@@ -846,15 +1029,31 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("dataset_id", "filter_", "location", "project_id")
+    template_fields = (
+        "dataset_id",
+        "filter_",
+        "location",
+        "project_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         dataset_id: str,
         location: str,
         page_size: Optional[int] = None,
@@ -864,10 +1063,10 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.dataset_id = dataset_id
         self.filter_ = filter_
         self.page_size = page_size
@@ -877,9 +1076,13 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Requesting table specs for %s.", self.dataset_id)
         page_iterator = hook.list_table_specs(
             dataset_id=self.dataset_id,
@@ -918,34 +1121,52 @@ class AutoMLListDatasetOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("location", "project_id")
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         location: str,
         project_id: Optional[str] = None,
         metadata: Optional[MetaData] = None,
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.project_id = project_id
         self.metadata = metadata
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Requesting datasets")
         page_iterator = hook.list_datasets(
             location=self.location,
@@ -989,15 +1210,30 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
     :type timeout: Optional[float]
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Optional[Sequence[Tuple[str, str]]]
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("dataset_id", "location", "project_id")
+    template_fields = (
+        "dataset_id",
+        "location",
+        "project_id",
+        "impersonation_chain",
+    )
 
     @apply_defaults
     def __init__(
         self,
+        *,
         dataset_id: Union[str, List[str]],
         location: str,
         project_id: Optional[str] = None,
@@ -1005,10 +1241,10 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
-        **kwargs
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.dataset_id = dataset_id
         self.location = location
@@ -1017,6 +1253,7 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
         self.timeout = timeout
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     @staticmethod
     def _parse_dataset_id(dataset_id: Union[str, List[str]]) -> List[str]:
@@ -1028,7 +1265,10 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
             return dataset_id.split(",")
 
     def execute(self, context):
-        hook = CloudAutoMLHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudAutoMLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         dataset_id_list = self._parse_dataset_id(self.dataset_id)
         for dataset_id in dataset_id_list:
             self.log.info("Deleting dataset %s", dataset_id)

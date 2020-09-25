@@ -40,7 +40,7 @@ class GoogleCloudStorageObjectSensor(GCSObjectExistenceSensor):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -55,7 +55,7 @@ class GoogleCloudStorageObjectUpdatedSensor(GCSObjectUpdateSensor):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -70,7 +70,7 @@ class GoogleCloudStoragePrefixSensor(GCSObjectsWtihPrefixExistenceSensor):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -85,6 +85,6 @@ class GoogleCloudStorageUploadSessionCompleteSensor(GCSUploadSessionCompleteSens
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

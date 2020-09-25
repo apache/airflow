@@ -32,19 +32,12 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 class TestSQSSensor(unittest.TestCase):
-
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         self.dag = DAG('test_dag_id', default_args=args)
         self.sensor = SQSSensor(
-            task_id='test_task',
-            dag=self.dag,
-            sqs_queue='test',
-            aws_conn_id='aws_default'
+            task_id='test_task', dag=self.dag, sqs_queue='test', aws_conn_id='aws_default'
         )
 
         self.mock_context = mock.MagicMock()
@@ -58,8 +51,10 @@ class TestSQSSensor(unittest.TestCase):
         result = self.sensor.poke(self.mock_context)
         self.assertTrue(result)
 
-        self.assertTrue("'Body': 'hello'" in str(self.mock_context['ti'].method_calls),
-                        "context call should contain message hello")
+        self.assertTrue(
+            "'Body': 'hello'" in str(self.mock_context['ti'].method_calls),
+            "context call should contain message hello",
+        )
 
     @mock_sqs
     def test_poke_no_messsage_failed(self):
@@ -74,20 +69,31 @@ class TestSQSSensor(unittest.TestCase):
 
     @mock.patch.object(SQSHook, 'get_conn')
     def test_poke_delete_raise_airflow_exception(self, mock_conn):
-        message = {'Messages': [{'MessageId': 'c585e508-2ea0-44c7-bf3e-d1ba0cb87834',
-                                 'ReceiptHandle': 'mockHandle',
-                                 'MD5OfBody': 'e5a9d8684a8edfed460b8d42fd28842f',
-                                 'Body': 'h21'}],
-                   'ResponseMetadata': {'RequestId': '56cbf4aa-f4ef-5518-9574-a04e0a5f1411',
-                                        'HTTPStatusCode': 200,
-                                        'HTTPHeaders': {
-                                            'x-amzn-requestid': '56cbf4aa-f4ef-5518-9574-a04e0a5f1411',
-                                            'date': 'Mon, 18 Feb 2019 18:41:52 GMT',
-                                            'content-type': 'text/xml', 'mock_sqs_hook-length': '830'},
-                                        'RetryAttempts': 0}}
+        message = {
+            'Messages': [
+                {
+                    'MessageId': 'c585e508-2ea0-44c7-bf3e-d1ba0cb87834',
+                    'ReceiptHandle': 'mockHandle',
+                    'MD5OfBody': 'e5a9d8684a8edfed460b8d42fd28842f',
+                    'Body': 'h21',
+                }
+            ],
+            'ResponseMetadata': {
+                'RequestId': '56cbf4aa-f4ef-5518-9574-a04e0a5f1411',
+                'HTTPStatusCode': 200,
+                'HTTPHeaders': {
+                    'x-amzn-requestid': '56cbf4aa-f4ef-5518-9574-a04e0a5f1411',
+                    'date': 'Mon, 18 Feb 2019 18:41:52 GMT',
+                    'content-type': 'text/xml',
+                    'mock_sqs_hook-length': '830',
+                },
+                'RetryAttempts': 0,
+            },
+        }
         mock_conn.return_value.receive_message.return_value = message
-        mock_conn.return_value.delete_message_batch.return_value = \
-            {'Failed': [{'Id': '22f67273-4dbc-4c19-83b5-aee71bfeb832'}]}
+        mock_conn.return_value.delete_message_batch.return_value = {
+            'Failed': [{'Id': '22f67273-4dbc-4c19-83b5-aee71bfeb832'}]
+        }
 
         with self.assertRaises(AirflowException) as context:
             self.sensor.poke(self.mock_context)

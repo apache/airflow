@@ -28,16 +28,16 @@ from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
 
 from airflow.exceptions import AirflowException
+from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
-from .kube_client import get_kube_client
-
 
 class PodStatus:
     """Status of the PODs"""
+
     PENDING = 'pending'
     RUNNING = 'running'
     FAILED = 'failed'
@@ -46,6 +46,7 @@ class PodStatus:
 
 class PodLauncher(LoggingMixin):
     """Launches PODS"""
+
     def __init__(self,
                  kube_client: client.CoreV1Api = None,
                  in_cluster: bool = True,
@@ -108,11 +109,11 @@ class PodLauncher(LoggingMixin):
         curr_time = dt.now()
         if resp.status.start_time is None:
             while self.pod_not_started(pod):
+                self.log.warning("Pod not yet started: %s", pod.metadata.name)
                 delta = dt.now() - curr_time
                 if delta.total_seconds() >= startup_timeout:
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
-            self.log.debug('Pod not yet started')
 
     def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
         """

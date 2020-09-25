@@ -26,46 +26,53 @@ from airflow.models import Connection
 from airflow.providers.datadog.sensors.datadog import DatadogSensor
 from airflow.utils import db
 
-at_least_one_event = [{'alert_type': 'info',
-                       'comments': [],
-                       'date_happened': 1419436860,
-                       'device_name': None,
-                       'host': None,
-                       'id': 2603387619536318140,
-                       'is_aggregate': False,
-                       'priority': 'normal',
-                       'resource': '/api/v1/events/2603387619536318140',
-                       'source': 'My Apps',
-                       'tags': ['application:web', 'version:1'],
-                       'text': 'And let me tell you all about it here!',
-                       'title': 'Something big happened!',
-                       'url': '/event/jump_to?event_id=2603387619536318140'},
-                      {'alert_type': 'info',
-                       'comments': [],
-                       'date_happened': 1419436865,
-                       'device_name': None,
-                       'host': None,
-                       'id': 2603387619536318141,
-                       'is_aggregate': False,
-                       'priority': 'normal',
-                       'resource': '/api/v1/events/2603387619536318141',
-                       'source': 'My Apps',
-                       'tags': ['application:web', 'version:1'],
-                       'text': 'And let me tell you all about it here!',
-                       'title': 'Something big happened!',
-                       'url': '/event/jump_to?event_id=2603387619536318141'}]
+at_least_one_event = [
+    {
+        'alert_type': 'info',
+        'comments': [],
+        'date_happened': 1419436860,
+        'device_name': None,
+        'host': None,
+        'id': 2603387619536318140,
+        'is_aggregate': False,
+        'priority': 'normal',
+        'resource': '/api/v1/events/2603387619536318140',
+        'source': 'My Apps',
+        'tags': ['application:web', 'version:1'],
+        'text': 'And let me tell you all about it here!',
+        'title': 'Something big happened!',
+        'url': '/event/jump_to?event_id=2603387619536318140',
+    },
+    {
+        'alert_type': 'info',
+        'comments': [],
+        'date_happened': 1419436865,
+        'device_name': None,
+        'host': None,
+        'id': 2603387619536318141,
+        'is_aggregate': False,
+        'priority': 'normal',
+        'resource': '/api/v1/events/2603387619536318141',
+        'source': 'My Apps',
+        'tags': ['application:web', 'version:1'],
+        'text': 'And let me tell you all about it here!',
+        'title': 'Something big happened!',
+        'url': '/event/jump_to?event_id=2603387619536318141',
+    },
+]
 
 zero_events = []  # type: List
 
 
 class TestDatadogSensor(unittest.TestCase):
-
     def setUp(self):
         db.merge_conn(
             Connection(
-                conn_id='datadog_default', conn_type='datadog',
-                login='login', password='password',
-                extra=json.dumps({'api_key': 'api_key', 'app_key': 'app_key'})
+                conn_id='datadog_default',
+                conn_type='datadog',
+                login='login',
+                password='password',
+                extra=json.dumps({'api_key': 'api_key', 'app_key': 'app_key'}),
             )
         )
 
@@ -83,7 +90,8 @@ class TestDatadogSensor(unittest.TestCase):
             priority=None,
             sources=None,
             tags=None,
-            response_check=None)
+            response_check=None,
+        )
 
         self.assertTrue(sensor.poke({}))
 
@@ -101,6 +109,7 @@ class TestDatadogSensor(unittest.TestCase):
             priority=None,
             sources=None,
             tags=None,
-            response_check=None)
+            response_check=None,
+        )
 
         self.assertFalse(sensor.poke({}))

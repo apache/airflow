@@ -41,9 +41,7 @@ class TestGoogleSheetsCreateSpreadsheet:
         )
         op.execute(context)
 
-        mock_hook.return_value.create_spreadsheet.assert_called_once_with(
-            spreadsheet=spreadsheet
-        )
+        mock_hook.return_value.create_spreadsheet.assert_called_once_with(spreadsheet=spreadsheet)
 
         calls = [
             mock.call(context, "spreadsheet_id", SPREADSHEET_ID),

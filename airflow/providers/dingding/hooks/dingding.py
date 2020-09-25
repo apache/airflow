@@ -46,15 +46,16 @@ class DingdingHook(HttpHook):
     :type at_all: bool
     """
 
-    def __init__(self,
-                 dingding_conn_id='dingding_default',
-                 message_type='text',
-                 message=None,
-                 at_mobiles=None,
-                 at_all=False,
-                 *args,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        dingding_conn_id='dingding_default',
+        message_type='text',
+        message=None,
+        at_mobiles=None,
+        at_all=False,
+        *args,
+        **kwargs,
+    ):
         super().__init__(http_conn_id=dingding_conn_id, *args, **kwargs)
         self.message_type = message_type
         self.message = message
@@ -68,8 +69,9 @@ class DingdingHook(HttpHook):
         conn = self.get_connection(self.http_conn_id)
         token = conn.password
         if not token:
-            raise AirflowException('Dingding token is requests but get nothing, '
-                                   'check you conn_id configuration.')
+            raise AirflowException(
+                'Dingding token is requests but get nothing, ' 'check you conn_id configuration.'
+            )
         return 'robot/send?access_token={}'.format(token)
 
     def _build_message(self):
@@ -81,19 +83,11 @@ class DingdingHook(HttpHook):
         if self.message_type in ['text', 'markdown']:
             data = {
                 'msgtype': self.message_type,
-                self.message_type: {
-                    'content': self.message
-                } if self.message_type == 'text' else self.message,
-                'at': {
-                    'atMobiles': self.at_mobiles,
-                    'isAtAll': self.at_all
-                }
+                self.message_type: {'content': self.message} if self.message_type == 'text' else self.message,
+                'at': {'atMobiles': self.at_mobiles, 'isAtAll': self.at_all},
             }
         else:
-            data = {
-                'msgtype': self.message_type,
-                self.message_type: self.message
-            }
+            data = {'msgtype': self.message_type, self.message_type: self.message}
         return json.dumps(data)
 
     def get_conn(self, headers=None):
@@ -117,17 +111,18 @@ class DingdingHook(HttpHook):
         """
         support_type = ['text', 'link', 'markdown', 'actionCard', 'feedCard']
         if self.message_type not in support_type:
-            raise ValueError('DingdingWebhookHook only support {} '
-                             'so far, but receive {}'.format(support_type, self.message_type))
+            raise ValueError(
+                'DingdingWebhookHook only support {} '
+                'so far, but receive {}'.format(support_type, self.message_type)
+            )
 
         data = self._build_message()
         self.log.info('Sending Dingding type %s message %s', self.message_type, data)
-        resp = self.run(endpoint=self._get_endpoint(),
-                        data=data,
-                        headers={'Content-Type': 'application/json'})
+        resp = self.run(
+            endpoint=self._get_endpoint(), data=data, headers={'Content-Type': 'application/json'}
+        )
 
         # Dingding success send message will with errcode equal to 0
         if int(resp.json().get('errcode')) != 0:
-            raise AirflowException('Send Dingding message failed, receive error '
-                                   f'message {resp.text}')
+            raise AirflowException('Send Dingding message failed, receive error ' f'message {resp.text}')
         self.log.info('Success Send Dingding message')

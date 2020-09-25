@@ -46,7 +46,7 @@ NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
 log = logging.getLogger(__name__)
 
 
-def renew_from_kt(principal: str, keytab: str):
+def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
     """
     Renew kerberos token from keytab
 
@@ -86,7 +86,10 @@ def renew_from_kt(principal: str, keytab: str):
             "\n".join(subp.stdout.readlines() if subp.stdout else []),
             "\n".join(subp.stderr.readlines() if subp.stderr else [])
         )
-        sys.exit(subp.returncode)
+        if exit_on_fail:
+            sys.exit(subp.returncode)
+        else:
+            return subp.returncode
 
     global NEED_KRB181_WORKAROUND  # pylint: disable=global-statement
     if NEED_KRB181_WORKAROUND is None:
@@ -95,7 +98,12 @@ def renew_from_kt(principal: str, keytab: str):
         # (From: HUE-640). Kerberos clock have seconds level granularity. Make sure we
         # renew the ticket after the initial valid time.
         time.sleep(1.5)
-        perform_krb181_workaround(principal)
+        ret = perform_krb181_workaround(principal)
+        if exit_on_fail and ret != 0:
+            sys.exit(ret)
+        else:
+            return ret
+    return 0
 
 
 def perform_krb181_workaround(principal: str):
@@ -127,7 +135,7 @@ def perform_krb181_workaround(principal: str):
             "configuration, and the ticket renewal policy (maxrenewlife) for the '%s' and `krbtgt' "
             "principals.", princ, ccache, princ
         )
-        sys.exit(ret)
+    return ret
 
 
 def detect_conf_var() -> bool:

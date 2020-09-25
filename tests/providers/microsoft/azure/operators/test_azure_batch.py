@@ -55,30 +55,38 @@ class TestAzureBatchOperator(unittest.TestCase):
 
         # connect with vm configuration
         db.merge_conn(
-            Connection(conn_id=self.test_vm_conn_id,
-                       conn_type="azure_batch",
-                       extra=json.dumps({
-                           "account_name": self.test_account_name,
-                           "account_key": self.test_account_key,
-                           "account_url": self.test_account_url,
-                           "vm_publisher": self.test_vm_publisher,
-                           "vm_offer": self.test_vm_offer,
-                           "vm_sku": self.test_vm_sku,
-                           "node_agent_sku_id": self.test_node_agent_sku
-                       }))
+            Connection(
+                conn_id=self.test_vm_conn_id,
+                conn_type="azure_batch",
+                extra=json.dumps(
+                    {
+                        "account_name": self.test_account_name,
+                        "account_key": self.test_account_key,
+                        "account_url": self.test_account_url,
+                        "vm_publisher": self.test_vm_publisher,
+                        "vm_offer": self.test_vm_offer,
+                        "vm_sku": self.test_vm_sku,
+                        "node_agent_sku_id": self.test_node_agent_sku,
+                    }
+                ),
+            )
         )
         # connect with cloud service
         db.merge_conn(
-            Connection(conn_id=self.test_cloud_conn_id,
-                       conn_type="azure_batch",
-                       extra=json.dumps({
-                           "account_name": self.test_account_name,
-                           "account_key": self.test_account_key,
-                           "account_url": self.test_account_url,
-                           "os_family": self.test_cloud_os_family,
-                           "os_version": self.test_cloud_os_version,
-                           "node_agent_sku_id": self.test_node_agent_sku
-                       }))
+            Connection(
+                conn_id=self.test_cloud_conn_id,
+                conn_type="azure_batch",
+                extra=json.dumps(
+                    {
+                        "account_name": self.test_account_name,
+                        "account_key": self.test_account_key,
+                        "account_url": self.test_account_url,
+                        "os_family": self.test_cloud_os_family,
+                        "os_version": self.test_cloud_os_version,
+                        "node_agent_sku_id": self.test_node_agent_sku,
+                    }
+                ),
+            )
         )
         self.operator = AzureBatchOperator(
             task_id=TASK_ID,
@@ -88,7 +96,7 @@ class TestAzureBatchOperator(unittest.TestCase):
             batch_task_id=BATCH_TASK_ID,
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
-            timeout=2
+            timeout=2,
         )
         self.batch_client = mock_batch.return_value
         self.assertEqual(self.batch_client, self.operator.hook.connection)

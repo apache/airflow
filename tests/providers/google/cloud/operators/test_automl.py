@@ -23,10 +23,19 @@ import mock
 from google.cloud.automl_v1beta1 import AutoMlClient, PredictionServiceClient
 
 from airflow.providers.google.cloud.operators.automl import (
-    AutoMLBatchPredictOperator, AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator,
-    AutoMLDeleteModelOperator, AutoMLDeployModelOperator, AutoMLGetModelOperator, AutoMLImportDataOperator,
-    AutoMLListDatasetOperator, AutoMLPredictOperator, AutoMLTablesListColumnSpecsOperator,
-    AutoMLTablesListTableSpecsOperator, AutoMLTablesUpdateDatasetOperator, AutoMLTrainModelOperator,
+    AutoMLBatchPredictOperator,
+    AutoMLCreateDatasetOperator,
+    AutoMLDeleteDatasetOperator,
+    AutoMLDeleteModelOperator,
+    AutoMLDeployModelOperator,
+    AutoMLGetModelOperator,
+    AutoMLImportDataOperator,
+    AutoMLListDatasetOperator,
+    AutoMLPredictOperator,
+    AutoMLTablesListColumnSpecsOperator,
+    AutoMLTablesListTableSpecsOperator,
+    AutoMLTablesUpdateDatasetOperator,
+    AutoMLTrainModelOperator,
 )
 
 CREDENTIALS = "test-creds"
@@ -85,6 +94,7 @@ class TestAutoMLBatchPredictOperator(unittest.TestCase):
             input_config=INPUT_CONFIG,
             output_config=OUTPUT_CONFIG,
             task_id=TASK_ID,
+            prediction_params={},
         )
         op.execute(context=None)
         mock_hook.return_value.batch_predict.assert_called_once_with(
@@ -316,9 +326,7 @@ class TestAutoMLDatasetListOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.automl.AutoMLListDatasetOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook, mock_xcom):
-        op = AutoMLListDatasetOperator(
-            location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID
-        )
+        op = AutoMLListDatasetOperator(location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID)
         op.execute(context=None)
         mock_hook.return_value.list_datasets.assert_called_once_with(
             location=GCP_LOCATION,

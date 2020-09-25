@@ -52,8 +52,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
 
     count = 0
 
-    # noinspection PyUnresolvedReferences,PyProtectedMember
-    for model in models.base.Base._decl_class_registry.values():  # pylint: disable=protected-access
+    for model in models.base.Base._decl_class_registry.values():  # noqa pylint: disable=protected-access
         if hasattr(model, "dag_id"):
             if keep_records_in_log and model.__name__ == 'Log':
                 continue

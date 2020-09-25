@@ -52,7 +52,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-@pytest.mark.quarantined
 class TestBackfillJob(unittest.TestCase):
 
     def _get_dummy_dag(self, dag_id, pool=Pool.DEFAULT_POOL_NAME, task_concurrency=None):
@@ -82,11 +81,17 @@ class TestBackfillJob(unittest.TestCase):
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
 
-    def setUp(self):
+    @staticmethod
+    def clean_db():
         clear_db_runs()
         clear_db_pools()
 
+    def setUp(self):
+        self.clean_db()
         self.parser = cli_parser.get_parser()
+
+    def tearDown(self) -> None:
+        self.clean_db()
 
     def test_unfinished_dag_runs_set_to_failed(self):
         dag = self._get_dummy_dag('dummy_dag')
@@ -904,7 +909,7 @@ class TestBackfillJob(unittest.TestCase):
 
         dagruns = DagRun.find(dag_id=dag.dag_id)
         self.assertEqual(2, len(dagruns))
-        self.assertTrue(all([run.state == State.SUCCESS for run in dagruns]))
+        self.assertTrue(all(run.state == State.SUCCESS for run in dagruns))
 
     def test_backfill_max_limit_check(self):
         dag_id = 'test_backfill_max_limit_check'
@@ -1063,7 +1068,7 @@ class TestBackfillJob(unittest.TestCase):
         drs = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
         dr = drs[0]
 
-        self.assertEqual(f"{DagRunType.BACKFILL_JOB.value}__{DEFAULT_DATE.isoformat()}", dr.run_id)
+        self.assertEqual(DagRun.generate_run_id(DagRunType.BACKFILL_JOB, DEFAULT_DATE), dr.run_id)
         for ti in dr.get_task_instances():
             if ti.task_id == 'leave1' or ti.task_id == 'leave2':
                 self.assertEqual(State.SUCCESS, ti.state)
@@ -1297,7 +1302,7 @@ class TestBackfillJob(unittest.TestCase):
         job = BackfillJob(dag=dag)
 
         session = settings.Session()
-        dr = dag.create_dagrun(run_id=DagRunType.SCHEDULED.value,
+        dr = dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                                state=State.RUNNING,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,
@@ -1431,7 +1436,101 @@ class TestBackfillJob(unittest.TestCase):
 
         queued_times = [ti.queued_dttm for ti in tis]
         self.assertTrue(queued_times == sorted(queued_times, reverse=True))
-        self.assertTrue(all([ti.state == State.SUCCESS for ti in tis]))
+        self.assertTrue(all(ti.state == State.SUCCESS for ti in tis))
 
         dag.clear()
         session.close()
+
+    def test_reset_orphaned_tasks_with_orphans(self):
+        """Create dagruns and ensure only ones with correct states are reset."""
+        prefix = 'backfill_job_test_test_reset_orphaned_tasks'
+        states = [State.QUEUED, State.SCHEDULED, State.NONE, State.RUNNING, State.SUCCESS]
+        states_to_reset = [State.QUEUED, State.SCHEDULED, State.NONE]
+
+        dag = DAG(dag_id=prefix,
+                  start_date=DEFAULT_DATE,
+                  schedule_interval="@daily")
+        tasks = []
+        for i in range(len(states)):
+            task_id = "{}_task_{}".format(prefix, i)
+            task = DummyOperator(task_id=task_id, dag=dag)
+            tasks.append(task)
+
+        session = settings.Session()
+        job = BackfillJob(dag=dag)
+
+        # create dagruns
+        dr1 = dag.create_dagrun(run_id='test1', state=State.RUNNING)
+        dr2 = dag.create_dagrun(run_id='test2', state=State.SUCCESS)
+
+        # create taskinstances and set states
+        dr1_tis = []
+        dr2_tis = []
+        for i, (task, state) in enumerate(zip(tasks, states)):
+            ti1 = TI(task, dr1.execution_date)
+            ti2 = TI(task, dr2.execution_date)
+            ti1.refresh_from_db()
+            ti2.refresh_from_db()
+            ti1.state = state
+            ti2.state = state
+            dr1_tis.append(ti1)
+            dr2_tis.append(ti2)
+            session.merge(ti1)
+            session.merge(ti2)
+            session.commit()
+
+        self.assertEqual(2, job.reset_state_for_orphaned_tasks())
+
+        for ti in dr1_tis + dr2_tis:
+            ti.refresh_from_db()
+
+        # running dagrun should be reset
+        for state, ti in zip(states, dr1_tis):
+            if state in states_to_reset:
+                self.assertIsNone(ti.state)
+            else:
+                self.assertEqual(state, ti.state)
+
+        # otherwise not
+        for state, ti in zip(states, dr2_tis):
+            self.assertEqual(state, ti.state)
+
+        for state, ti in zip(states, dr1_tis):
+            ti.state = state
+        session.commit()
+
+        job.reset_state_for_orphaned_tasks(filter_by_dag_run=dr1, session=session)
+
+        # check same for dag_run version
+        for state, ti in zip(states, dr2_tis):
+            self.assertEqual(state, ti.state)
+
+    def test_reset_orphaned_tasks_specified_dagrun(self):
+        """Try to reset when we specify a dagrun and ensure nothing else is."""
+        dag_id = 'test_reset_orphaned_tasks_specified_dagrun'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
+        task_id = dag_id + '_task'
+        DummyOperator(task_id=task_id, dag=dag)
+
+        job = BackfillJob(dag=dag)
+        session = settings.Session()
+        # make two dagruns, only reset for one
+        dr1 = dag.create_dagrun(run_id='test1', state=State.SUCCESS)
+        dr2 = dag.create_dagrun(run_id='test2', state=State.RUNNING)
+        ti1 = dr1.get_task_instances(session=session)[0]
+        ti2 = dr2.get_task_instances(session=session)[0]
+        ti1.state = State.SCHEDULED
+        ti2.state = State.SCHEDULED
+
+        session.merge(ti1)
+        session.merge(ti2)
+        session.merge(dr1)
+        session.merge(dr2)
+        session.commit()
+
+        num_reset_tis = job.reset_state_for_orphaned_tasks(filter_by_dag_run=dr2, session=session)
+        self.assertEqual(1, num_reset_tis)
+        ti1.refresh_from_db(session=session)
+        ti2.refresh_from_db(session=session)
+        self.assertEqual(State.SCHEDULED, ti1.state)
+        self.assertEqual(State.NONE, ti2.state)

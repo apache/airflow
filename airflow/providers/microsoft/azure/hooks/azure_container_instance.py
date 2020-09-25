@@ -17,18 +17,14 @@
 # under the License.
 #
 
-import os
 import warnings
 
-from azure.common.client_factory import get_client_from_auth_file
-from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 
 
-class AzureContainerInstanceHook(BaseHook):
+class AzureContainerInstanceHook(AzureBaseHook):
     """
     A hook to communicate with Azure Container Instances.
 
@@ -44,38 +40,8 @@ class AzureContainerInstanceHook(BaseHook):
     """
 
     def __init__(self, conn_id='azure_default'):
-        super().__init__()
-        self.conn_id = conn_id
+        super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=conn_id)
         self.connection = self.get_conn()
-
-    def get_conn(self):
-        conn = self.get_connection(self.conn_id)
-        key_path = conn.extra_dejson.get('key_path', False)
-        if key_path:
-            if key_path.endswith('.json'):
-                self.log.info('Getting connection using a JSON key file.')
-                return get_client_from_auth_file(ContainerInstanceManagementClient,
-                                                 key_path)
-            else:
-                raise AirflowException('Unrecognised extension for key file.')
-
-        if os.environ.get('AZURE_AUTH_LOCATION'):
-            key_path = os.environ.get('AZURE_AUTH_LOCATION')
-            if key_path.endswith('.json'):
-                self.log.info('Getting connection using a JSON key file.')
-                return get_client_from_auth_file(ContainerInstanceManagementClient,
-                                                 key_path)
-            else:
-                raise AirflowException('Unrecognised extension for key file.')
-
-        credentials = ServicePrincipalCredentials(
-            client_id=conn.login,
-            secret=conn.password,
-            tenant=conn.extra_dejson['tenantId']
-        )
-
-        subscription_id = conn.extra_dejson['subscriptionId']
-        return ContainerInstanceManagementClient(credentials, str(subscription_id))
 
     def create_or_update(self, resource_group, name, container_group):
         """
@@ -88,9 +54,7 @@ class AzureContainerInstanceHook(BaseHook):
         :param container_group: the properties of the container group
         :type container_group: azure.mgmt.containerinstance.models.ContainerGroup
         """
-        self.connection.container_groups.create_or_update(resource_group,
-                                                          name,
-                                                          container_group)
+        self.connection.container_groups.create_or_update(resource_group, name, container_group)
 
     def get_state_exitcode_details(self, resource_group, name):
         """
@@ -107,7 +71,7 @@ class AzureContainerInstanceHook(BaseHook):
         warnings.warn(
             "get_state_exitcode_details() is deprecated. Related method is get_state()",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         cg_state = self.get_state(resource_group, name)
         c_state = cg_state.containers[0].instance_view.current_state
@@ -125,9 +89,7 @@ class AzureContainerInstanceHook(BaseHook):
         :rtype: list[str]
         """
         warnings.warn(
-            "get_messages() is deprecated. Related method is get_state()",
-            DeprecationWarning,
-            stacklevel=2
+            "get_messages() is deprecated. Related method is get_state()", DeprecationWarning, stacklevel=2
         )
         cg_state = self.get_state(resource_group, name)
         instance_view = cg_state.containers[0].instance_view
@@ -144,9 +106,7 @@ class AzureContainerInstanceHook(BaseHook):
         :return: ContainerGroup
         :rtype: ~azure.mgmt.containerinstance.models.ContainerGroup
         """
-        return self.connection.container_groups.get(resource_group,
-                                                    name,
-                                                    raw=False)
+        return self.connection.container_groups.get(resource_group, name, raw=False)
 
     def get_logs(self, resource_group, name, tail=1000):
         """

@@ -29,15 +29,17 @@ except ImportError:
 class TestAwsLambdaHook:
     @mock_lambda
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = AwsLambdaHook(aws_conn_id='aws_default',
-                             function_name="test_function", region_name="us-east-1")
+        hook = AwsLambdaHook(
+            aws_conn_id='aws_default', function_name="test_function", region_name="us-east-1"
+        )
         assert hook.conn is not None
 
     @mock_lambda
     def test_invoke_lambda_function(self):
 
-        hook = AwsLambdaHook(aws_conn_id='aws_default',
-                             function_name="test_function", region_name="us-east-1")
+        hook = AwsLambdaHook(
+            aws_conn_id='aws_default', function_name="test_function", region_name="us-east-1"
+        )
 
         with patch.object(hook.conn, 'invoke') as mock_invoke:
             payload = '{"hello": "airflow"}'
@@ -48,5 +50,5 @@ class TestAwsLambdaHook:
             InvocationType="RequestResponse",
             LogType="None",
             Payload=payload,
-            Qualifier="$LATEST"
+            Qualifier="$LATEST",
         )

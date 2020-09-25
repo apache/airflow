@@ -44,7 +44,7 @@ Using the operator
 
 Using ``cmd_type`` parameter, is possible to transfer data from Spark to a database (``spark_to_jdbc``) or from a database to Spark (``jdbc_to_spark``), which will write the table using the Spark command ``saveAsTable``.
 
-.. exampleinclude:: ../../../../airflow/providers/apache/spark/example_dags/example_spark_dag.py
+.. exampleinclude:: /../airflow/providers/apache/spark/example_dags/example_spark_dag.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spark_jdbc]
@@ -69,7 +69,7 @@ For parameter definition take a look at :class:`~airflow.providers.apache.spark.
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/providers/apache/spark/example_dags/example_spark_dag.py
+.. exampleinclude:: /../airflow/providers/apache/spark/example_dags/example_spark_dag.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spark_sql]
@@ -92,7 +92,7 @@ For parameter definition take a look at :class:`~airflow.providers.apache.spark.
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/providers/apache/spark/example_dags/example_spark_dag.py
+.. exampleinclude:: /../airflow/providers/apache/spark/example_dags/example_spark_dag.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spark_submit]

@@ -45,7 +45,7 @@ class BigtableClusterUpdateOperator(BigtableUpdateClusterOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.bigtable.BigtableUpdateClusterOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -60,7 +60,7 @@ class BigtableInstanceCreateOperator(BigtableCreateInstanceOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.bigtable.BigtableCreateInstanceOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -75,7 +75,7 @@ class BigtableInstanceDeleteOperator(BigtableDeleteInstanceOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.bigtable.BigtableDeleteInstanceOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -90,7 +90,7 @@ class BigtableTableCreateOperator(BigtableCreateTableOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.bigtable.BigtableCreateTableOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -105,7 +105,7 @@ class BigtableTableDeleteOperator(BigtableDeleteTableOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.bigtable.BigtableDeleteTableOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -122,6 +122,6 @@ class BigtableTableWaitForReplicationSensor(BigtableTableReplicationCompletedSen
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

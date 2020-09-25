@@ -35,10 +35,7 @@ TEST_DAG_ID = 'unit_test_dag'
 @pytest.mark.backend("mysql")
 class TestMySql(unittest.TestCase):
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
@@ -48,7 +45,12 @@ class TestMySql(unittest.TestCase):
             for table in drop_tables:
                 conn.execute("DROP TABLE IF EXISTS {}".format(table))
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand(
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
+    )
     def test_mysql_operator_test(self, client):
         with MySqlContext(client):
             sql = """
@@ -56,13 +58,15 @@ class TestMySql(unittest.TestCase):
                 dummy VARCHAR(50)
             );
             """
-            op = MySqlOperator(
-                task_id='basic_mysql',
-                sql=sql,
-                dag=self.dag)
+            op = MySqlOperator(task_id='basic_mysql', sql=sql, dag=self.dag)
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand(
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
+    )
     def test_mysql_operator_test_multi(self, client):
         with MySqlContext(client):
             sql = [
@@ -77,7 +81,12 @@ class TestMySql(unittest.TestCase):
             )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @parameterized.expand([("mysqlclient",), ("mysql-connector-python",), ])
+    @parameterized.expand(
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
+    )
     def test_overwrite_schema(self, client):
         """
         Verifies option to overwrite connection schema
@@ -92,8 +101,8 @@ class TestMySql(unittest.TestCase):
             )
 
             from _mysql_exceptions import OperationalError
+
             try:
-                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                       ignore_ti_state=True)
+                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             except OperationalError as e:
                 assert "Unknown database 'foobar'" in str(e)

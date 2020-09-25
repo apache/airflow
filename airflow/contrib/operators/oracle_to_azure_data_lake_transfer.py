@@ -17,18 +17,18 @@
 # under the License.
 """
 This module is deprecated.
-Please use `airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer`.
+Please use `airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer import (  # noqa
-    OracleToAzureDataLakeTransferOperator,
+from airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake import (  # noqa
+    OracleToAzureDataLakeOperator,
 )
 
 warnings.warn(
     "This module is deprecated. "
-    "Please use `airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer`.",
+    "Please use `airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake`.",
     DeprecationWarning, stacklevel=2
 )

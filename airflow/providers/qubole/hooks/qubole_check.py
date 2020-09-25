@@ -75,7 +75,7 @@ def parse_first_row(row_list):
         elif isfloat(col_value):
             col_value = float(col_value)
         elif isbool(col_value):
-            col_value = (col_value.lower() == "true")
+            col_value = col_value.lower() == "true"
         record_list.append(col_value)
 
     return record_list
@@ -85,11 +85,11 @@ class QuboleCheckHook(QuboleHook):
     """
     Qubole check hook
     """
+
     def __init__(self, context, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.results_parser_callable = parse_first_row
-        if 'results_parser_callable' in kwargs and \
-                kwargs['results_parser_callable'] is not None:
+        if 'results_parser_callable' in kwargs and kwargs['results_parser_callable'] is not None:
             if not callable(kwargs['results_parser_callable']):
                 raise AirflowException('`results_parser_callable` param must be callable')
             self.results_parser_callable = kwargs['results_parser_callable']

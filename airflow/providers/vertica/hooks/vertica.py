@@ -31,16 +31,16 @@ class VerticaHook(DbApiHook):
     default_conn_name = 'vertica_default'
     supports_autocommit = True
 
-    def get_conn(self):
+    def get_conn(self) -> connect:
         """
-        Returns verticaql connection object
+        Return verticaql connection object
         """
-        conn = self.get_connection(self.vertica_conn_id)  # pylint: disable=no-member
+        conn = self.get_connection(self.vertica_conn_id)  # type: ignore # pylint: disable=no-member
         conn_config = {
             "user": conn.login,
             "password": conn.password or '',
             "database": conn.schema,
-            "host": conn.host or 'localhost'
+            "host": conn.host or 'localhost',
         }
 
         if not conn.port:

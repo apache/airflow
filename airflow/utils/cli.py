@@ -32,7 +32,7 @@ import threading
 import traceback
 from argparse import Namespace
 from datetime import datetime
-from typing import Optional
+from typing import Callable, Optional, TypeVar, cast
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -41,8 +41,10 @@ from airflow.utils import cli_action_loggers
 from airflow.utils.platform import is_terminal_support_colors
 from airflow.utils.session import provide_session
 
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
-def action_logging(f):
+
+def action_logging(f: T) -> T:
     """
     Decorates function to execute function at the same time submitting action_logging
     but in CLI context. It will call action logger callbacks twice,
@@ -89,7 +91,7 @@ def action_logging(f):
             metrics['end_datetime'] = datetime.utcnow()
             cli_action_loggers.on_post_execution(**metrics)
 
-    return wrapper
+    return cast(T, wrapper)
 
 
 def _build_metrics(func_name, namespace):
@@ -103,7 +105,6 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
-
     metrics = {'sub_command': func_name, 'start_datetime': datetime.utcnow(),
                'full_command': '{}'.format(list(sys.argv)), 'user': getpass.getuser()}
 
@@ -241,6 +242,7 @@ class ColorMode:
     """
     Coloring modes. If `auto` is then automatically detected.
     """
+
     ON = "on"
     OFF = "off"
     AUTO = "auto"

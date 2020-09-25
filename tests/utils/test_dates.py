@@ -30,14 +30,13 @@ class TestDates(unittest.TestCase):
         today = pendulum.today()
         today_midnight = pendulum.instance(datetime.fromordinal(today.date().toordinal()))
 
-        self.assertTrue(dates.days_ago(0) == today_midnight)
+        self.assertEqual(dates.days_ago(0), today_midnight)
+        self.assertEqual(dates.days_ago(100), today_midnight + timedelta(days=-100))
 
-        self.assertTrue(dates.days_ago(100) == today_midnight + timedelta(days=-100))
-
-        self.assertTrue(dates.days_ago(0, hour=3) == today_midnight + timedelta(hours=3))
-        self.assertTrue(dates.days_ago(0, minute=3) == today_midnight + timedelta(minutes=3))
-        self.assertTrue(dates.days_ago(0, second=3) == today_midnight + timedelta(seconds=3))
-        self.assertTrue(dates.days_ago(0, microsecond=3) == today_midnight + timedelta(microseconds=3))
+        self.assertEqual(dates.days_ago(0, hour=3), today_midnight + timedelta(hours=3))
+        self.assertEqual(dates.days_ago(0, minute=3), today_midnight + timedelta(minutes=3))
+        self.assertEqual(dates.days_ago(0, second=3), today_midnight + timedelta(seconds=3))
+        self.assertEqual(dates.days_ago(0, microsecond=3), today_midnight + timedelta(microseconds=3))
 
     def test_parse_execution_date(self):
         execution_date_str_wo_ms = '2017-11-02 00:00:00'

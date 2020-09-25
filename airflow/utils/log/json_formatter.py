@@ -30,6 +30,7 @@ class JSONFormatter(logging.Formatter):
     """
     JSONFormatter instances are used to convert a log record to json.
     """
+
     # pylint: disable=too-many-arguments
     def __init__(self, fmt=None, datefmt=None, style='%', json_fields=None, extras=None):
         super().__init__(fmt, datefmt, style)
@@ -39,6 +40,9 @@ class JSONFormatter(logging.Formatter):
             json_fields = []
         self.json_fields = json_fields
         self.extras = extras
+
+    def usesTime(self):
+        return self.json_fields.count('asctime') > 0
 
     def format(self, record):
         super().format(record)

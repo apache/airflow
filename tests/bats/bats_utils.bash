@@ -17,4 +17,18 @@
 
 AIRFLOW_SOURCES=$(pwd)
 export AIRFLOW_SOURCES
-source scripts/ci/_utils.sh
+readonly AIRFLOW_SOURCES
+
+export DOCKER_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/docker.sh
+export KUBECTL_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/kubectl.sh
+export KIND_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/kind.sh
+export HELM_BINARY_PATH=${AIRFLOW_SOURCES}/tests/bats/mock/helm.sh
+export SKIP_IN_CONTAINER_CHECK="true"
+
+# shellcheck source=scripts/ci/libraries/_all_libs.sh
+source "scripts/ci/libraries/_all_libs.sh"
+
+initialization::initialize_common_environment
+
+# shellcheck disable=SC1091
+source "/opt/bats/lib/load.bash"

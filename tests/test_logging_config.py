@@ -175,8 +175,8 @@ class TestLoggingSettings(unittest.TestCase):
     def tearDown(self):
         # Remove any new modules imported during the test run. This lets us
         # import the same source files for more than one test.
-        from airflow.logging_config import configure_logging
         from airflow.config_templates import airflow_local_settings
+        from airflow.logging_config import configure_logging
 
         for mod in list(sys.modules):
             if mod not in self.old_modules:

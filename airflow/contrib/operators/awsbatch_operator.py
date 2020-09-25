@@ -19,9 +19,9 @@
 
 """This module is deprecated. Please use:
 
-  - `airflow.providers.amazon.aws.operators.batch`
-  - `airflow.providers.amazon.aws.hooks.batch_client`
-  - `airflow.providers.amazon.aws.hooks.batch_waiters`
+- `airflow.providers.amazon.aws.operators.batch`
+- `airflow.providers.amazon.aws.hooks.batch_client`
+- `airflow.providers.amazon.aws.hooks.batch_waiters``
 """
 
 import warnings
@@ -51,7 +51,7 @@ class AWSBatchOperator(AwsBatchOperator):
             """This class is deprecated.
             Please use `airflow.providers.amazon.aws.operators.batch.AwsBatchOperator`.""",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 

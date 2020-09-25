@@ -21,6 +21,7 @@
 # [START subdag]
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.dates import days_ago
 
 
 def subdag(parent_dag_name, child_dag_name, args):
@@ -36,6 +37,7 @@ def subdag(parent_dag_name, child_dag_name, args):
     dag_subdag = DAG(
         dag_id='%s.%s' % (parent_dag_name, child_dag_name),
         default_args=args,
+        start_date=days_ago(2),
         schedule_interval="@daily",
     )
 

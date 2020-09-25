@@ -25,7 +25,7 @@ BashOperator
 Use the :class:`~airflow.operators.bash.BashOperator` to execute
 commands in a `Bash <https://www.gnu.org/software/bash/>`__ shell.
 
-.. exampleinclude:: ../../../airflow/example_dags/example_bash_operator.py
+.. exampleinclude:: /../airflow/example_dags/example_bash_operator.py
     :language: python
     :start-after: [START howto_operator_bash]
     :end-before: [END howto_operator_bash]
@@ -36,10 +36,41 @@ Templating
 You can use :ref:`Jinja templates <jinja-templating>` to parameterize the
 ``bash_command`` argument.
 
-.. exampleinclude:: ../../../airflow/example_dags/example_bash_operator.py
+.. exampleinclude:: /../airflow/example_dags/example_bash_operator.py
     :language: python
     :start-after: [START howto_operator_bash_template]
     :end-before: [END howto_operator_bash_template]
+
+
+.. warning::
+
+    Care should be taken with "user" input or when using Jinja templates in the
+    ``bash_command``, as this bash operator does not perform any escaping or
+    sanitization of the command.
+
+    This applies mostly to using "dag_run" conf, as that can be submitted via
+    users in the Web UI. Most of the default template variables are not at
+    risk.
+
+For example, do **not** do this:
+
+.. code-block:: python
+
+    bash_task = BashOperator(
+        task_id="bash_task",
+        bash_command='echo "Here is the message: \'{{ dag_run.conf["message"] if dag_run else "" }}\'"',
+    )
+
+Instead, you should pass this via the ``env`` kwarg and use double-quotes
+inside the bash_command, as below:
+
+.. code-block:: python
+
+    bash_task = BashOperator(
+        task_id="bash_task",
+        bash_command='echo "here is the message: \'$message\'"',
+        env={'message': '{{ dag_run.conf["message"] if dag_run else "" }}'},
+    )
 
 Troubleshooting
 ---------------

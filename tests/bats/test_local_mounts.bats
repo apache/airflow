@@ -21,21 +21,18 @@
 @test "convert volume list to docker params" {
   load bats_utils
 
-  initialize_common_environment
+  read -r -a RES <<< "$(local_mounts::convert_local_mounts_to_docker_params)"
 
-  run convert_local_mounts_to_docker_params
+  assert [ "${#RES[@]}" -gt 0 ] # Array should be non-zero length
+  assert [ "$((${#RES[@]} % 2))" == 0 ] # Array should be even length
 
-  RES="${output}"
-  COUNT_LINES=$(grep -c '' <(echo "${RES}"))
-  COUNT_MINUS_V_LINES=$(grep -c '^-v$' <(echo "${RES}"))
-  if (( COUNT_LINES != 2*COUNT_MINUS_V_LINES )); then
-      echo "The output produced by the convert_local_mounts_to_docker_params function is wrong"
-      echo "There are ${COUNT_LINES} lines in total and ${COUNT_MINUS_V_LINES} lines with -v"
-      echo "They seconf number should be exactly 1/2 of the first."
-      echo
-      echo "The output below should contain interleaving -v / volume lines"
-      echo
-      echo "${RES}"
-      exit 1
-  fi
+  for i in "${!RES[@]}"; do
+    if [[ $((i % 2)) == 0 ]]; then
+      # Every other value should be `-v`
+      assert [ "${RES[$i]}" == "-v" ]
+    else
+      # And the options should be of form <src>:<dest>:cached
+      assert bash -c "[[ ${RES[$i]} == *:*:cached ]]"
+    fi
+  done
 }

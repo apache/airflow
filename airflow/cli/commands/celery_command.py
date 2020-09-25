@@ -22,6 +22,7 @@ from typing import Optional
 
 import daemon
 import psutil
+import sqlalchemy.exc
 from celery import maybe_patch_concurrency
 from celery.bin import worker as worker_bin
 from daemon.pidfile import TimeoutPIDLockFile
@@ -111,6 +112,22 @@ def worker(args):
         stderr=args.stderr,
         log=args.log_file,
     )
+
+    if hasattr(celery_app.backend, 'ResultSession'):
+        # Pre-create the database tables now, otherwise SQLA via Celery has a
+        # race condition where one of the subprocesses can die with "Table
+        # already exists" error, because SQLA checks for which tables exist,
+        # then issues a CREATE TABLE, rather than doing CREATE TABLE IF NOT
+        # EXISTS
+        try:
+            session = celery_app.backend.ResultSession()
+            session.close()
+        except sqlalchemy.exc.IntegrityError:
+            # At least on postgres, trying to create a table that already exist
+            # gives a unique constraint violation or the
+            # "pg_type_typname_nsp_index" table. If this happens we can ignore
+            # it, we raced to create the tables and lost.
+            pass
 
     # Setup Celery worker
     worker_instance = worker_bin.worker(app=celery_app)

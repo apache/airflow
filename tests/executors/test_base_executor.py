@@ -17,10 +17,13 @@
 # under the License.
 
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils.state import State
 
 
@@ -30,9 +33,9 @@ class TestBaseExecutor(unittest.TestCase):
 
         date = datetime.utcnow()
         try_number = 1
-        key1 = ("my_dag1", "my_task1", date, try_number)
-        key2 = ("my_dag2", "my_task1", date, try_number)
-        key3 = ("my_dag2", "my_task2", date, try_number)
+        key1 = TaskInstanceKey("my_dag1", "my_task1", date, try_number)
+        key2 = TaskInstanceKey("my_dag2", "my_task1", date, try_number)
+        key3 = TaskInstanceKey("my_dag2", "my_task2", date, try_number)
         state = State.SUCCESS
         executor.event_buffer[key1] = state, None
         executor.event_buffer[key2] = state, None
@@ -52,3 +55,18 @@ class TestBaseExecutor(unittest.TestCase):
                  mock.call('executor.queued_tasks', mock.ANY),
                  mock.call('executor.running_tasks', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)
+
+    def test_try_adopt_task_instances(self):
+        date = datetime.utcnow()
+        start_date = datetime.utcnow() - timedelta(days=2)
+
+        with DAG("test_try_adopt_task_instances"):
+            task_1 = BaseOperator(task_id="task_1", start_date=start_date)
+            task_2 = BaseOperator(task_id="task_2", start_date=start_date)
+            task_3 = BaseOperator(task_id="task_3", start_date=start_date)
+
+        key1 = TaskInstance(task=task_1, execution_date=date)
+        key2 = TaskInstance(task=task_2, execution_date=date)
+        key3 = TaskInstance(task=task_3, execution_date=date)
+        tis = [key1, key2, key3]
+        self.assertEqual(BaseExecutor().try_adopt_task_instances(tis), tis)

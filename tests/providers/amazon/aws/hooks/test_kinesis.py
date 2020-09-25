@@ -28,19 +28,20 @@ except ImportError:
 
 
 class TestAwsFirehoseHook(unittest.TestCase):
-
     @unittest.skipIf(mock_kinesis is None, 'mock_kinesis package not present')
     @mock_kinesis
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = AwsFirehoseHook(aws_conn_id='aws_default',
-                               delivery_stream="test_airflow", region_name="us-east-1")
+        hook = AwsFirehoseHook(
+            aws_conn_id='aws_default', delivery_stream="test_airflow", region_name="us-east-1"
+        )
         self.assertIsNotNone(hook.get_conn())
 
     @unittest.skipIf(mock_kinesis is None, 'mock_kinesis package not present')
     @mock_kinesis
     def test_insert_batch_records_kinesis_firehose(self):
-        hook = AwsFirehoseHook(aws_conn_id='aws_default',
-                               delivery_stream="test_airflow", region_name="us-east-1")
+        hook = AwsFirehoseHook(
+            aws_conn_id='aws_default', delivery_stream="test_airflow", region_name="us-east-1"
+        )
 
         response = hook.get_conn().create_delivery_stream(
             DeliveryStreamName="test_airflow",
@@ -48,20 +49,15 @@ class TestAwsFirehoseHook(unittest.TestCase):
                 'RoleARN': 'arn:aws:iam::123456789012:role/firehose_delivery_role',
                 'BucketARN': 'arn:aws:s3:::kinesis-test',
                 'Prefix': 'airflow/',
-                'BufferingHints': {
-                    'SizeInMBs': 123,
-                    'IntervalInSeconds': 124
-                },
+                'BufferingHints': {'SizeInMBs': 123, 'IntervalInSeconds': 124},
                 'CompressionFormat': 'UNCOMPRESSED',
-            }
+            },
         )
 
         stream_arn = response['DeliveryStreamARN']
-        self.assertEqual(
-            stream_arn, "arn:aws:firehose:us-east-1:123456789012:deliverystream/test_airflow")
+        self.assertEqual(stream_arn, "arn:aws:firehose:us-east-1:123456789012:deliverystream/test_airflow")
 
-        records = [{"Data": str(uuid.uuid4())}
-                   for _ in range(100)]
+        records = [{"Data": str(uuid.uuid4())} for _ in range(100)]
 
         response = hook.put_records(records)
 

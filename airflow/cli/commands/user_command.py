@@ -27,12 +27,12 @@ import sys
 from tabulate import tabulate
 
 from airflow.utils import cli as cli_utils
-from airflow.www.app import cached_appbuilder
+from airflow.www.app import cached_app
 
 
 def users_list(args):
     """Lists users at the command line"""
-    appbuilder = cached_appbuilder()
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     users = appbuilder.sm.get_all_users()
     fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
     users = [[user.__getattribute__(field) for field in fields] for user in users]
@@ -44,7 +44,7 @@ def users_list(args):
 @cli_utils.action_logging
 def users_create(args):
     """Creates new user in the DB"""
-    appbuilder = cached_appbuilder()
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     role = appbuilder.sm.find_role(args.role)
     if not role:
         valid_roles = appbuilder.sm.get_all_roles()
@@ -74,7 +74,7 @@ def users_create(args):
 @cli_utils.action_logging
 def users_delete(args):
     """Deletes user from DB"""
-    appbuilder = cached_appbuilder()
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
 
     try:
         user = next(u for u in appbuilder.sm.get_all_users()
@@ -98,7 +98,7 @@ def users_manage_role(args, remove=False):
         raise SystemExit('Conflicting args: must supply either --username'
                          ' or --email, but not both')
 
-    appbuilder = cached_appbuilder()
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     user = (appbuilder.sm.find_user(username=args.username) or
             appbuilder.sm.find_user(email=args.email))
     if not user:
@@ -136,7 +136,7 @@ def users_manage_role(args, remove=False):
 
 def users_export(args):
     """Exports all users to the json file"""
-    appbuilder = cached_appbuilder()
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     users = appbuilder.sm.get_all_users()
     fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
 
@@ -184,7 +184,7 @@ def users_import(args):
 
 
 def _import_users(users_list):  # pylint: disable=redefined-outer-name
-    appbuilder = cached_appbuilder()
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     users_created = []
     users_updated = []
 

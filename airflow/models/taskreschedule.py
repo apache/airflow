@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """TaskReschedule tracks rescheduled task instances."""
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.session import provide_session
@@ -63,6 +63,33 @@ class TaskReschedule(Base):
 
     @staticmethod
     @provide_session
+    def query_for_task_instance(task_instance, descending=False, session=None):
+        """
+        Returns query for task reschedules for a given the task instance.
+
+        :param session: the database session object
+        :type session: sqlalchemy.orm.session.Session
+        :param task_instance: the task instance to find task reschedules for
+        :type task_instance: airflow.models.TaskInstance
+        :param descending: If True then records are returned in descending order
+        :type descending: bool
+        """
+        TR = TaskReschedule
+        qry = (
+            session
+            .query(TR)
+            .filter(TR.dag_id == task_instance.dag_id,
+                    TR.task_id == task_instance.task_id,
+                    TR.execution_date == task_instance.execution_date,
+                    TR.try_number == task_instance.try_number)
+        )
+        if descending:
+            return qry.order_by(desc(TR.id))
+        else:
+            return qry.order_by(asc(TR.id))
+
+    @staticmethod
+    @provide_session
     def find_for_task_instance(task_instance, session=None):
         """
         Returns all task reschedules for the task instance and try number,
@@ -73,14 +100,4 @@ class TaskReschedule(Base):
         :param task_instance: the task instance to find task reschedules for
         :type task_instance: airflow.models.TaskInstance
         """
-        TR = TaskReschedule
-        return (
-            session
-            .query(TR)
-            .filter(TR.dag_id == task_instance.dag_id,
-                    TR.task_id == task_instance.task_id,
-                    TR.execution_date == task_instance.execution_date,
-                    TR.try_number == task_instance.try_number)
-            .order_by(asc(TR.id))
-            .all()
-        )
+        return TaskReschedule.query_for_task_instance(task_instance, session=session).all()

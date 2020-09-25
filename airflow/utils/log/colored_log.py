@@ -24,9 +24,7 @@ from logging import LogRecord
 from typing import Any, Union
 
 from colorlog import TTYColoredFormatter
-from termcolor import colored
-
-ARGS = {"attrs": ["bold"]}
+from colorlog.escape_codes import esc, escape_codes
 
 DEFAULT_COLORS = {
     "DEBUG": "red",
@@ -36,6 +34,9 @@ DEFAULT_COLORS = {
     "CRITICAL": "red",
 }
 
+BOLD_ON = escape_codes['bold']
+BOLD_OFF = esc('22')
+
 
 class CustomTTYColoredFormatter(TTYColoredFormatter):
     """
@@ -43,6 +44,7 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
     by adding attributes to message arguments and coloring error
     traceback.
     """
+
     def __init__(self, *args, **kwargs):
         kwargs["stream"] = sys.stdout or kwargs.get("stream")
         kwargs["log_colors"] = DEFAULT_COLORS
@@ -53,7 +55,7 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
         if isinstance(arg, (int, float)):
             # In case of %d or %f formatting
             return arg
-        return colored(str(arg), **ARGS)  # type: ignore
+        return BOLD_ON + str(arg) + BOLD_OFF
 
     @staticmethod
     def _count_number_of_arguments_in_message(record: LogRecord) -> int:
@@ -84,7 +86,9 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
                 record.exc_text = self.formatException(record.exc_info)
 
             if record.exc_text:
-                record.exc_text = colored(record.exc_text, DEFAULT_COLORS["ERROR"])
+                record.exc_text = self.color(self.log_colors, record.levelname) + \
+                    record.exc_text + escape_codes['reset']
+
         return record
 
     def format(self, record: LogRecord) -> str:

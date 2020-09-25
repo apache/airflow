@@ -143,7 +143,6 @@ def _run_raw_task(args, ti):
 @cli_utils.action_logging
 def task_run(args, dag=None):
     """Runs a single task instance"""
-
     # Load custom airflow config
     if args.cfg_path:
         with open(args.cfg_path, 'r') as conf_file:
@@ -177,14 +176,44 @@ def task_run(args, dag=None):
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
+
     print(f"Running {ti} on host {hostname}")
 
     if args.interactive:
         _run_task_by_selected_method(args, dag, ti)
     else:
-        with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
-                redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
-            _run_task_by_selected_method(args, dag, ti)
+        if settings.DONOT_MODIFY_HANDLERS:
+            with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
+                    redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
+                _run_task_by_selected_method(args, dag, ti)
+        else:
+            # Get all the Handlers from 'airflow.task' logger
+            # Add these handlers to the root logger so that we can get logs from
+            # any custom loggers defined in the DAG
+            airflow_logger_handlers = logging.getLogger('airflow.task').handlers
+            root_logger = logging.getLogger()
+            root_logger_handlers = root_logger.handlers
+
+            # Remove all handlers from Root Logger to avoid duplicate logs
+            for handler in root_logger_handlers:
+                root_logger.removeHandler(handler)
+
+            for handler in airflow_logger_handlers:
+                root_logger.addHandler(handler)
+            root_logger.setLevel(logging.getLogger('airflow.task').level)
+
+            with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
+                    redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
+                _run_task_by_selected_method(args, dag, ti)
+
+            # We need to restore the handlers to the loggers as celery worker process
+            # can call this command multiple times,
+            # so if we don't reset this then logs from next task would go to the wrong place
+            for handler in airflow_logger_handlers:
+                root_logger.removeHandler(handler)
+            for handler in root_logger_handlers:
+                root_logger.addHandler(handler)
+
     logging.shutdown()
 
 
@@ -194,7 +223,7 @@ def task_failed_deps(args):
     Returns the unmet dependencies for a task instance from the perspective of the
     scheduler (i.e. why a task instance doesn't get scheduled and then queued by the
     scheduler, and then run by an executor).
-    >>> airflow tasks failed_deps tutorial sleep 2015-01-01
+    >>> airflow tasks failed-deps tutorial sleep 2015-01-01
     Task instance dependencies not met:
     Dagrun Running: Task instance's dagrun did not exist: Unknown reason
     Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
@@ -259,7 +288,6 @@ def _guess_debugger():
     * `ipdb <https://github.com/gotcha/ipdb>`__
     * `pdb <https://docs.python.org/3/library/pdb.html>`__
     """
-
     for mod in SUPPORTED_DEBUGGER_MODULES:
         try:
             return importlib.import_module(mod)

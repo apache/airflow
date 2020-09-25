@@ -30,9 +30,9 @@ dag = DAG(
     "example_passing_params_via_test_command",
     default_args={
         "owner": "airflow",
-        "start_date": days_ago(1),
     },
     schedule_interval='*/1 * * * *',
+    start_date=days_ago(1),
     dagrun_timeout=timedelta(minutes=4),
     tags=['example']
 )

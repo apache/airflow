@@ -88,27 +88,29 @@ class WinRMHook(BaseHook):
     :type send_cbt: bool
     """
 
-    def __init__(self,
-                 ssh_conn_id=None,
-                 endpoint=None,
-                 remote_host=None,
-                 remote_port=5985,
-                 transport='plaintext',
-                 username=None,
-                 password=None,
-                 service='HTTP',
-                 keytab=None,
-                 ca_trust_path=None,
-                 cert_pem=None,
-                 cert_key_pem=None,
-                 server_cert_validation='validate',
-                 kerberos_delegation=False,
-                 read_timeout_sec=30,
-                 operation_timeout_sec=20,
-                 kerberos_hostname_override=None,
-                 message_encryption='auto',
-                 credssp_disable_tlsv1_2=False,
-                 send_cbt=True):
+    def __init__(
+        self,
+        ssh_conn_id=None,
+        endpoint=None,
+        remote_host=None,
+        remote_port=5985,
+        transport='plaintext',
+        username=None,
+        password=None,
+        service='HTTP',
+        keytab=None,
+        ca_trust_path=None,
+        cert_pem=None,
+        cert_key_pem=None,
+        server_cert_validation='validate',
+        kerberos_delegation=False,
+        read_timeout_sec=30,
+        operation_timeout_sec=20,
+        kerberos_hostname_override=None,
+        message_encryption='auto',
+        credssp_disable_tlsv1_2=False,
+        send_cbt=True,
+    ):
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
         self.endpoint = endpoint
@@ -181,8 +183,9 @@ class WinRMHook(BaseHook):
                 if "message_encryption" in extra_options:
                     self.message_encryption = str(extra_options["message_encryption"])
                 if "credssp_disable_tlsv1_2" in extra_options:
-                    self.credssp_disable_tlsv1_2 = \
+                    self.credssp_disable_tlsv1_2 = (
                         str(extra_options["credssp_disable_tlsv1_2"]).lower() == 'true'
+                    )
                 if "send_cbt" in extra_options:
                     self.send_cbt = str(extra_options["send_cbt"]).lower() == 'true'
 
@@ -194,7 +197,8 @@ class WinRMHook(BaseHook):
             self.log.debug(
                 "username to WinRM to host: %s is not specified for connection id"
                 " %s. Using system's default provided by getpass.getuser()",
-                self.remote_host, self.ssh_conn_id
+                self.remote_host,
+                self.ssh_conn_id,
             )
             self.username = getpass.getuser()
 
@@ -221,7 +225,7 @@ class WinRMHook(BaseHook):
                     kerberos_hostname_override=self.kerberos_hostname_override,
                     message_encryption=self.message_encryption,
                     credssp_disable_tlsv1_2=self.credssp_disable_tlsv1_2,
-                    send_cbt=self.send_cbt
+                    send_cbt=self.send_cbt,
                 )
 
             self.log.info("Establishing WinRM connection to host: %s", self.remote_host)

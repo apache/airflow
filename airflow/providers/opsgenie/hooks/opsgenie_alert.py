@@ -39,11 +39,8 @@ class OpsgenieAlertHook(HttpHook):
     :type opsgenie_conn_id: str
 
     """
-    def __init__(self,
-                 opsgenie_conn_id='opsgenie_default',
-                 *args,
-                 **kwargs
-                 ):
+
+    def __init__(self, opsgenie_conn_id='opsgenie_default', *args, **kwargs):
         super().__init__(http_conn_id=opsgenie_conn_id, *args, **kwargs)
 
     def _get_api_key(self):
@@ -53,8 +50,9 @@ class OpsgenieAlertHook(HttpHook):
         conn = self.get_connection(self.http_conn_id)
         api_key = conn.password
         if not api_key:
-            raise AirflowException('Opsgenie API Key is required for this hook, '
-                                   'please check your conn_id configuration.')
+            raise AirflowException(
+                'Opsgenie API Key is required for this hook, ' 'please check your conn_id configuration.'
+            )
         return api_key
 
     def get_conn(self, headers=None):
@@ -82,7 +80,8 @@ class OpsgenieAlertHook(HttpHook):
         """
         payload = payload or {}
         api_key = self._get_api_key()
-        return self.run(endpoint='v2/alerts',
-                        data=json.dumps(payload),
-                        headers={'Content-Type': 'application/json',
-                                 'Authorization': 'GenieKey %s' % api_key})
+        return self.run(
+            endpoint='v2/alerts',
+            data=json.dumps(payload),
+            headers={'Content-Type': 'application/json', 'Authorization': 'GenieKey %s' % api_key},
+        )

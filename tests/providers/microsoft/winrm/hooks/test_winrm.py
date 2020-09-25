@@ -26,7 +26,6 @@ from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 
 
 class TestWinRMHook(unittest.TestCase):
-
     @patch('airflow.providers.microsoft.winrm.hooks.winrm.Protocol')
     def test_get_conn_exists(self, mock_protocol):
         winrm_hook = WinRMHook()
@@ -48,12 +47,13 @@ class TestWinRMHook(unittest.TestCase):
             WinRMHook(remote_host='host').get_conn()
 
     @patch('airflow.providers.microsoft.winrm.hooks.winrm.Protocol', autospec=True)
-    @patch('airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook.get_connection',
-           return_value=Connection(
-               login='username',
-               password='password',
-               host='remote_host',
-               extra="""{
+    @patch(
+        'airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook.get_connection',
+        return_value=Connection(
+            login='username',
+            password='password',
+            host='remote_host',
+            extra="""{
                    "endpoint": "endpoint",
                    "remote_port": 123,
                    "transport": "plaintext",
@@ -70,8 +70,9 @@ class TestWinRMHook(unittest.TestCase):
                    "message_encryption": "auto",
                    "credssp_disable_tlsv1_2": "true",
                    "send_cbt": "false"
-               }"""
-           ))
+               }""",
+        ),
+    )
     def test_get_conn_from_connection(self, mock_get_connection, mock_protocol):
         connection = mock_get_connection.return_value
         winrm_hook = WinRMHook(ssh_conn_id='conn_id')
@@ -96,7 +97,7 @@ class TestWinRMHook(unittest.TestCase):
             kerberos_hostname_override=str(connection.extra_dejson['kerberos_hostname_override']),
             message_encryption=str(connection.extra_dejson['message_encryption']),
             credssp_disable_tlsv1_2=str(connection.extra_dejson['credssp_disable_tlsv1_2']).lower() == 'true',
-            send_cbt=str(connection.extra_dejson['send_cbt']).lower() == 'true'
+            send_cbt=str(connection.extra_dejson['send_cbt']).lower() == 'true',
         )
 
     @patch('airflow.providers.microsoft.winrm.hooks.winrm.getpass.getuser', return_value='user')
@@ -114,5 +115,6 @@ class TestWinRMHook(unittest.TestCase):
 
         winrm_hook.get_conn()
 
-        self.assertEqual('http://{0}:{1}/wsman'.format(winrm_hook.remote_host, winrm_hook.remote_port),
-                         winrm_hook.endpoint)
+        self.assertEqual(
+            'http://{0}:{1}/wsman'.format(winrm_hook.remote_host, winrm_hook.remote_port), winrm_hook.endpoint
+        )

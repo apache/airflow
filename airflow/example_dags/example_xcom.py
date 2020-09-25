@@ -21,12 +21,13 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-    'start_date': days_ago(2),
-}
-
-dag = DAG('example_xcom', schedule_interval="@once", default_args=args, tags=['example'])
+dag = DAG(
+    'example_xcom',
+    schedule_interval="@once",
+    start_date=days_ago(2),
+    default_args={'owner': 'airflow'},
+    tags=['example']
+)
 
 value_1 = [1, 2, 3]
 value_2 = {'a': 'b'}

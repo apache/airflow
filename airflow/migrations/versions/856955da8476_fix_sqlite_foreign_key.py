@@ -34,6 +34,7 @@ depends_on = None
 
 
 def upgrade():
+    """Fix broken foreign-key constraint for existing SQLite DBs."""
     conn = op.get_bind()
     if conn.dialect.name == 'sqlite':
         # Fix broken foreign-key constraint for existing SQLite DBs.
@@ -65,6 +66,6 @@ def upgrade():
                                         ['user_id'], ['id'])
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     # Downgrade would fail because the broken FK constraint can't be re-created.
     pass

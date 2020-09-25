@@ -19,8 +19,8 @@
 import unittest
 from unittest import mock
 
-from airflow.models import Variable
-from airflow.secrets import ensure_secrets_loaded, get_connections, get_variable, initialize_secrets_backends
+from airflow.configuration import ensure_secrets_loaded, initialize_secrets_backends
+from airflow.models import Connection, Variable
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_variables
 
@@ -30,7 +30,7 @@ class TestConnectionsFromSecrets(unittest.TestCase):
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connections")
     def test_get_connections_second_try(self, mock_env_get, mock_meta_get):
         mock_env_get.side_effect = [[]]  # return empty list
-        get_connections("fake_conn_id")
+        Connection.get_connections_from_secrets("fake_conn_id")
         mock_meta_get.assert_called_once_with(conn_id="fake_conn_id")
         mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
 
@@ -38,7 +38,7 @@ class TestConnectionsFromSecrets(unittest.TestCase):
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connections")
     def test_get_connections_first_try(self, mock_env_get, mock_meta_get):
         mock_env_get.side_effect = [["something"]]  # returns nonempty list
-        get_connections("fake_conn_id")
+        Connection.get_connections_from_secrets("fake_conn_id")
         mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
         mock_meta_get.not_called()
 
@@ -85,7 +85,7 @@ class TestConnectionsFromSecrets(unittest.TestCase):
         backend_classes = [backend.__class__.__name__ for backend in backends]
         self.assertIn('SystemsManagerParameterStoreBackend', backend_classes)
 
-        uri = get_connections(conn_id="test_mysql")
+        uri = Connection.get_connections_from_secrets(conn_id="test_mysql")
 
         # Assert that SystemsManagerParameterStoreBackend.get_conn_uri was called
         mock_get_uri.assert_called_once_with(conn_id='test_mysql')
@@ -109,7 +109,7 @@ class TestVariableFromSecrets(unittest.TestCase):
         Metastore DB
         """
         mock_env_get.return_value = None
-        get_variable("fake_var_key")
+        Variable.get_variable_from_secrets("fake_var_key")
         mock_meta_get.assert_called_once_with(key="fake_var_key")
         mock_env_get.assert_called_once_with(key="fake_var_key")
 
@@ -121,7 +121,7 @@ class TestVariableFromSecrets(unittest.TestCase):
         Metastore DB
         """
         mock_env_get.return_value = [["something"]]  # returns nonempty list
-        get_variable("fake_var_key")
+        Variable.get_variable_from_secrets("fake_var_key")
         mock_env_get.assert_called_once_with(key="fake_var_key")
         mock_meta_get.not_called()
 

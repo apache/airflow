@@ -23,15 +23,12 @@ from sqlalchemy import Table
 
 from airflow import settings
 from airflow.configuration import conf
-# noinspection PyUnresolvedReferences
 from airflow.jobs.base_job import BaseJob  # noqa: F401 # pylint: disable=unused-import
-# noinspection PyUnresolvedReferences
 from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
     DAG, XCOM_RETURN_KEY, BaseOperator, BaseOperatorLink, Connection, DagBag, DagModel, DagPickle, DagRun,
     DagTag, Log, Pool, SkipMixin, SlaMiss, TaskFail, TaskInstance, TaskReschedule, Variable, XCom,
 )
 # We need to add this model manually to get reset working well
-# noinspection PyUnresolvedReferences
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
@@ -309,6 +306,17 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id='kylin_default',
+            conn_type='kylin',
+            host='localhost',
+            port=7070,
+            login="ADMIN",
+            password="KYLIN"
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="livy_default",
             conn_type="livy",
             host="livy",
@@ -562,8 +570,6 @@ def initdb():
 def _get_alembic_config():
     from alembic.config import Config
 
-    log.info("Creating tables")
-
     current_dir = os.path.dirname(os.path.abspath(__file__))
     package_dir = os.path.normpath(os.path.join(current_dir, '..'))
     directory = os.path.join(package_dir, 'migrations')
@@ -619,7 +625,6 @@ def resetdb():
     """
     Clear out the database
     """
-
     log.info("Dropping tables that exist")
 
     connection = settings.engine.connect()
@@ -637,6 +642,7 @@ def drop_airflow_models(connection):
     @return: None
     """
     from airflow.models.base import Base
+
     # Drop connection and chart - those tables have been deleted and in case you
     # run resetdb on schema with chart or users table will fail
     chart = Table('chart', Base.metadata)
@@ -655,11 +661,9 @@ def drop_airflow_models(connection):
     Base.metadata.remove(user)
     Base.metadata.remove(chart)
     # alembic adds significant import time, so we import it lazily
-    # noinspection PyUnresolvedReferences
-    from alembic.migration import MigrationContext
+    from alembic.migration import MigrationContext  # noqa
     migration_ctx = MigrationContext.configure(connection)
-    # noinspection PyProtectedMember
-    version = migration_ctx._version  # pylint: disable=protected-access
+    version = migration_ctx._version  # noqa pylint: disable=protected-access
     if version.exists(connection):
         version.drop(connection)
 

@@ -141,7 +141,7 @@ variable in the global namespace. This is easily done in python using the
 ``globals()`` function for the standard library, which behaves like a
 simple dictionary.
 
-.. code:: python
+.. code-block:: python
 
     def create_dag(dag_id):
         """
@@ -213,7 +213,7 @@ Why next_ds or prev_ds might not contain expected values?
 
 - When scheduling DAG, the ``next_ds`` ``next_ds_nodash`` ``prev_ds`` ``prev_ds_nodash`` are calculated using
   ``execution_date`` and ``schedule_interval``. If you set ``schedule_interval`` as ``None`` or ``@once``,
-  the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` valueS will be set to ``None``.
+  the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` values will be set to ``None``.
 - When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``
 
 How do I stop the sync perms happening multiple times per webserver?

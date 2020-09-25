@@ -60,26 +60,34 @@ class SingularityOperator(BaseOperator):
         set on the container (equivalent to the -w switch the docker client)
     :type working_dir: str
     """
-    template_fields = ('command', 'environment',)
-    template_ext = ('.sh', '.bash',)
+
+    template_fields = (
+        'command',
+        'environment',
+    )
+    template_ext = (
+        '.sh',
+        '.bash',
+    )
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
-            image: str,
-            command: Union[int, List[str]],
-            start_command: Optional[Union[str, List[str]]] = None,
-            environment: Optional[Dict[str, Any]] = None,
-            pull_folder: Optional[str] = None,
-            working_dir: Optional[str] = None,
-            force_pull: Optional[bool] = False,
-            volumes: Optional[List[str]] = None,
-            options: Optional[List[str]] = None,
-            auto_remove: Optional[bool] = False,
-            *args,
-            **kwargs) -> None:
+        self,
+        *,
+        image: str,
+        command: Union[str, List[str]],
+        start_command: Optional[Union[str, List[str]]] = None,
+        environment: Optional[Dict[str, Any]] = None,
+        pull_folder: Optional[str] = None,
+        working_dir: Optional[str] = None,
+        force_pull: Optional[bool] = False,
+        volumes: Optional[List[str]] = None,
+        options: Optional[List[str]] = None,
+        auto_remove: Optional[bool] = False,
+        **kwargs,
+    ) -> None:
 
-        super(SingularityOperator, self).__init__(*args, **kwargs)
+        super(SingularityOperator, self).__init__(**kwargs)
         self.auto_remove = auto_remove
         self.command = command
         self.start_command = start_command
@@ -119,11 +127,11 @@ class SingularityOperator(BaseOperator):
 
         # Prepare list of binds
         for bind in self.volumes:
-            self.options = self.options + ['--bind', bind]
+            self.options += ['--bind', bind]
 
         # Does the user want a custom working directory?
         if self.working_dir is not None:
-            self.options = self.options + ['--workdir', self.working_dir]
+            self.options += ['--workdir', self.working_dir]
 
         # Export environment before instance is run
         for enkey, envar in self.environment.items():
@@ -133,10 +141,9 @@ class SingularityOperator(BaseOperator):
 
         # Create a container instance
         self.log.debug('Options include: %s', self.options)
-        self.instance = self.cli.instance(self.image,
-                                          options=self.options,
-                                          args=self.start_command,
-                                          start=False)
+        self.instance = self.cli.instance(
+            self.image, options=self.options, args=self.start_command, start=False
+        )
 
         self.instance.start()
         self.log.info(self.instance.cmd)
@@ -144,9 +151,7 @@ class SingularityOperator(BaseOperator):
 
         self.log.info('Running command %s', self._get_command())
         self.cli.quiet = True
-        result = self.cli.execute(self.instance,
-                                  self._get_command(),
-                                  return_result=True)
+        result = self.cli.execute(self.instance, self._get_command(), return_result=True)
 
         # Stop the instance
         self.log.info('Stopping instance %s', self.instance)

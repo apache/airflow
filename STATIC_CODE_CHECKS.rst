@@ -46,51 +46,89 @@ require Breeze Docker images to be installed locally:
 =================================== ================================================================ ============
 **Hooks**                             **Description**                                                 **Breeze**
 =================================== ================================================================ ============
+``airflow-config-yaml``               Checks that airflow config yaml is 1-1 with the code
+----------------------------------- ---------------------------------------------------------------- ------------
 ``base-operator``                     Checks that BaseOperator is imported properly
 ----------------------------------- ---------------------------------------------------------------- ------------
-``build``                             Builds image for check-apache-licence, mypy, pylint, flake8.         *
+``bats-tests``                        Runs BATS bash unit tests
 ----------------------------------- ---------------------------------------------------------------- ------------
-``check-apache-license``              Checks compatibility with Apache License requirements.               *
+``black``                             Runs Black (the uncompromising Python code formatter)
+----------------------------------- ---------------------------------------------------------------- ------------
+``build``                             Builds image for mypy, pylint, flake8.                               *
+----------------------------------- ---------------------------------------------------------------- ------------
+``build-providers-dependencies``      Regenerates the json file with cross-provider dependencies
+----------------------------------- ---------------------------------------------------------------- ------------
+``check-apache-license``              Checks compatibility with Apache License requirements.
+----------------------------------- ---------------------------------------------------------------- ------------
+``check-builtin-literals``            Require literal syntax when initializing Python builtin types
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-executables-have-shebangs``   Checks that executables have shebang.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-hooks-apply``                 Checks which hooks are applicable to the repository.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``check-merge-conflict``              Checks if a merge conflict is committed.
+``check-hooks-apply``                 Checks which hooks are applicable to the repository.
+----------------------------------- ---------------------------------------------------------------- ------------
+``check-integrations``                Checks if integration list is synchronized in code.
+----------------------------------- ---------------------------------------------------------------- ------------
+``check-merge-conflicts``             Checks that merge conflicts are not being committed.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-xml``                         Checks XML files with xmllint.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``consistent-pylint``                 Consistent usage of pylint enable/disable with space.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``debug-statements``                  Detects accidenatally committed debug statements.
+``daysago-import-check``              Checks if daysago is properly imported.
+----------------------------------- ---------------------------------------------------------------- ------------
+``debug-statements``                  Detects accidentally committed debug statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``detect-private-key``                Detects if private key is added to the repository.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``doctoc``                            Refreshes the table of contents for md files.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``dont-use-safe-filter``              Don't use safe in templates.
+----------------------------------- ---------------------------------------------------------------- ------------
+``no-relative-imports``               Use absolute imports, not relative
+----------------------------------- ---------------------------------------------------------------- ------------
 ``end-of-file-fixer``                 Makes sure that there is an empty line at the end.
+----------------------------------- ---------------------------------------------------------------- ------------
+``fix-encoding-pragma``               Removes encoding header from python files.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``flake8``                            Runs flake8.                                                         *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``forbid-tabs``                       Fails if tabs are used in the project.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``helm-lint``                         Verifies if helm lint passes for the chart
+----------------------------------- ---------------------------------------------------------------- ------------
+``incorrect-use-of-LoggingMixin``     Checks if LoggingMixin is properly imported.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``insert-license``                    Adds licenses for most file types.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``isort``                             Sorts imports in python files.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``language-matters``                  Check for language that we do not accept as community
+----------------------------------- ---------------------------------------------------------------- ------------
 ``lint-dockerfile``                   Lints a dockerfile.
+----------------------------------- ---------------------------------------------------------------- ------------
+``lint-openapi``                      Lints openapi specification.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``mixed-line-ending``                 Detects if mixed line ending is used (\r vs. \r\n).
 ----------------------------------- ---------------------------------------------------------------- ------------
+``mermaid``                           Generates diagrams from mermaid files.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``mypy``                              Runs mypy.                                                           *
 ----------------------------------- ---------------------------------------------------------------- ------------
-``pydevd``                            Check for accidentally commited pydevd statements.
+``pre-commit-descriptions``           Check if all pre-commits are described in docs.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``pylint``                            Runs pylint for main code.                                           *
+``provide-create-sessions``           Make sure provide-session and create-session imports are OK.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``pylint-tests``                      Runs pylint for tests.                                               *
+``pydevd``                            Check for accidentally committed pydevd statements.
+----------------------------------- ---------------------------------------------------------------- ------------
+``pydocstyle``                        Runs pydocstyle.
+----------------------------------- ---------------------------------------------------------------- ------------
+``pylint``                            Runs pylint check                                                    *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``python-no-log-warn``                Checks if there are no deprecate log warn.
+----------------------------------- ---------------------------------------------------------------- ------------
+``restrict-start_date``               'start_date' should not be in default_args in example_dags
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``rst-backticks``                     Checks if RST files use double backticks for code.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -98,9 +136,21 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``shellcheck``                        Checks shell files with shellcheck.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``sort-in-the-wild``                  Sort INTHEWILD.md alphabetically.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``stylelint``                         Checks CSS files with stylelint.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``trailing-whitespace``               Removes trailing whitespace at end of line.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``update-breeze-file``                Update output of breeze command in BREEZE.rst.
+----------------------------------- ---------------------------------------------------------------- ------------
+``update-extras``                     Updates extras in the documentation.
+----------------------------------- ---------------------------------------------------------------- ------------
+``update-local-yml-file``             Updates mounts in local.yml file.
+----------------------------------- ---------------------------------------------------------------- ------------
+``update-setup-cfg-file``            Update setup.cfg file with all licenses.
+----------------------------------- ---------------------------------------------------------------- ------------
+``update-extras``                     Updates extras in the documentation.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks yaml files with yamllint.
 =================================== ================================================================ ============
@@ -224,15 +274,13 @@ contributor to Airflow, you can choose one of the sub-tasks as your first issue 
 To fix a pylint issue, do the following:
 
 1.  Remove module/modules from the
-    `scripts/ci/pylint_todo.txt <scripts/ci/pylint_todo.txt>`__.
+    `scripts/ci/static_checks/pylint_todo.txt <scripts/ci/pylint_todo.txt>`__.
 
-2.  Run `scripts/ci/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
-    `scripts/ci/ci_pylint_tests.sh <scripts/ci/ci_pylint_tests.sh>`__.
+2.  Run `<scripts/ci/static_checks/pylint.sh>`__.
 
 3.  Fix all the issues reported by pylint.
 
-4.  Re-run `scripts/ci/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
-    `scripts/ci/ci_pylint_tests.sh <scripts/ci/ci_pylint_tests.sh>`__.
+4.  Re-run `<scripts/ci/static_checks/pylint.sh>`__.
 
 5.  If you see "success", submit a PR following
     `Pull Request guidelines <#pull-request-guidelines>`__.
@@ -278,13 +326,12 @@ Running Static Code Checks via Breeze
 
 The static code checks can be launched using the Breeze environment.
 
-You run the static code checks via ``./breeze static-check`` or ``./breeze static-check-all-files`` commands.
-The former ones run appropriate checks only for files changed and staged locally, the latter ones
-run checks on all files.
+You run the static code checks via ``./breeze static-check`` or commands.
 
 Note that it may take a lot of time to run checks for all files with pylint on macOS due to a slow
 filesystem for macOS Docker. As a workaround, you can add their arguments after ``--`` as extra arguments.
-You cannot pass the ``--files`` flag if you use the ``./breeze static-check-all-files`` command.
+For example ``--files`` flag. By default those checks are run only on the files you've changed in your
+commit, but you can also add ``-- --all-files`` flag to run check on all files.
 
 You can see the list of available static checks either via ``--help`` flag or by using the autocomplete
 option. Note that the ``all`` static check runs all configured static checks. Also since pylint tests take
@@ -300,7 +347,7 @@ Run the ``mypy`` check for all files:
 
 .. code-block:: bash
 
-     ./breeze static-check-all-files mypy
+     ./breeze static-check mypy -- --all-files
 
 Run the ``flake8`` check for the ``tests.core.py`` file with verbose output:
 
@@ -324,13 +371,13 @@ Run all tests for all files:
 
 .. code-block:: bash
 
-     ./breeze static-check-all-files all
+     ./breeze static-check all -- --all-files
 
 Run all tests but pylint for all files:
 
 .. code-block:: bash
 
-     ./breeze static-check-all-files all-but-pylint
+     ./breeze static-check all-but-pylint --all-files
 
 Run pylint checks for all changed files:
 
@@ -349,7 +396,7 @@ Run pylint checks for all files:
 
 .. code-block:: bash
 
-     ./breeze static-check-all-files pylint
+     ./breeze static-check pylint -- --all-files
 
 
 The ``license`` check is run via a separate script and a separate Docker image containing the
@@ -358,21 +405,20 @@ It does not take pre-commit parameters as extra arguments.
 
 .. code-block:: bash
 
-     ./breeze static-check-all-files licenses
+     ./breeze static-check licenses
 
 Running Static Code Checks via Scripts from the Host
 ....................................................
 
 You can trigger the static checks from the host environment, without entering the Docker container. To do
-this, run the following scripts (the same is done in the CI builds):
+this, run the following scripts:
 
-* `<scripts/ci/ci_check_license.sh>`_ - checks the licenses.
-* `<scripts/ci/ci_docs.sh>`_ - checks that documentation can be built without warnings.
-* `<scripts/ci/ci_flake8.sh>`_ - runs Flake8 source code style enforcement tool.
-* `<scripts/ci/ci_lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
-* `<scripts/ci/ci_mypy.sh>`_ - runs a check for mypy type annotation consistency.
-* `<scripts/ci/ci_pylint_main.sh>`_ - runs pylint static code checker for main files.
-* `<scripts/ci/ci_pylint_tests.sh>`_ - runs pylint static code checker for tests.
+* `<scripts/ci/docs/ci_docs.sh>`_ - checks that documentation can be built without warnings.
+* `<scripts/ci/static_checks/check_license.sh>`_ - checks the licenses.
+* `<scripts/ci/static_checks/flake8.sh>`_ - runs Flake8 source code style enforcement tool.
+* `<scripts/ci/static_checks/lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
+* `<scripts/ci/static_checks/mypy.sh>`_ - runs a check for mypy type annotation consistency.
+* `<scripts/ci/static_checks/pylint.sh>`_ - runs pylint static code checker.
 
 The scripts may ask you to rebuild the images, if needed.
 
@@ -388,12 +434,11 @@ Running Static Code Checks in the Docker Container
 If you are already in the Breeze Docker environment (by running the ``./breeze`` command),
 you can also run the same static checks via run_scripts:
 
-* Mypy: ``./scripts/ci/in_container/run_mypy.sh airflow tests``
-* Pylint for main files: ``./scripts/ci/in_container/run_pylint_main.sh``
-* Pylint for test files: ``./scripts/ci/in_container/run_pylint_tests.sh``
-* Flake8: ``./scripts/ci/in_container/run_flake8.sh``
-* License check: ``./scripts/ci/in_container/run_check_licence.sh``
-* Documentation: ``./scripts/ci/in_container/run_docs_build.sh``
+* Mypy: ``./scripts/in_container/run_mypy.sh airflow tests``
+* Pylint: ``./scripts/in_container/run_pylint.sh``
+* Flake8: ``./scripts/in_container/run_flake8.sh``
+* License check: ``./scripts/in_container/run_check_licence.sh``
+* Documentation: ``./scripts/in_container/run_docs_build.sh``
 
 Running Static Code Checks for Selected Files
 .............................................
@@ -405,20 +450,20 @@ In the Docker container:
 
 .. code-block::
 
-  ./scripts/ci/in_container/run_pylint.sh ./airflow/example_dags/
+  ./scripts/in_container/run_pylint.sh ./airflow/example_dags/
 
 or
 
 .. code-block::
 
-  ./scripts/ci/in_container/run_pylint.sh ./airflow/example_dags/test_utils.py
+  ./scripts/in_container/run_pylint.sh ./airflow/example_dags/test_utils.py
 
 On the host:
 
 .. code-block::
 
-  ./scripts/ci/ci_pylint.sh ./airflow/example_dags/
+  ./scripts/ci/static_checks/pylint.sh ./airflow/example_dags/
 
 .. code-block::
 
-  ./scripts/ci/ci_pylint.sh ./airflow/example_dags/test_utils.py
+  ./scripts/ci/static_checks/pylint.sh ./airflow/example_dags/test_utils.py

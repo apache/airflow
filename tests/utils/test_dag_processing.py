@@ -51,8 +51,8 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 class FakeDagFileProcessorRunner(DagFileProcessorProcess):
     # This fake processor will return the zombies it received in constructor
     # as its processing result w/o actually parsing anything.
-    def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
-        super().__init__(file_path, pickle_dags, dag_id_white_list, zombies)
+    def __init__(self, file_path, pickle_dags, dag_ids, zombies):
+        super().__init__(file_path, pickle_dags, dag_ids, zombies)
         # We need a "real" selectable handle for waitable_handle to work
         readable, writable = multiprocessing.Pipe(duplex=False)
         writable.send('abc')
@@ -322,30 +322,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
         manager._kill_timed_out_processors()
         mock_dag_file_processor.kill.assert_not_called()
 
-    @mock.patch("airflow.utils.dag_processing.STORE_SERIALIZED_DAGS", True)
-    @mock.patch("airflow.utils.timezone.utcnow", MagicMock(return_value=DEFAULT_DATE))
-    @mock.patch("airflow.models.DAG")
-    @mock.patch("airflow.models.serialized_dag.SerializedDagModel")
-    def test_cleanup_stale_dags_no_serialization(self, sdm_mock, dag_mock):
-        manager = DagFileProcessorManager(
-            dag_directory='directory',
-            max_runs=1,
-            processor_factory=MagicMock().return_value,
-            processor_timeout=timedelta(seconds=50),
-            dag_ids=[],
-            pickle_dags=False,
-            signal_conn=MagicMock(),
-            async_mode=True)
-
-        manager.last_dag_cleanup_time = DEFAULT_DATE - timezone.dt.timedelta(seconds=301)
-        manager._file_process_interval = 30
-        manager._min_serialized_dag_update_interval = 30
-
-        expected_min_last_seen = DEFAULT_DATE - timezone.dt.timedelta(seconds=(50 + 30 + 30))
-        manager._cleanup_stale_dags()
-        dag_mock.deactivate_stale_dags.assert_called_with(expected_min_last_seen)
-        sdm_mock.remove_stale_dags.assert_called_with(expected_min_last_seen)
-
 
 class TestDagFileProcessorAgent(unittest.TestCase):
     def setUp(self):
@@ -406,6 +382,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
             self.assertFalse(os.path.isfile(log_file_loc))
 
+    @conf_vars({('core', 'load_examples'): 'False'})
     def test_parse_once(self):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
@@ -423,7 +400,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         while not processor_agent.done:
             if not async_mode:
                 processor_agent.wait_until_finished()
-            parsing_result.extend(processor_agent.harvest_simple_dags())
+            parsing_result.extend(processor_agent.harvest_serialized_dags())
 
         dag_ids = [result.dag_id for result in parsing_result]
         self.assertEqual(dag_ids.count('test_start_date_scheduling'), 1)

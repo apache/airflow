@@ -25,5 +25,13 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.credential_file(GCP_DATAFLOW_KEY)
 class CloudDataflowExampleDagsSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_DATAFLOW_KEY)
-    def test_run_example_dag_function(self):
-        self.run_dag('example_gcp_dataflow', CLOUD_DAG_FOLDER)
+    def test_run_example_gcp_dataflow_native_java(self):
+        self.run_dag('example_gcp_dataflow_native_java', CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_DATAFLOW_KEY)
+    def test_run_example_gcp_dataflow_native_python(self):
+        self.run_dag('example_gcp_dataflow_native_python', CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_DATAFLOW_KEY)
+    def test_run_example_gcp_dataflow_template(self):
+        self.run_dag('example_gcp_dataflow_template', CLOUD_DAG_FOLDER)

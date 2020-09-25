@@ -20,6 +20,9 @@
 This module contains AWS Athena hook
 """
 from time import sleep
+from typing import Any, Dict, Optional
+
+from botocore.paginate import PageIterator
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -34,20 +37,32 @@ class AWSAthenaHook(AwsBaseHook):
     .. seealso::
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
-    :param sleep_time: Time to wait between two consecutive call to check query status on athena
+    :param sleep_time: Time (in seconds) to wait between two consecutive calls to check query status on Athena
     :type sleep_time: int
     """
 
-    INTERMEDIATE_STATES = ('QUEUED', 'RUNNING',)
-    FAILURE_STATES = ('FAILED', 'CANCELLED',)
+    INTERMEDIATE_STATES = (
+        'QUEUED',
+        'RUNNING',
+    )
+    FAILURE_STATES = (
+        'FAILED',
+        'CANCELLED',
+    )
     SUCCESS_STATES = ('SUCCEEDED',)
 
-    def __init__(self, *args, sleep_time=30, **kwargs):
-        super().__init__(client_type='athena', *args, **kwargs)
+    def __init__(self, *args: Any, sleep_time: int = 30, **kwargs: Any) -> None:
+        super().__init__(client_type='athena', *args, **kwargs)  # type: ignore
         self.sleep_time = sleep_time
 
-    def run_query(self, query, query_context, result_configuration, client_request_token=None,
-                  workgroup='primary'):
+    def run_query(
+        self,
+        query: str,
+        query_context: Dict[str, str],
+        result_configuration: Dict[str, Any],
+        client_request_token: Optional[str] = None,
+        workgroup: str = 'primary',
+    ) -> str:
         """
         Run Presto query on athena with provided config and return submitted query_execution_id
 
@@ -63,15 +78,19 @@ class AWSAthenaHook(AwsBaseHook):
         :type workgroup: str
         :return: str
         """
-        response = self.get_conn().start_query_execution(QueryString=query,
-                                                         ClientRequestToken=client_request_token,
-                                                         QueryExecutionContext=query_context,
-                                                         ResultConfiguration=result_configuration,
-                                                         WorkGroup=workgroup)
+        params = {
+            'QueryString': query,
+            'QueryExecutionContext': query_context,
+            'ResultConfiguration': result_configuration,
+            'WorkGroup': workgroup,
+        }
+        if client_request_token:
+            params['ClientRequestToken'] = client_request_token
+        response = self.get_conn().start_query_execution(**params)
         query_execution_id = response['QueryExecutionId']
         return query_execution_id
 
-    def check_query_status(self, query_execution_id):
+    def check_query_status(self, query_execution_id: str) -> Optional[str]:
         """
         Fetch the status of submitted athena query. Returns None or one of valid query states.
 
@@ -90,7 +109,7 @@ class AWSAthenaHook(AwsBaseHook):
             # The error is being absorbed to implement retries.
             return state  # pylint: disable=lost-exception
 
-    def get_state_change_reason(self, query_execution_id):
+    def get_state_change_reason(self, query_execution_id: str) -> Optional[str]:
         """
         Fetch the reason for a state change (e.g. error message). Returns None or reason string.
 
@@ -109,13 +128,19 @@ class AWSAthenaHook(AwsBaseHook):
             # The error is being absorbed to implement retries.
             return reason  # pylint: disable=lost-exception
 
-    def get_query_results(self, query_execution_id):
+    def get_query_results(
+        self, query_execution_id: str, next_token_id: Optional[str] = None, max_results: int = 1000
+    ) -> Optional[dict]:
         """
         Fetch submitted athena query results. returns none if query is in intermediate state or
         failed/cancelled state else dict of query output
 
         :param query_execution_id: Id of submitted athena query
         :type query_execution_id: str
+        :param next_token_id:  The token that specifies where to start pagination.
+        :type next_token_id: str
+        :param max_results: The maximum number of results (rows) to return in this request.
+        :type max_results: int
         :return: dict
         """
         query_state = self.check_query_status(query_execution_id)
@@ -125,9 +150,52 @@ class AWSAthenaHook(AwsBaseHook):
         elif query_state in self.INTERMEDIATE_STATES or query_state in self.FAILURE_STATES:
             self.log.error('Query is in "%s" state. Cannot fetch results', query_state)
             return None
-        return self.get_conn().get_query_results(QueryExecutionId=query_execution_id)
+        result_params = {'QueryExecutionId': query_execution_id, 'MaxResults': max_results}
+        if next_token_id:
+            result_params['NextToken'] = next_token_id
+        return self.get_conn().get_query_results(**result_params)
 
-    def poll_query_status(self, query_execution_id, max_tries=None):
+    def get_query_results_paginator(
+        self,
+        query_execution_id: str,
+        max_items: Optional[int] = None,
+        page_size: Optional[int] = None,
+        starting_token: Optional[str] = None,
+    ) -> Optional[PageIterator]:
+        """
+        Fetch submitted athena query results. returns none if query is in intermediate state or
+        failed/cancelled state else a paginator to iterate through pages of results. If you
+        wish to get all results at once, call build_full_result() on the returned PageIterator
+
+        :param query_execution_id: Id of submitted athena query
+        :type query_execution_id: str
+        :param max_items: The total number of items to return.
+        :type max_items: int
+        :param page_size: The size of each page.
+        :type page_size: int
+        :param starting_token: A token to specify where to start paginating.
+        :type starting_token: str
+        :return: PageIterator
+        """
+        query_state = self.check_query_status(query_execution_id)
+        if query_state is None:
+            self.log.error('Invalid Query state (null)')
+            return None
+        if query_state in self.INTERMEDIATE_STATES or query_state in self.FAILURE_STATES:
+            self.log.error('Query is in "%s" state. Cannot fetch results', query_state)
+            return None
+        result_params = {
+            'QueryExecutionId': query_execution_id,
+            'PaginationConfig': {
+                'MaxItems': max_items,
+                'PageSize': page_size,
+                'StartingToken': starting_token,
+            },
+        }
+        paginator = self.get_conn().get_paginator('get_query_results')
+        return paginator.paginate(**result_params)
+
+    def poll_query_status(self, query_execution_id: str, max_tries: Optional[int] = None) -> Optional[str]:
         """
         Poll the status of submitted athena query until query state reaches final state.
         Returns one of the final states
@@ -161,7 +229,7 @@ class AWSAthenaHook(AwsBaseHook):
             sleep(self.sleep_time)
         return final_query_state
 
-    def stop_query(self, query_execution_id):
+    def stop_query(self, query_execution_id: str) -> Dict:
         """
         Cancel the submitted athena query
 

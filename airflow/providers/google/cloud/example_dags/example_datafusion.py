@@ -22,28 +22,32 @@ Example Airflow DAG that shows how to use DataFusion.
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.datafusion import (
-    CloudDataFusionCreateInstanceOperator, CloudDataFusionCreatePipelineOperator,
-    CloudDataFusionDeleteInstanceOperator, CloudDataFusionDeletePipelineOperator,
-    CloudDataFusionGetInstanceOperator, CloudDataFusionListPipelinesOperator,
-    CloudDataFusionRestartInstanceOperator, CloudDataFusionStartPipelineOperator,
-    CloudDataFusionStopPipelineOperator, CloudDataFusionUpdateInstanceOperator,
+    CloudDataFusionCreateInstanceOperator,
+    CloudDataFusionCreatePipelineOperator,
+    CloudDataFusionDeleteInstanceOperator,
+    CloudDataFusionDeletePipelineOperator,
+    CloudDataFusionGetInstanceOperator,
+    CloudDataFusionListPipelinesOperator,
+    CloudDataFusionRestartInstanceOperator,
+    CloudDataFusionStartPipelineOperator,
+    CloudDataFusionStopPipelineOperator,
+    CloudDataFusionUpdateInstanceOperator,
 )
 from airflow.utils import dates
+from airflow.utils.state import State
 
 # [START howto_data_fusion_env_variables]
 LOCATION = "europe-north1"
 INSTANCE_NAME = "airflow-test-instance"
 INSTANCE = {"type": "BASIC", "displayName": INSTANCE_NAME}
+
+BUCKET1 = "gs://test-bucket--2h83r23r"
+BUCKET2 = "gs://test-bucket--2d23h83r23r"
 PIPELINE_NAME = "airflow_test"
 PIPELINE = {
-    "artifact": {
-        "name": "cdap-data-pipeline",
-        "version": "6.1.1",
-        "scope": "SYSTEM",
-        "label": "Data Pipeline - Batch",
-    },
-    "description": "",
-    "name": "esdfsd",
+    "name": "test-pipe",
+    "description": "Data Pipeline Application",
+    "artifact": {"name": "cdap-data-pipeline", "version": "6.1.2", "scope": "SYSTEM"},
     "config": {
         "resources": {"memoryMB": 2048, "virtualCores": 1},
         "driverResources": {"memoryMB": 2048, "virtualCores": 1},
@@ -62,23 +66,30 @@ PIPELINE = {
                     "label": "GCS",
                     "artifact": {
                         "name": "google-cloud",
-                        "version": "0.13.2",
+                        "version": "0.14.2",
                         "scope": "SYSTEM",
                     },
                     "properties": {
                         "project": "auto-detect",
                         "format": "text",
+                        "skipHeader": "false",
                         "serviceFilePath": "auto-detect",
                         "filenameOnly": "false",
                         "recursive": "false",
+                        "encrypted": "false",
                         "schema": '{"type":"record","name":"etlSchemaBody","fields":'
-                                  '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
-                        "referenceName": "dfgdf",
-                        "path": "gs://testawoo",
+                        '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
+                        "path": BUCKET1,
+                        "referenceName": "foo_bucket",
                     },
                 },
-                "outputSchema": '{"type":"record","name":"etlSchemaBody","fields":'
-                                '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": '{"type":"record","name":"etlSchemaBody","fields":'
+                        '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
+                    }
+                ],
             },
             {
                 "name": "GCS2",
@@ -88,7 +99,7 @@ PIPELINE = {
                     "label": "GCS2",
                     "artifact": {
                         "name": "google-cloud",
-                        "version": "0.13.2",
+                        "version": "0.14.2",
                         "scope": "SYSTEM",
                     },
                     "properties": {
@@ -98,18 +109,23 @@ PIPELINE = {
                         "serviceFilePath": "auto-detect",
                         "location": "us",
                         "schema": '{"type":"record","name":"etlSchemaBody","fields":'
-                                  '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
-                        "referenceName": "sdgfdgd",
-                        "path": "gs://testawoo2",
+                        '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
+                        "referenceName": "bar",
+                        "path": BUCKET2,
                     },
                 },
-                "outputSchema": '{"type":"record","name":"etlSchemaBody","fields":'
-                                '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": '{"type":"record","name":"etlSchemaBody","fields":'
+                        '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
+                    }
+                ],
                 "inputSchema": [
                     {
                         "name": "GCS",
                         "schema": '{"type":"record","name":"etlSchemaBody","fields":'
-                                  '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
+                        '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
                     }
                 ],
             },
@@ -122,12 +138,11 @@ PIPELINE = {
 }
 # [END howto_data_fusion_env_variables]
 
-default_args = {"start_date": dates.days_ago(1)}
 
 with models.DAG(
     "example_data_fusion",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_cloud_data_fusion_create_instance_operator]
     create_instance = CloudDataFusionCreateInstanceOperator(
@@ -210,15 +225,12 @@ with models.DAG(
     # [END howto_cloud_data_fusion_delete_instance_operator]
 
     # Add sleep before creating pipeline
-    sleep = BashOperator(
-        task_id="sleep",
-        bash_command="sleep 60"
-    )
+    sleep = BashOperator(task_id="sleep", bash_command="sleep 60")
 
     create_instance >> get_instance >> restart_instance >> update_instance >> sleep
     sleep >> create_pipeline >> list_pipelines >> start_pipeline >> stop_pipeline >> delete_pipeline
     delete_pipeline >> delete_instance
 
 if __name__ == "__main__":
-    dag.clear(reset_dag_runs=True)
+    dag.clear(dag_run_state=State.NONE)
     dag.run()

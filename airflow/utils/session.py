@@ -17,6 +17,7 @@
 
 import contextlib
 from functools import wraps
+from typing import Callable, TypeVar
 
 from airflow import settings
 
@@ -37,7 +38,10 @@ def create_session():
         session.close()
 
 
-def provide_session(func):
+RT = TypeVar("RT")  # pylint: disable=invalid-name
+
+
+def provide_session(func: Callable[..., RT]) -> Callable[..., RT]:
     """
     Function decorator that provides a session if it isn't provided.
     If you want to reuse a session or run the function as part of a
@@ -45,7 +49,7 @@ def provide_session(func):
     will create one and close it for you.
     """
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs) -> RT:
         arg_session = 'session'
 
         func_params = func.__code__.co_varnames

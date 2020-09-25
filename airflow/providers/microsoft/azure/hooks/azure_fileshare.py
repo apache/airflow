@@ -43,8 +43,7 @@ class AzureFileShareHook(BaseHook):
         if not self._conn:
             conn = self.get_connection(self.conn_id)
             service_options = conn.extra_dejson
-            self._conn = FileService(account_name=conn.login,
-                                     account_key=conn.password, **service_options)
+            self._conn = FileService(account_name=conn.login, account_key=conn.password, **service_options)
         return self._conn
 
     def check_for_directory(self, share_name, directory_name, **kwargs):
@@ -61,8 +60,7 @@ class AzureFileShareHook(BaseHook):
         :return: True if the file exists, False otherwise.
         :rtype: bool
         """
-        return self.get_conn().exists(share_name, directory_name,
-                                      **kwargs)
+        return self.get_conn().exists(share_name, directory_name, **kwargs)
 
     def check_for_file(self, share_name, directory_name, file_name, **kwargs):
         """
@@ -80,8 +78,7 @@ class AzureFileShareHook(BaseHook):
         :return: True if the file exists, False otherwise.
         :rtype: bool
         """
-        return self.get_conn().exists(share_name, directory_name,
-                                      file_name, **kwargs)
+        return self.get_conn().exists(share_name, directory_name, file_name, **kwargs)
 
     def list_directories_and_files(self, share_name, directory_name=None, **kwargs):
         """
@@ -97,9 +94,7 @@ class AzureFileShareHook(BaseHook):
         :return: A list of files and directories
         :rtype: list
         """
-        return self.get_conn().list_directories_and_files(share_name,
-                                                          directory_name,
-                                                          **kwargs)
+        return self.get_conn().list_directories_and_files(share_name, directory_name, **kwargs)
 
     def create_directory(self, share_name, directory_name, **kwargs):
         """
@@ -133,8 +128,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.get_file_to_path()` takes.
         :type kwargs: object
         """
-        self.get_conn().get_file_to_path(share_name, directory_name,
-                                         file_name, file_path, **kwargs)
+        self.get_conn().get_file_to_path(share_name, directory_name, file_name, file_path, **kwargs)
 
     def get_file_to_stream(self, stream, share_name, directory_name, file_name, **kwargs):
         """
@@ -152,8 +146,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.get_file_to_stream()` takes.
         :type kwargs: object
         """
-        self.get_conn().get_file_to_stream(share_name, directory_name,
-                                           file_name, stream, **kwargs)
+        self.get_conn().get_file_to_stream(share_name, directory_name, file_name, stream, **kwargs)
 
     def load_file(self, file_path, share_name, directory_name, file_name, **kwargs):
         """
@@ -171,8 +164,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.create_file_from_path()` takes.
         :type kwargs: object
         """
-        self.get_conn().create_file_from_path(share_name, directory_name,
-                                              file_name, file_path, **kwargs)
+        self.get_conn().create_file_from_path(share_name, directory_name, file_name, file_path, **kwargs)
 
     def load_string(self, string_data, share_name, directory_name, file_name, **kwargs):
         """
@@ -190,8 +182,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.create_file_from_text()` takes.
         :type kwargs: object
         """
-        self.get_conn().create_file_from_text(share_name, directory_name,
-                                              file_name, string_data, **kwargs)
+        self.get_conn().create_file_from_text(share_name, directory_name, file_name, string_data, **kwargs)
 
     def load_stream(self, stream, share_name, directory_name, file_name, count, **kwargs):
         """
@@ -211,5 +202,6 @@ class AzureFileShareHook(BaseHook):
             `FileService.create_file_from_stream()` takes.
         :type kwargs: object
         """
-        self.get_conn().create_file_from_stream(share_name, directory_name,
-                                                file_name, stream, count, **kwargs)
+        self.get_conn().create_file_from_stream(
+            share_name, directory_name, file_name, stream, count, **kwargs
+        )

@@ -28,6 +28,7 @@ class OracleHook(DbApiHook):
     """
     Interact with Oracle SQL.
     """
+
     conn_name_attr = 'oracle_conn_id'
     default_conn_name = 'oracle_default'
     supports_autocommit = False
@@ -52,10 +53,7 @@ class OracleHook(DbApiHook):
         `cx_Oracle.connect <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_
         """
         conn = self.get_connection(self.oracle_conn_id)  # pylint: disable=no-member
-        conn_config = {
-            'user': conn.login,
-            'password': conn.password
-        }
+        conn_config = {'user': conn.login, 'password': conn.password}
         dsn = conn.extra_dejson.get('dsn', None)
         sid = conn.extra_dejson.get('sid', None)
         mod = conn.extra_dejson.get('module', None)
@@ -155,22 +153,20 @@ class OracleHook(DbApiHook):
                     lst.append("'" + str(cell).replace("'", "''") + "'")
                 elif cell is None:
                     lst.append('NULL')
-                elif isinstance(cell, float) and \
-                        numpy.isnan(cell):  # coerce numpy NaN to NULL
+                elif isinstance(cell, float) and numpy.isnan(cell):  # coerce numpy NaN to NULL
                     lst.append('NULL')
                 elif isinstance(cell, numpy.datetime64):
                     lst.append("'" + str(cell) + "'")
                 elif isinstance(cell, datetime):
-                    lst.append("to_date('" +
-                               cell.strftime('%Y-%m-%d %H:%M:%S') +
-                               "','YYYY-MM-DD HH24:MI:SS')")
+                    lst.append(
+                        "to_date('" + cell.strftime('%Y-%m-%d %H:%M:%S') + "','YYYY-MM-DD HH24:MI:SS')"
+                    )
                 else:
                     lst.append(str(cell))
             values = tuple(lst)
-            sql = 'INSERT /*+ APPEND */ ' \
-                  'INTO {0} {1} VALUES ({2})'.format(table,
-                                                     target_fields,
-                                                     ','.join(values))
+            sql = 'INSERT /*+ APPEND */ ' 'INTO {0} {1} VALUES ({2})'.format(
+                table, target_fields, ','.join(values)
+            )
             cur.execute(sql)
             if i % commit_every == 0:
                 conn.commit()

@@ -90,9 +90,9 @@ class OdbcHook(DbApiHook):
         Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object.
         """
         return (
-            self._sqlalchemy_scheme or
-            self.connection_extra_lower.get('sqlalchemy_scheme') or
-            self.DEFAULT_SQLALCHEMY_SCHEME
+            self._sqlalchemy_scheme
+            or self.connection_extra_lower.get('sqlalchemy_scheme')
+            or self.DEFAULT_SQLALCHEMY_SCHEME
         )
 
     @property
@@ -154,9 +154,7 @@ class OdbcHook(DbApiHook):
 
             extra_exclude = {'driver', 'dsn', 'connect_kwargs', 'sqlalchemy_scheme'}
             extra_params = {
-                k: v
-                for k, v in self.connection.extra_dejson.items()
-                if not k.lower() in extra_exclude
+                k: v for k, v in self.connection.extra_dejson.items() if not k.lower() in extra_exclude
             }
             for k, v in extra_params.items():
                 conn_str += f"{k}={v};"

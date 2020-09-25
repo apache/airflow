@@ -19,7 +19,7 @@
 The module which provides a way to nest your DAGs and so your levels of complexity.
 """
 from enum import Enum
-from typing import Optional
+from typing import Dict, Optional
 
 from sqlalchemy.orm.session import Session
 
@@ -33,12 +33,14 @@ from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 
 class SkippedStatePropagationOptions(Enum):
     """
     Available options for skipped state propagation of subdag's tasks to parent dag tasks.
     """
+
     ALL_LEAVES = 'all_leaves'
     ANY_LEAF = 'any_leaf'
 
@@ -54,6 +56,8 @@ class SubDagOperator(BaseSensorOperator):
 
     :param subdag: the DAG object to run as a subdag of the current DAG.
     :param session: sqlalchemy session
+    :param conf: Configuration for the subdag
+    :type conf: dict
     :param propagate_skipped_state: by setting this argument you can define
         whether the skipped state of leaf task(s) should be propagated to the parent dag's downstream task.
     """
@@ -64,12 +68,15 @@ class SubDagOperator(BaseSensorOperator):
     @provide_session
     @apply_defaults
     def __init__(self,
+                 *,
                  subdag: DAG,
                  session: Optional[Session] = None,
+                 conf: Optional[Dict] = None,
                  propagate_skipped_state: Optional[SkippedStatePropagationOptions] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.subdag = subdag
+        self.conf = conf
         self.propagate_skipped_state = propagate_skipped_state
 
         self._validate_dag(kwargs)
@@ -146,9 +153,10 @@ class SubDagOperator(BaseSensorOperator):
 
         if dag_run is None:
             dag_run = self.subdag.create_dagrun(
-                run_id="scheduled__{}".format(execution_date.isoformat()),
+                run_type=DagRunType.SCHEDULED,
                 execution_date=execution_date,
                 state=State.RUNNING,
+                conf=self.conf,
                 external_trigger=True,
             )
             self.log.info("Created DagRun: %s", dag_run.run_id)

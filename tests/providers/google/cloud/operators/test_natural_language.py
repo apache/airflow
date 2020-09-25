@@ -19,14 +19,19 @@
 import unittest
 
 from google.cloud.language_v1.proto.language_service_pb2 import (
-    AnalyzeEntitiesResponse, AnalyzeEntitySentimentResponse, AnalyzeSentimentResponse, ClassifyTextResponse,
+    AnalyzeEntitiesResponse,
+    AnalyzeEntitySentimentResponse,
+    AnalyzeSentimentResponse,
+    ClassifyTextResponse,
     Document,
 )
 from mock import patch
 
 from airflow.providers.google.cloud.operators.natural_language import (
-    CloudNaturalLanguageAnalyzeEntitiesOperator, CloudNaturalLanguageAnalyzeEntitySentimentOperator,
-    CloudNaturalLanguageAnalyzeSentimentOperator, CloudNaturalLanguageClassifyTextOperator,
+    CloudNaturalLanguageAnalyzeEntitiesOperator,
+    CloudNaturalLanguageAnalyzeEntitySentimentOperator,
+    CloudNaturalLanguageAnalyzeSentimentOperator,
+    CloudNaturalLanguageClassifyTextOperator,
 )
 
 DOCUMENT = Document(
