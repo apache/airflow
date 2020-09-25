@@ -2560,11 +2560,13 @@ class TestSchedulerJob(unittest.TestCase):
             dag_id='test_scheduler_verify_pool_full',
             start_date=DEFAULT_DATE)
 
-        DummyOperator(
+        BashOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow',
-            pool='test_scheduler_verify_pool_full')
+            pool='test_scheduler_verify_pool_full',
+            bash_command='echo hi',
+        )
 
         dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"),
                         include_examples=False,
@@ -2609,12 +2611,13 @@ class TestSchedulerJob(unittest.TestCase):
             dag_id='test_scheduler_verify_pool_full_2_slots_per_task',
             start_date=DEFAULT_DATE)
 
-        DummyOperator(
+        BashOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow',
             pool='test_scheduler_verify_pool_full_2_slots_per_task',
             pool_slots=2,
+            bash_command='echo hi',
         )
 
         dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"),
@@ -2660,31 +2663,34 @@ class TestSchedulerJob(unittest.TestCase):
             start_date=DEFAULT_DATE)
 
         # Medium priority, not enough slots
-        DummyOperator(
+        BashOperator(
             task_id='test_scheduler_verify_priority_and_slots_t0',
             dag=dag,
             owner='airflow',
             pool='test_scheduler_verify_priority_and_slots',
             pool_slots=2,
             priority_weight=2,
+            bash_command='echo hi',
         )
         # High priority, occupies first slot
-        DummyOperator(
+        BashOperator(
             task_id='test_scheduler_verify_priority_and_slots_t1',
             dag=dag,
             owner='airflow',
             pool='test_scheduler_verify_priority_and_slots',
             pool_slots=1,
             priority_weight=3,
+            bash_command='echo hi',
         )
         # Low priority, occupies second slot
-        DummyOperator(
+        BashOperator(
             task_id='test_scheduler_verify_priority_and_slots_t2',
             dag=dag,
             owner='airflow',
             pool='test_scheduler_verify_priority_and_slots',
             pool_slots=1,
             priority_weight=1,
+            bash_command='echo hi',
         )
 
         dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"),
@@ -2727,8 +2733,14 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(ti2.state, State.QUEUED)
 
     def test_verify_integrity_if_dag_not_changed(self):
+        # CleanUp
+        with create_session() as session:
+            session.query(SerializedDagModel).filter(
+                SerializedDagModel.dag_id == 'test_verify_integrity_if_dag_not_changed'
+            ).delete(synchronize_session=False)
+
         dag = DAG(dag_id='test_verify_integrity_if_dag_not_changed', start_date=DEFAULT_DATE)
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo hi')
 
         scheduler = SchedulerJob()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
@@ -2769,8 +2781,14 @@ class TestSchedulerJob(unittest.TestCase):
         session.close()
 
     def test_verify_integrity_if_dag_changed(self):
+        # CleanUp
+        with create_session() as session:
+            session.query(SerializedDagModel).filter(
+                SerializedDagModel.dag_id == 'test_verify_integrity_if_dag_changed'
+            ).delete(synchronize_session=False)
+
         dag = DAG(dag_id='test_verify_integrity_if_dag_changed', start_date=DEFAULT_DATE)
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+        BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo hi')
 
         scheduler = SchedulerJob()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
