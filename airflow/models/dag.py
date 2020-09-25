@@ -1666,6 +1666,7 @@ class DAG(BaseDag, LoggingMixin):
             dag_hash=dag_hash
         )
         session.add(run)
+        session.flush()
 
         run.dag = self
 
