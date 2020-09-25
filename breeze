@@ -1025,7 +1025,7 @@ function breeze::parse_arguments() {
             shift 2
             ;;
         --load-example-dags)
-            export LOAD_EXAMPLE_DAGS="True"
+            export LOAD_EXAMPLES="True"
             echo "Include Airflow sample dags"
             echo
             shift
@@ -1177,7 +1177,7 @@ function breeze::parse_arguments() {
             last_subcommand="${1}"
             export START_AIRFLOW="true"
             export LOAD_DEFAULT_CONNECTIONS="false"
-            export LOAD_EXAMPLE_DAGS="false"
+            export LOAD_EXAMPLES="false"
             shift
             ;;
         stop)
