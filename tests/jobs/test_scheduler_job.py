@@ -2278,6 +2278,8 @@ class TestSchedulerJob(unittest.TestCase):
             self.null_exec.mock_task_fail(dag_id, tid, ex_date)
 
         try:
+            dag = DagBag().get_dag(dag.dag_id)
+            assert not isinstance(dag, SerializedDAG)
             # This needs a _REAL_ dag, not the serialized version
             dag.run(start_date=ex_date, end_date=ex_date, executor=self.null_exec, **run_kwargs)
         except AirflowException:
