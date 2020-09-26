@@ -52,7 +52,7 @@ class SnowflakeHook(DbApiHook):
         One method to fetch connection params as a dict
         used in get_uri() and get_connection()
         """
-        conn = self.get_connection(self.snowflake_conn_id)  # pylint: disable=no-member
+        conn = self.get_connection(self.snowflake_conn_id)  # type: ignore # pylint: disable=no-member
         account = conn.extra_dejson.get('account', '')
         warehouse = conn.extra_dejson.get('warehouse', '')
         database = conn.extra_dejson.get('database', '')
@@ -126,8 +126,10 @@ class SnowflakeHook(DbApiHook):
 
         intended to be used by external import and export statements
         """
-        if self.snowflake_conn_id:  # pylint: disable=no-member
-            connection_object = self.get_connection(self.snowflake_conn_id)  # pylint: disable=no-member
+        if self.snowflake_conn_id:  # type: ignore  # pylint: disable=no-member
+            connection_object = self.get_connection(
+                self.snowflake_conn_id  # type: ignore  # pylint: disable=no-member
+            )
             if 'aws_secret_access_key' in connection_object.extra_dejson:
                 aws_access_key_id = connection_object.extra_dejson.get('aws_access_key_id')
                 aws_secret_access_key = connection_object.extra_dejson.get('aws_secret_access_key')
