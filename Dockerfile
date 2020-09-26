@@ -162,11 +162,16 @@ ENV AIRFLOW_CONSTRAINTS_URL=${AIRFLOW_CONSTRAINTS_URL}
 ENV PATH=${PATH}:/root/.local/bin
 RUN mkdir -p /root/.local/bin
 
+ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
+ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
+
 # In case of Production build image segment we want to pre-install master version of airflow
 # dependencies from github so that we do not have to always reinstall it from the scratch.
-RUN pip install --user \
-    "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-        --constraint "${AIRFLOW_CONSTRAINTS_URL}" && pip uninstall --yes apache-airflow;
+RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
+        pip install --user \
+            "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
+                --constraint "${AIRFLOW_CONSTRAINTS_URL}" && pip uninstall --yes apache-airflow; \
+    fi
 
 ARG AIRFLOW_SOURCES_FROM="."
 ENV AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}

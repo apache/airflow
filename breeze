@@ -900,6 +900,13 @@ function breeze::parse_arguments() {
             # if not set here, docker cached is determined later, depending on type of image to be build
             shift
             ;;
+        -B | --disable-pip-cache)
+            echo "Disable PIP cache during build"
+            echo
+            export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+            shift
+            ;;
+
         -P | --force-pull-images)
             echo "Force pulling images before build. Uses pulled images as cache."
             echo
@@ -2184,6 +2191,9 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 
 --additional-runtime-deps
         Additional apt runtime dependencies to use when building the images.
+
+--disable-pip-cache
+        Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
 
 -C, --force-clean-images
         Force build images with cache disabled. This will remove the pulled or build images

@@ -317,7 +317,8 @@ function initialization::initialize_image_build_variables() {
     export ADDITIONAL_DEV_DEPS="${ADDITIONAL_DEV_DEPS:=""}"
     # additional runtime apt dependencies on top of the default ones
     export ADDITIONAL_RUNTIME_DEPS="${ADDITIONAL_RUNTIME_DEPS:=""}"
-
+    # whether pre cached pip packages are used during build
+    export AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES:="true"}"
 }
 
 # Determine version suffixes used to build backport packages
@@ -630,6 +631,7 @@ function initialization::make_constants_read_only() {
     readonly ADDITIONAL_PYTHON_DEPS
     readonly ADDITIONAL_DEV_DEPS
     readonly ADDITIONAL_RUNTIME_DEPS
+    readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
 
     readonly DOCKERHUB_USER
     readonly DOCKERHUB_REPO
