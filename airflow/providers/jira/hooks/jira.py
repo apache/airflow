@@ -69,7 +69,7 @@ class JiraHook(BaseHook):
 
             try:
                 self.client = JIRA(
-                    conn.host,
+                    conn.get_uri(),
                     options=extra_options,
                     basic_auth=(conn.login, conn.password),
                     get_server_info=get_server_info,
