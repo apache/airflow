@@ -216,9 +216,7 @@ function initialization::initialize_mount_variables() {
         verbosity::print_info
         verbosity::print_info "Mounting files folder to Docker"
         verbosity::print_info
-        EXTRA_DOCKER_FLAGS+=(
-            "-v" "${AIRFLOW_SOURCES}/files:/files"
-        )
+        EXTRA_DOCKER_FLAGS+=("-v" "${AIRFLOW_SOURCES}/files:/files")
     fi
 
     EXTRA_DOCKER_FLAGS+=(
@@ -322,6 +320,8 @@ function initialization::initialize_image_build_variables() {
     export ADDITIONAL_RUNTIME_DEPS="${ADDITIONAL_RUNTIME_DEPS:=""}"
     # whether pre cached pip packages are used during build
     export AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES:="true"}"
+    # by default install mysql client
+    export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
 }
 
 # Determine version suffixes used to build backport packages

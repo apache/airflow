@@ -955,6 +955,11 @@ function breeze::parse_arguments() {
             echo "Additional apt runtime dependencies: ${ADDITIONAL_RUNTIME_DEPS}"
             shift 2
             ;;
+        --disable-mysql-client-installation)
+            export INSTALL_MYSQL_CLIENT="false"
+            echo "Install MySQL client: ${INSTALL_MYSQL_CLIENT}"
+            shift
+            ;;
         -D | --dockerhub-user)
             export DOCKERHUB_USER="${2}"
             echo "Dockerhub user ${DOCKERHUB_USER}"
@@ -2223,6 +2228,10 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 
 --disable-pip-cache
         Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
+--disable-mysql-client-installation
+        Disables installation of the mysql client which might be problematic if you are building
+        image in controlled environment. Only valid for production image.
 
 -C, --force-clean-images
         Force build images with cache disabled. This will remove the pulled or build images
