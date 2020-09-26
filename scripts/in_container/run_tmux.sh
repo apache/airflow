@@ -31,7 +31,7 @@ if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
     export TMUX_SESSION="Airflow"
 
     # Start New Session with our name
-    tmux new-session -d -s $TMUX_SESSION
+    tmux new-session -d -s "${TMUX_SESSION}"
 
     # Name first Pane and start bash
     tmux rename-window -t 0 'Main'
@@ -49,5 +49,5 @@ if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
     tmux select-pane -t 0
     tmux send-keys 'cd /opt/airflow/' C-m 'clear' C-m
 
-    tmux attach-session -t $TMUX_SESSION:0
+    tmux attach-session -t "${TMUX_SESSION}":0
 fi

@@ -22,4 +22,4 @@ tmux send-keys C-c C-m 'exit' C-m
 tmux select-pane -t 1
 tmux send-keys C-c C-m 'exit' C-m
 
-tmux kill-session -t $TMUX_SESSION
+tmux kill-session -t "${TMUX_SESSION}"
