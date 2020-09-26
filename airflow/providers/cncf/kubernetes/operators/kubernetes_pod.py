@@ -16,11 +16,11 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 import re
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple, Any
 
 import yaml
-from kubernetes.client import models as k8s
 from kubernetes.client import CoreV1Api
+from kubernetes.client import models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
@@ -185,7 +185,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
                  termination_grace_period: Optional[int] = None,
-                 **kwargs):
+                 **kwargs) -> None:
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(resources=None, **kwargs)
@@ -297,7 +297,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
-    def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod_list):
+    def handle_pod_overlap(
+        self, labels: dict, try_numbers_match: bool, launcher: Any, pod_list: Any
+    ) -> Tuple[State, Optional[str]]:
         """
 
         In cases where the Scheduler restarts while a KubernetesPodOperator task is running,
@@ -327,12 +329,12 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         return final_state, result
 
     @staticmethod
-    def _get_pod_identifying_label_string(labels):
+    def _get_pod_identifying_label_string(labels) -> str:
         filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != 'try_number'}
         return ','.join([label_id + '=' + label for label_id, label in sorted(filtered_labels.items())])
 
     @staticmethod
-    def _try_numbers_match(context, pod):
+    def _try_numbers_match(context, pod) -> bool:
         return pod.metadata.labels['try_number'] == context['ti'].try_number
 
     def _set_name(self, name):

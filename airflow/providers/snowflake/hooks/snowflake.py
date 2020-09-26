@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Dict, Optional, Tuple, Any
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
 # pylint: disable=no-name-in-module
 from snowflake import connector
+from snowflake.connector import SnowflakeConnection
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -35,7 +37,7 @@ class SnowflakeHook(DbApiHook):
     default_conn_name = 'snowflake_default'
     supports_autocommit = True
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.account = kwargs.pop("account", None)
         self.warehouse = kwargs.pop("warehouse", None)
@@ -45,7 +47,7 @@ class SnowflakeHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
 
-    def _get_conn_params(self):
+    def _get_conn_params(self) -> Dict[str, Optional[str]]:
         """
         One method to fetch connection params as a dict
         used in get_uri() and get_connection()
@@ -98,7 +100,7 @@ class SnowflakeHook(DbApiHook):
 
         return conn_config
 
-    def get_uri(self):
+    def get_uri(self) -> str:
         """
         Override DbApiHook get_uri method for get_sqlalchemy_engine()
         """
@@ -109,7 +111,7 @@ class SnowflakeHook(DbApiHook):
         )
         return uri.format(**conn_config)
 
-    def get_conn(self):
+    def get_conn(self) -> SnowflakeConnection:
         """
         Returns a snowflake.connection object
         """
@@ -117,7 +119,7 @@ class SnowflakeHook(DbApiHook):
         conn = connector.connect(**conn_config)
         return conn
 
-    def _get_aws_credentials(self):
+    def _get_aws_credentials(self) -> Tuple[Optional[Any], Optional[Any]]:
         """
         Returns aws_access_key_id, aws_secret_access_key
         from extra
@@ -131,5 +133,5 @@ class SnowflakeHook(DbApiHook):
                 aws_secret_access_key = connection_object.extra_dejson.get('aws_secret_access_key')
         return aws_access_key_id, aws_secret_access_key
 
-    def set_autocommit(self, conn, autocommit):
+    def set_autocommit(self, conn, autocommit: Any) -> None:
         conn.autocommit(autocommit)
