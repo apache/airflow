@@ -17,7 +17,7 @@
 # under the License.
 if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
 
-    ln -s ${IN_CONTAINER_DIR}/stop_tmux_airflow.sh stop_airflow.sh
+    ln -s "${IN_CONTAINER_DIR}/stop_tmux_airflow.sh" stop_airflow.sh
 
     export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
     export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
