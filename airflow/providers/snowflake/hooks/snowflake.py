@@ -52,7 +52,9 @@ class SnowflakeHook(DbApiHook):
         One method to fetch connection params as a dict
         used in get_uri() and get_connection()
         """
-        conn = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined] # pylint: disable=no-member
+        conn = self.get_connection(
+            self.snowflake_conn_id  # type: ignore[attr-defined] # pylint: disable=no-member
+        )
         account = conn.extra_dejson.get('account', '')
         warehouse = conn.extra_dejson.get('warehouse', '')
         database = conn.extra_dejson.get('database', '')
