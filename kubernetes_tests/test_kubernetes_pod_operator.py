@@ -727,6 +727,24 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertDictEqual(result, {"hello": "world"})
 
+    def test_pod_template_file_with_overrides_system(self):
+        fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'
+        k = KubernetesPodOperator(
+            task_id="task" + self.get_current_task_name(),
+            labels={"foo": "bar", "fizz": "buzz"},
+            env_vars=[k8s.V1EnvVar(name="env_name", value="value")],
+            in_cluster=False,
+            pod_template_file=fixture,
+            do_xcom_push=True
+        )
+
+        context = create_context(k)
+        result = k.execute(context)
+        self.assertIsNotNone(result)
+        self.assertEqual(k.pod.metadata.labels, {'fizz': 'buzz', 'foo': 'bar'})
+        self.assertEqual(k.pod.spec.containers[0].env, [k8s.V1EnvVar(name="env_name", value="value")])
+        self.assertDictEqual(result, {"hello": "world"})
+
     def test_init_container(self):
         # GIVEN
         volume_mounts = [k8s.V1VolumeMount(
