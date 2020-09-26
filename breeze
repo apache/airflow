@@ -945,14 +945,54 @@ function breeze::parse_arguments() {
             echo "Additional python dependencies: ${ADDITIONAL_PYTHON_DEPS}"
             shift 2
             ;;
-        --additional-dev-deps)
-            export ADDITIONAL_DEV_DEPS="${2}"
-            echo "Additional apt dev dependencies: ${ADDITIONAL_DEV_DEPS}"
+        --dev-apt-deps)
+            export DEV_APT_DEPS="${2}"
+            echo "Apt dev dependencies: ${DEV_APT_DEPS}"
             shift 2
             ;;
-        --additional-runtime-deps)
-            export ADDITIONAL_RUNTIME_DEPS="${2}"
-            echo "Additional apt runtime dependencies: ${ADDITIONAL_RUNTIME_DEPS}"
+        --additional-dev-apt-deps)
+            export ADDITIONAL_DEV_APT_DEPS="${2}"
+            echo "Additional apt dev dependencies: ${ADDITIONAL_DEV_APT_DEPS}"
+            shift 2
+            ;;
+        --dev-apt-commad)
+            export DEV_APT_COMMAND="${2}"
+            echo "Apt dev command: ${DEV_APT_COMMAND}"
+            shift 2
+            ;;
+        --additional-dev-apt-command)
+            export ADDITIONAL_DEV_APT_COMMAND="${2}"
+            echo "Additional Apt dev command: ${ADDITIONAL_DEV_APT_COMMAND}"
+            shift 2
+            ;;
+        --additional-dev-apt-env)
+            export ADDITIONAL_DEV_APT_ENV="${2}"
+            echo "Additional Apt dev environment variables: ${ADDITIONAL_DEV_APT_ENV}"
+            shift 2
+            ;;
+        --runtime-apt-deps)
+            export RUNTIME_APT_DEPS="${2}"
+            echo "Apt runtime dependencies: ${RUNTIME_APT_DEPS}"
+            shift 2
+            ;;
+        --additional-runtime-apt-deps)
+            export ADDITIONAL_RUNTIME_APT_DEPS="${2}"
+            echo "Additional apt runtime dependencies: ${ADDITIONAL_RUNTIME_APT_DEPS}"
+            shift 2
+            ;;
+        --runtime-apt-commad)
+            export RUNTIME_APT_COMMAND="${2}"
+            echo "Apt runtime command: ${RUNTIME_APT_COMMAND}"
+            shift 2
+            ;;
+        --additional-runtime-apt-command)
+            export ADDITIONAL_RUNTIME_APT_COMMAND="${2}"
+            echo "Additional Apt runtime command: ${ADDITIONAL_RUNTIME_APT_COMMAND}"
+            shift 2
+            ;;
+        --additional-runtime-apt-env)
+            export ADDITIONAL_RUNTIME_APT_ENV="${2}"
+            echo "Additional Apt runtime environment variables: ${ADDITIONAL_RUNTIME_APT_ENV}"
             shift 2
             ;;
         --disable-mysql-client-installation)
@@ -2210,6 +2250,8 @@ function breeze::flag_build_docker_images() {
         images are pulled by default only for the first time you run the
         environment, later the locally build images are used as cache.
 
+Customization options:
+
 -E, --extras EXTRAS
         Extras to pass to build images The default are different for CI and production images:
 
@@ -2222,20 +2264,49 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 --image-tag TAG
         Additional tag in the image.
 
+--disable-pip-cache
+        Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
 --additional-extras ADDITIONAL_EXTRAS
         Additional extras to pass to build images The default is no additional extras.
 
 --additional-python-deps ADDITIONAL_PYTHON_DEPS
         Additional python dependencies to use when building the images.
 
---additional-dev-deps ADDITIONAL_DEV_DEPS
+--dev-apt-command DEV_APT_COMMAND
+        The basic command executed before dev apt deps are installed.
+
+--additional-dev-apt-command ADDITIONAL_DEV_APT_COMMAND
+        Additional command executed before dev apt deps are installed.
+
+--additional-dev-apt-deps ADDITIONAL_DEV_APT_DEPS
         Additional apt dev dependencies to use when building the images.
 
---additional-runtime-deps ADDITIONAL_RUNTIME_DEPS
+--dev-apt-deps DEV_APT_DEPS
+        The basic apt dev dependencies to use when building the images.
+
+--additional-dev-apt-deps ADDITIONAL_DEV_DEPS
+        Additional apt dev dependencies to use when building the images.
+
+--additional-dev-apt-envs ADDITIONAL_DEV_APT_ENVS
+        Additional environment variables set when adding dev dependencies.
+
+--runtime-apt-command RUNTIME_APT_COMMAND
+        The basic command executed before runtime apt deps are installed.
+
+--additional-runtime-apt-command ADDITIONAL_RUNTIME_APT_COMMAND
+        Additional command executed before runtime apt deps are installed.
+
+--runtime-apt-deps ADDITIONAL_RUNTIME_APT_DEPS
+        The basic apt runtime dependencies to use when building the images.
+
+--additional-runtime-apt-deps ADDITIONAL_RUNTIME_DEPS
         Additional apt runtime dependencies to use when building the images.
 
---disable-pip-cache
-        Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+--additional-runtime-apt-envs ADDITIONAL_RUNTIME_APT_DEPS
+        Additional environment variables set when adding runtime dependencies.
+
+Build options:
 
 --disable-mysql-client-installation
         Disables installation of the mysql client which might be problematic if you are building

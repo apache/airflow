@@ -314,10 +314,27 @@ function initialization::initialize_image_build_variables() {
     export ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS:=""}"
     # Additional python dependencies on top of the default ones
     export ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS:=""}"
+    # Use default DEV_APT_COMMAND
+    export DEV_APT_COMMAND=""
+    # Use default DEV_APT_DEPS
+    export DEV_APT_DEPS=""
+    # Use empty ADDITIONAL_DEV_APT_COMMAND
+    export ADDITIONAL_DEV_APT_COMMAND=""
     # additional development apt dependencies on top of the default ones
-    export ADDITIONAL_DEV_DEPS="${ADDITIONAL_DEV_DEPS:=""}"
+    export ADDITIONAL_DEV_APT_DEPS="${ADDITIONAL_DEV_APT_DEPS:=""}"
+    # Use empty ADDITIONAL_DEV_APT_ENV
+    export ADDITIONAL_DEV_APT_ENV="${ADDITIONAL_DEV_APT_ENV:=""}"
+    # Use default RUNTIME_APT_COMMAND
+    export RUNTIME_APT_COMMAND=""
+    # Use default RUNTIME_APT_DEVS
+    export RUNTIME_APT_DEVS=""
+    # Use empty ADDITIONAL_RUNTIME_APT_COMMAND
+    export ADDITIONAL_RUNTIME_APT_COMMAND=""
     # additional runtime apt dependencies on top of the default ones
     export ADDITIONAL_RUNTIME_DEPS="${ADDITIONAL_RUNTIME_DEPS:=""}"
+    export ADDITIONAL_RUNTIME_APT_DEPS="${ADDITIONAL_RUNTIME_APT_DEPS:=""}"
+    # Use empty ADDITIONAL_RUNTIME_APT_ENV
+    export ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV:=""}"
     # whether pre cached pip packages are used during build
     export AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES:="true"}"
     # by default install mysql client
@@ -633,13 +650,28 @@ function initialization::make_constants_read_only() {
     readonly CI_BUILD_ID
     readonly CI_JOB_ID
 
+    readonly IMAGE_TAG
+
+    readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
     # AIRFLOW_EXTRAS are made readonly by the time the image is built (either PROD or CI)
     readonly ADDITIONAL_AIRFLOW_EXTRAS
     readonly ADDITIONAL_PYTHON_DEPS
-    readonly ADDITIONAL_DEV_DEPS
-    readonly ADDITIONAL_RUNTIME_DEPS
+
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
-    readonly IMAGE_TAG
+
+    readonly DEV_APT_COMMAND
+    readonly DEV_APT_DEPS
+
+    readonly ADDITIONAL_DEV_APT_COMMAND
+    readonly ADDITIONAL_DEV_APT_DEPS
+    readonly ADDITIONAL_DEV_APT_ENV
+
+    readonly RUNTIME_APT_COMMAND
+    readonly RUNTIME_APT_DEPS
+
+    readonly ADDITIONAL_RUNTIME_APT_COMMAND
+    readonly ADDITIONAL_RUNTIME_APT_DEPS
+    readonly ADDITIONAL_RUNTIME_APT_ENV
 
     readonly DOCKERHUB_USER
     readonly DOCKERHUB_REPO
