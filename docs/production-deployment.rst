@@ -468,6 +468,8 @@ More details about the images
 You can read more details about the images - the context, their parameters and internal structure in the
 `IMAGES.rst <https://github.com/apache/airflow/blob/master/IMAGES.rst>`_ document.
 
+.. _production-deployment:kerberos:
+
 Kerberos-authenticated workers
 ==============================
 

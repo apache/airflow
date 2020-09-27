@@ -134,4 +134,4 @@ To use kerberos authentication, you must install Airflow with the ``kerberos`` e
 
    pip install 'apache-airflow[kerberos]'
 
-You can read about some productionizing aspects of kerberos deployment at :doc:`/production-deployment`
+You can read about some productionizing aspects of kerberos deployment at :ref:`production-deployment:kerberos`
