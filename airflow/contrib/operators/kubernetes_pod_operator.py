@@ -28,6 +28,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
+from airflow.kubernetes.pod_generator import PodGenerator
 
 
 class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -272,6 +273,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 client = kube_client.get_kube_client(cluster_context=self.cluster_context,
                                                      config_file=self.config_file)
 
+            self.pod = self.create_pod_request_obj()
+            self.namespace = self.pod.metadata.namespace
+
             self.client = client
 
             # Add combination of labels to uniquely identify a running pod
@@ -356,45 +360,57 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         Creates a V1Pod based on user parameters. Note that a `pod` or `pod_template_file`
         will supersede all other values.
         """
-        pod = pod_generator.PodGenerator(
-            image=self.image,
-            namespace=self.namespace,
-            cmds=self.cmds,
-            args=self.arguments,
-            labels=self.labels,
-            name=self.name,
-            envs=self.env_vars,
-            extract_xcom=self.do_xcom_push,
-            image_pull_policy=self.image_pull_policy,
-            node_selectors=self.node_selectors,
-            annotations=self.annotations,
-            affinity=self.affinity,
-            image_pull_secrets=self.image_pull_secrets,
-            service_account_name=self.service_account_name,
-            hostnetwork=self.hostnetwork,
-            tolerations=self.tolerations,
-            configmaps=self.configmaps,
-            security_context=self.security_context,
-            dnspolicy=self.dnspolicy,
-            init_containers=self.init_containers,
-            restart_policy='Never',
-            schedulername=self.schedulername,
-            pod_template_file=self.pod_template_file,
-            priority_class_name=self.priority_class_name,
-            pod=self.full_pod_spec,
-        ).gen_pod()
+        if self.pod_template_file:
+            pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
+        else:
+            pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="name"))
 
-        # noinspection PyTypeChecker
-        pod = append_to_pod(
-            pod,
-            self.pod_runtime_info_envs +  # type: ignore
-            self.ports +  # type: ignore
-            self.resources +  # type: ignore
-            self.secrets +  # type: ignore
-            self.volumes +  # type: ignore
-            self.volume_mounts  # type: ignore
+        pod = k8s.V1Pod(
+            api_version="v1",
+            kind="Pod",
+            metadata=k8s.V1ObjectMeta(
+                namespace=self.namespace,
+                labels=self.labels,
+                name=self.name,
+                annotations=self.annotations,
+
+            ),
+            spec=k8s.V1PodSpec(
+                node_selector=self.node_selectors,
+                affinity=self.affinity,
+                tolerations=self.tolerations,
+                init_containers=self.init_containers,
+                containers=[
+                    k8s.V1Container(
+                        image=self.image,
+                        name="base",
+                        command=self.cmds,
+                        ports=self.ports,
+                        resources=self.k8s_resources,
+                        volume_mounts=self.volume_mounts,
+                        args=self.arguments,
+                        env=self.env_vars,
+                        env_from=self.env_from,
+                    )
+                ],
+                image_pull_secrets=self.image_pull_secrets,
+                service_account_name=self.service_account_name,
+                host_network=self.hostnetwork,
+                security_context=self.security_context,
+                dns_policy=self.dnspolicy,
+                scheduler_name=self.schedulername,
+                restart_policy='Never',
+                priority_class_name=self.priority_class_name,
+                volumes=self.volumes,
+            )
         )
 
+        pod = PodGenerator.reconcile_pods(pod_template, pod)
+
+        for secret in self.secrets:
+            pod = secret.attach_to_pod(pod)
+        if self.do_xcom_push:
+            pod = PodGenerator.add_xcom_sidecar(pod)
         return pod
 
     def create_new_pod_for_operator(self, labels, launcher):
@@ -435,9 +451,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     def monitor_launched_pod(self, launcher, pod):
         """
-        Montitors a pod to completion that was created by a previous KubernetesPodOperator
+        Monitors a pod to completion that was created by a previous KubernetesPodOperator
 
-        @param launcher: pod launcher that will manage launching and monitoring pods
+        :param launcher: pod launcher that will manage launching and monitoring pods
         :param pod: podspec used to find pod using k8s API
         :return:
         """
