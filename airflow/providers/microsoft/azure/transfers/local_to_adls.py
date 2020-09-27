@@ -54,6 +54,9 @@ class LocalToAzureDataLakeStorageOperator(BaseOperator):
     :type azure_data_lake_conn_id: str
     """
 
+    template_fields = ("local_path", "remote_path")
+    ui_color = '#e4f0e8'
+
     @apply_defaults
     def __init__(
         self,
@@ -78,7 +81,7 @@ class LocalToAzureDataLakeStorageOperator(BaseOperator):
         self.extra_upload_options = extra_upload_options
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 
-    def execute(self, context: Dict[Any, Any]):
+    def execute(self, context: Dict[Any, Any]) -> None:
         if '**' in self.local_path:
             raise AirflowException("Recursive glob patterns using `**` are not supported")
         if not self.extra_upload_options:

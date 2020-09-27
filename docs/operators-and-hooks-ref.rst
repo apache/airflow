@@ -378,7 +378,7 @@ These integrations allow you to copy data from/to Microsoft Azure.
 
    * - Local
      - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
-     -
+     - :doc:`How to use <howto/operator/microsoft/azure/transfers/local_to_adls>`
      - :mod:`airflow.providers.microsoft.azure.transfers.local_to_adls`
 
    * - Local
