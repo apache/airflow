@@ -47,7 +47,7 @@ if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
 
     # Attach Session, on the Main window
     tmux select-pane -t 0
-    tmux send-keys 'cd /opt/airflow/' C-m 'clear' C-m
+    tmux send-keys "./scripts/in_container/run_tmux_welcome.sh" C-m
 
     tmux attach-session -t "${TMUX_SESSION}":0
 fi

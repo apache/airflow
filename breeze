@@ -2581,7 +2581,7 @@ function breeze::check_and_save_all_params() {
 #######################################################################################################
 function breeze::print_cheatsheet() {
     if [[ ! -f ${SUPPRESS_CHEATSHEET_FILE} && ${command_to_run} == "enter_breeze" ]]; then
-        echo
+
         echo
         breeze::print_line
         echo
