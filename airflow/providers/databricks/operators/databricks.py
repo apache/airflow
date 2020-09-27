@@ -21,6 +21,7 @@ This module contains Databricks operators.
 """
 
 import time
+from typing import Union, Optional, Any
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -31,7 +32,7 @@ XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
 
 
-def _deep_string_coerce(content, json_path='json'):
+def _deep_string_coerce(content, json_path: str = 'json') -> Union[str, list, dict]:
     """
     Coerces content or all values of content if it is a dict to a string. The
     function will throw if content contains non-string or non-numeric types.
@@ -62,7 +63,7 @@ def _deep_string_coerce(content, json_path='json'):
         raise AirflowException(msg)
 
 
-def _handle_databricks_operator_execution(operator, hook, log, context):
+def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     """
     Handles the Airflow + Databricks lifecycle logic for a Databricks operator
 
@@ -250,23 +251,23 @@ class DatabricksSubmitRunOperator(BaseOperator):
     def __init__(
         self,
         *,
-        json=None,
-        spark_jar_task=None,
-        notebook_task=None,
-        spark_python_task=None,
-        spark_submit_task=None,
-        new_cluster=None,
-        existing_cluster_id=None,
-        libraries=None,
-        run_name=None,
-        timeout_seconds=None,
-        databricks_conn_id='databricks_default',
-        polling_period_seconds=30,
-        databricks_retry_limit=3,
-        databricks_retry_delay=1,
-        do_xcom_push=False,
+        json: Optional[Any] = None,
+        spark_jar_task: Optional[Any] = None,
+        notebook_task: Optional[Any] = None,
+        spark_python_task: Optional[Any] = None,
+        spark_submit_task: Optional[Any] = None,
+        new_cluster: Optional[Any] = None,
+        existing_cluster_id: Optional[Any] = None,
+        libraries: Optional[Any] = None,
+        run_name: Optional[Any] = None,
+        timeout_seconds: Optional[Any] = None,
+        databricks_conn_id: str = 'databricks_default',
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 1,
+        do_xcom_push: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         """
         Creates a new ``DatabricksSubmitRunOperator``.
         """
@@ -302,7 +303,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.run_id = None
         self.do_xcom_push = do_xcom_push
 
-    def _get_hook(self):
+    def _get_hook(self) -> DatabricksHook:
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
@@ -463,18 +464,18 @@ class DatabricksRunNowOperator(BaseOperator):
     def __init__(
         self,
         *,
-        job_id=None,
-        json=None,
-        notebook_params=None,
-        python_params=None,
-        spark_submit_params=None,
-        databricks_conn_id='databricks_default',
-        polling_period_seconds=30,
-        databricks_retry_limit=3,
-        databricks_retry_delay=1,
-        do_xcom_push=False,
+        job_id: Optional[Any] = None,
+        json: Optional[Any] = None,
+        notebook_params: Optional[Any] = None,
+        python_params: Optional[Any] = None,
+        spark_submit_params: Optional[Any] = None,
+        databricks_conn_id: str = 'databricks_default',
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 1,
+        do_xcom_push: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         """
         Creates a new ``DatabricksRunNowOperator``.
         """
@@ -499,7 +500,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.run_id = None
         self.do_xcom_push = do_xcom_push
 
-    def _get_hook(self):
+    def _get_hook(self) -> DatabricksHook:
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
