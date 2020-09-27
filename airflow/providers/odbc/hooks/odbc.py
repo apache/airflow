@@ -105,7 +105,7 @@ class OdbcHook(DbApiHook):
         return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
 
     @property
-    def driver(self) -> Optional[Any]:
+    def driver(self) -> Optional[str]:
         """
         Driver from init param if given; else try to find one in connection extra.
         """
@@ -116,7 +116,7 @@ class OdbcHook(DbApiHook):
         return self._driver and self._driver.strip().lstrip('{').rstrip('}').strip()
 
     @property
-    def dsn(self) -> Any:
+    def dsn(self) -> Optional[str]:
         """
         DSN from init param if given; else try to find one in connection extra.
         """
@@ -211,7 +211,7 @@ class OdbcHook(DbApiHook):
         return uri
 
     def get_sqlalchemy_connection(
-        self, connect_kwargs: Optional[Any] = None, engine_kwargs: Optional[Any] = None
+        self, connect_kwargs: Optional[dict] = None, engine_kwargs: Optional[dict] = None
     ) -> Any:
         """
         Sqlalchemy connection object

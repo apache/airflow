@@ -138,7 +138,7 @@ class ExasolHook(DbApiHook):
             if not self.get_autocommit(conn):
                 conn.commit()
 
-    def set_autocommit(self, conn: Any, autocommit: bool) -> None:
+    def set_autocommit(self, conn, autocommit: bool) -> None:
         """
         Sets the autocommit flag on the connection
 
@@ -154,7 +154,7 @@ class ExasolHook(DbApiHook):
             )
         conn.set_autocommit(autocommit)
 
-    def get_autocommit(self, conn: Any) -> bool:
+    def get_autocommit(self, conn) -> bool:
         """
         Get autocommit setting for the provided connection.
         Return True if autocommit is set.
@@ -172,7 +172,7 @@ class ExasolHook(DbApiHook):
         return autocommit
 
     @staticmethod
-    def _serialize_cell(cell, conn: Optional[Any] = None) -> object:
+    def _serialize_cell(cell, conn=None) -> object:
         """
         Exasol will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.

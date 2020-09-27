@@ -23,7 +23,6 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 """
 from time import sleep
-from typing import Any
 from urllib.parse import urlparse
 
 import requests
@@ -50,7 +49,7 @@ class RunState:
     Utility class for the run state concept of Databricks runs.
     """
 
-    def __init__(self, life_cycle_state: Any, result_state: Any, state_message: Any) -> None:
+    def __init__(self, life_cycle_state: str, result_state: str, state_message: str) -> None:
         self.life_cycle_state = life_cycle_state
         self.result_state = result_state
         self.state_message = state_message
@@ -73,7 +72,9 @@ class RunState:
         """True if the result state is SUCCESS"""
         return self.result_state == 'SUCCESS'
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, RunState):
+            return NotImplemented
         return (
             self.life_cycle_state == other.life_cycle_state
             and self.result_state == other.result_state
@@ -118,7 +119,7 @@ class DatabricksHook(BaseHook):  # noqa
         self.retry_delay = retry_delay
 
     @staticmethod
-    def _parse_host(host: Any) -> str:
+    def _parse_host(host: str) -> str:
         """
         The purpose of this function is to be robust to improper connections
         settings provided by users, specifically in the host field.
@@ -213,7 +214,7 @@ class DatabricksHook(BaseHook):  # noqa
             attempt_num += 1
             sleep(self.retry_delay)
 
-    def _log_request_error(self, attempt_num: Any, error: Any) -> None:
+    def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error('Attempt %s API Request to Databricks failed with reason: %s', attempt_num, error)
 
     def run_now(self, json: dict) -> str:
@@ -330,7 +331,7 @@ class _TokenAuth(AuthBase):
     magic function.
     """
 
-    def __init__(self, token: Any) -> None:
+    def __init__(self, token: str) -> None:
         self.token = token
 
     def __call__(self, r: PreparedRequest) -> PreparedRequest:

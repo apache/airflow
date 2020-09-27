@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, Mapping, Optional, Union, Any
+from typing import Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook
@@ -62,7 +62,7 @@ class JdbcOperator(BaseOperator):
         self.autocommit = autocommit
         self.hook = None
 
-    def execute(self, context: Any) -> None:
+    def execute(self, context) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
         hook.run(self.sql, self.autocommit, parameters=self.parameters)

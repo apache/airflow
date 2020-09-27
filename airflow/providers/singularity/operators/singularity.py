@@ -102,7 +102,7 @@ class SingularityOperator(BaseOperator):
         self.cli = None
         self.container = None
 
-    def execute(self, context: Any) -> Any:
+    def execute(self, context) -> None:
 
         self.log.info('Preparing Singularity container %s', self.image)
         self.cli = Client

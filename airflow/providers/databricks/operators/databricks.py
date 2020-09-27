@@ -21,7 +21,7 @@ This module contains Databricks operators.
 """
 
 import time
-from typing import Union, Optional, Any
+from typing import Union, Optional, Any, Dict, List
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -252,15 +252,15 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self,
         *,
         json: Optional[Any] = None,
-        spark_jar_task: Optional[Any] = None,
-        notebook_task: Optional[Any] = None,
-        spark_python_task: Optional[Any] = None,
-        spark_submit_task: Optional[Any] = None,
-        new_cluster: Optional[Any] = None,
-        existing_cluster_id: Optional[Any] = None,
-        libraries: Optional[Any] = None,
-        run_name: Optional[Any] = None,
-        timeout_seconds: Optional[Any] = None,
+        spark_jar_task: Optional[Dict[str, str]] = None,
+        notebook_task: Optional[Dict[str, str]] = None,
+        spark_python_task: Optional[Dict[str, Union[str, List[str]]]] = None,
+        spark_submit_task: Optional[Dict[str, List[str]]] = None,
+        new_cluster: Optional[Dict[str, object]] = None,
+        existing_cluster_id: Optional[str] = None,
+        libraries: Optional[List[Dict[str, str]]] = None,
+        run_name: Optional[str] = None,
+        timeout_seconds: Optional[int] = None,
         databricks_conn_id: str = 'databricks_default',
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -464,11 +464,11 @@ class DatabricksRunNowOperator(BaseOperator):
     def __init__(
         self,
         *,
-        job_id: Optional[Any] = None,
+        job_id: Optional[str] = None,
         json: Optional[Any] = None,
-        notebook_params: Optional[Any] = None,
-        python_params: Optional[Any] = None,
-        spark_submit_params: Optional[Any] = None,
+        notebook_params: Optional[Dict[str, str]] = None,
+        python_params: Optional[List[str]] = None,
+        spark_submit_params: Optional[List[str]] = None,
         databricks_conn_id: str = 'databricks_default',
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
