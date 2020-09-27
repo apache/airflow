@@ -24,11 +24,6 @@ is supported and no serialization need be written.
 import copy
 import hashlib
 import re
-try:
-    from inspect import signature
-except ImportError:
-    # Python 2.7
-    from funcsigs import signature  # type: ignore
 import os
 import uuid
 from functools import reduce
@@ -203,7 +198,6 @@ class PodGenerator(object):
         pod_template_file=None,
         extract_xcom=False,
     ):
-        self.validate_pod_generator_args(locals())
 
         if pod_template_file:
             self.ud_pod = self.deserialize_model_file(pod_template_file)
@@ -555,48 +549,6 @@ class PodGenerator(object):
 
         # pylint: disable=protected-access
         return api_client._ApiClient__deserialize_model(pod, k8s.V1Pod)
-
-    @staticmethod
-    def validate_pod_generator_args(given_args):
-        """
-        :param given_args: The arguments passed to the PodGenerator constructor.
-        :type given_args: dict
-        :return: None
-
-        Validate that if `pod` or `pod_template_file` are set that the user is not attempting
-        to configure the pod with the other arguments.
-        """
-        pod_args = list(signature(PodGenerator).parameters.items())
-
-        def predicate(k, v):
-            """
-            :param k: an arg to PodGenerator
-            :type k: string
-            :param v: the parameter of the given arg
-            :type v: inspect.Parameter
-            :return: bool
-
-            returns True if the PodGenerator argument has no default arguments
-            or the default argument is None, and it is not one of the listed field
-            in `non_empty_fields`.
-            """
-            non_empty_fields = {
-                'pod', 'pod_template_file', 'extract_xcom', 'service_account_name', 'image_pull_policy',
-                'restart_policy'
-            }
-
-            return (v.default is None or v.default is v.empty) and k not in non_empty_fields
-
-        args_without_defaults = {k: given_args[k] for k, v in pod_args if predicate(k, v) and given_args[k]}
-
-        if given_args['pod'] and given_args['pod_template_file']:
-            raise AirflowConfigException("Cannot pass both `pod` and `pod_template_file` arguments")
-        if args_without_defaults and (given_args['pod'] or given_args['pod_template_file']):
-            raise AirflowConfigException(
-                "Cannot configure pod and pass either `pod` or `pod_template_file`. Fields {} passed.".format(
-                    list(args_without_defaults.keys())
-                )
-            )
 
 
 def merge_objects(base_obj, client_obj):

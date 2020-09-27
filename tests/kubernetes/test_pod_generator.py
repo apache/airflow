@@ -16,12 +16,12 @@
 # under the License.
 
 import unittest
+import sys
 from tests.compat import mock
 import uuid
 import kubernetes.client.models as k8s
 from kubernetes.client import ApiClient
 
-from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod import Resources
 from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator, extend_object_field, merge_objects
@@ -1045,7 +1045,7 @@ class TestPodGenerator(unittest.TestCase):
         self.assertEqual(client_spec, res)
 
     def test_deserialize_model_file(self):
-        fixture = 'tests/kubernetes/pod.yaml'
+        fixture = sys.path[0] + '/tests/kubernetes/pod.yaml'
         result = PodGenerator.deserialize_model_file(fixture)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         self.assertEqual(sanitized_res, self.deserialize_result)
@@ -1072,18 +1072,6 @@ spec:
         result = PodGenerator.deserialize_model_file(fixture)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         self.assertEqual(sanitized_res, self.deserialize_result)
-
-    def test_validate_pod_generator(self):
-        with self.assertRaises(AirflowConfigException):
-            PodGenerator(image='k', pod=k8s.V1Pod())
-        with self.assertRaises(AirflowConfigException):
-            PodGenerator(pod=k8s.V1Pod(), pod_template_file='k')
-        with self.assertRaises(AirflowConfigException):
-            PodGenerator(image='k', pod_template_file='k')
-
-        PodGenerator(image='k')
-        PodGenerator(pod_template_file='tests/kubernetes/pod.yaml')
-        PodGenerator(pod=k8s.V1Pod())
 
     def test_add_custom_label(self):
         from kubernetes.client import models as k8s
