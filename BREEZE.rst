@@ -308,7 +308,7 @@ In case the problems are not solved, you can set the VERBOSE_COMMANDS variable t
 
 
 Then run the failed command, copy-and-paste the output from your terminal to the
-`Airflow Slack <https://apache-airflow-slack.herokuapp.com/>`_  #airflow-breeze channel and
+`Airflow Slack <https://s.apache.org/airflow-slack>`_  #airflow-breeze channel and
 describe your problem.
 
 Other uses of the Airflow Breeze environment
@@ -1054,6 +1054,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
     push-image                               Pushes images to registry
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
+    start-airflow                            Starts Scheduler and Webserver and enters the shell
     stop                                     Stops the docker-compose environment
     restart                                  Stops the docker-compose environment including DB cleanup
     toggle-suppress-cheatsheet               Toggles on/off cheatsheet
@@ -1485,6 +1486,32 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ####################################################################################################
 
 
+  Detailed usage for command: start-airflow
+
+
+  breeze start-airflow
+
+        Like the Shell command this will enter the interactive shell, but it will also start
+        automatically the Scheduler and the Webserver. It will leave you in a tmux session where you
+        can also observe what is happening in your Airflow.
+
+        This is a convenient way to setup a development environment. Your dags will be loaded from the
+        folder 'files/dags' on your host machine (it could take some times).
+
+        If you want to load default connections and example dags you can use the dedicated flags.
+
+  Flags:
+
+  --load-example-dags
+          Include Airflow example dags.
+
+  --load-default-connections
+          Include Airflow Default Connections.
+
+
+  ####################################################################################################
+
+
   Detailed usage for command: stop
 
 
@@ -1827,18 +1854,21 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  cassandra kerberos mongo openldap presto rabbitmq redis all
 
-  --start-airflow
-          Starts the Airflow Scheduler and Webserver in two tmux panes, a third one will be
-          available for the usual use cases. In case the database is not initialized it will
-          run also 'airflow db init' and create an Admin user with credentials admin/admin.
-
   --rbac-ui
           Enable RBAC UI.
 
   --init-script <INIT_SCRIPT_FILE>
           Initialization script name - Sourced from files/airflow-breeze-config. Default value
-          init.sh. It will be executed after the environment is configured and started (in case
-          --start-airflow is used).
+          init.sh. It will be executed after the environment is configured and started.
+
+  ****************************************************************************************************
+   Additional actions executed starting Airflow
+
+  --load-example-dags
+          Include Airflow example dags.
+
+  --load-default-connections
+          Include Airflow Default Connections.
 
   ****************************************************************************************************
    Kind kubernetes and Kubernetes tests configuration(optional)

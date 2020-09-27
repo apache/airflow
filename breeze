@@ -118,6 +118,12 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW="false"
 
+    # If set to true, the test connections will be created
+    export LOAD_DEFAULT_CONNECTIONS="false"
+
+    # If set to true, the sample dags will be created
+    export LOAD_EXAMPLES="false"
+
     # If set to true, RBAC mode is enabled
     export RBAC_UI="false"
 
@@ -1006,12 +1012,6 @@ function breeze::parse_arguments() {
             export SKIP_CHECK_REMOTE_IMAGE="true"
             shift 2
             ;;
-        --start-airflow)
-            echo "Starting Airflow"
-            echo
-            export START_AIRFLOW="true"
-            shift
-            ;;
         --init-script)
             export INIT_SCRIPT_FILE="${2}"
             echo "The initialization file is in ${INIT_SCRIPT_FILE}"
@@ -1022,6 +1022,18 @@ function breeze::parse_arguments() {
             echo "Enable RBAC UI"
             echo
             export RBAC_UI="true"
+            shift
+            ;;
+        --load-example-dags)
+            export LOAD_EXAMPLES="true"
+            echo "Include Airflow sample dags"
+            echo
+            shift
+            ;;
+        --load-default-connections)
+            export LOAD_DEFAULT_CONNECTIONS="true"
+            echo "Include Airflow default connections"
+            echo
             shift
             ;;
         --)
@@ -1150,6 +1162,11 @@ function breeze::parse_arguments() {
                 EXTRA_STATIC_CHECK_OPTIONS+=("--show-diff-on-failure")
                 shift 2
             fi
+            ;;
+        start-airflow)
+            last_subcommand="${1}"
+            export START_AIRFLOW="true"
+            shift
             ;;
         stop)
             last_subcommand="${1}"
@@ -1359,6 +1376,8 @@ function breeze::prepare_usage() {
     readonly USAGE_KIND_CLUSTER
     export USAGE_SETUP_AUTOCOMPLETE="Sets up autocomplete for breeze"
     readonly USAGE_SETUP_AUTOCOMPLETE
+    export USAGE_START_AIRFLOW="Starts Scheduler and Webserver and enters the shell"
+    readonly USAGE_START_AIRFLOW
     export USAGE_STOP="Stops the docker-compose environment"
     readonly USAGE_STOP
     export USAGE_RESTART="Stops the docker-compose environment including DB cleanup"
@@ -1582,6 +1601,22 @@ ${CMDNAME} setup-autocomplete
       parameters and values.
 "
     readonly DETAILED_USAGE_SETUP_AUTOCOMPLETE
+    export DETAILED_USAGE_START_AIRFLOW="
+${CMDNAME} start-airflow
+
+      Like the Shell command this will enter the interactive shell, but it will also start
+      automatically the Scheduler and the Webserver. It will leave you in a tmux session where you
+      can also observe what is happening in your Airflow.
+
+      This is a convenient way to setup a development environment. Your dags will be loaded from the
+      folder 'files/dags' on your host machine (it could take some times).
+
+      If you want to load default connections and example dags you can use the dedicated flags.
+
+Flags:
+$(breeze::flag_start_airflow)
+"
+    readonly DETAILED_USAGE_START_AIRFLOW
     export DETAILED_USAGE_STOP="
 ${CMDNAME} stop
 
@@ -1883,18 +1918,12 @@ function breeze::flag_breeze_actions() {
 
 ${FORMATTED_INTEGRATIONS}
 
---start-airflow
-        Starts the Airflow Scheduler and Webserver in two tmux panes, a third one will be
-        available for the usual use cases. In case the database is not initialized it will
-        run also 'airflow db init' and create an Admin user with credentials admin/admin.
-
 --rbac-ui
         Enable RBAC UI.
 
 --init-script <INIT_SCRIPT_FILE>
         Initialization script name - Sourced from files/airflow-breeze-config. Default value
-        init.sh. It will be executed after the environment is configured and started (in case
-        --start-airflow is used).
+        init.sh. It will be executed after the environment is configured and started.
 
 "
 }
@@ -2190,6 +2219,23 @@ function breeze::flag_pull_push_docker_images() {
 "
 }
 
+#####################################################################################################
+#
+# Prints flags that control how Airflow should be populated with the command start-airflow
+#
+# Outputs:
+#    Flag information.
+#######################################################################################################
+function breeze::flag_start_airflow() {
+    echo "
+--load-example-dags
+        Include Airflow example dags.
+
+--load-default-connections
+        Include Airflow Default Connections.
+
+"
+}
 
 #######################################################################################################
 #
@@ -2219,6 +2265,10 @@ $(breeze::flag_production_image)
 $(breeze::print_star_line)
  Additional actions executed while entering breeze
 $(breeze::flag_breeze_actions)
+
+$(breeze::print_star_line)
+ Additional actions executed starting Airflow
+$(breeze::flag_start_airflow)
 
 $(breeze::print_star_line)
  Kind kubernetes and Kubernetes tests configuration(optional)
@@ -2408,7 +2458,7 @@ function breeze::check_and_save_all_params() {
 #######################################################################################################
 function breeze::print_cheatsheet() {
     if [[ ! -f ${SUPPRESS_CHEATSHEET_FILE} && ${command_to_run} == "enter_breeze" ]]; then
-        echo
+
         echo
         breeze::print_line
         echo

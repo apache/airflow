@@ -111,6 +111,9 @@ function initialization::initialize_base_variables() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW=${START_AIRFLOW:="false"}
 
+    export LOAD_EXAMPLES=${LOAD_EXAMPLES:="false"}
+
+    export LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS:="false"}
     # If set the specified file will be used to initialized Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
     export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
@@ -519,6 +522,8 @@ Detected CI build environment:
 Initialization variables:
 
     INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE}
+    LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
+    LOAD_EXAMPLES: ${LOAD_EXAMPLES}
 
 EOF
 
