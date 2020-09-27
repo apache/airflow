@@ -124,6 +124,15 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+            {{- if .Values.workers.kerberosSidecar.enabled }}
+            - name: config
+              mountPath: {{ .Values.kerberos.configPath | quote }}
+              subPath: krb5.conf
+              readOnly: true
+            - name: kerberos-ccache
+              mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
+              readOnly: true
+            {{- end }}
 {{- if .Values.scheduler.airflowLocalSettings }}
             - name: config
               mountPath: {{ template "airflow_local_setting_path" . }}
@@ -145,10 +154,62 @@ spec:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
 {{- end }}
+        {{- if .Values.workers.kerberosSidecar.enabled }}
+            - name: KRB5_CONFIG
+              value:  {{ .Values.kerberos.configPath | quote }}
+            - name: KRB5CCNAME
+              value:  {{ include "kerberos_ccache_path" . | quote }}
+        {{- end }}
+        {{- if .Values.workers.kerberosSidecar.enabled }}
+        - name: worker-kerberos
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          args: ["kerberos"]
+          resources:
+          {{ toYaml .Values.workers.resources | indent 12 }}
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+            - name: config
+              mountPath: {{ template "airflow_config_path" . }}
+              subPath: airflow.cfg
+              readOnly: true
+            - name: config
+              mountPath: {{ .Values.kerberos.configPath | quote }}
+              subPath: krb5.conf
+              readOnly: true
+            {{- if .Values.scheduler.airflowLocalSettings }}
+            - name: config
+              mountPath: {{ template "airflow_local_setting_path" . }}
+              subPath: airflow_local_settings.py
+              readOnly: true
+            {{- end }}
+            - name: kerberos-keytab
+              subPath: "kerberos.keytab"
+              mountPath: {{ .Values.kerberos.keytabPath | quote }}
+              readOnly: true
+            - name: kerberos-ccache
+              mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
+              readOnly: false
+          env:
+            - name: KRB5_CONFIG
+              value:  {{ .Values.kerberos.configPath | quote }}
+            - name: KRB5CCNAME
+              value:  {{ include "kerberos_ccache_path" . | quote }}
+          {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- include "standard_airflow_environment" . | indent 10 }}
+        {{- end }}
       volumes:
+        - name: kerberos-keytab
+          secret:
+            secretName: {{ include "kerberos_keytab_secret" . | quote }}
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if .Values.kerberos.enabled }}
+        - name: kerberos-ccache
+          emptyDir: {}
+        {{- end }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:

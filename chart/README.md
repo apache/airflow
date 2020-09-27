@@ -74,8 +74,7 @@ helm upgrade airflow . \
   --set images.airflow.tag=8a0da78
 ```
 
-For local development purppose you can also u
-You can also build the image locally and use it via deployment method described by Breeze.
+For local development purpose you can also build the image locally and use it via deployment method described by Breeze.
 
 ## Mounting DAGS using Git-Sync side car with Persistence enabled
 
@@ -129,7 +128,7 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `privateRegistry.repository`                          | Repository where base image lives (eg: quay.io)                                                              | `~`                                               |
 | `networkPolicies.enabled`                             | Enable Network Policies to restrict traffic                                                                  | `true`                                            |
 | `airflowHome`                                         | Location of airflow home directory                                                                           | `/opt/airflow`                                    |
-| `rbacEnabled`                                         | Deploy pods with Kubernets RBAC enabled                                                                      | `true`                                            |
+| `rbacEnabled`                                         | Deploy pods with Kubernetes RBAC enabled                                                                     | `true`                                            |
 | `executor`                                            | Airflow executor (eg SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor)                  | `KubernetesExecutor`                              |
 | `allowPodLaunching`                                   | Allow airflow pods to talk to Kubernetes API to launch more pods                                             | `true`                                            |
 | `defaultAirflowRepository`                            | Fallback docker repository to pull airflow image from                                                        | `apache/airflow`                                  |
@@ -158,13 +157,22 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `data.resultBackendSecretName`                        | Secret name to mount Celery result backend connection string from                                            | `~`                                               |
 | `data.metadataConection`                              | Field separated connection data (alternative to secret name)                                                 | `{}`                                              |
 | `data.resultBackendConnection`                        | Field separated connection data (alternative to secret name)                                                 | `{}`                                              |
-| `fernetKey`                                           | String representing an Airflow fernet key                                                                    | `~`                                               |
-| `fernetKeySecretName`                                 | Secret name for Airlow fernet key                                                                            | `~`                                               |
+| `fernetKey`                                           | String representing an Airflow Fernet key                                                                    | `~`                                               |
+| `fernetKeySecretName`                                 | Secret name for Airflow Fernet key                                                                           | `~`                                               |
+| `kerberos.enabled`                                    | Enable kerberos support for workers                                                                          | `false`                                           |
+| `kerberos.ccacheMountPath`                            | Location of the ccache volume                                                                                | `/var/kerberos-ccache`                            |
+| `kerberos.ccacheFileName`                             | Name of the ccache file                                                                                      | `ccache`                                          |
+| `kerberos.configPath`                                 | Path for the Kerberos config file                                                                            | `/etc/krb5.conf`                                  |
+| `kerberos.keytabPath`                                 | Path for the Kerberos keytab file                                                                            | `/etc/airflow.keytab`                             |
+| `kerberos.principal`                                  | Name of the Kerberos principal                                                                               | `airflow`                                         |
+| `kerberos.reinitFrequency`                            | Frequency of reinitialization of the Kerberos token                                                          | `3600`                                            |
+| `kerberos.confg`                                      | Content of the configuration file for kerberos (might be templated using Helm templates)                     | `<see values.yaml>`                               |
 | `workers.replicas`                                    | Replica count for Celery workers (if applicable)                                                             | `1`                                               |
 | `workers.keda.enabled`                                | Enable KEDA autoscaling features                                                                             | `false`                                           |
 | `workers.keda.pollingInverval`                        | How often KEDA should poll the backend database for metrics in seconds                                       | `5`                                               |
 | `workers.keda.cooldownPeriod`                         | How often KEDA should wait before scaling down in seconds                                                    | `30`                                              |
 | `workers.keda.maxReplicaCount`                        | Maximum number of Celery workers KEDA can scale to                                                           | `10`                                              |
+| `workers.kerberosSideCar.enabled`                     | Enable Kerberos sidecar for the worker                                                                       | `false`                                           |
 | `workers.persistence.enabled`                         | Enable log persistence in workers via StatefulSet                                                            | `false`                                           |
 | `workers.persistence.size`                            | Size of worker volumes if enabled                                                                            | `100Gi`                                           |
 | `workers.persistence.storageClassName`                | StorageClass worker volumes should use if enabled                                                            | `default`                                         |
@@ -196,8 +204,8 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `webserver.resources.requests.cpu`                    | CPU Request of webserver                                                                                     | `~`                                               |
 | `webserver.resources.requests.memory`                 | Memory Request of webserver                                                                                  | `~`                                               |
 | `webserver.defaultUser`                               | Optional default airflow user information                                                                    | `{}`                                              |
-| `dags.persistence.*`                               | Dag persistence configutation                                                                    | Please refer to `values.yaml`                                    |
-| `dags.gitSync.*`                               | Git sync configuration                                                                   | Please refer to `values.yaml`                                    |
+| `dags.persistence.*`                                  | Dag persistence configuration                                                                    | Please refer to `values.yaml`                                    |
+| `dags.gitSync.*`                                      | Git sync configuration                                                                   | Please refer to `values.yaml`                                    |
 
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example,
