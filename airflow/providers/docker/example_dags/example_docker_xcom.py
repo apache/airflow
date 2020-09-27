@@ -34,7 +34,11 @@ with DAG(
     start_date=days_ago(5),
     catchup=True,
     max_active_runs=2,
-    default_args={"owner": "airflow", "retries": 2, "retry_delay": timedelta(minutes=5),},
+    default_args={
+        "owner": "airflow",
+        "retries": 2,
+        "retry_delay": timedelta(minutes=5),
+    },
 ) as dag:
 
     write_xcom_last = DockerOperator(
