@@ -326,6 +326,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | installing in case cassandra extra is    |
 |                                          |                                          | used).                                   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_MYSQL_CLIENT``                 | ``true``                                 | Whether MySQL client should be installed |
+|                                          |                                          | The mysql extra is removed from extras   |
+|                                          |                                          | if the client is not installed           |
++------------------------------------------+------------------------------------------+------------------------------------------+
 
 There are build arguments that determine the installation mechanism of Apache Airflow for the
 production image. There are three types of build:
