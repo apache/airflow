@@ -1218,6 +1218,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --additional-runtime-deps
           Additional apt runtime dependencies to use when building the images.
 
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
@@ -1639,6 +1642,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --additional-runtime-deps
           Additional apt runtime dependencies to use when building the images.
 
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
@@ -1945,6 +1951,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --additional-runtime-deps
           Additional apt runtime dependencies to use when building the images.
+
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
