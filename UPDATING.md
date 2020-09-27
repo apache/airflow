@@ -122,6 +122,27 @@ auth_backend = airflow.api.auth.backend.default
 Since XCom values can contain pickled data, we would no longer allow adding or
 changing XCom values from the UI.
 
+### Default for `run_as_user` configured has been changed to 50000 from 0
+
+The UID to run the first process of the Worker PODs when using has been changed to `50000`
+from the previous default of `0`. The previous default was an empty string but the code used `0` if it was
+empty string.
+
+**Before**:
+
+```ini
+[kubernetes]
+run_as_user =
+```
+
+**After**:
+
+```ini
+[kubernetes]
+run_as_user = 50000
+```
+
+This is done to avoid running the container as `root` user.
 
 ## Airflow 1.10.10
 
@@ -162,7 +183,6 @@ No breaking changes.
 When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
 
 See [AIRFLOW-5621](https://jira.apache.org/jira/browse/AIRFLOW-5621) for details
-
 
 ## Airflow 1.10.7
 
@@ -234,12 +254,6 @@ by default, rather than using the default timezone of the MySQL server.
 This is the correct behavior for use with BigQuery, since BigQuery
 assumes that TIMESTAMP columns without time zones are in UTC. To
 preserve the previous behavior, set `ensure_utc` to `False.`
-
-### Python 2 support is going away
-
-Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.5 and up.
-
-If you have a specific task that still requires Python 2 then you can use the PythonVirtualenvOperator for this.
 
 ### Changes to DatastoreHook
 
@@ -368,7 +382,7 @@ If the `AIRFLOW_CONFIG` environment variable was not set and the
 will discover its config file using the `$AIRFLOW_CONFIG` and `$AIRFLOW_HOME`
 environment variables rather than checking for the presence of a file.
 
-### Changes in Google Cloud Platform related operators
+### Changes in Google Cloud related operators
 
 Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
 the project id configured in
@@ -395,7 +409,7 @@ Operators involved:
 
 Other GCP operators are unaffected.
 
-### Changes in Google Cloud Platform related hooks
+### Changes in Google Cloud related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
 than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
@@ -463,7 +477,7 @@ gct_hook.create_transfer_job(body)
 ```
 The change results from the unification of all hooks and adjust to
 [the official recommendations](https://lists.apache.org/thread.html/e8534d82be611ae7bcb21ba371546a4278aad117d5e50361fd8f14fe@%3Cdev.airflow.apache.org%3E)
-for the Google Cloud Platform.
+for the Google Cloud.
 
 The signature of `wait_for_transfer_job` method in `GCPTransferServiceHook` has changed.
 
