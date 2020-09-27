@@ -20,14 +20,16 @@ import re
 import yaml
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import kube_client, pod_generator, pod_launcher
 from airflow.kubernetes.k8s_model import append_to_pod
+from airflow.kubernetes import kube_client, pod_generator, pod_launcher
 from airflow.kubernetes.pod import Resources
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
+from airflow.kubernetes.pod_generator import PodGenerator
+from kubernetes.client import models as k8s
 
 
 class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -218,8 +220,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.annotations = annotations or {}
         self.affinity = affinity or {}
         self.resources = self._set_resources(resources)  # noqa
+        self.k8s_resources = self.resources
         self.config_file = config_file
-        self.image_pull_secrets = image_pull_secrets
+        self.image_pull_secrets = image_pull_secrets or []
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
@@ -271,6 +274,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             else:
                 client = kube_client.get_kube_client(cluster_context=self.cluster_context,
                                                      config_file=self.config_file)
+
+            self.pod = self.create_pod_request_obj()
+            self.namespace = self.pod.metadata.namespace
 
             self.client = client
 
@@ -356,6 +362,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         Creates a V1Pod based on user parameters. Note that a `pod` or `pod_template_file`
         will supersede all other values.
         """
+        if self.pod_template_file:
+            pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
+        else:
+            pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="name"))
+
         pod = pod_generator.PodGenerator(
             image=self.image,
             namespace=self.namespace,
@@ -373,15 +384,12 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             service_account_name=self.service_account_name,
             hostnetwork=self.hostnetwork,
             tolerations=self.tolerations,
-            configmaps=self.configmaps,
             security_context=self.security_context,
             dnspolicy=self.dnspolicy,
             init_containers=self.init_containers,
             restart_policy='Never',
             schedulername=self.schedulername,
-            pod_template_file=self.pod_template_file,
             priority_class_name=self.priority_class_name,
-            pod=self.full_pod_spec,
         ).gen_pod()
 
         # noinspection PyTypeChecker
@@ -395,6 +403,17 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             self.volume_mounts  # type: ignore
         )
 
+        env_from = pod.spec.containers[0].env_from or []
+        for configmap in self.configmaps:
+            env_from.append(k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap)))
+        pod.spec.containers[0].env_from = env_from
+
+        if self.full_pod_spec:
+            pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
+        pod = PodGenerator.reconcile_pods(pod_template, pod)
+
+        # if self.do_xcom_push:
+        #     pod = PodGenerator.add_sidecar(pod)
         return pod
 
     def create_new_pod_for_operator(self, labels, launcher):
@@ -435,9 +454,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     def monitor_launched_pod(self, launcher, pod):
         """
-        Montitors a pod to completion that was created by a previous KubernetesPodOperator
+        Monitors a pod to completion that was created by a previous KubernetesPodOperator
 
-        @param launcher: pod launcher that will manage launching and monitoring pods
+        :param launcher: pod launcher that will manage launching and monitoring pods
         :param pod: podspec used to find pod using k8s API
         :return:
         """
