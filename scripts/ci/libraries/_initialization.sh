@@ -322,6 +322,8 @@ function initialization::initialize_image_build_variables() {
     export AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES:="true"}"
     # by default install mysql client
     export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
+    # additional tag for the image
+    export IMAGE_TAG=${IMAGE_TAG:=""}
 }
 
 # Determine version suffixes used to build backport packages
@@ -637,6 +639,7 @@ function initialization::make_constants_read_only() {
     readonly ADDITIONAL_DEV_DEPS
     readonly ADDITIONAL_RUNTIME_DEPS
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
+    readonly IMAGE_TAG
 
     readonly DOCKERHUB_USER
     readonly DOCKERHUB_REPO

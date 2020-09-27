@@ -148,7 +148,7 @@ build-cache-local build-cache-pulled build-cache-disabled disable-pip-cache
 dockerhub-user: dockerhub-repo: github-registry github-repository: github-image-id:
 postgres-version: mysql-version:
 version-suffix-for-pypi: version-suffix-for-svn:
-additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps:
+additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps: image-tag:
 disable-mysql-client-installation
 load-default-connections load-example-dags
 "

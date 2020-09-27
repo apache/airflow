@@ -571,7 +571,12 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         . -f Dockerfile.ci
     set -u
     if [[ -n "${DEFAULT_CI_IMAGE=}" ]]; then
+        echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${DEFAULT_CI_IMAGE}"
         docker tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_CI_IMAGE}"
+    fi
+    if [[ -n "${IMAGE_TAG:=}" ]]; then
+        echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
+        docker tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
     fi
     if [[ -n ${SPIN_PID=} ]]; then
         kill -HUP "${SPIN_PID}" || true
@@ -719,7 +724,12 @@ function build_images::build_prod_images() {
         . -f Dockerfile
     set -u
     if [[ -n "${DEFAULT_PROD_IMAGE:=}" ]]; then
+        echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${DEFAULT_PROD_IMAGE}"
         docker tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_PROD_IMAGE}"
+    fi
+    if [[ -n "${IMAGE_TAG:=}" ]]; then
+        echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${IMAGE_TAG}"
+        docker tag "${AIRFLOW_PROD_IMAGE}" "${IMAGE_TAG}"
     fi
 }
 

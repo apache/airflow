@@ -1182,7 +1182,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  -p, --python <PYTHON_MAJOR_MINOR_VERSION>
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
           Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
@@ -1192,14 +1192,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  2.7 3.5 3.6 3.7 3.8
 
-  -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
+  -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
                  master v1-10-test
 
-  -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
+  -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
 
@@ -1216,7 +1216,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
 
-  -E, --extras
+  -E, --extras EXTRAS
           Extras to pass to build images The default are different for CI and production images:
 
           CI image:
@@ -1226,16 +1226,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,
                  ssh,statsd,virtualenv
 
-  --additional-extras
+  --image-tag TAG
+          Additional tag in the image.
+
+  --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
 
-  --additional-python-deps
+  --additional-python-deps ADDITIONAL_PYTHON_DEPS
           Additional python dependencies to use when building the images.
 
-  --additional-dev-deps
+  --additional-dev-deps ADDITIONAL_DEV_DEPS
           Additional apt dev dependencies to use when building the images.
 
-  --additional-runtime-deps
+  --additional-runtime-deps ADDITIONAL_RUNTIME_DEPS
           Additional apt runtime dependencies to use when building the images.
 
   --disable-pip-cache
@@ -1279,24 +1282,24 @@ This is the current syntax for  `./breeze <./breeze>`_:
           This strategy is used by default for both Production and CI images for the scheduled
           (nightly) builds in CI.
 
-  -D, --dockerhub-user
+  -D, --dockerhub-user DOCKERHUB_USER
           DockerHub user used to pull, push and build images. Default: apache.
 
-  -H, --dockerhub-repo
+  -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry
+  -c, --github-registry GITHUB_REGISTRY
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
-  -g, --github-repository
+  -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
           If you use this flag, automatically --github-registry flag is enabled.
 
-  -s, --github-image-id <COMMIT_SHA>|<RUN_ID>
+  -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
           to be able to easily find the image for particular CI runs. Once you know the
           <RUN_ID> or <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
@@ -1330,7 +1333,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  -p, --python <PYTHON_MAJOR_MINOR_VERSION>
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
           Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
@@ -1384,7 +1387,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  -p, --python <PYTHON_MAJOR_MINOR_VERSION>
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
           Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
@@ -1438,24 +1441,24 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  -D, --dockerhub-user
+  -D, --dockerhub-user DOCKERHUB_USER
           DockerHub user used to pull, push and build images. Default: apache.
 
-  -H, --dockerhub-repo
+  -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry
+  -c, --github-registry GITHUB_REGISTRY
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
-  -g, --github-repository
+  -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
           If you use this flag, automatically --github-registry flag is enabled.
 
-  -s, --github-image-id <COMMIT_SHA>|<RUN_ID>
+  -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
           to be able to easily find the image for particular CI runs. Once you know the
           <RUN_ID> or <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
@@ -1491,7 +1494,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  -p, --python <PYTHON_MAJOR_MINOR_VERSION>
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
           Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
@@ -1609,7 +1612,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  -p, --python <PYTHON_MAJOR_MINOR_VERSION>
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
           Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
@@ -1619,7 +1622,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  2.7 3.5 3.6 3.7 3.8
 
-  -b, --backend <BACKEND>
+  -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
           One of:
 
@@ -1627,12 +1630,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: sqlite
 
-  --postgres-version <POSTGRES_VERSION>
+  --postgres-version POSTGRES_VERSION
           Postgres version used. One of:
 
                  9.6 10
 
-  --mysql-version <MYSQL_VERSION>
+  --mysql-version MYSQL_VERSION
           Mysql version used. One of:
 
                  5.7
@@ -1665,7 +1668,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  -p, --python <PYTHON_MAJOR_MINOR_VERSION>
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
           Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
@@ -1685,7 +1688,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
 
-  -E, --extras
+  -E, --extras EXTRAS
           Extras to pass to build images The default are different for CI and production images:
 
           CI image:
@@ -1695,16 +1698,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,
                  ssh,statsd,virtualenv
 
-  --additional-extras
+  --image-tag TAG
+          Additional tag in the image.
+
+  --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
 
-  --additional-python-deps
+  --additional-python-deps ADDITIONAL_PYTHON_DEPS
           Additional python dependencies to use when building the images.
 
-  --additional-dev-deps
+  --additional-dev-deps ADDITIONAL_DEV_DEPS
           Additional apt dev dependencies to use when building the images.
 
-  --additional-runtime-deps
+  --additional-runtime-deps ADDITIONAL_RUNTIME_DEPS
           Additional apt runtime dependencies to use when building the images.
 
   --disable-pip-cache
@@ -1823,11 +1829,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  -S, --version-suffix-for-pypi
+  -S, --version-suffix-for-pypi SUFFIX
           Adds optional suffix to the version in the generated backport package. It can be used
           to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
 
-  -N, --version-suffix-for-svn
+  -N, --version-suffix-for-svn SUFFIX
           Adds optional suffix to the generated names of package. It can be used to generate
           rc1/rc2 ... versions of the packages to be uploaded to SVN.
 
@@ -1938,7 +1944,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ****************************************************************************************************
    Choose Airflow variant
 
-  -p, --python <PYTHON_MAJOR_MINOR_VERSION>
+  -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
           Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
@@ -1951,7 +1957,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ****************************************************************************************************
    Choose backend to run for Airflow
 
-  -b, --backend <BACKEND>
+  -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
           One of:
 
@@ -1959,12 +1965,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: sqlite
 
-  --postgres-version <POSTGRES_VERSION>
+  --postgres-version POSTGRES_VERSION
           Postgres version used. One of:
 
                  9.6 10
 
-  --mysql-version <MYSQL_VERSION>
+  --mysql-version MYSQL_VERSION
           Mysql version used. One of:
 
                  5.7
@@ -1985,7 +1991,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           ready to start Airflow webserver/scheduler/worker. Without the switch, the database
           does not have any tables and you need to run reset db manually.
 
-  -i, --integration <INTEGRATION>
+  -i, --integration INTEGRATION
           Integration to start during tests - it determines which integrations are started
           for integration tests. There can be more than one integration started, or all to
           start all integrations. Selected integrations are not saved for future execution.
@@ -1993,7 +1999,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  cassandra kerberos mongo openldap presto rabbitmq redis all
 
-  --init-script <INIT_SCRIPT_FILE>
+  --init-script INIT_SCRIPT_FILE
           Initialization script name - Sourced from files/airflow-breeze-config. Default value
           init.sh. It will be executed after the environment is configured and started.
 
@@ -2011,7 +2017,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Configuration for the KinD Kubernetes cluster and tests:
 
-  -K, --kubernetes-mode <KUBERNETES_MODE>
+  -K, --kubernetes-mode KUBERNETES_MODE
           Kubernetes mode - only used in case one of kind-cluster commands is used.
           One of:
 
@@ -2019,7 +2025,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: image
 
-  -V, --kubernetes-version <KUBERNETES_VERSION>
+  -V, --kubernetes-version KUBERNETES_VERSION
           Kubernetes version - only used in case one of kind-cluster commands is used.
           One of:
 
@@ -2027,7 +2033,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: v1.18.6
 
-  --kind-version <KIND_VERSION>
+  --kind-version KIND_VERSION
           Kind version - only used in case one of kind-cluster commands is used.
           One of:
 
@@ -2035,7 +2041,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: v0.8.0
 
-  --helm-version <HELM_VERSION>
+  --helm-version HELM_VERSION
           Helm version - only used in case one of kind-cluster commands is used.
           One of:
 
@@ -2065,14 +2071,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ****************************************************************************************************
    Choose different Airflow version to install or run
 
-  -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
+  -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
                  master v1-10-test
 
-  -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
+  -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
 
@@ -2096,7 +2102,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
 
-  -E, --extras
+  -E, --extras EXTRAS
           Extras to pass to build images The default are different for CI and production images:
 
           CI image:
@@ -2106,16 +2112,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,
                  ssh,statsd,virtualenv
 
-  --additional-extras
+  --image-tag TAG
+          Additional tag in the image.
+
+  --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
 
-  --additional-python-deps
+  --additional-python-deps ADDITIONAL_PYTHON_DEPS
           Additional python dependencies to use when building the images.
 
-  --additional-dev-deps
+  --additional-dev-deps ADDITIONAL_DEV_DEPS
           Additional apt dev dependencies to use when building the images.
 
-  --additional-runtime-deps
+  --additional-runtime-deps ADDITIONAL_RUNTIME_DEPS
           Additional apt runtime dependencies to use when building the images.
 
   --disable-pip-cache
@@ -2162,24 +2171,24 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ****************************************************************************************************
    Flags for pulling/pushing Docker images (both CI and production)
 
-  -D, --dockerhub-user
+  -D, --dockerhub-user DOCKERHUB_USER
           DockerHub user used to pull, push and build images. Default: apache.
 
-  -H, --dockerhub-repo
+  -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry
+  -c, --github-registry GITHUB_REGISTRY
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
-  -g, --github-repository
+  -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
           If you use this flag, automatically --github-registry flag is enabled.
 
-  -s, --github-image-id <COMMIT_SHA>|<RUN_ID>
+  -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
           to be able to easily find the image for particular CI runs. Once you know the
           <RUN_ID> or <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
@@ -2193,11 +2202,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ****************************************************************************************************
    Flags for generation of the backport packages
 
-  -S, --version-suffix-for-pypi
+  -S, --version-suffix-for-pypi SUFFIX
           Adds optional suffix to the version in the generated backport package. It can be used
           to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
 
-  -N, --version-suffix-for-svn
+  -N, --version-suffix-for-svn SUFFIX
           Adds optional suffix to the generated names of package. It can be used to generate
           rc1/rc2 ... versions of the packages to be uploaded to SVN.
 
