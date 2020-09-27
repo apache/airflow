@@ -17,18 +17,27 @@
 
 from __future__ import absolute_import
 
-from airflow.models import Connection
 from airflow.upgrade.rules.base_rule import BaseRule
 from airflow.configuration import conf
 
-invalid_keys = {"airflow_configmap", "airflow_local_settings_configmap", "dags_in_image", "dags_volume_subpath",
-                "dags_volume_mount_point", "dags_volume_claim", "logs_volume_subpath", "logs_volume_claim",
-                "dags_volume_host", "logs_volume_host", "env_from_configmap_ref", "env_from_secret_ref", "git_repo",
-                "git_branch", "git_sync_depth", "git_subpath", "git_sync_rev", "git_user", "git_password",
-                "git_sync_root", "git_sync_dest", "git_dags_folder_mount_point", "git_ssh_key_secret_name",
-                "git_ssh_known_hosts_configmap_name", "git_sync_credentials_secret", "git_sync_container_repository",
-                "git_sync_container_tag", "git_sync_init_container_name", "git_sync_run_as_user",
-                "worker_service_account_name", "image_pull_secrets", "gcp_service_account_keys", "affinity",
+invalid_keys = {"airflow_configmap",
+                "airflow_local_settings_configmap",
+                "dags_in_image",
+                "dags_volume_subpath",
+                "dags_volume_mount_point", "dags_volume_claim",
+                "logs_volume_subpath", "logs_volume_claim",
+                "dags_volume_host", "logs_volume_host",
+                "env_from_configmap_ref", "env_from_secret_ref", "git_repo",
+                "git_branch", "git_sync_depth", "git_subpath",
+                "git_sync_rev", "git_user", "git_password",
+                "git_sync_root", "git_sync_dest",
+                "git_dags_folder_mount_point", "git_ssh_key_secret_name",
+                "git_ssh_known_hosts_configmap_name", "git_sync_credentials_secret",
+                "git_sync_container_repository",
+                "git_sync_container_tag", "git_sync_init_container_name",
+                "git_sync_run_as_user",
+                "worker_service_account_name", "image_pull_secrets",
+                "gcp_service_account_keys", "affinity",
                 "tolerations", "run_as_user", "fs_group"}
 
 

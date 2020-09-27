@@ -17,7 +17,6 @@
 
 from __future__ import absolute_import
 
-from airflow.models import Connection
 from airflow.upgrade.rules.base_rule import BaseRule
 from airflow.configuration import conf
 

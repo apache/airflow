@@ -1,0 +1,24 @@
+Apache Airflow
+Copyright 2016-2019 The Apache Software Foundation
+
+This product includes software developed at The Apache Software
+Foundation (http://www.apache.org/).
+
+=======================================================================
+
+hue:
+-----
+This product contains a modified portion of 'Hue' developed by Cloudera, Inc.
+(https://github.com/cloudera/hue/).
+
+* Copyright 2009-2017 Cloudera Inc.
+
+python-slugify:
+---------------
+
+* Copyright (c) Val Neekman @ Neekware Inc. http://neekware.com
+
+python-nvd3:
+------------
+
+* Copyright (c) 2013 Arezqui Belaid <areski@gmail.com> and other contributors

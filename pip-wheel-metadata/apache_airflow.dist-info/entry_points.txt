@@ -1,0 +1,2 @@
+[console_scripts]
+airflow = airflow.__main__:main
