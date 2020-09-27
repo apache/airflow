@@ -1523,8 +1523,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         This is a convenient way to setup a development environment. Your dags will be loaded from the
         folder 'files/dags' on your host machine (it could take some times).
 
-        If you don't want to load default connections and example dags add the flag
-        --skip-tutorial objects.
+        If you want to load default connections and example dags you can use the dedicated flags.
 
   Flags:
 
