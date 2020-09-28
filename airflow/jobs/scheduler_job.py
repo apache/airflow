@@ -1512,6 +1512,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 if db_err_code in ('55P03', 1205, 3572):
                     self.log.debug("Critical section lock held by another Scheduler")
                     Stats.incr('scheduler.critical_section_busy')
+                    session.rollback()
                     return 0
                 raise
 
