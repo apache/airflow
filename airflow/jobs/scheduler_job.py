@@ -1630,16 +1630,17 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         ).update({TI.state: State.SCHEDULED}, synchronize_session=False)
 
         # Tasks using DummyOperator should not be executed, mark them as success
-        session.query(TI).filter(
-            TI.dag_id == dag_run.dag_id,
-            TI.execution_date == dag_run.execution_date,
-            TI.task_id.in_(ti.task_id for ti in dummy_tis)
-        ).update({
-            TI.state: State.SUCCESS,
-            TI.start_date: timezone.utcnow(),
-            TI.end_date: timezone.utcnow(),
-            TI.duration: 0
-        }, synchronize_session=False)
+        if dummy_tis:
+            session.query(TI).filter(
+                TI.dag_id == dag_run.dag_id,
+                TI.execution_date == dag_run.execution_date,
+                TI.task_id.in_(ti.task_id for ti in dummy_tis)
+            ).update({
+                TI.state: State.SUCCESS,
+                TI.start_date: timezone.utcnow(),
+                TI.end_date: timezone.utcnow(),
+                TI.duration: 0
+            }, synchronize_session=False)
 
         return count
 
