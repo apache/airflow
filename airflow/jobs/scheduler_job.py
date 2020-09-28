@@ -1655,7 +1655,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         dag_run.dag_hash = latest_version
 
         # Refresh the DAG
-        dag_run.dag = self.dagbag.get_dag(dag_id=dag_run.dag_id)
+        dag_run.dag = self.dagbag.get_dag(dag_id=dag_run.dag_id, session=session)
 
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)
