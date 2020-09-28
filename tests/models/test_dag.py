@@ -1622,7 +1622,9 @@ class TestDag(unittest.TestCase):
             """
             Create a subdag.
             """
-            dag_subdag = DAG(dag_id='%s.%s' % (parent_dag_name, child_dag_name), schedule_interval="@daily", default_args=args)
+            dag_subdag = DAG(dag_id='%s.%s' % (parent_dag_name, child_dag_name),
+                             schedule_interval="@daily",
+                             default_args=args)
 
             for i in range(2):
                 DummyOperator(task_id='%s-task-%s' % (child_dag_name, i + 1), dag=dag_subdag)
@@ -1650,6 +1652,7 @@ class TestDag(unittest.TestCase):
 
         next_subdag_date = subdag.next_dagrun_after_date(None)
         assert next_subdag_date is None, "SubDags should never have DagRuns created by the scheduler"
+
 
 class TestDagModel:
 
@@ -1709,8 +1712,8 @@ class TestDagModel:
         orm_dag.is_paused = True
         session.flush()
 
-        models = DagModel.dags_needing_dagruns(session).all()
-        assert models == []
+        dag_models = DagModel.dags_needing_dagruns(session).all()
+        assert dag_models == []
 
         session.rollback()
         session.close()
