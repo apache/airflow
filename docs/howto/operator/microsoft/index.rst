@@ -17,16 +17,11 @@
 
 
 
-Microsoft Azure Operators
-=========================
+Microsoft Operators
+===================
 
 
 .. toctree::
     :maxdepth: 1
-    :glob:
 
-    *
-
-.. note::
-    You can learn how to use Microsoft Azure integrations by analyzing the
-    `source code <https://github.com/apache/airflow/tree/master/airflow/providers/microsoft/azure/example_dags/>`_ of the particular example DAGs.
+    transfer/index
