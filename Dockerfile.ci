@@ -39,7 +39,7 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
 
 # By increasing this number we can do force build of all dependencies
 ARG DEPENDENCIES_EPOCH_NUMBER="4"
-# Increase the value below to force renstalling of all dependencies
+# Increase the value below to force reinstalling of all dependencies
 ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
 # Install curl and gnupg2 - needed to download nodejs in the next step
@@ -190,7 +190,7 @@ ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
 ARG AIRFLOW_CONSTRAINTS_URL="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 ENV AIRFLOW_CONSTRAINTS_URL=${AIRFLOW_CONSTRAINTS_URL}
 
-# By changing the CI build epoch we can force reinstalling Arflow from the current master
+# By changing the CI build epoch we can force reinstalling Airflow from the current master
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
 ARG AIRFLOW_CI_BUILD_EPOCH="2"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
@@ -267,7 +267,7 @@ COPY . ${AIRFLOW_SOURCES}/
 # Install autocomplete for airflow
 RUN register-python-argcomplete airflow >> ~/.bashrc
 
-# Install autocomplete for Kubeclt
+# Install autocomplete for Kubectl
 RUN echo "source /etc/bash_completion" >> ~/.bashrc
 
 WORKDIR ${AIRFLOW_SOURCES}
