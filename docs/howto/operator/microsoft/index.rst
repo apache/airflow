@@ -20,7 +20,6 @@
 Microsoft Operators
 ===================
 
-
 .. toctree::
     :maxdepth: 1
 
