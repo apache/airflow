@@ -63,8 +63,9 @@ def upgrade():
             concurrency
         )
     )
-    op.alter_column('dag', 'concurrency', type_=sa.Integer(), nullable=False)
-    op.alter_column('dag', 'has_task_concurrency_limits', type_=sa.Boolean(), nullable=False)
+    with op.batch_alter_table('dag', schema=None) as batch_op:
+        batch_op.alter_column('concurrency', type_=sa.Integer(), nullable=False)
+        batch_op.alter_column('has_task_concurrency_limits', type_=sa.Boolean(), nullable=False)
 
 
 def downgrade():
