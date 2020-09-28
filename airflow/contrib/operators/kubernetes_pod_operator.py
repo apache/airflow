@@ -20,6 +20,7 @@ import re
 import yaml
 
 from airflow.exceptions import AirflowException
+from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
 from airflow.kubernetes.pod import Resources
 from airflow.models import BaseOperator
@@ -219,8 +220,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.annotations = annotations or {}
         self.affinity = affinity or {}
         self.resources = self._set_resources(resources)  # noqa
+        self.k8s_resources = self.resources
         self.config_file = config_file
-        self.image_pull_secrets = image_pull_secrets
+        self.image_pull_secrets = image_pull_secrets or []
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
@@ -365,52 +367,53 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         else:
             pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="name"))
 
-        pod = k8s.V1Pod(
-            api_version="v1",
-            kind="Pod",
-            metadata=k8s.V1ObjectMeta(
-                namespace=self.namespace,
-                labels=self.labels,
-                name=self.name,
-                annotations=self.annotations,
+        pod = pod_generator.PodGenerator(
+            image=self.image,
+            namespace=self.namespace,
+            cmds=self.cmds,
+            args=self.arguments,
+            labels=self.labels,
+            name=self.name,
+            envs=self.env_vars,
+            extract_xcom=self.do_xcom_push,
+            image_pull_policy=self.image_pull_policy,
+            node_selectors=self.node_selectors,
+            annotations=self.annotations,
+            affinity=self.affinity,
+            image_pull_secrets=self.image_pull_secrets,
+            service_account_name=self.service_account_name,
+            hostnetwork=self.hostnetwork,
+            tolerations=self.tolerations,
+            security_context=self.security_context,
+            dnspolicy=self.dnspolicy,
+            init_containers=self.init_containers,
+            restart_policy='Never',
+            schedulername=self.schedulername,
+            priority_class_name=self.priority_class_name,
+        ).gen_pod()
 
-            ),
-            spec=k8s.V1PodSpec(
-                node_selector=self.node_selectors,
-                affinity=self.affinity,
-                tolerations=self.tolerations,
-                init_containers=self.init_containers,
-                containers=[
-                    k8s.V1Container(
-                        image=self.image,
-                        name="base",
-                        command=self.cmds,
-                        ports=self.ports,
-                        resources=self.k8s_resources,
-                        volume_mounts=self.volume_mounts,
-                        args=self.arguments,
-                        env=self.env_vars,
-                        env_from=self.env_from,
-                    )
-                ],
-                image_pull_secrets=self.image_pull_secrets,
-                service_account_name=self.service_account_name,
-                host_network=self.hostnetwork,
-                security_context=self.security_context,
-                dns_policy=self.dnspolicy,
-                scheduler_name=self.schedulername,
-                restart_policy='Never',
-                priority_class_name=self.priority_class_name,
-                volumes=self.volumes,
-            )
+        # noinspection PyTypeChecker
+        pod = append_to_pod(
+            pod,
+            self.pod_runtime_info_envs +  # type: ignore
+            self.ports +  # type: ignore
+            self.resources +  # type: ignore
+            self.secrets +  # type: ignore
+            self.volumes +  # type: ignore
+            self.volume_mounts  # type: ignore
         )
 
+        env_from = pod.spec.containers[0].env_from or []
+        for configmap in self.configmaps:
+            env_from.append(k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap)))
+        pod.spec.containers[0].env_from = env_from
+
+        if self.full_pod_spec:
+            pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
-        for secret in self.secrets:
-            pod = secret.attach_to_pod(pod)
-        if self.do_xcom_push:
-            pod = PodGenerator.add_xcom_sidecar(pod)
+        # if self.do_xcom_push:
+        #     pod = PodGenerator.add_sidecar(pod)
         return pod
 
     def create_new_pod_for_operator(self, labels, launcher):

@@ -841,7 +841,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
             labels={"foo": "bar", "fizz": "buzz"},
-            env_vars=[k8s.V1EnvVar(name="env_name", value="value")],
+            env_vars={"env_name": "value"},
             in_cluster=False,
             pod_template_file=fixture,
             do_xcom_push=True
@@ -937,9 +937,10 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_pod_template_file(self, mock_client, monitor_mock, start_mock):
         from airflow.utils.state import State
+        fixture = sys.path[0] + '/tests/kubernetes/pod.yaml'
         k = KubernetesPodOperator(
             task_id='task',
-            pod_template_file='tests/kubernetes/pod.yaml',
+            pod_template_file=fixture,
             do_xcom_push=True
         )
         monitor_mock.return_value = (State.SUCCESS, None)
@@ -976,6 +977,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                                                   'env': [],
                                                   'envFrom': [],
                                                   'image': 'apache/airflow:stress-2020.07.10-1.0.4',
+                                                  'imagePullPolicy': 'IfNotPresent',
                                                   'name': 'base',
                                                   'ports': [],
                                                   'resources': {'limits': {'memory': '200Mi'},
