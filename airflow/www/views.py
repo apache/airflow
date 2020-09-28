@@ -790,9 +790,19 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             external_trigger=False
         )
 
+        tags = session.query(models.DagTag).filter(
+            models.DagTag.dag_id == dag_id).all()
+
         return self.render_template(
             'airflow/dag_details.html',
-            dag=dag, title=title, root=root, states=states, State=State, active_runs=active_runs)
+            dag=dag,
+            title=title,
+            root=root,
+            states=states,
+            State=State,
+            active_runs=active_runs,
+            tags=tags
+        )
 
     @expose('/rendered')
     @has_dag_access(can_dag_read=True)

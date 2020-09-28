@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,19 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-INSTALL_AIRFLOW_VERSION
-PYTHONDONTWRITEBYTECODE
-VERBOSE
-VERBOSE_COMMANDS
-HOST_USER_ID
-HOST_GROUP_ID
-HOST_OS
-HOST_HOME
-HOST_AIRFLOW_SOURCES
-PYTHON_MAJOR_MINOR_VERSION
-VERSION_SUFFIX_FOR_PYPI
-VERSION_SUFFIX_FOR_SVN
-PRINT_INFO_FROM_SCRIPTS
-CI
-LOAD_DEFAULT_CONNECTIONS
-LOAD_EXAMPLES
+
+tmux select-pane -t 2
+tmux send-keys C-c C-m 'exit' C-m
+
+tmux select-pane -t 1
+tmux send-keys C-c C-m 'exit' C-m
+
+tmux kill-session -t "${TMUX_SESSION}"

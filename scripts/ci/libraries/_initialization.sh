@@ -111,6 +111,9 @@ function initialization::initialize_base_variables() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW=${START_AIRFLOW:="false"}
 
+    export LOAD_EXAMPLES=${LOAD_EXAMPLES:="false"}
+
+    export LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS:="false"}
     # If set the specified file will be used to initialized Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
     export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
@@ -213,9 +216,7 @@ function initialization::initialize_mount_variables() {
         verbosity::print_info
         verbosity::print_info "Mounting files folder to Docker"
         verbosity::print_info
-        EXTRA_DOCKER_FLAGS+=(
-            "-v" "${AIRFLOW_SOURCES}/files:/files"
-        )
+        EXTRA_DOCKER_FLAGS+=("-v" "${AIRFLOW_SOURCES}/files:/files")
     fi
 
     EXTRA_DOCKER_FLAGS+=(
@@ -317,7 +318,10 @@ function initialization::initialize_image_build_variables() {
     export ADDITIONAL_DEV_DEPS="${ADDITIONAL_DEV_DEPS:=""}"
     # additional runtime apt dependencies on top of the default ones
     export ADDITIONAL_RUNTIME_DEPS="${ADDITIONAL_RUNTIME_DEPS:=""}"
-
+    # whether pre cached pip packages are used during build
+    export AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES:="true"}"
+    # by default install mysql client
+    export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
 }
 
 # Determine version suffixes used to build backport packages
@@ -512,6 +516,8 @@ Detected CI build environment:
 Initialization variables:
 
     INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE}
+    LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
+    LOAD_EXAMPLES: ${LOAD_EXAMPLES}
 
 EOF
 
@@ -630,6 +636,7 @@ function initialization::make_constants_read_only() {
     readonly ADDITIONAL_PYTHON_DEPS
     readonly ADDITIONAL_DEV_DEPS
     readonly ADDITIONAL_RUNTIME_DEPS
+    readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
 
     readonly DOCKERHUB_USER
     readonly DOCKERHUB_REPO

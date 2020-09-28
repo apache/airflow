@@ -88,7 +88,7 @@ class SlackWebhookHook(HttpHook):
         self.link_names = link_names
         self.proxy = proxy
 
-    def _get_token(self, token, http_conn_id):
+    def _get_token(self, token: str, http_conn_id: str) -> str:
         """
         Given either a manually set token or a conn_id, return the webhook_token to use.
 
@@ -108,7 +108,7 @@ class SlackWebhookHook(HttpHook):
         else:
             raise AirflowException('Cannot get token: No valid Slack ' 'webhook token nor conn_id supplied')
 
-    def _build_slack_message(self):
+    def _build_slack_message(self) -> str:
         """
         Construct the Slack message. All relevant parameters are combined here to a valid
         Slack json message.
@@ -136,7 +136,7 @@ class SlackWebhookHook(HttpHook):
         cmd['text'] = self.message
         return json.dumps(cmd)
 
-    def execute(self):
+    def execute(self) -> None:
         """
         Remote Popen (actually execute the slack webhook call)
         """

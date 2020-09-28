@@ -683,7 +683,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry_group: str,
         entry: str,
         project_id: str,
-        page_size: Optional[int] = 100,
+        page_size: int = 100,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,

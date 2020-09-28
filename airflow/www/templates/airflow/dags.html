@@ -70,7 +70,6 @@
     <table id="dags" class="table table-striped table-bordered table-hover">
       <thead>
         <tr>
-          <th></th>
           <th width="12">
             <span id="pause_header" class="glyphicon glyphicon-info-sign" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span>
           </th>
@@ -93,13 +92,6 @@
       <tbody>
         {% for dag in dags %}
           <tr>
-            <!-- Column 1: Edit dag -->
-            <td class="text-center" style="width:10px;">
-              <a href="{{ url_for('DagModelView.show', pk=dag.dag_id) }}" title="Info">
-                <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
-              </a>
-            </td>
-
             <!-- Column 2: Turn dag on/off -->
             <td>
               <label class="switch-label js-tooltip" title="Pause/Unpause DAG">

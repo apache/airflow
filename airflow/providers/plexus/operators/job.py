@@ -15,14 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import time
 import logging
-from typing import Dict
+import time
+from typing import Dict, Any, Optional
+
 import requests
-from airflow.providers.plexus.hooks.plexus import PlexusHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+
 from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.providers.plexus.hooks.plexus import PlexusHook
+from airflow.utils.decorators import apply_defaults
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +59,7 @@ class PlexusJobOperator(BaseOperator):
         self.job_params.update({"billing_account_id": None})
         self.is_service = None
 
-    def execute(self, context):
+    def execute(self, context: Any) -> Any:
         hook = PlexusHook()
         params = self.construct_job_params(hook)
         if self.is_service is True:
@@ -131,7 +133,7 @@ class PlexusJobOperator(BaseOperator):
 
         return v
 
-    def construct_job_params(self, hook):
+    def construct_job_params(self, hook: Any) -> Dict[Any, Optional[Any]]:
         """
         Creates job_params dict for api call to
         launch a Plexus job.

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Optional
+
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.utils.decorators import apply_defaults
@@ -65,17 +67,17 @@ class SnowflakeOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql,
-        snowflake_conn_id='snowflake_default',
-        parameters=None,
-        autocommit=True,
-        warehouse=None,
-        database=None,
-        role=None,
-        schema=None,
-        authenticator=None,
+        sql: Any,
+        snowflake_conn_id: str = 'snowflake_default',
+        parameters: Optional[dict] = None,
+        autocommit: bool = True,
+        warehouse: Optional[str] = None,
+        database: Optional[str] = None,
+        role: Optional[str] = None,
+        schema: Optional[str] = None,
+        authenticator: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
@@ -87,7 +89,7 @@ class SnowflakeOperator(BaseOperator):
         self.schema = schema
         self.authenticator = authenticator
 
-    def get_hook(self):
+    def get_hook(self) -> SnowflakeHook:
         """
         Create and return SnowflakeHook.
         :return: a SnowflakeHook instance.
@@ -102,7 +104,7 @@ class SnowflakeOperator(BaseOperator):
             authenticator=self.authenticator,
         )
 
-    def execute(self, context):
+    def execute(self, context: Any) -> None:
         """
         Run query on snowflake
         """

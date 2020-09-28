@@ -309,6 +309,14 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | ``all``                                  | extras to install                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
+|                                          |                                          | from the GitHub of Apache Airflow        |
+|                                          |                                          | This allows to optimize iterations for   |
+|                                          |                                          | Image builds and speeds up CI builds     |
+|                                          |                                          | But in some corporate environments it    |
+|                                          |                                          | might be forbidden to download anything  |
+|                                          |                                          | from public repositories.                |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | additional extras to install             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | additional python dependencies to        |

@@ -56,7 +56,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
         namespace: Optional[str] = None,
         kubernetes_conn_id: str = "kubernetes_default",
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.application_name = application_name
         self.attach_log = attach_log
@@ -64,7 +64,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
         self.kubernetes_conn_id = kubernetes_conn_id
         self.hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
 
-    def _log_driver(self, application_state: str):
+    def _log_driver(self, application_state: str) -> None:
         if not self.attach_log:
             return
         driver_pod_name = f"{self.application_name}-driver"
@@ -83,7 +83,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
                 e,
             )
 
-    def poke(self, context: Dict):
+    def poke(self, context: Dict) -> bool:
         self.log.info("Poking: %s", self.application_name)
         response = self.hook.get_custom_resource_definition(
             group="sparkoperator.k8s.io",

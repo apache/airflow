@@ -17,7 +17,7 @@
 # under the License.
 
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
@@ -61,7 +61,7 @@ class SlackAPIOperator(BaseOperator):
         self.method = method
         self.api_params = api_params
 
-    def construct_api_call_params(self):
+    def construct_api_call_params(self) -> Any:
         """
         Used by the execute function. Allows templating on the source fields
         of the api_call_params dict before construction
@@ -145,7 +145,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
         self.blocks = blocks or []
         super().__init__(method=self.method, **kwargs)
 
-    def construct_api_call_params(self):
+    def construct_api_call_params(self) -> Any:
         self.api_params = {
             'channel': self.channel,
             'username': self.username,
@@ -199,7 +199,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         filetype: str = 'csv',
         content: str = 'default,content,csv,file',
         **kwargs,
-    ):
+    ) -> None:
         self.method = 'files.upload'
         self.channel = channel
         self.initial_comment = initial_comment
@@ -208,7 +208,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.content = content
         super(SlackAPIFileOperator, self).__init__(method=self.method, **kwargs)
 
-    def construct_api_call_params(self):
+    def construct_api_call_params(self) -> Any:
         self.api_params = {
             'channels': self.channel,
             'content': self.content,

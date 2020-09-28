@@ -289,6 +289,14 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
+|                                          |                                          | from the GitHub of Apache Airflow        |
+|                                          |                                          | This allows to optimize iterations for   |
+|                                          |                                          | Image builds and speeds up CI builds     |
+|                                          |                                          | But in some corporate environments it    |
+|                                          |                                          | might be forbidden to download anything  |
+|                                          |                                          | from public repositories.                |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which    |
 |                                          |                                          | airflow is installed                     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -317,6 +325,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | cassandra PIP install (speeds up         |
 |                                          |                                          | installing in case cassandra extra is    |
 |                                          |                                          | used).                                   |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_MYSQL_CLIENT``                 | ``true``                                 | Whether MySQL client should be installed |
+|                                          |                                          | The mysql extra is removed from extras   |
+|                                          |                                          | if the client is not installed           |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 
 There are build arguments that determine the installation mechanism of Apache Airflow for the

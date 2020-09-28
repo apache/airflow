@@ -1811,20 +1811,34 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """Returns SQLAlchemy filter to query selected task instances"""
         if not tis:
             return None
-        if all(isinstance(t, TaskInstanceKey) for t in tis):
-            filter_for_tis = ([and_(TaskInstance.dag_id == tik.dag_id,
-                                    TaskInstance.task_id == tik.task_id,
-                                    TaskInstance.execution_date == tik.execution_date)
-                               for tik in tis])
-            return or_(*filter_for_tis)
-        if all(isinstance(t, TaskInstance) for t in tis):
-            filter_for_tis = ([and_(TaskInstance.dag_id == ti.dag_id,
-                                    TaskInstance.task_id == ti.task_id,
-                                    TaskInstance.execution_date == ti.execution_date)
-                               for ti in tis])
-            return or_(*filter_for_tis)
 
-        raise TypeError("All elements must have the same type: `TaskInstance` or `TaskInstanceKey`.")
+        # DictKeys type, (what we often pass here from the scheduler) is not directly indexable :(
+        first = list(tis)[0]
+
+        dag_id = first.dag_id
+        execution_date = first.execution_date
+        first_task_id = first.task_id
+        # Common path optimisations: when all TIs are for the same dag_id and execution_date, or same dag_id
+        # and task_id -- this can be over 150x for huge numbers of TIs (20k+)
+        if all(t.dag_id == dag_id and t.execution_date == execution_date for t in tis):
+            return and_(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.execution_date == execution_date,
+                TaskInstance.task_id.in_(t.task_id for t in tis),
+            )
+        if all(t.dag_id == dag_id and t.task_id == first_task_id for t in tis):
+            return and_(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.execution_date.in_(t.execution_date for t in tis),
+                TaskInstance.task_id == first_task_id,
+            )
+        return or_(
+            and_(
+                TaskInstance.dag_id == ti.dag_id,
+                TaskInstance.task_id == ti.task_id,
+                TaskInstance.execution_date == ti.execution_date,
+            ) for ti in tis
+        )
 
 
 # State of the task instance.

@@ -14,19 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-INSTALL_AIRFLOW_VERSION
-PYTHONDONTWRITEBYTECODE
-VERBOSE
-VERBOSE_COMMANDS
-HOST_USER_ID
-HOST_GROUP_ID
-HOST_OS
-HOST_HOME
-HOST_AIRFLOW_SOURCES
-PYTHON_MAJOR_MINOR_VERSION
-VERSION_SUFFIX_FOR_PYPI
-VERSION_SUFFIX_FOR_SVN
-PRINT_INFO_FROM_SCRIPTS
-CI
-LOAD_DEFAULT_CONNECTIONS
-LOAD_EXAMPLES
+
+import os
+from airflow import models
+from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
+from airflow.utils import dates
+
+GCS_BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-airflow-mysql-gcs")
+FILENAME = 'test_file'
+
+SQL_QUERY = "SELECT * from test_table"
+
+with models.DAG(
+    'example_mysql_to_gcs',
+    default_args=dict(start_date=dates.days_ago(1)),
+    schedule_interval=None,
+    tags=['example'],
+) as dag:
+    # [START howto_operator_mysql_to_gcs]
+    upload = MySQLToGCSOperator(
+        task_id='mysql_to_gcs', sql=SQL_QUERY, bucket=GCS_BUCKET, filename=FILENAME, export_format='csv'
+    )
+    # [END howto_operator_mysql_to_gcs]
