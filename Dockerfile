@@ -140,6 +140,8 @@ ARG INSTALL_MYSQL_CLIENT="true"
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT}
 
 COPY scripts/docker scripts/docker
+COPY docker-context-files /docker-context-files
+
 RUN ./scripts/docker/install_mysql.sh dev
 
 ARG AIRFLOW_REPO=apache/airflow
@@ -153,8 +155,8 @@ ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS}
 
 ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
-ARG AIRFLOW_CONSTRAINTS_URL="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-ENV AIRFLOW_CONSTRAINTS_URL=${AIRFLOW_CONSTRAINTS_URL}
+ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 
 ENV PATH=${PATH}:/root/.local/bin
 RUN mkdir -p /root/.local/bin
@@ -170,7 +172,7 @@ RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
        fi; \
        pip install --user \
           "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-          --constraint "${AIRFLOW_CONSTRAINTS_URL}" && pip uninstall --yes apache-airflow; \
+          --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" && pip uninstall --yes apache-airflow; \
     fi
 
 ARG AIRFLOW_SOURCES_FROM="."
@@ -196,6 +198,9 @@ ENV AIRFLOW_INSTALL_SOURCES=${AIRFLOW_INSTALL_SOURCES}
 ARG AIRFLOW_INSTALL_VERSION=""
 ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 
+ARG AIRFLOW_LOCAL_PIP_WHEELS=""
+ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
+
 ARG SLUGIFY_USES_TEXT_UNIDECODE=""
 ENV SLUGIFY_USES_TEXT_UNIDECODE=${SLUGIFY_USES_TEXT_UNIDECODE}
 
@@ -205,12 +210,17 @@ WORKDIR /opt/airflow
 RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
     fi; \
-    pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
-    --constraint "${AIRFLOW_CONSTRAINTS_URL}" && \
-    if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then pip install --user ${ADDITIONAL_PYTHON_DEPS} \
-    --constraint "${AIRFLOW_CONSTRAINTS_URL}"; fi && \
-    find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r && \
-    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
+    if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} != "true" ]]; then \
+        pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+            --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then \
+            pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        fi; \
+    else \
+        pip install --user /docker-context-files/*.whl; \
+    fi \
+    && find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r \
+    && find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
 
 RUN AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow"; \
     if [[ -f "${AIRFLOW_SITE_PACKAGE}/www_rbac/package.json" ]]; then \
