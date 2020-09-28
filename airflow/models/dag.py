@@ -1391,12 +1391,15 @@ class DAG(BaseDag, LoggingMixin):
         based on a regex that should match one or many tasks, and includes
         upstream and downstream neighbours based on the flag passed.
         """
-        # deep-copying self.task_dict takes a long time, and we don't want all
+        # deep-copying self.task_dict and self._task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
         task_dict = self.task_dict
+        task_group = self._task_group
         self.task_dict = {}
+        self._task_group = None
         dag = copy.deepcopy(self)
         self.task_dict = task_dict
+        self._task_group = task_group
 
         regex_match = [
             t for t in self.tasks if re.findall(task_regex, t.task_id)]
@@ -1412,24 +1415,30 @@ class DAG(BaseDag, LoggingMixin):
         dag.task_dict = {t.task_id: copy.deepcopy(t, {id(t.dag): dag})
                          for t in regex_match + also_include}
 
-        # Remove tasks not included in the subdag from task_group
-        def remove_excluded(group):
-            for child in list(group.children.values()):
+        def filter_task_group(group, parent_group):
+            """
+            Exclude tasks not included in the subdag from the given TaskGroup.
+            """
+            copied = copy.copy(group)
+            copied.used_group_ids = set(copied.used_group_ids)
+            copied._parent_group = parent_group
+
+            copied.children = {}
+
+            for child in group.children.values():
                 if isinstance(child, BaseOperator):
-                    if child.task_id not in dag.task_dict:
-                        group.children.pop(child.task_id)
-                    else:
-                        # The tasks in the subdag are a copy of tasks in the original dag
-                        # so update the reference in the TaskGroups too.
-                        group.children[child.task_id] = dag.task_dict[child.task_id]
+                    if child.task_id in dag.task_dict:
+                        copied.children[child.task_id] = dag.task_dict[child.task_id]
                 else:
-                    remove_excluded(child)
+                    filtered_child = filter_task_group(child, copied)
 
-                    # Remove this TaskGroup if it doesn't contain any tasks in this subdag
-                    if not child.children:
-                        group.children.pop(child.group_id)
+                    # Only include this child TaskGroup if it is non-empty.
+                    if filtered_child.children:
+                        copied.children[child.group_id] = filtered_child
 
-        remove_excluded(dag.task_group)
+            return copied
+
+        dag._task_group = filter_task_group(self._task_group, None)
 
         # Removing upstream/downstream references to tasks and TaskGroups that did not make
         # the cut.
