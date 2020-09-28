@@ -414,7 +414,7 @@ class TestDagFileProcessor(unittest.TestCase):
             ti.start_date = start_date
             ti.end_date = end_date
 
-            count = scheduler._schedule_dag_run(dr, session)
+            count = scheduler._schedule_dag_run(dr, 0, session)
             assert count == 1
 
             session.refresh(ti)
@@ -467,7 +467,7 @@ class TestDagFileProcessor(unittest.TestCase):
             ti.start_date = start_date
             ti.end_date = end_date
 
-            count = scheduler._schedule_dag_run(dr, session)
+            count = scheduler._schedule_dag_run(dr, 0, session)
             assert count == 1
 
             session.refresh(ti)
@@ -528,7 +528,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 ti.start_date = start_date
                 ti.end_date = end_date
 
-            count = scheduler._schedule_dag_run(dr, session)
+            count = scheduler._schedule_dag_run(dr, 0, session)
             assert count == 2
 
             session.refresh(tis[0])
@@ -553,7 +553,7 @@ class TestDagFileProcessor(unittest.TestCase):
 
         scheduler = SchedulerJob()
         dag = scheduler.dagbag.get_dag('test_scheduler_add_new_task', session=session)
-        scheduler._create_dag_run(orm_dag, dag, session)
+        scheduler._create_dag_runs([orm_dag], session)
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1
@@ -565,7 +565,7 @@ class TestDagFileProcessor(unittest.TestCase):
         BashOperator(task_id='dummy2', dag=dag, owner='airflow', bash_command='echo test')
         SerializedDagModel.write_dag(dag=dag)
 
-        scheduled_tis = scheduler._schedule_dag_run(dr, session)
+        scheduled_tis = scheduler._schedule_dag_run(dr, 0, session)
         session.flush()
         assert scheduled_tis == 2
 
@@ -635,35 +635,12 @@ class TestDagFileProcessor(unittest.TestCase):
         # and schedule them in, so we can check how many
         # tasks are put on the task_instances_list (should be one, not 3)
         with create_session() as session:
-            num_scheduled = scheduler._schedule_dag_run(dr1, session)
+            num_scheduled = scheduler._schedule_dag_run(dr1, 0, session)
             assert num_scheduled == 1
-            num_scheduled = scheduler._schedule_dag_run(dr2, session)
+            num_scheduled = scheduler._schedule_dag_run(dr2, 1, session)
             assert num_scheduled == 0
-            num_scheduled = scheduler._schedule_dag_run(dr3, session)
+            num_scheduled = scheduler._schedule_dag_run(dr3, 1, session)
             assert num_scheduled == 0
-
-    @pytest.mark.xfail(run=False, reason="TODO[HA]")
-    def test_process_dags_not_create_dagrun_for_subdags(self):
-        dag = self.dagbag.get_dag('test_subdag_operator')
-
-        scheduler = DagFileProcessor(dag_ids=[dag.dag_id], log=mock.MagicMock())
-        scheduler._process_task_instances = mock.MagicMock()
-        scheduler.manage_slas = mock.MagicMock()
-
-        scheduler._process_dags([dag] + dag.subdags)
-
-        with create_session() as session:
-            sub_dagruns = (
-                session.query(DagRun).filter(DagRun.dag_id == dag.subdags[0].dag_id).count()
-            )
-
-            self.assertEqual(0, sub_dagruns)
-
-            parent_dagruns = (
-                session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).count()
-            )
-
-            self.assertGreater(parent_dagruns, 0)
 
     @patch.object(TaskInstance, 'handle_failure')
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
@@ -741,14 +718,14 @@ class TestDagFileProcessor(unittest.TestCase):
         # Create DagRun
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
-        scheduler_job._create_dag_run(orm_dag, dag, session)
+        scheduler_job._create_dag_runs([orm_dag], session)
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1
         dr = drs[0]
 
         # Schedule TaskInstances
-        scheduler_job._schedule_dag_run(dr, session)
+        scheduler_job._schedule_dag_run(dr, 0, session)
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
@@ -773,7 +750,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 self.assertIsNone(end_date)
                 self.assertIsNone(duration)
 
-        scheduler_job._schedule_dag_run(dr, session)
+        scheduler_job._schedule_dag_run(dr, 0, session)
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
@@ -815,63 +792,6 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
         clear_db_dags()
         clear_db_sla_miss()
         clear_db_errors()
-
-    @parameterized.expand(
-        [
-            # pylint: disable=bad-whitespace
-            # expected, dag_count, task_count, start_ago, schedule_interval, shape
-            # One DAG with one task per DAG file
-            ([ 1,   1,   1,  1],  1,  1, "1d",  "None",  "no_structure"),  # noqa
-            ([ 1,   1,   1,  1],  1,  1, "1d",  "None",        "linear"),  # noqa
-            ([ 9,   5,   5,  5],  1,  1, "1d", "@once",  "no_structure"),  # noqa
-            ([ 9,   5,   5,  5],  1,  1, "1d", "@once",        "linear"),  # noqa
-            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",  "no_structure"),  # noqa
-            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",        "linear"),  # noqa
-            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",   "binary_tree"),  # noqa
-            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",          "star"),  # noqa
-            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",          "grid"),  # noqa
-            # One DAG with five tasks per DAG  file
-            ([ 1,   1,   1,  1],  1,  5, "1d",  "None",  "no_structure"),  # noqa
-            ([ 1,   1,   1,  1],  1,  5, "1d",  "None",        "linear"),  # noqa
-            ([ 9,   5,   5,  5],  1,  5, "1d", "@once",  "no_structure"),  # noqa
-            ([10,   6,   6,  6],  1,  5, "1d", "@once",        "linear"),  # noqa
-            ([ 9,  12,  15, 18],  1,  5, "1d",   "30m",  "no_structure"),  # noqa
-            ([10,  14,  18, 22],  1,  5, "1d",   "30m",        "linear"),  # noqa
-            ([10,  14,  18, 22],  1,  5, "1d",   "30m",   "binary_tree"),  # noqa
-            ([10,  14,  18, 22],  1,  5, "1d",   "30m",          "star"),  # noqa
-            ([10,  14,  18, 22],  1,  5, "1d",   "30m",          "grid"),  # noqa
-            # 10 DAGs with 10 tasks per DAG file
-            ([ 1,   1,   1,   1], 10, 10, "1d",  "None",  "no_structure"),  # noqa
-            ([ 1,   1,   1,   1], 10, 10, "1d",  "None",        "linear"),  # noqa
-            ([81,  41,  41,  41], 10, 10, "1d", "@once",  "no_structure"),  # noqa
-            ([91,  51,  51,  51], 10, 10, "1d", "@once",        "linear"),  # noqa
-            ([81, 111, 111, 111], 10, 10, "1d",   "30m",  "no_structure"),  # noqa
-            ([91, 131, 131, 131], 10, 10, "1d",   "30m",        "linear"),  # noqa
-            ([91, 131, 131, 131], 10, 10, "1d",   "30m",   "binary_tree"),  # noqa
-            ([91, 131, 131, 131], 10, 10, "1d",   "30m",          "star"),  # noqa
-            ([91, 131, 131, 131], 10, 10, "1d",   "30m",          "grid"),  # noqa
-            # pylint: enable=bad-whitespace
-        ]
-    )
-    def test_process_dags_queries_count(
-        self, expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape
-    ):
-        with mock.patch.dict("os.environ", {
-            "PERF_DAGS_COUNT": str(dag_count),
-            "PERF_TASKS_COUNT": str(task_count),
-            "PERF_START_AGO": start_ago,
-            "PERF_SCHEDULE_INTERVAL": schedule_interval,
-            "PERF_SHAPE": shape,
-        }), conf_vars({
-            ('scheduler', 'use_job_schedule'): 'True',
-        }):
-            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE,
-                            include_examples=False,
-                            include_smart_sensor=False)
-            processor = DagFileProcessor([], mock.MagicMock())
-            for expected_query_count in expected_query_counts:
-                with assert_queries_count(expected_query_count):
-                    processor._process_dags(dagbag.dags.values())
 
     @parameterized.expand(
         [
@@ -2109,7 +2029,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         scheduler = SchedulerJob()
-        scheduler._create_dag_run(orm_dag, dag, session)
+        scheduler._create_dag_runs([orm_dag], session)
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1
@@ -2128,7 +2048,7 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.processor_agent = mock.Mock()
         scheduler.processor_agent.send_callback_to_execute = mock.Mock()
 
-        scheduler._schedule_dag_run(dr, session)
+        scheduler._schedule_dag_run(dr, 0, session)
         session.flush()
 
         session.refresh(dr)
@@ -2177,7 +2097,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         scheduler = SchedulerJob()
-        scheduler._create_dag_run(orm_dag, dag, session)
+        scheduler._create_dag_runs([orm_dag], session)
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1
@@ -2191,7 +2111,7 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.processor_agent = mock.Mock()
         scheduler.processor_agent.send_callback_to_execute = mock.Mock()
 
-        scheduler._schedule_dag_run(dr, session)
+        scheduler._schedule_dag_run(dr, 0, session)
         session.flush()
 
         session.refresh(dr)
@@ -2601,13 +2521,13 @@ class TestSchedulerJob(unittest.TestCase):
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
-        scheduler._schedule_dag_run(dr, session)
+        scheduler._schedule_dag_run(dr, 0, session)
         dr = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=dag.following_schedule(dr.execution_date),
             state=State.RUNNING,
         )
-        scheduler._schedule_dag_run(dr, session)
+        scheduler._schedule_dag_run(dr, 0, session)
 
         task_instances_list = scheduler._executable_task_instances_to_queued(max_tis=32, session=session)
 
@@ -2655,7 +2575,7 @@ class TestSchedulerJob(unittest.TestCase):
                 execution_date=date,
                 state=State.RUNNING,
             )
-            scheduler._schedule_dag_run(dr, session)
+            scheduler._schedule_dag_run(dr, 0, session)
             date = dag.following_schedule(date)
 
         task_instances_list = scheduler._executable_task_instances_to_queued(max_tis=32, session=session)
@@ -2725,7 +2645,7 @@ class TestSchedulerJob(unittest.TestCase):
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
-        scheduler._schedule_dag_run(dr, session)
+        scheduler._schedule_dag_run(dr, 0, session)
 
         task_instances_list = scheduler._executable_task_instances_to_queued(max_tis=32, session=session)
 
@@ -2764,7 +2684,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         scheduler = SchedulerJob()
         dag = scheduler.dagbag.get_dag('test_verify_integrity_if_dag_not_changed', session=session)
-        scheduler._create_dag_run(orm_dag, dag, session)
+        scheduler._create_dag_runs([orm_dag], session)
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1
@@ -2772,7 +2692,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         # Verify that DagRun.verify_integrity is not called
         with mock.patch('airflow.jobs.scheduler_job.DagRun.verify_integrity') as mock_verify_integrity:
-            scheduled_tis = scheduler._schedule_dag_run(dr, session)
+            scheduled_tis = scheduler._schedule_dag_run(dr, 0, session)
             mock_verify_integrity.assert_not_called()
         session.flush()
 
@@ -2812,7 +2732,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         scheduler = SchedulerJob()
         dag = scheduler.dagbag.get_dag('test_verify_integrity_if_dag_changed', session=session)
-        scheduler._create_dag_run(orm_dag, dag, session)
+        scheduler._create_dag_runs([orm_dag], session)
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1
@@ -2830,7 +2750,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag_version_2 = SerializedDagModel.get_latest_version_hash(dr.dag_id, session=session)
         assert dag_version_2 != dag_version_1
 
-        scheduled_tis = scheduler._schedule_dag_run(dr, session)
+        scheduled_tis = scheduler._schedule_dag_run(dr, 0, session)
         session.flush()
 
         assert scheduled_tis == 2
@@ -3518,7 +3438,7 @@ def test_task_with_upstream_skip_process_task_instances():
         dummy3 = DummyOperator(task_id="dummy3")
         [dummy1, dummy2] >> dummy3
 
-    dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+    # dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
     dag.clear()
     dr = dag.create_dagrun(run_type=DagRunType.MANUAL,
                            state=State.RUNNING,
@@ -3532,8 +3452,8 @@ def test_task_with_upstream_skip_process_task_instances():
         tis[dummy2.task_id].state = State.SUCCESS
         assert tis[dummy3.task_id].state == State.NONE
 
-    dag_runs = DagRun.find(dag_id='test_task_with_upstream_skip_dag')
-    dag_file_processor._process_task_instances(dag, dag_runs=dag_runs)
+    # dag_runs = DagRun.find(dag_id='test_task_with_upstream_skip_dag')
+    # dag_file_processor._process_task_instances(dag, dag_runs=dag_runs)
 
     with create_session() as session:
         tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
@@ -3543,7 +3463,6 @@ def test_task_with_upstream_skip_process_task_instances():
         assert tis[dummy3.task_id].state == State.SKIPPED
 
 
-@pytest.mark.xfail(reason="Work why this didn't infinite loop before!")
 class TestSchedulerJobQueriesCount(unittest.TestCase):
     """
     These tests are designed to detect changes in the number of queries for
@@ -3563,11 +3482,11 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             # pylint: disable=bad-whitespace
             # expected, dag_count, task_count
             # One DAG with one task per DAG file
-            (13, 1, 1),  # noqa
+            (21, 1, 1),  # noqa
             # One DAG with five tasks per DAG  file
-            (17, 1, 5),  # noqa
+            (21, 1, 5),  # noqa
             # 10 DAGs with 10 tasks per DAG file
-            (46, 10, 10),  # noqa
+            (93, 10, 10),  # noqa
         ]
     )
     def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
@@ -3580,37 +3499,48 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
         }), conf_vars({
             ('scheduler', 'use_job_schedule'): 'True',
             ('core', 'load_examples'): 'False',
-        }):
-
+            ('core', 'store_serialized_dags'): 'True',
+        }), mock.patch.object(settings, 'STORE_SERIALIZED_DAGS', True):
+            dagruns = []
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
-            for i, dag in enumerate(dagbag.dags.values()):
-                dr = dag.create_dagrun(state=State.RUNNING, run_id=f"{DagRunType.MANUAL.value}__{i}",
-                                       execution_date=DEFAULT_DATE)
+            dagbag.sync_to_db()
+
+            dag_ids = dagbag.dag_ids
+            dagbag = DagBag(read_dags_from_db=True)
+            for i, dag_id in enumerate(dag_ids):
+                dag = dagbag.get_dag(dag_id)
+                dr = dag.create_dagrun(
+                    state=State.RUNNING,
+                    run_id=f"{DagRunType.MANUAL.value}__{i}",
+                    dag_hash=dagbag.dags_hash[dag.dag_id],
+                )
+                dagruns.append(dr)
                 for ti in dr.get_task_instances():
                     ti.set_state(state=State.SCHEDULED)
 
             mock_agent = mock.MagicMock()
-            mock_agent.harvest_serialized_dags.return_value = [
-                SerializedDAG.from_dict(SerializedDAG.to_dict(d)) for d in dagbag.dags.values()]
 
-            job = SchedulerJob(subdir=PERF_DAGS_FOLDER)
-            job.executor = MockExecutor()
+            job = SchedulerJob(subdir=PERF_DAGS_FOLDER, num_runs=1)
+            job.executor = MockExecutor(do_update=False)
             job.heartbeat = mock.MagicMock()
             job.processor_agent = mock_agent
 
             with assert_queries_count(expected_query_count):
-                job._run_scheduler_loop()
+                with mock.patch.object(DagRun, 'next_dagruns_to_examine') as mock_dagruns:
+                    mock_dagruns.return_value = dagruns
+
+                    job._run_scheduler_loop()
 
     @parameterized.expand(
         [
             # pylint: disable=bad-whitespace
             # expected, dag_count, task_count
             # One DAG with one task per DAG file
-            (2, 1, 1),  # noqa
+            (8, 1, 1),  # noqa
             # One DAG with five tasks per DAG  file
-            (2, 1, 5),  # noqa
+            (8, 1, 5),  # noqa
             # 10 DAGs with 10 tasks per DAG file
-            (2, 10, 10),  # noqa
+            (8, 10, 10),  # noqa
         ]
     )
     def test_execute_queries_count_no_harvested_dags(self, expected_query_count, dag_count, task_count):
@@ -3642,3 +3572,68 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             with assert_queries_count(expected_query_count):
                 with create_session() as session:
                     job._do_scheduling(session)
+
+    @parameterized.expand(
+        [
+            # pylint: disable=bad-whitespace
+            # expected, dag_count, task_count, start_ago, schedule_interval, shape
+            # One DAG with one task per DAG file
+            ([ 8,   8,   8,  8],  1,  1, "1d",  "None",  "no_structure"),  # noqa
+            ([ 8,   8,   8,  8],  1,  1, "1d",  "None",        "linear"),  # noqa
+            ([20,  12,  12, 12],  1,  1, "1d", "@once",  "no_structure"),  # noqa
+            ([20,  12,  12, 12],  1,  1, "1d", "@once",        "linear"),  # noqa
+            ([20,  22,  25, 28],  1,  1, "1d",   "30m",  "no_structure"),  # noqa
+            ([20,  22,  25, 28],  1,  1, "1d",   "30m",        "linear"),  # noqa
+            ([20,  22,  25, 28],  1,  1, "1d",   "30m",   "binary_tree"),  # noqa
+            ([20,  22,  25, 28],  1,  1, "1d",   "30m",          "star"),  # noqa
+            ([20,  22,  25, 28],  1,  1, "1d",   "30m",          "grid"),  # noqa
+            # One DAG with five tasks per DAG  file
+            ([ 8,   8,   8,  8],  1,  5, "1d",  "None",  "no_structure"),  # noqa
+            ([ 8,   8,   8,  8],  1,  5, "1d",  "None",        "linear"),  # noqa
+            ([20,  12,  12, 12],  1,  5, "1d", "@once",  "no_structure"),  # noqa
+            ([21,  13,  13, 13],  1,  5, "1d", "@once",        "linear"),  # noqa
+            ([20,  22,  25, 28],  1,  5, "1d",   "30m",  "no_structure"),  # noqa
+            ([21,  24,  28, 32],  1,  5, "1d",   "30m",        "linear"),  # noqa
+            ([21,  24,  28, 32],  1,  5, "1d",   "30m",   "binary_tree"),  # noqa
+            ([21,  24,  28, 32],  1,  5, "1d",   "30m",          "star"),  # noqa
+            ([21,  24,  28, 32],  1,  5, "1d",   "30m",          "grid"),  # noqa
+            # 10 DAGs with 10 tasks per DAG file
+            ([ 8,   8,   8,   8], 10, 10, "1d",  "None",  "no_structure"),  # noqa
+            ([ 8,   8,   8,   8], 10, 10, "1d",  "None",        "linear"),  # noqa
+            ([83,  36,  36,  36], 10, 10, "1d", "@once",  "no_structure"),  # noqa
+            ([93,  49,  49,  49], 10, 10, "1d", "@once",        "linear"),  # noqa
+            ([83, 97, 97, 97], 10, 10, "1d",   "30m",  "no_structure"),  # noqa
+            ([93, 123, 120, 120], 10, 10, "1d",   "30m",        "linear"),  # noqa
+            ([93, 117, 117, 117], 10, 10, "1d",   "30m",   "binary_tree"),  # noqa
+            ([93, 117, 117, 117], 10, 10, "1d",   "30m",          "star"),  # noqa
+            ([93, 117, 117, 117], 10, 10, "1d",   "30m",          "grid"),  # noqa
+            # pylint: enable=bad-whitespace
+        ]
+    )
+    def test_process_dags_queries_count(
+        self, expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape
+    ):
+        with mock.patch.dict("os.environ", {
+            "PERF_DAGS_COUNT": str(dag_count),
+            "PERF_TASKS_COUNT": str(task_count),
+            "PERF_START_AGO": start_ago,
+            "PERF_SCHEDULE_INTERVAL": schedule_interval,
+            "PERF_SHAPE": shape,
+        }), conf_vars({
+            ('scheduler', 'use_job_schedule'): 'True',
+            ('core', 'store_serialized_dags'): 'True',
+        }), mock.patch.object(settings, 'STORE_SERIALIZED_DAGS', True):
+
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            dagbag.sync_to_db()
+
+            mock_agent = mock.MagicMock()
+
+            job = SchedulerJob(subdir=PERF_DAGS_FOLDER, num_runs=1)
+            job.executor = MockExecutor(do_update=False)
+            job.heartbeat = mock.MagicMock()
+            job.processor_agent = mock_agent
+            for expected_query_count in expected_query_counts:
+                with create_session() as session:
+                    with assert_queries_count(expected_query_count):
+                        job._do_scheduling(session)

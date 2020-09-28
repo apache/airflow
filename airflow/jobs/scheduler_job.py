@@ -31,7 +31,7 @@ from collections import defaultdict
 from contextlib import ExitStack, redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
@@ -1435,17 +1435,38 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
             query = DagModel.dags_needing_dagruns(session)
-            for dag_model in query:
-                dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
-                self._create_dag_run(dag_model, dag, session)
+            self._create_dag_runs(query.all(), session)
 
             # commit the session - Release the write lock on DagModel table.
             expected_commit = True
             session.commit()
             # END: create dagruns
 
-            for dag_run in DagRun.next_dagruns_to_examine(session):
-                self._schedule_dag_run(dag_run, session)
+            dag_runs = DagRun.next_dagruns_to_examine(session)
+
+            # Bulk fetch the currently active dag runs for the dags we are
+            # examining, rather than making one query per DagRun
+
+            # TODO: This query is probably horribly inefficient (though there is an
+            # index on (dag_id,state)). It is to deal with the case when a user
+            # clears more than max_active_runs older tasks -- we don't want the
+            # scheduler to suddenly go and start running tasks from all of the
+            # runs. (AIRFLOW-137/GH #1442)
+            #
+            # The longer term fix would be to have `clear` do this, and put DagRuns
+            # in to the queued state, then take DRs out of queued before creating
+            # any new ones
+            # TODO[HA]: Why is this on TI, not on DagRun??
+            currently_active_runs = dict(session.query(
+                TI.dag_id,
+                func.count(TI.execution_date.distinct()),
+            ).filter(
+                TI.dag_id.in_(list({dag_run.dag_id for dag_run in dag_runs})),
+                TI.state.notin_(State.finished())
+            ).group_by(TI.dag_id).all())
+
+            for dag_run in dag_runs:
+                self._schedule_dag_run(dag_run, currently_active_runs.get(dag_run.dag_id, 0), session)
 
             expected_commit = True
             session.commit()
@@ -1498,54 +1519,65 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         finally:
             event.remove(session.bind, 'commit', validate_commit)
 
-    def _create_dag_run(self, dag_model: DagModel, dag: DAG, session: Session) -> None:
+    def _create_dag_runs(self, dag_models: Iterable[DagModel], session: Session) -> None:
         """
         Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
         if/when the next DAGRun should be created
         """
-        dag_hash = self.dagbag.dags_hash.get(dag.dag_id, None)
+        for dag_model in dag_models:
+            dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+            dag_hash = self.dagbag.dags_hash.get(dag.dag_id, None)
+            dag.create_dagrun(
+                run_type=DagRunType.SCHEDULED,
+                execution_date=dag_model.next_dagrun,
+                start_date=timezone.utcnow(),
+                state=State.RUNNING,
+                external_trigger=False,
+                session=session,
+                dag_hash=dag_hash
+            )
 
-        dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=dag_model.next_dagrun,
-            start_date=timezone.utcnow(),
-            state=State.RUNNING,
-            external_trigger=False,
-            session=session,
-            dag_hash=dag_hash
-        )
-
-        self._update_dag_next_dagrun(dag_model, dag, session)
+        self._update_dag_next_dagruns(dag_models, session)
 
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
 
-    def _update_dag_next_dagrun(self, dag_model: DagModel, dag: DAG, session: Session) -> None:
+    def _update_dag_next_dagruns(self, dag_models: Iterable[DagModel], session: Session) -> None:
+        """
+        Bulk update the next_dagrun and next_dagrun_create_after for all the dags.
 
-        # Check max_active_runs, to see if we are _now_ at the limit for this dag? (we've just created
-        # one after all)
-        active_runs_of_dag = session.query(func.count('*')).filter(
-            DagRun.dag_id == dag_model.dag_id,
+        We batch the select queries to get info about all the dags at once
+        """
+        # Check max_active_runs, to see if we are _now_ at the limit for any of
+        # these dag? (we've just created a DagRun for them after all)
+        active_runs_of_dags = dict(session.query(DagRun.dag_id, func.count('*')).filter(
+            DagRun.dag_id.in_([o.dag_id for o in dag_models]),
             DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
             DagRun.external_trigger.is_(False),
-        ).scalar()
+        ).group_by(DagRun.dag_id).all())
 
-        # TODO[HA]: add back in dagrun.timeout
+        for dag_model in dag_models:
+            dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+            active_runs_of_dag = active_runs_of_dags.get(dag.dag_id, 0)
+            if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
+                self.log.info(
+                    "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
+                    dag.dag_id, active_runs_of_dag, dag.max_active_runs
+                )
+                dag_model.next_dagrun_create_after = None
+            else:
+                dag_model.next_dagrun, dag_model.next_dagrun_create_after = \
+                    dag.next_dagrun_info(dag_model.next_dagrun)
 
-        if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
-            self.log.info(
-                "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
-                dag.dag_id, active_runs_of_dag, dag.max_active_runs
-            )
-            dag_model.next_dagrun_create_after = None
-        else:
-            dag_model.next_dagrun, dag_model.next_dagrun_create_after = \
-                dag.next_dagrun_info(dag_model.next_dagrun)
-
-    def _schedule_dag_run(self, dag_run: DagRun, session: Session) -> int:
+    def _schedule_dag_run(self, dag_run: DagRun, currently_active_runs: int, session: Session) -> int:
         """
         Make scheduling decisions about an individual dag run
 
+        ``currently_active_runs`` is passed in so that a batch query can be
+        used to ask this for all dag runs in the batch, to avoid an n+1 query.
+
+        :param dag_run: The DagRun to schedule
+        :param currently_active_runs: Number of currently active runs of this DAG
         :return: Number of tasks scheduled
         """
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
@@ -1566,7 +1598,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             session.flush()
 
             # Work out if we should allow creating a new DagRun now?
-            self._update_dag_next_dagrun(session.query(DagModel).get(dag_run.dag_id), dag, session)
+            self._update_dag_next_dagruns([session.query(DagModel).get(dag_run.dag_id)], session)
 
             dag_run.callback = DagCallbackRequest(
                 full_filepath=dag.fileloc,
@@ -1588,22 +1620,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             )
             return 0
 
-        # TODO: This query is probably horribly inefficient (though there is an
-        # index on (dag_id,state)). It is to deal with the case when a user
-        # clears more than max_active_runs older tasks -- we don't want the
-        # scheduler to suddenly go and start running tasks from all of the
-        # runs. (AIRFLOW-137/GH #1442)
-        #
-        # The longer term fix would be to have `clear` do this, and put DagRuns
-        # in to the queued state, then take DRs out of queued before creating
-        # any new ones
         if dag.max_active_runs:
-            currently_active_runs = session.query(func.count(TI.execution_date.distinct())).filter(
-                TI.dag_id == dag_run.dag_id,
-                TI.state.notin_(State.finished())
-            ).scalar()
-
             if currently_active_runs >= dag.max_active_runs:
+                self.log.info(
+                    "DAG %s already has %d active runs, not queuing any more tasks",
+                    dag.dag_id,
+                    currently_active_runs,
+                )
                 return 0
 
         self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session)
@@ -1623,6 +1646,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             )
         ]
 
+        # This will do one query per dag run. We "could" build up a complex
+        # query to update all the TIs across all the execution dates and dag
+        # IDs in a single query, but it turns out that can be _very very slow_
+        # see #11147/commit ee90807ac for more details
         count = session.query(TI).filter(
             TI.dag_id == dag_run.dag_id,
             TI.execution_date == dag_run.execution_date,
