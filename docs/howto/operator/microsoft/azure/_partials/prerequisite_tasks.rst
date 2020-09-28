@@ -30,5 +30,5 @@ To use these operators, you must do a few things:
 
   * :doc:`Setup Connection </howto/connection/azure>`.
 
-.. _AZURE PORTAL:: https://portal.azure.com
-.. _AZURE CLI:: https://docs.microsoft.com/en-us/cli/azure/
+.. _AZURE PORTAL: https://portal.azure.com
+.. _AZURE CLI: https://docs.microsoft.com/en-us/cli/azure/
