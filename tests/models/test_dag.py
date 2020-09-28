@@ -1612,6 +1612,44 @@ class TestDag(unittest.TestCase):
         next_date = dag.next_dagrun_after_date(None)
         assert next_date == timezone.datetime(2016, 1, 1, 10, 10)
 
+    def test_next_dagrun_after_not_for_subdags(self):
+        """
+        Test the subdags are never marked to have dagruns created, as they are
+        handled by the SubDagOperator, not the scheduler
+        """
+
+        def subdag(parent_dag_name, child_dag_name, args):
+            """
+            Create a subdag.
+            """
+            dag_subdag = DAG(dag_id='%s.%s' % (parent_dag_name, child_dag_name), schedule_interval="@daily", default_args=args)
+
+            for i in range(2):
+                DummyOperator(task_id='%s-task-%s' % (child_dag_name, i + 1), dag=dag_subdag)
+
+            return dag_subdag
+
+        with DAG(
+            dag_id='test_subdag_operator',
+            start_date=datetime.datetime(2019, 1, 1),
+            max_active_runs=1,
+            schedule_interval=timedelta(minutes=1),
+        ) as dag:
+            section_1 = SubDagOperator(
+                task_id='section-1',
+                subdag=subdag(dag.dag_id, 'section-1', {'start_date': dag.start_date}),
+            )
+
+        subdag = section_1.subdag
+        # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
+        subdag.parent_dag = dag
+        subdag.is_subdag = True
+
+        next_date = dag.next_dagrun_after_date(None)
+        assert next_date == timezone.datetime(2019, 1, 1, 0, 0)
+
+        next_subdag_date = subdag.next_dagrun_after_date(None)
+        assert next_subdag_date is None, "SubDags should never have DagRuns created by the scheduler"
 
 class TestDagModel:
 

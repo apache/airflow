@@ -505,7 +505,7 @@ class DAG(BaseDag, LoggingMixin):
             backfill triggered run for this dag
         :type date_last_automated_dagrun: pendulum.Pendulum
         """
-        if not self.schedule_interval:
+        if not self.schedule_interval or self.is_subdag:
             return None
 
         # don't schedule @once again

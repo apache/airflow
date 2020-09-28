@@ -222,7 +222,7 @@ if __name__ == "__main__":
             log = logging.getLogger(__name__)
             processor = DagFileProcessor(dag_ids=[], log=log)
             dag_file = os.path.join(os.path.dirname(__file__), os.path.pardir, "dags", "elastic_dag.py")
-            processor.process_file(file_path=dag_file, failure_callback_requests=[])
+            processor.process_file(file_path=dag_file, callback_requests=[])
 
     with trace_queries(), count_queries():
         case()
