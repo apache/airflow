@@ -676,18 +676,16 @@ def dag_bag_head_tail():
     Create a DagBag containing one DAG, with task "head" depending on task "tail" of the
     previous execution_date.
 
-    20200501         20200502              ...                 2020510
-    +----------+     +----------+                              +----------+
-    |   head   |     | > head   |       >                      |>  head   |
-    |     |    |     -/    |    |     -/                      -/     |    |
-    |     |    |    /|     |    |    /                       / |     |    |
-    |     v    |   / |     v    |   /      ...              /  |     v    |
-    |   body   | -/  |   body   | -/                      -/   |   body   |
-    |     |    |/    |     |    |/                       /     |     |    |
-    |     |    /     |     |    /                       /      |     |    |
-    |     v  -/|     |     v  -/|                     -/       |     v    |
-    |   tail/  |     |   tail/  |                    /         |   tail   |
-    +----------+     +----------+          ...                 +----------+
+    20200501     20200502                 20200510
+    +------+     +------+                 +------+
+    | head |    -->head |    -->         -->head |
+    |  |   |   / |  |   |   /           / |  |   |
+    |  v   |  /  |  v   |  /           /  |  v   |
+    | body | /   | body | /     ...   /   | body |
+    |  |   |/    |  |   |/           /    |  |   |
+    |  v   /     |  v   /           /     |  v   |
+    | tail/|     | tail/|          /      | tail |
+    +------+     +------+                 +------+
     """
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
     with DAG("head_tail", start_date=DEFAULT_DATE, schedule_interval="@daily") as dag:
