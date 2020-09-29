@@ -1,5 +1,6 @@
 #!/usr/bin/env bats
 
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,11 +17,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck disable=SC1091
+source "/opt/bats/lib/load.bash"
 
+setup() {
+# shellcheck source=scripts/in_container/_in_container_utils.sh
+    source "${AIRFLOW_SOURCES}/scripts/in_container/_in_container_utils.sh"
+}
 
-@test "empty test" {
-  load bats_utils
-
-  run pwd
-  assert_success
+@test "test in_container" {
+    run assert_in_container
+    assert [ $status -eq 0 ]
 }
