@@ -282,11 +282,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def get_readable_dag_ids(self, user):
         """Gets the DAG IDs readable by authenticated user."""
-        return [dag.dag_id for dag in self.get_readable_dags(user)]
+        return set(dag.dag_id for dag in self.get_readable_dags(user))
 
     def get_editable_dag_ids(self, user):
         """Gets the DAG IDs editable by authenticated user."""
-        return [dag.dag_id for dag in self.get_editable_dags(user)]
+        return set(dag.dag_id for dag in self.get_editable_dags(user))
 
     @provide_session
     def get_accessible_dags(self, user_action, user, session=None):
