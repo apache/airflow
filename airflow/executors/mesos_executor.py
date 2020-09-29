@@ -54,6 +54,7 @@ class AirflowMesosScheduler(MesosClient):
     to run on a mesos slave
     """
 
+    # pylint: disable=super-init-not-called
     def __init__(self,
                  executor,
                  task_queue,
@@ -360,7 +361,6 @@ class MesosExecutor(BaseExecutor):
         """
         Setup and start routine to connect with the mesos master
         """
-
         if not configuration.conf.get('mesos', 'MASTER'):
             self.log.error("Expecting mesos master URL for mesos executor")
             raise AirflowException("mesos.master not provided for mesos executor")
