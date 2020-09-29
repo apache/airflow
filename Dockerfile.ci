@@ -164,6 +164,35 @@ RUN mkdir -pv ${AIRFLOW_HOME} && \
 ARG PIP_DEPENDENCIES_EPOCH_NUMBER="3"
 ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
+# Install BATS and its dependencies for "in container" tests
+ARG BATS_VERSION="0.4.0"
+ARG BATS_SUPPORT_VERSION="0.3.0"
+ARG BATS_ASSERT_VERSION="2.0.0"
+ARG BATS_FILE_VERSION="0.2.0"
+
+RUN curl -sSL https://github.com/bats-core/bats-core/archive/v${BATS_VERSION}.tar.gz -o /tmp/bats.tgz \
+    && tar -zxf /tmp/bats.tgz -C /tmp \
+    && /bin/bash /tmp/bats-core-${BATS_VERSION}/install.sh /opt/bats && rm -rf
+
+RUN mkdir -p /opt/bats/lib/bats-support \
+    && curl -sSL https://github.com/bats-core/bats-support/archive/v${BATS_SUPPORT_VERSION}.tar.gz -o /tmp/bats-support.tgz \
+    && tar -zxf /tmp/bats-support.tgz -C /opt/bats/lib/bats-support --strip 1 && rm -rf /tmp/*
+
+RUN mkdir -p /opt/bats/lib/bats-assert \
+    && curl -sSL https://github.com/bats-core/bats-assert/archive/v${BATS_ASSERT_VERSION}.tar.gz -o /tmp/bats-assert.tgz \
+    && tar -zxf /tmp/bats-assert.tgz -C /opt/bats/lib/bats-assert --strip 1 && rm -rf /tmp/*
+
+RUN mkdir -p /opt/bats/lib/bats-file \
+    && curl -sSL https://github.com/bats-core/bats-file/archive/v${BATS_FILE_VERSION}.tar.gz -o /tmp/bats-file.tgz \
+    && tar -zxf /tmp/bats-file.tgz -C /opt/bats/lib/bats-file --strip 1 && rm -rf /tmp/*
+
+RUN echo "export PATH=/opt/bats/bin:${PATH}" >> /root/.bashrc
+
+# Additional scripts for managing BATS addons
+COPY scripts/ci/dockerfiles/bats/load.bash /opt/bats/lib/
+RUN chmod a+x /opt/bats/lib/load.bash
+
+
 # Optimizing installation of Cassandra driver
 # Speeds up building the image - cassandra driver without CYTHON saves around 10 minutes
 ARG CASS_DRIVER_NO_CYTHON="1"
@@ -263,6 +292,8 @@ RUN chmod a+x /entrypoint
 # if you want to add something that is missing and you expect to see it in the image you can
 # add it with ! in .dockerignore next to the airflow, test etc. directories there
 COPY . ${AIRFLOW_SOURCES}/
+
+
 
 # Install autocomplete for airflow
 RUN register-python-argcomplete airflow >> ~/.bashrc

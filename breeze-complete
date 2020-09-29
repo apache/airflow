@@ -69,6 +69,7 @@ all-but-pylint
 airflow-config-yaml
 base-operator
 bats-tests
+bats-in-container-tests
 black
 build
 build-providers-dependencies
