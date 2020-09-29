@@ -2332,7 +2332,7 @@ class TestSchedulerJob(unittest.TestCase):
             )
             session.commit()
 
-            scheduler = SchedulerJob(dag_id,
+            scheduler = SchedulerJob(dag.fileloc,
                                      executor=self.null_exec,
                                      num_runs=1)
             scheduler.run()
