@@ -54,6 +54,14 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``build``                             Builds image for mypy, flake8.                                       *
 ----------------------------------- ---------------------------------------------------------------- ------------
+``bats-in-container-tests``           Run in Breeze container bats tests                                   *
+----------------------------------- ---------------------------------------------------------------- ------------
+``black``                             Runs Black (the uncompromising Python code formatter)
+----------------------------------- ---------------------------------------------------------------- ------------
+``build``                             Builds image for mypy, pylint, flake8.                               *
+----------------------------------- ---------------------------------------------------------------- ------------
+``build-providers-dependencies``      Regenerates the json file with cross-provider dependencies
+----------------------------------- ---------------------------------------------------------------- ------------
 ``check-apache-license``              Checks compatibility with Apache License requirements.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-builtin-literals``            Require literal syntax when initializing Python builtin types

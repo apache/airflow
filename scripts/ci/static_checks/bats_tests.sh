@@ -16,13 +16,26 @@
 # specific language governing permissions and limitations
 # under the License.
 # shellcheck source=scripts/ci/libraries/_script_init.sh
+
+#######################################################################################################
+# Runs tests for bash scripts in a docker container. This script is the entrypoint for the bats-tests
+# pre-commit hook where it runs all the bats tests (exluding in container tests).
+########################################################################################################
 function run_bats_tests() {
-    if [[ "${#@}" == "0" ]]; then
+    local bats_scripts=()
+    for script in "$@"
+    do
+        if [[ $script =~ \bats$ ]];
+        then
+            bats_scripts+=( "$script" )
+        fi
+    done
+    if [[ "${#@}" == "0" || "${#bats_scripts[@]}" != "${#@}" ]]; then
         docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            apache/airflow:bats-2020.09.05-1.2.1 --tap -r /airflow/tests/bats
+            apache/airflow:bats-2020.09.05-1.2.1 --tap /airflow/tests/bats/
     else
         docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            apache/airflow:bats-2020.09.05-1.2.1 --tap "${@}"
+            apache/airflow:bats-2020.09.05-1.2.1 --tap "${bats_scripts[@]}"
     fi
 }
 
