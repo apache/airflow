@@ -46,6 +46,25 @@ class TestCycleTester(unittest.TestCase):
 
         self.assertFalse(test_cycle(dag))
 
+    def test_semi_complex(self):
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        # A -> B -> C
+        #      B -> D
+        # E -> F
+        with dag:
+            create_cluster = DummyOperator(task_id="c")
+            pod_task = DummyOperator(task_id="p")
+            pod_task_xcom = DummyOperator(task_id="x")
+            delete_cluster = DummyOperator(task_id="d")
+            pod_task_xcom_result = DummyOperator(task_id="r")
+            create_cluster >> pod_task >> delete_cluster
+            create_cluster >> pod_task_xcom >> delete_cluster
+            pod_task_xcom >> pod_task_xcom_result
+
     def test_cycle_no_cycle(self):
         # test no cycle
         dag = DAG(
