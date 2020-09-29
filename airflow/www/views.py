@@ -588,7 +588,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @provide_session
     def task_stats(self, session=None):
         """Task Statistics"""
-        allowed_dag_ids = current_app.appbuilder.sm.ge_readable_dag_ids(g.user)
+        allowed_dag_ids = current_app.appbuilder.sm.get_readable_dag_ids(g.user)
 
         if not allowed_dag_ids:
             return wwwutils.json_response({})
