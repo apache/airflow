@@ -58,15 +58,15 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'Browse',
         'Config',
         'DAG Runs',
-        'DagRunModelView',
+        'DagRun',
         'Task Instances',
-        'TaskInstanceModelView',
+        'TaskInstance',
         'SLA Misses',
-        'SlaMissModelView',
+        'SlaMiss',
         'Jobs',
-        'JobModelView',
+        'Job',
         'Logs',
-        'LogModelView',
+        'Log',
         'Docs',
         'Documentation',
         'GitHub',
@@ -84,13 +84,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'Configurations',
         'ConfigurationView',
         'Connections',
-        'ConnectionModelView',
+        'Connection',
         'Pools',
-        'PoolModelView',
+        'Pool',
         'Variables',
-        'VariableModelView',
+        'Variable',
         'XComs',
-        'XComModelView',
+        'XCom',
     }
     # [END security_op_vms]
 
@@ -296,12 +296,18 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if user.is_anonymous:
             return set()
 
+        dag_prefix = "DAG:"
         resources = set()
         for role in user.roles:
             for permission in role.permissions:
                 resource = permission.view_menu.name
                 action = permission.permission.name
-                if action == user_action:
+                if action != user_action:
+                    continue
+
+                if resource.startswith(dag_prefix):
+                    resources.add(resource[len(dag_prefix) :])
+                else:
                     resources.add(resource)
         if 'Dag' in resources:
             return session.query(DagModel)
@@ -346,9 +352,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         if not user:
             user = g.user
+        prefixed_permission = f"DAG:{permission}"
         if user.is_anonymous:
-            return self.is_item_public(permission, view_name)
-        return self._has_view_access(user, permission, view_name)
+            return self.is_item_public(permission, view_name) or self.is_item_public(
+                prefixed_permission, view_name
+            )
+        return self._has_view_access(user, permission, view_name) or self._has_view_access(
+            user, prefixed_permission, view_name
+        )
 
     def _get_and_cache_perms(self):
         """
@@ -595,13 +606,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :type access_control: dict
         :return:
         """
+        prefixed_dag_id = f"DAG:{dag_id}"
         for dag_perm in self.DAG_PERMS:
-            perm_on_dag = self.find_permission_view_menu(dag_perm, dag_id)
+            perm_on_dag = self.find_permission_view_menu(dag_perm, prefixed_dag_id)
             if perm_on_dag is None:
-                self.add_permission_view_menu(dag_perm, dag_id)
+                self.add_permission_view_menu(dag_perm, prefixed_dag_id)
 
         if access_control:
-            self._sync_dag_view_permissions(dag_id, access_control)
+            self._sync_dag_view_permissions(prefixed_dag_id, access_control)
 
     def _sync_dag_view_permissions(self, dag_id, access_control):
         """Set the access policy on the given DAG's ViewModel.
