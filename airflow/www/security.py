@@ -282,11 +282,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Gets the DAGs editable by authenticated user."""
         return self.get_accessible_dags(CAN_EDIT, user)
 
-    def get_readable_dag_ids(self, user):
+    def get_readable_dag_ids(self, user) -> Set[str]:
         """Gets the DAG IDs readable by authenticated user."""
         return set(dag.dag_id for dag in self.get_readable_dags(user))
 
-    def get_editable_dag_ids(self, user):
+    def get_editable_dag_ids(self, user) -> Set[str]:
         """Gets the DAG IDs editable by authenticated user."""
         return set(dag.dag_id for dag in self.get_editable_dags(user))
 
@@ -307,28 +307,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             return session.query(DagModel)
 
         return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
-
-    def get_accessible_dag_ids(self, username=None) -> Set[str]:
-        """
-        Return a set of dags that user has access to(either read or write).
-
-        :param username: Name of the user.
-        :return: A set of dag ids that the user could access.
-        """
-        if not username:
-            username = g.user
-
-        if username.is_anonymous or 'Public' in username.roles:
-            # return an empty set if the role is public
-            return set()
-
-        roles = {role.name for role in username.roles}
-        if {'Admin', 'Viewer', 'User', 'Op'} & roles:
-            return self.DAG_VMS
-
-        user_perms_views = self.get_all_permissions_views()
-        # return a set of all dags that the user could access
-        return {view for perm, view in user_perms_views if perm in self.DAG_PERMS}
 
     def has_access(self, permission, view_name, user=None) -> bool:
         """
