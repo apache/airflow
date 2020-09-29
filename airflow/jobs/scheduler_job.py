@@ -243,7 +243,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
             raise AirflowException("Tried to kill process before starting!")
 
         if self._process.is_alive() and self._process.pid:
-            self.log.warning("Killing PID %s", self._process.pid)
+            self.log.warning("Killing DAGFileProcessorProcess (PID=%d)", self._process.pid)
             os.kill(self._process.pid, signal.SIGKILL)
 
     @property

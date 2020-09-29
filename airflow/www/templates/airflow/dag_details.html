@@ -36,6 +36,14 @@
   </div>
   <br>
   <table class="table table-striped table-bordered">
+    {% if dag.parent_dag is defined and dag.parent_dag %}
+      <tr>
+        <th>Parent DAG</th>
+        <td>
+          <a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id) }}">{{ dag.parent_dag.dag_id }}</a>
+        </td>
+      </tr>
+    {% endif %}
     <tr>
       <th>Schedule Interval</th>
       <td>{{ dag.schedule_interval }}</td>
@@ -75,6 +83,24 @@
     <tr>
       <th>Owner</th>
       <td>{{ dag.owner }}</td>
+    </tr>
+    <tr>
+      <th>Tags</th>
+      <td>
+        {% if tags is defined and tags %}
+          {% for tag in tags | sort(attribute='name') %}
+            <a class="label label-success"
+               href="/home?tags={{ tag.name }}"
+               style="margin: 3px;"
+               title="All DAGs tagged &ldquo;{{ tag.name }}&rdquo;"
+            >
+               {{ tag.name }}
+            </a>
+          {% endfor %}
+        {% else %}
+          None
+        {% endif %}
+      </td>
     </tr>
   </table>
 {% endblock %}

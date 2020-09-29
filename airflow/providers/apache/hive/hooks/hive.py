@@ -184,7 +184,7 @@ class HiveCliHook(BaseHook):
         self,
         hql: Union[str, Text],
         schema: Optional[str] = None,
-        verbose: Optional[bool] = True,
+        verbose: bool = True,
         hive_conf: Optional[Dict[Any, Any]] = None,
     ) -> Any:
         """

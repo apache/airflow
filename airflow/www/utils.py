@@ -333,12 +333,12 @@ def wrapped_markdown(s, css_class=None):
         '<div class="rich_doc {css_class}" >'.format(css_class=css_class) + markdown.markdown(s) + "</div>"
     )
 
+
 # pylint: disable=no-member
-
-
 def get_attr_renderer():
     """Return Dictionary containing different Pygments Lexers for Rendering & Highlighting"""
     return {
+        'bash': lambda x: render(x, lexers.BashLexer),
         'bash_command': lambda x: render(x, lexers.BashLexer),
         'hql': lambda x: render(x, lexers.SqlLexer),
         'sql': lambda x: render(x, lexers.SqlLexer),
@@ -347,9 +347,13 @@ def get_attr_renderer():
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
+        'json': lambda x: render(x, lexers.JsonLexer),
+        'md': wrapped_markdown,
+        'py': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
+        'rst': lambda x: render(x, lexers.RstLexer),
+        'yaml': lambda x: render(x, lexers.YamlLexer),
     }
-
 # pylint: enable=no-member
 
 

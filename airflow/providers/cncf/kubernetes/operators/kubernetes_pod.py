@@ -16,11 +16,11 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 import re
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple, Any
 
 import yaml
-from kubernetes.client import models as k8s
 from kubernetes.client import CoreV1Api
+from kubernetes.client import models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
@@ -30,6 +30,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
+from airflow.kubernetes.pod_generator import PodGenerator
 
 
 class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -185,7 +186,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
                  termination_grace_period: Optional[int] = None,
-                 **kwargs):
+                 **kwargs) -> None:
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(resources=None, **kwargs)
@@ -266,6 +267,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                                                      config_file=self.config_file)
 
             self.pod = self.create_pod_request_obj()
+            self.namespace = self.pod.metadata.namespace
+
             self.client = client
 
             # Add combination of labels to uniquely identify a running pod
@@ -297,7 +300,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
-    def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod_list):
+    def handle_pod_overlap(
+        self, labels: dict, try_numbers_match: bool, launcher: Any, pod_list: Any
+    ) -> Tuple[State, Optional[str]]:
         """
 
         In cases where the Scheduler restarts while a KubernetesPodOperator task is running,
@@ -327,12 +332,12 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         return final_state, result
 
     @staticmethod
-    def _get_pod_identifying_label_string(labels):
+    def _get_pod_identifying_label_string(labels) -> str:
         filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != 'try_number'}
         return ','.join([label_id + '=' + label for label_id, label in sorted(filtered_labels.items())])
 
     @staticmethod
-    def _try_numbers_match(context, pod):
+    def _try_numbers_match(context, pod) -> bool:
         return pod.metadata.labels['try_number'] == context['ti'].try_number
 
     def _set_name(self, name):
@@ -348,53 +353,55 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
         """
         if self.pod_template_file:
-            pod = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
-        elif not self.pod:
-            pod = k8s.V1Pod(
-                api_version="v1",
-                kind="Pod",
-                metadata=k8s.V1ObjectMeta(
-                    namespace=self.namespace,
-                    labels=self.labels,
-                    name=self.name,
-                    annotations=self.annotations,
-
-                ),
-                spec=k8s.V1PodSpec(
-                    node_selector=self.node_selectors,
-                    affinity=self.affinity,
-                    tolerations=self.tolerations,
-                    init_containers=self.init_containers,
-                    containers=[
-                        k8s.V1Container(
-                            image=self.image,
-                            name="base",
-                            command=self.cmds,
-                            ports=self.ports,
-                            resources=self.k8s_resources,
-                            volume_mounts=self.volume_mounts,
-                            args=self.arguments,
-                            env=self.env_vars,
-                            env_from=self.env_from,
-                        )
-                    ],
-                    image_pull_secrets=self.image_pull_secrets,
-                    service_account_name=self.service_account_name,
-                    host_network=self.hostnetwork,
-                    security_context=self.security_context,
-                    dns_policy=self.dnspolicy,
-                    scheduler_name=self.schedulername,
-                    restart_policy='Never',
-                    priority_class_name=self.priority_class_name,
-                    volumes=self.volumes,
-                )
-            )
+            pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
         else:
-            pod = self.pod
+            pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="name"))
+
+        pod = k8s.V1Pod(
+            api_version="v1",
+            kind="Pod",
+            metadata=k8s.V1ObjectMeta(
+                namespace=self.namespace,
+                labels=self.labels,
+                name=self.name,
+                annotations=self.annotations,
+
+            ),
+            spec=k8s.V1PodSpec(
+                node_selector=self.node_selectors,
+                affinity=self.affinity,
+                tolerations=self.tolerations,
+                init_containers=self.init_containers,
+                containers=[
+                    k8s.V1Container(
+                        image=self.image,
+                        name="base",
+                        command=self.cmds,
+                        ports=self.ports,
+                        resources=self.k8s_resources,
+                        volume_mounts=self.volume_mounts,
+                        args=self.arguments,
+                        env=self.env_vars,
+                        env_from=self.env_from,
+                    )
+                ],
+                image_pull_secrets=self.image_pull_secrets,
+                service_account_name=self.service_account_name,
+                host_network=self.hostnetwork,
+                security_context=self.security_context,
+                dns_policy=self.dnspolicy,
+                scheduler_name=self.schedulername,
+                restart_policy='Never',
+                priority_class_name=self.priority_class_name,
+                volumes=self.volumes,
+            )
+        )
+
+        pod = PodGenerator.reconcile_pods(pod_template, pod)
+
         for secret in self.secrets:
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
-            from airflow.kubernetes.pod_generator import PodGenerator
             pod = PodGenerator.add_xcom_sidecar(pod)
         return pod
 

@@ -69,7 +69,7 @@ class SlackHook(BaseHook):  # noqa
         self.token = self.__get_token(token, slack_conn_id)
         self.client = WebClient(self.token, **client_args)
 
-    def __get_token(self, token, slack_conn_id):
+    def __get_token(self, token: Any, slack_conn_id: Any) -> str:
         if token is not None:
             return token
 
@@ -82,7 +82,7 @@ class SlackHook(BaseHook):  # noqa
 
         raise AirflowException('Cannot get token: ' 'No valid Slack token nor slack_conn_id supplied.')
 
-    def call(self, api_method, *args, **kwargs) -> None:
+    def call(self, api_method: str, *args, **kwargs) -> None:
         """
         Calls Slack WebClient `WebClient.api_call` with given arguments.
 

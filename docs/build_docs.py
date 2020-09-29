@@ -416,7 +416,7 @@ def check_exampleinclude_for_example_dags():
             file_path=doc_file,
             pattern=r"literalinclude::.+example_dags",
             message=(
-                "literalinclude directive is is prohibited for example DAGs. \n"
+                "literalinclude directive is prohibited for example DAGs. \n"
                 "You should use the exampleinclude directive to include example DAGs."
             )
         )
@@ -450,7 +450,6 @@ MISSING_GOOGLE_DOC_GUIDES = {
     'dlp',
     'gcs_to_bigquery',
     'mssql_to_gcs',
-    'mysql_to_gcs',
     'postgres_to_gcs',
     'sql_to_gcs',
     'tasks',

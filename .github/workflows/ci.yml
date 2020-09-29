@@ -188,6 +188,7 @@ jobs:
         run: ./scripts/ci/openapi/client_codegen_diff.sh
 
   ci-images:
+    timeout-minutes: 50
     name: "Wait for CI images"
     runs-on: ubuntu-latest
     needs: [build-info]
@@ -578,6 +579,7 @@ jobs:
           directory: "./coverage-files"
 
   prod-images:
+    timeout-minutes: 50
     name: "Wait for PROD images"
     runs-on: ubuntu-latest
     needs: [build-info]

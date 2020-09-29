@@ -276,6 +276,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     template_fields: Iterable[str] = ()
     # Defines which files extensions to look for in the templated fields
     template_ext: Iterable[str] = ()
+    # Template field renderers indicating type of the field, for example sql, json, bash
+    template_fields_renderers: Dict[str, str] = {}
+
     # Defines the color in the UI
     ui_color = '#fff'  # type: str
     ui_fgcolor = '#000'  # type: str
@@ -1311,7 +1314,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 vars(BaseOperator(task_id='test')).keys() - {
                     'inlets', 'outlets', '_upstream_task_ids', 'default_args', 'dag', '_dag',
                     '_BaseOperator__instantiated',
-                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'})
+                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor',
+                     'template_fields', 'template_fields_renderers'})
 
         return cls.__serialized_fields
 

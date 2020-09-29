@@ -15,11 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import tempfile
-from typing import Generator, Optional, Tuple, Union
+from typing import Generator, Optional, Tuple, Union, Any
 
 import yaml
 from cached_property import cached_property
-
 from kubernetes import client, config, watch
 
 from airflow.exceptions import AirflowException
@@ -57,12 +56,12 @@ class KubernetesHook(BaseHook):
 
     def __init__(
         self, conn_id: str = "kubernetes_default", client_configuration: Optional[client.Configuration] = None
-    ):
+    ) -> None:
         super().__init__()
         self.conn_id = conn_id
         self.client_configuration = client_configuration
 
-    def get_conn(self):
+    def get_conn(self) -> Any:
         """
         Returns kubernetes api session for use with requests
         """
@@ -106,7 +105,7 @@ class KubernetesHook(BaseHook):
         return client.ApiClient()
 
     @cached_property
-    def api_client(self):
+    def api_client(self) -> Any:
         """Cached Kubernetes API client"""
         return self.get_conn()
 
@@ -169,7 +168,7 @@ class KubernetesHook(BaseHook):
         except client.rest.ApiException as e:
             raise AirflowException("Exception when calling -> get_custom_resource_definition: %s\n" % e)
 
-    def get_namespace(self):
+    def get_namespace(self) -> str:
         """
         Returns the namespace that defined in the connection
         """

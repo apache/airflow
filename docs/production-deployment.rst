@@ -51,7 +51,7 @@ does not contain ``build-essential``. If you need compiler like gcc or g++ or ma
 are not found in the image and it is recommended that you follow the "customize" route instead.
 
 How to extend the image - it is something you are most likely familiar with - simply
-build a new image using Dockerfile's ``FROM:`` directive and add whatever you need. Then you can add your
+build a new image using Dockerfile's ``FROM`` directive and add whatever you need. Then you can add your
 Debian dependencies with ``apt`` or PyPI dependencies with ``pip install`` or any other stuff you need.
 
 You should be aware, about a few things:
@@ -64,7 +64,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM: apache/airflow:1.10.12
+  FROM apache/airflow:1.10.12
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -81,7 +81,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM: apache/airflow:1.10.12
+  FROM apache/airflow:1.10.12
   RUN pip install --no-cache-dir --user my-awesome-pip-dependency-to-add
 
 
@@ -92,7 +92,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM: apache/airflow:1.10.12
+  FROM apache/airflow:1.10.12
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -159,7 +159,7 @@ Customizing & extending the image together
 
 You can combine both - customizing & extending the image. You can build the image first using
 ``customize`` method (either with docker command or with ``breeze`` and then you can ``extend``
-the resulting image using ``FROM:`` any dependencies you want.
+the resulting image using ``FROM`` any dependencies you want.
 
 External sources for dependencies
 ---------------------------------
@@ -289,6 +289,14 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
+|                                          |                                          | from the GitHub of Apache Airflow        |
+|                                          |                                          | This allows to optimize iterations for   |
+|                                          |                                          | Image builds and speeds up CI builds     |
+|                                          |                                          | But in some corporate environments it    |
+|                                          |                                          | might be forbidden to download anything  |
+|                                          |                                          | from public repositories.                |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which    |
 |                                          |                                          | airflow is installed                     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -317,6 +325,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | cassandra PIP install (speeds up         |
 |                                          |                                          | installing in case cassandra extra is    |
 |                                          |                                          | used).                                   |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_MYSQL_CLIENT``                 | ``true``                                 | Whether MySQL client should be installed |
+|                                          |                                          | The mysql extra is removed from extras   |
+|                                          |                                          | if the client is not installed           |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 
 There are build arguments that determine the installation mechanism of Apache Airflow for the
@@ -455,3 +467,30 @@ More details about the images
 
 You can read more details about the images - the context, their parameters and internal structure in the
 `IMAGES.rst <https://github.com/apache/airflow/blob/master/IMAGES.rst>`_ document.
+
+.. _production-deployment:kerberos:
+
+Kerberos-authenticated workers
+==============================
+
+Apache Airflow has a built-in mechanism for authenticating the operation with a KDC (Key Distribution Center).
+Airflow has a separate command ``airflow kerberos`` that acts as token refresher. It uses the pre-configured
+Kerberos Keytab to authenticate in the KDC to obtain a valid token, and then refreshing valid token
+at regular intervals within the current token expiry window.
+
+Each request for refresh uses a configured principal, and only keytab valid for the principal specified
+is capable of retrieving the authentication token.
+
+The best practice to implement proper security mechanism in this case is to make sure that worker
+workloads have no access to the Keytab but only have access to the periodically refreshed, temporary
+authentication tokens. This can be achieved in docker environment by running the ``airflow kerberos``
+command and the worker command in separate containers - where only the ``airflow kerberos`` token has
+access to the Keytab file (preferably configured as secret resource). Those two containers should share
+a volume where the temporary token should be written by the ``airflow kerberos`` and read by the workers.
+
+In the Kubernetes environment, this can be realized by the concept of side-car, where both Kerberos
+token refresher and worker are part of the same Pod. Only the Kerberos side-car has access to
+Keytab secret and both containers in the same Pod share the volume, where temporary token is written by
+the side-care container and read by the worker container.
+
+This concept is implemented in the development version of the Helm Chart that is part of Airflow source code.

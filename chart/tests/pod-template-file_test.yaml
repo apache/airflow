@@ -55,6 +55,8 @@ tests:
           path: spec.initContainers[0]
           value:
             name: git-sync-test
+            securityContext:
+              runAsUser: 65533
             image: test-registry/test-repo:test-tag
             env:
               - name: GIT_SYNC_REV

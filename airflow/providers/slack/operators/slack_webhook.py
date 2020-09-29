@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.utils.decorators import apply_defaults
@@ -85,7 +86,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
         link_names=False,
         proxy=None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(endpoint=webhook_token, **kwargs)
         self.http_conn_id = http_conn_id
         self.webhook_token = webhook_token
