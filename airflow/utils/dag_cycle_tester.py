@@ -51,8 +51,7 @@ def _test_cycle_helper(visit_map, task_id, task_dict):
         if visit_map[current_task_id] == CYCLE_DONE:
             continue
         if visit_map[current_task_id] == CYCLE_IN_PROGRESS:
-            msg = "Cycle detected in DAG. Faulty task: {}".format(
-                current_task_id)
+            msg = f"Cycle detected in DAG. Faulty task: {current_task_id}"
             raise AirflowDagCycleException(msg)
         visit_map[current_task_id] = CYCLE_IN_PROGRESS
         task = task_dict[current_task_id]
