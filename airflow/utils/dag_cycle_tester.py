@@ -17,7 +17,7 @@
 """
 DAG Cycle tester
 """
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import Dict
 
 from airflow.exceptions import AirflowDagCycleException
@@ -32,28 +32,34 @@ def test_cycle(dag):
     Check to see if there are any cycles in the DAG. Returns False if no cycle found,
     otherwise raises exception.
     """
-    def _test_cycle_helper(visit_map: Dict[str, int], task_id: str) -> None:
-        """
-        Checks if a cycle exists from the input task using DFS traversal
-        """
-        if visit_map[task_id] == CYCLE_DONE:
-            return
-
-        visit_map[task_id] = CYCLE_IN_PROGRESS
-
-        task = dag.task_dict[task_id]
-        for descendant_id in task.get_direct_relative_ids():
-            if visit_map[descendant_id] == CYCLE_IN_PROGRESS:
-                msg = "Cycle detected in DAG. Faulty task: {0} to {1}".format(task_id, descendant_id)
-                raise AirflowDagCycleException(msg)
-            else:
-                _test_cycle_helper(visit_map, descendant_id)
-
-        visit_map[task_id] = CYCLE_DONE
-
     # default of int is 0 which corresponds to CYCLE_NEW
     dag_visit_map: Dict[str, int] = defaultdict(int)
     for dag_task_id in dag.task_dict.keys():
         if dag_visit_map[dag_task_id] == CYCLE_NEW:
-            _test_cycle_helper(dag_visit_map, dag_task_id)
+            _test_cycle_helper(dag_visit_map, dag_task_id, dag.task_dict)
     return False
+
+
+def _test_cycle_helper(visit_map, task_id, task_dict):
+    """
+    Checks if a cycle exists from the input task using DFS traversal
+    """
+    path, visited = deque([task_id]), []
+
+    while path:
+        current_task_id = path.pop()
+        if visit_map[current_task_id] == CYCLE_DONE:
+            continue
+        if visit_map[current_task_id] == CYCLE_IN_PROGRESS:
+            msg = "Cycle detected in DAG. Faulty task: {}".format(
+                current_task_id)
+            raise AirflowDagCycleException(msg)
+        visit_map[current_task_id] = CYCLE_IN_PROGRESS
+        task = task_dict[current_task_id]
+        path.extend(task.get_direct_relative_ids())
+        if current_task_id in path:
+            continue
+        visited.append(current_task_id)
+
+    for current_task_id in visited:
+        visit_map[current_task_id] = CYCLE_DONE

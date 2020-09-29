@@ -117,17 +117,15 @@ class TestCycleTester(unittest.TestCase):
 
         # A -> B -> C -> D -> E -> A
         with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op1.set_downstream(op2)
-            op2.set_downstream(op3)
-            op3.set_downstream(op4)
-            op4.set_downstream(op5)
-            op5.set_downstream(op1)
+            start = DummyOperator(task_id='start')
+            current = start
 
+            for i in range(100000):
+                next_task = DummyOperator(task_id=f'task_{i}')
+                current.set_downstream(next_task)
+                current = next_task
+
+            current.set_downstream(start)
         with self.assertRaises(AirflowDagCycleException):
             self.assertFalse(test_cycle(dag))
 
