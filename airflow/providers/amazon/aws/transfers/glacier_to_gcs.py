@@ -28,6 +28,10 @@ class GlacierToGCSOperator(BaseOperator):
     """
     This operator transfers data from Glacier to Google Cloud Storage
 
+    .. note::
+        Please be warn that GlacierToGCSOperator may depends on memory usage.
+        Transferring big files may not working well.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GlacierToGCSOperator`
@@ -45,6 +49,8 @@ class GlacierToGCSOperator(BaseOperator):
     :type object_name: str
     :param gzip: option to compress local file or file data for upload
     :type gzip: bool
+    :param chunk_size: size of chunk in bytes the that will downloaded from Glacier vault
+    :type chunk_size: int
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -72,6 +78,7 @@ class GlacierToGCSOperator(BaseOperator):
         bucket_name: str,
         object_name: str,
         gzip: bool,
+        chunk_size=1024,
         delegate_to=None,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -83,6 +90,7 @@ class GlacierToGCSOperator(BaseOperator):
         self.bucket_name = bucket_name
         self.object_name = object_name
         self.gzip = gzip
+        self.chunk_size = chunk_size
         self.delegate_to = delegate_to
         self.impersonation_chain = google_impersonation_chain
 
@@ -99,7 +107,11 @@ class GlacierToGCSOperator(BaseOperator):
             glacier_data = glacier_hook.retrieve_inventory_results(
                 vault_name=self.vault_name, job_id=job_id["jobId"]
             )
-            temp_file.write(glacier_data)
+            # Read the file content in chunks using StreamingBody
+            # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/response.html
+            stream = glacier_data["body"]
+            for chunk in stream.iter_chunk(chunk_size=self.chunk_size):
+                temp_file.write(chunk)
             temp_file.flush()
             gcs_hook.upload(
                 bucket_name=self.bucket_name,

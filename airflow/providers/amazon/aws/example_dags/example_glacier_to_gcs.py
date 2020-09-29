@@ -19,14 +19,14 @@ import os
 from airflow import models
 from airflow.providers.amazon.aws.operators.glacier import (
     GlacierCreateJobOperator,
-    GlacierDownloadArchiveOperator,
 )
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor
 from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
 from airflow.utils.dates import days_ago
 
 VAULT_NAME = "airflow"
-BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "gs://glacier_bucket")
+BUCKET_NAME = os.environ.get("GLACIER_GCS_BUCKET_NAME", "gs://glacier_bucket")
+OBJECT_NAME = os.environ.get("GLACIER_OBJECT", "example-text.txt")
 
 with models.DAG(
     "example_glacier_to_gcs",
@@ -51,13 +51,6 @@ with models.DAG(
     )
     # [END howto_glacier_job_operation_sensor]
 
-    # [START howto_glacier_job_operation_sensor]
-    download_archive = GlacierDownloadArchiveOperator(
-        task_id="download_archive", aws_conn_id="aws_default", vault_name=VAULT_NAME, job_id=JOB_ID
-    )
-    OBJECT_NAME = '{{ task_instance.xcom_pull("download_archive") }}'
-    # [END howto_glacier_job_operation_sensor]
-
     # [START howto_glacier_transfer_data_to_gcs]
     transfer_archive_to_gcs = GlacierToGCSOperator(
         task_id="transfer_archive_to_gcs",
@@ -72,4 +65,4 @@ with models.DAG(
     )
     # [END howto_glacier_transfer_data_to_gcs]
 
-    create_glacier_job >> wait_for_operation_complete >> download_archive >> transfer_archive_to_gcs
+    create_glacier_job >> wait_for_operation_complete >> transfer_archive_to_gcs
