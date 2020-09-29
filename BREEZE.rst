@@ -1732,9 +1732,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all airflow-config-yaml base-operator bats-tests black build check-apache-license
-                 check-builtin-literals check-executables-have-shebangs check-hooks-apply
-                 check-integrations check-merge-conflict check-xml debug-statements
+                 all airflow-config-yaml base-operator bats-tests bats-in-container-tests black build
+                 check-apache-license check-builtin-literals check-executables-have-shebangs
+                 check-hooks-apply check-integrations check-merge-conflict check-xml debug-statements
                  detect-private-key doctoc dont-use-safe-filter end-of-file-fixer fix-encoding-pragma
                  flake8 forbid-tabs helm-lint incorrect-use-of-LoggingMixin insert-license
                  language-matters lint-dockerfile lint-openapi mixed-line-ending mypy
