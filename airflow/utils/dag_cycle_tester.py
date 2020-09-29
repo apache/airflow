@@ -44,7 +44,8 @@ def _test_cycle_helper(visit_map, task_id, task_dict):
     """
     Checks if a cycle exists from the input task using DFS traversal
     """
-    path, visited = deque([task_id]), deque()
+    path = deque([task_id])
+    visited = deque()
 
     while path:
         current_task_id = path.pop()
