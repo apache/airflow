@@ -120,7 +120,7 @@ class TestCycleTester(unittest.TestCase):
             start = DummyOperator(task_id='start')
             current = start
 
-            for i in range(100000):
+            for i in range(10000):
                 next_task = DummyOperator(task_id=f'task_{i}')
                 current.set_downstream(next_task)
                 current = next_task
