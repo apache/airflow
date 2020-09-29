@@ -299,10 +299,6 @@ hive = [
     'hmsclient>=0.1.0',
     'pyhive[hive]>=0.6.0',
 ]
-mesos = [
-    'avmesos>=0.3.3',
-    'mesos.interface'
-]
 jdbc = [
     'jaydebeapi>=1.1.1',
 ]
@@ -326,6 +322,9 @@ kylin = [
 ]
 ldap = [
     'ldap3>=2.5.1',
+]
+mesos = [
+    'avmesos>=0.3.3'
 ]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',

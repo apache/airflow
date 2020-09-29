@@ -34,16 +34,15 @@ steps -
 
 1. Install airflow on a mesos slave where web server and scheduler will run,
    let's refer to this as the "Airflow server".
-2. On the Airflow server, install mesos.interface via ``pip install mesos.interface``
-3. On the Airflow server, install avmesos via ``pip install avmesos``
-4. On the Airflow server, use a database (such as mysql) which can be accessed from all mesos
+2. On the Airflow server, install avmesos via ``pip install avmesos``
+3. On the Airflow server, use a database (such as mysql) which can be accessed from all mesos
    slaves and add configuration in ``airflow.cfg``.
-5. Change your ``airflow.cfg`` to point executor parameter to
+4. Change your ``airflow.cfg`` to point executor parameter to
    ``MesosExecutor`` and provide related Mesos settings.
-6. On all mesos slaves, install airflow. Copy the ``airflow.cfg`` from
+5. On all mesos slaves, install airflow. Copy the ``airflow.cfg`` from
    Airflow server (so that it uses same sql alchemy connection).
 
-7. On Airflow server, to start processing/scheduling DAGs on mesos, run:
+6. On Airflow server, to start processing/scheduling DAGs on mesos, run:
 
 .. code-block:: bash
 
@@ -60,7 +59,7 @@ Tasks executed in containers on mesos slaves
 
 `This gist <https://gist.github.com/sebradloff/f158874e615bda0005c6f4577b20036e>`_ contains all files and configuration changes necessary to achieve the following:
 
-1. Create a dockerized version of airflow with mesos python eggs installed.
+1. Create a container version of airflow with mesos python eggs installed.
 
   We recommend taking advantage of docker's multi stage builds in order to achieve this. We have one Dockerfile that defines building a specific version of mesos from source (Dockerfile-mesos), in order to create the python eggs. In the airflow Dockerfile (Dockerfile-airflow) we copy the python eggs from the mesos image.
 
@@ -75,4 +74,4 @@ Tasks executed in containers on mesos slaves
 
   `Instructions are available in the mesos docs. <https://mesos.readthedocs.io/en/latest/docker-containerizer/#private-docker-repository>`_
 
-The rest is up to you and how you want to work with a dockerized airflow configuration.
+The rest is up to you and how you want to work with a container airflow configuration.

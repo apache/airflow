@@ -22,7 +22,6 @@ from queue import Queue
 from typing import Any, Optional
 
 from avmesos.client import MesosClient
-from mesos.interface import mesos_pb2
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
@@ -54,6 +53,7 @@ class AirflowMesosScheduler(MesosClient):
     'airflow run <dag_id> <task_instance_id> <start_date> --local -p=<pickle>'
     to run on a mesos slave
     """
+
     def __init__(self,
                  executor,
                  task_queue,
@@ -336,6 +336,7 @@ class MesosExecutor(BaseExecutor):
         """
         MesosFramework class to start the threading
         """
+
         def __init__(self, client):
             threading.Thread.__init__(self)
             self.client = client
@@ -354,14 +355,11 @@ class MesosExecutor(BaseExecutor):
         self.driver = None
         self.client = None
         self.th = None  # pylint: disable=invalid-name
-        self.framework = None
 
     def start(self):
         """
         Setup and start routine to connect with the mesos master
         """
-        framework = mesos_pb2.FrameworkInfo()
-        framework.user = ''
 
         if not configuration.conf.get('mesos', 'MASTER'):
             self.log.error("Expecting mesos master URL for mesos executor")
@@ -369,7 +367,8 @@ class MesosExecutor(BaseExecutor):
 
         master = configuration.conf.get('mesos', 'MASTER')
 
-        framework.name = get_framework_name()
+        framework_name = get_framework_name()
+        framework_id = None
 
         if not configuration.conf.get('mesos', 'TASK_CPU'):
             task_cpu = 1
@@ -382,31 +381,31 @@ class MesosExecutor(BaseExecutor):
             task_memory = configuration.conf.getint('mesos', 'TASK_MEMORY')
 
         if configuration.conf.getboolean('mesos', 'CHECKPOINT'):
-            framework.checkpoint = True
+            framework_checkpoint = True
 
             if configuration.conf.get('mesos', 'FAILOVER_TIMEOUT'):
                 # Import here to work around a circular import error
                 from airflow.models import Connection
 
                 # Query the database to get the ID of the Mesos Framework, if available.
-                conn_id = FRAMEWORK_CONNID_PREFIX + framework.name
+                conn_id = FRAMEWORK_CONNID_PREFIX + framework_name
                 session = Session()
                 connection = session.query(Connection).filter_by(conn_id=conn_id).first()
                 if connection is not None:
                     # Set the Framework ID to let the scheduler reconnect
                     # with running tasks.
-                    framework.id.value = connection.extra
+                    framework_id = connection.extra
 
-                framework.failover_timeout = configuration.conf.getint(
-                    'mesos', 'FAILOVER_TIMEOUT'
-                )
+                # framework_failover_timeout = configuration.conf.getint(
+                #    'mesos', 'FAILOVER_TIMEOUT'
+                # )
         else:
-            framework.checkpoint = False
+            framework_checkpoint = False
 
         self.log.info(
             'MesosFramework master : %s, name : %s, cpu : %s, mem : %s, checkpoint : %s',
-            master, framework.name,
-            str(task_cpu), str(task_memory), str(framework.checkpoint)
+            master, framework_name,
+            str(task_cpu), str(task_memory), str(framework_checkpoint)
         )
 
         if configuration.conf.getboolean('mesos', 'AUTHENTICATE'):
@@ -419,26 +418,21 @@ class MesosExecutor(BaseExecutor):
                 raise AirflowException(
                     "mesos.default_secret not provided in authenticated mode")
 
-            credential = mesos_pb2.Credential()
-            credential.principal = configuration.conf.get('mesos', 'DEFAULT_PRINCIPAL')
-            credential.secret = configuration.conf.get('mesos', 'DEFAULT_SECRET')
-
             master_urls = "https://" + master
 
             self.client = MesosClient(
                 mesos_urls=master_urls.split(','),
-                frameworkName=framework.name,
-                frameworkId=None
+                frameworkName=framework_name,
+                frameworkId=framework_id
             )
-            self.client.principal = credential.principal
-            self.client.secret = credential.secret
+            self.client.principal = configuration.conf.get('mesos', 'DEFAULT_PRINCIPAL')
+            self.client.secret = configuration.conf.get('mesos', 'DEFAULT_SECRET')
 
             driver = AirflowMesosScheduler(self, self.task_queue, task_cpu, task_memory)
             self.driver = driver
             self.client.on(MesosClient.SUBSCRIBED, driver.subscribed)
             self.client.on(MesosClient.UPDATE, driver.status_update)
             self.client.on(MesosClient.OFFERS, driver.resource_offers)
-            self.framework = framework
             self.th = MesosExecutor.MesosFramework(self.client)
             self.th.start()
 
