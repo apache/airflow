@@ -63,7 +63,7 @@ ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
-# Install curl and gnupg2 - needed to download nodejs in the next step
+# Install curl and gnupg2 - needed for many other installation steps
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
            curl \
@@ -72,51 +72,66 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ARG ADDITIONAL_DEV_DEPS=""
-ENV ADDITIONAL_DEV_DEPS=${ADDITIONAL_DEV_DEPS}
+ARG DEV_APT_DEPS="\
+     apt-transport-https \
+     apt-utils \
+     build-essential \
+     ca-certificates \
+     gnupg \
+     dirmngr \
+     freetds-bin \
+     freetds-dev \
+     gosu \
+     krb5-user \
+     ldap-utils \
+     libffi-dev \
+     libkrb5-dev \
+     libpq-dev \
+     libsasl2-2 \
+     libsasl2-dev \
+     libsasl2-modules \
+     libssl-dev \
+     locales  \
+     lsb-release \
+     nodejs \
+     openssh-client \
+     postgresql-client \
+     python-selinux \
+     sasl2-bin \
+     software-properties-common \
+     sqlite3 \
+     sudo \
+     unixodbc \
+     unixodbc-dev \
+     yarn"
+ENV DEV_APT_DEPS=${DEV_APT_DEPS}
 
-# Install basic and additional apt dependencies
-RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
+ARG ADDITIONAL_DEV_APT_DEPS=""
+ENV ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS}
+
+ARG DEV_APT_COMMAND="\
+    curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
     && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
-    && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
-    # Note missing man directories on debian-buster
-    # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
-    && mkdir -pv /usr/share/man/man1 \
+    && echo 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list"
+ENV DEV_APT_COMMAND=${DEV_APT_COMMAND}
+
+ARG ADDITIONAL_DEV_APT_COMMAND="echo"
+ENV ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
+
+ARG ADDITIONAL_DEV_ENV_VARS=""
+
+# Note missing man directories on debian-buster
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
+# Install basic and additional apt dependencies
+RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
+    && export ${ADDITIONAL_DEV_ENV_VARS?} \
+    && bash -o pipefail -e -u -x -c "${DEV_APT_COMMAND}" \
+    && bash -o pipefail -e -u -x -c "${ADDITIONAL_DEV_APT_COMMAND}" \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-           apt-transport-https \
-           apt-utils \
-           build-essential \
-           ca-certificates \
-           gnupg \
-           dirmngr \
-           freetds-bin \
-           freetds-dev \
-           gosu \
-           krb5-user \
-           ldap-utils \
-           libffi-dev \
-           libkrb5-dev \
-           libpq-dev \
-           libsasl2-2 \
-           libsasl2-dev \
-           libsasl2-modules \
-           libssl-dev \
-           locales  \
-           lsb-release \
-           nodejs \
-           openssh-client \
-           postgresql-client \
-           python-selinux \
-           sasl2-bin \
-           software-properties-common \
-           sqlite3 \
-           sudo \
-           unixodbc \
-           unixodbc-dev \
-           yarn \
-           ${ADDITIONAL_DEV_DEPS} \
+           ${DEV_APT_DEPS} \
+           ${ADDITIONAL_DEV_APT_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -252,45 +267,69 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 ARG AIRFLOW_VERSION
 ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 
-ARG ADDITIONAL_RUNTIME_DEPS=""
-ENV ADDITIONAL_RUNTIME_DEPS=${ADDITIONAL_RUNTIME_DEPS}
-
 # Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
+
+# Install curl and gnupg2 - needed for many other installation steps
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+           curl \
+           gnupg2 \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG RUNTIME_APT_DEPS="\
+       apt-transport-https \
+       apt-utils \
+       ca-certificates \
+       curl \
+       dumb-init \
+       freetds-bin \
+       gnupg \
+       gosu \
+       krb5-user \
+       ldap-utils \
+       libffi6 \
+       libsasl2-2 \
+       libsasl2-modules \
+       libssl1.1 \
+       locales  \
+       lsb-release \
+       netcat \
+       openssh-client \
+       postgresql-client \
+       rsync \
+       sasl2-bin \
+       sqlite3 \
+       sudo \
+       unixodbc"
+ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS}
+
+ARG ADDITIONAL_RUNTIME_APT_DEPS=""
+ENV ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS}
+
+ARG RUNTIME_APT_COMMAND="echo"
+ENV RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND}
+
+ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
+ENV ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND}
+
+ARG ADDITIONAL_RUNTIME_ENV_VARS=""
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
+    && export ${ADDITIONAL_RUNTIME_ENV_VARS?} \
+    && bash -o pipefail -e -u -x -c "${RUNTIME_APT_COMMAND}" \
+    && bash -o pipefail -e -u -x -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-           apt-transport-https \
-           apt-utils \
-           ca-certificates \
-           curl \
-           dumb-init \
-           freetds-bin \
-           gnupg \
-           gosu \
-           krb5-user \
-           ldap-utils \
-           libffi6 \
-           libsasl2-2 \
-           libsasl2-modules \
-           libssl1.1 \
-           locales  \
-           lsb-release \
-           netcat \
-           openssh-client \
-           postgresql-client \
-           rsync \
-           sasl2-bin \
-           sqlite3 \
-           sudo \
-           unixodbc \
-           ${ADDITIONAL_RUNTIME_DEPS} \
+           ${RUNTIME_APT_DEPS} \
+           ${ADDITIONAL_RUNTIME_APT_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
