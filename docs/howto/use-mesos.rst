@@ -53,7 +53,7 @@ You can now see the airflow framework and corresponding tasks in mesos UI.
 The logs for airflow tasks can be seen in airflow UI as usual.
 
 For more information about mesos, refer to `mesos documentation <http://mesos.apache.org/documentation/latest/>`_.
-For any queries/bugs on :class:`airflow.contrib.executors.mesos_executor.MesosExecutor`, please contact `@kapil-malik <https://github.com/kapil-malik>`_.
+For any queries/bugs on :class:`airflow.executors.mesos_executor.MesosExecutor`, please contact `@kapil-malik <https://github.com/kapil-malik>`_.
 
 Tasks executed in containers on mesos slaves
 --------------------------------------------
