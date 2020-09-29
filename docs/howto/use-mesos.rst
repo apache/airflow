@@ -28,32 +28,26 @@ There are two ways you can run airflow as a mesos framework:
 Tasks executed directly on mesos slaves
 ---------------------------------------
 
-:class:`airflow.contrib.executors.mesos_executor.MesosExecutor` allows you to schedule airflow tasks on a Mesos cluster.
+:class:`airflow.executors.mesos_executor.MesosExecutor` allows you to schedule airflow tasks on a Mesos cluster.
 For this to work, you need a running mesos cluster and you must perform the following
 steps -
 
 1. Install airflow on a mesos slave where web server and scheduler will run,
    let's refer to this as the "Airflow server".
-2. On the Airflow server, install mesos python eggs from `mesos downloads <http://open.mesosphere.com/downloads/mesos/>`_.
-3. On the Airflow server, use a database (such as mysql) which can be accessed from all mesos
+2. On the Airflow server, install mesos.interface via ``pip install mesos.interface``
+3. On the Airflow server, install avmesos via ``pip install avmesos``
+4. On the Airflow server, use a database (such as mysql) which can be accessed from all mesos
    slaves and add configuration in ``airflow.cfg``.
-4. Change your ``airflow.cfg`` to point executor parameter to
+5. Change your ``airflow.cfg`` to point executor parameter to
    ``MesosExecutor`` and provide related Mesos settings.
-5. On all mesos slaves, install airflow. Copy the ``airflow.cfg`` from
+6. On all mesos slaves, install airflow. Copy the ``airflow.cfg`` from
    Airflow server (so that it uses same sql alchemy connection).
-6. On all mesos slaves, run the following for serving logs:
-
-.. code-block:: bash
-
-    airflow serve_logs
 
 7. On Airflow server, to start processing/scheduling DAGs on mesos, run:
 
 .. code-block:: bash
 
-    airflow scheduler -p
-
-Note: We need -p parameter to pickle the DAGs.
+    airflow scheduler
 
 You can now see the airflow framework and corresponding tasks in mesos UI.
 The logs for airflow tasks can be seen in airflow UI as usual.
