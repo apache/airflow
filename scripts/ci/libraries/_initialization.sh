@@ -19,6 +19,13 @@
 # Needs to be declared outside function in MacOS
 # shellcheck disable=SC2034
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS=()
+CURRENT_KUBERNETES_VERSIONS=()
+CURRENT_KUBERNETES_MODES=()
+CURRENT_POSTGRES_VERSIONS=()
+CURRENT_MYSQL_VERSIONS=()
+CURRENT_KIND_VERSIONS=()
+CURRENT_HELM_VERSIONS=()
+ALL_PYTHON_MAJOR_MINOR_VERSIONS=()
 
 # Creates directories for Breeze
 function initialization::create_directories() {
@@ -66,10 +73,6 @@ function initialization::initialize_base_variables() {
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
     export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
 
-    # Default MySQL/Postgres versions
-    export POSTGRES_VERSION=${POSTGRES_VERSION:="9.6"}
-    export MYSQL_VERSION=${MYSQL_VERSION:="5.7"}
-
     # The SQLite URL used for sqlite runs
     export SQLITE_URL="sqlite:////root/airflow/airflow.db"
 
@@ -80,15 +83,40 @@ function initialization::initialize_base_variables() {
     # By default we build CI images but we can switch to production image with PRODUCTION_IMAGE="true"
     export PRODUCTION_IMAGE="false"
 
+    # All supported major/minor versions of python in all versions of Airflow
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("2.7" "3.5" "3.6" "3.7" "3.8")
+    export ALL_PYTHON_MAJOR_MINOR_VERSIONS
+
     # Currently supported major/minor versions of python
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
+
+    # Currently supported versions of Postgres
+    CURRENT_POSTGRES_VERSIONS+=("9.6" "10")
+    export CURRENT_POSTGRES_VERSIONS
+
+   # Currently supported versions of MySQL
+    CURRENT_MYSQL_VERSIONS+=("5.7")
+    export CURRENT_MYSQL_VERSIONS
+
+    # Default Postgres versions
+    export POSTGRES_VERSION=${CURRENT_POSTGRES_VERSIONS[0]}
+
+    # Default MySQL versions
+    export MYSQL_VERSION=${CURRENT_MYSQL_VERSIONS[0]}
 
     # If set to true, the database will be reset at entry. Works for Postgres and MySQL
     export DB_RESET=${DB_RESET:="false"}
 
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW=${START_AIRFLOW:="false"}
+
+    export LOAD_EXAMPLES=${LOAD_EXAMPLES:="false"}
+
+    export LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS:="false"}
+    # If set the specified file will be used to initialized Airflow after the environment is created,
+    # otherwise it will use files/airflow-breeze-config/init.sh
+    export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
 
     # Read airflow version from the version.py
     AIRFLOW_VERSION=$(grep version "${AIRFLOW_SOURCES}/airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
@@ -188,9 +216,7 @@ function initialization::initialize_mount_variables() {
         verbosity::print_info
         verbosity::print_info "Mounting files folder to Docker"
         verbosity::print_info
-        EXTRA_DOCKER_FLAGS+=(
-            "-v" "${AIRFLOW_SOURCES}/files:/files"
-        )
+        EXTRA_DOCKER_FLAGS+=("-v" "${AIRFLOW_SOURCES}/files:/files")
     fi
 
     EXTRA_DOCKER_FLAGS+=(
@@ -292,7 +318,12 @@ function initialization::initialize_image_build_variables() {
     export ADDITIONAL_DEV_DEPS="${ADDITIONAL_DEV_DEPS:=""}"
     # additional runtime apt dependencies on top of the default ones
     export ADDITIONAL_RUNTIME_DEPS="${ADDITIONAL_RUNTIME_DEPS:=""}"
-
+    # whether pre cached pip packages are used during build
+    export AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES:="true"}"
+    # by default install mysql client
+    export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
+    # additional tag for the image
+    export IMAGE_TAG=${IMAGE_TAG:=""}
 }
 
 # Determine version suffixes used to build backport packages
@@ -307,17 +338,32 @@ function initialization::initialize_version_suffixes_for_package_building() {
 function initialization::initialize_kubernetes_variables() {
     # By default we assume the kubernetes cluster is not being started
     export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
+    # Currently supported versions of Kubernetes
+    CURRENT_KUBERNETES_VERSIONS+=("v1.18.6" "v1.17.5" "v1.16.9")
+    export CURRENT_KUBERNETES_VERSIONS
+    # Currently supported modes of Kubernetes
+    CURRENT_KUBERNETES_MODES+=("image")
+    export CURRENT_KUBERNETES_MODES
+    # Currently supported versions of Kind
+    CURRENT_KIND_VERSIONS+=("v0.8.0")
+    export CURRENT_KIND_VERSIONS
+    # Currently supported versions of Helm
+    CURRENT_HELM_VERSIONS+=("v3.2.4")
+    export CURRENT_HELM_VERSIONS
     # Default Kubernetes version
-    export DEFAULT_KUBERNETES_VERSION="v1.18.6"
-    readonly DEFAULT_KUBERNETES_VERSION
+    export DEFAULT_KUBERNETES_VERSION="${CURRENT_KUBERNETES_VERSIONS[0]}"
+    # Default Kubernetes mode
+    export DEFAULT_KUBERNETES_MODE="${CURRENT_KUBERNETES_MODES[0]}"
     # Default KinD version
-    export DEFAULT_KIND_VERSION="v0.8.0"
-    readonly DEFAULT_KIND_VERSION
+    export DEFAULT_KIND_VERSION="${CURRENT_KIND_VERSIONS[0]}"
     # Default Helm version
-    export DEFAULT_HELM_VERSION="v3.2.4"
-    readonly DEFAULT_HELM_VERSION
+    export DEFAULT_HELM_VERSION="${CURRENT_HELM_VERSIONS[0]}"
     # Namespace where airflow is installed via helm
     export HELM_AIRFLOW_NAMESPACE="airflow"
+    # Kubernetes version
+    export KUBERNETES_VERSION=${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}
+    # Kubernetes mode
+    export KUBERNETES_MODE=${KUBERNETES_MODE:=${DEFAULT_KUBERNETES_MODE}}
     # Kind version
     export KIND_VERSION=${KIND_VERSION:=${DEFAULT_KIND_VERSION}}
     # Helm version
@@ -469,6 +515,12 @@ Detected CI build environment:
     CI_SOURCE_REPO=${CI_SOURCE_REPO}
     CI_SOURCE_BRANCH=${CI_SOURCE_BRANCH}
 
+Initialization variables:
+
+    INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE}
+    LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
+    LOAD_EXAMPLES: ${LOAD_EXAMPLES}
+
 EOF
 
 }
@@ -479,7 +531,7 @@ EOF
 # This function maps CI-specific variables into a generic ones (prefixed with CI_) that
 # we used in other scripts
 function initialization::get_environment_for_builds_on_ci() {
-    if [[ ${GITHUB_ACTIONS:=} == "true" ]]; then
+    if [[ ${CI:=} == "true" ]]; then
         export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
         export CI_TARGET_BRANCH="${GITHUB_BASE_REF:="master"}"
         export CI_BUILD_ID="${GITHUB_RUN_ID}"
@@ -586,6 +638,8 @@ function initialization::make_constants_read_only() {
     readonly ADDITIONAL_PYTHON_DEPS
     readonly ADDITIONAL_DEV_DEPS
     readonly ADDITIONAL_RUNTIME_DEPS
+    readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
+    readonly IMAGE_TAG
 
     readonly DOCKERHUB_USER
     readonly DOCKERHUB_REPO
@@ -621,4 +675,27 @@ function initialization::make_constants_read_only() {
     readonly AIRFLOW_PROD_IMAGE_KUBERNETES
     readonly AIRFLOW_PROD_IMAGE_DEFAULT
     readonly BUILT_CI_IMAGE_FLAG_FILE
+    readonly INIT_SCRIPT_FILE
+
+}
+
+
+# converts parameters to json array
+function initialization::parameters_to_json() {
+    echo -n "["
+    local separator=""
+    local var
+    for var in "${@}"
+    do
+        echo -n "${separator}\"${var}\""
+        separator=","
+    done
+    echo "]"
+}
+
+
+# output parameter name and value - both to stdout and to be set by GitHub Actions
+function initialization::ga_output() {
+    echo "::set-output name=${1}::${2}"
+    echo "${1}=${2}"
 }

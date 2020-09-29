@@ -36,6 +36,7 @@ class Variable(Base, LoggingMixin):
     Variables are a generic way to store and retrieve arbitrary content or settings
     as a simple key value store within Airflow.
     """
+
     __tablename__ = "variable"
     __NO_DEFAULT_SENTINEL = object()
 
@@ -155,7 +156,6 @@ class Variable(Base, LoggingMixin):
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Sessions
         """
-
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:

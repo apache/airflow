@@ -30,6 +30,7 @@ class ConnectorProtocol(Protocol):
     """
     A protocol where you can connect to a database.
     """
+
     def connect(self, host: str, port: int, username: str, schema: str) -> Any:
         """
         Connect to a database.
@@ -46,6 +47,7 @@ class DbApiHook(BaseHook):
     """
     Abstract base class for sql hooks.
     """
+
     # Override to provide the connection name.
     conn_name_attr = None  # type: str
     # Override to have a default connection id for a particular dbHook
@@ -220,7 +222,6 @@ class DbApiHook(BaseHook):
         :return: connection autocommit setting.
         :rtype: bool
         """
-
         return getattr(conn, 'autocommit', False) and self.supports_autocommit
 
     def get_cursor(self):
@@ -320,7 +321,6 @@ class DbApiHook(BaseHook):
         :return: The serialized cell
         :rtype: str
         """
-
         if cell is None:
             return None
         if isinstance(cell, datetime):

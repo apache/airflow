@@ -15,9 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 from connexion import NoContent
-from flask import request
+from flask import g, request, current_app
 from marshmallow import ValidationError
-from sqlalchemy import func
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
@@ -33,7 +32,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 
-@security.requires_authentication
+@security.requires_access([("can_read", "Dag"), ("can_delete", "DagRun")])
 @provide_session
 def delete_dag_run(dag_id, dag_run_id, session):
     """
@@ -44,7 +43,7 @@ def delete_dag_run(dag_id, dag_run_id, session):
     return NoContent, 204
 
 
-@security.requires_authentication
+@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
 @provide_session
 def get_dag_run(dag_id, dag_run_id, session):
     """
@@ -59,7 +58,7 @@ def get_dag_run(dag_id, dag_run_id, session):
     return dagrun_schema.dump(dag_run)
 
 
-@security.requires_authentication
+@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
 @format_parameters(
     {
         'start_date_gte': format_datetime,
@@ -87,16 +86,17 @@ def get_dag_runs(
     """
     Get all DAG Runs.
     """
-
     query = session.query(DagRun)
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
-    if dag_id != "~":
+    if dag_id == "~":
+        appbuilder = current_app.appbuilder
+        query = query.filter(DagRun.dag_id.in_(appbuilder.sm.get_readable_dag_ids(g.user)))
+    else:
         query = query.filter(DagRun.dag_id == dag_id)
 
     dag_run, total_entries = _fetch_dag_runs(
         query,
-        session,
         end_date_gte,
         end_date_lte,
         execution_date_gte,
@@ -112,7 +112,6 @@ def get_dag_runs(
 
 def _fetch_dag_runs(
     query,
-    session,
     end_date_gte,
     end_date_lte,
     execution_date_gte,
@@ -122,6 +121,7 @@ def _fetch_dag_runs(
     limit,
     offset,
 ):
+    total_entries = query.count()
     query = _apply_date_filters_to_query(
         query,
         end_date_gte,
@@ -133,7 +133,6 @@ def _fetch_dag_runs(
     )
     # apply offset and limit
     dag_run = query.order_by(DagRun.id).offset(offset).limit(limit).all()
-    total_entries = session.query(func.count(DagRun.id)).scalar()
     return dag_run, total_entries
 
 
@@ -158,7 +157,7 @@ def _apply_date_filters_to_query(
     return query
 
 
-@security.requires_authentication
+@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
 @provide_session
 def get_dag_runs_batch(session):
     """
@@ -170,14 +169,17 @@ def get_dag_runs_batch(session):
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
+    appbuilder = current_app.appbuilder
+    readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
     query = session.query(DagRun)
-
-    if data["dag_ids"]:
-        query = query.filter(DagRun.dag_id.in_(data["dag_ids"]))
+    if data.get("dag_ids"):
+        dag_ids = set(data["dag_ids"]) & set(readable_dag_ids)
+        query = query.filter(DagRun.dag_id.in_(dag_ids))
+    else:
+        query = query.filter(DagRun.dag_id.in_(readable_dag_ids))
 
     dag_runs, total_entries = _fetch_dag_runs(
         query,
-        session,
         data["end_date_gte"],
         data["end_date_lte"],
         data["execution_date_gte"],
@@ -191,7 +193,7 @@ def get_dag_runs_batch(session):
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
 
 
-@security.requires_authentication
+@security.requires_access([("can_read", "Dag"), ("can_create", "DagRun")])
 @provide_session
 def post_dag_run(dag_id, session):
     """

@@ -86,7 +86,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             task_id="task",
             in_cluster=False,
             do_xcom_push=False,
-            image_pull_secrets=fake_pull_secrets,
+            image_pull_secrets=[k8s.V1LocalObjectReference(fake_pull_secrets)],
             cluster_context='default',
         )
         monitor_mock.return_value = (State.SUCCESS, None)

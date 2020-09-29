@@ -32,6 +32,7 @@ log = logging.getLogger(__name__)
 
 class StatsLogger(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)"""
+
     @classmethod
     def incr(cls, stat: str, count: int = 1, rate: int = 1) -> None:
         """Increment stat"""
@@ -51,6 +52,7 @@ class StatsLogger(Protocol):
 
 class DummyStatsLogger:
     """If no StatsLogger is configured, DummyStatsLogger is used as a fallback"""
+
     @classmethod
     def incr(cls, stat, count=1, rate=1):
         """Increment stat"""

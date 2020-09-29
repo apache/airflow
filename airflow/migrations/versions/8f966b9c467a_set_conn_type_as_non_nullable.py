@@ -37,7 +37,6 @@ depends_on = None
 
 def upgrade():
     """Apply Set conn_type as non-nullable"""
-
     Base = declarative_base()
 
     class Connection(Base):

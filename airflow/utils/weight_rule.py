@@ -23,6 +23,7 @@ class WeightRule:
     """
     Weight rules.
     """
+
     DOWNSTREAM = 'downstream'
     UPSTREAM = 'upstream'
     ABSOLUTE = 'absolute'

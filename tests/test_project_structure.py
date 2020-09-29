@@ -92,10 +92,8 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
     MISSING_EXAMPLE_DAGS = {
         ('cloud', 'adls_to_gcs'),
         ('cloud', 'sql_to_gcs'),
-        ('cloud', 's3_to_gcs'),
         ('cloud', 'bigquery_to_mysql'),
         ('cloud', 'cassandra_to_gcs'),
-        ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
         ('ads', 'ads_to_gcs'),
     }

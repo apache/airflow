@@ -460,6 +460,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         'labels',
         'impersonation_chain',
     )
+    template_fields_renderers = {'cluster_config': 'json'}
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments

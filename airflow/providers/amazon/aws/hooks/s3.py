@@ -47,7 +47,6 @@ def provide_bucket_name(func: T) -> T:
     Function decorator that provides a bucket name taken from the connection
     in case no bucket name has been passed to the function.
     """
-
     function_signature = signature(func)
 
     @wraps(func)
@@ -71,7 +70,6 @@ def unify_bucket_name_and_key(func: T) -> T:
     Function decorator that unifies bucket name and key taken from the key
     in case no bucket name and at least a key has been passed to the function.
     """
-
     function_signature = signature(func)
 
     @wraps(func)
@@ -109,6 +107,14 @@ class S3Hook(AwsBaseHook):
 
     def __init__(self, *args, **kwargs) -> None:
         kwargs['client_type'] = 's3'
+
+        self.extra_args = {}
+        if 'extra_args' in kwargs:
+            self.extra_args = kwargs['extra_args']
+            if not isinstance(self.extra_args, dict):
+                raise ValueError("extra_args '%r' must be of type %s" % (self.extra_args, dict))
+            del kwargs['extra_args']
+
         super().__init__(*args, **kwargs)
 
     @staticmethod
@@ -303,7 +309,6 @@ class S3Hook(AwsBaseHook):
         :return: True if the key exists and False if not.
         :rtype: bool
         """
-
         try:
             self.get_conn().head_object(Bucket=bucket_name, Key=key)
             return True
@@ -324,7 +329,6 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket
         :rtype: boto3.s3.Object
         """
-
         obj = self.get_resource_type('s3').Object(bucket_name, key)
         obj.load()
         return obj
@@ -342,7 +346,6 @@ class S3Hook(AwsBaseHook):
         :return: the content of the key
         :rtype: str
         """
-
         obj = self.get_key(key, bucket_name)
         return obj.get()['Body'].read().decode('utf-8')
 
@@ -439,7 +442,6 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket or None if none has been found.
         :rtype: boto3.s3.Object
         """
-
         prefix = re.split(r'[*]', wildcard_key, 1)[0]
         key_list = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
         key_matches = [k for k in key_list if fnmatch.fnmatch(k, wildcard_key)]
@@ -481,15 +483,13 @@ class S3Hook(AwsBaseHook):
             uploaded to the S3 bucket.
         :type acl_policy: str
         """
-
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError("The key {key} already exists.".format(key=key))
 
-        extra_args = {}
+        extra_args = self.extra_args
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
         if gzip:
-            filename_gz = ''
             with open(filename, 'rb') as f_in:
                 filename_gz = f_in.name + '.gz'
                 with gz.open(filename_gz, 'wb') as f_out:
@@ -625,7 +625,7 @@ class S3Hook(AwsBaseHook):
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError("The key {key} already exists.".format(key=key))
 
-        extra_args = {}
+        extra_args = self.extra_args
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
         if acl_policy:
@@ -806,7 +806,6 @@ class S3Hook(AwsBaseHook):
         :return: The presigned url.
         :rtype: str
         """
-
         s3_client = self.get_conn()
         try:
             return s3_client.generate_presigned_url(

@@ -14,13 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any
 
-import jwt
 import arrow
+import jwt
 import requests
+
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Variable
-from airflow.exceptions import AirflowException
 
 
 class PlexusHook(BaseHook):
@@ -42,7 +44,7 @@ class PlexusHook(BaseHook):
         self.host = "https://apiplexus.corescientific.com/"
         self.user_id = None
 
-    def _generate_token(self):
+    def _generate_token(self) -> Any:
         login = Variable.get("email")
         pwd = Variable.get("password")
         if login is None or pwd is None:
@@ -62,7 +64,7 @@ class PlexusHook(BaseHook):
         return token
 
     @property
-    def token(self):
+    def token(self) -> Any:
         """Returns users token"""
         if self.__token is not None:
             if arrow.get(self.__token_exp) <= arrow.now():

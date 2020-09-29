@@ -117,6 +117,12 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW="false"
 
+    # If set to true, the test connections will be created
+    export LOAD_DEFAULT_CONNECTIONS="false"
+
+    # If set to true, the sample dags will be created
+    export LOAD_EXAMPLES="false"
+
     # If it set is set to specified version, then the source version of Airflow
     # is removed and the specified version of Airflow is installed from PyPi
     export INSTALL_AIRFLOW_VERSION=""
@@ -900,6 +906,13 @@ function breeze::parse_arguments() {
             # if not set here, docker cached is determined later, depending on type of image to be build
             shift
             ;;
+        -B | --disable-pip-cache)
+            echo "Disable PIP cache during build"
+            echo
+            export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+            shift
+            ;;
+
         -P | --force-pull-images)
             echo "Force pulling images before build. Uses pulled images as cache."
             echo
@@ -942,6 +955,16 @@ function breeze::parse_arguments() {
             echo "Additional apt runtime dependencies: ${ADDITIONAL_RUNTIME_DEPS}"
             shift 2
             ;;
+        --disable-mysql-client-installation)
+            export INSTALL_MYSQL_CLIENT="false"
+            echo "Install MySQL client: ${INSTALL_MYSQL_CLIENT}"
+            shift
+            ;;
+        --image-tag)
+            export IMAGE_TAG="${2}"
+            echo "Tag to add to the image: ${IMAGE_TAG}"
+            shift 2
+            ;;
         -D | --dockerhub-user)
             export DOCKERHUB_USER="${2}"
             echo "Dockerhub user ${DOCKERHUB_USER}"
@@ -979,7 +1002,7 @@ function breeze::parse_arguments() {
             ;;
         -s | --github-image-id)
             echo
-            echo "GitHub image id: ${2}}"
+            echo "GitHub image id: ${2}"
             echo
             echo "Force pulling the image, using github registry and skip mounting local sources."
             echo "This is in order to get the exact same version as used in CI environment for SHA/RUN_ID!."
@@ -994,11 +1017,11 @@ function breeze::parse_arguments() {
             export SKIP_CHECK_REMOTE_IMAGE="true"
             shift 2
             ;;
-        --start-airflow)
-            echo "Starting Airflow"
+        --init-script)
+            export INIT_SCRIPT_FILE="${2}"
+            echo "The initialization file is in ${INIT_SCRIPT_FILE}"
             echo
-            export START_AIRFLOW="true"
-            shift
+            shift 2
             ;;
         -S | --version-suffix-for-pypi)
             if [[ -n ${VERSION_SUFFIX_FOR_SVN=} ]]; then
@@ -1023,6 +1046,18 @@ function breeze::parse_arguments() {
             echo "Version suffix for SVN ${VERSION_SUFFIX_FOR_SVN}"
             echo
             shift 2
+            ;;
+        --load-example-dags)
+            export LOAD_EXAMPLES="true"
+            echo "Include Airflow sample dags"
+            echo
+            shift
+            ;;
+        --load-default-connections)
+            export LOAD_DEFAULT_CONNECTIONS="true"
+            echo "Include Airflow default connections"
+            echo
+            shift
             ;;
         --)
             shift
@@ -1160,6 +1195,11 @@ function breeze::parse_arguments() {
                 EXTRA_STATIC_CHECK_OPTIONS+=("--show-diff-on-failure")
                 shift 2
             fi
+            ;;
+        start-airflow)
+            last_subcommand="${1}"
+            export START_AIRFLOW="true"
+            shift
             ;;
         stop)
             last_subcommand="${1}"
@@ -1373,6 +1413,8 @@ function breeze::prepare_usage() {
     readonly USAGE_KIND_CLUSTER
     export USAGE_SETUP_AUTOCOMPLETE="Sets up autocomplete for breeze"
     readonly USAGE_SETUP_AUTOCOMPLETE
+    export USAGE_START_AIRFLOW="Starts Scheduler and Webserver and enters the shell"
+    readonly USAGE_START_AIRFLOW
     export USAGE_STOP="Stops the docker-compose environment"
     readonly USAGE_STOP
     export USAGE_RESTART="Stops the docker-compose environment including DB cleanup"
@@ -1657,6 +1699,22 @@ ${CMDNAME} setup-autocomplete
       parameters and values.
 "
     readonly DETAILED_USAGE_SETUP_AUTOCOMPLETE
+    export DETAILED_USAGE_START_AIRFLOW="
+${CMDNAME} start-airflow
+
+      Like the Shell command this will enter the interactive shell, but it will also start
+      automatically the Scheduler and the Webserver. It will leave you in a tmux session where you
+      can also observe what is happening in your Airflow.
+
+      This is a convenient way to setup a development environment. Your dags will be loaded from the
+      folder 'files/dags' on your host machine (it could take some times).
+
+      If you want to load default connections and example dags you can use the dedicated flags.
+
+Flags:
+$(breeze::flag_start_airflow)
+"
+    readonly DETAILED_USAGE_START_AIRFLOW
     export DETAILED_USAGE_STOP="
 ${CMDNAME} stop
 
@@ -1873,7 +1931,7 @@ Run '${CMDNAME} flags' to see all applicable flags.
 #######################################################################################################
 function breeze::flag_airflow_variants() {
     echo "
--p, --python <PYTHON_MAJOR_MINOR_VERSION>
+-p, --python PYTHON_MAJOR_MINOR_VERSION
         Python version used for the image. This is always major/minor version.
 
         Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
@@ -1899,7 +1957,7 @@ ${FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS}
 #######################################################################################################
 function breeze::flag_backend_variants() {
     echo "
--b, --backend <BACKEND>
+-b, --backend BACKEND
         Backend to use for tests - it determines which database is used.
         One of:
 
@@ -1907,12 +1965,12 @@ ${FORMATTED_BACKENDS}
 
         Default: ${_breeze_default_backend:=}
 
---postgres-version <POSTGRES_VERSION>
+--postgres-version POSTGRES_VERSION
         Postgres version used. One of:
 
 ${FORMATTED_POSTGRES_VERSIONS}
 
---mysql-version <MYSQL_VERSION>
+--mysql-version MYSQL_VERSION
         Mysql version used. One of:
 
 ${FORMATTED_MYSQL_VERSIONS}
@@ -1953,7 +2011,7 @@ function breeze::flag_breeze_actions() {
         ready to start Airflow webserver/scheduler/worker. Without the switch, the database
         does not have any tables and you need to run reset db manually.
 
--i, --integration <INTEGRATION>
+-i, --integration INTEGRATION
         Integration to start during tests - it determines which integrations are started
         for integration tests. There can be more than one integration started, or all to
         start all integrations. Selected integrations are not saved for future execution.
@@ -1961,10 +2019,9 @@ function breeze::flag_breeze_actions() {
 
 ${FORMATTED_INTEGRATIONS}
 
---start-airflow
-        Starts the Airflow Scheduler and Webserver in two tmux panes, a third one will be
-        available for the usual use cases. In case the database is not initialized it will
-        run also 'airflow db init' and create an Admin user with credentials admin/admin.
+--init-script INIT_SCRIPT_FILE
+        Initialization script name - Sourced from files/airflow-breeze-config. Default value
+        init.sh. It will be executed after the environment is configured and started.
 
 "
 }
@@ -1987,7 +2044,7 @@ function breeze::flag_kubernetes_configuration() {
     echo "
 Configuration for the KinD Kubernetes cluster and tests:
 
--K, --kubernetes-mode <KUBERNETES_MODE>
+-K, --kubernetes-mode KUBERNETES_MODE
         Kubernetes mode - only used in case one of kind-cluster commands is used.
         One of:
 
@@ -1995,7 +2052,7 @@ ${FORMATTED_KUBERNETES_MODES}
 
         Default: ${_breeze_default_kubernetes_mode:=}
 
--V, --kubernetes-version <KUBERNETES_VERSION>
+-V, --kubernetes-version KUBERNETES_VERSION
         Kubernetes version - only used in case one of kind-cluster commands is used.
         One of:
 
@@ -2003,7 +2060,7 @@ ${FORMATTED_KUBERNETES_VERSIONS}
 
         Default: ${_breeze_default_kubernetes_version:=}
 
---kind-version <KIND_VERSION>
+--kind-version KIND_VERSION
         Kind version - only used in case one of kind-cluster commands is used.
         One of:
 
@@ -2011,7 +2068,7 @@ ${FORMATTED_KIND_VERSIONS}
 
         Default: ${_breeze_default_kind_version:=}
 
---helm-version <HELM_VERSION>
+--helm-version HELM_VERSION
         Helm version - only used in case one of kind-cluster commands is used.
         One of:
 
@@ -2050,13 +2107,13 @@ function breeze::flag_local_file_mounting() {
 #######################################################################################################
 function breeze::flag_choose_different_airflow_version() {
     echo "
--a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
+-a, --install-airflow-version INSTALL_AIRFLOW_VERSION
         If specified, installs Airflow directly from PIP released version. This happens at
         image building time in production image and at container entering time for CI image. One of:
 
 ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
--t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
+-t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         If specified, installs Airflow directly from reference in GitHub. This happens at
         image building time in production image and at container entering time for CI image.
 "
@@ -2153,7 +2210,7 @@ function breeze::flag_build_docker_images() {
         images are pulled by default only for the first time you run the
         environment, later the locally build images are used as cache.
 
--E, --extras
+-E, --extras EXTRAS
         Extras to pass to build images The default are different for CI and production images:
 
         CI image:
@@ -2162,17 +2219,27 @@ ${FORMATTED_DEFAULT_CI_EXTRAS}
         Production image:
 ${FORMATTED_DEFAULT_PROD_EXTRAS}
 
---additional-extras
+--image-tag TAG
+        Additional tag in the image.
+
+--additional-extras ADDITIONAL_EXTRAS
         Additional extras to pass to build images The default is no additional extras.
 
---additional-python-deps
+--additional-python-deps ADDITIONAL_PYTHON_DEPS
         Additional python dependencies to use when building the images.
 
---additional-dev-deps
+--additional-dev-deps ADDITIONAL_DEV_DEPS
         Additional apt dev dependencies to use when building the images.
 
---additional-runtime-deps
+--additional-runtime-deps ADDITIONAL_RUNTIME_DEPS
         Additional apt runtime dependencies to use when building the images.
+
+--disable-pip-cache
+        Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
+--disable-mysql-client-installation
+        Disables installation of the mysql client which might be problematic if you are building
+        image in controlled environment. Only valid for production image.
 
 -C, --force-clean-images
         Force build images with cache disabled. This will remove the pulled or build images
@@ -2226,24 +2293,24 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 #######################################################################################################
 function breeze::flag_pull_push_docker_images() {
     echo "
--D, --dockerhub-user
+-D, --dockerhub-user DOCKERHUB_USER
         DockerHub user used to pull, push and build images. Default: ${_breeze_default_dockerhub_user:=}.
 
--H, --dockerhub-repo
+-H, --dockerhub-repo DOCKERHUB_REPO
         DockerHub repository used to pull, push, build images. Default: ${_breeze_default_dockerhub_repo:=}.
 
--c, --github-registry
+-c, --github-registry GITHUB_REGISTRY
         If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
         DockerHub. You need to be logged in to the registry in order to be able to pull/push from
         and you need to be committer to push to Apache Airflow' GitHub registry.
 
--g, --github-repository
+-g, --github-repository GITHUB_REPOSITORY
         GitHub repository used to pull, push images when cache is used.
         Default: ${_breeze_default_github_repository:=}.
 
         If you use this flag, automatically --github-registry flag is enabled.
 
--s, --github-image-id <COMMIT_SHA>|<RUN_ID>
+-s, --github-image-id COMMIT_SHA|RUN_ID
         <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
         to be able to easily find the image for particular CI runs. Once you know the
         <RUN_ID> or <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
@@ -2266,13 +2333,30 @@ function breeze::flag_pull_push_docker_images() {
 #######################################################################################################
 function breeze::flag_version_suffix() {
     echo "
--S, --version-suffix-for-pypi
+-S, --version-suffix-for-pypi SUFFIX
         Adds optional suffix to the version in the generated backport package. It can be used
         to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
 
--N, --version-suffix-for-svn
+-N, --version-suffix-for-svn SUFFIX
         Adds optional suffix to the generated names of package. It can be used to generate
         rc1/rc2 ... versions of the packages to be uploaded to SVN.
+"
+}
+#####################################################################################################
+#
+# Prints flags that control how Airflow should be populated with the command start-airflow
+#
+# Outputs:
+#    Flag information.
+#######################################################################################################
+function breeze::flag_start_airflow() {
+    echo "
+--load-example-dags
+        Include Airflow example dags.
+
+--load-default-connections
+        Include Airflow Default Connections.
+
 "
 }
 
@@ -2304,6 +2388,10 @@ $(breeze::flag_production_image)
 $(breeze::print_star_line)
  Additional actions executed while entering breeze
 $(breeze::flag_breeze_actions)
+
+$(breeze::print_star_line)
+ Additional actions executed starting Airflow
+$(breeze::flag_start_airflow)
 
 $(breeze::print_star_line)
  Kind kubernetes and Kubernetes tests configuration(optional)
@@ -2520,7 +2608,7 @@ function breeze::check_and_save_all_params() {
 #######################################################################################################
 function breeze::print_cheatsheet() {
     if [[ ! -f ${SUPPRESS_CHEATSHEET_FILE} && ${command_to_run} == "enter_breeze" ]]; then
-        echo
+
         echo
         breeze::print_line
         echo
@@ -2931,7 +3019,7 @@ function breeze::run_breeze_command() {
 #      3. last used version stored in ./build/PYTHON_MAJOR_MINOR_VERSION
 #      4. DEFAULT_PYTHON_MAJOR_MINOR_VERSION from scripts/ci/libraries/_initialization.sh
 #
-# Here points 2. and 3. are realised. If result is empty string , the 4. will be set in
+# Here points 2. and 3. are realized. If result is empty string , the 4. will be set in
 #      the next step (sanity_checks::basic_sanity_checks() is called and the version is still not set by then)
 #      finally, if  --python flag is specified, it will override whatever is set above.
 #

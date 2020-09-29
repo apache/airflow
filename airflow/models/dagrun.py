@@ -46,6 +46,7 @@ class DagRun(Base, LoggingMixin):
     DagRun describes an instance of a Dag. It can be created
     by the scheduler (for regular runs) or by an external trigger
     """
+
     __tablename__ = "dag_run"
 
     id = Column(Integer, primary_key=True)
@@ -146,7 +147,7 @@ class DagRun(Base, LoggingMixin):
         execution_date: Optional[datetime] = None,
         state: Optional[str] = None,
         external_trigger: Optional[bool] = None,
-        no_backfills: Optional[bool] = False,
+        no_backfills: bool = False,
         run_type: Optional[DagRunType] = None,
         session: Session = None,
         execution_start_date: Optional[datetime] = None,
@@ -277,7 +278,6 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def get_previous_dagrun(self, state: Optional[str] = None, session: Session = None) -> Optional['DagRun']:
         """The previous DagRun, if there is one"""
-
         filters = [
             DagRun.dag_id == self.dag_id,
             DagRun.execution_date < self.execution_date,
@@ -311,7 +311,6 @@ class DagRun(Base, LoggingMixin):
         :return: ready_tis: the tis that can be scheduled in the current loop
         :rtype ready_tis: list[airflow.models.TaskInstance]
         """
-
         dag = self.get_dag()
         ready_tis: List[TI] = []
         tis = list(self.get_task_instances(session=session, state=State.task_states + (State.SHUTDOWN,)))

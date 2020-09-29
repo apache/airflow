@@ -95,9 +95,11 @@ Content
     lineage
     dag-serialization
     modules_management
+    backport-providers
     smart-sensor
     changelog
     best-practices
+    production-deployment
     faq
     privacy_notice
 

@@ -54,7 +54,7 @@ class ImapAttachmentSensor(BaseSensorOperator):
         mail_filter='All',
         conn_id='imap_default',
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
 
         self.attachment_name = attachment_name
@@ -63,7 +63,7 @@ class ImapAttachmentSensor(BaseSensorOperator):
         self.mail_filter = mail_filter
         self.conn_id = conn_id
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         """
         Pokes for a mail attachment on the mail server.
 

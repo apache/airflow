@@ -42,6 +42,7 @@ class DocBuildError(NamedTuple):
     """
     Errors found in docs build.
     """
+
     file_path: Optional[str]
     line_no: Optional[int]
     message: str
@@ -67,6 +68,7 @@ class SpellingError(NamedTuple):
     """
     Spelling errors found when building docs.
     """
+
     file_path: Optional[str]
     line_no: Optional[int]
     spelling: Optional[str]
@@ -414,7 +416,7 @@ def check_exampleinclude_for_example_dags():
             file_path=doc_file,
             pattern=r"literalinclude::.+example_dags",
             message=(
-                "literalinclude directive is is prohibited for example DAGs. \n"
+                "literalinclude directive is prohibited for example DAGs. \n"
                 "You should use the exampleinclude directive to include example DAGs."
             )
         )
@@ -448,9 +450,7 @@ MISSING_GOOGLE_DOC_GUIDES = {
     'dlp',
     'gcs_to_bigquery',
     'mssql_to_gcs',
-    'mysql_to_gcs',
     'postgres_to_gcs',
-    's3_to_gcs',
     'sql_to_gcs',
     'tasks',
 }
@@ -744,7 +744,7 @@ clean_files()
 CHANNEL_INVITATION = """\
 If you need help, write to #documentation channel on Airflow's Slack.
 Channel link: https://apache-airflow.slack.com/archives/CJ1LVREHX
-Invitation link: https://apache-airflow-slack.herokuapp.com/\
+Invitation link: https://s.apache.org/airflow-slack\
 """
 
 print_build_errors_and_exit("The documentation has errors. Fix them to build documentation.")

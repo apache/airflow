@@ -62,6 +62,7 @@ class DepContext:
     :param finished_tasks: A list of all the finished tasks of this run
     :type finished_tasks: list[airflow.models.TaskInstance]
     """
+
     def __init__(
             self,
             deps=None,

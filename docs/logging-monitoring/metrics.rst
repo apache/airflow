@@ -87,6 +87,8 @@ Name                                    Description
 ``scheduler.tasks.killed_externally``   Number of tasks killed externally
 ``scheduler.tasks.running``             Number of tasks running in executor
 ``scheduler.tasks.starving``            Number of tasks that cannot be scheduled because of no open slot in pool
+``scheduler.orphaned_tasks.cleared``    Number of Orphaned tasks cleared by the Scheduler
+``scheduler.orphaned_tasks.adopted``    Number of Orphaned tasks adopted by the Scheduler
 ``sla_email_notification_failure``      Number of failed SLA miss email notification attempts
 ``ti.start.<dagid>.<taskid>``           Number of started task in a given dag. Similar to <job_name>_start but for task
 ``ti.finish.<dagid>.<taskid>.<state>``  Number of completed task in a given dag. Similar to <job_name>_end but for task

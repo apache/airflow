@@ -105,7 +105,6 @@ def secondary_training_status_message(job_description, prev_description):
 
     :return: Job status string to be printed.
     """
-
     if (
         job_description is None
         or job_description.get('SecondaryStatusTransitions') is None
@@ -336,7 +335,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to training job creation
         """
-
         self.check_training_config(config)
 
         response = self.get_conn().create_training_job(**config)
@@ -382,7 +380,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to tuning job creation
         """
-
         self.check_tuning_config(config)
 
         response = self.get_conn().create_hyper_parameter_tuning_job(**config)
@@ -415,7 +412,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to transform job creation
         """
-
         self.check_s3_url(config['TransformInput']['DataSource']['S3DataSource']['S3Uri'])
 
         response = self.get_conn().create_transform_job(**config)
@@ -448,7 +444,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to transform job creation
         """
-
         response = self.get_conn().create_processing_job(**config)
         if wait_for_completion:
             self.check_status(
@@ -468,7 +463,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type config: dict
         :return: A response to model creation
         """
-
         return self.get_conn().create_model(**config)
 
     def create_endpoint_config(self, config):
@@ -479,7 +473,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type config: dict
         :return: A response to endpoint config creation
         """
-
         return self.get_conn().create_endpoint_config(**config)
 
     def create_endpoint(self, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None):
@@ -499,7 +492,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to endpoint creation
         """
-
         response = self.get_conn().create_endpoint(**config)
         if wait_for_completion:
             self.check_status(
@@ -529,7 +521,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to endpoint update
         """
-
         response = self.get_conn().update_endpoint(**config)
         if wait_for_completion:
             self.check_status(
@@ -550,7 +541,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the training job info
         """
-
         return self.get_conn().describe_training_job(TrainingJobName=name)
 
     def describe_training_job_with_log(
@@ -624,7 +614,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the tuning job info
         """
-
         return self.get_conn().describe_hyper_parameter_tuning_job(HyperParameterTuningJobName=name)
 
     def describe_model(self, name):
@@ -635,7 +624,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the model info
         """
-
         return self.get_conn().describe_model(ModelName=name)
 
     def describe_transform_job(self, name):
@@ -646,7 +634,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the transform job info
         """
-
         return self.get_conn().describe_transform_job(TransformJobName=name)
 
     def describe_processing_job(self, name):
@@ -657,7 +644,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the processing job info
         """
-
         return self.get_conn().describe_processing_job(ProcessingJobName=name)
 
     def describe_endpoint_config(self, name):
@@ -668,7 +654,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the endpoint config info
         """
-
         return self.get_conn().describe_endpoint_config(EndpointConfigName=name)
 
     def describe_endpoint(self, name):
@@ -677,7 +662,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type name: str
         :return: A dict contains all the endpoint info
         """
-
         return self.get_conn().describe_endpoint(EndpointName=name)
 
     def check_status(
@@ -769,7 +753,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: None
         """
-
         sec = 0
         description = self.describe_training_job(job_name)
         self.log.info(secondary_training_status_message(description, None))
@@ -856,7 +839,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :param kwargs: (optional) kwargs to boto3's list_training_jobs method
         :return: results of the list_training_jobs request
         """
-
         config = {}
 
         if name_contains:
@@ -893,7 +875,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :param kwargs: (optional) kwargs to boto3's list_training_jobs method
         :return: results of the list_processing_jobs request
         """
-
         list_processing_jobs_request = partial(self.get_conn().list_processing_jobs, **kwargs)
         results = self._list_request(
             list_processing_jobs_request, "ProcessingJobSummaries", max_results=kwargs.get("MaxResults")
@@ -915,7 +896,6 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :param max_results: maximum number of results to return (None = infinite)
         :return: Results of the list_* request
         """
-
         sagemaker_max_results = 100  # Fixed number set by AWS
 
         results: List[Dict] = []

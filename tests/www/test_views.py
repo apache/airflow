@@ -1771,10 +1771,17 @@ class TestDagACLView(TestBase):
                    password='test')
         test_view_menu = self.appbuilder.sm.find_view_menu('example_bash_operator')
         perms_views = self.appbuilder.sm.find_permissions_view_menu(test_view_menu)
-        self.assertEqual(len(perms_views), 2)
-        # each dag view will create one write, and one read permission
-        self.assertTrue(str(perms_views[0]).startswith('can dag'))
-        self.assertTrue(str(perms_views[1]).startswith('can dag'))
+        self.assertEqual(len(perms_views), 4)
+
+        permissions = [str(perm) for perm in perms_views]
+        expected_permissions = [
+            'can read on example_bash_operator',
+            'can dag edit on example_bash_operator',
+            'can dag read on example_bash_operator',
+            'can edit on example_bash_operator',
+        ]
+        for perm in expected_permissions:
+            self.assertIn(perm, permissions)
 
     def test_role_permission_associate(self):
         self.logout()

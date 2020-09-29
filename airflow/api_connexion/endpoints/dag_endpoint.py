@@ -14,9 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import current_app, request
+from flask import current_app, g, request
 from marshmallow import ValidationError
-from sqlalchemy import func
 
 from airflow import DAG
 from airflow.api_connexion import security
@@ -32,7 +31,7 @@ from airflow.models.dag import DagModel
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
+@security.requires_access([("can_read", "Dag")])
 @provide_session
 def get_dag(dag_id, session):
     """
@@ -46,7 +45,7 @@ def get_dag(dag_id, session):
     return dag_schema.dump(dag)
 
 
-@security.requires_authentication
+@security.requires_access([("can_read", "Dag")])
 def get_dag_details(dag_id):
     """
     Get details of DAG.
@@ -57,21 +56,20 @@ def get_dag_details(dag_id):
     return dag_detail_schema.dump(dag)
 
 
-@security.requires_authentication
+@security.requires_access([("can_read", "Dag")])
 @format_parameters({'limit': check_limit})
-@provide_session
-def get_dags(session, limit, offset=0):
+def get_dags(limit, offset=0):
     """
     Get all DAGs.
     """
-    dags = session.query(DagModel).order_by(DagModel.dag_id).offset(offset).limit(limit).all()
-
-    total_entries = session.query(func.count(DagModel.dag_id)).scalar()
+    readable_dags = current_app.appbuilder.sm.get_readable_dags(g.user)
+    dags = readable_dags.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
+    total_entries = readable_dags.count()
 
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
-@security.requires_authentication
+@security.requires_access([("can_edit", "Dag")])
 @provide_session
 def patch_dag(session, dag_id, update_mask=None):
     """

@@ -186,7 +186,7 @@ repos:
         exclude:
           ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.4.2
+    rev: 5.5.3
     hooks:
       - id: isort
         name: Run isort to sort imports
@@ -194,13 +194,13 @@ repos:
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^build/.*$|^.tox/.*$|^venv/.*$|.*api_connexion/.*\.py|.*providers.*\.py
   - repo: https://github.com/pycqa/pydocstyle
-    rev: 5.0.2
+    rev: 5.1.1
     hooks:
       - id: pydocstyle
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D104,D105,D107,D200,D202,D204,D205,D400,D401
+          - --add-ignore=D100,D102,D104,D105,D107,D200,D205,D400,D401
         exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
   - repo: local
     hooks:
@@ -381,6 +381,12 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['pyyaml']
+      - id: bats-in-container-tests
+        name: Run in container bats tests
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh"
+        files: ^tests/bats/in_container/.*.bats$|^scripts/in_container/.*sh
+        pass_filenames: false
       - id: mypy
         name: Run mypy
         language: system
@@ -406,7 +412,8 @@ repos:
         name: Run BATS bash tests for changed bash files
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh"
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|.bats$
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
+        exclude: ^tests/bats/in_container/.*bats$|^scripts/in_container/.*sh$
         pass_filenames: false
       - id: stylelint
         name: stylelint
@@ -432,4 +439,11 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
         language: system
         files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
+        require_serial: true
+      - id: helm-lint
+        name: Lint Helm Chart
+        entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.sh
+        language: system
+        pass_filenames: false
+        files: ^chart
         require_serial: true

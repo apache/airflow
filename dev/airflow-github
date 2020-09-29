@@ -195,7 +195,7 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
 @click.argument('github-token', envvar='GITHUB_TOKEN')
 def changelog(previous_version, target_version, github_token):
     repo = git.Repo(".", search_parent_directories=True)
-    # Get a list of issues/PRs that have been commited on the current branch.
+    # Get a list of issues/PRs that have been committed on the current branch.
     log_args = [
         '--format={}'.format(GIT_LOG_FORMAT), previous_version + ".." + target_version]
     log = repo.git.log(*log_args)

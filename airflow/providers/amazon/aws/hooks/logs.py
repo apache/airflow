@@ -70,7 +70,6 @@ class AwsLogsHook(AwsBaseHook):
                  |   'message' (str): The log event data.
                  |   'ingestionTime' (int): The time in milliseconds the event was ingested.
         """
-
         next_token = None
 
         event_count = 1

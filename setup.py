@@ -202,7 +202,6 @@ cassandra = [
 celery = [
     'celery~=4.4.2',
     'flower>=0.7.3, <1.0',
-    'tornado>=4.2.0, <6.0',  # Dep of flower. Pin to a version that works on Py3.5.2
     'vine~=1.3',  # https://stackoverflow.com/questions/32757259/celery-no-module-named-five
 ]
 cgroups = [
@@ -460,7 +459,8 @@ devel = [
     'ipdb',
     'jira',
     'mongomock',
-    'moto>=1.3.14,<2.0.0',
+    'moto==1.3.14',  # TODO - fix Datasync issues to get higher version of moto:
+                     #        See: https://github.com/apache/airflow/issues/10985
     'parameterized',
     'paramiko',
     'pipdeptree',
@@ -645,8 +645,7 @@ devel_all = list(set(devel +
                      [req for req_list in EXTRAS_REQUIREMENTS.values() for req in req_list] +
                      [req for req_list in PROVIDERS_REQUIREMENTS.values() for req in req_list]))
 
-PACKAGES_EXCLUDED_FOR_ALL = [
-]
+PACKAGES_EXCLUDED_FOR_ALL = []
 
 if PY3:
     PACKAGES_EXCLUDED_FOR_ALL.extend([
@@ -668,11 +667,12 @@ PACKAGES_EXCLUDED_FOR_CI = [
 def is_package_excluded(package: str, exclusion_list: List[str]):
     """
     Checks if package should be excluded.
+
     :param package: package name (beginning of it)
     :param exclusion_list: list of excluded packages
     :return: true if package should be excluded
     """
-    return any([package.startswith(excluded_package) for excluded_package in exclusion_list])
+    return any(package.startswith(excluded_package) for excluded_package in exclusion_list)
 
 
 devel_all = [package for package in devel_all if not is_package_excluded(
@@ -736,7 +736,7 @@ INSTALL_REQUIREMENTS = [
     'python-slugify>=3.0.0,<5.0',
     'requests>=2.20.0, <3',
     'setproctitle>=1.1.8, <2',
-    'sqlalchemy~=1.3',
+    'sqlalchemy>=1.3.18, <2',
     'sqlalchemy_jsonfield~=0.9',
     'tabulate>=0.7.5, <0.9',
     'tenacity>=4.12.0, <5.2',

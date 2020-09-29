@@ -52,6 +52,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``bats-tests``                        Runs BATS bash unit tests
 ----------------------------------- ---------------------------------------------------------------- ------------
+``bats-in-container-tests``           Run in Breeze container bats tests                                   *
+----------------------------------- ---------------------------------------------------------------- ------------
 ``black``                             Runs Black (the uncompromising Python code formatter)
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``build``                             Builds image for mypy, pylint, flake8.                               *
@@ -86,7 +88,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``dont-use-safe-filter``              Don't use safe in templates.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``no-relative-imports``               Use absolute imports, not realtive
+``no-relative-imports``               Use absolute imports, not relative
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``end-of-file-fixer``                 Makes sure that there is an empty line at the end.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -95,6 +97,8 @@ require Breeze Docker images to be installed locally:
 ``flake8``                            Runs flake8.                                                         *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``forbid-tabs``                       Fails if tabs are used in the project.
+----------------------------------- ---------------------------------------------------------------- ------------
+``helm-lint``                         Verifies if helm lint passes for the chart
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``incorrect-use-of-LoggingMixin``     Checks if LoggingMixin is properly imported.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -118,7 +122,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``provide-create-sessions``           Make sure provide-session and create-session imports are OK.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``pydevd``                            Check for accidentally commited pydevd statements.
+``pydevd``                            Check for accidentally committed pydevd statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pydocstyle``                        Runs pydocstyle.
 ----------------------------------- ---------------------------------------------------------------- ------------

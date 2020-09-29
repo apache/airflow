@@ -51,11 +51,7 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'elasticsearch',
     'elasticsearch_configs',
     'kubernetes',
-    'kubernetes_node_selectors',
-    'kubernetes_environment_variables',
-    'kubernetes_secrets',
-    'kubernetes_labels',
-    'smart_sensor'
+    'smart_sensor',
 ]
 
 DEFAULT_TEST_SECTIONS = [

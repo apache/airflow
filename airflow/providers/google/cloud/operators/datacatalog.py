@@ -1419,6 +1419,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
     :param page_size: The maximum number of resources contained in the underlying API response. If page
         streaming is performed per- resource, this parameter does not affect the return value. If page
         streaming is performed per-page, this determines the maximum number of resources in a page.
+        (Default: 100)
     :type page_size: int
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
@@ -1465,7 +1466,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         location: str,
         entry_group: str,
         entry: str,
-        page_size: Optional[int] = None,
+        page_size: int = 100,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,

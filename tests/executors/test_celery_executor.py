@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import contextlib
-import datetime
 import json
 import os
 import sys
 import unittest
+from datetime import datetime, timedelta
 from unittest import mock
 
 # leave this it is used by the test worker
@@ -30,6 +30,7 @@ from celery import Celery
 from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend  # noqa
 from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
+from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 from parameterized import parameterized
 
@@ -37,11 +38,13 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors import celery_executor
 from airflow.executors.celery_executor import BulkStateFetcher
-from airflow.models import TaskInstance
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
+from airflow.utils import timezone
 from airflow.utils.state import State
+from tests.test_utils import db
 
 
 def _prepare_test_bodies():
@@ -95,6 +98,14 @@ def _prepare_app(broker_url=None, execute=None):
 
 class TestCeleryExecutor(unittest.TestCase):
 
+    def setUp(self) -> None:
+        db.clear_db_runs()
+        db.clear_db_jobs()
+
+    def tearDown(self) -> None:
+        db.clear_db_runs()
+        db.clear_db_jobs()
+
     @parameterized.expand(_prepare_test_bodies())
     @pytest.mark.integration("redis")
     @pytest.mark.integration("rabbitmq")
@@ -109,10 +120,11 @@ class TestCeleryExecutor(unittest.TestCase):
 
         with _prepare_app(broker_url, execute=fake_execute_command) as app:
             executor = celery_executor.CeleryExecutor()
+            self.assertEqual(executor.tasks, {})
             executor.start()
 
             with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
-                execute_date = datetime.datetime.now()
+                execute_date = datetime.now()
 
                 task_tuples_to_send = [
                     (('success', 'fake_simple_ti', execute_date, 0),
@@ -129,6 +141,22 @@ class TestCeleryExecutor(unittest.TestCase):
 
                 executor._process_tasks(task_tuples_to_send)
 
+                self.assertEqual(
+                    list(executor.tasks.keys()),
+                    [
+                        ('success', 'fake_simple_ti', execute_date, 0),
+                        ('fail', 'fake_simple_ti', execute_date, 0)
+                    ]
+                )
+                self.assertEqual(
+                    executor.event_buffer[('success', 'fake_simple_ti', execute_date, 0)][0],
+                    State.QUEUED
+                )
+                self.assertEqual(
+                    executor.event_buffer[('fail', 'fake_simple_ti', execute_date, 0)][0],
+                    State.QUEUED
+                )
+
                 executor.end(synchronous=True)
 
         self.assertEqual(executor.event_buffer[('success', 'fake_simple_ti', execute_date, 0)][0],
@@ -139,8 +167,8 @@ class TestCeleryExecutor(unittest.TestCase):
         self.assertNotIn('success', executor.tasks)
         self.assertNotIn('fail', executor.tasks)
 
-        self.assertNotIn('success', executor.last_state)
-        self.assertNotIn('fail', executor.last_state)
+        self.assertEqual(executor.queued_tasks, {})
+        self.assertEqual(timedelta(0, 600), executor.task_adoption_timeout)
 
     @pytest.mark.integration("redis")
     @pytest.mark.integration("rabbitmq")
@@ -157,11 +185,11 @@ class TestCeleryExecutor(unittest.TestCase):
                 task_id="test",
                 bash_command="true",
                 dag=DAG(dag_id='id'),
-                start_date=datetime.datetime.now()
+                start_date=datetime.now()
             )
-            when = datetime.datetime.now()
+            when = datetime.now()
             value_tuple = 'command', 1, None, \
-                SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.datetime.now()))
+                SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.now()))
             key = ('fail', 'fake_simple_ti', when, 0)
             executor.queued_tasks[key] = value_tuple
             executor.heartbeat()
@@ -209,6 +237,89 @@ class TestCeleryExecutor(unittest.TestCase):
             mock_check_output.assert_called_once_with(
                 command, stderr=mock.ANY, close_fds=mock.ANY, env=mock.ANY,
             )
+
+    @pytest.mark.backend("mysql", "postgres")
+    def test_try_adopt_task_instances_none(self):
+        date = datetime.utcnow()
+        start_date = datetime.utcnow() - timedelta(days=2)
+
+        with DAG("test_try_adopt_task_instances_none"):
+            task_1 = BaseOperator(task_id="task_1", start_date=start_date)
+
+        key1 = TaskInstance(task=task_1, execution_date=date)
+        tis = [key1]
+        executor = celery_executor.CeleryExecutor()
+
+        self.assertEqual(executor.try_adopt_task_instances(tis), tis)
+
+    @pytest.mark.backend("mysql", "postgres")
+    def test_try_adopt_task_instances(self):
+        exec_date = timezone.utcnow() - timedelta(minutes=2)
+        start_date = timezone.utcnow() - timedelta(days=2)
+        queued_dttm = timezone.utcnow() - timedelta(minutes=1)
+
+        try_number = 1
+
+        with DAG("test_try_adopt_task_instances_none") as dag:
+            task_1 = BaseOperator(task_id="task_1", start_date=start_date)
+            task_2 = BaseOperator(task_id="task_2", start_date=start_date)
+
+        ti1 = TaskInstance(task=task_1, execution_date=exec_date)
+        ti1.external_executor_id = '231'
+        ti1.queued_dttm = queued_dttm
+        ti2 = TaskInstance(task=task_2, execution_date=exec_date)
+        ti2.external_executor_id = '232'
+        ti2.queued_dttm = queued_dttm
+
+        tis = [ti1, ti2]
+        executor = celery_executor.CeleryExecutor()
+        self.assertEqual(executor.running, set())
+        self.assertEqual(executor.adopted_task_timeouts, {})
+        self.assertEqual(executor.tasks, {})
+
+        not_adopted_tis = executor.try_adopt_task_instances(tis)
+
+        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, exec_date, try_number)
+        key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, exec_date, try_number)
+        self.assertEqual(executor.running, {key_1, key_2})
+        self.assertEqual(
+            dict(executor.adopted_task_timeouts),
+            {
+                key_1: queued_dttm + executor.task_adoption_timeout,
+                key_2: queued_dttm + executor.task_adoption_timeout
+            }
+        )
+        self.assertEqual(executor.tasks, {key_1: AsyncResult("231"), key_2: AsyncResult("232")})
+        self.assertEqual(not_adopted_tis, [])
+
+    @pytest.mark.backend("mysql", "postgres")
+    def test_check_for_stalled_adopted_tasks(self):
+        exec_date = timezone.utcnow() - timedelta(minutes=40)
+        start_date = timezone.utcnow() - timedelta(days=2)
+        queued_dttm = timezone.utcnow() - timedelta(minutes=30)
+
+        try_number = 1
+
+        with DAG("test_check_for_stalled_adopted_tasks") as dag:
+            task_1 = BaseOperator(task_id="task_1", start_date=start_date)
+            task_2 = BaseOperator(task_id="task_2", start_date=start_date)
+
+        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, exec_date, try_number)
+        key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, exec_date, try_number)
+
+        executor = celery_executor.CeleryExecutor()
+        executor.adopted_task_timeouts = {
+            key_1: queued_dttm + executor.task_adoption_timeout,
+            key_2: queued_dttm + executor.task_adoption_timeout
+        }
+        executor.tasks = {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
+        executor.sync()
+        self.assertEqual(
+            executor.event_buffer,
+            {key_1: (State.FAILED, None), key_2: (State.FAILED, None)}
+        )
+        self.assertEqual(executor.tasks, {})
+        self.assertEqual(executor.adopted_task_timeouts, {})
 
 
 def test_operation_timeout_config():

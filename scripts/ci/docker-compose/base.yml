@@ -50,6 +50,8 @@ services:
       - INSTALL_AIRFLOW_VERSION
       - DB_RESET
       - START_AIRFLOW
+      - LOAD_EXAMPLES
+      - LOAD_DEFAULT_CONNECTIONS
       - ENABLED_SYSTEMS
       - RUN_SYSTEM_TESTS
       - PYTHON_MAJOR_MINOR_VERSION
@@ -59,6 +61,7 @@ services:
       - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
       - HOST_OS
       - PYTHONDONTWRITEBYTECODE
+      - INIT_SCRIPT_FILE
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock

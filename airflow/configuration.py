@@ -228,7 +228,6 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         Validate that config values aren't invalid given other config values
         or system-level limitations and requirements.
         """
-
         if (
                 self.get("core", "executor") not in (
                     'DebugExecutor',

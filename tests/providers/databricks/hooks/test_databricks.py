@@ -454,6 +454,17 @@ class TestDatabricksHookToken(unittest.TestCase):
         self.assertEqual(kwargs['auth'].token, TOKEN)
 
 
+class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken):
+    @provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.extra = json.dumps({'token': TOKEN})
+
+        session.commit()
+
+        self.hook = DatabricksHook()
+
+
 class TestRunState(unittest.TestCase):
     def test_is_terminal_true(self):
         terminal_states = ['TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']

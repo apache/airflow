@@ -18,14 +18,14 @@ import unittest
 
 from parameterized import parameterized
 
-from airflow.models import DagRun as DR, XCom
+from airflow.models import DagModel, DagRun as DR, XCom
 from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs, clear_db_xcom
+from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
 
 class TestXComEndpoint(unittest.TestCase):
@@ -34,15 +34,37 @@ class TestXComEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[
+                ("can_read", "Dag"),
+                ("can_read", "DagRun"),
+                ("can_read", "Task"),
+                ("can_read", "XCom"),
+            ],
+        )
+        create_user(
+            cls.app,  # type: ignore
+            username="test_granular_permissions",
+            role_name="TestGranularDag",
+            permissions=[("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")],
+        )
+        cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+            "test-dag-id-1", access_control={'TestGranularDag': ['can_edit', 'can_read']}
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     @staticmethod
     def clean_db():
+        clear_db_dags()
         clear_db_runs()
         clear_db_xcom()
 
@@ -104,6 +126,21 @@ class TestGetXComEntry(TestXComEndpoint):
 
         assert_401(response)
 
+    def test_should_raise_403_forbidden(self):
+        dag_id = 'test-dag-id'
+        task_id = 'test-task-id'
+        execution_date = '2005-04-02T00:00:00+00:00'
+        xcom_key = 'test-xcom-key'
+        execution_date_parsed = parse_execution_date(execution_date)
+        dag_run_id = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+
+        self._create_xcom_entry(dag_id, dag_run_id, execution_date_parsed, task_id, xcom_key)
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+        assert response.status_code == 403
+
     @provide_session
     def _create_xcom_entry(self, dag_id, dag_run_id, execution_date, task_id, xcom_key, session=None):
         XCom.set(
@@ -164,6 +201,110 @@ class TestGetXComEntries(TestXComEndpoint):
             },
         )
 
+    def test_should_response_200_with_tilde_and_access_to_all_dags(self):
+        dag_id_1 = 'test-dag-id-1'
+        task_id_1 = 'test-task-id-1'
+        execution_date = '2005-04-02T00:00:00+00:00'
+        execution_date_parsed = parse_execution_date(execution_date)
+        dag_run_id_1 = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+        self._create_xcom_entries(dag_id_1, dag_run_id_1, execution_date_parsed, task_id_1)
+
+        dag_id_2 = 'test-dag-id-2'
+        task_id_2 = 'test-task-id-2'
+        dag_run_id_2 = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+        self._create_xcom_entries(dag_id_2, dag_run_id_2, execution_date_parsed, task_id_2)
+
+        response = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+
+        self.assertEqual(200, response.status_code)
+        response_data = response.json
+        for xcom_entry in response_data['xcom_entries']:
+            xcom_entry['timestamp'] = "TIMESTAMP"
+        self.assertEqual(
+            response.json,
+            {
+                'xcom_entries': [
+                    {
+                        'dag_id': dag_id_1,
+                        'execution_date': execution_date,
+                        'key': 'test-xcom-key-1',
+                        'task_id': task_id_1,
+                        'timestamp': "TIMESTAMP",
+                    },
+                    {
+                        'dag_id': dag_id_1,
+                        'execution_date': execution_date,
+                        'key': 'test-xcom-key-2',
+                        'task_id': task_id_1,
+                        'timestamp': "TIMESTAMP",
+                    },
+                    {
+                        'dag_id': dag_id_2,
+                        'execution_date': execution_date,
+                        'key': 'test-xcom-key-1',
+                        'task_id': task_id_2,
+                        'timestamp': "TIMESTAMP",
+                    },
+                    {
+                        'dag_id': dag_id_2,
+                        'execution_date': execution_date,
+                        'key': 'test-xcom-key-2',
+                        'task_id': task_id_2,
+                        'timestamp': "TIMESTAMP",
+                    },
+                ],
+                'total_entries': 4,
+            },
+        )
+
+    def test_should_response_200_with_tilde_and_granular_dag_access(self):
+        dag_id_1 = 'test-dag-id-1'
+        task_id_1 = 'test-task-id-1'
+        execution_date = '2005-04-02T00:00:00+00:00'
+        execution_date_parsed = parse_execution_date(execution_date)
+        dag_run_id_1 = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+        self._create_xcom_entries(dag_id_1, dag_run_id_1, execution_date_parsed, task_id_1)
+
+        dag_id_2 = 'test-dag-id-2'
+        task_id_2 = 'test-task-id-2'
+        dag_run_id_2 = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+        self._create_xcom_entries(dag_id_2, dag_run_id_2, execution_date_parsed, task_id_2)
+
+        response = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            environ_overrides={'REMOTE_USER': "test_granular_permissions"},
+        )
+
+        self.assertEqual(200, response.status_code)
+        response_data = response.json
+        for xcom_entry in response_data['xcom_entries']:
+            xcom_entry['timestamp'] = "TIMESTAMP"
+        self.assertEqual(
+            response.json,
+            {
+                'xcom_entries': [
+                    {
+                        'dag_id': dag_id_1,
+                        'execution_date': execution_date,
+                        'key': 'test-xcom-key-1',
+                        'task_id': task_id_1,
+                        'timestamp': "TIMESTAMP",
+                    },
+                    {
+                        'dag_id': dag_id_1,
+                        'execution_date': execution_date,
+                        'key': 'test-xcom-key-2',
+                        'task_id': task_id_1,
+                        'timestamp': "TIMESTAMP",
+                    },
+                ],
+                'total_entries': 2,
+            },
+        )
+
     def test_should_raises_401_unauthenticated(self):
         dag_id = 'test-dag-id'
         task_id = 'test-task-id'
@@ -188,6 +329,10 @@ class TestGetXComEntries(TestXComEndpoint):
                 task_id=task_id,
                 dag_id=dag_id,
             )
+
+        dag = DagModel(dag_id=dag_id)
+        session.add(dag)
+
         dagrun = DR(
             dag_id=dag_id,
             run_id=dag_run_id,

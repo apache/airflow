@@ -149,3 +149,108 @@
 
   assert_equal "${COMPREPLY[*]}" "build-docs build-image"
 }
+
+@test "Test allowed python versions are same as ALL" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_allowed_python_major_minor_versions}" "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[*]}"
+}
+
+@test "Test allowed Kubernetes versions same as CURRENT" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_allowed_kubernetes_versions}" "${CURRENT_KUBERNETES_VERSIONS[*]}"
+}
+
+@test "Test default Kubernetes version same as DEFAULT" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_default_kubernetes_version}" "${DEFAULT_KUBERNETES_VERSION}"
+}
+
+@test "Test allowed Kubernetes modes same as CURRENT" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_allowed_kubernetes_modes}" "${CURRENT_KUBERNETES_MODES[*]}"
+}
+
+@test "Test default Kubernetes mode same as DEFAULT" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_default_kubernetes_mode}" "${DEFAULT_KUBERNETES_MODE}"
+}
+
+
+@test "Test allowed Helm versions same as CURRENT" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_allowed_helm_versions}" "${CURRENT_HELM_VERSIONS[*]}"
+}
+
+@test "Test default Helm version same as DEFAULT" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_default_helm_version}" "${DEFAULT_HELM_VERSION}"
+}
+
+@test "Test allowed Kind versions same as CURRENT" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_allowed_kind_versions}" "${CURRENT_KIND_VERSIONS[*]}"
+}
+
+@test "Test default Kind version same as DEFAULT" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_default_kind_version}" "${DEFAULT_KIND_VERSION}"
+}
+
+@test "Test allowed MySQL versions same as CURRENT" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_allowed_mysql_versions}" "${CURRENT_MYSQL_VERSIONS[*]}"
+}
+
+@test "Test default MySQL version same as MYSQL_VERSION" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_default_mysql_version}" "${MYSQL_VERSION}"
+}
+
+@test "Test allowed Postgres versions same as CURRENT" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_allowed_postgres_versions}" "${CURRENT_POSTGRES_VERSIONS[*]}"
+}
+
+@test "Test default Postgres version same as POSTGRES_VERSION" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_default_postgres_version}" "${POSTGRES_VERSION}"
+}

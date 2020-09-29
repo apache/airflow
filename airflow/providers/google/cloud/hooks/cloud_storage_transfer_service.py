@@ -345,7 +345,6 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :type operation_name: str
         :rtype: None
         """
-
         self.get_conn().transferOperations().cancel(name=operation_name).execute(  # pylint: disable=no-member
             num_retries=self.num_retries
         )

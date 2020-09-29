@@ -253,6 +253,8 @@ USER root
 
 COPY --chown=airflow:root airflow/example_dags/ \${AIRFLOW_HOME}/dags/
 
+COPY --chown=airflow:root airflow/kubernetes_executor_templates/ \${AIRFLOW_HOME}/pod_templates/
+
 USER airflow
 
 EOF

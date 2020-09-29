@@ -34,12 +34,18 @@ class TestBaseImportError(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[('can_read', 'ImportError')],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     def setUp(self) -> None:
         super().setUp()
@@ -110,6 +116,12 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         response = self.client.get(f"/api/v1/importErrors/{import_error.id}")
 
         assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get(
+            "/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
 
 
 class TestGetImportErrorsEndpoint(TestBaseImportError):

@@ -40,12 +40,15 @@ class TestGetSource(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_user(
+            cls.app, username="test", role_name="Test", permissions=[("can_read", "DagCode")]  # type: ignore
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -150,3 +153,16 @@ class TestGetSource(unittest.TestCase):
         )
 
         assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+        dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
+        dagbag.sync_to_db()
+        first_dag: DAG = next(iter(dagbag.dags.values()))
+
+        response = self.client.get(
+            f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}",
+            headers={"Accept": "text/plain"},
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+        assert response.status_code == 403

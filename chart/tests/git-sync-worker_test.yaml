@@ -29,6 +29,9 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.volumes[1].name
+          value: config
+      - equal:
+          path: spec.template.spec.volumes[2].name
           value: dags
   - it: should add dags volume to the worker if git sync is enabled & peristence is disabled
     set:
@@ -41,6 +44,9 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.volumes[1].name
+          value: config
+      - equal:
+          path: spec.template.spec.volumes[2].name
           value: dags
   - it: should add git sync container to worker if persistence is not enabled, but git sync is
     set:

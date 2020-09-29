@@ -32,7 +32,7 @@ teardown() {
   export _breeze_allowed_test_params="a b c"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   assert_output "
-ERROR:  Allowed Test Param: [ a b c ]. Is: ''.
+ERROR:  Allowed Test Param: [ a b c ]. Passed: ''.
 
 Switch to supported value with --message flag."
   assert_failure
@@ -44,7 +44,7 @@ Switch to supported value with --message flag."
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   assert_output "
-ERROR:  Allowed Test Param: [ a b c ]. Is: 'x'.
+ERROR:  Allowed Test Param: [ a b c ]. Passed: 'x'.
 
 Switch to supported value with --message flag."
   assert_exist "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
@@ -58,7 +58,7 @@ Switch to supported value with --message flag."
   echo "x" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   run parameters::check_and_save_allowed_param "TEST_PARAM"  "Test Param" "--message"
   assert_output "
-ERROR:  Allowed Test Param: [ a b c ]. Is: 'x'.
+ERROR:  Allowed Test Param: [ a b c ]. Passed: 'x'.
 
 Switch to supported value with --message flag.
 

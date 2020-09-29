@@ -27,7 +27,8 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from typing import (
-    Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Sequence, Set, Tuple, Type, Union,
+    TYPE_CHECKING, Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Sequence, Set, Tuple,
+    Type, Union,
 )
 
 import attr
@@ -57,6 +58,9 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.session import provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+
+if TYPE_CHECKING:
+    from airflow.utils.task_group import TaskGroup  # pylint: disable=cyclic-import
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -267,10 +271,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         result
     :type do_xcom_push: bool
     """
+
     # For derived classes to define which fields will get jinjaified
     template_fields: Iterable[str] = ()
     # Defines which files extensions to look for in the templated fields
     template_ext: Iterable[str] = ()
+    # Template field renderers indicating type of the field, for example sql, json, bash
+    template_fields_renderers: Dict[str, str] = {}
+
     # Defines the color in the UI
     ui_color = '#fff'  # type: str
     ui_fgcolor = '#000'  # type: str
@@ -360,9 +368,12 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         do_xcom_push: bool = True,
         inlets: Optional[Any] = None,
         outlets: Optional[Any] = None,
+        task_group: Optional["TaskGroup"] = None,
         **kwargs
     ):
         from airflow.models.dag import DagContext
+        from airflow.utils.task_group import TaskGroupContext
+
         super().__init__()
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
@@ -382,6 +393,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             )
         validate_key(task_id)
         self.task_id = task_id
+        self.label = task_id
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+        if task_group:
+            self.task_id = task_group.child_id(task_id)
+            task_group.add(self)
         self.owner = owner
         self.email = email
         self.email_on_retry = email_on_retry
@@ -609,7 +625,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
             dag.add_task(self)
 
-        self._dag = dag  # pylint: disable=attribute-defined-outside-init
+        self._dag = dag
 
     def has_dag(self):
         """
@@ -721,7 +737,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     @cached_property
     def operator_extra_link_dict(self) -> Dict[str, Any]:
         """Returns dictionary of all extra links for the operator"""
-
         op_extra_links_from_plugin: Dict[str, Any] = {}
         from airflow import plugins_manager
         plugins_manager.initialize_extra_operators_links_plugins()
@@ -818,7 +833,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         :param jinja_env: Jinja environment
         :type jinja_env: jinja2.Environment
         """
-
         if not jinja_env:
             jinja_env = self.get_template_env()
 
@@ -853,7 +867,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         :type seen_oids: set
         :return: Templated content
         """
-
         if not jinja_env:
             jinja_env = self.get_template_env()
 
@@ -1021,7 +1034,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """
         Get a flat set of relatives' ids, either upstream or downstream.
         """
-
         if not self._dag:
             return set()
 
@@ -1120,21 +1132,25 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """Required by TaskMixin"""
         return [self]
 
+    @property
+    def leaves(self) -> List["BaseOperator"]:
+        """Required by TaskMixin"""
+        return [self]
+
     def _set_relatives(
         self,
         task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
         upstream: bool = False,
     ) -> None:
         """Sets relatives for the task or task list."""
-
-        if isinstance(task_or_task_list, Sequence):
-            task_like_object_list = task_or_task_list
-        else:
-            task_like_object_list = [task_or_task_list]
+        if not isinstance(task_or_task_list, Sequence):
+            task_or_task_list = [task_or_task_list]
 
         task_list: List["BaseOperator"] = []
-        for task_object in task_like_object_list:
-            task_list.extend(task_object.roots)
+        for task_object in task_or_task_list:
+            task_object.update_relative(self, not upstream)
+            relatives = task_object.leaves if upstream else task_object.roots
+            task_list.extend(relatives)
 
         for task in task_list:
             if not isinstance(task, BaseOperator):
@@ -1298,7 +1314,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 vars(BaseOperator(task_id='test')).keys() - {
                     'inlets', 'outlets', '_upstream_task_ids', 'default_args', 'dag', '_dag',
                     '_BaseOperator__instantiated',
-                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'})
+                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor',
+                     'template_fields', 'template_fields_renderers'})
 
         return cls.__serialized_fields
 
