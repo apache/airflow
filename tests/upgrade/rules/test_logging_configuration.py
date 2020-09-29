@@ -22,7 +22,23 @@ from tests.test_utils.config import conf_vars
 
 
 class TestLoggingConfigurationRule(TestCase):
-    @conf_vars({("core", "logging_level"): "INFO"})
+    @conf_vars(
+        {
+            ("core", "base_log_folder"): "DUMMY",
+            ("core", "remote_logging"): "DUMMY",
+            ("core", "remote_log_conn_id"): "DUMMY",
+            ("core", "remote_base_log_folder"): "DUMMY",
+            ("core", "encrypt_s3_logs"): "DUMMY",
+            ("core", "logging_level"): "DUMMY",
+            ("core", "fab_logging_level"): "DUMMY",
+            ("core", "logging_config_class"): "DUMMY",
+            ("core", "colored_console_log"): "DUMMY",
+            ("core", "simple_log_format"): "DUMMY",
+            ("core", "task_log_prefix_template"): "DUMMY",
+            ("core", "log_processor_filename_template"): "DUMMY",
+            ("core", "task_log_reader"): "DUMMY",
+        }
+    )
     def test_invalid_check(self):
         rule = LoggingConfigurationRule()
 
@@ -30,35 +46,56 @@ class TestLoggingConfigurationRule(TestCase):
         assert isinstance(rule.title, str)
 
         # Remove the fallback option
+        conf.remove_option("logging", "base_log_folder")
+        conf.remove_option("logging", "remote_logging")
+        conf.remove_option("logging", "remote_log_conn_id")
+        conf.remove_option("logging", "remote_base_log_folder")
+        conf.remove_option("logging", "encrypt_s3_logs")
         conf.remove_option("logging", "logging_level")
+        conf.remove_option("logging", "fab_logging_level")
+        conf.remove_option("logging", "logging_config_class")
+        conf.remove_option("logging", "colored_console_log")
+        conf.remove_option("logging", "simple_log_format")
+        conf.remove_option("logging", "task_log_prefix_template")
+        conf.remove_option("logging", "log_processor_filename_template")
+        conf.remove_option("logging", "task_log_reader")
         msg = (
-            "The following configurations have been to moved from [core] to the new [logging] section. \n"
-            "- base_log_folder \n"
-            "- remote_logging \n"
-            "- remote_log_conn_id \n"
-            "- remote_base_log_folder \n"
-            "- encrypt_s3_logs \n"
-            "- logging_level \n"
-            "- fab_logging_level \n"
-            "- logging_config_class \n"
-            "- colored_console_log \n"
-            "- colored_log_format \n"
-            "- colored_formatter_class \n"
-            "- log_format \n"
-            "- simple_log_format \n"
-            "- task_log_prefix_template \n"
-            "- log_filename_template \n"
-            "- log_processor_filename_template \n"
-            "- dag_processor_manager_log_location \n"
-            "- task_log_reader \n"
+            "base_log_folder has been moved from [core] to a the new [logging] section.\n"
+            "remote_logging has been moved from [core] to a the new [logging] section.\n"
+            "remote_log_conn_id has been moved from [core] to a the new [logging] section.\n"
+            "remote_base_log_folder has been moved from [core] to a the new [logging] section.\n"
+            "encrypt_s3_logs has been moved from [core] to a the new [logging] section.\n"
+            "logging_level has been moved from [core] to a the new [logging] section.\n"
+            "fab_logging_level has been moved from [core] to a the new [logging] section.\n"
+            "logging_config_class has been moved from [core] to a the new [logging] section.\n"
+            "colored_console_log has been moved from [core] to a the new [logging] section.\n"
+            "simple_log_format has been moved from [core] to a the new [logging] section.\n"
+            "task_log_prefix_template has been moved from [core] to a the new [logging] section.\n"
+            "log_processor_filename_template has been moved from [core] to a the new [logging] section.\n"
+            "task_log_reader has been moved from [core] to a the new [logging] section.\n"
         )
         response = rule.check()
         assert response == msg
 
-    @conf_vars({("logging", "logging_level"): "INFO"})
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "DUMMY",
+            ("logging", "remote_logging"): "DUMMY",
+            ("logging", "remote_log_conn_id"): "DUMMY",
+            ("logging", "remote_base_log_folder"): "DUMMY",
+            ("logging", "encrypt_s3_logs"): "DUMMY",
+            ("logging", "logging_level"): "DUMMY",
+            ("logging", "fab_logging_level"): "DUMMY",
+            ("logging", "logging_config_class"): "DUMMY",
+            ("logging", "colored_console_log"): "DUMMY",
+            ("logging", "simple_log_format"): "DUMMY",
+            ("logging", "task_log_prefix_template"): "DUMMY",
+            ("logging", "log_processor_filename_template"): "DUMMY",
+            ("logging", "task_log_reader"): "DUMMY",
+        }
+    )
     def test_valid_check(self):
         rule = LoggingConfigurationRule()
-
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
 
