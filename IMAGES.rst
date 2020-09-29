@@ -255,15 +255,86 @@ The image is primarily optimised for size of the final image, but also for speed
 It first pre-installs them from the right github branch and only after that final airflow installation is
 done from either local sources or remote location (PIP or github repository).
 
-Manually building the images
-----------------------------
+Customizing the image
+.....................
 
+Customizing the image is an alternative way of adding your own dependencies to the image.
+
+The easiest way to build the image image is to use ``breeze`` script, but you can also build such customized
+image by running appropriately crafted docker build in which you specify all the ``build-args``
+that you need to add to customize it. You can read about all the args and ways you can build the image
+in the `<#ci-image-build-arguments>`_ chapter below.
+
+Here just a few examples are presented which should give you general understanding of what you can customize.
+
+This builds the production image in version 3.7 with additional airflow extras from 1.10.10 Pypi package and
+additional apt dev and runtime dependencies.
+
+.. code-block:: bash
+
+  docker build . -f Dockerfile.ci \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
+    --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.12" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_SOURCES_FROM="empty" \
+    --build-arg AIRFLOW_SOURCES_TO="/empty" \
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
+    --build-arg ADDITIONAL_PYTHON_DEPS="pandas"
+    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
+    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
+    --tag my-image
+
+
+the same image can be built using ``breeze`` (it supports auto-completion of the options):
+
+.. code-block:: bash
+
+  ./breeze build-image -f Dockerfile.ci \
+      --production-image  --python 3.7 --install-airflow-version=1.10.12 \
+      --additional-extras=jdbc --additional-python-deps="pandas" \
+      --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
 You can build the default production image with standard ``docker build`` command but they will only build
 default versions of the image and will not use the dockerhub versions of images as cache.
 
 
-CI images
-.........
+You can customize more aspects of the image - such as additional commands executed before apt dependencies
+are installed, or adding extra sources to install your dependencies from. You can see all the arguments
+described below but here is an example of rather complex command to customize the image
+based on example in `this comment <https://github.com/apache/airflow/issues/8605#issuecomment-690065621>`_:
+
+.. code-block:: bash
+
+  docker build . -f Dockerfile.ci \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
+    --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.12" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_SOURCES_FROM="empty" \
+    --build-arg AIRFLOW_SOURCES_TO="/empty" \
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
+    --build-arg ADDITIONAL_PYTHON_DEPS="apache-airflow-backport-providers-odbc \
+        azure-storage-blob \
+        sshtunnel \
+        google-api-python-client \
+        oauth2client \
+        beautifulsoup4 \
+        dateparser \
+        rocketchat_API \
+        typeform" \
+    --build-arg ADDITIONAL_DEV_APT_DEPS="msodbcsql17 unixodbc-dev g++" \
+    --build-arg ADDITIONAL_DEV_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
+    --build-arg ADDITIONAL_DEV_ENV_VARS="ACCEPT_EULA=Y" \
+    --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
+    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="msodbcsql17 unixodbc git procps vim" \
+    --build-arg ADDITIONAL_RUNTIME_ENV_VARS="ACCEPT_EULA=Y" \
+    --tag my-image
+
+
+CI image build arguments
+........................
 
 The following build arguments (``--build-arg`` in docker build command) can be used for CI images:
 
@@ -322,11 +393,37 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | additional python dependencies to        |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_DEV_DEPS``                  |                                          | additional apt dev dependencies to       |
-|                                          |                                          | install                                  |
+| ``DEV_APT_COMMAND``                      | (see Dockerfile)                         | Dev apt command executed before dev deps |
+|                                          |                                          | are installed in the first part of image |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_DEPS``              |                                          | additional apt runtime dependencies to   |
-|                                          |                                          | install                                  |
+| ``ADDITIONAL_DEV_APT_COMMAND``           |                                          | Additional Dev apt command executed      |
+|                                          |                                          | before dev dep are installed             |
+|                                          |                                          | in the first part of the image           |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``DEV_APT_DEPS``                         | (see Dockerfile)                         | Dev APT dependencies installed           |
+|                                          |                                          | in the first part of the image           |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_DEV_APT_DEPS``              |                                          | Additional apt dev dependencies          |
+|                                          |                                          | installed in the first part of the image |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_DEV_APT_ENV``               |                                          | Additional env variables defined         |
+|                                          |                                          | when installing dev deps                 |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``RUNTIME_APT_COMMAND``                  | (see Dockerfile)                         | Runtime apt command executed before deps |
+|                                          |                                          | are installed in first part of the image |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_RUNTIME_APT_COMMAND``       |                                          | Additional Runtime apt command executed  |
+|                                          |                                          | before runtime dep are installed         |
+|                                          |                                          | in the second part of the image          |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``RUNTIME_APT_DEPS``                     | (see Dockerfile)                         | Runtime APT dependencies installed       |
+|                                          |                                          | in the second part of the image          |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_RUNTIME_APT_DEPS``          |                                          | Additional apt runtime dependencies      |
+|                                          |                                          | installed in second part of the image    |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
+|                                          |                                          | when installing runtime deps             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 
 Here are some examples of how CI images can built manually. CI is always built from local sources.
@@ -366,7 +463,7 @@ This builds the CI image in version 3.6 with "gcc" and "g++" additional apt dev 
 .. code-block::
 
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.6 --build-arg ADDITIONAL_DEV_DEPS="gcc g++"
+    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.6 --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
 
 This builds the CI image in version 3.6 with "jdbc" extra and "default-jre-headless" additional apt runtime dependencies added.
 

@@ -51,13 +51,26 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ARG ADDITIONAL_DEV_DEPS=""
-ENV ADDITIONAL_DEV_DEPS=${ADDITIONAL_DEV_DEPS}
+ARG ADDITIONAL_DEV_APT_DEPS=""
+ENV ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS}
+
+ARG DEV_APT_COMMAND="\
+    curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
+    && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
+    && echo 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list"
+ENV DEV_APT_COMMAND=${DEV_APT_COMMAND}
+
+ARG ADDITIONAL_DEV_APT_COMMAND=""
+ENV ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
+
+ARG ADDITIONAL_DEV_ENV_VARS=""
 
 # Install basic and additional apt dependencies
-RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
-    && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
-    && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
+RUN mkdir -pv /usr/share/man/man1 \
+    && mkdir -pv /usr/share/man/man7 \
+    && export ${ADDITIONAL_DEV_ENV_VARS?} \
+    && bash -o pipefail -e -u -x -c "${DEV_APT_COMMAND}" \
+    && bash -o pipefail -e -u -x -c "${ADDITIONAL_DEV_APT_COMMAND}" \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
            apt-utils \
@@ -86,7 +99,7 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            unixodbc \
            unixodbc-dev \
            yarn \
-           ${ADDITIONAL_DEV_DEPS} \
+           ${ADDITIONAL_DEV_APT_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -98,15 +111,9 @@ RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
-ARG ADDITIONAL_RUNTIME_DEPS=""
-ENV ADDITIONAL_RUNTIME_DEPS=${ADDITIONAL_RUNTIME_DEPS}
-
-# Note missing man directories on debian-buster
-# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
-RUN mkdir -pv /usr/share/man/man1 \
-    && mkdir -pv /usr/share/man/man7 \
-    && apt-get update \
-    && apt-get install --no-install-recommends -y \
+# The latest buster images do not have libpython 2.7 installed and it is needed
+# To run virtualenv tests with python 2
+ARG RUNTIME_APT_DEPS="\
       gnupg \
       libgcc-8-dev \
       apt-transport-https \
@@ -116,8 +123,6 @@ RUN mkdir -pv /usr/share/man/man1 \
       krb5-user \
       ldap-utils \
       less \
-      # The latest buster images do not have libpython 2.7 installed and it is needed
-      # To run virtualenv tests with python 2
       libpython2.7-stdlib \
       lsb-release \
       net-tools \
@@ -127,8 +132,30 @@ RUN mkdir -pv /usr/share/man/man1 \
       sqlite3 \
       tmux \
       unzip \
-      vim \
-      ${ADDITIONAL_RUNTIME_DEPS} \
+      vim"
+
+ARG ADDITIONAL_RUNTIME_APT_DEPS=""
+ENV ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS}
+
+ARG RUNTIME_APT_COMMAND=""
+ENV RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND}
+
+ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
+ENV ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND}
+
+ARG ADDITIONAL_RUNTIME_ENV_VARS=""
+
+# Note missing man directories on debian-buster
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
+RUN mkdir -pv /usr/share/man/man1 \
+    && mkdir -pv /usr/share/man/man7 \
+    && export ${ADDITIONAL_RUNTIME_ENV_VARS?} \
+    && bash -o pipefail -e -u -x -c "${RUNTIME_APT_COMMAND}" \
+    && bash -o pipefail -e -u -x -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
+    && apt-get update \
+    && apt-get install --no-install-recommends -y \
+      ${RUNTIME_APT_DEPS} \
+      ${ADDITIONAL_RUNTIME_APT_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
