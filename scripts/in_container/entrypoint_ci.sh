@@ -159,6 +159,9 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 # shellcheck source=scripts/in_container/run_init_script.sh
 . "${IN_CONTAINER_DIR}/run_init_script.sh"
 
+# shellcheck source=scripts/in_container/run_tmux.sh
+. "${IN_CONTAINER_DIR}/run_tmux.sh"
+
 cd "${AIRFLOW_SOURCES}"
 
 set +u

@@ -591,7 +591,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @provide_session
     def task_stats(self, session=None):
         """Task Statistics"""
-        allowed_dag_ids = set(current_app.appbuilder.sm.get_readable_dag_ids())
+        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids()
 
         if not allowed_dag_ids:
             return wwwutils.json_response({})
@@ -796,9 +796,19 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             external_trigger=False
         )
 
+        tags = session.query(models.DagTag).filter(
+            models.DagTag.dag_id == dag_id).all()
+
         return self.render_template(
             'airflow/dag_details.html',
-            dag=dag, title=title, root=root, states=states, State=State, active_runs=active_runs)
+            dag=dag,
+            title=title,
+            root=root,
+            states=states,
+            State=State,
+            active_runs=active_runs,
+            tags=tags
+        )
 
     @expose('/rendered')
     @has_dag_access(can_dag_read=True)
@@ -830,10 +840,15 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             flash("Error rendering template: " + str(e), "error")
         title = "Rendered Template"
         html_dict = {}
+        renderers = wwwutils.get_attr_renderer()
+
         for template_field in task.template_fields:
             content = getattr(task, template_field)
-            if template_field in wwwutils.get_attr_renderer():
-                html_dict[template_field] = wwwutils.get_attr_renderer()[template_field](content)
+            renderer = task.template_fields_renderers.get(template_field, template_field)
+            if renderer in renderers:
+                if isinstance(content, (dict, list)):
+                    content = json.dumps(content, sort_keys=True, indent=4)
+                html_dict[template_field] = renderers[renderer](content)
             else:
                 html_dict[template_field] = \
                     Markup("<pre><code>{}</pre></code>").format(pformat(content))  # noqa

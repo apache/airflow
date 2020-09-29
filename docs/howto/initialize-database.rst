@@ -23,9 +23,8 @@ Initializing a Database Backend
 If you want to take a real test drive of Airflow, you should consider
 setting up a real database backend and switching to the LocalExecutor.
 
-As Airflow was built to interact with its metadata using the great SqlAlchemy
-library, you should be able to use any database backend supported as a
-SqlAlchemy backend. We recommend using **MySQL** or **Postgres**.
+Airflow was built to interact with its metadata using SqlAlchemy
+with **MySQL**,  **Postgres** and **SQLite** as supported backends (SQLite is used primarily for development purpose).
 
 .. note:: We rely on more strict ANSI SQL settings for MySQL in order to have
    sane defaults. Make sure to have specified ``explicit_defaults_for_timestamp=1``

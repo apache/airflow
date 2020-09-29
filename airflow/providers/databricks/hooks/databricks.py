@@ -26,7 +26,7 @@ from time import sleep
 from urllib.parse import urlparse
 
 import requests
-from requests import exceptions as requests_exceptions
+from requests import exceptions as requests_exceptions, PreparedRequest
 from requests.auth import AuthBase
 
 from airflow import __version__
@@ -49,7 +49,7 @@ class RunState:
     Utility class for the run state concept of Databricks runs.
     """
 
-    def __init__(self, life_cycle_state, result_state, state_message):
+    def __init__(self, life_cycle_state: str, result_state: str, state_message: str) -> None:
         self.life_cycle_state = life_cycle_state
         self.result_state = result_state
         self.state_message = state_message
@@ -72,14 +72,16 @@ class RunState:
         """True if the result state is SUCCESS"""
         return self.result_state == 'SUCCESS'
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, RunState):
+            return NotImplemented
         return (
             self.life_cycle_state == other.life_cycle_state
             and self.result_state == other.result_state
             and self.state_message == other.state_message
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self.__dict__)
 
 
@@ -101,8 +103,12 @@ class DatabricksHook(BaseHook):  # noqa
     """
 
     def __init__(
-        self, databricks_conn_id='databricks_default', timeout_seconds=180, retry_limit=3, retry_delay=1.0
-    ):
+        self,
+        databricks_conn_id: str = 'databricks_default',
+        timeout_seconds: int = 180,
+        retry_limit: int = 3,
+        retry_delay: float = 1.0,
+    ) -> None:
         super().__init__()
         self.databricks_conn_id = databricks_conn_id
         self.databricks_conn = self.get_connection(databricks_conn_id)
@@ -113,7 +119,7 @@ class DatabricksHook(BaseHook):  # noqa
         self.retry_delay = retry_delay
 
     @staticmethod
-    def _parse_host(host):
+    def _parse_host(host: str) -> str:
         """
         The purpose of this function is to be robust to improper connections
         settings provided by users, specifically in the host field.
@@ -208,10 +214,10 @@ class DatabricksHook(BaseHook):  # noqa
             attempt_num += 1
             sleep(self.retry_delay)
 
-    def _log_request_error(self, attempt_num, error):
+    def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error('Attempt %s API Request to Databricks failed with reason: %s', attempt_num, error)
 
-    def run_now(self, json):
+    def run_now(self, json: dict) -> str:
         """
         Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
 
@@ -223,7 +229,7 @@ class DatabricksHook(BaseHook):  # noqa
         response = self._do_api_call(RUN_NOW_ENDPOINT, json)
         return response['run_id']
 
-    def submit_run(self, json):
+    def submit_run(self, json: dict) -> str:
         """
         Utility function to call the ``api/2.0/jobs/runs/submit`` endpoint.
 
@@ -308,7 +314,7 @@ class DatabricksHook(BaseHook):  # noqa
         self._do_api_call(TERMINATE_CLUSTER_ENDPOINT, json)
 
 
-def _retryable_error(exception):
+def _retryable_error(exception) -> bool:
     return (
         isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout))
         or exception.response is not None
@@ -325,9 +331,9 @@ class _TokenAuth(AuthBase):
     magic function.
     """
 
-    def __init__(self, token):
+    def __init__(self, token: str) -> None:
         self.token = token
 
-    def __call__(self, r):
+    def __call__(self, r: PreparedRequest) -> PreparedRequest:
         r.headers['Authorization'] = 'Bearer ' + self.token
         return r

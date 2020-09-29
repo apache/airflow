@@ -51,7 +51,7 @@ does not contain ``build-essential``. If you need compiler like gcc or g++ or ma
 are not found in the image and it is recommended that you follow the "customize" route instead.
 
 How to extend the image - it is something you are most likely familiar with - simply
-build a new image using Dockerfile's ``FROM:`` directive and add whatever you need. Then you can add your
+build a new image using Dockerfile's ``FROM`` directive and add whatever you need. Then you can add your
 Debian dependencies with ``apt`` or PyPI dependencies with ``pip install`` or any other stuff you need.
 
 You should be aware, about a few things:
@@ -64,7 +64,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM: apache/airflow:1.10.12
+  FROM apache/airflow:1.10.12
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -81,7 +81,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM: apache/airflow:1.10.12
+  FROM apache/airflow:1.10.12
   RUN pip install --no-cache-dir --user my-awesome-pip-dependency-to-add
 
 
@@ -92,7 +92,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM: apache/airflow:1.10.12
+  FROM apache/airflow:1.10.12
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -159,7 +159,7 @@ Customizing & extending the image together
 
 You can combine both - customizing & extending the image. You can build the image first using
 ``customize`` method (either with docker command or with ``breeze`` and then you can ``extend``
-the resulting image using ``FROM:`` any dependencies you want.
+the resulting image using ``FROM`` any dependencies you want.
 
 External sources for dependencies
 ---------------------------------
@@ -289,6 +289,14 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
+|                                          |                                          | from the GitHub of Apache Airflow        |
+|                                          |                                          | This allows to optimize iterations for   |
+|                                          |                                          | Image builds and speeds up CI builds     |
+|                                          |                                          | But in some corporate environments it    |
+|                                          |                                          | might be forbidden to download anything  |
+|                                          |                                          | from public repositories.                |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which    |
 |                                          |                                          | airflow is installed                     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -317,6 +325,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | cassandra PIP install (speeds up         |
 |                                          |                                          | installing in case cassandra extra is    |
 |                                          |                                          | used).                                   |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_MYSQL_CLIENT``                 | ``true``                                 | Whether MySQL client should be installed |
+|                                          |                                          | The mysql extra is removed from extras   |
+|                                          |                                          | if the client is not installed           |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 
 There are build arguments that determine the installation mechanism of Apache Airflow for the

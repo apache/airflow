@@ -80,8 +80,8 @@ class MySQLToS3Operator(BaseOperator):
         aws_conn_id: str = 'aws_default',
         verify: Optional[Union[bool, str]] = None,
         pd_csv_kwargs: Optional[dict] = None,
-        index: Optional[bool] = False,
-        header: Optional[bool] = False,
+        index: bool = False,
+        header: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

@@ -363,15 +363,15 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     def generate_command(dag_id: str,     # pylint: disable=too-many-arguments
                          task_id: str,
                          execution_date: datetime,
-                         mark_success: Optional[bool] = False,
-                         ignore_all_deps: Optional[bool] = False,
-                         ignore_depends_on_past: Optional[bool] = False,
-                         ignore_task_deps: Optional[bool] = False,
-                         ignore_ti_state: Optional[bool] = False,
-                         local: Optional[bool] = False,
+                         mark_success: bool = False,
+                         ignore_all_deps: bool = False,
+                         ignore_depends_on_past: bool = False,
+                         ignore_task_deps: bool = False,
+                         ignore_ti_state: bool = False,
+                         local: bool = False,
                          pickle_id: Optional[int] = None,
                          file_path: Optional[str] = None,
-                         raw: Optional[bool] = False,
+                         raw: bool = False,
                          job_id: Optional[str] = None,
                          pool: Optional[str] = None,
                          cfg_path: Optional[str] = None
@@ -386,20 +386,20 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         :param execution_date: Execution date for the task
         :type execution_date: datetime
         :param mark_success: Whether to mark the task as successful
-        :type mark_success: Optional[bool]
+        :type mark_success: bool
         :param ignore_all_deps: Ignore all ignorable dependencies.
             Overrides the other ignore_* parameters.
-        :type ignore_all_deps: Optional[bool]
+        :type ignore_all_deps: bool
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
             (e.g. for Backfills)
-        :type ignore_depends_on_past: Optional[bool]
+        :type ignore_depends_on_past: bool
         :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past
             and trigger rule
-        :type ignore_task_deps: Optional[bool]
+        :type ignore_task_deps: bool
         :param ignore_ti_state: Ignore the task instance's previous failure/success
-        :type ignore_ti_state: Optional[bool]
+        :type ignore_ti_state: bool
         :param local: Whether to run the task locally
-        :type local: Optional[bool]
+        :type local: bool
         :param pickle_id: If the DAG was serialized to the DB, the ID
             associated with the pickled DAG
         :type pickle_id: Optional[int]
@@ -1811,20 +1811,34 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """Returns SQLAlchemy filter to query selected task instances"""
         if not tis:
             return None
-        if all(isinstance(t, TaskInstanceKey) for t in tis):
-            filter_for_tis = ([and_(TaskInstance.dag_id == tik.dag_id,
-                                    TaskInstance.task_id == tik.task_id,
-                                    TaskInstance.execution_date == tik.execution_date)
-                               for tik in tis])
-            return or_(*filter_for_tis)
-        if all(isinstance(t, TaskInstance) for t in tis):
-            filter_for_tis = ([and_(TaskInstance.dag_id == ti.dag_id,
-                                    TaskInstance.task_id == ti.task_id,
-                                    TaskInstance.execution_date == ti.execution_date)
-                               for ti in tis])
-            return or_(*filter_for_tis)
 
-        raise TypeError("All elements must have the same type: `TaskInstance` or `TaskInstanceKey`.")
+        # DictKeys type, (what we often pass here from the scheduler) is not directly indexable :(
+        first = list(tis)[0]
+
+        dag_id = first.dag_id
+        execution_date = first.execution_date
+        first_task_id = first.task_id
+        # Common path optimisations: when all TIs are for the same dag_id and execution_date, or same dag_id
+        # and task_id -- this can be over 150x for huge numbers of TIs (20k+)
+        if all(t.dag_id == dag_id and t.execution_date == execution_date for t in tis):
+            return and_(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.execution_date == execution_date,
+                TaskInstance.task_id.in_(t.task_id for t in tis),
+            )
+        if all(t.dag_id == dag_id and t.task_id == first_task_id for t in tis):
+            return and_(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.execution_date.in_(t.execution_date for t in tis),
+                TaskInstance.task_id == first_task_id,
+            )
+        return or_(
+            and_(
+                TaskInstance.dag_id == ti.dag_id,
+                TaskInstance.task_id == ti.task_id,
+                TaskInstance.execution_date == ti.execution_date,
+            ) for ti in tis
+        )
 
 
 # State of the task instance.

@@ -20,6 +20,7 @@ This module contains SFTP operator.
 """
 import os
 from pathlib import Path
+from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -96,7 +97,7 @@ class SFTPOperator(BaseOperator):
         confirm=True,
         create_intermediate_dirs=False,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.ssh_hook = ssh_hook
         self.ssh_conn_id = ssh_conn_id
@@ -113,7 +114,7 @@ class SFTPOperator(BaseOperator):
                 )
             )
 
-    def execute(self, context):
+    def execute(self, context: Any) -> str:
         file_msg = None
         try:
             if self.ssh_conn_id:
@@ -162,7 +163,7 @@ class SFTPOperator(BaseOperator):
         return self.local_filepath
 
 
-def _make_intermediate_dirs(sftp_client, remote_directory):
+def _make_intermediate_dirs(sftp_client, remote_directory) -> None:
     """
     Create all the intermediate directories in a remote host
 

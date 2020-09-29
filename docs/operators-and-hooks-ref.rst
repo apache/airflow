@@ -1024,7 +1024,7 @@ These integrations allow you to copy data from/to Google Cloud.
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     -
+     - :doc:`How to use <howto/operator/google/transfer/mysql_to_gcs>`
      - :mod:`airflow.providers.google.cloud.transfers.mysql_to_gcs`
 
    * - `PostgresSQL <https://www.postgresql.org/>`__

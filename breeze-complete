@@ -89,6 +89,7 @@ end-of-file-fixer
 fix-encoding-pragma
 flake8
 forbid-tabs
+helm-lint
 incorrect-use-of-LoggingMixin
 insert-license
 isort
@@ -141,13 +142,15 @@ _breeze_long_options="
 help python: backend: integration:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
 skip-mounting-local-sources install-airflow-version: install-airflow-reference: db-reset
-verbose assume-yes assume-no assume-quit forward-credentials start-airflow init-script:
+verbose assume-yes assume-no assume-quit forward-credentials init-script:
 force-build-images force-pull-images production-image extras: force-clean-images skip-rebuild-check
-build-cache-local build-cache-pulled build-cache-disabled
+build-cache-local build-cache-pulled build-cache-disabled disable-pip-cache
 dockerhub-user: dockerhub-repo: github-registry github-repository: github-image-id:
 postgres-version: mysql-version:
 version-suffix-for-pypi: version-suffix-for-svn:
 additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps:
+disable-mysql-client-installation
+load-default-connections load-example-dags
 "
 
 _breeze_commands="
@@ -160,6 +163,7 @@ generate-constraints
 push-image
 initialize-local-virtualenv
 setup-autocomplete
+start-airflow
 stop
 restart
 toggle-suppress-cheatsheet

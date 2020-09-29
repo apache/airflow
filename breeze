@@ -117,6 +117,12 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW="false"
 
+    # If set to true, the test connections will be created
+    export LOAD_DEFAULT_CONNECTIONS="false"
+
+    # If set to true, the sample dags will be created
+    export LOAD_EXAMPLES="false"
+
     # If it set is set to specified version, then the source version of Airflow
     # is removed and the specified version of Airflow is installed from PyPi
     export INSTALL_AIRFLOW_VERSION=""
@@ -900,6 +906,13 @@ function breeze::parse_arguments() {
             # if not set here, docker cached is determined later, depending on type of image to be build
             shift
             ;;
+        -B | --disable-pip-cache)
+            echo "Disable PIP cache during build"
+            echo
+            export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+            shift
+            ;;
+
         -P | --force-pull-images)
             echo "Force pulling images before build. Uses pulled images as cache."
             echo
@@ -941,6 +954,11 @@ function breeze::parse_arguments() {
             export ADDITIONAL_RUNTIME_DEPS="${2}"
             echo "Additional apt runtime dependencies: ${ADDITIONAL_RUNTIME_DEPS}"
             shift 2
+            ;;
+        --disable-mysql-client-installation)
+            export INSTALL_MYSQL_CLIENT="false"
+            echo "Install MySQL client: ${INSTALL_MYSQL_CLIENT}"
+            shift
             ;;
         -D | --dockerhub-user)
             export DOCKERHUB_USER="${2}"
@@ -994,12 +1012,6 @@ function breeze::parse_arguments() {
             export SKIP_CHECK_REMOTE_IMAGE="true"
             shift 2
             ;;
-        --start-airflow)
-            echo "Starting Airflow"
-            echo
-            export START_AIRFLOW="true"
-            shift
-            ;;
         --init-script)
             export INIT_SCRIPT_FILE="${2}"
             echo "The initialization file is in ${INIT_SCRIPT_FILE}"
@@ -1029,6 +1041,18 @@ function breeze::parse_arguments() {
             echo "Version suffix for SVN ${VERSION_SUFFIX_FOR_SVN}"
             echo
             shift 2
+            ;;
+        --load-example-dags)
+            export LOAD_EXAMPLES="true"
+            echo "Include Airflow sample dags"
+            echo
+            shift
+            ;;
+        --load-default-connections)
+            export LOAD_DEFAULT_CONNECTIONS="true"
+            echo "Include Airflow default connections"
+            echo
+            shift
             ;;
         --)
             shift
@@ -1166,6 +1190,11 @@ function breeze::parse_arguments() {
                 EXTRA_STATIC_CHECK_OPTIONS+=("--show-diff-on-failure")
                 shift 2
             fi
+            ;;
+        start-airflow)
+            last_subcommand="${1}"
+            export START_AIRFLOW="true"
+            shift
             ;;
         stop)
             last_subcommand="${1}"
@@ -1379,6 +1408,8 @@ function breeze::prepare_usage() {
     readonly USAGE_KIND_CLUSTER
     export USAGE_SETUP_AUTOCOMPLETE="Sets up autocomplete for breeze"
     readonly USAGE_SETUP_AUTOCOMPLETE
+    export USAGE_START_AIRFLOW="Starts Scheduler and Webserver and enters the shell"
+    readonly USAGE_START_AIRFLOW
     export USAGE_STOP="Stops the docker-compose environment"
     readonly USAGE_STOP
     export USAGE_RESTART="Stops the docker-compose environment including DB cleanup"
@@ -1663,6 +1694,22 @@ ${CMDNAME} setup-autocomplete
       parameters and values.
 "
     readonly DETAILED_USAGE_SETUP_AUTOCOMPLETE
+    export DETAILED_USAGE_START_AIRFLOW="
+${CMDNAME} start-airflow
+
+      Like the Shell command this will enter the interactive shell, but it will also start
+      automatically the Scheduler and the Webserver. It will leave you in a tmux session where you
+      can also observe what is happening in your Airflow.
+
+      This is a convenient way to setup a development environment. Your dags will be loaded from the
+      folder 'files/dags' on your host machine (it could take some times).
+
+      If you want to load default connections and example dags you can use the dedicated flags.
+
+Flags:
+$(breeze::flag_start_airflow)
+"
+    readonly DETAILED_USAGE_START_AIRFLOW
     export DETAILED_USAGE_STOP="
 ${CMDNAME} stop
 
@@ -1967,15 +2014,9 @@ function breeze::flag_breeze_actions() {
 
 ${FORMATTED_INTEGRATIONS}
 
---start-airflow
-        Starts the Airflow Scheduler and Webserver in two tmux panes, a third one will be
-        available for the usual use cases. In case the database is not initialized it will
-        run also 'airflow db init' and create an Admin user with credentials admin/admin.
-
 --init-script <INIT_SCRIPT_FILE>
         Initialization script name - Sourced from files/airflow-breeze-config. Default value
-        init.sh. It will be executed after the environment is configured and started (in case
-        --start-airflow is used).
+        init.sh. It will be executed after the environment is configured and started.
 
 "
 }
@@ -2185,6 +2226,13 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 --additional-runtime-deps
         Additional apt runtime dependencies to use when building the images.
 
+--disable-pip-cache
+        Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
+--disable-mysql-client-installation
+        Disables installation of the mysql client which might be problematic if you are building
+        image in controlled environment. Only valid for production image.
+
 -C, --force-clean-images
         Force build images with cache disabled. This will remove the pulled or build images
         and start building images from scratch. This might take a long time.
@@ -2286,6 +2334,23 @@ function breeze::flag_version_suffix() {
         rc1/rc2 ... versions of the packages to be uploaded to SVN.
 "
 }
+#####################################################################################################
+#
+# Prints flags that control how Airflow should be populated with the command start-airflow
+#
+# Outputs:
+#    Flag information.
+#######################################################################################################
+function breeze::flag_start_airflow() {
+    echo "
+--load-example-dags
+        Include Airflow example dags.
+
+--load-default-connections
+        Include Airflow Default Connections.
+
+"
+}
 
 #######################################################################################################
 #
@@ -2315,6 +2380,10 @@ $(breeze::flag_production_image)
 $(breeze::print_star_line)
  Additional actions executed while entering breeze
 $(breeze::flag_breeze_actions)
+
+$(breeze::print_star_line)
+ Additional actions executed starting Airflow
+$(breeze::flag_start_airflow)
 
 $(breeze::print_star_line)
  Kind kubernetes and Kubernetes tests configuration(optional)
@@ -2531,7 +2600,7 @@ function breeze::check_and_save_all_params() {
 #######################################################################################################
 function breeze::print_cheatsheet() {
     if [[ ! -f ${SUPPRESS_CHEATSHEET_FILE} && ${command_to_run} == "enter_breeze" ]]; then
-        echo
+
         echo
         breeze::print_line
         echo

@@ -18,7 +18,7 @@
 """
 This module contains ODBC hook.
 """
-from typing import Optional
+from typing import Optional, Any
 from urllib.parse import quote_plus
 
 import pyodbc
@@ -48,7 +48,7 @@ class OdbcHook(DbApiHook):
         connect_kwargs: Optional[dict] = None,
         sqlalchemy_scheme: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> None:
         """
         :param args: passed to DbApiHook
         :param database: database to use -- overrides connection ``schema``
@@ -78,14 +78,14 @@ class OdbcHook(DbApiHook):
         return self._connection
 
     @property
-    def database(self):
+    def database(self) -> Optional[str]:
         """
         Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object.
         """
         return self._database or self.connection.schema
 
     @property
-    def sqlalchemy_scheme(self):
+    def sqlalchemy_scheme(self) -> Optional[str]:
         """
         Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object.
         """
@@ -96,7 +96,7 @@ class OdbcHook(DbApiHook):
         )
 
     @property
-    def connection_extra_lower(self):
+    def connection_extra_lower(self) -> dict:
         """
         ``connection.extra_dejson`` but where keys are converted to lower case.
 
@@ -105,7 +105,7 @@ class OdbcHook(DbApiHook):
         return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
 
     @property
-    def driver(self):
+    def driver(self) -> Optional[str]:
         """
         Driver from init param if given; else try to find one in connection extra.
         """
@@ -116,7 +116,7 @@ class OdbcHook(DbApiHook):
         return self._driver and self._driver.strip().lstrip('{').rstrip('}').strip()
 
     @property
-    def dsn(self):
+    def dsn(self) -> Optional[str]:
         """
         DSN from init param if given; else try to find one in connection extra.
         """
@@ -163,7 +163,7 @@ class OdbcHook(DbApiHook):
         return self._conn_str
 
     @property
-    def connect_kwargs(self):
+    def connect_kwargs(self) -> dict:
         """
         Returns effective kwargs to be passed to ``pyodbc.connect`` after merging between conn extra,
         ``connect_kwargs`` and hook init.
@@ -202,7 +202,7 @@ class OdbcHook(DbApiHook):
         conn = pyodbc.connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
 
-    def get_uri(self):
+    def get_uri(self) -> str:
         """
         URI invoked in :py:meth:`~airflow.hooks.dbapi_hook.DbApiHook.get_sqlalchemy_engine` method
         """
@@ -210,7 +210,9 @@ class OdbcHook(DbApiHook):
         uri = f"{self.sqlalchemy_scheme}:///?odbc_connect={quoted_conn_str}"
         return uri
 
-    def get_sqlalchemy_connection(self, connect_kwargs=None, engine_kwargs=None):
+    def get_sqlalchemy_connection(
+        self, connect_kwargs: Optional[dict] = None, engine_kwargs: Optional[dict] = None
+    ) -> Any:
         """
         Sqlalchemy connection object
         """
