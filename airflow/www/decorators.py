@@ -34,6 +34,7 @@ def action_logging(f: T) -> T:
     """
     Decorator to log user actions
     """
+
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
 
@@ -50,11 +51,11 @@ def action_logging(f: T) -> T:
                 owner=user,
                 extra=str([(k, v) for k, v in request.values.items() if k not in fields_skip_logging]),
                 task_id=request.values.get('task_id'),
-                dag_id=request.values.get('dag_id'))
+                dag_id=request.values.get('dag_id'),
+            )
 
             if 'execution_date' in request.values:
-                log.execution_date = pendulum.parse(
-                    request.values.get('execution_date'), strict=False)
+                log.execution_date = pendulum.parse(request.values.get('execution_date'), strict=False)
 
             session.add(log)
 
@@ -67,6 +68,7 @@ def gzipped(f: T) -> T:
     """
     Decorator to make a view compressed
     """
+
     @functools.wraps(f)
     def view_func(*args, **kwargs):
         @after_this_request
@@ -78,12 +80,14 @@ def gzipped(f: T) -> T:
 
             response.direct_passthrough = False
 
-            if (response.status_code < 200 or response.status_code >= 300 or
-                    'Content-Encoding' in response.headers):
+            if (
+                response.status_code < 200
+                or response.status_code >= 300
+                or 'Content-Encoding' in response.headers
+            ):
                 return response
             gzip_buffer = IO()
-            gzip_file = gzip.GzipFile(mode='wb',
-                                      fileobj=gzip_buffer)
+            gzip_file = gzip.GzipFile(mode='wb', fileobj=gzip_buffer)
             gzip_file.write(response.data)
             gzip_file.close()
 
@@ -103,6 +107,7 @@ def has_dag_access(**dag_kwargs) -> Callable[[T], T]:
     """
     Decorator to check whether the user has read / write permission on the dag.
     """
+
     def decorator(f: T):
         @functools.wraps(f)
         def wrapper(self, *args, **kwargs):
@@ -116,17 +121,21 @@ def has_dag_access(**dag_kwargs) -> Callable[[T], T]:
             #    has can_dag_edit permissions on the dag
             # 3. if 2 false, check whether it is can_dag_read view,
             #    and whether user has the permissions
-            if (
-                has_access('can_dag_edit', 'all_dags') or
-                has_access('can_dag_edit', dag_id) or (not can_dag_edit and
-                                                       (has_access('can_dag_read',
-                                                                   'all_dags') or
-                                                        has_access('can_dag_read',
-                                                                   dag_id)))):
-                return f(self, *args, **kwargs)
-            else:
-                flash("Access is Denied", "danger")
-                return redirect(url_for(self.appbuilder.sm.auth_view.
-                                        __class__.__name__ + ".login"))
+            prefixed_dag_id = f"DAG:{dag_id}"
+            for dag in [dag_id, prefixed_dag_id]:
+                if (
+                    has_access('can_dag_edit', 'all_dags')
+                    or has_access('can_dag_edit', dag)
+                    or (
+                        not can_dag_edit
+                        and (has_access('can_dag_read', 'all_dags') or has_access('can_dag_read', dag))
+                    )
+                ):
+                    return f(self, *args, **kwargs)
+                else:
+                    flash("Access is Denied", "danger")
+                    return redirect(url_for(self.appbuilder.sm.auth_view.__class__.__name__ + ".login"))
+
         return cast(T, wrapper)
+
     return decorator
