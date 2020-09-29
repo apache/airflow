@@ -300,6 +300,10 @@ hive = [
     'hmsclient>=0.1.0',
     'pyhive[hive]>=0.6.0',
 ]
+mesos = [
+    'avmesos>=0.3.3',
+    'mesos.interface'
+]
 jdbc = [
     'jaydebeapi>=1.1.1',
 ]
@@ -598,6 +602,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'kerberos': kerberos,
     'kubernetes': kubernetes,   # TODO: remove this in Airflow 2.1
     'ldap': ldap,
+    'mesos': mesos,
     "microsoft.azure": azure,
     "microsoft.mssql": mssql,
     "microsoft.winrm": winrm,
