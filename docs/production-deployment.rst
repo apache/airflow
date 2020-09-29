@@ -556,3 +556,36 @@ Keytab secret and both containers in the same Pod share the volume, where tempor
 the side-care container and read by the worker container.
 
 This concept is implemented in the development version of the Helm Chart that is part of Airflow source code.
+
+Tips and Tricks for Oracle Shops
+================================
+
+While many shops using Airflow will be on open source relational database management systems (PostgreSQL, MariaDB, MySQL), there will be established firms that have legacy Oracle systems they need to support. In addition, there are various data providers that provide their product only in Oracle or SQL Server format. Therefore, this document aims to provide some tips and tricks for Oracle shops implementing AirBnB Airflow into their production environment.
+Creating an Oracle Connection through the web user interface.
+
+Oracle users an SID to identify a unique database instance. Oracle also has an unusual definition of schema and user, wherein a schema set of objects owned by a user. Therefore, creating a connection through the Airflow web GUI can be confusing.
+
+To create a connection: 
+
+- Go to Admin | Connections | Create
+
+- Name your connection
+
+- Select connection type: Oracle
+
+- Enter your hostname in the following format: NameOrIP:PORT#/SID Example(s): 10.0.0.111:1521/orcl or weshouldhaveusedpostgres.ourdomain.com:1521/dev
+
+- Enter your username in both the schema and login fields
+
+- Enter your password in the password field.
+
+- Save and continue.
+
+- Go to Data Profiling | Add Hoc Query
+
+- Select your connection name in the dropdown
+
+- Test:
+  - Type ``select * from dual`` in the code window
+  - Click run
+
