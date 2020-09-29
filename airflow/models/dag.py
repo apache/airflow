@@ -1977,7 +1977,7 @@ class DagModel(Base):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if self.concurrency is None:
-            self.concurrency = conf.getint('core', 'dag_concurrency'),
+            self.concurrency = conf.getint('core', 'dag_concurrency')
         if self.has_task_concurrency_limits is None:
             # Be safe -- this will be updated later once the DAG is parsed
             self.has_task_concurrency_limits = True
