@@ -574,7 +574,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${DEFAULT_CI_IMAGE}"
         docker tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_CI_IMAGE}"
     fi
-    if [[ -n "${IMAGE_TAG:=}" ]]; then
+    if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
         docker tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
     fi
@@ -727,7 +727,7 @@ function build_images::build_prod_images() {
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${DEFAULT_PROD_IMAGE}"
         docker tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_PROD_IMAGE}"
     fi
-    if [[ -n "${IMAGE_TAG:=}" ]]; then
+    if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${IMAGE_TAG}"
         docker tag "${AIRFLOW_PROD_IMAGE}" "${IMAGE_TAG}"
     fi
