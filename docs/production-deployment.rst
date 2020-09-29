@@ -467,3 +467,30 @@ More details about the images
 
 You can read more details about the images - the context, their parameters and internal structure in the
 `IMAGES.rst <https://github.com/apache/airflow/blob/master/IMAGES.rst>`_ document.
+
+.. _production-deployment:kerberos:
+
+Kerberos-authenticated workers
+==============================
+
+Apache Airflow has a built-in mechanism for authenticating the operation with a KDC (Key Distribution Center).
+Airflow has a separate command ``airflow kerberos`` that acts as token refresher. It uses the pre-configured
+Kerberos Keytab to authenticate in the KDC to obtain a valid token, and then refreshing valid token
+at regular intervals within the current token expiry window.
+
+Each request for refresh uses a configured principal, and only keytab valid for the principal specified
+is capable of retrieving the authentication token.
+
+The best practice to implement proper security mechanism in this case is to make sure that worker
+workloads have no access to the Keytab but only have access to the periodically refreshed, temporary
+authentication tokens. This can be achieved in docker environment by running the ``airflow kerberos``
+command and the worker command in separate containers - where only the ``airflow kerberos`` token has
+access to the Keytab file (preferably configured as secret resource). Those two containers should share
+a volume where the temporary token should be written by the ``airflow kerberos`` and read by the workers.
+
+In the Kubernetes environment, this can be realized by the concept of side-car, where both Kerberos
+token refresher and worker are part of the same Pod. Only the Kerberos side-car has access to
+Keytab secret and both containers in the same Pod share the volume, where temporary token is written by
+the side-care container and read by the worker container.
+
+This concept is implemented in the development version of the Helm Chart that is part of Airflow source code.

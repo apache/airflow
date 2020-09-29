@@ -3011,7 +3011,7 @@ function breeze::run_breeze_command() {
 #      3. last used version stored in ./build/PYTHON_MAJOR_MINOR_VERSION
 #      4. DEFAULT_PYTHON_MAJOR_MINOR_VERSION from scripts/ci/libraries/_initialization.sh
 #
-# Here points 2. and 3. are realised. If result is empty string , the 4. will be set in
+# Here points 2. and 3. are realized. If result is empty string , the 4. will be set in
 #      the next step (sanity_checks::basic_sanity_checks() is called and the version is still not set by then)
 #      finally, if  --python flag is specified, it will override whatever is set above.
 #

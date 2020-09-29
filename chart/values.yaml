@@ -181,6 +181,59 @@ data:
 fernetKey: ~
 fernetKeySecretName: ~
 
+
+# In order to use kerberos you need to create secret containing the keytab file
+# The secret name should follow naming convention of the application where resources are
+# name {{ .Release-name }}-<POSTFIX>. In case of the keytab file, the postfix is "kerberos-keytab"
+# So if your release is named "my-release" the name of the secret should be "my-release-kerberos-keytab"
+#
+# The Keytab content should be available in the "kerberos.keytab" key of the secret.
+#
+#  apiVersion: v1
+#  kind: Secret
+#  data:
+#    kerberos.keytab: <base64_encoded keytab file content>
+#  type: Opaque
+#
+#
+#  If you have such keytab file you can do it with similar
+#
+#  kubectl create secret generic {{ .Release.name }}-kerberos-keytab --from-file=kerberos.keytab
+#
+kerberos:
+  enabled: false
+  ccacheMountPath: '/var/kerberos-ccache'
+  ccacheFileName: 'cache'
+  configPath: '/etc/krb5.conf'
+  keytabPath: '/etc/airflow.keytab'
+  principal: 'airflow@FOO.COM'
+  reinitFrequency: 3600
+  config: |
+    # This is an example config showing how you can use templating and how "example" config
+    # might look like. It works with the test kerberos server that we are using during integration
+    # testing at Apache Airflow (see `scripts/ci/docker-compose/integration-kerberos.yml` but in
+    # order to make it production-ready you must replace it with your own configuration that
+    # Matches your kerberos deployment. Administrators of your Kerberos instance should
+    # provide the right configuration.
+
+    [logging]
+    default = "FILE:{{ template "airflow_logs_no_quote" . }}/kerberos_libs.log"
+    kdc = "FILE:{{ template "airflow_logs_no_quote" . }}/kerberos_kdc.log"
+    admin_server = "FILE:{{ template "airflow_logs_no_quote" . }}/kadmind.log"
+
+    [libdefaults]
+    default_realm = FOO.COM
+    ticket_lifetime = 10h
+    renew_lifetime = 7d
+    forwardable = true
+
+    [realms]
+    FOO.COM = {
+      kdc = kdc-server.foo.com
+      admin_server = admin_server.foo.com
+    }
+
+
 # Airflow Worker Config
 workers:
   # Number of airflow celery workers in StatefulSet
@@ -213,6 +266,10 @@ workers:
     # This is currently only needed in KinD, due to usage
     # of local-path provisioner.
     fixPermissions: false
+
+  kerberosSidecar:
+    # Enable kerberos sidecar
+    enabled: false
 
   resources: {}
   #  limits:
@@ -536,6 +593,12 @@ config:
     max_retries: 3
     timeout: 30
     retry_timeout: 'True'
+
+  kerberos:
+    keytab: '{{ .Values.kerberos.keytabPath }}'
+    reinit_frequency: '{{ .Values.kerberos.reinitFrequency }}'
+    principal: '{{ .Values.kerberos.principal }}'
+    ccache: '{{ .Values.kerberos.ccacheMountPath }}/{{ .Values.kerberos.ccacheFileName }}'
 
   kubernetes:
     namespace: '{{ .Release.Namespace }}'

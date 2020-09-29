@@ -235,6 +235,14 @@
 {{ default (printf "%s-elasticsearch" .Release.Name) .Values.elasticsearch.secretName }}
 {{- end }}
 
+{{ define "kerberos_keytab_secret" -}}
+{{ .Release.Name }}-kerberos-keytab
+{{- end }}
+
+{{ define "kerberos_ccache_path" -}}
+{{ printf "%s/%s" .Values.kerberos.ccacheMountPath .Values.kerberos.ccacheFileName }}
+{{- end }}
+
 {{ define "pgbouncer_config" }}
 {{- $pgMetadataHost := .Values.data.metadataConnection.host | default (printf "%s-%s.%s.svc.cluster.local" .Release.Name "postgresql" .Release.Namespace) }}
 {{- $pgResultBackendHost := .Values.data.resultBackendConnection.host | default (printf "%s-%s.%s.svc.cluster.local" .Release.Name "postgresql" .Release.Namespace) }}
@@ -263,6 +271,10 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
 
 {{ define "airflow_logs" -}}
 {{ (printf "%s/logs" .Values.airflowHome) | quote }}
+{{- end }}
+
+{{ define "airflow_logs_no_quote" -}}
+{{ (printf "%s/logs" .Values.airflowHome) }}
 {{- end }}
 
 {{ define "airflow_dags" -}}
