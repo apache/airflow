@@ -1,5 +1,4 @@
-#!/usr/bin/env bats
-
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,11 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
+export REMEMBER_LAST_ANSWER="true"
+export PRINT_INFO_FROM_SCRIPTS="false"
+export SKIP_CHECK_REMOTE_IMAGE="true"
 
+if [[ $# -eq 0 ]]; then
+    params=("tests/bats/in_container/")
+else
+    params=("${@}")
+fi
 
-@test "empty test" {
-  load bats_utils
-
-  run pwd
-  assert_success
-}
+# shellcheck source=scripts/ci/static_checks/in_container_bats_tests.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/in_container_bats_tests.sh" "${params[@]}"
