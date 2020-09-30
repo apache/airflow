@@ -442,7 +442,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         end = start + dags_per_page
 
         # Get all the dag id the user could access
-        filter_dag_ids = current_app.appbuilder.sm.get_readable_dag_ids(g.user)
+        filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
         with create_session() as session:
             # read orm_dags from the db
@@ -543,7 +543,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Dag statistics."""
         dr = models.DagRun
 
-        allowed_dag_ids = current_app.appbuilder.sm.get_readable_dag_ids(g.user)
+        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         if 'all_dags' in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
@@ -588,7 +588,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @provide_session
     def task_stats(self, session=None):
         """Task Statistics"""
-        allowed_dag_ids = current_app.appbuilder.sm.get_readable_dag_ids(g.user)
+        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
         if not allowed_dag_ids:
             return wwwutils.json_response({})
@@ -702,7 +702,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @provide_session
     def last_dagruns(self, session=None):
         """Last DAG runs"""
-        allowed_dag_ids = current_app.appbuilder.sm.get_readable_dag_ids(g.user)
+        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
         if 'all_dags' in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
@@ -1385,7 +1385,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @provide_session
     def blocked(self, session=None):
         """Mark Dag Blocked."""
-        allowed_dag_ids = current_app.appbuilder.sm.get_readable_dag_ids(g.user)
+        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
         if 'all_dags' in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
@@ -2287,7 +2287,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return response
 
         task = dag.get_task(task_id)
-
         try:
             url = task.get_extra_links(dttm, link_name)
         except ValueError as err:
@@ -2416,7 +2415,7 @@ class DagFilter(BaseFilter):
     def apply(self, query, func): # noqa pylint: disable=redefined-outer-name,unused-argument
         if current_app.appbuilder.sm.has_all_dags_access():
             return query
-        filter_dag_ids = current_app.appbuilder.sm.get_readable_dag_ids(g.user)
+        filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 
 
@@ -3136,9 +3135,9 @@ class DagModelView(AirflowModelView):
             dag_ids_query = dag_ids_query.filter(DagModel.is_paused)
             owners_query = owners_query.filter(DagModel.is_paused)
 
-        filter_dag_ids = current_app.appbuilder.sm.get_readable_dag_ids(g.user)
+        filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         # pylint: disable=no-member
-        if 'all_dags' not in filter_dag_ids:
+        if not bool({'all_dags', 'Dag'}.intersection(filter_dag_ids)):
             dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
             owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member
