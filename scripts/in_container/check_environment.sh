@@ -109,6 +109,7 @@ function startairflow_if_requested() {
         # initialize db and create the admin user if it's a new run
         if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
             airflow initdb
+            airflow create_user -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email || true
         else
             airflow db init
             airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
