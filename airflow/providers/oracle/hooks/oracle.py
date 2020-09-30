@@ -17,7 +17,7 @@
 # under the License.
 
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List
 
 import cx_Oracle
 import numpy
