@@ -28,7 +28,8 @@ TASK_ID = "test-task-id"
 QUERY = "SELECT id, company FROM Lead WHERE company = 'Hello World Inc'"
 SALESFORCE_CONNECTION_ID = "test-salesforce-connection"
 GCS_BUCKET = "test-bucket"
-GCS_OBJECT_PATH = "test-file-path"
+GCS_OBJECT_PATH = "path/to/test-file-path"
+EXPECTED_GCS_URI = "gs://{}/{}".format(GCS_BUCKET, GCS_OBJECT_PATH)
 GCP_CONNECTION_ID = "google_cloud_default"
 SALESFORCE_RESPONSE = {
     'records': [
@@ -72,7 +73,7 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
             record_time_added=True,
             task_id=TASK_ID,
         )
-        operator.execute({})
+        result = operator.execute({})
 
         mock_make_query.assert_called_once_with(
             query=QUERY, include_deleted=INCLUDE_DELETED, query_params=QUERY_PARAMS
@@ -89,3 +90,5 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
         mock_upload.assert_called_once_with(
             bucket_name=GCS_BUCKET, object_name=GCS_OBJECT_PATH, filename=mock.ANY, gzip=False
         )
+
+        self.assertEqual(EXPECTED_GCS_URI, result)

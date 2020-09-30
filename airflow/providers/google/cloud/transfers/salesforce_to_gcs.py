@@ -119,4 +119,7 @@ class SalesforceToGcsOperator(BaseOperator):
                 filename=path,
                 gzip=self.gzip,
             )
-            self.log.info("%s uploaded to GCS", path)
+
+            gcs_uri = "gs://{}/{}".format(self.bucket_name, self.object_name)
+            self.log.info("%s uploaded to GCS", gcs_uri)
+            return gcs_uri
