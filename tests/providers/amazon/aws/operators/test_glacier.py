@@ -22,7 +22,6 @@ import mock
 
 from airflow.providers.amazon.aws.operators.glacier import (
     GlacierCreateJobOperator,
-    GlacierDownloadArchiveOperator,
 )
 
 AWS_CONN_ID = "aws_default"
@@ -42,17 +41,3 @@ class TestGlacierCreateJobOperator(TestCase):
         op.execute(mock.MagicMock())
         hook_mock.assert_called_once_with(aws_conn_id=AWS_CONN_ID)
         hook_mock.return_value.retrieve_inventory.assert_called_once_with(vault_name=VAULT_NAME)
-
-
-class TestGlacierDownloadArchiveOperator(TestCase):
-    @mock.patch("airflow.providers.amazon.aws.operators.glacier.GlacierHook")
-    def test_execute(self, hook_mock):
-
-        op = GlacierDownloadArchiveOperator(
-            aws_conn_id=AWS_CONN_ID, vault_name=VAULT_NAME, job_id=JOB_ID, task_id=TASK_ID
-        )
-        op.execute(context=None)
-        hook_mock.assert_called_once_with(aws_conn_id=AWS_CONN_ID)
-        hook_mock.return_value.retrieve_inventory_results.assert_called_once_with(
-            vault_name=VAULT_NAME, job_id=JOB_ID
-        )

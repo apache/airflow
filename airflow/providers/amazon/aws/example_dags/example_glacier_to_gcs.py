@@ -55,13 +55,17 @@ with models.DAG(
     transfer_archive_to_gcs = GlacierToGCSOperator(
         task_id="transfer_archive_to_gcs",
         aws_conn_id="aws_default",
-        vault_name=VAULT_NAME,
         gcp_conn_id="google_cloud_default",
-        delegate_to=None,
-        google_impersonation_chain=None,
+        vault_name=VAULT_NAME,
         bucket_name=BUCKET_NAME,
         object_name=OBJECT_NAME,
         gzip=False,
+        # Override to match your needs
+        # If chunk size is bigger than actual file size
+        # then whole file will be downloaded
+        chunk_size=1024,
+        delegate_to=None,
+        google_impersonation_chain=None,
     )
     # [END howto_glacier_transfer_data_to_gcs]
 

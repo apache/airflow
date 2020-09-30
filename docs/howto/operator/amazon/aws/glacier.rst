@@ -41,24 +41,6 @@ Example usage:
     :start-after: [START howto_glacier_create_job_operator]
     :end-before: [END howto_glacier_create_job_operator]
 
-.. _howto/operator:GlacierDownloadArchiveOperator:
-
-GlacierDownloadArchive
-^^^^^^^^^^^^^^^^^^^^^^
-
-Operator task is to download archives from specified Amazon Glacier vault.
-
-To get more information about operator visit:
-:class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierDownloadArchive`
-
-Example usage:
-
-.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_glacier_to_gcs.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_glacier_job_operation_sensor]
-    :end-before: [END howto_glacier_job_operation_sensor]
-
 .. _howto/operator:GlacierJobOperationSensor:
 
 GlacierJobOperationSensor
@@ -70,7 +52,7 @@ In this case subsequent tasks are: *GlacierDownloadArchive* and *GlacierTransfer
 
 Job states:
 
-* *Succeeded* – job is finished and for example archives from vault can downloaded
+* *Succeeded* – job is finished and for example archives from the vault can be downloaded
 * *InProgress* – job is in progress and you have to wait until it's done (*Succeeded*)
 
 GlacierJobOperationSensor checks the job status.
