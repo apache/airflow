@@ -59,7 +59,7 @@ class DataProcJobBuilder:
         job_type: str,
         properties: Optional[Dict[str, str]] = None,
     ) -> None:
-        name = task_id + "_" + str(uuid.uuid4())[:8]
+        name = task_id + "-" + str(uuid.uuid4())[:8]
         self.job_type = job_type
         self.job = {
             "job": {
@@ -193,7 +193,7 @@ class DataProcJobBuilder:
         :param name: Job name.
         :type name: str
         """
-        self.job["job"]["reference"]["job_id"] = name + "_" + str(uuid.uuid4())[:8]
+        self.job["job"]["reference"]["job_id"] = name + "-" + str(uuid.uuid4())[:8]
 
     def build(self) -> Dict:
         """
@@ -288,7 +288,7 @@ class DataprocHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         # Dataproc labels must conform to the following regex:
-        # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
+        # [a-z]([-a-z0-9]*[a-z0-9]) (current airflow version string follows
         # semantic versioning spec: x.y.z).
         labels = labels or {}
         labels.update({'airflow-version': 'v' + airflow_version.replace('.', '-').replace('+', '-')})

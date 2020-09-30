@@ -323,7 +323,7 @@ class TestDataProcJobBuilder(unittest.TestCase):
             "job": {
                 "labels": {"airflow-version": AIRFLOW_VERSION},
                 "placement": {"cluster_name": CLUSTER_NAME},
-                "reference": {"job_id": TASK_ID + "_uuid", "project_id": GCP_PROJECT},
+                "reference": {"job_id": TASK_ID + "-uuid", "project_id": GCP_PROJECT},
                 "test": {"properties": properties},
             }
         }
@@ -408,7 +408,7 @@ class TestDataProcJobBuilder(unittest.TestCase):
         mock_uuid.return_value = uuid
         name = "name"
         self.builder.set_job_name(name)
-        name += "_" + uuid[:8]
+        name += "-" + uuid[:8]
         self.assertEqual(name, self.builder.job["job"]["reference"]["job_id"])
 
     def test_build(self):

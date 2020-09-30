@@ -918,7 +918,7 @@ class DataprocJobBaseOperator(BaseOperator):
     def __init__(
         self,
         *,
-        job_name: str = '{{task.task_id}}_{{ds_nodash}}',
+        job_name: str = '{{task.task_id}}-{{ds_nodash}}',
         cluster_name: str = "cluster-1",
         dataproc_properties: Optional[Dict] = None,
         dataproc_jars: Optional[List[str]] = None,
@@ -1461,7 +1461,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     @staticmethod
     def _generate_temp_filename(filename):
         date = time.strftime('%Y%m%d%H%M%S')
-        return "{}_{}_{}".format(date, str(uuid.uuid4())[:8], ntpath.basename(filename))
+        return "{}-{}-{}".format(date, str(uuid.uuid4())[:8], ntpath.basename(filename))
 
     def _upload_file_temp(self, bucket, local_file):
         """
