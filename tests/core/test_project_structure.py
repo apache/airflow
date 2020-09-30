@@ -56,18 +56,23 @@ class TestProjectStructure(unittest.TestCase):
         """
         Assert every module in /airflow/providers has a corresponding test_ file in tests/airflow/providers.
         """
+        # Deprecated modules that don't have corresponded test
+        expected_missing_providers_modules = {('airflow/providers/amazon/aws/hooks/aws_dynamodb.py',
+                                               'tests/providers/amazon/aws/hooks/test_aws_dynamodb.py')}
+
         # TODO: Should we extend this test to cover other directories?
-        expected_test_files = glob.glob(f"{ROOT_FOLDER}/airflow/providers/**/*.py", recursive=True)
+        modules_files = glob.glob(f"{ROOT_FOLDER}/airflow/providers/**/*.py", recursive=True)
+
         # Make path relative
-        expected_test_files = (os.path.relpath(f, ROOT_FOLDER) for f in expected_test_files)
+        modules_files = (os.path.relpath(f, ROOT_FOLDER) for f in modules_files)
         # Exclude example_dags
-        expected_test_files = (f for f in expected_test_files if "/example_dags/" not in f)
+        modules_files = (f for f in modules_files if "/example_dags/" not in f)
         # Exclude __init__.py
-        expected_test_files = (f for f in expected_test_files if not f.endswith("__init__.py"))
+        modules_files = (f for f in modules_files if not f.endswith("__init__.py"))
         # Change airflow/ to tests/
         expected_test_files = (
             f'tests/{f.partition("/")[2]}'
-            for f in expected_test_files if not f.endswith("__init__.py")
+            for f in modules_files if not f.endswith("__init__.py")
         )
         # Add test_ prefix to filename
         expected_test_files = (
@@ -81,11 +86,28 @@ class TestProjectStructure(unittest.TestCase):
         # Exclude __init__.py
         current_test_files = (f for f in current_test_files if not f.endswith("__init__.py"))
 
+        modules_files = set(modules_files)
         expected_test_files = set(expected_test_files)
         current_test_files = set(current_test_files)
 
         missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
-        self.assertEqual(set(), missing_tests_files)
+
+        with self.subTest("Detect missing tests in providers module"):
+            expected_missing_test_modules = set(pair[1] for pair in expected_missing_providers_modules)
+            missing_tests_files = missing_tests_files - set(expected_missing_test_modules)
+            self.assertEqual(set(), missing_tests_files)
+
+        with self.subTest("Verify removed deprecated module also removed from deprecated list"):
+            expected_missing_modules = set(pair[0] for pair in expected_missing_providers_modules)
+            removed_deprecated_module = expected_missing_modules - modules_files
+            if removed_deprecated_module:
+                self.fail(
+                    "You've removed a deprecated module:\n"
+                    f"{removed_deprecated_module}"
+                    "\n"
+                    "Thank you very much.\n"
+                    "Can you remove it from the list of expected missing modules tests, please?"
+                )
 
 
 class TestGoogleProviderProjectStructure(unittest.TestCase):

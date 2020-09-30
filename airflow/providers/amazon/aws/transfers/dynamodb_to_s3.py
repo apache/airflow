@@ -29,7 +29,7 @@ from typing import Any, Callable, Dict, Optional
 from uuid import uuid4
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.aws_dynamodb import AwsDynamoDBHook
+from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 

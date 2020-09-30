@@ -405,7 +405,7 @@ HOOKS = [
         'airflow.contrib.hooks.aws_hook.AwsHook',
     ),
     (
-        'airflow.providers.amazon.aws.hooks.aws_dynamodb.AwsDynamoDBHook',
+        'airflow.providers.amazon.aws.hooks.dynamodb.AwsDynamoDBHook',
         'airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook',
     ),
     (
