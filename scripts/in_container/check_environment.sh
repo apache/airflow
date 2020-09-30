@@ -107,8 +107,12 @@ function startairflow_if_requested() {
         . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
 
         # initialize db and create the admin user if it's a new run
-        airflow db init
-        airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
+        if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
+            airflow initdb
+        else
+            airflow db init
+            airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
+        fi
 
         . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
 
