@@ -59,21 +59,21 @@ class TestLoggingConfigurationRule(TestCase):
         conf.remove_option("logging", "task_log_prefix_template")
         conf.remove_option("logging", "log_processor_filename_template")
         conf.remove_option("logging", "task_log_reader")
-        msg = (
-            "base_log_folder has been moved from [core] to a the new [logging] section.\n"
-            "remote_logging has been moved from [core] to a the new [logging] section.\n"
-            "remote_log_conn_id has been moved from [core] to a the new [logging] section.\n"
-            "remote_base_log_folder has been moved from [core] to a the new [logging] section.\n"
-            "encrypt_s3_logs has been moved from [core] to a the new [logging] section.\n"
-            "logging_level has been moved from [core] to a the new [logging] section.\n"
-            "fab_logging_level has been moved from [core] to a the new [logging] section.\n"
-            "logging_config_class has been moved from [core] to a the new [logging] section.\n"
-            "colored_console_log has been moved from [core] to a the new [logging] section.\n"
-            "simple_log_format has been moved from [core] to a the new [logging] section.\n"
-            "task_log_prefix_template has been moved from [core] to a the new [logging] section.\n"
-            "log_processor_filename_template has been moved from [core] to a the new [logging] section.\n"
-            "task_log_reader has been moved from [core] to a the new [logging] section.\n"
-        )
+        msg = [
+            "base_log_folder has been moved from [core] to a the new [logging] section.",
+            "remote_logging has been moved from [core] to a the new [logging] section.",
+            "remote_log_conn_id has been moved from [core] to a the new [logging] section.",
+            "remote_base_log_folder has been moved from [core] to a the new [logging] section.",
+            "encrypt_s3_logs has been moved from [core] to a the new [logging] section.",
+            "logging_level has been moved from [core] to a the new [logging] section.",
+            "fab_logging_level has been moved from [core] to a the new [logging] section.",
+            "logging_config_class has been moved from [core] to a the new [logging] section.",
+            "colored_console_log has been moved from [core] to a the new [logging] section.",
+            "simple_log_format has been moved from [core] to a the new [logging] section.",
+            "task_log_prefix_template has been moved from [core] to a the new [logging] section.",
+            "log_processor_filename_template has been moved from [core] to a the new [logging] section.",
+            "task_log_reader has been moved from [core] to a the new [logging] section.",
+        ]
         response = rule.check()
         assert response == msg
 
@@ -100,4 +100,4 @@ class TestLoggingConfigurationRule(TestCase):
         assert isinstance(rule.title, str)
 
         response = rule.check()
-        assert response is None
+        assert response == []

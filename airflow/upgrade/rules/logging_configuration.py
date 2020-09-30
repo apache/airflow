@@ -74,10 +74,9 @@ class LoggingConfigurationRule(BaseRule):
                 existing_config = conf.get("core", logging_config)
                 if existing_config != default:
                     mismatches.append(
-                        "{} has been moved from [core] to a the new [logging] section.\n".format(
+                        "{} has been moved from [core] to a the new [logging] section.".format(
                             logging_config
                         )
                     )
 
-        if mismatches:
-            return "".join(mismatches)
+        return mismatches
