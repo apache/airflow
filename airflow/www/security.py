@@ -22,7 +22,9 @@ from typing import Set
 from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
+from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role, User
 from sqlalchemy import and_, or_
+from sqlalchemy.orm import joinedload
 
 from airflow import models
 from airflow.exceptions import AirflowException
@@ -296,13 +298,24 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if user.is_anonymous:
             return set()
 
+        user_query = (
+            session.query(User)
+            .options(
+                joinedload(User.roles)
+                .subqueryload(Role.permissions)
+                .options(joinedload(PermissionView.permission), joinedload(PermissionView.view_menu))
+            )
+            .filter(User.id == user.id)
+            .filter(Permission.name == user_action)
+            .first()
+        )
+
         resources = set()
-        for role in user.roles:
+        for role in user_query.roles:
             for permission in role.permissions:
                 resource = permission.view_menu.name
-                action = permission.permission.name
-                if action == user_action:
-                    resources.add(resource)
+                resources.add(resource)
+
         if 'Dag' in resources:
             return session.query(DagModel)
 
@@ -392,7 +405,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def _merge_perm(self, permission_name, view_menu_name):
         """
-        Add the new permission , view_menu to ab_permission_view_role if not exists.
+        Add the new (permission, view_menu) to assoc_permissionview_role if it doesn't exist.
         It will add the related entry to ab_permission
         and ab_view_menu two meta tables as well.
 
