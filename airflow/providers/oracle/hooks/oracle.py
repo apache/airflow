@@ -17,7 +17,7 @@
 # under the License.
 
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 
 import cx_Oracle
 import numpy
@@ -116,10 +116,10 @@ class OracleHook(DbApiHook):
         self,
         table: str,
         rows: List[tuple],
-        target_fields: Optional[List[str]] = None,
+        target_fields=None,
         commit_every: int = 1000,
         replace: Optional[bool] = False,
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         A generic way to insert a set of tuples into a table,
@@ -192,7 +192,7 @@ class OracleHook(DbApiHook):
         table: str,
         rows: List[tuple],
         target_fields: Optional[List[str]] = None,
-        commit_every: int = 5000
+        commit_every: int = 5000,
     ):
         """
         A performant bulk insert for cx_Oracle

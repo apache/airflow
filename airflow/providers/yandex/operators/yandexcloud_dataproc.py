@@ -178,11 +178,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        *,
-        connection_id: Optional[str] = None,
-        cluster_id: Optional[str] = None,
-        **kwargs
+        self, *, connection_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs
     ) -> None:
         super().__init__(**kwargs)
         self.connection_id = connection_id

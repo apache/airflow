@@ -36,7 +36,7 @@ class YandexCloudBaseHook(BaseHook):
         self,
         connection_id: Optional[str] = None,
         default_folder_id: Union[dict, bool, None] = None,
-        default_public_ssh_key: Optional[str] = None
+        default_public_ssh_key: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.connection_id = connection_id or 'yandexcloud_default'
