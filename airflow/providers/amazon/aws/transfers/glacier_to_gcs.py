@@ -119,4 +119,4 @@ class GlacierToGCSOperator(BaseOperator):
                 filename=temp_file.name,
                 gzip=self.gzip,
             )
-        return f"{self.bucket_name}/{self.object_name}"
+        return f"gs://{self.bucket_name}/{self.object_name}"
