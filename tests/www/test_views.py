@@ -100,6 +100,8 @@ class TemplateWithContext(NamedTuple):
             'log_auto_tailing_offset',
             'log_animation_speed',
             'state_color_mapping',
+            'airflow_version',
+            'git_version',
             # airflow.www.static_config.configure_manifest_files
             'url_for_asset',
             # airflow.www.views.AirflowBaseView.render_template
@@ -441,7 +443,7 @@ class TestAirflowBaseViews(TestBase):
             state=State.RUNNING)
 
     def test_index(self):
-        with assert_queries_count(43):
+        with assert_queries_count(41):
             resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
@@ -1448,8 +1450,8 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
                 password='test'), follow_redirects=True)
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
-        self.test.assertIn('Base date:', data)
-        self.test.assertIn('Number of runs:', data)
+        self.test.assertIn('<label class="sr-only" for="base_date">Base date</label>', data)
+        self.test.assertIn('<label class="sr-only" for="num_runs">Number of runs</label>', data)
         self.assert_run_is_selected(self.runs[0], data)
         self.assert_run_is_in_dropdown_not_selected(self.runs[1], data)
         self.assert_run_is_in_dropdown_not_selected(self.runs[2], data)
@@ -2450,7 +2452,7 @@ class TestTriggerDag(TestBase):
 
         resp = self.client.get('trigger?dag_id={}&origin={}'.format(test_dag_id, test_origin))
         self.check_content_in_response(
-            '<button class="btn" onclick="location.href = \'{}\'; return false">'.format(
+            '<button type="button" class="btn" onclick="location.href = \'{}\'; return false">'.format(
                 expected_origin),
             resp)
 

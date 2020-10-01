@@ -349,27 +349,11 @@ class AirflowBaseView(BaseView):  # noqa: D101
         'macros': macros,
     }
 
-    try:
-        airflow_version = airflow.__version__
-    except Exception as e:  # pylint: disable=broad-except
-        airflow_version = None
-        logging.error(e)
-
-    git_version = get_airflow_git_version()
-
-    def render_template(
-        self,
-        *args,
-        airflow_version=airflow_version,
-        git_version=git_version,
-        **kwargs
-    ):
+    def render_template(self, *args, **kwargs):
         return super().render_template(
             *args,
             # Cache this at most once per request, not for the lifetime of the view instance
             scheduler_job=lazy_object_proxy.Proxy(SchedulerJob.most_recent_job),
-            airflow_version=airflow_version,
-            git_version=git_version,
             **kwargs
         )
 

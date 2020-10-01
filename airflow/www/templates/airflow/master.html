@@ -64,8 +64,8 @@
     <footer class="footer">
       <div class="container text-muted">
         <div>
-          {{ version_label }}: {% if airflow_version is defined %}<a href="https://pypi.python.org/pypi/apache-airflow/{{ airflow_version }}">v{{ airflow_version }}</a>{% else %} N/A{% endif %}
-          {% if git_version is defined and git_version %}<br>Git Version:<strong>{{ git_version }}</strong>{% endif %}
+          {{ version_label }}: {% if airflow_version %}<a href="https://pypi.python.org/pypi/apache-airflow/{{ airflow_version }}" target="_blank">v{{ airflow_version }}</a>{% else %} N/A{% endif %}
+          {% if git_version %}<br>Git Version:<strong>{{ git_version }}</strong>{% endif %}
         </div>
         <div></div>
       </div>
