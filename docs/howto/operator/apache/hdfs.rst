@@ -48,8 +48,6 @@ The :class:`~airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor` operato
 
 Use the ``filepath`` parameter to mention the keyspace and table for the record. Use dot notation to target a specific keyspace.
 
-Use the ``regex`` parameter to poke until the provided record is found. 
-
 
 .. _howto/operator:HdfsSensor:
 
