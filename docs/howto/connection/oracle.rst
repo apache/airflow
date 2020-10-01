@@ -107,14 +107,3 @@ To create a connection:
 - Enter your password in the password field.
 
 - Save and continue.
-
-If RBAC is not enabled do the following:
-========================================
-
-- Go to Data Profiling => Add Hoc Query
-
-- Select your connection name in the dropdown
-
-- Test:
-  - Type ``select * from dual`` in the code window
-  - Click run

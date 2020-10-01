@@ -986,9 +986,11 @@ oper
 optimise
 ora
 orchestrator
+orcl
 orgtbl
 os
 ot
+ourdomain
 overridable
 oversubscription
 pageviews
@@ -1330,6 +1332,7 @@ webpage
 webserver
 webservers
 webservice
+weshouldhaveusedpostgres
 whitespace
 whl
 winrm
