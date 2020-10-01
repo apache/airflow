@@ -15,10 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, Any, Union, Iterator, Iterable
+from typing import Optional, Any, Iterable
 
 import prestodb
-from pandas import DataFrame
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
 
@@ -47,7 +46,9 @@ class PrestoHook(DbApiHook):
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
-        db = self.get_connection(self.presto_conn_id)  # type: ignore[attr-defined]  # pylint: disable=no-member
+        db = self.get_connection(
+            self.presto_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
+        )
         auth = prestodb.auth.BasicAuthentication(db.login, db.password) if db.password else None
 
         return prestodb.dbapi.connect(
@@ -64,7 +65,9 @@ class PrestoHook(DbApiHook):
 
     def get_isolation_level(self) -> Any:
         """Returns an isolation level"""
-        db = self.get_connection(self.presto_conn_id)  # type: ignore[attr-defined]  # pylint: disable=no-member
+        db = self.get_connection(
+            self.presto_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
+        )
         isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 

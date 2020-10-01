@@ -56,7 +56,9 @@ class QuboleSensor(BaseSensorOperator):
 
         status = False
         try:
-            status = self.sensor_class.check(self.data)  # type: ignore[attr-defined]  # pylint: disable=no-member
+            status = self.sensor_class.check(  # type: ignore[attr-defined]  # pylint: disable=no-member
+                self.data
+            )
         except Exception as e:  # pylint: disable=broad-except
             self.log.exception(e)
             status = False

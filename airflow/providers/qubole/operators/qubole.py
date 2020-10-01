@@ -48,7 +48,8 @@ class QDSLink(BaseOperatorLink):
         """
         ti = TaskInstance(task=operator, execution_date=dttm)
         conn = BaseHook.get_connection(
-            getattr(operator, "qubole_conn_id", None) or operator.kwargs['qubole_conn_id']  # type: ignore[attr-defined]
+            getattr(operator, "qubole_conn_id", None) or
+            operator.kwargs['qubole_conn_id']  # type: ignore[attr-defined]
         )
         if conn and conn.host:
             host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)

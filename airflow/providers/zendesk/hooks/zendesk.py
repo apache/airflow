@@ -17,7 +17,6 @@
 # under the License.
 
 import time
-from typing import Optional, Union, Any
 
 from zdesk import RateLimitError, Zendesk, ZendeskError
 
