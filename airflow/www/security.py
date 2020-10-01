@@ -334,15 +334,15 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
 
-    def has_access(self, permission, view_name, user=None) -> bool:
+    def has_access(self, permission, resource, user=None) -> bool:
         """
         Verify whether a given user could perform certain permission
         (e.g can_read, can_write) on the given dag_id.
 
         :param permission: permission on dag_id(e.g can_read, can_edit).
         :type permission: str
-        :param view_name: name of view-menu(e.g dag id is a view-menu as well).
-        :type view_name: str
+        :param resource: name of view-menu or resource.
+        :type resource: str
         :param user: user name
         :type user: str
         :return: a bool whether user could perform certain permission on the dag_id.
@@ -350,13 +350,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         if not user:
             user = g.user
-        prefixed_permission = f"DAG:{permission}"
+        prefixed_resource = f"DAG:{resource}"
         if user.is_anonymous:
-            return self.is_item_public(permission, view_name) or self.is_item_public(
-                prefixed_permission, view_name
+            return self.is_item_public(permission, resource) or self.is_item_public(
+                permission, prefixed_resource
             )
-        return self._has_view_access(user, permission, view_name) or self._has_view_access(
-            user, prefixed_permission, view_name
+
+        return self._has_view_access(user, permission, resource) or self._has_view_access(
+            user, permission, prefixed_resource
         )
 
     def _get_and_cache_perms(self):

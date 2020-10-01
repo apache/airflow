@@ -212,10 +212,14 @@ class TestSecurity(unittest.TestCase):
 
     def test_sync_perm_for_dag_creates_permissions_on_view_menus(self):
         test_dag_id = 'TEST_DAG'
+        prefixed_test_dag_id = f'DAG:{test_dag_id}'
         self.security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
-        for dag_perm in self.security_manager.DAG_PERMS:
-            self.assertIsNotNone(self.security_manager.
-                                 find_permission_view_menu(dag_perm, test_dag_id))
+        self.assertIsNotNone(
+            self.security_manager.find_permission_view_menu('can_read', prefixed_test_dag_id)
+        )
+        self.assertIsNotNone(
+            self.security_manager.find_permission_view_menu('can_edit', prefixed_test_dag_id)
+        )
 
     @mock.patch('airflow.www.security.AirflowSecurityManager._has_perm')
     @mock.patch('airflow.www.security.AirflowSecurityManager._has_role')
@@ -268,16 +272,16 @@ class TestSecurity(unittest.TestCase):
         self.security_manager.sync_perm_for_dag(
             'access_control_test',
             access_control={
-                'team-a': ['can_dag_edit', 'can_dag_read']
+                'team-a': ['can_edit', 'can_read']
             })
         self.assert_user_has_dag_perms(
-            perms=['can_dag_edit', 'can_dag_read'],
+            perms=['can_edit', 'can_read'],
             dag_id='access_control_test',
         )
 
         self.expect_user_is_in_role(self.user, rolename='NOT-team-a')
         self.assert_user_does_not_have_dag_perms(
-            perms=['can_dag_edit', 'can_dag_read'],
+            perms=['can_edit', 'can_read'],
             dag_id='access_control_test',
         )
 
