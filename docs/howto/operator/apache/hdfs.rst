@@ -79,9 +79,6 @@ Use the ``filepath`` parameter to poke until the provided file is found.
     :dedent: 4
     :start-after: [START howto_operator_hdfs_sensor]
     :end-before: [END howto_operator_hdfs_sensor]
-    
-
-
 Reference
 ^^^^^^^^^
 
