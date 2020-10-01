@@ -50,7 +50,7 @@ Use the ``filepath`` parameter to poke until the provided file is found.
 .. _howto/operator:HdfsRegexSensor:
 
 Waits for matching files by matching on regex
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The :class:`~airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor` operator is used to check for matching files by matching on regex in HDFS.
 
