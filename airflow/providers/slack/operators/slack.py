@@ -135,7 +135,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
         attachments: Optional[List] = None,
         blocks: Optional[List] = None,
         **kwargs,
-    ):
+    ) -> None:
         self.method = 'chat.postMessage'
         self.channel = channel
         self.username = username
