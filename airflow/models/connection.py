@@ -115,7 +115,7 @@ def _parse_netloc_to_hostname(uri_parts):
     return hostname
 
 
-class Connection(Base, LoggingMixin):
+class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attributes
     """
     Placeholder to store information about different database instances
     connection information. The idea here is that scripts use references to
