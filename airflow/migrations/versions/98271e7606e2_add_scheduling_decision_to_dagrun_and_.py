@@ -26,6 +26,7 @@ Create Date: 2020-09-15 12:13:32.968148
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
 revision = '98271e7606e2'
@@ -36,15 +37,19 @@ depends_on = None
 
 def upgrade():
     """Apply Add scheduling_decision to DagRun and DAG"""
+    conn = op.get_bind()  # pylint: disable=no-member
+    is_mysql = bool(conn.dialect.name == "mysql")
+    timestamp = sa.TIMESTAMP(timezone=True) if not is_mysql else mysql.TIMESTAMP(fsp=6, timezone=True)
+
     with op.batch_alter_table('dag_run', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('last_scheduling_decision', sa.DateTime(timezone=True), nullable=True))
+        batch_op.add_column(sa.Column('last_scheduling_decision', timestamp, nullable=True))
         batch_op.create_index('idx_last_scheduling_decision', ['last_scheduling_decision'], unique=False)
         batch_op.add_column(sa.Column('dag_hash', sa.String(32), nullable=True))
 
     with op.batch_alter_table('dag', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('next_dagrun', sa.DateTime(timezone=True), nullable=True))
-        batch_op.add_column(sa.Column('next_dagrun_create_after', sa.DateTime(timezone=True), nullable=True))
-        # Create with nullable and no default, then ALTER to set values, to aviod table level lock
+        batch_op.add_column(sa.Column('next_dagrun', timestamp, nullable=True))
+        batch_op.add_column(sa.Column('next_dagrun_create_after', timestamp, nullable=True))
+        # Create with nullable and no default, then ALTER to set values, to avoid table level lock
         batch_op.add_column(sa.Column('concurrency', sa.Integer(), nullable=True))
         batch_op.add_column(sa.Column('has_task_concurrency_limits', sa.Boolean(), nullable=True))
 

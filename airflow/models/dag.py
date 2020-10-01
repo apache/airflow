@@ -469,7 +469,7 @@ class DAG(BaseDag, LoggingMixin):
 
     def next_dagrun_info(
         self,
-        date_last_automated_dagrun : Optional[pendulum.DateTime],
+        date_last_automated_dagrun: Optional[pendulum.DateTime],
     ) -> Tuple[Optional[pendulum.DateTime], Optional[pendulum.DateTime]]:
         """
         Get information about the next DagRun of this dag after ``date_last_automated_dagrun`` -- the
