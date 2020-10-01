@@ -661,6 +661,19 @@ class HiveMetastoreHook(BaseHook):
                 pnames = [p.name for p in table.partitionKeys]
                 return [dict(zip(pnames, p.values)) for p in parts]
 
+    def get_partition_by_name(self, db_name: str, tbl_name: str, part_name: str) -> Any:
+        """Get a metastore partition object
+
+        >>> hh = HiveMetastoreHook()
+        >>> tp = hh.get_table(db_name='org_db', tbl_name='my_year_partitioned_table', part_name='year=2020')
+        >>> tp.parameters.get("totalSize")
+        '713263'
+        >>> tp.sd.location
+        'hdfs://foo/bar'
+        """
+        with self.metastore as client:
+            return client.get_partition_by_name(db_name=db_name, tbl_name=tbl_name, part_name=part_name)
+
     @staticmethod
     def _get_max_partition_from_part_specs(
         part_specs: List[Any], partition_key: Optional[str], filter_map: Optional[Dict[str, Any]]
