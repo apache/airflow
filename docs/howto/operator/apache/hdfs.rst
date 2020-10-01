@@ -41,6 +41,7 @@ The :class:`~airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor` operat
 Use the ``filepath`` parameter to poke until the provided file is found.
 
 .. exampleinclude:: /../airflow/providers/apache/hdfs/example_dags/
+
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_hdfs_folder_sensor]
@@ -59,6 +60,7 @@ Use the ``filepath`` parameter to mention the keyspace and table for the record.
 Use the ``regex`` parameter to poke until the provided record is found. 
 
 .. exampleinclude:: /../airflow/providers/apache/hdfs/example_dags/
+
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_hdfs_regex_sensor]
@@ -75,6 +77,7 @@ The :class:`~airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensor` operator is 
 Use the ``filepath`` parameter to poke until the provided file is found.
 
 .. exampleinclude:: /../airflow/providers/apache/hdfs/example_dags/
+
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_hdfs_sensor]
