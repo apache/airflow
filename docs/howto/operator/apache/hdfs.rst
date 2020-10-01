@@ -63,8 +63,8 @@ Use the ``regex`` parameter to poke until the provided record is found.
     :dedent: 4
     :start-after: [START howto_operator_hdfs_regex_sensor]
     :end-before: [END howto_operator_hdfs_regex_sensor]
-    
-    
+
+
 .. _howto/operator:HdfsSensor:
 
 Waits for a file or folder to land in HDFS
