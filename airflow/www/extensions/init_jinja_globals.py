@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import airflow
 import logging
-import pendulum
 import socket
 
+import pendulum
+
+import airflow
 from airflow.configuration import conf
 from airflow.settings import STATE_COLORS
 from airflow.utils.platform import get_airflow_git_version
