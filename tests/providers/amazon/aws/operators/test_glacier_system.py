@@ -14,23 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
+from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest
+from tests.test_utils.gcp_system_helpers import GoogleSystemTest
 
 
-class DataprocHook(YandexCloudBaseHook):
+BUCKET = "data_from_glacier"
+
+
+class GlacierSystemTest(AmazonSystemTest):
     """
-    A base hook for Yandex.Cloud Data Proc.
-
-    :param connection_id: The connection ID to use when fetching connection info.
-    :type connection_id: str
+    System test for AWS Glacier operators
     """
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.cluster_id = None
-        self.client = self.sdk.wrappers.Dataproc(
-            default_folder_id=self.default_folder_id,
-            default_public_ssh_key=self.default_public_ssh_key,
-        )
+    def setUp(self):
+        super().setUp()
+        GoogleSystemTest.create_gcs_bucket(BUCKET)
+
+    def tearDown(self):
+        GoogleSystemTest.delete_gcs_bucket(BUCKET)  # pylint: disable=no-member
+
+    def test_run_example_dag(self):
+        self.run_dag(dag_id="example_glacier_to_gcs", dag_folder=AWS_DAG_FOLDER)
