@@ -17,8 +17,8 @@
 
 
 
-Amazon AWS Operators
-======================
+Amazon Transfer Operators
+=========================
 
 
 .. toctree::
@@ -26,8 +26,3 @@ Amazon AWS Operators
     :glob:
 
     *
-    transfer/index
-
-.. note::
-    You can learn how to use Amazon AWS integrations by analyzing the
-    `source code <https://github.com/apache/airflow/tree/master/airflow/providers/amazon/aws/example_dags/>`_ of the particular example DAGs.
