@@ -1659,7 +1659,7 @@ class TestDagModel:
     def test_dags_needing_dagruns_not_too_early(self):
         dag = DAG(
             dag_id='far_future_dag',
-            start_date=timezone.datetime(2200, 1, 1))
+            start_date=timezone.datetime(2038, 1, 1))
         DummyOperator(
             task_id='dummy',
             dag=dag,
@@ -1671,7 +1671,7 @@ class TestDagModel:
             concurrency=1,
             has_task_concurrency_limits=False,
             next_dagrun=dag.start_date,
-            next_dagrun_create_after=timezone.datetime(2200, 1, 2),
+            next_dagrun_create_after=timezone.datetime(2038, 1, 2),
             is_active=True,
         )
         session.add(orm_dag)
