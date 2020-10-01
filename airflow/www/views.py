@@ -2879,6 +2879,32 @@ class DagRunModelView(AirflowModelView):
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
 
+    @action('clear', "Clear the state",
+            "All task instances would be cleared, are you sure?",
+            single=False)
+    @provide_session
+    def action_clear(self, drs, session=None):
+        """Clears the state."""
+        try:
+            count = 0
+            cleared_ti_count = 0
+            dag_to_tis = {}
+            for dr in session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all():
+                count += 1
+                dag = current_app.dag_bag.get_dag(dr.dag_id)
+                tis_to_clear = dag_to_tis.setdefault(dag, [])
+                tis_to_clear += dr.get_task_instances()
+
+            for dag, tis in dag_to_tis.items():
+                cleared_ti_count += len(tis)
+                models.clear_task_instances(tis, session, dag=dag)
+
+            flash("{count} dag runs and {altered_ti_count} task instances "
+                  "were cleared".format(count=count, altered_ti_count=cleared_ti_count))
+        except Exception:  # noqa pylint: disable=broad-except
+            flash('Failed to clear state', 'error')
+        return redirect(self.get_default_url())
+
 
 class LogModelView(AirflowModelView):
     """View to show records from Log table"""

@@ -2711,9 +2711,11 @@ class TestDagRunModelView(TestBase):
         super().setUpClass()
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
         cls.clear_table(models.DagRun)
+        cls.clear_table(models.TaskInstance)
 
     def tearDown(self):
         self.clear_table(models.DagRun)
+        self.clear_table(models.TaskInstance)
 
     def test_create_dagrun_execution_date_with_timezone_utc(self):
         data = {
@@ -2844,6 +2846,35 @@ class TestDagRunModelView(TestBase):
 
         resp = self.client.get('/dagrun/list', follow_redirects=True)
         self.check_content_in_response("{&#34;include&#34;: &#34;me&#34;}", resp)
+
+    def test_clear_dag_runs_action(self):
+        dag = models.DagBag().get_dag("example_bash_operator")
+        task0 = dag.get_task("runme_0")
+        task1 = dag.get_task("runme_1")
+        execution_date = datetime(2016, 1, 9)
+        tis = [models.TaskInstance(task0, execution_date, state="success"),
+               models.TaskInstance(task1, execution_date, state="failed")]
+        self.session.bulk_save_objects(tis)
+        dr = dag.create_dagrun(state="running",
+                               execution_date=execution_date,
+                               run_id="test_clear_dag_runs_action",
+                               session=self.session)
+
+        data = {
+            "action": "clear",
+            "rowid": [dr.id]
+        }
+        resp = self.client.post("/dagrun/action_post", data=data, follow_redirects=True)
+        self.check_content_in_response("1 dag runs and 2 task instances were cleared", resp)
+        self.assertEqual([ti.state for ti in self.session.query(models.TaskInstance).all()], [None, None])
+
+    def test_clear_dag_runs_action_fails(self):
+        data = {
+            "action": "clear",
+            "rowid": ["0"]
+        }
+        resp = self.client.post("/dagrun/action_post", data=data, follow_redirects=True)
+        self.check_content_in_response("Failed to clear state", resp)
 
 
 class TestDecorators(TestBase):
