@@ -423,6 +423,12 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.providers.amazon.aws.operators.datasync`
      -
 
+   * - `Amazon Glacier <https://aws.amazon.com/glacier/>`__
+     - :doc:`How to use <howto/operator/amazon/aws/glacier>`
+     - :mod:`airflow.providers.amazon.aws.hooks.glacier`
+     - :mod:`airflow.providers.amazon.aws.sensors.glacier`
+     - :mod:`airflow.providers.amazon.aws.operators.glacier`
+
    * - `AWS Glue Catalog <https://aws.amazon.com/glue/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.glue_catalog`
@@ -938,6 +944,11 @@ These integrations allow you to copy data from/to Google Cloud.
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/google/transfer/s3_to_gcs>`
      - :mod:`airflow.providers.google.cloud.transfers.s3_to_gcs`
+
+   * - `Amazon Glacier <https://aws.amazon.com/glacier/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/amazon/aws/transfer/glacier_to_gcs>`
+     - :mod:`airflow.providers.amazon.aws.transfers.glacier_to_gcs`,
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__

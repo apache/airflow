@@ -1,5 +1,3 @@
-#!/usr/bin/env bats
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,10 +15,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest
+from tests.test_utils.gcp_system_helpers import GoogleSystemTest
 
-@test "empty test" {
-  load bats_utils
 
-  run pwd
-  assert_success
-}
+BUCKET = "data_from_glacier"
+
+
+class GlacierSystemTest(AmazonSystemTest):
+    """
+    System test for AWS Glacier operators
+    """
+
+    def setUp(self):
+        super().setUp()
+        GoogleSystemTest.create_gcs_bucket(BUCKET)
+
+    def tearDown(self):
+        GoogleSystemTest.delete_gcs_bucket(BUCKET)  # pylint: disable=no-member
+
+    def test_run_example_dag(self):
+        self.run_dag(dag_id="example_glacier_to_gcs", dag_folder=AWS_DAG_FOLDER)
