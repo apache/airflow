@@ -109,7 +109,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
 
         self.log.info("Dumping Oracle query results to local file")
         conn = oracle_hook.get_conn()
-        cursor = conn.cursor()
+        cursor = conn.cursor()  # type: ignore[attr-defined]
         cursor.execute(self.sql, self.sql_params)
 
         with TemporaryDirectory(prefix='airflow_oracle_to_azure_op_') as temp:
@@ -119,4 +119,4 @@ class OracleToAzureDataLakeOperator(BaseOperator):
                 os.path.join(temp, self.filename), os.path.join(self.azure_data_lake_path, self.filename)
             )
         cursor.close()
-        conn.close()
+        conn.close()  # type: ignore[attr-defined]

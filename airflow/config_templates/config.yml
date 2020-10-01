@@ -229,6 +229,21 @@
       type: string
       example: ~
       default: "30"
+    - name: dagbag_import_error_tracebacks
+      description: |
+        Should a traceback be shown in the UI for dagbag import errors,
+        instead of just the exception message
+      version_added: 2.0.0
+      type: boolean
+      example: ~
+      default: "True"
+    - name: dagbag_import_error_traceback_depth
+      description: |
+        If tracebacks are shown, how many entries from the traceback should be shown
+      version_added: 2.0.0
+      type: integer
+      example: ~
+      default: "2"
     - name: dag_file_processor_timeout
       description: |
         How long before timing out a DagFileProcessor, which processes a dag file

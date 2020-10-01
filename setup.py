@@ -473,6 +473,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'requests_mock',
     'setuptools',
+    'testfixtures',
     'wheel',
     'yamllint',
 ]

@@ -65,9 +65,7 @@
                 <div id="alerts" class="panel-collapse collapse in">
                   <div class="panel-body" >
                     {% for category, m in dag_import_errors %}
-                        <div class="alert alert-error">
-                            {{ m }}
-                        </div>
+                        <div class="alert alert-error dag-import-error">{{ m }}</div>
                     {% endfor %}
                   </div>
                 </div>

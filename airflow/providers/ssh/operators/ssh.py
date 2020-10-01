@@ -18,6 +18,7 @@
 
 from base64 import b64encode
 from select import select
+from typing import Optional, Union
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -61,15 +62,15 @@ class SSHOperator(BaseOperator):
     def __init__(
         self,
         *,
-        ssh_hook=None,
-        ssh_conn_id=None,
-        remote_host=None,
-        command=None,
-        timeout=10,
-        environment=None,
-        get_pty=False,
+        ssh_hook: Optional[SSHHook] = None,
+        ssh_conn_id: Optional[str] = None,
+        remote_host: Optional[str] = None,
+        command: Optional[str] = None,
+        timeout: int = 10,
+        environment: Optional[dict] = None,
+        get_pty: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.ssh_hook = ssh_hook
         self.ssh_conn_id = ssh_conn_id
@@ -77,9 +78,9 @@ class SSHOperator(BaseOperator):
         self.command = command
         self.timeout = timeout
         self.environment = environment
-        self.get_pty = self.command.startswith('sudo') or get_pty
+        self.get_pty = self.command.startswith('sudo') or get_pty  # type: ignore[union-attr]
 
-    def execute(self, context):
+    def execute(self, context) -> Union[bytes, str, bool]:
         try:
             if self.ssh_conn_id:
                 if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
@@ -173,9 +174,9 @@ class SSHOperator(BaseOperator):
 
         return True
 
-    def tunnel(self):
+    def tunnel(self) -> None:
         """
         Get ssh tunnel
         """
-        ssh_client = self.ssh_hook.get_conn()
+        ssh_client = self.ssh_hook.get_conn()  # type: ignore[union-attr]
         ssh_client.get_transport()

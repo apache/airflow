@@ -23,6 +23,7 @@ import shutil
 import unittest
 from datetime import timedelta
 from tempfile import NamedTemporaryFile, mkdtemp
+from zipfile import ZipFile
 
 import mock
 import psutil
@@ -75,6 +76,11 @@ TRY_NUMBER = 1
 # files contain a DAG (otherwise Airflow will skip them)
 PARSEABLE_DAG_FILE_CONTENTS = '"airflow DAG"'
 UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
+INVALID_DAG_WITH_DEPTH_FILE_CONTENTS = (
+    "def something():\n"
+    "    return airflow_DAG\n"
+    "something()"
+)
 
 # Filename to be used for dags that are created in an ad-hoc manner and can be removed/
 # created at runtime
@@ -3133,6 +3139,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         self.assertEqual(execution_date, running_date, 'Running Date must match Execution Date')
 
+    @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
     def test_add_unparseable_file_before_sched_start_creates_import_error(self):
         dags_folder = mkdtemp()
         try:
@@ -3154,6 +3161,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(import_error.stacktrace,
                          "invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME))
 
+    @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
     def test_add_unparseable_file_after_sched_start_creates_import_error(self):
         dags_folder = mkdtemp()
         try:
@@ -3192,6 +3200,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         self.assertEqual(len(import_errors), 0)
 
+    @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
     def test_new_import_error_replaces_old(self):
         try:
             dags_folder = mkdtemp()
@@ -3264,6 +3273,120 @@ class TestSchedulerJob(unittest.TestCase):
             import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 0)
+
+    def test_import_error_tracebacks(self):
+        dags_folder = mkdtemp()
+        try:
+            unparseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
+            with open(unparseable_filename, "w") as unparseable_file:
+                unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+        finally:
+            shutil.rmtree(dags_folder)
+
+        with create_session() as session:
+            import_errors = session.query(errors.ImportError).all()
+
+        self.assertEqual(len(import_errors), 1)
+        import_error = import_errors[0]
+        self.assertEqual(import_error.filename, unparseable_filename)
+        expected_stacktrace = (
+            "Traceback (most recent call last):\n"
+            '  File "{}", line 3, in <module>\n'
+            "    something()\n"
+            '  File "{}", line 2, in something\n'
+            "    return airflow_DAG\n"
+            "NameError: name 'airflow_DAG' is not defined\n"
+        )
+        self.assertEqual(
+            import_error.stacktrace,
+            expected_stacktrace.format(unparseable_filename, unparseable_filename)
+        )
+
+    @conf_vars({("core", "dagbag_import_error_traceback_depth"): "1"})
+    def test_import_error_traceback_depth(self):
+        dags_folder = mkdtemp()
+        try:
+            unparseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
+            with open(unparseable_filename, "w") as unparseable_file:
+                unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+        finally:
+            shutil.rmtree(dags_folder)
+
+        with create_session() as session:
+            import_errors = session.query(errors.ImportError).all()
+
+        self.assertEqual(len(import_errors), 1)
+        import_error = import_errors[0]
+        self.assertEqual(import_error.filename, unparseable_filename)
+        expected_stacktrace = (
+            "Traceback (most recent call last):\n"
+            '  File "{}", line 2, in something\n'
+            "    return airflow_DAG\n"
+            "NameError: name 'airflow_DAG' is not defined\n"
+        )
+        self.assertEqual(
+            import_error.stacktrace, expected_stacktrace.format(unparseable_filename)
+        )
+
+    def test_import_error_tracebacks_zip(self):
+        dags_folder = mkdtemp()
+        try:
+            invalid_zip_filename = os.path.join(dags_folder, "test_zip_invalid.zip")
+            invalid_dag_filename = os.path.join(dags_folder, "test_zip_invalid.zip", TEMP_DAG_FILENAME)
+            with ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
+                invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+        finally:
+            shutil.rmtree(dags_folder)
+
+        with create_session() as session:
+            import_errors = session.query(errors.ImportError).all()
+
+        self.assertEqual(len(import_errors), 1)
+        import_error = import_errors[0]
+        self.assertEqual(import_error.filename, invalid_zip_filename)
+        expected_stacktrace = (
+            "Traceback (most recent call last):\n"
+            '  File "{}", line 3, in <module>\n'
+            "    something()\n"
+            '  File "{}", line 2, in something\n'
+            "    return airflow_DAG\n"
+            "NameError: name 'airflow_DAG' is not defined\n"
+        )
+        self.assertEqual(
+            import_error.stacktrace,
+            expected_stacktrace.format(invalid_dag_filename, invalid_dag_filename)
+        )
+
+    @conf_vars({("core", "dagbag_import_error_traceback_depth"): "1"})
+    def test_import_error_tracebacks_zip_depth(self):
+        dags_folder = mkdtemp()
+        try:
+            invalid_zip_filename = os.path.join(dags_folder, "test_zip_invalid.zip")
+            invalid_dag_filename = os.path.join(dags_folder, "test_zip_invalid.zip", TEMP_DAG_FILENAME)
+            with ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
+                invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+        finally:
+            shutil.rmtree(dags_folder)
+
+        with create_session() as session:
+            import_errors = session.query(errors.ImportError).all()
+
+        self.assertEqual(len(import_errors), 1)
+        import_error = import_errors[0]
+        self.assertEqual(import_error.filename, invalid_zip_filename)
+        expected_stacktrace = (
+            "Traceback (most recent call last):\n"
+            '  File "{}", line 2, in something\n'
+            "    return airflow_DAG\n"
+            "NameError: name 'airflow_DAG' is not defined\n"
+        )
+        self.assertEqual(
+            import_error.stacktrace, expected_stacktrace.format(invalid_dag_filename)
+        )
 
     def test_list_py_file_paths(self):
         """
