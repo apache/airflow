@@ -132,7 +132,7 @@ class PrestoHook(DbApiHook):
         target_fields: Optional[Iterable[str]] = None,
         commit_every: int = 0,
         replace: bool = False,
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         A generic way to insert a set of tuples into a table.

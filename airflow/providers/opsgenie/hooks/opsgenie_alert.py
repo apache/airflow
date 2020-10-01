@@ -24,7 +24,6 @@ import requests
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
-from requests import Session
 
 
 class OpsgenieAlertHook(HttpHook):
@@ -57,7 +56,7 @@ class OpsgenieAlertHook(HttpHook):
             )
         return api_key
 
-    def get_conn(self, headers: Optional[dict] = None) -> Session:
+    def get_conn(self, headers: Optional[dict] = None) -> requests.Session:
         """
         Overwrite HttpHook get_conn because this hook just needs base_url
         and headers, and does not need generic params
