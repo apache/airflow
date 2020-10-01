@@ -19,8 +19,8 @@
 """Add scheduling_decision to DagRun and DAG
 
 Revision ID: 98271e7606e2
-Revises: e1a11ece99cc
-Create Date: 2020-09-15 12:13:32.968148
+Revises: bef4f3d11e8b
+Create Date: 2020-10-01 12:13:32.968148
 
 """
 
@@ -30,7 +30,7 @@ from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
 revision = '98271e7606e2'
-down_revision = 'e1a11ece99cc'
+down_revision = 'bef4f3d11e8b'
 branch_labels = None
 depends_on = None
 
