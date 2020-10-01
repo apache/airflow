@@ -24,6 +24,7 @@ Create Date: 2020-09-22 18:45:28.011654
 
 """
 
+import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -45,24 +46,61 @@ def upgrade():
 
 def downgrade():
     """Unapply Drop KubeResourceVersion and KubeWorkerIdentifier tables"""
+    _add_worker_uuid_table()
+    _add_resource_table()
+
+
+def _add_worker_uuid_table():
+    columns_and_constraints = [
+        sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
+        sa.Column("worker_uuid", sa.String(255))
+    ]
+
     conn = op.get_bind()
-    conn.execute(
-        """
-        CREATE TABLE kube_resource_version (
-        one_row_id BOOLEAN DEFAULT (1) NOT NULL,
-        resource_version VARCHAR(255),
-        PRIMARY KEY (one_row_id),
-        CONSTRAINT kube_resource_version_one_row_id CHECK (one_row_id),
-        CHECK (one_row_id IN (0, 1)));
-        """
+
+    # alembic creates an invalid SQL for mssql and mysql dialects
+    if conn.dialect.name in {"mysql"}:
+        columns_and_constraints.append(
+            sa.CheckConstraint("one_row_id<>0", name="kube_worker_one_row_id")
+        )
+    elif conn.dialect.name not in {"mssql"}:
+        columns_and_constraints.append(
+            sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id")
+        )
+
+    table = op.create_table(
+        WORKER_RESOURCEVERSION_TABLE,
+        *columns_and_constraints
     )
-    conn.execute(
-        """
-        CREATE TABLE kube_worker_uuid (
-        one_row_id BOOLEAN DEFAULT (1) NOT NULL,
-        worker_uuid VARCHAR(255),
-        PRIMARY KEY (one_row_id),
-        CONSTRAINT kube_worker_one_row_id CHECK (one_row_id),
-        CHECK (one_row_id IN (0, 1)));
-        """
+
+    op.bulk_insert(table, [
+        {"worker_uuid": ""}
+    ])
+
+
+def _add_resource_table():
+    columns_and_constraints = [
+        sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
+        sa.Column("resource_version", sa.String(255))
+    ]
+
+    conn = op.get_bind()
+
+    # alembic creates an invalid SQL for mssql and mysql dialects
+    if conn.dialect.name in {"mysql"}:
+        columns_and_constraints.append(
+            sa.CheckConstraint("one_row_id<>0", name="kube_resource_version_one_row_id")
+        )
+    elif conn.dialect.name not in {"mssql"}:
+        columns_and_constraints.append(
+            sa.CheckConstraint("one_row_id", name="kube_resource_version_one_row_id")
+        )
+
+    table = op.create_table(
+        WORKER_RESOURCEVERSION_TABLE,
+        *columns_and_constraints
     )
+
+    op.bulk_insert(table, [
+        {"resource_version": ""}
+    ])
