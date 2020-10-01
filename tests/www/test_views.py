@@ -1384,24 +1384,6 @@ class TestLogView(TestBase):
         self.assertEqual(ExternalHandler.EXTERNAL_URL, response.headers['Location'])
 
 
-class TestVersionView(TestBase):
-    def test_version(self):
-        with self.capture_templates() as templates:
-            resp = self.client.get('version', data=dict(
-                username='test',
-                password='test'
-            ), follow_redirects=True)
-            self.check_content_in_response('Version Info', resp)
-
-        self.assertEqual(len(templates), 1)
-        self.assertEqual(templates[0].name, 'airflow/version.html')
-        self.assertEqual(templates[0].local_context, dict(
-            airflow_version=version.version,
-            git_version=mock.ANY,
-            title='Version Info',
-        ))
-
-
 class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
     DAG_ID = 'dag_for_testing_dt_nr_dr_form'
     DEFAULT_DATE = datetime(2017, 9, 1)

@@ -59,16 +59,18 @@
 {% endblock %}
 
 {% block footer %}
-  {% set version_label = 'Version' %}
-  <footer class="footer">
-    <div class="container text-muted">
-      <div>
-        {{ version_label }}: {% if airflow_version %}<a href="https://pypi.python.org/pypi/apache-airflow/{{ airflow_version }}">v{{ airflow_version }}</a>{% else %} N/A{% endif %}
-        <br>Git Version:{% if git_version %} <strong>{{ git_version }}</strong>{% else %} N/A{% endif %}
+  {% if not current_user.is_anonymous %}
+    {% set version_label = 'Version' %}
+    <footer class="footer">
+      <div class="container text-muted">
+        <div>
+          {{ version_label }}: {% if airflow_version is defined %}<a href="https://pypi.python.org/pypi/apache-airflow/{{ airflow_version }}">v{{ airflow_version }}</a>{% else %} N/A{% endif %}
+          {% if git_version is defined and git_version %}<br>Git Version:<strong>{{ git_version }}</strong>{% endif %}
+        </div>
+        <div></div>
       </div>
-      <div></div>
-    </div>
-  </footer>
+    </footer>
+  {% endif %}
 {% endblock %}
 
 {% block tail_js %}

@@ -349,11 +349,27 @@ class AirflowBaseView(BaseView):  # noqa: D101
         'macros': macros,
     }
 
-    def render_template(self, *args, **kwargs):
+    try:
+        airflow_version = airflow.__version__
+    except Exception as e:  # pylint: disable=broad-except
+        airflow_version = None
+        logging.error(e)
+
+    git_version = get_airflow_git_version()
+
+    def render_template(
+        self,
+        *args,
+        airflow_version=airflow_version,
+        git_version=git_version,
+        **kwargs
+    ):
         return super().render_template(
             *args,
             # Cache this at most once per request, not for the lifetime of the view instance
             scheduler_job=lazy_object_proxy.Proxy(SchedulerJob.most_recent_job),
+            airflow_version=airflow_version,
+            git_version=git_version,
             **kwargs
         )
 
@@ -2323,31 +2339,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             for ti in dag.get_task_instances(dttm, dttm)}
 
         return json.dumps(task_instances)
-
-
-class VersionView(AirflowBaseView):
-    """View to show Airflow Version and optionally Git commit SHA"""
-
-    default_view = 'version'
-
-    @expose('/version')
-    @has_access
-    def version(self):
-        """Shows Airflow version."""
-        try:
-            airflow_version = airflow.__version__
-        except Exception as e:  # pylint: disable=broad-except
-            airflow_version = None
-            logging.error(e)
-
-        git_version = get_airflow_git_version()
-        # Render information
-        title = "Version Info"
-        return self.render_template(
-            'airflow/version.html',
-            title=title,
-            airflow_version=airflow_version,
-            git_version=git_version)
 
 
 class ConfigurationView(AirflowBaseView):
