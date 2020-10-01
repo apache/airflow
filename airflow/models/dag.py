@@ -1974,6 +1974,12 @@ class DagModel(Base):
         Index('idx_next_dagrun_create_after', next_dagrun_create_after, unique=False),
     )
 
+    NUM_DAGS_PER_DAGRUN_QUERY = conf.getint(
+        'scheduler',
+        'num_dags_needing_dagrun_per_scheduler_loop',
+        fallback=10
+    )
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if self.concurrency is None:
@@ -2110,7 +2116,7 @@ class DagModel(Base):
             cls.next_dagrun_create_after <= func.now(),
         ).order_by(
             cls.next_dagrun_create_after
-        ).limit(10)
+        ).limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
 
         return with_for_update(query, of=cls, **skip_locked(session=session))
 

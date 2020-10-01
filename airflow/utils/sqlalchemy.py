@@ -23,6 +23,7 @@ from typing import Any, Dict
 
 import pendulum
 from dateutil import relativedelta
+from sqlalchemy import event
 from sqlalchemy.orm.session import Session
 from sqlalchemy.types import DateTime, Text, TypeDecorator
 
@@ -178,3 +179,58 @@ def with_for_update(query, **kwargs):
         return query.with_for_update(**kwargs)
     else:
         return query
+
+
+class CommitProhibitorGuard:
+    """
+    Context manager class that powers prohibit_commit
+    """
+
+    expected_commit = False
+
+    def __init__(self, session: Session):
+        self.session = session
+
+    def _validate_commit(self, _):
+        if self.expected_commit:
+            self.expected_commit = False
+            return
+        raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
+
+    def __enter__(self):
+        event.listen(self.session.bind, 'commit', self._validate_commit)
+        return self
+
+    def __exit__(self, *exc_info):
+        event.remove(self.session.bind, 'commit', self._validate_commit)
+
+    def commit(self):
+        """
+        Commit the session.
+
+        This is the required way to commit when the guard is in scope
+        """
+        self.expected_commit = True
+        self.session.commit()
+
+
+def prohibit_commit(session):
+    """
+    Return a context manager that will disallow any commit that isn't done via the context manager.
+
+    The aim of this is to ensure that transaction lifetime is strictly controlled which is especially
+    important in the core scheduler loop. Any commit on the session that is _not_ via this context manager
+    will result in RuntimeError
+
+    Example usage:
+
+    .. code:: python
+
+        with prohibit_commit(session) as guard:
+            # ... do something with sesison
+            guard.commit()
+
+            # This would throw an error
+            # session.commit()
+    """
+    return CommitProhibitorGuard(session)

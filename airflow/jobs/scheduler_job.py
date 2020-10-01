@@ -21,7 +21,6 @@ import datetime
 import itertools
 import logging
 import multiprocessing
-import operator
 import os
 import signal
 import sys
@@ -60,7 +59,7 @@ from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.sqlalchemy import nowait, skip_locked, with_for_update
+from airflow.utils.sqlalchemy import nowait, prohibit_commit, skip_locked, with_for_update
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -922,7 +921,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         # If the pools are full, there is no point doing anything!
         # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
-        pool_slots_free = max(0, sum(map(operator.itemgetter('open'), pools.values())))
+        pool_slots_free = max(0, sum(pool['open'] for pool in pools.values()))
 
         if pool_slots_free == 0:
             self.log.debug("All pools are full!")
@@ -1425,25 +1424,14 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         :return: Number of TIs enqueued in this iteration
         :rtype: int
         """
-        try:
-            from sqlalchemy import event
-            expected_commit = False
-
-            # Put a check in place to make sure we don't commit unexpectedly
-            @event.listens_for(session.bind, 'commit')
-            def validate_commit(_):
-                nonlocal expected_commit
-                if expected_commit:
-                    expected_commit = False
-                    return
-                raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
+        # Put a check in place to make sure we don't commit unexpectedly
+        with prohibit_commit(session) as guard:
 
             query = DagModel.dags_needing_dagruns(session)
             self._create_dag_runs(query.all(), session)
 
             # commit the session - Release the write lock on DagModel table.
-            expected_commit = True
-            session.commit()
+            guard.commit()
             # END: create dagruns
 
             dag_runs = DagRun.next_dagruns_to_examine(session)
@@ -1472,8 +1460,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             for dag_run in dag_runs:
                 self._schedule_dag_run(dag_run, currently_active_runs.get(dag_run.dag_id, 0), session)
 
-            expected_commit = True
-            session.commit()
+            guard.commit()
 
             # Without this, the session has an invalid view of the DB
             session.expunge_all()
@@ -1521,8 +1508,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 raise
 
             return num_queued_tis
-        finally:
-            event.remove(session.bind, 'commit', validate_commit)
 
     def _create_dag_runs(self, dag_models: Iterable[DagModel], session: Session) -> None:
         """

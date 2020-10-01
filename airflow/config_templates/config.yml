@@ -1581,6 +1581,16 @@
       type: boolean
       example: ~
       default: "True"
+    - name: max_dags_per_dagrun_query
+      description: |
+        This changes the number of dags that are taken by each scheduler when
+        creating dag runs. One possible reason for setting this lower is if you
+        have huge dags and are running multiple schedules, you won't want one
+        scheduler to do all the work.
+      version_added: 2.0.0
+      type: string
+      example: "10"
+      default: ~
     - name: statsd_on
       description: |
         Statsd (https://github.com/etsy/statsd) integration settings
