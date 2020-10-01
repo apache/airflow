@@ -106,7 +106,7 @@ class OpsgenieAlertOperator(BaseOperator):
         self.priority = priority
         self.user = user
         self.note = note
-        self.hook = None
+        self.hook: Optional[OpsgenieAlertHook] = None
 
     def _build_opsgenie_payload(self) -> Dict[str, Any]:
         """

@@ -24,7 +24,7 @@ import requests
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
-from airflow.settings import Session
+from requests import Session
 
 
 class OpsgenieAlertHook(HttpHook):
@@ -43,7 +43,7 @@ class OpsgenieAlertHook(HttpHook):
     """
 
     def __init__(self, opsgenie_conn_id: str = 'opsgenie_default', *args, **kwargs) -> None:
-        super().__init__(http_conn_id=opsgenie_conn_id, *args, **kwargs)
+        super().__init__(http_conn_id=opsgenie_conn_id, *args, **kwargs)  # type: ignore[misc]
 
     def _get_api_key(self) -> str:
         """
