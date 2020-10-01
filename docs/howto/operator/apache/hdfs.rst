@@ -34,7 +34,7 @@ To use operators, you must configure a :doc:`HDFS Connection <../../connection/h
 .. _howto/operator:HdfsFolderSensor:
 
 Waits for a non-empty directory
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The :class:`~airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor` operator is used to check for a non-empty directory in HDFS.
 
