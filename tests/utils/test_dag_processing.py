@@ -286,13 +286,16 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
             self.run_processor_manager_one_loop(manager, parent_pipe)
 
-            # Once for initial parse, and then again for the add_callback_to_queue
-            assert len(fake_processors) == 2
+            if async_mode:
+                # Once for initial parse, and then again for the add_callback_to_queue
+                assert len(fake_processors) == 2
+                assert fake_processors[0]._file_path == test_dag_path
+                assert fake_processors[0]._callback_requests == []
+            else:
+                assert len(fake_processors) == 1
 
-            assert fake_processors[0]._file_path == test_dag_path
-            assert fake_processors[0]._callback_requests == []
-            assert fake_processors[1]._file_path == test_dag_path
-            callback_requests = fake_processors[1]._callback_requests
+            assert fake_processors[-1]._file_path == test_dag_path
+            callback_requests = fake_processors[-1]._callback_requests
             assert (
                 set(zombie.simple_task_instance.key for zombie in expected_failure_callback_requests) ==
                 set(result.simple_task_instance.key for result in callback_requests)

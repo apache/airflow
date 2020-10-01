@@ -514,6 +514,10 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         if not self._process:
             self.log.warning('Ending without manager process.')
             return
+        # Give the Manager some time to cleanly shut down, but not too long, as
+        # it's better to finish sooner than wait for (non-critical) work to
+        # finish
+        self._process.join(timeout=1.0)
         reap_process_group(self._process.pid, logger=self.log)
         self._parent_signal_conn.close()
 

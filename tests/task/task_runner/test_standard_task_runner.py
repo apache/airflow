@@ -149,6 +149,7 @@ class TestStandardTaskRunner(unittest.TestCase):
                           session=session)
         ti = TI(task=task, execution_date=DEFAULT_DATE)
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        session.commit()
 
         runner = StandardTaskRunner(job1)
         runner.start()
