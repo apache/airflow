@@ -68,7 +68,7 @@ Use the ``regex`` parameter to poke until the provided record is found.
 .. _howto/operator:HdfsSensor:
 
 Waits for a file or folder to land in HDFS
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The :class:`~airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensor` operator is used to check for a file or folder to land in HDFS.
 
