@@ -33,7 +33,7 @@ from kubernetes.config.exec_provider import ExecProvider
 from kubernetes.config.kube_config import KUBE_CONFIG_DEFAULT_LOCATION, KubeConfigLoader
 
 
-def _parse_timestamp(ts_str: str) -> time.struct_time:
+def _parse_timestamp(ts_str: str) -> int:
     return calendar.timegm(pendulum.parse(ts_str).timetuple())
 
 
