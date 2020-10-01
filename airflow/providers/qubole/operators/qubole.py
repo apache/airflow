@@ -249,14 +249,7 @@ class QuboleOperator(BaseOperator):
         else:
             self.get_hook().kill(ti)
 
-    def get_results(
-        self,
-        ti=None,
-        fp=None,
-        inline: bool = True,
-        delim=None,
-        fetch: bool = True
-    ) -> str:
+    def get_results(self, ti=None, fp=None, inline: bool = True, delim=None, fetch: bool = True) -> str:
         """get_results from Qubole"""
         return self.get_hook().get_results(ti, fp, inline, delim, fetch)
 

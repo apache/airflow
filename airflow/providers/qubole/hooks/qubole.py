@@ -146,21 +146,20 @@ class QuboleHook(BaseHook):
         context['task_instance'].xcom_push(key='qbol_cmd_id', value=self.cmd.id)  # type: ignore[attr-defined]
         self.log.info(
             "Qubole command created with Id: %s and Status: %s",
-            self.cmd.id, self.cmd.status  # type: ignore[attr-defined]
+            self.cmd.id,  # type: ignore[attr-defined]
+            self.cmd.status,  # type: ignore[attr-defined]
         )
 
         while not Command.is_done(self.cmd.status):  # type: ignore[attr-defined]
             time.sleep(Qubole.poll_interval)
             self.cmd = self.cls.find(self.cmd.id)  # type: ignore[attr-defined]
             self.log.info(
-                "Command Id: %s and Status: %s",
-                self.cmd.id, self.cmd.status  # type: ignore[attr-defined]
+                "Command Id: %s and Status: %s", self.cmd.id, self.cmd.status  # type: ignore[attr-defined]
             )
 
         if 'fetch_logs' in self.kwargs and self.kwargs['fetch_logs'] is True:
             self.log.info(
-                "Logs for Command Id: %s \n%s",
-                self.cmd.id, self.cmd.get_log()  # type: ignore[attr-defined]
+                "Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log()  # type: ignore[attr-defined]
             )
 
         if self.cmd.status != 'done':  # type: ignore[attr-defined]
@@ -188,14 +187,7 @@ class QuboleHook(BaseHook):
             self.log.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
             self.cmd.cancel()
 
-    def get_results(
-        self,
-        ti=None,
-        fp=None,
-        inline: bool = True,
-        delim=None,
-        fetch: bool = True
-    ) -> str:
+    def get_results(self, ti=None, fp=None, inline: bool = True, delim=None, fetch: bool = True) -> str:
         """
         Get results (or just s3 locations) of a command from Qubole and save into a file
 

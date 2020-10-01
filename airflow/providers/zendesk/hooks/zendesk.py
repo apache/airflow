@@ -50,13 +50,7 @@ class ZendeskHook(BaseHook):
         self.log.info("Hit Zendesk API rate limit. Pausing for %s seconds", retry_after)
         time.sleep(retry_after)
 
-    def call(
-        self,
-        path,
-        query=None,
-        get_all_pages: bool = True,
-        side_loading: bool = False
-    ) -> dict:
+    def call(self, path, query=None, get_all_pages: bool = True, side_loading: bool = False) -> dict:
         """
         Call Zendesk API and return results
 
