@@ -24,22 +24,17 @@ import calendar
 import logging
 import os
 import time
-from datetime import datetime
 from typing import Optional
 
+import pendulum
 import yaml
 from kubernetes.client import Configuration
 from kubernetes.config.exec_provider import ExecProvider
 from kubernetes.config.kube_config import KUBE_CONFIG_DEFAULT_LOCATION, KubeConfigLoader
 
 
-def _parse_timestamp(ts_str: str) -> int:
-    if ts_str[-1] == 'Z':
-        ts_str = ts_str[:-1] + '+0000'
-    expire_ts = calendar.timegm(
-        datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S%z").timetuple()
-    )
-    return expire_ts
+def _parse_timestamp(ts_str: str) -> time.struct_time:
+    return calendar.timegm(pendulum.parse(ts_str).timetuple())
 
 
 class RefreshKubeConfigLoader(KubeConfigLoader):
