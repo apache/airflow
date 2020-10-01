@@ -42,6 +42,7 @@ Use the ``filepath`` parameter to poke until the provided file is found.
 
 .. exampleinclude:: /../airflow/providers/apache/hdfs/example_dags/
 
+
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_hdfs_folder_sensor]
