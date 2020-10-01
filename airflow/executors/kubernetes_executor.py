@@ -64,26 +64,12 @@ class ResourceVersion:
     """Singleton for tracking resourceVersion from Kubernetes"""
 
     _instance = None
-    _resource_version = "0"
+    resource_version = "0"
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
-
-    @property
-    def resource_version(self) -> str:
-        """
-        Get resourceVersion for Kubernetes object tracking
-        """
-        return self._resource_version
-
-    @resource_version.setter
-    def resource_version(self, value: str) -> None:
-        """
-        Set resourceVersion for Kubernetes object tracking
-        """
-        self._resource_version = value  # pylint: disable=protected-access
 
 
 class KubeConfig:  # pylint: disable=too-many-instance-attributes
@@ -605,10 +591,6 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             raise AirflowException("Could not get scheduler_job_id")
         self.scheduler_job_id = self.job_id
         self.log.debug('Start with scheduler_job_id: %s', self.scheduler_job_id)
-        # always need to reset resource version since we don't know
-        # when we last started, note for behavior below
-        # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs
-        # /CoreV1Api.md#list_namespaced_pod
         self.kube_client = get_kube_client()
         self.kube_scheduler = AirflowKubernetesScheduler(
             self.kube_config, self.task_queue, self.result_queue,
