@@ -60,7 +60,7 @@ from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.sqlalchemy import nowait, skip_locked
+from airflow.utils.sqlalchemy import nowait, skip_locked, with_for_update
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -840,7 +840,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # We need to do this for mysql as well because it can cause deadlocks
         # as discussed in https://issues.apache.org/jira/browse/AIRFLOW-2516
         if self.using_sqlite or self.using_mysql:
-            tis_to_change: List[TI] = query.with_for_update().all()
+            tis_to_change: List[TI] = with_for_update(query).all()
             for ti in tis_to_change:
                 ti.set_state(new_state, session=session)
                 tis_changed += 1
@@ -933,7 +933,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # Get all task instances associated with scheduled
         # DagRuns which are not backfilled, in the given states,
         # and the dag is not paused
-        task_instances_to_examine: List[TI] = (
+        query = (
             session
             .query(TI)
             .outerjoin(TI.dag_run)
@@ -944,9 +944,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .filter(TI.state == State.SCHEDULED)
             .options(selectinload('dag_model'))
             .limit(max_tis)
-            .with_for_update(of=TI, **skip_locked(session=session))
-            .all()
         )
+
+        task_instances_to_examine: List[TI] = with_for_update(
+            query,
+            of=TI,
+            **skip_locked(session=session),
+        ).all()
         # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
         # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
 
@@ -1179,7 +1183,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 for dag_id, task_id, execution_date, try_number
                 in self.executor.queued_tasks.keys()])
         ti_query = session.query(TI).filter(or_(*filter_for_ti_state_change))
-        tis_to_set_to_scheduled: List[TI] = ti_query.with_for_update().all()
+        tis_to_set_to_scheduled: List[TI] = with_for_update(ti_query).all()
         if not tis_to_set_to_scheduled:
             return
 
@@ -1746,7 +1750,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             Stats.incr(self.__class__.__name__.lower() + '_end', num_failed)
 
         resettable_states = [State.SCHEDULED, State.QUEUED, State.RUNNING]
-        tis_to_reset_or_adopt = (
+        query = (
             session.query(TI).filter(TI.state.in_(resettable_states))
             # outerjoin is because we didn't use to have queued_by_job
             # set, so we need to pick up anything pre upgrade. This (and the
@@ -1759,10 +1763,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     # pylint: disable=comparison-with-callable
                     DagRun.state == State.RUNNING)
             .options(load_only(TI.dag_id, TI.task_id, TI.execution_date))
-            # Lock these rows, so that another scheduler can't try and adopt these too
-            .with_for_update(of=TI, **skip_locked(session=session))
-            .all()
         )
+
+        # Lock these rows, so that another scheduler can't try and adopt these too
+        tis_to_reset_or_adopt = with_for_update(query, of=TI, **skip_locked(session=session)).all()
         to_reset = self.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
 
         reset_tis_message = []

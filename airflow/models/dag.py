@@ -58,7 +58,7 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked
+from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_for_update
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -1696,14 +1696,12 @@ class DAG(BaseDag, LoggingMixin):
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
         dag_ids = set(dag_by_ids.keys())
-        orm_dags = (
+        query = (
             session
             .query(DagModel)
             .options(joinedload(DagModel.tags, innerjoin=False))
-            .filter(DagModel.dag_id.in_(dag_ids))
-            .with_for_update(of=DagModel)
-            .all()
-        )
+            .filter(DagModel.dag_id.in_(dag_ids)))
+        orm_dags = with_for_update(query, of=DagModel).all()
 
         existing_dag_ids = {orm_dag.dag_id for orm_dag in orm_dags}
         missing_dag_ids = dag_ids.difference(existing_dag_ids)
@@ -2106,13 +2104,15 @@ class DagModel(Base):
         # TODO[HA]: Bake this query, it is run _A lot_
         # TODO[HA]: Make this limit a tunable. We limit so that _one_ scheduler
         # doesn't try to do all the creation of dag runs
-        return session.query(cls).filter(
+        query = session.query(cls).filter(
             cls.is_paused.is_(False),
             cls.is_active.is_(True),
             cls.next_dagrun_create_after <= func.now(),
         ).order_by(
             cls.next_dagrun_create_after
-        ).limit(10).with_for_update(of=cls, **skip_locked(session=session))
+        ).limit(10)
+
+        return with_for_update(query, of=cls, **skip_locked(session=session))
 
 
 STATICA_HACK = True

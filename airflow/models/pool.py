@@ -26,6 +26,7 @@ from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
 from airflow.utils.session import provide_session
+from airflow.utils.sqlalchemy import with_for_update as add_with_for_update
 from airflow.utils.state import State
 
 
@@ -99,9 +100,9 @@ class Pool(Base):
 
         if with_for_update:
             if isinstance(with_for_update, bool):
-                query = query.with_for_update()
+                query = add_with_for_update(query)
             else:
-                query = query.with_for_update(**with_for_update)
+                query = add_with_for_update(query, **with_for_update)
 
         pool_rows: Iterable[Tuple[str, int]] = query.all()
         for (pool_name, total_slots) in pool_rows:
