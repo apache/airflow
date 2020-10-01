@@ -1,20 +1,14 @@
 <!--
- Licensed to the Apache Software Foundation (ASF) under one
- or more contributor license agreements.  See the NOTICE file
- distributed with this work for additional information
- regarding copyright ownership.  The ASF licenses this file
+ Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements.  See the NOTICE file distributed with this work for additional information regarding copyright ownership.  The ASF licenses this file
  to you under the Apache License, Version 2.0 (the
- "License"); you may not use this file except in compliance
- with the License.  You may obtain a copy of the License at
+ "License"); you may not use this file except in compliance with the License.  You may obtain a copy of the License at
 
    http://www.apache.org/licenses/LICENSE-2.0
 
  Unless required by applicable law or agreed to in writing,
  software distributed under the License is distributed on an
  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- KIND, either express or implied.  See the License for the
- specific language governing permissions and limitations
- under the License.
+ KIND, either express or implied.  See the License for the specific language governing permissions and limitations under the License.
 -->
 # Apache Airflow
 
@@ -55,7 +49,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Airflow merchandise](#airflow-merchandise)
 - [Links](#links)
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+<!-- END doctoc generated TOC please keep comment here to allow auto-update -->
 
 ## Requirements
 
@@ -69,7 +63,7 @@ Apache Airflow is tested with:
 | SQLite       | latest stable             | latest stable            |
 | Kubernetes   | 1.16.2, 1.17.0            | 1.16.2, 1.17.0           |
 
-> Note: SQLite is used primarily for development purpose.
+> Note: SQLite is used primarily for development purposes.
 
 ### Additional notes on Python version requirements
 
@@ -79,7 +73,7 @@ Apache Airflow is tested with:
 
 Visit the official Airflow website documentation (latest **stable** release) for help with [installing Airflow](https://airflow.apache.org/installation.html), [getting started](https://airflow.apache.org/start.html), or walking through a more complete [tutorial](https://airflow.apache.org/tutorial.html).
 
-> Note: If you're looking for documentation for master branch (latest development branch): you can find it on [ReadTheDocs](https://airflow.readthedocs.io/en/latest/).
+> Note: If you're looking for documentation for the master branch (latest development branch): you can find it on [ReadTheDocs](https://airflow.readthedocs.io/en/latest/).
 
 For more information on Airflow's Roadmap or Airflow Improvement Proposals (AIPs), visit the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home).
 
@@ -87,14 +81,14 @@ Official Docker (container) images for Apache Airflow are described in [IMAGES.r
 
 ## Installing from PyPI
 
-We publish Apache Airflow as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
+We publish Apache Airflow as an `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
 because Airflow is a bit of both a library and application. Libraries usually keep their dependencies open and
 applications usually pin them, but we should do neither and both at the same time. We decided to keep
 our dependencies as open as possible (in `setup.py`) so users can install different versions of libraries
 if needed. This means that from time to time plain `pip install apache-airflow` will not work or will
 produce unusable Airflow installation.
 
-In order to have repeatable installation, however, introduced in **Airflow 1.10.10** and updated in
+To have repeatable installation, however, introduced in **Airflow 1.10.10** and updated in
 **Airflow 1.10.12** we also keep a set of "known-to-be-working" constraint files in the
 orphan `constraints-master` and `constraints-1-10` branches. We keep those "known-to-be-working"
 constraints files separately per major/minor python version.
@@ -128,20 +122,20 @@ and our official source code releases:
   [Release Approval Process](http://www.apache.org/legal/release-policy.html#release-approval)
 
 Following the ASF rules, the source packages released must be sufficient for a user to build and test the
-release provided they have access to the appropriate platform and tools.
+the release provided they have access to the appropriate platform and tools.
 
 ## Convenience packages
 
 There are other ways of installing and using Airflow. Those are "convenience" methods - they are
 not "official releases" as stated by the `ASF Release Policy`, but they can be used by the users
-who do not want to build the software themselves.
+who does not want to build the software themselves?
 
 Those are - in the order of most common ways people install Airflow:
 
 - [PyPI releases](https://pypi.org/project/apache-airflow/) to install Airflow using standard `pip` tool
 - [Docker Images](https://hub.docker.com/repository/docker/apache/airflow) to install airflow via
   `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm` etc. You can
-  read more about using, customising, and extending the images in the
+  read more about using, customizing, and extending the images in the
   [Latest docs](https://airflow.readthedocs.io/en/latest/production-deployment.html), and
   learn details on the internals in the [IMAGES.rst](IMAGES.rst) document.
 - [Tags in GitHub](https://github.com/apache/airflow/tags) to retrieve the git project sources that
@@ -153,16 +147,16 @@ following the ASF Policy.
 
 ## Project Focus
 
-Airflow works best with workflows that are mostly static and slowly changing. When the structure is similar from one run to the next, it allows for clarity around unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](http://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
+Airflow works best with workflows that are mostly static and slowly changing. When the structure is similar from one run to the next, it allows for clarity around a unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](http://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
 
-Airflow is commonly used to process data, but has the opinion that tasks should ideally be idempotent, and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [Xcom feature](https://airflow.apache.org/docs/stable/concepts.html#xcoms)). For high-volume, data-intensive tasks, a best practice is to delegate to external services that specialize on that type of work.
+Airflow is commonly used to process data but has the opinion that tasks should ideally be idempotent, and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [Xcom feature](https://airflow.apache.org/docs/stable/concepts.html#xcoms)). For high-volume, data-intensive tasks, a best practice is to delegate to external services that specialize in that type of work.
 
 Airflow **is not** a streaming solution. Airflow is not in the [Spark Streaming](http://spark.apache.org/streaming/) or [Storm](https://storm.apache.org/) space.
 
 ## Principles
 
 - **Dynamic**:  Airflow pipelines are configuration as code (Python), allowing for dynamic pipeline generation. This allows for writing code that instantiates pipelines dynamically.
-- **Extensible**:  Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
+- **Extensible**:  Easily define your own operators, executors, and extend the library so that it fits the level of abstraction that suits your environment.
 - **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
 - **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
 
@@ -188,7 +182,7 @@ Airflow **is not** a streaming solution. Airflow is not in the [Spark Streaming]
 
   ![](/docs/img/gantt.png)
 
-- **Code View**:  Quick way to view source code of a DAG.
+- **Code View**:  Quick way to view the source code of a DAG.
 
   ![](/docs/img/code.png)
 
