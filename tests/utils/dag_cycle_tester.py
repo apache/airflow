@@ -46,6 +46,25 @@ class TestCycleTester(unittest.TestCase):
 
         self.assertFalse(test_cycle(dag))
 
+    def test_semi_complex(self):
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        # A -> B -> C
+        #      B -> D
+        # E -> F
+        with dag:
+            create_cluster = DummyOperator(task_id="c")
+            pod_task = DummyOperator(task_id="p")
+            pod_task_xcom = DummyOperator(task_id="x")
+            delete_cluster = DummyOperator(task_id="d")
+            pod_task_xcom_result = DummyOperator(task_id="r")
+            create_cluster >> pod_task >> delete_cluster
+            create_cluster >> pod_task_xcom >> delete_cluster
+            pod_task_xcom >> pod_task_xcom_result
+
     def test_cycle_no_cycle(self):
         # test no cycle
         dag = DAG(
@@ -117,17 +136,15 @@ class TestCycleTester(unittest.TestCase):
 
         # A -> B -> C -> D -> E -> A
         with dag:
-            op1 = DummyOperator(task_id='A')
-            op2 = DummyOperator(task_id='B')
-            op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op1.set_downstream(op2)
-            op2.set_downstream(op3)
-            op3.set_downstream(op4)
-            op4.set_downstream(op5)
-            op5.set_downstream(op1)
+            start = DummyOperator(task_id='start')
+            current = start
 
+            for i in range(10000):
+                next_task = DummyOperator(task_id=f'task_{i}')
+                current.set_downstream(next_task)
+                current = next_task
+
+            current.set_downstream(start)
         with self.assertRaises(AirflowDagCycleException):
             self.assertFalse(test_cycle(dag))
 

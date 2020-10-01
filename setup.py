@@ -640,8 +640,7 @@ devel_all = list(set(devel +
                      [req for req_list in EXTRAS_REQUIREMENTS.values() for req in req_list] +
                      [req for req_list in PROVIDERS_REQUIREMENTS.values() for req in req_list]))
 
-PACKAGES_EXCLUDED_FOR_ALL = [
-]
+PACKAGES_EXCLUDED_FOR_ALL = []
 
 if PY3:
     PACKAGES_EXCLUDED_FOR_ALL.extend([
@@ -663,11 +662,12 @@ PACKAGES_EXCLUDED_FOR_CI = [
 def is_package_excluded(package: str, exclusion_list: List[str]):
     """
     Checks if package should be excluded.
+
     :param package: package name (beginning of it)
     :param exclusion_list: list of excluded packages
     :return: true if package should be excluded
     """
-    return any([package.startswith(excluded_package) for excluded_package in exclusion_list])
+    return any(package.startswith(excluded_package) for excluded_package in exclusion_list)
 
 
 devel_all = [package for package in devel_all if not is_package_excluded(

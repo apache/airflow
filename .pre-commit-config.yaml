@@ -381,6 +381,12 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['pyyaml']
+      - id: bats-in-container-tests
+        name: Run in container bats tests
+        language: system
+        entry: "./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh"
+        files: ^tests/bats/in_container/.*.bats$|^scripts/in_container/.*sh
+        pass_filenames: false
       - id: mypy
         name: Run mypy
         language: system
@@ -406,7 +412,8 @@ repos:
         name: Run BATS bash tests for changed bash files
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh"
-        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|.bats$
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
+        exclude: ^tests/bats/in_container/.*bats$|^scripts/in_container/.*sh$
         pass_filenames: false
       - id: stylelint
         name: stylelint
