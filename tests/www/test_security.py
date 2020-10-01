@@ -76,9 +76,9 @@ class TestSecurity(unittest.TestCase):
         cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
         cls.app.config['WTF_CSRF_ENABLED'] = False
         cls.security_manager = cls.appbuilder.sm
-        role_admin = cls.security_manager.find_role('Admin')
+        cls.role_admin = cls.security_manager.find_role('Admin')
         cls.user = cls.appbuilder.sm.add_user(
-            'admin', 'admin', 'user', 'admin@fab.org', role_admin, 'general'
+            'admin', 'admin', 'user', 'admin@fab.org', cls.role_admin, 'general'
         )
 
     def setUp(self):
@@ -164,7 +164,7 @@ class TestSecurity(unittest.TestCase):
 
     @mock.patch('airflow.www.security.AirflowSecurityManager.get_user_roles')
     def test_get_all_permissions_views(self, mock_get_user_roles):
-        role_name = 'MyRole1'
+        role_name = 'MyRole5'
         role_perms = ['can_some_action']
         role_vms = ['SomeBaseView']
         self.security_manager.init_role(role_name, role_vms, role_perms)
@@ -244,8 +244,17 @@ class TestSecurity(unittest.TestCase):
             'can_varimport',  # a real permission, but not a member of DAG_PERMS
             'can_eat_pudding',  # clearly not a real permission
         ]
+        username = "Mrs. User"
+        user = self.security_manager.add_user(
+            username=username,
+            first_name=username,
+            last_name=username,
+            email=f"{username}@fab.org",
+            role=self.role_admin,
+            password=username,
+        )
         for permission in invalid_permissions:
-            self.expect_user_is_in_role(self.user, rolename='team-a')
+            self.expect_user_is_in_role(user, rolename='team-a')
             with self.assertRaises(AirflowException) as context:
                 self.security_manager.sync_perm_for_dag(
                     'access_control_test',
