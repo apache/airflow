@@ -31,10 +31,11 @@ Option has been removed because it is no longer supported by the Google Kubernet
     def check(self):
         gcp_option = conf.get(section="kubernetes", key="gcp_service_account_keys")
         if gcp_option != "":
-            msg = "This option has been removed because it is no longer \
-                supported by the Google Kubernetes Engine. The new recommended \
-                service account keys for the Google Cloud management method is \
-                Workload Identity."
+            msg = """
+This option has been removed because it is no longer \
+supported by the Google Kubernetes Engine. The new recommended \
+service account keys for the Google Cloud management method is \
+Workload Identity."""
             return [msg]
         else:
             return []

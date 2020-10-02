@@ -16,7 +16,7 @@
 # under the License.
 from unittest import TestCase
 
-from airflow.upgrade.rules.send_grid_moved import GCPServiceAccountKeyRule
+from airflow.upgrade.rules.gcp_service_account_keys_rule import GCPServiceAccountKeyRule
 from tests.test_utils.config import conf_vars
 
 
@@ -29,10 +29,11 @@ class TestGCPServiceAccountKeyRule(TestCase):
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
 
-        msg = "This option has been removed because it is no longer \
-            supported by the Google Kubernetes Engine. The new recommended \
-            service account keys for the Google Cloud management method is \
-            Workload Identity."
+        msg = """
+This option has been removed because it is no longer \
+supported by the Google Kubernetes Engine. The new recommended \
+service account keys for the Google Cloud management method is \
+Workload Identity."""
         response = rule.check()
         assert response == [msg]
 
