@@ -900,15 +900,16 @@ def make_sure_remote_apache_exists_and_fetch():
     :return:
     """
     try:
-        subprocess.check_call(["git", "remote", "add", "apache", "https://github.com/apache/airflow.git"],
+        subprocess.check_call(["git", "remote", "add", "apache-https-for-backports",
+                               "https://github.com/apache/airflow.git"],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError as e:
         if e.returncode == 128:
-            print("The remote `apache` already exists. If you have trouble running "
+            print("The remote `apache-https-for-backports` already exists. If you have trouble running "
                   "git log delete the remote", file=sys.stderr)
         else:
             raise
-    subprocess.check_call(["git", "fetch", "apache"],
+    subprocess.check_call(["git", "fetch", "apache-https-for-backports"],
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -918,7 +919,8 @@ def get_git_command(base_commit: Optional[str]) -> List[str]:
     :param base_commit: if present - base commit from which to start the log from
     :return: git command to run
     """
-    git_cmd = ["git", "log", "apache/master", "--pretty=format:%H %h %cd %s", "--date=short"]
+    git_cmd = ["git", "log", "apache-https-for-backports/master",
+               "--pretty=format:%H %h %cd %s", "--date=short"]
     if base_commit:
         git_cmd.append(f"{base_commit}...HEAD")
     git_cmd.extend(['--', '.'])

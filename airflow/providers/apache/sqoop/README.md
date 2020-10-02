@@ -20,19 +20,19 @@
 
 # Package apache-airflow-backport-providers-apache-sqoop
 
-Release: 2020.6.24
+Release: 2020.9.7
 
 **Table of contents**
 
 - [Backport package](#backport-package)
 - [Installation](#installation)
-- [Compatibility](#compatibility)
 - [Provider class summary](#provider-classes-summary)
     - [Operators](#operators)
         - [Moved operators](#moved-operators)
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
+    - [Release 2020.9.7](#release-202097)
     - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
@@ -52,11 +52,6 @@ want to use this backport package.
 You can install this package on top of an existing airflow 1.10.* installation via
 `pip install apache-airflow-backport-providers-apache-sqoop`
 
-## Compatibility
-
-For full compatibility and test status of the backport packages check
-[Airflow Backport Package Compatibility](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
-
 # Provider classes summary
 
 In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apache.sqoop` provider
@@ -68,17 +63,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 
-
 ### Moved operators
 
 | Airflow 2.0 operators: `airflow.providers.apache.sqoop` package                                                                  | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                      |
 |:---------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.sqoop.SqoopOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/sqoop/operators/sqoop.py) | [contrib.operators.sqoop_operator.SqoopOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/sqoop_operator.py) |
-
-
-
-
-
 
 
 ## Hooks
@@ -93,10 +82,20 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 
-
-
-
 ## Releases
+
+### Release 2020.9.7
+
+| Commit                                                                                         | Committed   | Subject                                                      |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------|
+| [fdd9b6f65](https://github.com/apache/airflow/commit/fdd9b6f65b608c516b8a062b058972d9a45ec9e3) | 2020-08-25  | Enable Black on Providers Packages (#10543)                  |
+| [3696c34c2](https://github.com/apache/airflow/commit/3696c34c28c6bc7b442deab999d9ecba24ed0e34) | 2020-08-24  | Fix typo in the word &#34;release&#34; (#10528)                      |
+| [ee7ca128a](https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94) | 2020-08-22  | Fix broken Markdown refernces in Providers README (#10483)   |
+| [3b3287d7a](https://github.com/apache/airflow/commit/3b3287d7acc76430f12b758d52cec61c7f74e726) | 2020-08-05  | Enforce keyword only arguments on apache operators (#10170)  |
+| [33f0cd265](https://github.com/apache/airflow/commit/33f0cd2657b2e77ea3477e0c93f13f1474be628e) | 2020-07-22  | apply_default keeps the function signature for mypy (#9784)  |
+| [4d74ac211](https://github.com/apache/airflow/commit/4d74ac2111862186598daf92cbf2c525617061c2) | 2020-07-19  | Increase typing for Apache and http provider package (#9729) |
+| [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)               |
+
 
 ### Release 2020.6.24
 
