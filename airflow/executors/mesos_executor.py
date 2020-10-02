@@ -303,13 +303,10 @@ class AirflowMesosScheduler(MesosClient):
             return
 
         if update['status']['state'] == "TASK_RUNNING":
-            self.executor.change_state(key, State.RUNNING)
-            if "set_state" in dir(ti):
-                ti.set_state(State.RUNNING)
             return
 
         if update['status']['state'] == "TASK_FINISHED":
-            self.executor.change_state(key, State.SUCCESS)
+            self.executor.success(key)
             if "set_state" in dir(ti):
                 ti.set_state(State.SUCCESS)
             self.task_queue.task_done()
@@ -318,7 +315,7 @@ class AirflowMesosScheduler(MesosClient):
         if update['status']['state'] == "TASK_LOST" or \
            update['status']['state'] == "TASK_KILLED" or \
            update['status']['state'] == "TASK_FAILED":
-            self.executor.change_state(key, State.FAILED)
+            self.executor.fail(key)
             if "set_state" in dir(ti):
                 ti.set_state(State.FAILED)
             self.task_queue.task_done()
@@ -400,17 +397,33 @@ class MesosExecutor(BaseExecutor):
                     # with running tasks.
                     framework_id = connection.extra
 
-                # framework_failover_timeout = configuration.conf.getint(
-                #    'mesos', 'FAILOVER_TIMEOUT'
-                # )
+                # Set Timeout in the case of a mesos master leader change
+                framework_failover_timeout = configuration.conf.getint(
+                    'mesos', 'FAILOVER_TIMEOUT'
+                )
+
         else:
             framework_checkpoint = False
 
         self.log.info(
-            'MesosFramework master : %s, name : %s, cpu : %s, mem : %s, checkpoint : %s',
+            'MesosFramework master : %s, name : %s, cpu : %s, mem : %s, checkpoint : %s, id : %s',
             master, framework_name,
-            str(task_cpu), str(task_memory), str(framework_checkpoint)
+            str(task_cpu), str(task_memory), str(framework_checkpoint), str(framework_id)
         )
+
+
+        master_urls = "https://" + master
+
+        self.client = MesosClient(
+            mesos_urls=master_urls.split(','),
+            frameworkName=framework_name,
+            frameworkId=None
+        )
+
+        if framework_failover_timeout:
+            self.client.set_failover_timeout(framework_failover_timeout)
+        if framework_checkpoint:
+            self.client.set_checkpoint(framework_checkpoint)
 
         if configuration.conf.getboolean('mesos', 'AUTHENTICATE'):
             if not configuration.conf.get('mesos', 'DEFAULT_PRINCIPAL'):
@@ -421,24 +434,16 @@ class MesosExecutor(BaseExecutor):
                 self.log.error("Expecting authentication secret in the environment")
                 raise AirflowException(
                     "mesos.default_secret not provided in authenticated mode")
-
-            master_urls = "https://" + master
-
-            self.client = MesosClient(
-                mesos_urls=master_urls.split(','),
-                frameworkName=framework_name,
-                frameworkId=framework_id
-            )
             self.client.principal = configuration.conf.get('mesos', 'DEFAULT_PRINCIPAL')
             self.client.secret = configuration.conf.get('mesos', 'DEFAULT_SECRET')
 
-            driver = AirflowMesosScheduler(self, self.task_queue, task_cpu, task_memory)
-            self.driver = driver
-            self.client.on(MesosClient.SUBSCRIBED, driver.subscribed)
-            self.client.on(MesosClient.UPDATE, driver.status_update)
-            self.client.on(MesosClient.OFFERS, driver.resource_offers)
-            self.th = MesosExecutor.MesosFramework(self.client)
-            self.th.start()
+        driver = AirflowMesosScheduler(self, self.task_queue, task_cpu, task_memory)
+        self.driver = driver
+        self.client.on(MesosClient.SUBSCRIBED, driver.subscribed)
+        self.client.on(MesosClient.UPDATE, driver.status_update)
+        self.client.on(MesosClient.OFFERS, driver.resource_offers)
+        self.th = MesosExecutor.MesosFramework(self.client)
+        self.th.start()
 
     def queue_task_instance(
             self,

@@ -192,11 +192,11 @@ class BaseExecutor(LoggingMixin):
         :param key: Unique key for the task instance
         :param state: State to set for the task.
         """
-        self.log.debug("Changing state: %s", key)
+        self.log.info("Changing state: %s", key)
         try:
             self.running.remove(key)
         except KeyError:
-            self.log.debug('Could not find key: %s', str(key))
+            self.log.info('Could not find key: %s', str(key))
         self.event_buffer[key] = state, info
 
     def fail(self, key: TaskInstanceKey, info=None) -> None:

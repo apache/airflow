@@ -337,6 +337,15 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="mesos_framework_Airflow",
+            conn_type="mesos_framework-id",
+            host="localhost",
+            port=5050,
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="metastore_default",
             conn_type="hive_metastore",
             host="localhost",
