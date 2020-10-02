@@ -213,7 +213,10 @@ def get_long_description(provider_package_id: str) -> str:
     :return: content of the description (README file)
     """
     package_folder = get_target_providers_package_folder(provider_package_id)
-    with open(os.path.join(package_folder, "README.md"), encoding='utf-8', mode="w+") as file:
+    readme_file = os.path.join(package_folder, "README.md")
+    if not(os.path.exists(readme_file)):
+        return ""
+    with open(os.path.join(package_folder, "README.md"), encoding='utf-8', mode="r") as file:
         readme_contents = file.read()
     copying = True
     long_description = ""
