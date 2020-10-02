@@ -160,13 +160,14 @@ with DAG(
         )
 
         load_to_hdfs << analyze_tweets
-
+        # [START howto_operator_hive_hive_operator]
         load_to_hive = HiveOperator(
             task_id="load_" + channel + "_to_hive",
             hql="LOAD DATA INPATH '" + hdfs_dir + channel + "/" + file_name + "' "
             "INTO TABLE " + channel + " "
             "PARTITION(dt='" + dt + "')",
         )
+        # [END howto_operator_hive_hive_operator]
         load_to_hive << load_to_hdfs
         load_to_hive >> hive_to_mysql
 
