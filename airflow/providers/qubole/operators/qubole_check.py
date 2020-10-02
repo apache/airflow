@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Iterable, Union
+from typing import Iterable, Union, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
@@ -165,7 +165,7 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
         self,
         *,
         pass_value: Union[str, int, float],
-        tolerance: Union[int, float, None] = None,
+        tolerance: Optional[Union[int, float]] = None,
         results_parser_callable=None,
         qubole_conn_id: str = "qubole_default",
         **kwargs,

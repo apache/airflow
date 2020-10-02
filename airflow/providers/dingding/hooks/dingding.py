@@ -52,7 +52,7 @@ class DingdingHook(HttpHook):
         self,
         dingding_conn_id='dingding_default',
         message_type: str = 'text',
-        message: Union[str, dict, None] = None,
+        message: Optional[Union[str, dict]] = None,
         at_mobiles: Optional[List[str]] = None,
         at_all: bool = False,
         *args,
