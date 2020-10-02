@@ -25,8 +25,7 @@ class GCPServiceAccountKeyRule(BaseRule):
     title = "GCP service account key deprecation"
 
     description = """
-Option has been removed because it is no longer supported by the Google Kubernetes Engine.
-    """
+Option has been removed because it is no longer supported by the Google Kubernetes Engine."""
 
     def check(self):
         gcp_option = conf.get(section="kubernetes", key="gcp_service_account_keys")
