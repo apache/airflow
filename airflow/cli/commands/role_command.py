@@ -41,3 +41,45 @@ def roles_create(args):
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     for role_name in args.role:
         appbuilder.sm.add_role(role_name)
+
+def prefixed_dag_id(dag_id):
+    if dag_id.startswith("DAG:"):
+        return dag_id
+    return f"DAG:{dag_id}"
+
+def raw_dag_id(dag_id):
+    if dag_id == 'all_dags':
+        return 'Dag'
+    if dag_id.startswith("DAG:"):
+        return dag_id[len("DAG:")]
+    return f"DAG:{dag_id}"
+
+def new_dag_action(old_action):
+    if old_action == 'can_dag_read':
+        return 'can_read'
+    return 'can_edit'
+
+def roles_upgrade(args):
+    """Creates new empty role in DB"""
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    roles = appbuilder.sm.get_all_roles()
+    outdated_dag_permissions = set()
+    for role in roles:
+        breakpoint()
+        for permission in role.permissions:
+            resource = permission.view_menu
+            action = permission.permission
+            print(action.name)
+            if action.name in ['can_dag_read', 'can_dag_edit']:
+                appbuilder.sm.del_permission_role(role, permission)
+                appbuilder.sm.del_permission_view_menu(action.name, resource.name)
+                if not appbuilder.sm.find_permissions_view_menu(resource):
+                    appbuilder.sm.del_view_menu(resource.name)
+                new_action = new_dag_action(action.name)
+                pv = appbuilder.sm.add_permission_view_menu(new_action, prefixed_dag_id(resource.name))
+                appbuilder.sm.add_permission_role(role, pv)
+                # breakpoint()
+                print(f"{role.name}: {resource.name}.{action.name} -> {pv.view_menu.name}.{new_action}")
+
+if __name__ == '__main__':
+    roles_upgrade({"output": None})

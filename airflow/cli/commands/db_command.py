@@ -49,6 +49,12 @@ def upgradedb(args):
     print("DB: " + repr(settings.engine.url))
     db.upgradedb()
 
+@cli_utils.action_logging
+def downgradedb(args):
+    """Upgrades the metadata database"""
+    print("DB: " + repr(settings.engine.url))
+    db.downgradedb()
+
 
 def check_migrations(args):
     """Function to wait for all airflow migrations to complete. Used for launching airflow in k8s"""
