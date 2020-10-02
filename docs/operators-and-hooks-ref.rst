@@ -172,7 +172,7 @@ Foundation.
      -
 
    * - `Apache Hive <https://hive.apache.org/>`__
-     -
+     - :doc:`How to use <howto/operator/apache/hive>`
      - :mod:`airflow.providers.apache.hive.hooks.hive`
      - :mod:`airflow.providers.apache.hive.operators.hive`,
        :mod:`airflow.providers.apache.hive.operators.hive_stats`
