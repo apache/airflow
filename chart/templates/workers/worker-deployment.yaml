@@ -133,7 +133,17 @@ spec:
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
               readOnly: true
             {{- end }}
-{{- if .Values.scheduler.airflowLocalSettings }}
+            {{- if .Values.hadoop.enabled }}
+            - name: hadoop-config-vol
+              mountPath: {{ .Values.hadoop.configPath | quote }}
+              readOnly: true
+            {{- end }}
+            {{- if .Values.spark.enabled }}
+            - name: spark-config-vol
+              mountPath: {{ .Values.spark.configPath | quote }}
+              readOnly: true
+            {{- end }}
+  {{- if .Values.scheduler.airflowLocalSettings }}
             - name: config
               mountPath: {{ template "airflow_local_setting_path" . }}
               subPath: airflow_local_settings.py
@@ -144,6 +154,12 @@ spec:
               mountPath: {{ template "airflow_dags_mount_path" . }}
 {{- end }}
           env:
+            - name: HADOOP_CONF_DIR
+              value: {{ .Values.hadoop.configPath }}
+            - name: SPARK_CONF_DIR
+              value: {{ .Values.spark.configPath }}
+            - name: SPARK_HOME
+              value: {{ .Values.spark.homePath }}
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
 {{- if $persistence }}
@@ -196,10 +212,36 @@ spec:
               value:  {{ .Values.kerberos.configPath | quote }}
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
+            - name: HADOOP_CONF_DIR
+              value: {{ .Values.hadoop.configPath }}
+            - name: SPARK_CONF_DIR
+              value: {{ .Values.spark.configPath }}
+            - name: SPARK_HOME
+              value: {{ .Values.spark.homePath }}
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
         {{- end }}
       volumes:
+        {{- if .Values.hadoop.enabled }}
+        - name: hadoop-config-vol
+          configMap:
+            name: {{ template "airflow_config" . }}
+            items:
+             - key: core-site.xml
+               path: core-site.xml
+             - key: yarn-site.xml
+               path: yarn-site.xml
+        {{- end }}
+        {{- if .Values.spark.enabled }}
+        - name: spark-config-vol
+          configMap:
+            name: {{ template "airflow_config" . }}
+            items:
+             - key: spark-env.sh
+               path: spark-env.sh
+             - key: log4j.properties
+               path: log4j.properties
+        {{- end }}
         - name: kerberos-keytab
           secret:
             secretName: {{ include "kerberos_keytab_secret" . | quote }}

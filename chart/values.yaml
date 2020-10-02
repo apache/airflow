@@ -233,6 +233,26 @@ kerberos:
       admin_server = admin_server.foo.com
     }
 
+# Specify configuration for connecting to a Hadoop cluster
+hadoop:
+  enabled: false
+  configPath: '/etc/hadoop/conf/'
+  # Contents of core-site.xml to point at your remote hadoop cluster
+  core: ~
+  # Contents of yarn-site.xml to point at your remote hadoop cluster
+  yarn: ~
+
+# Specify configuration for Spark submit
+spark:
+  enabled: false
+  # SPARK_HOME
+  homePath: '/opt/spark'
+  configPath: '/etc/spark/conf/'
+  # Contents of spark-env.sh
+  sparkEnv: |
+    export HADOOP_CONFDIR={{ .Values.hadoop.configPath | quote}}
+    export SPARK_HOME={{ .Values.spark.homePath | quote }}
+
 # Airflow Worker Config
 workers:
   # Number of airflow celery workers in StatefulSet

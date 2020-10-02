@@ -971,6 +971,46 @@
                 }
             }
         },
+        "hadoop": {
+            "description": "Hadoop configurations.",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Enable Hadoop configurations.",
+                    "type": "boolean"
+                },
+                "configPath": {
+                    "description": "Path for volume mount for Hadoop configuration files.",
+                    "type": "string"
+                },
+                "core": {
+                    "description": "Contents of core-site.xml.",
+                    "type": ["string", "null"]
+                },
+                "yarn": {
+                    "description": "Contents of yarn-site.xml.",
+                    "type": ["string", "null"]
+                }
+            }
+        },
+        "spark": {
+            "description": "Spark configurations.",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Enable Spark configurations.",
+                    "type": "boolean"
+                },
+                "configPath": {
+                    "description": "Path for volume mount for Hadoop configuration files.",
+                    "type": "string"
+                },
+                "sparkEnv": {
+                    "description": "Contents of spark-env.sh.",
+                    "type": "string"
+                }
+            }
+        },
         "dags": {
             "description": "DAGs settings.",
             "type": "object",

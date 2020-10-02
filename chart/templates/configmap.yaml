@@ -66,4 +66,16 @@ data:
   krb5.conf: |
     {{ tpl .Values.kerberos.config . | nindent 4 }}
 {{- end }}
+{{- if .Values.hadoop.enabled }}
+  core-site.xml: |
+  {{- tpl .Values.hadoop.core . | nindent 4 }}
+  yarn-site.xml: |
+  {{- tpl .Values.hadoop.yarn . | nindent 4 }}
+{{- end }}
+{{- if .Values.spark.enabled }}
+  spark-env.sh: |
+  {{- tpl .Values.spark.sparkEnv . | nindent 4 }}
+  log4j.properties: |
+  {{- tpl .Values.spark.log4j . | nindent 4 }}
+{{- end }}
 {{- end }}
