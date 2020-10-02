@@ -303,12 +303,15 @@ class AirflowMesosScheduler(MesosClient):
             return
 
         if update['status']['state'] == "TASK_RUNNING":
-            ti.set_state(State.RUNNING)
+            self.executor.change_state(key, State.RUNNING)
+            if "set_state" in dir(ti):
+                ti.set_state(State.RUNNING)
             return
 
         if update['status']['state'] == "TASK_FINISHED":
             self.executor.change_state(key, State.SUCCESS)
-            ti.set_state(State.SUCCESS)
+            if "set_state" in dir(ti):
+                ti.set_state(State.SUCCESS)
             self.task_queue.task_done()
             return
 
@@ -316,7 +319,8 @@ class AirflowMesosScheduler(MesosClient):
            update['status']['state'] == "TASK_KILLED" or \
            update['status']['state'] == "TASK_FAILED":
             self.executor.change_state(key, State.FAILED)
-            ti.set_state(State.FAILED)
+            if "set_state" in dir(ti):
+                ti.set_state(State.FAILED)
             self.task_queue.task_done()
             return
 
@@ -449,7 +453,6 @@ class MesosExecutor(BaseExecutor):
             cfg_path: Optional[str] = None) -> None:
         """Queues task instance."""
         pool = pool or task_instance.pool
-
         command_list_to_run = task_instance.command_as_list(
             local=True,
             mark_success=mark_success,
@@ -500,7 +503,7 @@ class MesosExecutor(BaseExecutor):
         Execute Tasks
         """
         # TODO: workaround for my the pickel failure
-        command[5] = command[5][:-1] + "1"
+        # command[5] = command[5][:-1] + "1"
         self.log.info('Add task %s with command %s with TaskInstance %s', key, command, executor_config)
         self.task_queue.put((key, command, executor_config))
 
