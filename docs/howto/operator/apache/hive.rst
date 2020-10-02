@@ -29,7 +29,7 @@ Apache Hive Operators
 Prerequisite
 ------------
 
-To use operators, you must configure a :doc:`Cassandra Connection <../../connection/hive>`.
+To use operators, you must configure a :doc:`Hive Connection <../../connection/hive>`.
 
 .. _howto/operator:HiveOperator:
 
