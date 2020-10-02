@@ -96,7 +96,7 @@ function initialization::initialize_base_variables() {
     export CURRENT_POSTGRES_VERSIONS
 
    # Currently supported versions of MySQL
-    CURRENT_MYSQL_VERSIONS+=("5.7")
+    CURRENT_MYSQL_VERSIONS+=("5.7" "8")
     export CURRENT_MYSQL_VERSIONS
 
     # Default Postgres versions
