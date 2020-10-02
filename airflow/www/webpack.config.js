@@ -61,6 +61,7 @@ const config = {
     durationChart: `${JS_DIR}/duration_chart.js`,
     trigger: `${JS_DIR}/trigger.js`,
     variableEdit: `${JS_DIR}/variable_edit.js`,
+    astroTheme: `${CSS_DIR}/astro-theme.css`,
   },
   output: {
     path: BUILD_DIR,
