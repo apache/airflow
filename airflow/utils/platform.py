@@ -59,5 +59,4 @@ def get_airflow_git_version():
     except Exception as e:  # pylint: disable=broad-except
         log.debug(e)
 
-
     return git_version
