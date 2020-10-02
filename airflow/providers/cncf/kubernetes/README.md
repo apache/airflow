@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-cncf-kubernetes
 
-Release: 2020.9.7
+Release: 2020.10.5
 
 **Table of contents**
 
@@ -36,7 +36,7 @@ Release: 2020.9.7
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
-    - [Release 2020.9.7](#release-202097)
+    - [Release 2020.10.5](#release-2020105)
 
 ## Backport package
 
@@ -117,10 +117,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020.9.7
+### Release 2020.10.5
 
 | Commit                                                                                         | Committed   | Subject                                                                                      |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------------------------|
+| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                                                 |
 | [a888198c2](https://github.com/apache/airflow/commit/a888198c27bcdbc4538c02360c308ffcaca182fa) | 2020-09-27  | Allow overrides for pod_template_file (#11162)                                               |
 | [0161b5ea2](https://github.com/apache/airflow/commit/0161b5ea2b805d62a0317e5cab6f797b92c8abf1) | 2020-09-26  | Increasing type coverage for multiple provider (#11159)                                      |
 | [e3f96ce7a](https://github.com/apache/airflow/commit/e3f96ce7a8ac098aeef5e9930e6de6c428274d57) | 2020-09-24  | Fix incorrect Usage of Optional[bool] (#11138)                                               |

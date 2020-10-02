@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-plexus
 
-Release: 2020.9.7
+Release: 2020.10.5
 
 **Table of contents**
 
@@ -33,7 +33,7 @@ Release: 2020.9.7
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
-    - [Release 2020.9.7](#release-202097)
+    - [Release 2020.10.5](#release-2020105)
 
 ## Backport package
 
@@ -90,9 +90,10 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020.9.7
+### Release 2020.10.5
 
 | Commit                                                                                         | Committed   | Subject                                                 |
 |:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------|
+| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)            |
 | [0161b5ea2](https://github.com/apache/airflow/commit/0161b5ea2b805d62a0317e5cab6f797b92c8abf1) | 2020-09-26  | Increasing type coverage for multiple provider (#11159) |
 | [b9dc3c51b](https://github.com/apache/airflow/commit/b9dc3c51ba2cba1c61d327488cecf2623d6445b3) | 2020-09-10  | Added Plexus as an Airflow provider (#10591)            |

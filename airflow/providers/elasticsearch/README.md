@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-elasticsearch
 
-Release: 2020.9.7
+Release: 2020.10.5
 
 **Table of contents**
 
@@ -30,7 +30,7 @@ Release: 2020.9.7
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
-    - [Release 2020.9.7](#release-202097)
+    - [Release 2020.10.5](#release-2020105)
     - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
@@ -71,10 +71,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020.9.7
+### Release 2020.10.5
 
 | Commit                                                                                         | Committed   | Subject                                                                               |
 |:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------------------|
+| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                                          |
 | [f3e87c503](https://github.com/apache/airflow/commit/f3e87c503081a3085dff6c7352640d7f08beb5bc) | 2020-09-22  | Add D202 pydocstyle check (#11032)                                                    |
 | [ac943c9e1](https://github.com/apache/airflow/commit/ac943c9e18f75259d531dbda8c51e650f57faa4c) | 2020-09-08  | [AIRFLOW-3964][AIP-17] Consolidate and de-dup sensor tasks using Smart Sensor (#5499) |
 | [70f05ac67](https://github.com/apache/airflow/commit/70f05ac6775152d856d212f845e9561282232844) | 2020-09-01  | Add `log_id` field to log lines on ES handler (#10411)                                |

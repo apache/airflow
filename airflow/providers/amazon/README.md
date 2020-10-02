@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-amazon
 
-Release: 2020.9.7
+Release: 2020.10.5
 
 **Table of contents**
 
@@ -44,7 +44,7 @@ Release: 2020.9.7
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
-    - [Release 2020.9.7](#release-202097)
+    - [Release 2020.10.5](#release-2020105)
     - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
@@ -262,10 +262,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020.9.7
+### Release 2020.10.5
 
 | Commit                                                                                         | Committed   | Subject                                                                       |
 |:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------------------------------------|
+| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                                  |
 | [00ffedb8c](https://github.com/apache/airflow/commit/00ffedb8c402eb5638782628eb706a5f28215eac) | 2020-09-30  | Add amazon glacier to GCS transfer operator (#10947)                          |
 | [e3f96ce7a](https://github.com/apache/airflow/commit/e3f96ce7a8ac098aeef5e9930e6de6c428274d57) | 2020-09-24  | Fix incorrect Usage of Optional[bool] (#11138)                                |
 | [f3e87c503](https://github.com/apache/airflow/commit/f3e87c503081a3085dff6c7352640d7f08beb5bc) | 2020-09-22  | Add D202 pydocstyle check (#11032)                                            |

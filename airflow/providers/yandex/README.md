@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-yandex
 
-Release: 2020.9.7
+Release: 2020.10.5
 
 **Table of contents**
 
@@ -33,7 +33,7 @@ Release: 2020.9.7
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
-    - [Release 2020.9.7](#release-202097)
+    - [Release 2020.10.5](#release-2020105)
     - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
@@ -97,10 +97,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020.9.7
+### Release 2020.10.5
 
 | Commit                                                                                         | Committed   | Subject                                                              |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------|
+| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                         |
 | [5093245d6](https://github.com/apache/airflow/commit/5093245d6f77a370fbd2f9e3df35ac6acf46a1c4) | 2020-09-30  | Strict type coverage for Oracle and Yandex provider  (#11198)        |
 | [9549274d1](https://github.com/apache/airflow/commit/9549274d110f689a0bd709db829a4d69e274eed9) | 2020-09-09  | Upgrade black to 20.8b1 (#10818)                                     |
 | [fdd9b6f65](https://github.com/apache/airflow/commit/fdd9b6f65b608c516b8a062b058972d9a45ec9e3) | 2020-08-25  | Enable Black on Providers Packages (#10543)                          |

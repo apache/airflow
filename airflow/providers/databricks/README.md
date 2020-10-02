@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-databricks
 
-Release: 2020.9.7
+Release: 2020.10.5
 
 **Table of contents**
 
@@ -33,7 +33,7 @@ Release: 2020.9.7
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 2020.9.7](#release-202097)
+    - [Release 2020.10.5](#release-2020105)
     - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
@@ -92,10 +92,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020.9.7
+### Release 2020.10.5
 
 | Commit                                                                                         | Committed   | Subject                                                                                             |
 |:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------------------------------------|
+| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                                                        |
 | [54353f874](https://github.com/apache/airflow/commit/54353f874589f9be236458995147d13e0e763ffc) | 2020-09-27  | Increase type coverage for five different providers (#11170)                                        |
 | [966a06d96](https://github.com/apache/airflow/commit/966a06d96bbfe330f1d2825f7b7eaa16d43b7a00) | 2020-09-18  | Fetching databricks host from connection if not supplied in extras. (#10762)                        |
 | [9549274d1](https://github.com/apache/airflow/commit/9549274d110f689a0bd709db829a4d69e274eed9) | 2020-09-09  | Upgrade black to 20.8b1 (#10818)                                                                    |

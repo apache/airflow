@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-qubole
 
-Release: 2020.9.7
+Release: 2020.10.5
 
 **Table of contents**
 
@@ -35,7 +35,7 @@ Release: 2020.9.7
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 2020.9.7](#release-202097)
+    - [Release 2020.10.5](#release-2020105)
     - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
@@ -109,10 +109,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020.9.7
+### Release 2020.10.5
 
 | Commit                                                                                         | Committed   | Subject                                                                                 |
 |:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------------------------|
+| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                                            |
 | [720912f67](https://github.com/apache/airflow/commit/720912f67b3af0bdcbac64d6b8bf6d51c6247e26) | 2020-10-02  | Strict type check for multiple providers (#11229)                                       |
 | [c58d60635](https://github.com/apache/airflow/commit/c58d60635dbab1a91f38e989f72f91645cb7eb62) | 2020-09-11  | Update qubole_hook to not remove pool as an arg for qubole_operator (#10820)            |
 | [9549274d1](https://github.com/apache/airflow/commit/9549274d110f689a0bd709db829a4d69e274eed9) | 2020-09-09  | Upgrade black to 20.8b1 (#10818)                                                        |

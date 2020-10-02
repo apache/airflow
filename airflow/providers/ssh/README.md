@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-ssh
 
-Release: 2020.9.7
+Release: 2020.10.5
 
 **Table of contents**
 
@@ -33,7 +33,7 @@ Release: 2020.9.7
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 2020.9.7](#release-202097)
+    - [Release 2020.10.5](#release-2020105)
     - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
@@ -93,10 +93,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020.9.7
+### Release 2020.10.5
 
 | Commit                                                                                         | Committed   | Subject                                                              |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------|
+| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                         |
 | [b6d5d1e98](https://github.com/apache/airflow/commit/b6d5d1e985ffc19867647ea0b35fa14c2cdfb59a) | 2020-10-01  | Strict type checking for SSH (#11216)                                |
 | [68fa29bff](https://github.com/apache/airflow/commit/68fa29bff0203bc02b85ef93b7617770219c260a) | 2020-09-25  | Added support for encrypted private keys in SSHHook (#11097)         |
 | [f3e87c503](https://github.com/apache/airflow/commit/f3e87c503081a3085dff6c7352640d7f08beb5bc) | 2020-09-22  | Add D202 pydocstyle check (#11032)                                   |

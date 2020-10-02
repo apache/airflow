@@ -301,10 +301,10 @@ pushd dist
 popd
 ```
 
-* Push tags
+* Push tags to Apache repository (asuming that you have apache remote pointing to apache/airflow repo)]
 
 ```bash
-git push origin backport-providers-${VERSION}
+git push apache backport-providers-${VERSION}
 ```
 
 ### Committing the packages to Apache SVN repo
