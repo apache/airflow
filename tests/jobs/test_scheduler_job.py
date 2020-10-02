@@ -3411,6 +3411,8 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
         clear_db_dags()
         clear_db_sla_miss()
         clear_db_errors()
+        clear_db_serialized_dags()
+        clear_db_dags()
 
     @parameterized.expand(
         [
@@ -3538,7 +3540,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             ([83,  36,  36,  36], 10, 10, "1d", "@once",  "no_structure"),  # noqa
             ([93,  49,  49,  49], 10, 10, "1d", "@once",        "linear"),  # noqa
             ([83, 97, 97, 97], 10, 10, "1d",   "30m",  "no_structure"),  # noqa
-            ([93, 123, 120, 120], 10, 10, "1d",   "30m",        "linear"),  # noqa
+            ([93, 123, 123, 123], 10, 10, "1d",   "30m",        "linear"),  # noqa
             ([93, 117, 117, 117], 10, 10, "1d",   "30m",   "binary_tree"),  # noqa
             ([93, 117, 117, 117], 10, 10, "1d",   "30m",          "star"),  # noqa
             ([93, 117, 117, 117], 10, 10, "1d",   "30m",          "grid"),  # noqa

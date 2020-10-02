@@ -38,7 +38,7 @@ from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.utils import callback_requests, timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, skip_locked, with_for_update
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, with_for_update
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -185,7 +185,7 @@ class DagRun(Base, LoggingMixin):
             DagModel.is_paused.is_(False),
             DagModel.is_active.is_(True),
         ).order_by(
-            cls.last_scheduling_decision,
+            nulls_first(cls.last_scheduling_decision, session=session),
             cls.execution_date,
         )
 
