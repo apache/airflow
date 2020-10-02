@@ -51,6 +51,7 @@ const config = {
     switch: `${STATIC_DIR}/css/switch.css`,
     taskInstances: `${STATIC_DIR}/js/task-instances.js`,
     tree: `${STATIC_DIR}/css/tree.css`,
+    astroTheme: `${STATIC_DIR}/css/astro-theme.css`,
   },
   output: {
     path: BUILD_DIR,

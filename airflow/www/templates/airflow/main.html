@@ -37,6 +37,8 @@
       }
     {% endfor %}
   </style>
+  {# Add astroTheme.css after other stylesheets and style blocks #}
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('astroTheme.css') }}">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
 {% endblock %}
 
@@ -65,7 +67,22 @@
     <footer class="footer">
       <div class="container">
         <div>
-          {{ version_label }}: {% if airflow_version %}<a href="https://pypi.python.org/pypi/apache-airflow/{{ airflow_version }}" target="_blank">v{{ airflow_version }}</a>{% else %} N/A{% endif %}
+          {% if airflow_version %}
+            Astronomer Certified:
+            {% if 'dev' not in ac_version %}
+              <a href="https://www.astronomer.io/downloads/ac/v{{ ac_url_version }}" target="_blank">
+                <strong>v{{ ac_version }}</strong>
+              </a>
+            {% else %}
+              <strong>v{{ ac_version }}</strong>
+            {% endif %}
+            based on Apache Airflow
+            <a href="https://pypi.python.org/pypi/apache-airflow/{{ airflow_upstream_version }}" target="_blank">
+              <strong>v{{ airflow_upstream_version }}</strong>
+            </a>
+          {% else %}
+            Airflow Version: Not Available
+          {% endif %}
           {% if git_version %}<br>Git Version:<strong>{{ git_version }}</strong>{% endif %}
         </div>
         <div></div>

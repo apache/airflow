@@ -19,6 +19,7 @@ import logging
 import socket
 
 import pendulum
+import pkg_resources
 
 import airflow
 from airflow.configuration import conf
@@ -47,11 +48,24 @@ def init_jinja_globals(app):
 
     try:
         airflow_version = airflow.__version__
+        airflow_upstream_version = airflow_version.split('.dev')[0].split('+astro')[0]
+        ac_url_version = airflow_upstream_version.replace('.', '-')
     except Exception as e:  # pylint: disable=broad-except
         airflow_version = None
+        airflow_upstream_version = None
+        ac_url_version = None
         logging.error(e)
 
     git_version = get_airflow_git_version()
+
+    try:
+        ac_version = pkg_resources.get_distribution('astronomer-certified').version
+    except pkg_resources.DistributionNotFound:
+        # Try to work out ac_version from airflow version
+        if airflow_version:
+            ac_version = airflow_version.replace('+astro.', '-')
+        else:
+            ac_version = None
 
     def prepare_jinja_globals():
         extra_globals = {
@@ -66,6 +80,9 @@ def init_jinja_globals(app):
             'airflow_version': airflow_version,
             'git_version': git_version,
             'k8s_or_k8scelery_executor': IS_K8S_OR_K8SCELERY_EXECUTOR,
+            'ac_version': ac_version,
+            'airflow_upstream_version': airflow_upstream_version,
+            'ac_url_version': ac_url_version,
         }
 
         if 'analytics_tool' in conf.getsection('webserver'):
