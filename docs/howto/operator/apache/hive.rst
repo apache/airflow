@@ -61,12 +61,6 @@ Use the ``table`` parameter for specifying the source table, in the format ``dat
 
 Use the ``partition`` parameter for specifying the source partition.
 
-.. exampleinclude:: /../airflow/providers/apache/hive/example_dags/example_twitter_dag.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_hive_stats_collection_operator]
-    :end-before: [END howto_operator_hive_stats_collection_operator]
-
 Reference
 ^^^^^^^^^
 
