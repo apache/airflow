@@ -269,7 +269,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
-        with timeout(self.DAGBAG_IMPORT_TIMEOUT):
+        timeout_msg = f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s"
+        with timeout(self.DAGBAG_IMPORT_TIMEOUT, error_message=timeout_msg):
             try:
                 loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
                 spec = importlib.util.spec_from_loader(mod_name, loader)
