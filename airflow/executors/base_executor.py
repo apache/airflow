@@ -169,7 +169,7 @@ class BaseExecutor(LoggingMixin):
 
     def trigger_tasks(self, open_slots: int) -> None:
         """
-        Triggers tasks
+        riggers tasks
 
         :param open_slots: Number of open slots
         """
@@ -192,11 +192,11 @@ class BaseExecutor(LoggingMixin):
         :param key: Unique key for the task instance
         :param state: State to set for the task.
         """
-        self.log.info("Changing state: %s", key)
+        self.log.debug("Changing state: %s", key)
         try:
             self.running.remove(key)
         except KeyError:
-            self.log.info('Could not find key: %s', str(key))
+            self.log.debug('Could not find key: %s', str(key))
         self.event_buffer[key] = state, info
 
     def fail(self, key: TaskInstanceKey, info=None) -> None:

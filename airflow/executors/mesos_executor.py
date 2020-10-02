@@ -18,7 +18,7 @@
 
 import threading
 from builtins import str
-from queue import Queue
+from queue import Empty, Queue
 from typing import Any, Optional
 
 from avmesos.client import MesosClient
@@ -58,14 +58,15 @@ class AirflowMesosScheduler(MesosClient):
     def __init__(self,
                  executor,
                  task_queue,
+                 result_queue,
                  task_cpu=1,
                  task_mem=256):
         self.task_queue = task_queue
+        self.result_queue = result_queue
         self.task_cpu = task_cpu
         self.task_mem = task_mem
         self.task_counter = 0
         self.task_key_map = {}
-        self.task_ti_map = {}
         self.log = executor.log
         self.client = executor.client
         self.executor = executor
@@ -147,12 +148,11 @@ class AirflowMesosScheduler(MesosClient):
                 and remaining_cpus >= self.task_cpu \
                 and remaining_mem >= self.task_mem:
 
-            key, cmd, ti = self.task_queue.get()
+            key, cmd, executor_config = self.task_queue.get()
             self.log.info(key)
             tid = self.task_counter
             self.task_counter += 1
             self.task_key_map[str(tid)] = key
-            self.task_ti_map[str(tid)] = ti
 
             port_begin = 31000 + tid
             port_end = 31000 + tid
@@ -293,7 +293,6 @@ class AirflowMesosScheduler(MesosClient):
 
         try:
             key = self.task_key_map[update['status']['task_id']['value']]
-            ti = self.task_ti_map[update['status']['task_id']['value']]
 
         except KeyError:
             # The map may not contain an item if the framework re-registered
@@ -303,21 +302,21 @@ class AirflowMesosScheduler(MesosClient):
             return
 
         if update['status']['state'] == "TASK_RUNNING":
+            self.result_queue.put((key, State.RUNNING))
+            self.executor.change_state(key, State.RUNNING)
             return
 
         if update['status']['state'] == "TASK_FINISHED":
-            self.executor.success(key)
-            if "set_state" in dir(ti):
-                ti.set_state(State.SUCCESS)
+            self.result_queue.put((key, State.SUCCESS))
+            self.executor.change_state(key, State.SUCCESS)
             self.task_queue.task_done()
             return
 
         if update['status']['state'] == "TASK_LOST" or \
            update['status']['state'] == "TASK_KILLED" or \
            update['status']['state'] == "TASK_FAILED":
-            self.executor.fail(key)
-            if "set_state" in dir(ti):
-                ti.set_state(State.FAILED)
+            self.result_queue.put((key, State.FAILED))
+            self.executor.change_state(key, State.FAILED)
             self.task_queue.task_done()
             return
 
@@ -354,6 +353,7 @@ class MesosExecutor(BaseExecutor):
         super().__init__()
         self.commands_to_run = []
         self.task_queue = Queue()
+        self.result_queue = Queue()
         self.driver = None
         self.client = None
         self.th = None  # pylint: disable=invalid-name
@@ -411,7 +411,6 @@ class MesosExecutor(BaseExecutor):
             str(task_cpu), str(task_memory), str(framework_checkpoint), str(framework_id)
         )
 
-
         master_urls = "https://" + master
 
         self.client = MesosClient(
@@ -437,7 +436,7 @@ class MesosExecutor(BaseExecutor):
             self.client.principal = configuration.conf.get('mesos', 'DEFAULT_PRINCIPAL')
             self.client.secret = configuration.conf.get('mesos', 'DEFAULT_SECRET')
 
-        driver = AirflowMesosScheduler(self, self.task_queue, task_cpu, task_memory)
+        driver = AirflowMesosScheduler(self, self.task_queue, self.result_queue, task_cpu, task_memory)
         self.driver = driver
         self.client.on(MesosClient.SUBSCRIBED, driver.subscribed)
         self.client.on(MesosClient.UPDATE, driver.status_update)
@@ -445,51 +444,38 @@ class MesosExecutor(BaseExecutor):
         self.th = MesosExecutor.MesosFramework(self.client)
         self.th.start()
 
-    def queue_task_instance(
-            self,
-            task_instance: TaskInstance,
-            mark_success: bool = False,
-            pickle_id: Optional[str] = None,
-            ignore_all_deps: bool = False,
-            ignore_depends_on_past: bool = False,
-            ignore_task_deps: bool = False,
-            ignore_ti_state: bool = False,
-            pool: Optional[str] = None,
-            cfg_path: Optional[str] = None) -> None:
-        """Queues task instance."""
-        pool = pool or task_instance.pool
-        command_list_to_run = task_instance.command_as_list(
-            local=True,
-            mark_success=mark_success,
-            ignore_all_deps=ignore_all_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state,
-            pool=pool,
-            pickle_id=pickle_id,
-            cfg_path=cfg_path)
-        self.queue_command(
-            task_instance,
-            command_list_to_run,
-            priority=task_instance.task.priority_weight_total,
-            queue=task_instance.task.queue)
+    def sync(self) -> None:
+        """Updates states of the tasks."""
+        self.log.debug("Update state of tasks")
+        if self.running:
+            self.log.info('self.running: %s', self.running)
+        if self.queued_tasks:
+            self.log.info('self.queued: %s', self.queued_tasks)
+        if not self.result_queue:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if not self.task_queue:
+            raise AirflowException(NOT_STARTED_MESSAGE)
 
-    def trigger_tasks(self, open_slots: int) -> None:
-        """
-        Triggers tasks
-
-        :param open_slots: Number of open slots
-        """
-        sorted_queue = self.order_queued_tasks_by_priority()
-
-        for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (command, _, _, ti) = sorted_queue.pop(0)
-            self.queued_tasks.pop(key)
-            self.running.add(key)
-            self.execute_async(key=key,
-                               command=command,
-                               queue=None,
-                               executor_config=ti)
+        if self.result_queue.qsize() == 0:
+            return
+        while True:  # pylint: disable=too-many-nested-blocks
+            try:
+                results = self.result_queue.get_nowait()
+                try:
+                    key, state = results
+                    self.log.info('Changing state of %s to %s', results, state)
+                    try:
+                        self.change_state(key, state)
+                    except Exception as e:  # pylint: disable=broad-except
+                        self.log.info(
+                            "Exception: %s when attempting to change state of %s to %s, re-queueing.",
+                            e, results, state
+                        )
+                        self.result_queue.put(results)
+                finally:
+                    self.result_queue.task_done()
+            except Empty:
+                break
 
     def shutdown(self):
         """
@@ -507,8 +493,6 @@ class MesosExecutor(BaseExecutor):
         """
         Execute Tasks
         """
-        # TODO: workaround for my the pickel failure
-        # command[5] = command[5][:-1] + "1"
         self.log.info('Add task %s with command %s with TaskInstance %s', key, command, executor_config)
         self.task_queue.put((key, command, executor_config))
 
