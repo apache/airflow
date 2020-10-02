@@ -26,6 +26,10 @@ class LocalToAzureDataLakeStorageOperator(BaseOperator):
     """
     Upload file(s) to Azure Data Lake
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:LocalToAzureDataLakeStorageOperator`
+
     :param local_path: local path. Can be single file, directory (in which case,
             upload recursively) or glob pattern. Recursive glob patterns using `**`
             are not supported
