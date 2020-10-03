@@ -34,7 +34,7 @@ Port (optional, for beeline jdbc url)
     Specify the port in case of host be an URL.
 
 Extra (optional, connection parameters)
-    Specify the extra parameters (as json dictionary) that can be used in spark connection. The following parameters out of the standard python parameters are supported:
+    Specify the extra parameters (as json dictionary) that can be used in hive connection. The following parameters out of the standard python parameters are supported:
 
     * ``mapred_queue`` - Queue used by the Hadoop Scheduler (Capacity or Fair)
     * ``mapred_queue_priority`` - Priority within the job queue. Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW.
