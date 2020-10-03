@@ -29,8 +29,7 @@ class TestGCPServiceAccountKeyRule(TestCase):
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
 
-        msg = """
-This option has been removed because it is no longer \
+        msg = """This option has been removed because it is no longer \
 supported by the Google Kubernetes Engine. The new recommended \
 service account keys for the Google Cloud management method is \
 Workload Identity."""
@@ -44,6 +43,6 @@ Workload Identity."""
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
 
-        msg = []
+        msg = None
         response = rule.check()
         assert response == msg
