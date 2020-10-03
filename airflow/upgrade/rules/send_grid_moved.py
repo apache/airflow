@@ -36,5 +36,3 @@ The SendGrid module `airflow.contrib.utils.sendgrid` was moved to `airflow.provi
             msg = "Email backend option uses airflow.contrib Sendgrid module. " \
                   + "Please use new module: {}".format(email_provider_path)
             return [msg]
-        else:
-            return []
