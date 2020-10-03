@@ -216,7 +216,7 @@ RUN mkdir -p /opt/bats/lib/bats-file \
 RUN echo "export PATH=/opt/bats/bin:${PATH}" >> /root/.bashrc
 
 # Additional scripts for managing BATS addons
-COPY scripts/ci/dockerfiles/bats/load.bash /opt/bats/lib/
+COPY scripts/docker/load.bash /opt/bats/lib/
 RUN chmod a+x /opt/bats/lib/load.bash
 
 
