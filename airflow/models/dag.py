@@ -176,7 +176,7 @@ class DAG(BaseDag, LoggingMixin):
         that it is executed when the dag succeeds.
     :type on_success_callback: callable
     :param access_control: Specify optional DAG-level permissions, e.g.,
-        "{'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}}"
+        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit'}}"
     :type access_control: dict
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter

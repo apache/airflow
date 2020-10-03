@@ -113,28 +113,16 @@ def has_dag_access(**dag_kwargs) -> Callable[[T], T]:
         def wrapper(self, *args, **kwargs):
             has_access = self.appbuilder.sm.has_access
             dag_id = request.values.get('dag_id')
-            # if it is false, we need to check whether user has write access on the dag
-            can_dag_edit = dag_kwargs.get('can_dag_edit', False)
+            needs_edit_access = dag_kwargs.get('can_dag_edit', False)
 
-            # 1. check whether the user has can_dag_edit permissions on all_dags
-            # 2. if 1 false, check whether the user
-            #    has can_dag_edit permissions on the dag
-            # 3. if 2 false, check whether it is can_dag_read view,
-            #    and whether user has the permissions
-            prefixed_dag_id = f"DAG:{dag_id}"
-            for dag in [dag_id, prefixed_dag_id]:
-                if (
-                    has_access('can_dag_edit', 'all_dags')
-                    or has_access('can_dag_edit', dag)
-                    or (
-                        not can_dag_edit
-                        and (has_access('can_dag_read', 'all_dags') or has_access('can_dag_read', dag))
-                    )
-                ):
+            if needs_edit_access:
+                if self.appbuilder.sm.can_edit_dag(dag_id):
                     return f(self, *args, **kwargs)
-                else:
-                    flash("Access is Denied", "danger")
-                    return redirect(url_for(self.appbuilder.sm.auth_view.__class__.__name__ + ".login"))
+            else:
+                if self.appbuilder.sm.can_read_dag(dag_id):
+                    return f(self, *args, **kwargs)
+            flash("Access is Denied", "danger")
+            return redirect(url_for(self.appbuilder.sm.auth_view.__class__.__name__ + ".login"))
 
         return cast(T, wrapper)
 

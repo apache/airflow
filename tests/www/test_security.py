@@ -33,8 +33,8 @@ from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
 
-READ_WRITE = {'can_dag_read', 'can_dag_edit'}
-READ_ONLY = {'can_dag_read'}
+READ_WRITE = {'can_read', 'can_edit'}
+READ_ONLY = {'can_read'}
 
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s:%(message)s')
 logging.getLogger().setLevel(logging.DEBUG)
@@ -181,7 +181,7 @@ class TestSecurity(unittest.TestCase):
 
     def test_get_accessible_dag_ids(self):
         role_name = 'MyRole1'
-        permission_action = ['can_dag_read']
+        permission_action = ['can_read']
         dag_id = 'dag_id'
         username = "Mr. User"
         self.security_manager.init_role(role_name, [], [])
@@ -239,7 +239,7 @@ class TestSecurity(unittest.TestCase):
             self.security_manager.sync_perm_for_dag(
                 dag_id='access-control-test',
                 access_control={
-                    'this-role-does-not-exist': ['can_dag_edit', 'can_dag_read']
+                    'this-role-does-not-exist': ['can_edit', 'can_read']
                 })
         self.assertIn("role does not exist", str(context.exception))
 
@@ -299,11 +299,11 @@ class TestSecurity(unittest.TestCase):
             'access_control_test',
             access_control={'team-a': READ_ONLY})
         self.assert_user_has_dag_perms(
-            perms=['can_dag_read'],
+            perms=['can_read'],
             dag_id='access_control_test',
         )
         self.assert_user_does_not_have_dag_perms(
-            perms=['can_dag_edit'],
+            perms=['can_edit'],
             dag_id='access_control_test',
         )
 

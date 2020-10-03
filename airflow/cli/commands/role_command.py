@@ -43,6 +43,8 @@ def roles_create(args):
         appbuilder.sm.add_role(role_name)
 
 def prefixed_dag_id(dag_id):
+    if dag_id == 'all_dags':
+        return 'Dag'
     if dag_id.startswith("DAG:"):
         return dag_id
     return f"DAG:{dag_id}"
@@ -63,23 +65,48 @@ def roles_upgrade(args):
     """Creates new empty role in DB"""
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     roles = appbuilder.sm.get_all_roles()
-    outdated_dag_permissions = set()
+    to_remove = []
     for role in roles:
-        breakpoint()
         for permission in role.permissions:
             resource = permission.view_menu
             action = permission.permission
+            # print(action.name)
             print(action.name)
             if action.name in ['can_dag_read', 'can_dag_edit']:
-                appbuilder.sm.del_permission_role(role, permission)
-                appbuilder.sm.del_permission_view_menu(action.name, resource.name)
-                if not appbuilder.sm.find_permissions_view_menu(resource):
-                    appbuilder.sm.del_view_menu(resource.name)
+                to_remove.append((role, permission))
                 new_action = new_dag_action(action.name)
                 pv = appbuilder.sm.add_permission_view_menu(new_action, prefixed_dag_id(resource.name))
                 appbuilder.sm.add_permission_role(role, pv)
-                # breakpoint()
+
                 print(f"{role.name}: {resource.name}.{action.name} -> {pv.view_menu.name}.{new_action}")
 
+    for (role, permission) in to_remove:
+        # breakpoint()
+        appbuilder.sm.del_permission_role(role, permission)
+    # breakpoint()
+    # breakpoint()
+    for (role, permission) in to_remove:
+        if appbuilder.sm.find_permission_view_menu(permission.permission.name, permission.view_menu.name):
+        # breakpoint()
+            appbuilder.sm.del_permission_view_menu(permission.permission.name, permission.view_menu.name)
+    # breakpoint()
+    for (role, permission) in to_remove:
+        if appbuilder.sm.find_view_menu(permission.view_menu.name):
+            appbuilder.sm.del_view_menu(permission.view_menu.name)
+
+    roles = appbuilder.sm.get_all_roles()
+
+def add_dag_perms():
+    dags = ["example_bash_operator", "example_branch_dop_operator_v3", "example_branch_operator", "example_complex", "example_external_task_marker_child"]
+    for dag in dags:
+        cached_app().appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+                dag, access_control={'Admin': ['can_dag_edit', 'can_dag_read']}
+            )
+        cached_app().appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+                dag, access_control={'User': ['can_dag_read']}
+            )
+
 if __name__ == '__main__':
+    # add_dag_perms()
+     
     roles_upgrade({"output": None})

@@ -1748,12 +1748,12 @@ class TestDagACLView(TestBase):
         self.login(username='test',
                    password='test')
         perm_on_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_dag_edit', 'example_bash_operator')
+            find_permission_view_menu('can_edit', 'example_bash_operator')
         dag_tester_role = self.appbuilder.sm.find_role('dag_acl_tester')
         self.appbuilder.sm.add_permission_role(dag_tester_role, perm_on_dag)
 
         perm_on_all_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_dag_edit', 'all_dags')
+            find_permission_view_menu('can_edit', 'Dag')
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
         self.appbuilder.sm.add_permission_role(all_dag_role, perm_on_all_dag)
 
@@ -1761,7 +1761,7 @@ class TestDagACLView(TestBase):
         self.appbuilder.sm.add_permission_role(role_user, perm_on_all_dag)
 
         read_only_perm_on_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_dag_read', 'example_bash_operator')
+            find_permission_view_menu('can_read', 'example_bash_operator')
         dag_read_only_role = self.appbuilder.sm.find_role('dag_acl_read_only')
         self.appbuilder.sm.add_permission_role(dag_read_only_role, read_only_perm_on_dag)
 
@@ -2193,7 +2193,7 @@ class TestDagACLView(TestBase):
         self.check_content_not_in_response('example_bash_operator', resp)
 
     def test_success_fail_for_read_only_role(self):
-        # success endpoint need can_dag_edit, which read only role can not access
+        # success endpoint need can_edit, which read only role can not access
         self.logout()
         self.login(username='dag_read_only',
                    password='dag_read_only')
@@ -2211,7 +2211,7 @@ class TestDagACLView(TestBase):
         self.check_content_not_in_response('Wait a minute', resp, resp_code=302)
 
     def test_tree_success_for_read_only_role(self):
-        # tree view only allows can_dag_read, which read only role could access
+        # tree view only allows can_read, which read only role could access
         self.logout()
         self.login(username='dag_read_only',
                    password='dag_read_only')
