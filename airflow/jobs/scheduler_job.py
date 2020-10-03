@@ -453,21 +453,19 @@ class DagFileProcessor(LoggingMixin):
             notification_sent = False
             if dag.sla_miss_callback:
                 # Execute the alert callback
-                self.log.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
+                self.log.info('Calling SLA miss callback')
                 try:
                     dag.sla_miss_callback(dag, task_list, blocking_task_list, slas,
                                           blocking_tis)
                     notification_sent = True
                 except Exception:  # pylint: disable=broad-except
-                    self.log.exception("Could not call sla_miss_callback for DAG %s",
-                                       dag.dag_id)
-            email_content = """\
+                    self.log.exception("Could not call sla_miss_callback for DAG %s", dag.dag_id)
+            email_content = f"""\
             Here's a list of tasks that missed their SLAs:
             <pre><code>{task_list}\n<code></pre>
             Blocking tasks:
-            <pre><code>{blocking_task_list}\n{bug}<code></pre>
-            """.format(task_list=task_list, blocking_task_list=blocking_task_list,
-                       bug=asciiart.bug)
+            <pre><code>{blocking_task_list}<code></pre>
+            """
 
             tasks_missed_sla = []
             for sla in slas:
@@ -492,8 +490,9 @@ class DagFileProcessor(LoggingMixin):
                 try:
                     send_email(
                         emails,
-                        "[airflow] SLA miss on DAG=" + dag.dag_id,
-                        email_content)
+                        f"[airflow] SLA miss on DAG={dag.dag_id}",
+                        email_content
+                    )
                     email_sent = True
                     notification_sent = True
                 except Exception:  # pylint: disable=broad-except
@@ -503,8 +502,7 @@ class DagFileProcessor(LoggingMixin):
             # If we sent any notification, update the sla_miss table
             if notification_sent:
                 for sla in slas:
-                    if email_sent:
-                        sla.email_sent = True
+                    sla.email_sent = email_sent
                     sla.notification_sent = True
                     session.merge(sla)
             session.commit()
