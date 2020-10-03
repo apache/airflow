@@ -234,7 +234,7 @@ class AzureBatchOperator(BaseOperator):
                 )
         if not self.target_dedicated_nodes and not self.enable_auto_scale:
             raise AirflowException(
-                "Either target_dedicated_nodes or enable_auto_scale " "must be set. None was set"
+                "Either target_dedicated_nodes or enable_auto_scale must be set. None was set"
             )
         if self.enable_auto_scale:
             if self.target_dedicated_nodes or self.target_low_priority_nodes:
