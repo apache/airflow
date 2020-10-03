@@ -42,6 +42,6 @@ class TestSendGridEmailerMovedRule(TestCase):
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
 
-        msg = []
+        msg = None
         response = rule.check()
         assert response == msg
