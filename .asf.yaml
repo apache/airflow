@@ -27,6 +27,7 @@ github:
     - python
     - scheduler
     - workflow
+    - hactoberfest
   features:
     # Enable issues management
     issues: true
