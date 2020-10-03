@@ -157,7 +157,7 @@ repos:
       - id: rst-backticks
       - id: python-no-log-warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.24.2
+    rev: v1.25.0
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
