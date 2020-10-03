@@ -113,6 +113,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                                                 |
 |:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------------------------|
+| [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)                                    |
 | [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                                            |
 | [720912f67](https://github.com/apache/airflow/commit/720912f67b3af0bdcbac64d6b8bf6d51c6247e26) | 2020-10-02  | Strict type check for multiple providers (#11229)                                       |
 | [c58d60635](https://github.com/apache/airflow/commit/c58d60635dbab1a91f38e989f72f91645cb7eb62) | 2020-09-11  | Update qubole_hook to not remove pool as an arg for qubole_operator (#10820)            |

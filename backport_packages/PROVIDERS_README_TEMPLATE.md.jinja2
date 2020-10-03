@@ -33,8 +33,8 @@ Release: {{ RELEASE_NO_LEADING_ZEROS }}
 {%- endif %}
 - [Provider class summary](#provider-classes-summary)
 {%- for entity_type in ENTITY_TYPES %}
-{%- set entity_type_string = entity_type.value %}
 {%- set entity_name = ENTITY_NAMES.get(entity_type) %}
+{%- set entity_type_string = entity_name.replace(" ", "-") %}
 {%- set entity_summary = ENTITIES.get(entity_type) %}
 {%- if entity_summary.new_entities or entity_summary.moved_entities %}
     - [{{ entity_name.capitalize() }}](#{{ entity_type_string.lower() }})

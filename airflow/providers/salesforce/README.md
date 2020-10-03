@@ -115,6 +115,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                              |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------|
+| [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)                 |
 | [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                         |
 | [45669bea4](https://github.com/apache/airflow/commit/45669bea4f690021b69a7d2afa8be9567ae0c49d) | 2020-09-24  | Increasing type coverage for salesforce provide (#11135)             |
 | [f3e87c503](https://github.com/apache/airflow/commit/f3e87c503081a3085dff6c7352640d7f08beb5bc) | 2020-09-22  | Add D202 pydocstyle check (#11032)                                   |

@@ -4,6 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                              |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------|
+| [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)                 |
 | [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                         |
 | [b6d5d1e98](https://github.com/apache/airflow/commit/b6d5d1e985ffc19867647ea0b35fa14c2cdfb59a) | 2020-10-01  | Strict type checking for SSH (#11216)                                |
 | [68fa29bff](https://github.com/apache/airflow/commit/68fa29bff0203bc02b85ef93b7617770219c260a) | 2020-09-25  | Added support for encrypted private keys in SSHHook (#11097)         |

@@ -4,6 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                              |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------|
+| [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)                 |
 | [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                         |
 | [08dfd8cd0](https://github.com/apache/airflow/commit/08dfd8cd00dae2d7aad53018af04428d933b1ceb) | 2020-09-25  | Increase Type coverage for IMAP provider (#11154)                    |
 | [f3e87c503](https://github.com/apache/airflow/commit/f3e87c503081a3085dff6c7352640d7f08beb5bc) | 2020-09-22  | Add D202 pydocstyle check (#11032)                                   |

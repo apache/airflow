@@ -4,6 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                                      |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------------------------|
+| [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)                                         |
 | [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                                                 |
 | [cb52fb0ae](https://github.com/apache/airflow/commit/cb52fb0ae1de1f1140babaed0e97299e4aaf96bf) | 2020-09-27  | Add example DAG and system test for MySQLToGCSOperator (#10990)                              |
 | [99accec29](https://github.com/apache/airflow/commit/99accec29d71b0a57fd4e90151b9d4d10321be07) | 2020-09-25  | Fix incorrect Usage of Optional[str] &amp; Optional[int] (#11141)                                |
