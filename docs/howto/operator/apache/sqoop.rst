@@ -18,7 +18,7 @@
 
 
 Apache Sqoop Operators
-==========================
+======================
 
 `Apache Sqoop (TM) <https://sqoop.apache.org/>`__ is a tool designed to transfer data between Hadoop and relational databases or mainframes. You can use Sqoop to import data from a relational database management system (RDBMS) such as MySQL or Oracle or a mainframe into the Hadoop Distributed File System (HDFS), transform the data in Hadoop MapReduce, and then export the data back into an RDBMS.
 
@@ -36,19 +36,14 @@ To use operators, you must configure a :doc:`Cassandra Connection <../../connect
 
 .. _howto/operator:SqoopOperator:
 
+SqoopOperator
+-------------
 Execute a Sqoop job
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 
 The :class:`~airflow.providers.apache.sqoop.operators.sqoop.SqoopOperator` operator is used to execute a sqoop job.
 
-Use the ``query`` parameter Import result of arbitrary SQL query.
-
-.. exampleinclude:: /../airflow/providers/apache/sqoop/example_dags/
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_sqoop_sqoop_operator]
-    :end-before: [END howto_operator_sqoop_sqoop_operator]
-
+Use the ``query`` parameter to import result of arbitrary SQL query.
 
 Reference
 ^^^^^^^^^
