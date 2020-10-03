@@ -52,7 +52,7 @@ from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULED_DEPS
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.utils import asciiart, helpers, timezone
+from airflow.utils import helpers, timezone
 from airflow.utils.dag_processing import (
     AbstractDagFileProcessorProcess, DagFileProcessorAgent, FailureCallbackRequest, SimpleDagBag,
 )
