@@ -20,10 +20,17 @@ import datetime
 from typing import Dict, Optional, Union
 
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import BaseOperator, DagRun
+from airflow.models import BaseOperator, DagRun, BaseOperatorLink
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.types import DagRunType
+
+
+class TriggerDagRunLink(BaseOperatorLink):
+    name = 'Triggered DAG'
+
+    def get_link(self, operator: "TriggerDagRunOperator", dttm):
+        return f"/graph?dag_id={operator.trigger_dag_id}&root=&execution_date={dttm}"
 
 
 class TriggerDagRunOperator(BaseOperator):
@@ -40,6 +47,13 @@ class TriggerDagRunOperator(BaseOperator):
 
     template_fields = ("trigger_dag_id", "execution_date", "conf")
     ui_color = "#ffefeb"
+
+    @property
+    def operator_extra_links(self):
+        """
+        Return operator extra links
+        """
+        return [TriggerDagRunLink()]
 
     @apply_defaults
     def __init__(
