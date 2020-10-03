@@ -216,7 +216,7 @@ Foundation.
      -
 
    * - `Apache Sqoop <https://sqoop.apache.org/>`__
-     -
+     - :doc:`How to use <howto/operator/apache/sqoop>`
      - :mod:`airflow.providers.apache.sqoop.hooks.sqoop`
      - :mod:`airflow.providers.apache.sqoop.operators.sqoop`
      -
