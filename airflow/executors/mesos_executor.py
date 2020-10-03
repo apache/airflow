@@ -18,7 +18,7 @@
 
 import threading
 from builtins import str
-from queue import Empty, Queue
+from queue import Queue
 from typing import Any, Optional
 
 from avmesos.client import MesosClient
@@ -26,7 +26,7 @@ from avmesos.client import MesosClient
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor, CommandType
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.settings import Session
 from airflow.utils.state import State
 
@@ -149,7 +149,7 @@ class AirflowMesosScheduler(MesosClient):
                 and remaining_mem >= self.task_mem:
 
             key, cmd, executor_config = self.task_queue.get()
-            self.log.info(key)
+            self.log.debuf(executor_config)
             tid = self.task_counter
             self.task_counter += 1
             self.task_key_map[str(tid)] = key
@@ -446,10 +446,6 @@ class MesosExecutor(BaseExecutor):
         self.log.debug("Update state of tasks")
         if self.running:
             self.log.debug('self.running: %s', self.running)
-        if not self.result_queue:
-            raise AirflowException(NOT_STARTED_MESSAGE)
-        if not self.task_queue:
-            raise AirflowException(NOT_STARTED_MESSAGE)
 
         while not self.result_queue.empty():
             results = self.result_queue.get()
