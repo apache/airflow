@@ -298,17 +298,15 @@ class AirflowMesosScheduler(MesosClient):
             # The map may not contain an item if the framework re-registered
             # after a failover.
             # Discard these tasks.
-            self.log.warning("Unrecognised task key %s", update['status']['task_id']['value'])
+            self.log.info("Unrecognised task key %s", update['status']['task_id']['value'])
             return
 
         if update['status']['state'] == "TASK_RUNNING":
             self.result_queue.put((key, State.RUNNING))
-            self.executor.change_state(key, State.RUNNING)
             return
 
         if update['status']['state'] == "TASK_FINISHED":
             self.result_queue.put((key, State.SUCCESS))
-            self.executor.change_state(key, State.SUCCESS)
             self.task_queue.task_done()
             return
 
@@ -316,7 +314,6 @@ class AirflowMesosScheduler(MesosClient):
            update['status']['state'] == "TASK_KILLED" or \
            update['status']['state'] == "TASK_FAILED":
             self.result_queue.put((key, State.FAILED))
-            self.executor.change_state(key, State.FAILED)
             self.task_queue.task_done()
             return
 
@@ -448,42 +445,15 @@ class MesosExecutor(BaseExecutor):
         """Updates states of the tasks."""
         self.log.debug("Update state of tasks")
         if self.running:
-            self.log.info('self.running: %s', self.running)
-        if self.queued_tasks:
-            self.log.info('self.queued: %s', self.queued_tasks)
+            self.log.debug('self.running: %s', self.running)
         if not self.result_queue:
             raise AirflowException(NOT_STARTED_MESSAGE)
         if not self.task_queue:
             raise AirflowException(NOT_STARTED_MESSAGE)
 
-        if self.result_queue.qsize() == 0:
-            return
-        while True:  # pylint: disable=too-many-nested-blocks
-            try:
-                results = self.result_queue.get_nowait()
-                try:
-                    key, state = results
-                    self.log.info('Changing state of %s to %s', results, state)
-                    try:
-                        self.change_state(key, state)
-                    except Exception as e:  # pylint: disable=broad-except
-                        self.log.info(
-                            "Exception: %s when attempting to change state of %s to %s, re-queueing.",
-                            e, results, state
-                        )
-                        self.result_queue.put(results)
-                finally:
-                    self.result_queue.task_done()
-            except Empty:
-                break
-
-    def shutdown(self):
-        """
-        Logout from Mesos Master and stop the thread
-        """
-        self.client.stop = True
-        self.driver.tearDown()
-        self.th.stop = True
+        while not self.result_queue.empty():
+            results = self.result_queue.get()
+            self.change_state(*results)
 
     def execute_async(self,
                       key: TaskInstanceKey,
@@ -494,8 +464,21 @@ class MesosExecutor(BaseExecutor):
         Execute Tasks
         """
         self.log.info('Add task %s with command %s with TaskInstance %s', key, command, executor_config)
+        self.validate_command(command)
         self.task_queue.put((key, command, executor_config))
 
-    def end(self):
-        self.log.info("MESOS TASK END")
-        self.shutdown()
+    def end(self) -> None:
+        """Called when the executor shuts down"""
+        self.log.info('Shutting down Mesos Executor')
+        # Both queues should be empty...
+        self.task_queue = Queue()
+        self.result_queue = Queue()
+        self.task_queue.join()
+        self.result_queue.join()
+        self.client.stop = True
+        self.driver.tearDown()
+        self.th.stop = True
+
+    def terminate(self):
+        """Terminate the executor is not doing anything."""
+        self.end()
