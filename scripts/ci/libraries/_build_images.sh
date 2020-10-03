@@ -352,7 +352,7 @@ function build_images::prepare_ci_build() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
         if [[ -n ${GITHUB_TOKEN=} ]]; then
             echo "${GITHUB_TOKEN}" | docker login \
-                --username "${GITHUB_USERNAME}" \
+                --username "${GITHUB_USERNAME:-apache}" \
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
         fi
