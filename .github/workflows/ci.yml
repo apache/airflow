@@ -359,7 +359,7 @@ jobs:
           path: "./files/airflow-backport-readme*"
 
   tests-postgres:
-    timeout-minutes: 60
+    timeout-minutes: 90
     name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
     needs: [build-info, trigger-tests, ci-images]
@@ -406,7 +406,7 @@ jobs:
           path: "./files/coverage.xml"
 
   tests-mysql:
-    timeout-minutes: 60
+    timeout-minutes: 90
     name: "${{matrix.test-type}}:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
     needs: [build-info, trigger-tests, ci-images]
@@ -452,7 +452,7 @@ jobs:
           path: "./files/coverage.xml"
 
   tests-sqlite:
-    timeout-minutes: 60
+    timeout-minutes: 90
     name: "${{matrix.test-type}}:Sqlite Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
     needs: [build-info, trigger-tests, ci-images]
@@ -495,7 +495,7 @@ jobs:
           path: ./files/coverage.xml
 
   tests-quarantined:
-    timeout-minutes: 60
+    timeout-minutes: 90
     name: "Quarantined tests"
     runs-on: ubuntu-latest
     continue-on-error: true

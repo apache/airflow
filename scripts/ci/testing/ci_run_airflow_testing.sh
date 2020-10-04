@@ -51,6 +51,24 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     exit
 fi
 
+# Cleans up worker for retry
+function cleanup_worker() {
+    echo
+    echo "Wiping-out docker-compose remnants"
+    echo
+    docker-compose --log-level INFO \
+        -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        down --remove-orphans -v --timeout 5
+    echo
+    echo "Pruning docker"
+    echo
+    docker system prune --force
+    echo
+    echo "Sleeping 5 seconds"
+    echo
+    sleep 5
+}
+
 function run_airflow_testing_in_docker() {
     set +u
     set +e
@@ -69,15 +87,15 @@ function run_airflow_testing_in_docker() {
         exit_code=$?
         if [[ ${exit_code} == 254 ]]; then
             echo
-            echo "Failed starting integration on ${try_num} try. Wiping-out docker-compose remnants"
+            echo "Failed starting integration on ${try_num} try"
             echo
-            docker-compose --log-level INFO \
-                -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-                down --remove-orphans -v --timeout 5
+            cleanup_worker
+            continue
+        elif [[ ${exit_code} == 137 ]]; then
             echo
-            echo "Sleeping 5 seconds"
+            echo "Resource problem (exit = 137) on ${try_num} try"
             echo
-            sleep 5
+            cleanup_worker
             continue
         else
             break
