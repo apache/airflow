@@ -39,6 +39,9 @@
 !scripts/in_container
 !scripts/docker
 
+# Add backport packages to the context
+!backport_packages
+
 # Add tests and kubernetes_tests to context.
 !tests
 !kubernetes_tests
