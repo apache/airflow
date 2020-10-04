@@ -23,6 +23,7 @@ import importlib.util
 import os
 import sys
 import textwrap
+import traceback
 import warnings
 import zipfile
 from datetime import datetime, timedelta
@@ -114,6 +115,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.read_dags_from_db = read_dags_from_db
         # Only used by read_dags_from_db=True
         self.dags_last_fetched: Dict[str, datetime] = {}
+
+        self.dagbag_import_error_tracebacks = conf.getboolean('core', 'dagbag_import_error_tracebacks')
+        self.dagbag_import_error_traceback_depth = conf.getint('core', 'dagbag_import_error_traceback_depth')
 
         self.collect_dags(
             dag_folder=dag_folder,
@@ -265,7 +269,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
-        with timeout(self.DAGBAG_IMPORT_TIMEOUT):
+        timeout_msg = f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s"
+        with timeout(self.DAGBAG_IMPORT_TIMEOUT, error_message=timeout_msg):
             try:
                 loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
                 spec = importlib.util.spec_from_loader(mod_name, loader)
@@ -275,7 +280,12 @@ class DagBag(BaseDagBag, LoggingMixin):
                 return [new_module]
             except Exception as e:  # pylint: disable=broad-except
                 self.log.exception("Failed to import: %s", filepath)
-                self.import_errors[filepath] = str(e)
+                if self.dagbag_import_error_tracebacks:
+                    self.import_errors[filepath] = traceback.format_exc(
+                        limit=-self.dagbag_import_error_traceback_depth
+                    )
+                else:
+                    self.import_errors[filepath] = str(e)
         return []
 
     def _load_modules_from_zip(self, filepath, safe_mode):
@@ -314,7 +324,12 @@ class DagBag(BaseDagBag, LoggingMixin):
                 mods.append(current_module)
             except Exception as e:  # pylint: disable=broad-except
                 self.log.exception("Failed to import: %s", filepath)
-                self.import_errors[filepath] = str(e)
+                if self.dagbag_import_error_tracebacks:
+                    self.import_errors[filepath] = traceback.format_exc(
+                        limit=-self.dagbag_import_error_traceback_depth
+                    )
+                else:
+                    self.import_errors[filepath] = str(e)
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):

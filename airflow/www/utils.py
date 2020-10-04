@@ -223,8 +223,8 @@ def task_instance_link(attr):
         <span style="white-space: nowrap;">
         <a href="{url}">{task_id}</a>
         <a href="{url_root}" title="Filter on this task and upstream">
-        <span class="glyphicon glyphicon-filter" style="margin-left:0;"
-            aria-hidden="true"></span>
+        <span class="material-icons" style="margin-left:0;"
+            aria-hidden="true">filter_alt</span>
         </a>
         </span>
         """).format(url=url, task_id=task_id, url_root=url_root)
@@ -234,7 +234,7 @@ def state_token(state):
     """Returns a formatted string with HTML for a given State"""
     color = State.color(state)
     return Markup(  # noqa
-        '<span class="label" style="background-color:{color};">'
+        '<span class="label" style="background-color:{color};" title="Current State: {state}">'
         '{state}</span>').format(color=color, state=state)
 
 

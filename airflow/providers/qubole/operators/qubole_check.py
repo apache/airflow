@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Iterable
+from typing import Iterable, Union, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
+from airflow.providers.qubole.hooks.qubole import QuboleHook
 from airflow.providers.qubole.hooks.qubole_check import QuboleCheckHook
 from airflow.providers.qubole.operators.qubole import QuboleOperator
 from airflow.utils.decorators import apply_defaults
@@ -79,29 +80,29 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
     ui_fgcolor = '#000'
 
     @apply_defaults
-    def __init__(self, *, qubole_conn_id="qubole_default", **kwargs):
+    def __init__(self, *, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         sql = get_sql_from_qbol_cmd(kwargs)
         super().__init__(qubole_conn_id=qubole_conn_id, sql=sql, **kwargs)
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry
         self.on_retry_callback = QuboleCheckHook.handle_failure_retry
 
-    def execute(self, context=None):
+    def execute(self, context=None) -> None:
         try:
             self.hook = self.get_hook(context=context)
             super().execute(context=context)
         except AirflowException as e:
             handle_airflow_exception(e, self.get_hook())
 
-    def get_db_hook(self):
+    def get_db_hook(self) -> QuboleHook:
         return self.get_hook()
 
-    def get_hook(self, context=None):
+    def get_hook(self, context=None) -> QuboleHook:
         if hasattr(self, 'hook') and (self.hook is not None):
             return self.hook
         else:
             return QuboleCheckHook(context=context, **self.kwargs)
 
-    def __getattribute__(self, name):
+    def __getattribute__(self, name: str) -> str:
         if name in QuboleCheckOperator.template_fields:
             if name in self.kwargs:
                 return self.kwargs[name]
@@ -110,7 +111,7 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
         else:
             return object.__getattribute__(self, name)
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: str) -> None:
         if name in QuboleCheckOperator.template_fields:
             self.kwargs[name] = value
         else:
@@ -163,12 +164,12 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
     def __init__(
         self,
         *,
-        pass_value,
-        tolerance=None,
+        pass_value: Union[str, int, float],
+        tolerance: Optional[Union[int, float]] = None,
         results_parser_callable=None,
-        qubole_conn_id="qubole_default",
+        qubole_conn_id: str = "qubole_default",
         **kwargs,
-    ):
+    ) -> None:
 
         sql = get_sql_from_qbol_cmd(kwargs)
         super().__init__(
@@ -179,17 +180,17 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry
         self.on_retry_callback = QuboleCheckHook.handle_failure_retry
 
-    def execute(self, context=None):
+    def execute(self, context=None) -> None:
         try:
             self.hook = self.get_hook(context=context)
             super().execute(context=context)
         except AirflowException as e:
             handle_airflow_exception(e, self.get_hook())
 
-    def get_db_hook(self):
+    def get_db_hook(self) -> QuboleHook:
         return self.get_hook()
 
-    def get_hook(self, context=None):
+    def get_hook(self, context=None) -> QuboleHook:
         if hasattr(self, 'hook') and (self.hook is not None):
             return self.hook
         else:
@@ -197,7 +198,7 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
                 context=context, results_parser_callable=self.results_parser_callable, **self.kwargs
             )
 
-    def __getattribute__(self, name):
+    def __getattribute__(self, name: str) -> str:
         if name in QuboleValueCheckOperator.template_fields:
             if name in self.kwargs:
                 return self.kwargs[name]
@@ -206,14 +207,14 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
         else:
             return object.__getattribute__(self, name)
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: str) -> None:
         if name in QuboleValueCheckOperator.template_fields:
             self.kwargs[name] = value
         else:
             object.__setattr__(self, name, value)
 
 
-def get_sql_from_qbol_cmd(params):
+def get_sql_from_qbol_cmd(params) -> str:
     """
     Get Qubole sql from Qubole command
     """

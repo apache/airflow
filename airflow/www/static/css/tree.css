@@ -18,7 +18,7 @@
  */
 
 circle {
-  stroke: blue;
+  stroke: #017cee;
   fill: #fff;
   stroke-width: 1.5px;
 }
@@ -36,7 +36,7 @@ path.link {
 }
 
 rect.state {
-  stroke: #000;
+  stroke: #51504f;
   shape-rendering: crispEdges;
   cursor: pointer;
 }
@@ -95,7 +95,7 @@ rect.sensing {
 .axis path,
 .axis line {
   fill: none;
-  stroke: #000;
+  stroke: #51504f;
 }
 
 .axis text {

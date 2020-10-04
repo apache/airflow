@@ -296,13 +296,15 @@ mv apache-airflow-backport-providers-${VERSION}-source.tar.gz dist
 * Sign all your packages
 
 ```bash
-./dev/sign.sh dist/*
+pushd dist
+../dev/sign.sh *
+popd
 ```
 
-* Push tags
+* Push tags to Apache repository (asuming that you have apache remote pointing to apache/airflow repo)]
 
 ```bash
-git push --tags
+git push apache backport-providers-${VERSION}
 ```
 
 ### Committing the packages to Apache SVN repo

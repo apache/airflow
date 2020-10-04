@@ -213,7 +213,10 @@ def get_long_description(provider_package_id: str) -> str:
     :return: content of the description (README file)
     """
     package_folder = get_target_providers_package_folder(provider_package_id)
-    with open(os.path.join(package_folder, "README.md"), encoding='utf-8', mode="w+") as file:
+    readme_file = os.path.join(package_folder, "README.md")
+    if not os.path.exists(readme_file):
+        return ""
+    with open(os.path.join(package_folder, "README.md"), encoding='utf-8', mode="r") as file:
         readme_contents = file.read()
     copying = True
     long_description = ""
@@ -900,15 +903,16 @@ def make_sure_remote_apache_exists_and_fetch():
     :return:
     """
     try:
-        subprocess.check_call(["git", "remote", "add", "apache", "https://github.com/apache/airflow.git"],
+        subprocess.check_call(["git", "remote", "add", "apache-https-for-backports",
+                               "https://github.com/apache/airflow.git"],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError as e:
         if e.returncode == 128:
-            print("The remote `apache` already exists. If you have trouble running "
+            print("The remote `apache-https-for-backports` already exists. If you have trouble running "
                   "git log delete the remote", file=sys.stderr)
         else:
             raise
-    subprocess.check_call(["git", "fetch", "apache"],
+    subprocess.check_call(["git", "fetch", "apache-https-for-backports"],
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -918,7 +922,8 @@ def get_git_command(base_commit: Optional[str]) -> List[str]:
     :param base_commit: if present - base commit from which to start the log from
     :return: git command to run
     """
-    git_cmd = ["git", "log", "apache/master", "--pretty=format:%H %h %cd %s", "--date=short"]
+    git_cmd = ["git", "log", "apache-https-for-backports/master",
+               "--pretty=format:%H %h %cd %s", "--date=short"]
     if base_commit:
         git_cmd.append(f"{base_commit}...HEAD")
     git_cmd.extend(['--', '.'])

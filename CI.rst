@@ -688,7 +688,7 @@ you need to reproduce a MySQL environment with kerberos integration enabled for 
 
 .. code-block:: bash
 
-  ./breeze --github-image-id:210056909 --python 3.8 --integration kerberos
+  ./breeze --github-image-id 210056909 --python 3.8 --integration kerberos
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in

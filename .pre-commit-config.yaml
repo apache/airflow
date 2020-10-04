@@ -177,7 +177,7 @@ repos:
       - id: rst-backticks
       - id: python-no-log-warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.24.2
+    rev: v1.25.0
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
@@ -186,7 +186,7 @@ repos:
         exclude:
           ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.5.3
+    rev: 5.5.4
     hooks:
       - id: isort
         name: Run isort to sort imports

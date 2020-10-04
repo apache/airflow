@@ -218,7 +218,7 @@ You can use the default Breeze configuration as follows:
 
 .. code-block:: bash
 
-   ./breeze initialize-local-virtualenv
+   ./breeze initialize-local-virtualenv --python 3.6
 
 6. Open your IDE (for example, PyCharm) and select the virtualenv you created
    as the project's default virtualenv in your IDE.

@@ -25,7 +25,7 @@ from airflow.utils.dates import days_ago
 from airflow.utils.task_group import TaskGroup
 
 # [START howto_task_group]
-with DAG(dag_id="example_task_group", start_date=days_ago(2)) as dag:
+with DAG(dag_id="example_task_group", start_date=days_ago(2), tags=["example"]) as dag:
     start = DummyOperator(task_id="start")
 
     # [START howto_task_group_section_1]

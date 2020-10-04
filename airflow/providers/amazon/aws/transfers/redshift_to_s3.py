@@ -65,7 +65,7 @@ class RedshiftToS3Operator(BaseOperator):
     :type table_as_file_name: bool
     """
 
-    template_fields = ()
+    template_fields = ('s3_key',)
     template_ext = ()
     ui_color = '#ededed'
 

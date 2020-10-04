@@ -22,7 +22,7 @@ svg {
 }
 
 .node rect {
-  stroke: #333;
+  stroke: #51504f;
   stroke-width: 1px;
   fill: #fff;
 }
@@ -32,12 +32,12 @@ svg {
 }
 
 .edgePath {
-  stroke: #333;
+  stroke: #51504f;
   stroke-width: 1px;
 }
 
 g.cluster rect {
-  stroke: white;
+  stroke: #fff;
   stroke-dasharray: 5;
   rx: 5;
   ry: 5;
@@ -51,7 +51,7 @@ g.node rect {
 }
 
 g.node circle {
-  stroke: black;
+  stroke: #51504f;
   stroke-width: 3px;
   cursor: pointer;
 }
@@ -106,8 +106,8 @@ g.node.skipped rect {
 }
 
 div#svg_container {
-  border: 1px solid #000;
-  background-color: #eee;
+  border-radius: 4px;
+  background-color: #f0f0f0;
   cursor: move;
 }
 

@@ -232,6 +232,10 @@ class AzureBatchOperator(BaseOperator):
                         self.vm_publisher, self.vm_offer, self.sku_starts_with
                     )
                 )
+        if not self.target_dedicated_nodes and not self.enable_auto_scale:
+            raise AirflowException(
+                "Either target_dedicated_nodes or enable_auto_scale must be set. None was set"
+            )
         if self.enable_auto_scale:
             if self.target_dedicated_nodes or self.target_low_priority_nodes:
                 raise AirflowException(
@@ -243,7 +247,7 @@ class AzureBatchOperator(BaseOperator):
                     )
                 )
             if not self.auto_scale_formula:
-                raise AirflowException("The auto_scale_formula is required when enable_auto_scale is" " set")
+                raise AirflowException("The auto_scale_formula is required when enable_auto_scale is set")
         if self.batch_job_release_task and not self.batch_job_preparation_task:
             raise AirflowException(
                 "A batch_job_release_task cannot be specified without also "

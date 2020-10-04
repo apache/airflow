@@ -35,7 +35,7 @@ class QuboleSensor(BaseSensorOperator):
     template_ext = ('.txt',)
 
     @apply_defaults
-    def __init__(self, *, data, qubole_conn_id="qubole_default", **kwargs):
+    def __init__(self, *, data, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.data = data
         self.qubole_conn_id = qubole_conn_id
 
@@ -47,7 +47,7 @@ class QuboleSensor(BaseSensorOperator):
 
         super().__init__(**kwargs)
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
 
         conn = BaseHook.get_connection(self.qubole_conn_id)
         Qubole.configure(api_token=conn.password, api_url=conn.host)
@@ -56,7 +56,9 @@ class QuboleSensor(BaseSensorOperator):
 
         status = False
         try:
-            status = self.sensor_class.check(self.data)  # pylint: disable=no-member
+            status = self.sensor_class.check(  # type: ignore[attr-defined]  # pylint: disable=no-member
+                self.data
+            )
         except Exception as e:  # pylint: disable=broad-except
             self.log.exception(e)
             status = False
@@ -84,7 +86,7 @@ class QuboleFileSensor(QuboleSensor):
     """
 
     @apply_defaults
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         self.sensor_class = FileSensor
         super().__init__(**kwargs)
 
@@ -107,6 +109,6 @@ class QubolePartitionSensor(QuboleSensor):
     """
 
     @apply_defaults
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         self.sensor_class = PartitionSensor
         super().__init__(**kwargs)
