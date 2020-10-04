@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from unittest import TestCase, mock
+from unittest import TestCase
+from tests.compat import mock
 
 from airflow.upgrade.rules.task_handlers_moved import TaskHandlersMovedRule
 from tests.test_utils.config import conf_vars
