@@ -350,7 +350,7 @@ class AzureBatchOperator(BaseOperator):
         """
         if job_id:
             self.log.info("Deleting job: %s", job_id)
-            self.hook.connection.job.delete(pool_id)
+            self.hook.connection.job.delete(job_id)
         if pool_id:
             self.log.info("Deleting pool: %s", pool_id)
             self.hook.connection.pool.delete(pool_id)
