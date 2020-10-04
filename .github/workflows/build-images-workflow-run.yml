@@ -308,9 +308,9 @@ jobs:
         run: ./scripts/ci/images/ci_push_production_images.sh
         if: matrix.image-type == 'PROD' && steps.defaults.outputs.proceed == 'true'
 
-  cancel-ci-image-builds:
-    needs: [build-images]
+  cancel-on-build-failure:
     if: cancelled() || failure()
+    needs: [build-images]
     steps:
       - name: "Canceling the 'CI Build' source workflow in case of failure!"
         uses: potiuk/cancel-workflow-runs@test-pr
