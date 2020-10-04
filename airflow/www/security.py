@@ -335,14 +335,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             user = g.user
         prefixed_dag_id = f"{DAG_PREFIX}{dag_id}"
         return self._has_view_access(user, CAN_READ, 'Dag') or self._has_view_access(user, CAN_READ, prefixed_dag_id)
-    
+
     def can_edit_dag(self, dag_id, user=None) -> bool:
         if not user:
             user = g.user
         prefixed_dag_id = f"{DAG_PREFIX}{dag_id}"
 
         return self._has_view_access(user, CAN_EDIT, 'Dag') or self._has_view_access(user, prefixed_dag_id, CAN_EDIT)
-    
+
     def prefixed_dag_id(self, dag_id):
         return f"{DAG_PREFIX}{dag_id}"
 
@@ -365,14 +365,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         if user.is_anonymous:
             return self.is_item_public(permission, resource)
-        
+
         has_access = self._has_view_access(user, permission, resource)
 
         if permission == CAN_READ:
             has_access |= self.can_read_dag(resource, user)
         elif permission == CAN_EDIT:
             has_access |= self.can_edit_dag(resource, user)
-        
+
         return has_access
 
     def _get_and_cache_perms(self):
@@ -464,7 +464,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def prefix_dag_id(self, dag_id):
         if dag_id == 'Dag':
             return dag_id
-        
+
         if dag_id.startswith('DAG:'):
             return dag_id
         return f"DAG:{dag_id}"

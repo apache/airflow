@@ -108,5 +108,5 @@ def add_dag_perms():
 
 if __name__ == '__main__':
     # add_dag_perms()
-     
+
     roles_upgrade({"output": None})
