@@ -36,6 +36,7 @@ Port (optional, for beeline jdbc url)
 Extra (optional, connection parameters)
     Specify the extra parameters (as json dictionary) that can be used in hive connection. The following parameters out of the standard python parameters are supported:
 
+    * ``auth`` - Connection parameter gets passed as in the ``jdbc`` connection string. Possible settings inlude: NONE, NOSASL, KERBEROS, PLAINSASL, LDAP.
     * ``mapred_queue`` - Queue used by the Hadoop Scheduler (Capacity or Fair)
     * ``mapred_queue_priority`` - Priority within the job queue. Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW.
     * ``mapred_job_name`` - This name will appear in the jobtracker. This can make monitoring easier.
