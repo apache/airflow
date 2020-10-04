@@ -35,8 +35,12 @@ If you made any modifications to the table directly, make sure you don't have nu
 
     @provide_session
     def check(self, session=None):
-        invalid_connections = session.query(Connection).filter(Connection.conn_type.is_(None))
+        invalid_connections = session.query(Connection).filter(
+            Connection.conn_type.is_(None)
+        )
         return (
-            'Connection<id={}", conn_id={}> have empty conn_type field.'.format(conn.id, conn.conn_id)
+            'Connection<id={}", conn_id={}> have empty conn_type field.'.format(
+                conn.id, conn.conn_id
+            )
             for conn in invalid_connections
         )
