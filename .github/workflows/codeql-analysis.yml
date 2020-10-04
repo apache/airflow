@@ -21,6 +21,7 @@ jobs:
         # Supported options are ['csharp', 'cpp', 'go', 'java', 'javascript', 'python']
         language: ['python', 'javascript']
 
+    if: github.repository == 'apache/airflow'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
