@@ -58,7 +58,7 @@ class S3ToRedshiftOperator(BaseOperator):
     :type copy_options: list
     """
 
-    template_fields = ()
+    template_fields = ('s3_key',)
     template_ext = ()
     ui_color = '#ededed'
 

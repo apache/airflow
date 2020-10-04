@@ -68,7 +68,6 @@ from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log.log_reader import TaskLogReader
-from airflow.utils.platform import get_airflow_git_version
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.www import utils as wwwutils
@@ -774,7 +773,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Get Dag details."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
-        title = "DAG details"
+        title = "DAG Details"
         root = request.args.get('root', '')
 
         states = (
@@ -827,7 +826,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         except AirflowException as e:  # pylint: disable=broad-except
             msg = "Error rendering template: " + escape(e)
             if e.__cause__:  # pylint: disable=using-constant-test
-                msg += Markup("<br/><br/>OriginalError: ") + escape(e.__cause__)
+                msg += Markup("<br><br>OriginalError: ") + escape(e.__cause__)
             flash(msg, "error")
         except Exception as e:  # pylint: disable=broad-except
             flash("Error rendering template: " + str(e), "error")
@@ -1062,11 +1061,11 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             "Unknown",
             "All dependencies are met but the task instance is not running. In most "
             "cases this just means that the task will probably be scheduled soon "
-            "unless:<br/>\n- The scheduler is down or under heavy load<br/>\n{}\n"
-            "<br/>\nIf this task instance does not start soon please contact your "
+            "unless:<br>\n- The scheduler is down or under heavy load<br>\n{}\n"
+            "<br>\nIf this task instance does not start soon please contact your "
             "Airflow administrator for assistance.".format(
                 "- This task instance already ran and had it's state changed manually "
-                "(e.g. cleared in the UI)<br/>" if ti.state == State.NONE else ""))]
+                "(e.g. cleared in the UI)<br>" if ti.state == State.NONE else ""))]
 
         # Use the scheduler's context to figure out which dependencies are not met
         dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
@@ -1792,10 +1791,10 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             """Graph Form class."""
 
             arrange = SelectField("Layout", choices=(
-                ('LR', "Left->Right"),
-                ('RL', "Right->Left"),
-                ('TB', "Top->Bottom"),
-                ('BT', "Bottom->Top"),
+                ('LR', "Left > Right"),
+                ('RL', "Right > Left"),
+                ('TB', "Top > Bottom"),
+                ('BT', "Bottom > Top"),
             ))
 
         form = GraphForm(data=dt_nr_dr_data)
@@ -2323,31 +2322,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             for ti in dag.get_task_instances(dttm, dttm)}
 
         return json.dumps(task_instances)
-
-
-class VersionView(AirflowBaseView):
-    """View to show Airflow Version and optionally Git commit SHA"""
-
-    default_view = 'version'
-
-    @expose('/version')
-    @has_access
-    def version(self):
-        """Shows Airflow version."""
-        try:
-            airflow_version = airflow.__version__
-        except Exception as e:  # pylint: disable=broad-except
-            airflow_version = None
-            logging.error(e)
-
-        git_version = get_airflow_git_version()
-        # Render information
-        title = "Version Info"
-        return self.render_template(
-            'airflow/version.html',
-            title=title,
-            airflow_version=airflow_version,
-            git_version=git_version)
 
 
 class ConfigurationView(AirflowBaseView):
@@ -2879,6 +2853,32 @@ class DagRunModelView(AirflowModelView):
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
 
+    @action('clear', "Clear the state",
+            "All task instances would be cleared, are you sure?",
+            single=False)
+    @provide_session
+    def action_clear(self, drs, session=None):
+        """Clears the state."""
+        try:
+            count = 0
+            cleared_ti_count = 0
+            dag_to_tis = {}
+            for dr in session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all():
+                count += 1
+                dag = current_app.dag_bag.get_dag(dr.dag_id)
+                tis_to_clear = dag_to_tis.setdefault(dag, [])
+                tis_to_clear += dr.get_task_instances()
+
+            for dag, tis in dag_to_tis.items():
+                cleared_ti_count += len(tis)
+                models.clear_task_instances(tis, session, dag=dag)
+
+            flash("{count} dag runs and {altered_ti_count} task instances "
+                  "were cleared".format(count=count, altered_ti_count=cleared_ti_count))
+        except Exception:  # noqa pylint: disable=broad-except
+            flash('Failed to clear state', 'error')
+        return redirect(self.get_default_url())
+
 
 class LogModelView(AirflowModelView):
     """View to show records from Log table"""
@@ -2971,9 +2971,8 @@ class TaskInstanceModelView(AirflowModelView):
         """Formats log URL."""
         log_url = self.get('log_url')  # noqa pylint: disable=no-member
         return Markup(  # noqa
-            '<a href="{log_url}">'
-            '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
-            '</span></a>').format(log_url=log_url)
+            '<a href="{log_url}"><span class="material-icons" aria-hidden="true">reorder</span></a>'
+        ).format(log_url=log_url)
 
     def duration_f(self):
         """Formats duration."""

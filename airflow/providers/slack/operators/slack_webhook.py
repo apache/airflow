@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Optional, Dict, Any
 
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
@@ -74,17 +75,17 @@ class SlackWebhookOperator(SimpleHttpOperator):
     def __init__(
         self,
         *,
-        http_conn_id=None,
-        webhook_token=None,
-        message="",
-        attachments=None,
-        blocks=None,
-        channel=None,
-        username=None,
-        icon_emoji=None,
-        icon_url=None,
-        link_names=False,
-        proxy=None,
+        http_conn_id: str,
+        webhook_token: Optional[str] = None,
+        message: str = "",
+        attachments: Optional[list] = None,
+        blocks: Optional[list] = None,
+        channel: Optional[str] = None,
+        username: Optional[str] = None,
+        icon_emoji: Optional[str] = None,
+        icon_url: Optional[str] = None,
+        link_names: bool = False,
+        proxy: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(endpoint=webhook_token, **kwargs)
@@ -99,9 +100,9 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self.icon_url = icon_url
         self.link_names = link_names
         self.proxy = proxy
-        self.hook = None
+        self.hook: Optional[SlackWebhookHook] = None
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, Any]) -> None:
         """
         Call the SlackWebhookHook to post the provided Slack message
         """

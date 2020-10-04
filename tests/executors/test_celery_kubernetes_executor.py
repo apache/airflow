@@ -201,6 +201,38 @@ class TestCeleryKubernetesExecutor:
         when_ti_in_k8s_executor()
         when_ti_in_celery_executor()
 
+    def test_adopt_tasks(self):
+        ti = mock.MagicMock
+
+        def when_ti_in_k8s_executor():
+            celery_executor_mock = mock.MagicMock()
+            k8s_executor_mock = mock.MagicMock()
+            ti.queue = "kubernetes"
+            cke = CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
+
+            celery_executor_mock.try_adopt_task_instances.return_value = []
+            k8s_executor_mock.try_adopt_task_instances.return_value = []
+
+            cke.try_adopt_task_instances([ti])
+            celery_executor_mock.try_adopt_task_instances.assert_called_once_with([])
+            k8s_executor_mock.try_adopt_task_instances.assert_called_once_with([ti])
+
+        def when_ti_in_celery_executor():
+            celery_executor_mock = mock.MagicMock()
+            k8s_executor_mock = mock.MagicMock()
+            ti.queue = "default"
+            cke = CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
+
+            celery_executor_mock.try_adopt_task_instances.return_value = []
+            k8s_executor_mock.try_adopt_task_instances.return_value = []
+
+            cke.try_adopt_task_instances([ti])
+            celery_executor_mock.try_adopt_task_instances.assert_called_once_with([ti])
+            k8s_executor_mock.try_adopt_task_instances.assert_called_once_with([])
+
+        when_ti_in_k8s_executor()
+        when_ti_in_celery_executor()
+
     def test_get_event_buffer(self):
         celery_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()

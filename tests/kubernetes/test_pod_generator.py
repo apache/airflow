@@ -486,7 +486,7 @@ class TestPodGenerator(unittest.TestCase):
             pod_override_object=executor_config,
             base_worker_pod=worker_config,
             namespace='test_namespace',
-            worker_uuid='uuid',
+            scheduler_job_id='uuid',
         )
         expected = self.expected
         expected.metadata.labels = self.labels
@@ -522,7 +522,7 @@ class TestPodGenerator(unittest.TestCase):
             pod_override_object=executor_config,
             base_worker_pod=worker_config,
             namespace='namespace',
-            worker_uuid='uuid',
+            scheduler_job_id='uuid',
         )
         sanitized_result = self.k8s_client.sanitize_for_serialization(result)
         worker_config.spec.containers[0].image = "test-image"

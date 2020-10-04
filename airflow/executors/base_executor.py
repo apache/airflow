@@ -56,6 +56,8 @@ class BaseExecutor(LoggingMixin):
         ``0`` for infinity
     """
 
+    job_id: Optional[str] = None
+
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism

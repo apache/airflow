@@ -15,11 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional, Any, Iterable
+
 import prestodb
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
 
 from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.models import Connection
 
 
 class PrestoException(Exception):
@@ -41,9 +44,11 @@ class PrestoHook(DbApiHook):
     conn_name_attr = 'presto_conn_id'
     default_conn_name = 'presto_default'
 
-    def get_conn(self):
+    def get_conn(self) -> Connection:
         """Returns a connection object"""
-        db = self.get_connection(self.presto_conn_id)  # pylint: disable=no-member
+        db = self.get_connection(
+            self.presto_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
+        )
         auth = prestodb.auth.BasicAuthentication(db.login, db.password) if db.password else None
 
         return prestodb.dbapi.connect(
@@ -55,20 +60,22 @@ class PrestoHook(DbApiHook):
             catalog=db.extra_dejson.get('catalog', 'hive'),
             schema=db.schema,
             auth=auth,
-            isolation_level=self.get_isolation_level(),
+            isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
         )
 
-    def get_isolation_level(self):
+    def get_isolation_level(self) -> Any:
         """Returns an isolation level"""
-        db = self.get_connection(self.presto_conn_id)  # pylint: disable=no-member
+        db = self.get_connection(
+            self.presto_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
+        )
         isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 
     @staticmethod
-    def _strip_sql(sql):
+    def _strip_sql(sql: str) -> str:
         return sql.strip().rstrip(';')
 
-    def get_records(self, hql, parameters=None):
+    def get_records(self, hql, parameters: Optional[dict] = None):
         """
         Get a set of records from Presto
         """
@@ -77,7 +84,7 @@ class PrestoHook(DbApiHook):
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_first(self, hql, parameters=None):
+    def get_first(self, hql: str, parameters: Optional[dict] = None) -> Any:
         """
         Returns only the first row, regardless of how many rows the query
         returns.
@@ -107,13 +114,26 @@ class PrestoHook(DbApiHook):
             df = pandas.DataFrame(**kwargs)
         return df
 
-    def run(self, hql, parameters=None):
+    def run(
+        self,
+        hql,
+        autocommit: bool = False,
+        parameters: Optional[dict] = None,
+    ) -> None:
         """
         Execute the statement against Presto. Can be used to create views.
         """
-        return super().run(self._strip_sql(hql), parameters)
+        return super().run(sql=self._strip_sql(hql), parameters=parameters)
 
-    def insert_rows(self, table, rows, target_fields=None, commit_every=0):
+    def insert_rows(
+        self,
+        table: str,
+        rows: Iterable[tuple],
+        target_fields: Optional[Iterable[str]] = None,
+        commit_every: int = 0,
+        replace: bool = False,
+        **kwargs,
+    ) -> None:
         """
         A generic way to insert a set of tuples into a table.
 
@@ -126,6 +146,8 @@ class PrestoHook(DbApiHook):
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
         :type commit_every: int
+        :param replace: Whether to replace instead of insert
+        :type replace: bool
         """
         if self.get_isolation_level() == IsolationLevel.AUTOCOMMIT:
             self.log.info(
