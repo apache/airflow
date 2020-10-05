@@ -1205,7 +1205,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         Stats.timing('dag.{dag_id}.{task_id}.duration'.format(dag_id=task_copy.dag_id,
                                                               task_id=task_copy.task_id),
                      duration)
-        Stats.incr('operator_successes_{}'.format(self.task.__class__.__name__), 1, 1)
+        Stats.incr('operator_successes_{}'.format(self.task.task_type), 1, 1)
         Stats.incr('ti_successes')
 
     @provide_session
@@ -1338,7 +1338,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         task = self.task
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
+        Stats.incr('operator_failures_{}'.format(task.task_type), 1, 1)
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))

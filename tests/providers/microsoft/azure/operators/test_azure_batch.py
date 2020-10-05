@@ -138,6 +138,7 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
             timeout=2,
         )
         self.batch_client = mock_batch.return_value
+        self.mock_instance = mock_hook.return_value
         self.assertEqual(self.batch_client, self.operator.hook.connection)
 
     @mock.patch.object(AzureBatchHook, 'wait_for_all_node_state')
@@ -194,3 +195,12 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
         with self.assertRaises(AirflowException) as e:
             self.operator2_no_formula.execute(None)
         self.assertEqual(str(e.exception), "The auto_scale_formula is required when enable_auto_scale is set")
+
+    def test_cleaning_works(self):
+        self.operator.clean_up(job_id="myjob")
+        self.batch_client.job.delete.assert_called_once_with("myjob")
+        self.operator.clean_up("mypool")
+        self.batch_client.pool.delete.assert_called_once_with("mypool")
+        self.operator.clean_up("mypool", "myjob")
+        self.batch_client.job.delete.assert_called_with("myjob")
+        self.batch_client.pool.delete.assert_called_with('mypool')

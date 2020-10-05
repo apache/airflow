@@ -50,7 +50,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param namespace: the namespace to run within kubernetes.
     :type namespace: str
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
-        but fully qualified URLS will point to custom repositories.
+        but fully qualified URLS will point to custom repositories. (templated)
     :type image: str
     :param name: name of the pod in which the task will run, will be used (plus a random
         suffix) to generate a pod id (DNS-1123 subdomain, containing only [a-z0-9.-]).
@@ -79,7 +79,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type cluster_context: str
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
     :type reattach_on_restart: bool
-    :param labels: labels to apply to the Pod.
+    :param labels: labels to apply to the Pod. (templated)
     :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :type startup_timeout_seconds: int
@@ -133,7 +133,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :type do_xcom_push: bool
-    :param pod_template_file: path to pod template file
+    :param pod_template_file: path to pod template file (templated)
     :type pod_template_file: str
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
@@ -143,7 +143,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     """
 
     template_fields: Iterable[str] = (
-        'image', 'cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
+        'image', 'cmds', 'arguments', 'env_vars', 'labels', 'config_file', 'pod_template_file')
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals

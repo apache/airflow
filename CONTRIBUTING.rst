@@ -279,7 +279,7 @@ Step 4: Prepare PR
 
    * Run the tests in `Breeze <TESTING.rst#running-unit-tests-inside-breeze>`__.
 
-   * Run and fix all the `static checks <STATIC_CODE_CHECKS>`__. If you have
+   * Run and fix all the `static checks <STATIC_CODE_CHECKS.rst>`__. If you have
      `pre-commits installed <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__,
      this step is automatically run while you are committing your code. If not, you can do it manually
      via ``git add`` and then ``pre-commit run``.
