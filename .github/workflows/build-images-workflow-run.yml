@@ -50,6 +50,8 @@ jobs:
       sourceHeadRepo: ${{ steps.cancel.outputs.sourceHeadRepo }}
       sourceHeadBranch: ${{ steps.cancel.outputs.sourceHeadBranch }}
       sourceHeadSha: ${{ steps.cancel.outputs.sourceHeadSha }}
+      mergeCommitSha: ${{ steps.cancel.outputs.mergeCommitSha }}
+      targetCommitSha: ${{ steps.cancel.outputs.targetCommitSha }}
       sourceEvent: ${{ steps.cancel.outputs.sourceEvent }}
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
       buildImages: ${{ steps.build-images.outputs.buildImages }}
@@ -57,12 +59,18 @@ jobs:
     if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
       - name: "Cancel duplicated 'CI Build' runs"
-        uses: potiuk/cancel-workflow-runs@v2
+        uses: potiuk/cancel-workflow-runs@v3
         id: cancel
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: duplicates
           sourceRunId: ${{ github.event.workflow_run.id }}
+          notifyPRCancel: true
+          notifyPRMessageStart: |
+            The CI and PROD Docker Images for the build are prepared in a separate "Build Image" workflow,
+            that you will not see in the list of checks (you will see "Wait for images" jobs instead).
+
+            You can checks the status of those images in
       - name: "Output BUILD_IMAGES"
         id: build-images
         run: |
@@ -75,10 +83,11 @@ jobs:
         # in GitHub Actions, we have to use Job names to match Event/Repo/Branch from the
         # build-info step there to find the duplicates ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@v2
+        uses: potiuk/cancel-workflow-runs@v3
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
+          notifyPRCancel: true
           jobNameRegexps: >
             [".*Event: ${{ steps.cancel.outputs.sourceEvent }}
             Repo: ${{ steps.cancel.outputs.sourceHeadRepo }}
@@ -92,12 +101,13 @@ jobs:
         # can cancel all the matching "Build Images" workflow runs in the two following steps.
         # Yeah. Adding to the complexity ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@v2
+        uses: potiuk/cancel-workflow-runs@v3
         id: cancel-failed
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: failedJobs
           sourceRunId: ${{ github.event.workflow_run.id }}
+          notifyPRCancel: true
           jobNameRegexps: >
             ["^Pylint$", "^Static checks$", "^Build docs$", "^Spell check docs$", "^Backport packages$",
              "^Checks: Helm tests$", "^Test OpenAPI*"]
@@ -128,10 +138,11 @@ jobs:
         # followed by one of the run ids. Yes I know it's super complex ¯\_(ツ)_/¯.
 
         if: env.BUILD_IMAGES == 'true' && steps.cancel-failed.outputs.cancelledRuns != '[]'
-        uses: potiuk/cancel-workflow-runs@v2
+        uses: potiuk/cancel-workflow-runs@v3
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
+          notifyPRCancel: true
           jobNameRegexps: ${{ steps.extract-cancelled-failed-runs.outputs.matching-regexp }}
       - name: "Set Docker Cache Directive"
         id: cache-directive
@@ -165,6 +176,8 @@ jobs:
       Source Run id: ${{ github.event.workflow_run.id }}
       Sha: ${{ github.sha }}
       Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+      Merge commit Sha: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
+      Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
     runs-on: ubuntu-latest
     needs: [cancel-workflow-runs]
     env:
@@ -187,6 +200,8 @@ jobs:
           Source Run id: ${{ github.event.workflow_run.id }}
           Sha: ${{ github.sha }}
           Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          Merge commit Sha: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
+          Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
         run: |
           printenv
       - name: Set versions
@@ -232,9 +247,11 @@ jobs:
           Source Run id: ${{ github.event.workflow_run.id }}
           Sha: ${{ github.sha }}
           Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          Merge commit Sha: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
+          Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
         uses: actions/checkout@v2
         with:
-          ref: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          ref: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
@@ -290,10 +307,17 @@ jobs:
       - name: "Push PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
         if: matrix.image-type == 'PROD' && steps.defaults.outputs.proceed == 'true'
-      - name: "Canceling the CI Build source workflow in case of failure!"
-        if: cancelled() || failure()
-        uses: potiuk/cancel-workflow-runs@v2
+
+  cancel-on-build-failure:
+    name: "Cancel 'CI Build' jobs on build image failure"
+    runs-on: ubuntu-latest
+    if: cancelled() || failure()
+    needs: [build-images]
+    steps:
+      - name: "Canceling the 'CI Build' source workflow in case of failure!"
+        uses: potiuk/cancel-workflow-runs@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: self
+          notifyPRCancel: true
           sourceRunId: ${{ github.event.workflow_run.id }}

@@ -21,7 +21,7 @@ declare -a packages
 if [[ "${1}" == "dev" ]]; then
     packages=("libmysqlclient-dev" "mysql-client")
 elif [[ "${1}" == "prod" ]]; then
-    packages=("libmysqlclient20" "mysql-client")
+    packages=("libmysqlclient21" "mysql-client")
 else
     echo
     echo "Specify either prod or dev"
@@ -50,7 +50,7 @@ if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
     gpgconf --kill all
     rm -rf "${GNUPGHOME}"
     apt-key list > /dev/null
-    echo "deb http://repo.mysql.com/apt/debian/ stretch mysql-5.7" | tee -a /etc/apt/sources.list.d/mysql.list
+    echo "deb http://repo.mysql.com/apt/debian/ buster mysql-8.0" | tee -a /etc/apt/sources.list.d/mysql.list
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
