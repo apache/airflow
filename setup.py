@@ -50,9 +50,8 @@ except FileNotFoundError:
 
 
 def airflow_test_suite():
-    """Test suite for Airflow tests"""
-    test_loader = unittest.TestLoader()
-    test_suite = test_loader.discover('tests', pattern='test_*.py')
+    """Test suite for Airflow tests"""    
+    test_suite = unittest.TestLoader().discover('tests', pattern='test_*.py')
     return test_suite
 
 
@@ -64,12 +63,6 @@ class CleanCommand(Command):
 
     description = "Tidy up the project root"
     user_options = []  # type: List[str]
-
-    def initialize_options(self):
-        """Set default values for options."""
-
-    def finalize_options(self):
-        """Set final values for options."""
 
     # noinspection PyMethodMayBeStatic
     def run(self):
@@ -85,12 +78,6 @@ class CompileAssets(Command):
 
     description = "Compile and build the frontend assets"
     user_options = []  # type: List[str]
-
-    def initialize_options(self):
-        """Set default values for options."""
-
-    def finalize_options(self):
-        """Set final values for options."""
 
     # noinspection PyMethodMayBeStatic
     def run(self):
