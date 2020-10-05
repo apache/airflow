@@ -66,11 +66,6 @@ jobs:
           cancelMode: duplicates
           sourceRunId: ${{ github.event.workflow_run.id }}
           notifyPRCancel: true
-          notifyPRMessageStart: |
-            The CI and PROD Docker Images for the build are prepared in a separate "Build Image" workflow,
-            that you will not see in the list of checks (you will see "Wait for images" jobs instead).
-
-            You can checks the status of those images in
       - name: "Output BUILD_IMAGES"
         id: build-images
         run: |
@@ -274,6 +269,21 @@ jobs:
           else
               echo "::set-output name=proceed::false"
           fi
+      - name: Initiate Github Checks for Building image
+        uses: LouisBrunner/checks-action@v1.1.0
+        id: build-image-check
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: "Status of image build ${{ matrix.image-type }}: ${{ matrix.python-version }}"
+          status: "in_progress"
+          sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          output: >
+            {"summary":
+            "Building the image: ${{ matrix.image-type }}: ${{ matrix.python-version }}. See the
+            [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            for details" }
+        if: steps.defaults.outputs.proceed == 'true'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} ) to 'main-airflow' to use main scripts"
         uses: actions/checkout@v2
         with:
@@ -307,6 +317,21 @@ jobs:
       - name: "Push PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
         if: matrix.image-type == 'PROD' && steps.defaults.outputs.proceed == 'true'
+      - name: Update Github Checks for Building image with status
+        uses: LouisBrunner/checks-action@v1.1.0
+        if: always() && steps.defaults.outputs.proceed == 'true'
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check_id: ${{ steps.build-image-check.outputs.check_id }}
+          status: "completed"
+          sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          conclusion: ${{ job.status }}
+          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          output: >
+            {"summary":
+            "Building the image: ${{ matrix.image-type }}: ${{ matrix.python-version }}. See the
+            [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            for details" }
 
   cancel-on-build-failure:
     name: "Cancel 'CI Build' jobs on build image failure"
