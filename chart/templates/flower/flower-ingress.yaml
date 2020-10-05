@@ -16,38 +16,36 @@
 # under the License.
 
 ################################
-## Airflow Worker NetworkPolicy
+## Airflow Flower Ingress
 #################################
-{{- if (and .Values.networkPolicies.enabled ( or (eq .Values.executor "CeleryExecutor"))  (eq .Values.executor "CeleryKubernetesExecutor")) }}
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+{{- if and .Values.ingress.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
 metadata:
-  name: {{ .Release.Name }}-worker-policy
+  name: {{ .Release.Name }}-flower-ingress
   labels:
     tier: airflow
-    component: airflow-worker-policy
+    component: flower-ingress
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
+  annotations:
+    {{- range $key, $value := .Values.ingress.flower.annotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
 spec:
-  podSelector:
-    matchLabels:
-      tier: airflow
-      component: worker
-      release: {{ .Release.Name }}
-  policyTypes:
-  - Ingress
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          tier: airflow
-          release: {{ .Release.Name }}
-          component: webserver
-    ports:
-    - protocol: TCP
-      port: {{ .Values.ports.workerLogs }}
+  {{- if .Values.ingress.flower.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.flower.host }}
+      secretName: {{ .Values.ingress.flower.tls.secretName }}
+  {{- end }}
+  rules:
+    - http:
+        paths:
+          - path: {{ .Values.ingress.flower.path }}
+            backend:
+              serviceName: {{ .Release.Name }}-flower
+              servicePort: flower-ui
+      host: {{ .Values.ingress.flower.host }}
 {{- end }}
