@@ -1282,6 +1282,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             state=State.RUNNING,
             conf=run_conf,
             external_trigger=True,
+            dag_hash=current_app.dag_bag.dags_hash.get(dag_id, None),
         )
 
         flash(
