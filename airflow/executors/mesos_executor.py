@@ -149,6 +149,7 @@ class AirflowMesosScheduler(MesosClient):
                 and remaining_mem >= self.task_mem:
 
             key, cmd, executor_config = self.task_queue.get()
+            self.log.debug(executor_config)
             tid = self.task_counter
             self.task_counter += 1
             self.task_key_map[str(tid)] = key
@@ -447,10 +448,10 @@ class MesosExecutor(BaseExecutor):
         while not self.result_queue.empty():
             results = self.result_queue.get()
             key, state = results
-            if state ==  "success":
+            if state == "success":
                 self.log.info("tasks successfull %s", key)
                 self.task_queue.task_done()
-            if state ==  "failed":
+            if state == "failed":
                 self.log.info("tasks failed %s", key)
                 self.task_queue.task_done()
             self.change_state(*results)
@@ -460,12 +461,14 @@ class MesosExecutor(BaseExecutor):
         """
         Local function to change the state directly in the database
         """
-        session = Session()
-        session.query(TaskInstance).filter(
-                    TaskInstance.dag_id == key.dag_id,
-                    TaskInstance.task_id == key.task_id,
-                    TaskInstance.execution_date == key.execution_date
-        ).update({TaskInstance.state: state})
+        self.log.debug(info)
+        if Session is not None:
+            session = Session()
+            session.query(TaskInstance).filter(
+                TaskInstance.dag_id == key.dag_id,
+                TaskInstance.task_id == key.task_id,
+                TaskInstance.execution_date == key.execution_date
+            ).update({TaskInstance.state: state})
 
     def execute_async(self,
                       key: TaskInstanceKey,
