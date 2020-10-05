@@ -1144,10 +1144,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         3. Enqueue the TIs in the executor.
 
         HA note: This function is a "critical section" meaning that only a single executor process can execute
-        this function at the same time. This is achived by doing ``SELECT ... from pool FOR UPDATE``. For DBs
+        this function at the same time. This is achieved by doing ``SELECT ... from pool FOR UPDATE``. For DBs
         that support NOWAIT, a "blocked" scheduler will skip this and continue on with other tasks (creating
         new DAG runs, progressing TIs from None to SCHEDULED etc.); DBs that don't support this (such as
-        MariaDB or MySQL 5.x) the other schedulers will wait for the lock before continuiung.
+        MariaDB or MySQL 5.x) the other schedulers will wait for the lock before continuing.
 
         :param session:
         :type session: sqlalchemy.orm.Session
@@ -1411,10 +1411,21 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         - Creates any necessary DAG runs by examining the next_dagrun_create_after column of DagModel
 
-        - Finds the "next n oldest" running DAG Runs to examine for scheduling (n=20 by default) and tries to
-          progress state (TIs to SCHEDULED, or DagRuns to SUCCESS/FAILURE etc)
+          Since creating Dag Runs is a relatively time consuming process, we select only 10 dags by default
+          (configurable via ``scheduler.num_dags_needing_dagrun_per_scheduler_loop`` setting) - putting this
+          higher will mean one scheduler could spend a chunk of time creating dag runs, and not ever get
+          around to scheduling tasks.
+
+        - Finds the "next n oldest" running DAG Runs to examine for scheduling (n=20 by default, configurable
+          via ``scheduler.max_dagruns_per_query`` config setting) and tries to progress state (TIs to
+          SCHEDULED, or DagRuns to SUCCESS/FAILURE etc)
 
           By "next oldest", we mean hasn't been examined/scheduled in the most time.
+
+          The reason we don't select all dagruns at once because the rows are selected with row locks, meaning
+          that only one scheduler can "process them", even it it is waiting behind other dags. Increasing this
+          limit will allow more throughput for smaller DAGs but will likely slow down throughput for larger
+          (>500 tasks.) DAGs
 
         - Then, via a Critical Section (locking the rows of the Pool model) we queue tasks, and then send them
           to the executor.
