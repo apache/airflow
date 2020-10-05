@@ -219,7 +219,14 @@ class CeleryExecutor(BaseExecutor):
             chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
             num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
 
-            send_pool = Pool(processes=num_processes)
+            def reset_signals():
+                # Since we are run from inside the SchedulerJob, we don't to
+                # inherit the signal handlers that we registered there.
+                import signal
+                signal.signal(signal.SIGINT, signal.SIG_DFL)
+                signal.signal(signal.SIGTERM, signal.SIG_DFL)
+
+            send_pool = Pool(processes=num_processes, initializer=reset_signals)
             key_and_async_results = send_pool.map(
                 send_task_to_executor,
                 task_tuples_to_send,
