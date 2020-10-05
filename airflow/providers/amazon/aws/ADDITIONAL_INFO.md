@@ -21,6 +21,6 @@
 
 If you are upgrading from 2020.6.24 note the following changes in import paths
 
-| Old path                                                     | New path                                                 |
-| ------------------------------------------------------------ | -------------------------------------------------------- |
-| airflow.providers.amazon.aws.hooks.aws_dynamodb.AwsDynamoDBHook | airflow.providers.amazon.aws.hooks.dynamodb.AwsDynamoDBHook
+| Old path                                                        | New path                                                    |
+| --------------------------------------------------------------- | ----------------------------------------------------------- |
+| airflow.providers.amazon.aws.hooks.aws_dynamodb.AwsDynamoDBHook | airflow.providers.amazon.aws.hooks.dynamodb.AwsDynamoDBHook |
