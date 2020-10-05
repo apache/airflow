@@ -21,9 +21,16 @@
 {{- if and .Values.rbacEnabled .Values.allowPodLaunching }}
 {{- $grantScheduler := or (eq .Values.executor "LocalExecutor") (eq .Values.executor "SequentialExecutor") (eq .Values.executor "KubernetesExecutor") }}
 {{- $grantWorker := or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "KubernetesExecutor") }}
+{{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
+{{- else }}
+kind: RoleBinding
+{{- end }}
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
+{{- if not .Values.multiNamespaceMode }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
   name: {{ .Release.Name }}-pod-launcher-rolebinding
   labels:
     tier: airflow

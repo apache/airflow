@@ -31,7 +31,7 @@ airflowHome: "/opt/airflow"
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: 1.10.10.1-alpha2-python3.6
+defaultAirflowTag: 1.10.12
 
 
 # Select certain nodes for airflow pods.
@@ -41,6 +41,59 @@ tolerations: []
 
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
+
+# Ingress configuration
+ingress:
+  # Enable ingress resource
+  enabled: false
+
+  # Configs for the Ingress of the web Service
+  web:
+    # Annotations for the web Ingress
+    annotations: {}
+
+    # The path for the web Ingress
+    path: ""
+
+    # The hostname for the web Ingress
+    host: ""
+
+    # configs for web Ingress TLS
+    tls:
+      # Enable TLS termination for the web Ingress
+      enabled: false
+      # the name of a pre-created Secret containing a TLS private key and certificate
+      secretName: ""
+
+    # HTTP paths to add to the web Ingress before the default path
+    precedingPaths: []
+
+    # Http paths to add to the web Ingress after the default path
+    succeedingPaths: []
+
+  # Configs for the Ingress of the flower Service
+  flower:
+    # Annotations for the flower Ingress
+    annotations: {}
+
+    # The path for the flower Ingress
+    path: ""
+
+    # The hostname for the flower Ingress
+    host: ""
+
+    # configs for web Ingress TLS
+    tls:
+      # Enable TLS termination for the flower Ingress
+      enabled: false
+      # the name of a pre-created Secret containing a TLS private key and certificate
+      secretName: ""
+
+    # HTTP paths to add to the flower Ingress before the default path
+    precedingPaths: []
+
+    # Http paths to add to the flower Ingress after the default path
+    succeedingPaths: []
 
 # Network policy configuration
 networkPolicies:
@@ -196,7 +249,7 @@ workers:
     pollingInterval: 5
 
     # How many seconds KEDA will wait before scaling to zero.
-    # Note that HPA has a seperate cooldwon period for scale-downs
+    # Note that HPA has a separate cooldown period for scale-downs
     cooldownPeriod: 30
 
     # Maximum number of workers created by keda
@@ -280,12 +333,12 @@ webserver:
   extraNetworkPolicies: []
 
   resources: {}
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
 
   # Create initial user.
   defaultUser:
@@ -316,18 +369,20 @@ webserver:
 
   service:
     type: ClusterIP
+    ## service annotations
+    annotations: {}
 
 # Flower settings
 flower:
   # Additional network policies as needed
   extraNetworkPolicies: []
   resources: {}
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
 
   service:
     type: ClusterIP
@@ -338,12 +393,12 @@ statsd:
   # Additional network policies as needed
   extraNetworkPolicies: []
   resources: {}
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
 
   service:
     extraAnnotations: {}
@@ -370,21 +425,13 @@ pgbouncer:
     config:
       maxUnavailable: 1
 
-  # Limit the resources to pgbouncerExported.
-  # When you specify the resource request the scheduler uses this information to decide which node to place
-  # the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
-  # that the running container is not allowed to use more of that resource than the limit you set.
-  # See: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-  # Example:
-  #
-  # resource:
-  #   limits:
-  #     cpu: 100m
-  #     memory: 128Mi
-  #   requests:
-  #     cpu: 100m
-  #     memory: 128Mi
   resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
 
   service:
     extraAnnotations: {}
@@ -430,13 +477,11 @@ redis:
 registry:
   secretName: ~
 
-  # Example:
-  # connection:
-  #   user: ~
-  #   pass: ~
-  #   host: ~
-  #   email: ~
   connection: {}
+  # user: ~
+  # pass: ~
+  # host: ~
+  # email: ~
 
 # Elasticsearch logging configuration
 elasticsearch:
@@ -445,14 +490,11 @@ elasticsearch:
   # A secret containing the connection
   secretName: ~
   # Or an object representing the connection
-  # Example:
-  # connection:
-  #   user: ~
-  #   pass: ~
-  #   host: ~
-  #   port: ~
   connection: {}
-
+  # user: ~
+  # pass: ~
+  # host: ~
+  # port: ~
 
 # All ports used by chart
 ports:
@@ -562,6 +604,7 @@ config:
     namespace: '{{ .Release.Namespace }}'
     airflow_configmap: '{{ include "airflow_config" . }}'
     airflow_local_settings_configmap: '{{ include "airflow_config" . }}'
+    pod_template_file: '{{ include "airflow_pod_template_file" . }}/pod_template_file.yaml'
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     worker_container_image_pull_policy: '{{ .Values.images.airflow.pullPolicy }}'
@@ -569,6 +612,7 @@ config:
     image_pull_secrets: '{{ template "registry_secret" . }}'
     dags_in_image: '{{ ternary "False" "True" (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}'
     delete_worker_pods: 'True'
+    multi_namespace_mode: '{{ .Values.multiNamespaceMode }}'
     delete_worker_pods_on_failure: 'False'
     run_as_user: '{{ .Values.uid }}'
     fs_group: '{{ .Values.gid }}'
@@ -593,6 +637,10 @@ config:
     AIRFLOW__CORE__SQL_ALCHEMY_CONN: '{{ printf "%s=connection" (include "airflow_metadata_secret" .) }}'
     AIRFLOW__CORE__FERNET_KEY: '{{ printf "%s=fernet-key" (include "fernet_key_secret" .) }}'
 # yamllint enable rule:line-length
+
+multiNamespaceMode: 'False'
+
+podTemplate: ~
 
 # Git sync
 dags:
@@ -635,7 +683,6 @@ dags:
     #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
     #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
     # and specify the name of the secret below
-    #
     # credentialsSecret: git-credentials
     #
     #
@@ -651,10 +698,8 @@ dags:
     #     gitSshKey: <base64_encoded_data>
     # and specify the name of the secret below
     # sshKeySecret: airflow-ssh-secret
-    #
     # If you are using an ssh private key, you can additionally
     # specify the content of your known_hosts file, example:
-    #
     # knownHosts: |
     #    <host1>,<ip1> <key1>
     #    <host2>,<ip2> <key2>
