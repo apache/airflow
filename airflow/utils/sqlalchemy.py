@@ -179,7 +179,7 @@ def nulls_first(col, session: Session) -> Dict[str, Any]:
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean('scheduler', 'use_row_level_locking', fallback=True)
 
 
-def with_for_update(query, **kwargs):
+def with_row_locks(query, **kwargs):
     """
     Apply with_for_update to an SQLAlchemy query, if row level locking is in use.
 

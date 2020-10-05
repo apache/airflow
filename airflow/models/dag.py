@@ -58,7 +58,7 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_for_update
+from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -1701,7 +1701,7 @@ class DAG(BaseDag, LoggingMixin):
             .query(DagModel)
             .options(joinedload(DagModel.tags, innerjoin=False))
             .filter(DagModel.dag_id.in_(dag_ids)))
-        orm_dags = with_for_update(query, of=DagModel).all()
+        orm_dags = with_row_locks(query, of=DagModel).all()
 
         existing_dag_ids = {orm_dag.dag_id for orm_dag in orm_dags}
         missing_dag_ids = dag_ids.difference(existing_dag_ids)
@@ -2119,7 +2119,7 @@ class DagModel(Base):
             cls.next_dagrun_create_after
         ).limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
 
-        return with_for_update(query, of=cls, **skip_locked(session=session))
+        return with_row_locks(query, of=cls, **skip_locked(session=session))
 
 
 STATICA_HACK = True

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Iterable, Optional, Tuple, Union
+from typing import Dict, Iterable, Optional, Tuple
 
 from sqlalchemy import Column, Integer, String, Text, func
 from sqlalchemy.orm.session import Session
@@ -26,7 +26,7 @@ from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import with_for_update as add_with_for_update
+from airflow.utils.sqlalchemy import nowait, with_row_locks
 from airflow.utils.state import State
 
 
@@ -84,12 +84,17 @@ class Pool(Base):
     @provide_session
     def slots_stats(
         *,
-        with_for_update: Union[bool, Dict] = False,
+        lock_rows: bool = False,
         session: Session = None,
     ) -> Dict[str, PoolStats]:
         """
         Get Pool stats (Number of Running, Queued, Open & Total tasks)
 
+        If ``lock_rows`` is True, and the database engine in use supports the ``NOWAIT`` syntax, then a
+        non-blocking lock will be attempted -- if the lock is not available then SQLAlchemy will throw an
+        OperationalError.
+
+        :param lock_rows: Should we attept to obtain a row-level lock on all the Pool rows returns
         :param session: SQLAlchemy ORM Session
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
@@ -98,11 +103,8 @@ class Pool(Base):
 
         query = session.query(Pool.pool, Pool.slots)
 
-        if with_for_update:
-            if isinstance(with_for_update, bool):
-                query = add_with_for_update(query)
-            else:
-                query = add_with_for_update(query, **with_for_update)
+        if lock_rows:
+            query = with_row_locks(query, **nowait(session))
 
         pool_rows: Iterable[Tuple[str, int]] = query.all()
         for (pool_name, total_slots) in pool_rows:

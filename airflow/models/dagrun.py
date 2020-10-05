@@ -38,7 +38,7 @@ from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.utils import callback_requests, timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, with_for_update
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, with_row_locks
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -192,7 +192,7 @@ class DagRun(Base, LoggingMixin):
         if not settings.ALLOW_FUTURE_EXEC_DATES:
             query = query.filter(DagRun.execution_date <= func.now())
 
-        return with_for_update(query.limit(max_number), of=cls, **skip_locked(session=session))
+        return with_row_locks(query.limit(max_number), of=cls, **skip_locked(session=session))
 
     @staticmethod
     @provide_session

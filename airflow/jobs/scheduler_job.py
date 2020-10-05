@@ -59,7 +59,7 @@ from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.sqlalchemy import nowait, prohibit_commit, skip_locked, with_for_update
+from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -839,7 +839,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # We need to do this for mysql as well because it can cause deadlocks
         # as discussed in https://issues.apache.org/jira/browse/AIRFLOW-2516
         if self.using_sqlite or self.using_mysql:
-            tis_to_change: List[TI] = with_for_update(query).all()
+            tis_to_change: List[TI] = with_row_locks(query).all()
             for ti in tis_to_change:
                 ti.set_state(new_state, session=session)
                 tis_changed += 1
@@ -917,7 +917,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
         # Throws an exception if lock cannot be obtained, rather than blocking
-        pools = models.Pool.slots_stats(with_for_update=nowait(session), session=session)
+        pools = models.Pool.slots_stats(lock_rows=True, session=session)
 
         # If the pools are full, there is no point doing anything!
         # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
@@ -945,7 +945,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .limit(max_tis)
         )
 
-        task_instances_to_examine: List[TI] = with_for_update(
+        task_instances_to_examine: List[TI] = with_row_locks(
             query,
             of=TI,
             **skip_locked(session=session),
@@ -1182,7 +1182,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 for dag_id, task_id, execution_date, try_number
                 in self.executor.queued_tasks.keys()])
         ti_query = session.query(TI).filter(or_(*filter_for_ti_state_change))
-        tis_to_set_to_scheduled: List[TI] = with_for_update(ti_query).all()
+        tis_to_set_to_scheduled: List[TI] = with_row_locks(ti_query).all()
         if not tis_to_set_to_scheduled:
             return
 
@@ -1763,7 +1763,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         )
 
         # Lock these rows, so that another scheduler can't try and adopt these too
-        tis_to_reset_or_adopt = with_for_update(query, of=TI, **skip_locked(session=session)).all()
+        tis_to_reset_or_adopt = with_row_locks(query, of=TI, **skip_locked(session=session)).all()
         to_reset = self.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
 
         reset_tis_message = []
