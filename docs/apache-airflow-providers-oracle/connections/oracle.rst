@@ -91,6 +91,7 @@ Extra (optional)
 
         export AIRFLOW_CONN_ORACLE_DEFAULT='oracle://oracle_user:XXXXXXXXXXXX@1.1.1.1:1521?encoding=UTF-8&nencoding=UTF-8&threaded=False&events=False&mode=sysdba&purity=new'
     
+
     Connect using Dsn and Sid, Dsn and Service_name, or Host
     
     More details found in `OracleHook.getconn Documentation <https://airflow.apache.org/docs/stable/_modules/airflow/hooks/oracle_hook.html#OracleHook.get_conn>`_.
