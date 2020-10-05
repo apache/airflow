@@ -26,7 +26,7 @@ from avmesos.client import MesosClient
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor, CommandType
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.settings import Session
 from airflow.utils.state import State
 
@@ -149,7 +149,6 @@ class AirflowMesosScheduler(MesosClient):
                 and remaining_mem >= self.task_mem:
 
             key, cmd, executor_config = self.task_queue.get()
-            self.log.debuf(executor_config)
             tid = self.task_counter
             self.task_counter += 1
             self.task_key_map[str(tid)] = key
@@ -307,14 +306,12 @@ class AirflowMesosScheduler(MesosClient):
 
         if update['status']['state'] == "TASK_FINISHED":
             self.result_queue.put((key, State.SUCCESS))
-            self.task_queue.task_done()
             return
 
         if update['status']['state'] == "TASK_LOST" or \
            update['status']['state'] == "TASK_KILLED" or \
            update['status']['state'] == "TASK_FAILED":
             self.result_queue.put((key, State.FAILED))
-            self.task_queue.task_done()
             return
 
 
@@ -449,7 +446,26 @@ class MesosExecutor(BaseExecutor):
 
         while not self.result_queue.empty():
             results = self.result_queue.get()
+            key, state = results
+            if state ==  "success":
+                self.log.info("tasks successfull %s", key)
+                self.task_queue.task_done()
+            if state ==  "failed":
+                self.log.info("tasks failed %s", key)
+                self.task_queue.task_done()
             self.change_state(*results)
+            self._change_state(*results)
+
+    def _change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
+        """
+        Local function to change the state directly in the database
+        """
+        session = Session()
+        session.query(TaskInstance).filter(
+                    TaskInstance.dag_id == key.dag_id,
+                    TaskInstance.task_id == key.task_id,
+                    TaskInstance.execution_date == key.execution_date
+        ).update({TaskInstance.state: state})
 
     def execute_async(self,
                       key: TaskInstanceKey,
