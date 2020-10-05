@@ -581,12 +581,15 @@ class DagFileProcessor(LoggingMixin):
         :param session: DB session.
         """
         for request in callback_requests:
-            if isinstance(request, TaskCallbackRequest):
-                self._execute_task_callbacks(dagbag, request)
-            elif isinstance(request, SlaCallbackRequest):
-                self.manage_slas(dagbag.dags.get(request.dag_id))
-            elif isinstance(request, DagCallbackRequest):
-                self._execute_dag_callbacks(dagbag, request, session)
+            try:
+                if isinstance(request, TaskCallbackRequest):
+                    self._execute_task_callbacks(dagbag, request)
+                elif isinstance(request, SlaCallbackRequest):
+                    self.manage_slas(dagbag.dags.get(request.dag_id))
+                elif isinstance(request, DagCallbackRequest):
+                    self._execute_dag_callbacks(dagbag, request, session)
+            except Exception:  # pylint: disable=broad-except
+                self.log.exception("Error executing callback for File: %s", request.full_filepath)
 
         session.commit()
 
@@ -670,10 +673,7 @@ class DagFileProcessor(LoggingMixin):
             self.update_import_errors(session, dagbag)
             return 0, len(dagbag.import_errors)
 
-        try:
-            self.execute_callbacks(dagbag, callback_requests)
-        except Exception:  # pylint: disable=broad-except
-            self.log.exception("Error executing callback!")
+        self.execute_callbacks(dagbag, callback_requests)
 
         # Save individual DAGs in the ORM
         dagbag.read_dags_from_db = True
