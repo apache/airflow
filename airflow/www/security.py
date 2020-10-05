@@ -566,11 +566,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :return: None.
         """
         all_dag_view = self.find_view_menu('Dag')
+        pvs = (
+            self.get_session.query(sqla_models.ViewMenu)
+            .filter(sqla_models.ViewMenu.name.like(f"{DAG_PREFIX}%"))
+            .all()
+        )
+        pv_ids = [pv.id for pv in pvs]
         pvms = (
             self.get_session.query(sqla_models.PermissionView)
             .filter(
                 ~and_(
-                    sqla_models.PermissionView.view_menu_id.like(f"{DAG_PREFIX}%"),
+                    sqla_models.PermissionView.view_menu_id.in_(pv_ids),
                     sqla_models.PermissionView.view_menu_id != all_dag_view.id,
                 )
             )

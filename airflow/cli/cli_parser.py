@@ -1228,7 +1228,7 @@ ROLES_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.role_command.roles_create'),
         args=(ARG_ROLES,),
     ),
-       ActionCommand(
+    ActionCommand(
         name='upgrade',
         help='Upgrade role permissions',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_upgrade'),
