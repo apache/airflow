@@ -19,7 +19,7 @@
 """Prefix DAG permissions.
 
 Revision ID: 849da589634d
-Revises: e1a11ece99cc
+Revises: bef4f3d11e8b
 Create Date: 2020-10-01 17:25:10.006322
 
 """
@@ -28,7 +28,7 @@ from airflow.www.app import cached_app
 
 # revision identifiers, used by Alembic.
 revision = '849da589634d'
-down_revision = 'e1a11ece99cc'
+down_revision = 'bef4f3d11e8b'
 branch_labels = None
 depends_on = None
 
@@ -62,7 +62,7 @@ def downgrade_dag_id(dag_id):
     if dag_id == 'Dag':
         return 'all_dags'
     if dag_id.startswith("DAG:"):
-        return dag_id[len("DAG:")]
+        return dag_id[len("DAG:"):]
     return dag_id
 
 
@@ -75,7 +75,7 @@ def upgrade_action(action):
 
 def downgrade_action(action):
     """Converts the a DAG permission name from the old style to the new style."""
-    if action == 'dag_read':
+    if action == 'can_read':
         return 'can_dag_read'
     return 'can_dag_edit'
 
