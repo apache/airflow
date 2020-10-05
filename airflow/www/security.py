@@ -598,7 +598,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        self.log.debug('Start syncing user roles.')
         # Create global all-dag VM
         self.create_perm_vm_for_all_dag()
 
