@@ -39,7 +39,7 @@ class TestLoggingConfigurationRule(TestCase):
             ("core", "task_log_reader"): "DUMMY",
         }
     )
-    def test_invalid_check(self):
+    def test_check(self):
         rule = LoggingConfigurationRule()
 
         assert isinstance(rule.description, str)
@@ -76,28 +76,3 @@ class TestLoggingConfigurationRule(TestCase):
         ]
         response = rule.check()
         assert response == msg
-
-    @conf_vars(
-        {
-            ("logging", "base_log_folder"): "DUMMY",
-            ("logging", "remote_logging"): "DUMMY",
-            ("logging", "remote_log_conn_id"): "DUMMY",
-            ("logging", "remote_base_log_folder"): "DUMMY",
-            ("logging", "encrypt_s3_logs"): "DUMMY",
-            ("logging", "logging_level"): "DUMMY",
-            ("logging", "fab_logging_level"): "DUMMY",
-            ("logging", "logging_config_class"): "DUMMY",
-            ("logging", "colored_console_log"): "DUMMY",
-            ("logging", "simple_log_format"): "DUMMY",
-            ("logging", "task_log_prefix_template"): "DUMMY",
-            ("logging", "log_processor_filename_template"): "DUMMY",
-            ("logging", "task_log_reader"): "DUMMY",
-        }
-    )
-    def test_valid_check(self):
-        rule = LoggingConfigurationRule()
-        assert isinstance(rule.description, str)
-        assert isinstance(rule.title, str)
-
-        response = rule.check()
-        assert response == []
