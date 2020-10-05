@@ -27,11 +27,11 @@ class UniqueConnIdRule(BaseRule):
     title = "Connection.conn_id is not unique"
 
     description = """\
-    The `id` column in the `connection` table must be unique. Previously, this rule was \
-    enforced by application logic, but was not enforced by the database schema.
+The `id` column in the `connection` table must be unique. Previously, this rule was \
+enforced by application logic, but was not enforced by the database schema.
 
-    If you made any modifications to the table directly, make sure you don't have \
-    duplicate values in conn_id column.
+If you made any modifications to the table directly, make sure you don't have \
+duplicate values in conn_id column.
     """
 
     @provide_session
