@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
-[mysqld]
-explicit_defaults_for_timestamp = 1
-secure_file_priv = ""
-local_infile = 1
+# shellcheck disable=SC1091
+source "/opt/bats/lib/bats-support/load.bash"
+# shellcheck disable=SC1091
+source "/opt/bats/lib/bats-assert/load.bash"
+# shellcheck disable=SC1091
+source "/opt/bats/lib/bats-file/load.bash"
