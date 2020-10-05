@@ -331,19 +331,31 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
 
     def can_read_dag(self, dag_id, user=None) -> bool:
+        """Determines whether a user has DAG read access."""
         if not user:
             user = g.user
-        prefixed_dag_id = f"{DAG_PREFIX}{dag_id}"
-        return self._has_view_access(user, CAN_READ, 'Dag') or self._has_view_access(user, CAN_READ, prefixed_dag_id)
+        prefixed_dag_id = self.prefixed_dag_id(dag_id)
+        return self._has_view_access(user, CAN_READ, 'Dag') or self._has_view_access(
+            user, CAN_READ, prefixed_dag_id
+        )
 
     def can_edit_dag(self, dag_id, user=None) -> bool:
+        """Determines whether a user has DAG edit access."""
         if not user:
             user = g.user
-        prefixed_dag_id = f"{DAG_PREFIX}{dag_id}"
+        prefixed_dag_id = self.prefixed_dag_id(dag_id)
 
-        return self._has_view_access(user, CAN_EDIT, 'Dag') or self._has_view_access(user, prefixed_dag_id, CAN_EDIT)
+        return self._has_view_access(user, CAN_EDIT, 'Dag') or self._has_view_access(
+            user, CAN_EDIT, prefixed_dag_id
+        )
 
     def prefixed_dag_id(self, dag_id):
+        """Returns the permission name for a DAG id."""
+        if dag_id == 'Dag':
+            return dag_id
+
+        if dag_id.startswith(DAG_PREFIX):
+            return dag_id
         return f"{DAG_PREFIX}{dag_id}"
 
     def has_access(self, permission, resource, user=None) -> bool:
@@ -461,14 +473,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if not permission_view and permission_name and view_menu_name:
             self.add_permission_view_menu(permission_name, view_menu_name)
 
-    def prefix_dag_id(self, dag_id):
-        if dag_id == 'Dag':
-            return dag_id
-
-        if dag_id.startswith('DAG:'):
-            return dag_id
-        return f"DAG:{dag_id}"
-
     @provide_session
     def create_custom_dag_permission_view(self, session=None):
         """
@@ -505,7 +509,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # create can_edit and can_read permissions for every dag(vm)
         for dag in all_dags_models:
             for perm in self.DAG_PERMS:
-                merge_pv(perm, self.prefix_dag_id(dag.dag_id))
+                merge_pv(perm, self.prefixed_dag_id(dag.dag_id))
 
         # for all the dag-level role, add the permission of viewer
         # with the dag view to ab_permission_view
@@ -536,7 +540,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         for role in dag_role:
             # pylint: disable=no-member
             # Get all the perm-view of the role
-            print("Role")
+
             existing_perm_view_by_user = self.get_session.query(ab_perm_view_role).filter(
                 ab_perm_view_role.columns.role_id == role.id
             )
@@ -562,12 +566,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :return: None.
         """
         all_dag_view = self.find_view_menu('Dag')
-        dag_perm_ids = [self.find_permission('can_edit').id, self.find_permission('can_read').id]
         pvms = (
             self.get_session.query(sqla_models.PermissionView)
             .filter(
                 ~and_(
-                    sqla_models.PermissionView.permission_id.in_(dag_perm_ids),
+                    sqla_models.PermissionView.view_menu_id.like(f"{DAG_PREFIX}%"),
                     sqla_models.PermissionView.view_menu_id != all_dag_view.id,
                 )
             )
@@ -600,7 +603,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             perms = config['perms']
             self.init_role(role, vms, perms)
         self.create_custom_dag_permission_view()
-
+        self.log.warning('Loading sync_roles.')
         # init existing roles, the rest role could be created through UI.
         self.update_admin_perm_view()
         self.clean_perms()
@@ -629,8 +632,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :type access_control: dict
         :return:
         """
-        # prefixed_dag_id = f"DAG:{dag_id}"
-        prefixed_dag_id = dag_id
+        prefixed_dag_id = self.prefixed_dag_id(dag_id)
         for dag_perm in self.DAG_PERMS:
             perm_on_dag = self.find_permission_view_menu(dag_perm, prefixed_dag_id)
             if perm_on_dag is None:
@@ -649,12 +651,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             {'can_read'}
         :type access_control: dict
         """
+        prefixed_dag_id = self.prefixed_dag_id(dag_id)
 
         def _get_or_create_dag_permission(perm_name):
-            dag_perm = self.find_permission_view_menu(perm_name, dag_id)
+            dag_perm = self.find_permission_view_menu(perm_name, prefixed_dag_id)
             if not dag_perm:
-                self.log.info("Creating new permission '%s' on view '%s'", perm_name, dag_id)
-                dag_perm = self.add_permission_view_menu(perm_name, dag_id)
+                self.log.info("Creating new permission '%s' on view '%s'", perm_name, prefixed_dag_id)
+                dag_perm = self.add_permission_view_menu(perm_name, prefixed_dag_id)
 
             return dag_perm
 
@@ -666,11 +669,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                     target_perms_for_role = access_control.get(role.name, {})
                     if perm.permission.name not in target_perms_for_role:
                         self.log.info(
-                            "Revoking '%s' on DAG '%s' for role '%s'", perm.permission, dag_id, role.name
+                            "Revoking '%s' on DAG '%s' for role '%s'",
+                            perm.permission,
+                            prefixed_dag_id,
+                            role.name,
                         )
                         self.del_permission_role(role, perm)
 
-        dag_view = self.find_view_menu(dag_id)
+        dag_view = self.find_view_menu(prefixed_dag_id)
         if dag_view:
             _revoke_stale_permissions(dag_view)
 
@@ -679,7 +685,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             if not role:
                 raise AirflowException(
                     "The access_control mapping for DAG '{}' includes a role "
-                    "named '{}', but that role does not exist".format(dag_id, rolename)
+                    "named '{}', but that role does not exist".format(prefixed_dag_id, rolename)
                 )
 
             perms = set(perms)
@@ -688,7 +694,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 raise AirflowException(
                     "The access_control map for DAG '{}' includes the following "
                     "invalid permissions: {}; The set of valid permissions "
-                    "is: {}".format(dag_id, (perms - self.DAG_PERMS), self.DAG_PERMS)
+                    "is: {}".format(prefixed_dag_id, (perms - self.DAG_PERMS), self.DAG_PERMS)
                 )
 
             for perm_name in perms:

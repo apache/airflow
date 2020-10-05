@@ -143,7 +143,6 @@ class TestBase(unittest.TestCase):
                 role=self.appbuilder.sm.find_role('Admin'),
                 password='test',
             )
-
         if username == 'test_user' and not self.appbuilder.sm.find_user(username='test_user'):
             self.appbuilder.sm.add_user(
                 username='test_user',
@@ -1731,21 +1730,28 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='test',
                    password='test')
-        perm_on_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_edit', 'example_bash_operator')
         dag_tester_role = self.appbuilder.sm.find_role('dag_acl_tester')
-        self.appbuilder.sm.add_permission_role(dag_tester_role, perm_on_dag)
+        edit_perm_on_dag = self.appbuilder.sm.\
+            find_permission_view_menu('can_edit', 'DAG:example_bash_operator')
+        self.appbuilder.sm.add_permission_role(dag_tester_role, edit_perm_on_dag)
+        read_perm_on_dag = self.appbuilder.sm.\
+            find_permission_view_menu('can_read', 'DAG:example_bash_operator')
+        self.appbuilder.sm.add_permission_role(dag_tester_role, read_perm_on_dag)
 
-        perm_on_all_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_edit', 'Dag')
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
-        self.appbuilder.sm.add_permission_role(all_dag_role, perm_on_all_dag)
+        edit_perm_on_all_dag = self.appbuilder.sm.\
+            find_permission_view_menu('can_edit', 'Dag')
+        self.appbuilder.sm.add_permission_role(all_dag_role, edit_perm_on_all_dag)
+        read_perm_on_all_dag = self.appbuilder.sm.\
+            find_permission_view_menu('can_read', 'Dag')
+        self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_all_dag)
 
         role_user = self.appbuilder.sm.find_role('User')
-        self.appbuilder.sm.add_permission_role(role_user, perm_on_all_dag)
+        self.appbuilder.sm.add_permission_role(role_user, read_perm_on_all_dag)
+        self.appbuilder.sm.add_permission_role(role_user, edit_perm_on_all_dag)
 
         read_only_perm_on_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_read', 'example_bash_operator')
+            find_permission_view_menu('can_read', 'DAG:example_bash_operator')
         dag_read_only_role = self.appbuilder.sm.find_role('dag_acl_read_only')
         self.appbuilder.sm.add_permission_role(dag_read_only_role, read_only_perm_on_dag)
 
@@ -1753,16 +1759,14 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='test',
                    password='test')
-        test_view_menu = self.appbuilder.sm.find_view_menu('example_bash_operator')
+        test_view_menu = self.appbuilder.sm.find_view_menu('DAG:example_bash_operator')
         perms_views = self.appbuilder.sm.find_permissions_view_menu(test_view_menu)
-        self.assertEqual(len(perms_views), 4)
+        self.assertEqual(len(perms_views), 2)
 
         permissions = [str(perm) for perm in perms_views]
         expected_permissions = [
-            'can read on example_bash_operator',
-            'can dag edit on example_bash_operator',
-            'can dag read on example_bash_operator',
-            'can edit on example_bash_operator',
+            'can read on DAG:example_bash_operator',
+            'can edit on DAG:example_bash_operator',
         ]
         for perm in expected_permissions:
             self.assertIn(perm, permissions)
@@ -1773,8 +1777,8 @@ class TestDagACLView(TestBase):
                    password='test')
         test_role = self.appbuilder.sm.find_role('dag_acl_tester')
         perms = {str(perm) for perm in test_role.permissions}
-        self.assertIn('can dag edit on example_bash_operator', perms)
-        self.assertNotIn('can dag read on example_bash_operator', perms)
+        self.assertIn('can edit on DAG:example_bash_operator', perms)
+        self.assertIn('can read on DAG:example_bash_operator', perms)
 
     def test_index_success(self):
         self.logout()
