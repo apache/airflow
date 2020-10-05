@@ -26,6 +26,9 @@ Configuring the Connection
 Dsn (required)
     The Data Source Name. The host address for the Oracle server.
 
+Host(optional)
+    Connect descriptor string for the data source name.
+    
 Sid (optional)
     The Oracle System ID. The uniquely identify a particular database on a system.
 
@@ -61,7 +64,9 @@ Extra (optional)
       configuration parameter.
 
     More details on all Oracle connect parameters supported can be found in
-    `cx_Oracle documentation <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_.
+    `cx_Oracle documentation <https://cx-oracle.readthedocs.io/en/latest/api_manual/module.html#cx_Oracle.connect>`_.
+    
+    
 
     Example "extras" field:
 
@@ -85,3 +90,21 @@ Extra (optional)
     .. code-block:: bash
 
         export AIRFLOW_CONN_ORACLE_DEFAULT='oracle://oracle_user:XXXXXXXXXXXX@1.1.1.1:1521?encoding=UTF-8&nencoding=UTF-8&threaded=False&events=False&mode=sysdba&purity=new'
+    
+    Connect using Dsn and Sid, Dsn and Service_name, or Host
+    `OracleHook.getconn Documentation <https://airflow.apache.org/docs/stable/_modules/airflow/hooks/oracle_hook.html#OracleHook.get_conn>`_.
+    
+    For example:
+    {
+        "Host" = "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=dbhost.example.com)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb1)))"
+    }
+    or
+    {
+        "Dsn" = "dbhost.example.com"
+        "Service_name" = "orclpdb1"
+    }
+    or
+    {
+        "Dsn" = "dbhost.example.com"
+        "Sid" = "orcl"
+    }
