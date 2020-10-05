@@ -289,6 +289,7 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
+  replicas: 1
   # Scheduler pod disruption budget
   podDisruptionBudget:
     enabled: false

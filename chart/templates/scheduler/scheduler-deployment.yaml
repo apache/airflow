@@ -46,7 +46,7 @@ spec:
 {{- if $stateful }}
   serviceName: {{ .Release.Name }}-scheduler
 {{- end }}
-  replicas: 1
+  replicas: {{ .Values.scheduler.replicas }}
   selector:
     matchLabels:
       tier: airflow
@@ -90,11 +90,11 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
-        - name: run-airflow-migrations
+        - name: wait-for-airflow-migrations
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          # Support running against 1.10.x and 2.0.0dev/master
-          args: ["bash", "-c", "airflow upgradedb || airflow db upgrade"]
+          args:
+          {{- include "wait-for-migrations-command" . | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
