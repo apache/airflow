@@ -1682,11 +1682,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             raise ValueError("Processor agent is not started.")
 
         dag = dag_run.get_dag()
-        self._manage_slas(dag)
+        self._send_sla_callbacks_to_processor(dag)
         if dag_run.callback:
             self.processor_agent.send_callback_to_execute(dag_run.callback)
 
-    def _manage_slas(self, dag: DAG):
+    def _send_sla_callbacks_to_processor(self, dag: DAG):
+        """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
         if not settings.CHECK_SLAS:
             return
 

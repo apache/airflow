@@ -3355,6 +3355,53 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(State.SCHEDULED, ti2.state)
         session.rollback()
 
+    def test_send_sla_callbacks_to_processor_sla_disabled(self):
+        """Test SLA Callbacks are not sent when check_slas is False"""
+        dag_id = 'test_send_sla_callbacks_to_processor_sla_disabled'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
+        DummyOperator(task_id='task1', dag=dag)
+
+        with patch.object(settings, "CHECK_SLAS", False):
+            scheduler_job = SchedulerJob()
+            mock_agent = mock.MagicMock()
+
+            scheduler_job.processor_agent = mock_agent
+
+            scheduler_job._send_sla_callbacks_to_processor(dag)
+            scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_not_called()
+
+    def test_send_sla_callbacks_to_processor_sla_no_task_slas(self):
+        """Test SLA Callbacks are not sent when no task SLAs are defined"""
+        dag_id = 'test_send_sla_callbacks_to_processor_sla_no_task_slas'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
+        DummyOperator(task_id='task1', dag=dag)
+
+        with patch.object(settings, "CHECK_SLAS", True):
+            scheduler_job = SchedulerJob()
+            mock_agent = mock.MagicMock()
+
+            scheduler_job.processor_agent = mock_agent
+
+            scheduler_job._send_sla_callbacks_to_processor(dag)
+            scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_not_called()
+
+    def test_send_sla_callbacks_to_processor_sla_with_task_slas(self):
+        """Test SLA Callbacks are sent to the DAG Processor when SLAs are defined on tasks"""
+        dag_id = 'test_send_sla_callbacks_to_processor_sla_with_task_slas'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
+        DummyOperator(task_id='task1', dag=dag, sla=timedelta(seconds=60))
+
+        with patch.object(settings, "CHECK_SLAS", True):
+            scheduler_job = SchedulerJob()
+            mock_agent = mock.MagicMock()
+
+            scheduler_job.processor_agent = mock_agent
+
+            scheduler_job._send_sla_callbacks_to_processor(dag)
+            scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_called_once_with(
+                full_filepath=dag.fileloc, dag_id=dag_id
+            )
+
 
 @pytest.mark.xfail(reason="Work out where this goes")
 def test_task_with_upstream_skip_process_task_instances():
