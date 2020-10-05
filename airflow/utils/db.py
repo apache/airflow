@@ -607,14 +607,20 @@ def check_conn_id_duplicates(session=None):
     @param session:  session of the sqlalchemy
     @return: str
     """
-    dups = session.query(Connection, func.count(Connection.conn_id)) \
-                  .group_by(Connection.conn_id) \
-                  .having(func.count(Connection.conn_id) > 1).all()
+    dups = []
+    try:
+        dups = session.query(Connection, func.count(Connection.conn_id)) \
+                      .group_by(Connection.conn_id) \
+                      .having(func.count(Connection.conn_id) > 1).all()
+    except (exc.OperationalError, exc.ProgrammingError):
+        # fallback if tables hasn't been created yet
+        pass
     if dups:
         return f'Seems you have non unique conn_id in connection table.\n' \
                f'You have to manage those duplicate connections ' \
                f'before upgrading the database.\n' \
                f'Duplicated conn_id: {[dup[0] for dup in dups]}'
+
     return ''
 
 
@@ -624,8 +630,14 @@ def check_conn_type_null(session=None):
     @param session:  session of the sqlalchemy
     @return: str
     """
-    n_nulls = session.query(Connection)\
-                     .filter(Connection.conn_type.is_(None)).all()
+    n_nulls = []
+    try:
+        n_nulls = session.query(Connection)\
+                         .filter(Connection.conn_type.is_(None)).all()
+    except (exc.OperationalError, exc.ProgrammingError, exc.InternalError):
+        # fallback if tables hasn't been created yet
+        pass
+
     if n_nulls:
         return f'The conn_type column in the connection ' \
                f'table must contain content.\n' \
@@ -642,14 +654,11 @@ def auto_migrations_available(session=None):
     @return: list[str]
     """
     errors_ = []
-    try:
-        for check_fn in (check_conn_id_duplicates, check_conn_type_null):
-            err = check_fn(session)
-            if err:
-                errors_.append(err)
-    except (exc.OperationalError, exc.ProgrammingError):
-        # fallback if tables hasn't been created yet
-        pass
+
+    for check_fn in (check_conn_id_duplicates, check_conn_type_null):
+        err = check_fn(session)
+        if err:
+            errors_.append(err)
 
     return errors_
 
@@ -662,7 +671,8 @@ def upgradedb():
     log.info("Creating tables")
     config = _get_alembic_config()
 
-    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
+    config.set_main_option('sqlalchemy.url',
+                           settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     # check automatic migration is available
     errs = auto_migrations_available()
     if errs:
