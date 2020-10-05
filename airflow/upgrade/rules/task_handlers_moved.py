@@ -49,7 +49,7 @@ LOGS = [
 
 
 class TaskHandlersMovedRule(BaseRule):
-    title = "Changes in import path of remote task handlers have changed"
+    title = "Changes in import path of remote task handlers"
     description = (
         "The remote log task handlers have been moved to the providers "
         "directory and into their respective providers packages."
