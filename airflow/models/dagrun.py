@@ -485,7 +485,7 @@ class DagRun(Base, LoggingMixin):
 
             if task.task_id not in task_ids:
                 Stats.incr(
-                    "task_instance_created-{}".format(task.__class__.__name__),
+                    "task_instance_created-{}".format(task.task_type),
                     1, 1)
                 ti = TI(task, self.execution_date)
                 task_instance_mutation_hook(ti)

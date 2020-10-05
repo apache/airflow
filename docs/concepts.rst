@@ -1184,7 +1184,7 @@ may look like inside your ``airflow_local_settings.py``:
 .. code-block:: python
 
     def policy(task):
-        if task.__class__.__name__ == 'HivePartitionSensor':
+        if task.task_type == 'HivePartitionSensor':
             task.queue = "sensor_queue"
         if task.timeout > timedelta(hours=48):
             task.timeout = timedelta(hours=48)
