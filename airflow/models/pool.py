@@ -94,7 +94,7 @@ class Pool(Base):
         non-blocking lock will be attempted -- if the lock is not available then SQLAlchemy will throw an
         OperationalError.
 
-        :param lock_rows: Should we attept to obtain a row-level lock on all the Pool rows returns
+        :param lock_rows: Should we attempt to obtain a row-level lock on all the Pool rows returns
         :param session: SQLAlchemy ORM Session
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
