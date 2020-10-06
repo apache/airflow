@@ -19,6 +19,15 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
+function disable_rbac_if_requested() {
+    if [[ ${DISABLE_RBAC:="false"} == "true" ]]; then
+        export AIRFLOW__WEBSERVER__RBAC="False"
+    else
+        export AIRFLOW__WEBSERVER__RBAC="True"
+    fi
+}
+
+
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . /opt/airflow/scripts/in_container/_in_container_script_init.sh
 
@@ -99,6 +108,8 @@ unset AIRFLOW__CORE__UNIT_TEST_MODE
 
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
+
+disable_rbac_if_requested
 
 set +e
 "${IN_CONTAINER_DIR}/check_environment.sh"
