@@ -82,7 +82,7 @@ scope.
     my_function()
 
 Sometimes this can be put to good use. For example, a common pattern with
-:class:`~airflow.operators.subdag_operator.SubDagOperator` is to define the subdag inside a function so that Airflow
+:class:`~airflow.operators.subdag.SubDagOperator` is to define the subdag inside a function so that Airflow
 doesn't try to load it as a standalone DAG.
 
 .. _default-args:
@@ -1024,7 +1024,7 @@ This SubDAG can then be referenced in your main DAG file:
     :start-after: [START example_subdag_operator]
     :end-before: [END example_subdag_operator]
 
-You can zoom into a :class:`~airflow.operators.subdag_operator.SubDagOperator` from the graph view of the main DAG to show
+You can zoom into a :class:`~airflow.operators.subdag.SubDagOperator` from the graph view of the main DAG to show
 the tasks contained within the SubDAG:
 
 .. image:: img/subdag_zoom.png
@@ -1038,8 +1038,8 @@ Some other tips when using SubDAGs:
 -  SubDAGs must have a schedule and be enabled. If the SubDAG's schedule is
    set to ``None`` or ``@once``, the SubDAG will succeed without having done
    anything
--  clearing a :class:`~airflow.operators.subdag_operator.SubDagOperator` also clears the state of the tasks within
--  marking success on a :class:`~airflow.operators.subdag_operator.SubDagOperator` does not affect the state of the tasks
+-  clearing a :class:`~airflow.operators.subdag.SubDagOperator` also clears the state of the tasks within
+-  marking success on a :class:`~airflow.operators.subdag.SubDagOperator` does not affect the state of the tasks
    within
 -  refrain from using ``depends_on_past=True`` in tasks within the SubDAG as
    this can be confusing
@@ -1051,7 +1051,7 @@ Some other tips when using SubDAGs:
 
 See ``airflow/example_dags`` for a demonstration.
 
-Note that airflow pool is not honored by :class:`~airflow.operators.subdag_operator.SubDagOperator`. Hence
+Note that airflow pool is not honored by :class:`~airflow.operators.subdag.SubDagOperator`. Hence
 resources could be consumed by SubdagOperators.
 
 
@@ -1059,7 +1059,7 @@ TaskGroup
 =========
 TaskGroup can be used to organize tasks into hierarchical groups in Graph View. It is
 useful for creating repeating patterns and cutting down visual clutter. Unlike
-:class:`~airflow.operators.subdag_operator.SubDagOperator`, TaskGroup is a UI grouping concept.
+:class:`~airflow.operators.subdag.SubDagOperator`, TaskGroup is a UI grouping concept.
 Tasks in TaskGroups live on the same original DAG. They honor all the pool configurations.
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<``

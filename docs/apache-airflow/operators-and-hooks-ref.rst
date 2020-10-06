@@ -74,7 +74,7 @@ Airflow has many more integrations available for separate installation as a prov
    * - :mod:`airflow.operators.python`
      - :doc:`How to use <howto/operator/python>`
 
-   * - :mod:`airflow.operators.subdag_operator`
+   * - :mod:`airflow.operators.subdag`
      -
 
    * - :mod:`airflow.operators.sql`
