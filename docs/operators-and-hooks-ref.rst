@@ -73,7 +73,7 @@ Fundamentals
    * - :mod:`airflow.operators.generic_transfer`
      -
 
-   * - :mod:`airflow.operators.latest_only_operator`
+   * - :mod:`airflow.operators.latest_only`
      -
 
    * - :mod:`airflow.operators.python`
