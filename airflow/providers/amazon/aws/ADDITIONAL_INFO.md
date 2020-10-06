@@ -19,7 +19,7 @@
 
 ## Change in import paths
 
-If you are upgrading from 2020.6.24 note the following changes in import paths
+If you are upgrading from 2020.10.5 note the following changes in import paths
 
 | Old path                                                        | New path                                                    |
 | --------------------------------------------------------------- | ----------------------------------------------------------- |
