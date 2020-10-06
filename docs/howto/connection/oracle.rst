@@ -25,7 +25,10 @@ Configuring the Connection
 --------------------------
 Dsn (required)
     The Data Source Name. The host address for the Oracle server.
-
+    
+Host(optional)
+    Connect descriptor string for the data source name.
+    
 Sid (optional)
     The Oracle System ID. The uniquely identify a particular database on a system.
 
@@ -61,7 +64,7 @@ Extra (optional)
       configuration parameter.
 
     More details on all Oracle connect parameters supported can be found in
-    `cx_Oracle documentation <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_.
+    `cx_Oracle documentation <https://cx-oracle.readthedocs.io/en/latest/api_manual/module.html#cx_Oracle.connect>`_.
 
     Example "extras" field:
 
