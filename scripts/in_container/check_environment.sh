@@ -111,10 +111,11 @@ function startairflow_if_requested() {
 
         . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
 
-        # initialize db
-        airflow initdb
-        if [[ ${RBAC_UI} == "true" ]]; then
-            # For rbac UI create the admin user if it's a new run
+        # initialize db and create the admin user if it's a new run
+        if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
+            airflow initdb
+            airflow create_user -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email || true
+        else
             airflow create_user -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
         fi
 
