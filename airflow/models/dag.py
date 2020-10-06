@@ -1976,7 +1976,7 @@ class DagModel(Base):
 
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint(
         'scheduler',
-        'num_dags_needing_dagrun_per_scheduler_loop',
+        'max_dagruns_to_create_per_loop',
         fallback=10
     )
 

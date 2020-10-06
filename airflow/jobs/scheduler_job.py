@@ -1412,13 +1412,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         - Creates any necessary DAG runs by examining the next_dagrun_create_after column of DagModel
 
           Since creating Dag Runs is a relatively time consuming process, we select only 10 dags by default
-          (configurable via ``scheduler.num_dags_needing_dagrun_per_scheduler_loop`` setting) - putting this
-          higher will mean one scheduler could spend a chunk of time creating dag runs, and not ever get
-          around to scheduling tasks.
+          (configurable via ``scheduler.max_dagruns_to_create_per_loop`` setting) - putting this higher will
+          mean one scheduler could spend a chunk of time creating dag runs, and not ever get around to
+          scheduling tasks.
 
         - Finds the "next n oldest" running DAG Runs to examine for scheduling (n=20 by default, configurable
-          via ``scheduler.max_dagruns_per_query`` config setting) and tries to progress state (TIs to
-          SCHEDULED, or DagRuns to SUCCESS/FAILURE etc)
+          via ``scheduler.max_dagruns_per_loop_to_schedule`` config setting) and tries to progress state (TIs
+          to SCHEDULED, or DagRuns to SUCCESS/FAILURE etc)
 
           By "next oldest", we mean hasn't been examined/scheduled in the most time.
 

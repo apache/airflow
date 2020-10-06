@@ -81,7 +81,11 @@ class DagRun(Base, LoggingMixin):
         backref=backref('dag_run', uselist=False),
     )
 
-    DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint('scheduler', 'max_dagruns_per_query', fallback=20)
+    DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
+        'scheduler',
+        'max_dagruns_per_loop_to_schedule',
+        fallback=20,
+    )
 
     def __init__(
         self,
