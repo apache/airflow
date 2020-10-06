@@ -1391,7 +1391,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 # usage when "idle"
                 time.sleep(self._processor_poll_interval)
 
-            if self.num_runs > 0 and loop_count >= self.num_runs:
+            if loop_count >= self.num_runs > 0:
                 self.log.info(
                     "Exiting scheduler loop as requested number of runs (%d - got to %d) has been reached",
                     self.num_runs, loop_count,
