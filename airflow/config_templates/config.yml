@@ -1595,10 +1595,10 @@
       default: ~
     - name: max_dagruns_per_loop_to_schedule
       description: |
-        How many DagRuns should a scheduler exaimne (and lock) when scheduling
+        How many DagRuns should a scheduler examine (and lock) when scheduling
         and queuing tasks. Increasing this limit will allow more throughput for
         smaller DAGs but will likely slow down throughput for larger (>500
-        tasks for example.) DAGs. Setting this to high when using multiple
+        tasks for example) DAGs. Setting this too high when using multiple
         schedulers could also lead to one scheduler taking all the dag runs
         leaving no work for the others.
 
