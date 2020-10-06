@@ -86,7 +86,6 @@ class SSHHook(BaseHook):
         self.host_proxy = None
         self.look_for_keys = True
 
-        # Placeholder for deprecated __enter__
         self.client = None
 
         # Use connection to override defaults
@@ -174,6 +173,9 @@ class SSHHook(BaseHook):
 
         :rtype: paramiko.client.SSHClient
         """
+        if self.client is not None:
+            return self.client
+
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
         client = paramiko.SSHClient()
 

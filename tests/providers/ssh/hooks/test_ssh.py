@@ -336,3 +336,30 @@ class TestSSHHook(unittest.TestCase):
                 sock=None,
                 look_for_keys=True,
             )
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_should_reuse_existing_connection(self, ssh_mock):
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
+            remote_host='remote_host',
+            port=22,
+            username='username',
+            timeout=10,
+        )
+
+        hook.get_conn()
+        hook.get_conn()
+        hook.get_conn()
+
+        # SSHHook should reuse previous connection, hence the paramiko's connect
+        # method will be called only once
+        ssh_mock.return_value.connect.assert_called_once_with(
+            hostname='remote_host',
+            username='username',
+            pkey=TEST_PKEY,
+            timeout=10,
+            compress=True,
+            port=22,
+            sock=None,
+            look_for_keys=True,
+        )
