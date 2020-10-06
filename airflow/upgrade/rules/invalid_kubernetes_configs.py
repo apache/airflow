@@ -63,7 +63,7 @@ needed once this pod_template_file has been generated.
 
         if resp:
             resp_string = "\n".join(resp)
-            return f"The following invalid keys were found in your airflow.cfg:" \
-                   f"\n\n{resp_string}\n\n" \
-                   f"Please generate a pod_template_file by running `airflow generate_pod_template`" \
-                   f"and delete these keys."
+            return "The following invalid keys were found in your airflow.cfg: \
+                   \n\n{resp_string}\n\n \
+                   Please generate a pod_template_file by running `airflow generate_pod_template` \
+                   and delete these keys.".format(resp_string=resp_string)
