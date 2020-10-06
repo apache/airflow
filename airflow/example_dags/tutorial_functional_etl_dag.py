@@ -32,8 +32,6 @@ import json
 
 # The DAG object; we'll need this to instantiate a DAG
 from airflow import DAG
-# Operators; we need this to operate!
-from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
 from airflow.decorators import task
 
@@ -68,10 +66,12 @@ with DAG(
 # [END documentation]
 
 # [START extract]
-    @dag.task()
+    @dag.task(multiple_outputs=True)
     def extract():
         data_string = u'{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
-        return data_string
+
+        order_data = json.loads(data_string)
+        return order_data
 # [END extract]
     extract.doc_md = """\
     #### Extract task
@@ -81,16 +81,13 @@ with DAG(
 
 # [START transform]
     @dag.task(multiple_outputs=True)
-    def transform(order_data_string: str):
-        order_data = json.loads(order_data_string)
-
+    def transform(order_data: dict):
         total_order_value = 0
+
         for value in order_data.values():
             total_order_value += value
 
         return {"total_order_value": total_order_value}
-        total_value_json_string = json.dumps(total_value)
-        return total_value_json_string
 # [END transform]
     transform.doc_md = """\
     #### Transform task
@@ -100,10 +97,9 @@ with DAG(
 
 # [START load]
     @dag.task()
-    def load(total_value_string: str):
-        total_order_value = json.loads(total_value_string)
+    def load(total_order_value: float):
 
-        print(total_order_value)
+        print("Total order value is: %.2f" % total_order_value)
 # [END load]
     load.doc_md = """\
     #### Load task
