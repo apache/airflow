@@ -165,6 +165,7 @@
     - name: dag_concurrency
       description: |
         The number of task instances allowed to run concurrently by the scheduler
+        in one DAG. Can be overridden by `concurrency` on DAG level.
       version_added: ~
       type: string
       example: ~
