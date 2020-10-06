@@ -50,7 +50,7 @@ class AwsDynamoDBHook(AwsBaseHook):
         kwargs["resource_type"] = "dynamodb"
         super().__init__(*args, **kwargs)
 
-    def write_batch_data(self, items: Iterable):
+    def write_batch_data(self, items: Iterable) -> bool:
         """
         Write batch items to DynamoDB table with provisioned throughout capacity.
         """
