@@ -24,6 +24,8 @@ Airflow connection of type `azure_data_lake` exists. Authorization can be done b
 login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
 (see connection `azure_data_lake_default` for an example).
 """
+from typing import Any, Optional
+
 from azure.datalake.store import core, lib, multithread
 
 from airflow.hooks.base_hook import BaseHook
@@ -41,13 +43,13 @@ class AzureDataLakeHook(BaseHook):
     :type azure_data_lake_conn_id: str
     """
 
-    def __init__(self, azure_data_lake_conn_id='azure_data_lake_default'):
+    def __init__(self, azure_data_lake_conn_id: str = 'azure_data_lake_default'):
         super().__init__()
         self.conn_id = azure_data_lake_conn_id
-        self._conn = None
-        self.account_name = None
+        self._conn: Optional[core.AzureDLFileSystem] = None
+        self.account_name: Optional[str] = None
 
-    def get_conn(self):
+    def get_conn(self) -> core.AzureDLFileSystem:
         """Return a AzureDLFileSystem object."""
         if not self._conn:
             conn = self.get_connection(self.conn_id)
@@ -61,7 +63,7 @@ class AzureDataLakeHook(BaseHook):
             self._conn.connect()
         return self._conn
 
-    def check_for_file(self, file_path):
+    def check_for_file(self, file_path: str) -> bool:
         """
         Check if a file exists on Azure Data Lake.
 
@@ -77,8 +79,15 @@ class AzureDataLakeHook(BaseHook):
             return False
 
     def upload_file(
-        self, local_path, remote_path, nthreads=64, overwrite=True, buffersize=4194304, blocksize=4194304
-    ):
+        self,
+        local_path: str,
+        remote_path: str,
+        nthreads: int = 64,
+        overwrite: bool = True,
+        buffersize: int = 4194304,
+        blocksize: int = 4194304,
+        **kwargs,
+    ) -> Any:
         """
         Upload a file to Azure Data Lake.
 
@@ -113,11 +122,19 @@ class AzureDataLakeHook(BaseHook):
             overwrite=overwrite,
             buffersize=buffersize,
             blocksize=blocksize,
+            **kwargs,
         )
 
     def download_file(
-        self, local_path, remote_path, nthreads=64, overwrite=True, buffersize=4194304, blocksize=4194304
-    ):
+        self,
+        local_path: str,
+        remote_path: str,
+        nthreads: int = 64,
+        overwrite: bool = True,
+        buffersize: int = 4194304,
+        blocksize: int = 4194304,
+        **kwargs,
+    ) -> Any:
         """
         Download a file from Azure Blob Storage.
 
@@ -153,9 +170,10 @@ class AzureDataLakeHook(BaseHook):
             overwrite=overwrite,
             buffersize=buffersize,
             blocksize=blocksize,
+            **kwargs,
         )
 
-    def list(self, path):
+    def list(self, path: str):
         """
         List files in Azure Data Lake Storage
 

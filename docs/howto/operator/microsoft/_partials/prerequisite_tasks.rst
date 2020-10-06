@@ -17,29 +17,18 @@
 
 
 
-Using Operators
-===============
+To use these operators, you must do a few things:
 
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
+  * Create necessary resources using `AZURE PORTAL`_ or `AZURE CLI`_.
+  * Install API libraries via **pip**.
 
-.. note::
-    See the :ref:`Operators Concepts <concepts:operators>` documentation and the
-    :doc:`Operators API Reference <../../_api/index>` for more
-    information.
+    .. code-block:: bash
 
-.. toctree::
-    :maxdepth: 2
+      pip install 'apache-airflow[azure]'
 
-    bash
-    amazon/aws/index
-    apache/index
-    dingding
-    google/index
-    http
-    kubernetes
-    microsoft/index
-    papermill
-    python
-    external_task_sensor
-    yandexcloud
+    Detailed information is available :doc:`/installation`
+
+  * :doc:`Setup Connection </howto/connection/azure>`.
+
+.. _AZURE PORTAL: https://portal.azure.com
+.. _AZURE CLI: https://docs.microsoft.com/en-us/cli/azure/

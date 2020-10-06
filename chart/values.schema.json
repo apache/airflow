@@ -23,6 +23,10 @@
             "description": "Default airflow tag to deploy.",
             "type": "string"
         },
+        "multi_namespaceMode": {
+          "description": "Whether the KubernetesExecutor can launch workers in multiple namespaces",
+          "type": "boolean"
+        },
         "nodeSelector": {
             "description": "Select certain nodes for airflow pods.",
             "type": "object",

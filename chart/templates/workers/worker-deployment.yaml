@@ -19,7 +19,7 @@
 ## Airflow Worker Deployment
 #################################
 {{- $persistence := .Values.workers.persistence.enabled }}
-{{- if eq .Values.executor "CeleryExecutor" }}
+{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
 metadata:

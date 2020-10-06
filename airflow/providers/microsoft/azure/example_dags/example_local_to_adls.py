@@ -15,32 +15,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
-################################
-## Airflow Worker Service
-#################################
-{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
-kind: Service
-apiVersion: v1
-metadata:
-  name: {{ .Release.Name }}-worker
-  labels:
-    tier: airflow
-    component: worker
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
-spec:
-  clusterIP: None
-  selector:
-    tier: airflow
-    component: worker
-    release: {{ .Release.Name }}
-  ports:
-    - name: worker-logs
-      protocol: TCP
-      port: {{ .Values.ports.workerLogs }}
-      targetPort: {{ .Values.ports.workerLogs }}
-{{- end }}
+import os
+from airflow import models
+from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalToAzureDataLakeStorageOperator
+from airflow.utils.dates import days_ago
+
+LOCAL_FILE_PATH = os.environ.get("LOCAL_FILE_PATH", 'localfile.txt')
+REMOTE_FILE_PATH = os.environ.get("REMOTE_LOCAL_PATH", 'remote')
+
+
+with models.DAG(
+    "example_local_to_adls",
+    start_date=days_ago(1),
+    schedule_interval=None,
+    tags=['example'],
+) as dag:
+    # [START howto_operator_local_to_adls]
+    upload_file = LocalToAzureDataLakeStorageOperator(
+        task_id='upload_task',
+        local_path=LOCAL_FILE_PATH,
+        remote_path=REMOTE_FILE_PATH,
+    )
+    # [END howto_operator_local_to_adls]

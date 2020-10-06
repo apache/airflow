@@ -15,32 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-################################
-## Airflow Worker Service
-#################################
-{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
-kind: Service
-apiVersion: v1
-metadata:
-  name: {{ .Release.Name }}-worker
-  labels:
-    tier: airflow
-    component: worker
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
-spec:
-  clusterIP: None
-  selector:
-    tier: airflow
-    component: worker
-    release: {{ .Release.Name }}
-  ports:
-    - name: worker-logs
-      protocol: TCP
-      port: {{ .Values.ports.workerLogs }}
-      targetPort: {{ .Values.ports.workerLogs }}
-{{- end }}
+---
+templates:
+  - workers/worker-deployment.yaml
+  - rbac/pod-launcher-rolebinding.yaml
+tests:
+  - it: should allow both scheduler pod launching and worker pod launching
+    set:
+      executor: CeleryKubernetesExecutor
+    asserts:
+      - matchRegex:
+          path: subjects[0].name
+          pattern: ^.*-worker$

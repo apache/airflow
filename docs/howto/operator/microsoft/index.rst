@@ -17,29 +17,10 @@
 
 
 
-Using Operators
-===============
-
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
-
-.. note::
-    See the :ref:`Operators Concepts <concepts:operators>` documentation and the
-    :doc:`Operators API Reference <../../_api/index>` for more
-    information.
+Microsoft Operators
+===================
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
-    bash
-    amazon/aws/index
-    apache/index
-    dingding
-    google/index
-    http
-    kubernetes
-    microsoft/index
-    papermill
-    python
-    external_task_sensor
-    yandexcloud
+    transfer/index
