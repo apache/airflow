@@ -80,7 +80,7 @@ with DAG(
     """
 
 # [START transform]
-    @dag.task()
+    @dag.task(multiple_outputs=True)
     def transform(order_data_string: str):
         order_data = json.loads(order_data_string)
 
@@ -88,7 +88,7 @@ with DAG(
         for value in order_data.values():
             total_order_value += value
 
-        total_value = {"total_order_value": total_order_value}
+        return {"total_order_value": total_order_value}
         total_value_json_string = json.dumps(total_value)
         return total_value_json_string
 # [END transform]
@@ -113,7 +113,7 @@ with DAG(
 
     order_data = extract()
     order_summary = transform(order_data)
-    load(order_summary)
+    load(order_summary["total_order_value"])
 
 
 # [END tutorial]
