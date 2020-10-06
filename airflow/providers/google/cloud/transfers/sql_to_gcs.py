@@ -198,7 +198,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         if self.export_format == 'csv':
             csv_writer = self._configure_csv_file(tmp_file_handle, schema)
 
-        for row in cursor:
+        for row in self.getCursorIterator(cursor):
             # Convert datetime objects to utc seconds, and decimals to floats.
             # Convert binary type object to string encoded with base64.
             row = self.convert_types(schema, col_type_dict, row)
@@ -231,6 +231,9 @@ class BaseSQLToGCSOperator(BaseOperator):
                     csv_writer = self._configure_csv_file(tmp_file_handle, schema)
 
         return files_to_upload
+
+    def getCursorIterator(self, cursor):
+        return cursor
 
     def _configure_csv_file(self, file_handle, schema):
         """Configure a csv writer with the file_handle and write schema
