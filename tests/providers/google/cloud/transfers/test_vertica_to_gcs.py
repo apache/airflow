@@ -21,8 +21,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import mock
 import unittest
+import mock
 
 from airflow.providers.google.cloud.transfers.vertica_to_gcs import VerticaToGoogleCloudStorageOperator
 

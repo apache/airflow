@@ -1074,9 +1074,9 @@ These integrations allow you to copy data from/to Google Cloud.
      - :mod:`airflow.providers.google.suite.transfers.gcs_to_sheets`
 
    * - `Vertica <https://www.vertica.com/>`__
-      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-      -
-      - :mod:`airflow.providers.google.cloud.transfers.vertica_to_gcs`
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/google/transfer/vertica_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.transfers.vertica_to_gcs`
 
 .. _integration:GCP-Discovery:
 
@@ -1607,9 +1607,9 @@ These integrations allow you to copy data.
      - :mod:`airflow.providers.mysql.transfers.vertica_to_mysql`
 
    * - `Vertica <https://www.vertica.com/>`__
-       - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-       -
-       - :mod:`airflow.providers.google.cloud.transfers.vertica_to_gcs`
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/google/transfer/vertica_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.transfers.vertica_to_gcs`
 
 .. _protocol:
 
