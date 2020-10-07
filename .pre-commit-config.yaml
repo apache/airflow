@@ -159,8 +159,7 @@ repos:
     rev: 20.8b1
     hooks:
       - id: black
-        files: api_connexion/.*\.py|.*providers.*\.py|^chart/tests/.*\.py
-        exclude: .*kubernetes_pod\.py|.*google/common/hooks/base_google\.py$
+        exclude: .*kubernetes_pod\.py|.*google/common/hooks/base_google\.py$|^airflow/configuration.py$
         args: [--config=./pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.3.0
@@ -203,7 +202,7 @@ repos:
         name: Run isort to sort imports
         types: [python]
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^.tox/.*$|^venv/.*$|.*api_connexion/.*\.py|.*providers.*\.py
+        exclude: ^build/.*$|^.tox/.*$|^venv/.*$
   - repo: https://github.com/pycqa/pydocstyle
     rev: 5.1.1
     hooks:
