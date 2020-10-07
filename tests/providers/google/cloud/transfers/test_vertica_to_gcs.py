@@ -53,6 +53,7 @@ SCHEMA_JSON = (
 
 
 def mock_cursor_iterate():
+    """Returns iterator for rows"""
     return iter(ROWS)
 
 

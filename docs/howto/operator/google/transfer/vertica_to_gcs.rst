@@ -16,7 +16,7 @@
     under the License.
 
 Vertica To Google Cloud Storage Operator
-======================================
+========================================
 The `Google Cloud Storage <https://cloud.google.com/storage/>`__ (GCS) service is
 used to store large data from various applications. This page shows how to copy
 data from Vertica to GCS.
@@ -46,8 +46,8 @@ Below is an example of using this operator to upload data to GCS.
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_vertica_to_gcs.py
     :language: python
     :dedent: 0
-    :start-after: [START how_to_operator_vertica_to_gcs]
-    :end-before: [END how_to_operator_vertica_to_gcs]
+    :start-after: [START howto_operator_vertica_to_gcs]
+    :end-before: [END howto_operator_vertica_to_gcs]
 
 
 Reference
