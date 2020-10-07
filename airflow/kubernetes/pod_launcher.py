@@ -184,7 +184,10 @@ class PodLauncher(LoggingMixin):
         wait=tenacity.wait_exponential(),
         reraise=True
     )
-    def read_pod_logs(self, pod: V1Pod, tail_lines: Optional[int] = None, since_seconds: Optional[int] = None):
+    def read_pod_logs(self,
+                      pod: V1Pod,
+                      tail_lines: Optional[int] = None,
+                      since_seconds: Optional[int] = None):
         """Reads log from the POD"""
         additional_kwargs = {}
         if since_seconds:
