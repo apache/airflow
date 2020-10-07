@@ -44,14 +44,14 @@ Set values for these fields:
   :depth: 1
   :local:
 
-.. _howto/operator:AzureBlobStorageToGCSTransferOperator:
+.. _howto/operator:AzureBlobStorageToGCSOperator:
 
 Transfer Data from Blob Storage to Google Cloud Storage
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Operator transfers data from Azure Blob Storage to specified bucket in Google Cloud Storage
 
 To get information about jobs within a Azure Blob Storage use:
-:class:`~airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.py.AzureBlobStorageToGCSTransferOperator`
+:class:`~airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.py.AzureBlobStorageToGCSOperator`
 Example usage:
 
 .. exampleinclude:: /../airflow/providers/microsoft/azure/example_dags/example_azure_blob_to_gcs.py

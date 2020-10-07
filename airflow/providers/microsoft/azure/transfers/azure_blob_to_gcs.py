@@ -25,13 +25,13 @@ from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.utils.decorators import apply_defaults
 
 
-class AzureBlobStorageToGCSTransferOperator(BaseOperator):
+class AzureBlobStorageToGCSOperator(BaseOperator):
     """
     Operator transfers data from Azure Blob Storage to specified bucket in Google Cloud Storage
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AzureBlobStorageToGCSTransferOperator`
+        :ref:`howto/operator:AzureBlobStorageToGCSOperator`
 
     :param wasb_conn_id: Reference to the wasb connection.
     :type wasb_conn_id: str

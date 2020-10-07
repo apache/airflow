@@ -20,7 +20,7 @@ import os
 from airflow import DAG
 from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor
 from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import (
-    AzureBlobStorageToGCSTransferOperator,
+    AzureBlobStorageToGCSOperator,
 )
 from airflow.utils.dates import days_ago
 
@@ -47,7 +47,7 @@ with DAG(
     # [END how_to_wait_for_blob]
 
     # [START how_to_azure_blob_to_gcs]
-    transfer_files_to_gcs = AzureBlobStorageToGCSTransferOperator(
+    transfer_files_to_gcs = AzureBlobStorageToGCSOperator(
         task_id="transfer_files_to_gcs",
         # AZURE args
         wasb_conn_id="wasb_default",

@@ -19,7 +19,7 @@ import unittest
 import mock
 
 from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import (
-    AzureBlobStorageToGCSTransferOperator,
+    AzureBlobStorageToGCSOperator,
 )
 
 WASB_CONN_ID = "wasb_default"
@@ -38,7 +38,7 @@ TASK_ID = "transfer_file"
 
 class TestAzureBlobStorageToGCSTransferOperator(unittest.TestCase):
     def test_init(self):
-        operator = AzureBlobStorageToGCSTransferOperator(
+        operator = AzureBlobStorageToGCSOperator(
             wasb_conn_id=WASB_CONN_ID,
             gcp_conn_id=GCP_CONN_ID,
             blob_name=BLOB_NAME,
@@ -69,7 +69,7 @@ class TestAzureBlobStorageToGCSTransferOperator(unittest.TestCase):
     @mock.patch("airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.GCSHook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.tempfile")
     def test_execute(self, mock_temp, mock_hook_gcs, mock_hook_wasb):
-        op = AzureBlobStorageToGCSTransferOperator(
+        op = AzureBlobStorageToGCSOperator(
             wasb_conn_id=WASB_CONN_ID,
             gcp_conn_id=GCP_CONN_ID,
             blob_name=BLOB_NAME,
