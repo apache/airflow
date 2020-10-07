@@ -579,4 +579,4 @@ Cheers,
 </details>
 
 - Update the Announcement page on
-[Airflow Site](https://airflow.apache.org/announcements/ )
+[Airflow Site](https://airflow.apache.org/announcements/)
