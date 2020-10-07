@@ -101,7 +101,6 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
-        self.assertIsNone(self.hook.conn)
         self.assertFalse(self.hook.locations)
         self.assertFalse(self.hook.tasks)
         self.assertEqual(self.hook.wait_interval_seconds, 0)
