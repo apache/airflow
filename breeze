@@ -63,7 +63,6 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    FORWARD_CREDENTIALS
 #    DB_RESET
 #    START_AIRFLOW
-#    RBAC_UI
 #    INSTALL_AIRFLOW_VERSION
 #    INSTALL_AIRFLOW_REFERENCE
 #    FORCE_BUILD_IMAGES
@@ -121,7 +120,7 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, the test connections will be created
     export LOAD_DEFAULT_CONNECTIONS="false"
 
-    # If set to true, the sample dags will be created
+    # If set to true, the sample dags will be used
     export LOAD_EXAMPLES="false"
 
     # If set to true, RBAC mode is enabled
