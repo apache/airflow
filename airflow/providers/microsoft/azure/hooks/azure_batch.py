@@ -18,12 +18,14 @@
 #
 import time
 from datetime import timedelta
-from typing import Optional
+from typing import Optional, Set
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
+from azure.batch.models import PoolAddParameter, JobAddParameter, TaskAddParameter
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.models import Connection
 from airflow.utils import timezone
 
 
@@ -32,13 +34,13 @@ class AzureBatchHook(BaseHook):
     Hook for Azure Batch APIs
     """
 
-    def __init__(self, azure_batch_conn_id='azure_batch_default'):
+    def __init__(self, azure_batch_conn_id: str = 'azure_batch_default') -> None:
         super().__init__()
         self.conn_id = azure_batch_conn_id
         self.connection = self.get_conn()
         self.extra = self._connection().extra_dejson
 
-    def _connection(self):
+    def _connection(self) -> Connection:
         """
         Get connected to azure batch service
         """
@@ -73,14 +75,14 @@ class AzureBatchHook(BaseHook):
         self,
         pool_id: str,
         vm_size: str,
+        vm_publisher: str,
+        vm_offer: str,
+        sku_starts_with: str,
         display_name: Optional[str] = None,
         target_dedicated_nodes: Optional[int] = None,
         use_latest_image_and_sku: bool = False,
-        vm_publisher: Optional[str] = None,
-        vm_offer: Optional[str] = None,
-        sku_starts_with: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> PoolAddParameter:
         """
         Configures a pool
 
@@ -161,7 +163,7 @@ class AzureBatchHook(BaseHook):
             )
         return pool
 
-    def create_pool(self, pool):
+    def create_pool(self, pool: PoolAddParameter) -> None:
         """
         Creates a pool if not already existing
 
@@ -179,7 +181,12 @@ class AzureBatchHook(BaseHook):
             else:
                 self.log.info("Pool %s already exists", pool.id)
 
-    def _get_latest_verified_image_vm_and_sku(self, publisher, offer, sku_starts_with):
+    def _get_latest_verified_image_vm_and_sku(
+        self,
+        publisher: str,
+        offer: str,
+        sku_starts_with: str,
+    ) -> tuple:
         """
         Get latest verified image vm and sku
 
@@ -207,7 +214,7 @@ class AzureBatchHook(BaseHook):
         agent_sku_id, image_ref_to_use = skus_to_use[0]
         return agent_sku_id, image_ref_to_use
 
-    def wait_for_all_node_state(self, pool_id, node_state):
+    def wait_for_all_node_state(self, pool_id: str, node_state: Set) -> list:
         """
         Wait for all nodes in a pool to reach given states
 
@@ -231,7 +238,13 @@ class AzureBatchHook(BaseHook):
             # the pool
             time.sleep(10)
 
-    def configure_job(self, job_id: str, pool_id: str, display_name: Optional[str] = None, **kwargs):
+    def configure_job(
+        self,
+        job_id: str,
+        pool_id: str,
+        display_name: Optional[str] = None,
+        **kwargs,
+    ) -> JobAddParameter:
         """
         Configures a job for use in the pool
 
@@ -250,7 +263,7 @@ class AzureBatchHook(BaseHook):
         )
         return job
 
-    def create_job(self, job):
+    def create_job(self, job: JobAddParameter) -> None:
         """
         Creates a job in the pool
 
@@ -273,7 +286,7 @@ class AzureBatchHook(BaseHook):
         display_name: Optional[str] = None,
         container_settings=None,
         **kwargs,
-    ):
+    ) -> TaskAddParameter:
         """
         Creates a task
 
@@ -299,7 +312,7 @@ class AzureBatchHook(BaseHook):
         self.log.info("Task created: %s", task_id)
         return task
 
-    def add_single_task_to_job(self, job_id, task):
+    def add_single_task_to_job(self, job_id: str, task: TaskAddParameter) -> None:
         """
         Add a single task to given job if it doesn't exist
 
@@ -317,7 +330,7 @@ class AzureBatchHook(BaseHook):
             else:
                 self.log.info("Task %s already exists", task.id)
 
-    def wait_for_job_tasks_to_complete(self, job_id, timeout):
+    def wait_for_job_tasks_to_complete(self, job_id: str, timeout: int) -> None:
         """
         Wait for tasks in a particular job to complete
 

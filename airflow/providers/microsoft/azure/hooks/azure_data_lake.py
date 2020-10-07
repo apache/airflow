@@ -24,7 +24,7 @@ Airflow connection of type `azure_data_lake` exists. Authorization can be done b
 login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
 (see connection `azure_data_lake_default` for an example).
 """
-from typing import Any, Optional
+from typing import Optional
 
 from azure.datalake.store import core, lib, multithread
 
@@ -43,7 +43,7 @@ class AzureDataLakeHook(BaseHook):
     :type azure_data_lake_conn_id: str
     """
 
-    def __init__(self, azure_data_lake_conn_id: str = 'azure_data_lake_default'):
+    def __init__(self, azure_data_lake_conn_id: str = 'azure_data_lake_default') -> None:
         super().__init__()
         self.conn_id = azure_data_lake_conn_id
         self._conn: Optional[core.AzureDLFileSystem] = None
@@ -87,7 +87,7 @@ class AzureDataLakeHook(BaseHook):
         buffersize: int = 4194304,
         blocksize: int = 4194304,
         **kwargs,
-    ) -> Any:
+    ) -> None:
         """
         Upload a file to Azure Data Lake.
 
@@ -134,7 +134,7 @@ class AzureDataLakeHook(BaseHook):
         buffersize: int = 4194304,
         blocksize: int = 4194304,
         **kwargs,
-    ) -> Any:
+    ) -> None:
         """
         Download a file from Azure Blob Storage.
 
@@ -173,7 +173,7 @@ class AzureDataLakeHook(BaseHook):
             **kwargs,
         )
 
-    def list(self, path: str):
+    def list(self, path: str) -> list:
         """
         List files in Azure Data Lake Storage
 
