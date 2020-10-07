@@ -559,6 +559,15 @@
       type: string
       example: "connexion,sqlalchemy"
       default: ""
+    - name: max_db_retries
+      description: |
+        Number of times the code should be retried in case of DB Operational Errors.
+        Not all transactions will be retried as it can cause undesired state.
+        Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
+      version_added: ~
+      type: int
+      example: ~
+      default: "3"
 - name: secrets
   description: ~
   options:
