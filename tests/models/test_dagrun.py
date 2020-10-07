@@ -328,10 +328,10 @@ class TestDagRun(unittest.TestCase):
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
-        dag_run.update_state()
+        _, callback = dag_run.update_state()
         self.assertEqual(State.SUCCESS, dag_run.state)
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
-        self.assertIsNone(dag_run.callback)
+        self.assertIsNone(callback)
 
     def test_dagrun_failure_callback(self):
         def on_failure_callable(context):
@@ -361,10 +361,10 @@ class TestDagRun(unittest.TestCase):
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
-        dag_run.update_state()
+        _, callback = dag_run.update_state()
         self.assertEqual(State.FAILED, dag_run.state)
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
-        self.assertIsNone(dag_run.callback)
+        self.assertIsNone(callback)
 
     def test_dagrun_update_state_with_handle_callback_success(self):
         def on_success_callable(context):
@@ -392,13 +392,12 @@ class TestDagRun(unittest.TestCase):
         }
 
         dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
-        self.assertIsNone(dag_run.callback)
 
-        dag_run.update_state(execute_callbacks=False)
+        _, callback = dag_run.update_state(execute_callbacks=False)
         self.assertEqual(State.SUCCESS, dag_run.state)
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
-        assert dag_run.callback == DagCallbackRequest(
+        assert callback == DagCallbackRequest(
             full_filepath=dag_run.dag.fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             execution_date=dag_run.execution_date,
@@ -432,13 +431,12 @@ class TestDagRun(unittest.TestCase):
         }
 
         dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
-        self.assertIsNone(dag_run.callback)
 
-        dag_run.update_state(execute_callbacks=False)
+        _, callback = dag_run.update_state(execute_callbacks=False)
         self.assertEqual(State.FAILED, dag_run.state)
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
-        assert dag_run.callback == DagCallbackRequest(
+        assert callback == DagCallbackRequest(
             full_filepath=dag_run.dag.fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             execution_date=dag_run.execution_date,

@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Any, List, Optional, Tuple, Union
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_, orm,
+    Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
@@ -108,12 +108,7 @@ class DagRun(Base, LoggingMixin):
         self.state = state
         self.run_type = run_type
         self.dag_hash = dag_hash
-        self.callback: Optional[callback_requests.DagCallbackRequest] = None
         super().__init__()
-
-    @orm.reconstructor
-    def init_on_load(self):
-        self.callback: Optional[callback_requests.DagCallbackRequest] = None
 
     def __repr__(self):
         return (
@@ -360,7 +355,11 @@ class DagRun(Base, LoggingMixin):
         ).first()
 
     @provide_session
-    def update_state(self, session: Session = None, execute_callbacks: bool = True) -> List[TI]:
+    def update_state(
+        self,
+        session: Session = None,
+        execute_callbacks: bool = True
+    ) -> Tuple[List[TI], Optional[callback_requests.DagCallbackRequest]]:
         """
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
@@ -370,9 +369,12 @@ class DagRun(Base, LoggingMixin):
         :param execute_callbacks: Should dag callbacks (success/failure, SLA etc) be invoked
             directly (default: true) or recorded as a pending request in the ``callback`` property
         :type execute_callbacks: bool
-        :return: ready_tis: the tis that can be scheduled in the current loop
-        :rtype ready_tis: list[airflow.models.TaskInstance]
+        :return: Tuple containing tis that can be scheduled in the current loop & `callback` that
+            needs to be executed
         """
+        # Callback to execute in case of Task Failures
+        callback: Optional[callback_requests.DagCallbackRequest] = None
+
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
 
@@ -414,7 +416,7 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='task_failure', session=session)
             else:
-                self.callback = callback_requests.DagCallbackRequest(
+                callback = callback_requests.DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     execution_date=self.execution_date,
@@ -431,7 +433,7 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason='success', session=session)
             else:
-                self.callback = callback_requests.DagCallbackRequest(
+                callback = callback_requests.DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     execution_date=self.execution_date,
@@ -447,7 +449,7 @@ class DagRun(Base, LoggingMixin):
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='all_tasks_deadlocked', session=session)
             else:
-                self.callback = callback_requests.DagCallbackRequest(
+                callback = callback_requests.DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     execution_date=self.execution_date,
@@ -463,7 +465,7 @@ class DagRun(Base, LoggingMixin):
 
         session.merge(self)
 
-        return ready_tis
+        return ready_tis, callback
 
     def _get_ready_tis(
         self,

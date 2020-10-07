@@ -400,6 +400,7 @@ class TestDagFileProcessor(unittest.TestCase):
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         scheduler = SchedulerJob()
+        scheduler.processor_agent = mock.MagicMock()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
         dag.clear()
         dr = dag.create_dagrun(
@@ -453,6 +454,7 @@ class TestDagFileProcessor(unittest.TestCase):
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         scheduler = SchedulerJob()
+        scheduler.processor_agent = mock.MagicMock()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
         dag.clear()
         dr = dag.create_dagrun(
@@ -513,6 +515,7 @@ class TestDagFileProcessor(unittest.TestCase):
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         scheduler = SchedulerJob()
+        scheduler.processor_agent = mock.MagicMock()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
         dag.clear()
         dr = dag.create_dagrun(
@@ -553,6 +556,7 @@ class TestDagFileProcessor(unittest.TestCase):
         assert orm_dag is not None
 
         scheduler = SchedulerJob()
+        scheduler.processor_agent = mock.MagicMock()
         dag = scheduler.dagbag.get_dag('test_scheduler_add_new_task', session=session)
         scheduler._create_dag_runs([orm_dag], session)
 
@@ -602,6 +606,7 @@ class TestDagFileProcessor(unittest.TestCase):
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         scheduler = SchedulerJob()
+        scheduler.processor_agent = mock.MagicMock()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
         dag.clear()
 
@@ -731,6 +736,7 @@ class TestDagFileProcessor(unittest.TestCase):
             dagbag.sync_to_db()
 
         scheduler_job = SchedulerJob()
+        scheduler_job.processor_agent = mock.MagicMock()
         dag = scheduler_job.dagbag.get_dag("test_only_dummy_tasks")
 
         # Create DagRun
@@ -2010,8 +2016,7 @@ class TestSchedulerJob(unittest.TestCase):
         assert isinstance(orm_dag.next_dagrun, datetime.datetime)
         assert isinstance(orm_dag.next_dagrun_create_after, datetime.datetime)
 
-        # Verify dag failure callback request is added to dagrun.callback
-        assert dr.callback == DagCallbackRequest(
+        expected_callback = DagCallbackRequest(
             full_filepath=dr.dag.fileloc,
             dag_id=dr.dag_id,
             is_failure_callback=True,
@@ -2020,7 +2025,7 @@ class TestSchedulerJob(unittest.TestCase):
         )
 
         # Verify dag failure callback request is sent to file processor
-        scheduler.processor_agent.send_callback_to_execute.assert_called_once_with(dr.callback)
+        scheduler.processor_agent.send_callback_to_execute.assert_called_once_with(expected_callback)
 
         session.rollback()
         session.close()
@@ -2070,8 +2075,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.refresh(dr)
         assert dr.state == State.FAILED
 
-        # Verify dag failure callback request is added to dagrun.callback
-        assert dr.callback == DagCallbackRequest(
+        expected_callback = DagCallbackRequest(
             full_filepath=dr.dag.fileloc,
             dag_id=dr.dag_id,
             is_failure_callback=True,
@@ -2080,7 +2084,67 @@ class TestSchedulerJob(unittest.TestCase):
         )
 
         # Verify dag failure callback request is sent to file processor
-        scheduler.processor_agent.send_callback_to_execute.assert_called_once_with(dr.callback)
+        scheduler.processor_agent.send_callback_to_execute.assert_called_once_with(expected_callback)
+
+        session.rollback()
+        session.close()
+
+    @parameterized.expand([
+        (State.SUCCESS, "success"),
+        (State.FAILED, "task_failure")
+    ])
+    def test_dagrun_callbacks_are_called(self, state, expected_callback_msg):
+        """
+        Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
+        Also test that SLA Callback Function is called.
+        """
+        dag = DAG(
+            dag_id='test_dagrun_callbacks_are_called',
+            start_date=DEFAULT_DATE,
+            on_success_callback=lambda x: print("success"),
+            on_failure_callback=lambda x: print("failed")
+        )
+
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        scheduler = SchedulerJob()
+        scheduler.processor_agent = mock.Mock()
+        scheduler.processor_agent.send_callback_to_execute = mock.Mock()
+        scheduler._send_sla_callbacks_to_processor = mock.Mock()
+
+        # Sync DAG into DB
+        scheduler.dagbag.bag_dag(dag, root_dag=dag)
+        scheduler.dagbag.sync_to_db()
+
+        session = settings.Session()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        assert orm_dag is not None
+
+        # Create DagRun
+        scheduler._create_dag_runs([orm_dag], session)
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+
+        ti = dr.get_task_instance('dummy')
+        ti.set_state(state, session)
+
+        scheduler._schedule_dag_run(dr, 0, session)
+
+        expected_callback = DagCallbackRequest(
+            full_filepath=dr.dag.fileloc,
+            dag_id=dr.dag_id,
+            is_failure_callback=bool(state == State.FAILED),
+            execution_date=dr.execution_date,
+            msg=expected_callback_msg
+        )
+
+        # Verify dag failure callback request is sent to file processor
+        scheduler.processor_agent.send_callback_to_execute.assert_called_once_with(expected_callback)
+        # This is already tested separately
+        # In this test we just want to verify that this function is called
+        scheduler._send_sla_callbacks_to_processor.assert_called_once_with(dag)
 
         session.rollback()
         session.close()
@@ -2467,6 +2531,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         scheduler = SchedulerJob(executor=self.null_exec)
+        scheduler.processor_agent = mock.MagicMock()
 
         # Create 2 dagruns, which will create 2 task instances.
         dr = dag.create_dagrun(
@@ -2519,6 +2584,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         scheduler = SchedulerJob(executor=self.null_exec)
+        scheduler.processor_agent = mock.MagicMock()
 
         # Create 5 dagruns, which will create 5 task instances.
         date = DEFAULT_DATE
@@ -2592,6 +2658,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         scheduler = SchedulerJob(executor=self.null_exec)
+        scheduler.processor_agent = mock.MagicMock()
 
         dr = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
@@ -2636,6 +2703,7 @@ class TestSchedulerJob(unittest.TestCase):
         assert orm_dag is not None
 
         scheduler = SchedulerJob()
+        scheduler.processor_agent = mock.MagicMock()
         dag = scheduler.dagbag.get_dag('test_verify_integrity_if_dag_not_changed', session=session)
         scheduler._create_dag_runs([orm_dag], session)
 
@@ -2684,6 +2752,7 @@ class TestSchedulerJob(unittest.TestCase):
         assert orm_dag is not None
 
         scheduler = SchedulerJob()
+        scheduler.processor_agent = mock.MagicMock()
         dag = scheduler.dagbag.get_dag('test_verify_integrity_if_dag_changed', session=session)
         scheduler._create_dag_runs([orm_dag], session)
 

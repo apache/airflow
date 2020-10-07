@@ -1618,7 +1618,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # Work out if we should allow creating a new DagRun now?
             self._update_dag_next_dagruns([session.query(DagModel).get(dag_run.dag_id)], session)
 
-            dag_run.callback = DagCallbackRequest(
+            callback_to_execute = DagCallbackRequest(
                 full_filepath=dag.fileloc,
                 dag_id=dag.dag_id,
                 execution_date=dag_run.execution_date,
@@ -1627,7 +1627,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             )
 
             # Send SLA & DAG Success/Failure Callbacks to be executed
-            self._send_dag_callbacks_to_processor(dag_run)
+            self._send_dag_callbacks_to_processor(dag_run, callback_to_execute)
 
             return 0
 
@@ -1649,8 +1649,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session)
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
-        schedulable_tis = dag_run.update_state(session=session, execute_callbacks=False)
-        # TODO[HA]: Don't return, update these from in update_state?
+        schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
+
+        self._send_dag_callbacks_to_processor(dag_run, callback_to_run)
 
         # Get list of TIs that do not need to executed, these are
         # tasks using DummyOperator and without on_execute_callback / on_success_callback
@@ -1705,14 +1706,18 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)
 
-    def _send_dag_callbacks_to_processor(self, dag_run: DagRun):
+    def _send_dag_callbacks_to_processor(
+        self,
+        dag_run: DagRun,
+        callback: Optional[DagCallbackRequest] = None
+    ):
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
 
         dag = dag_run.get_dag()
         self._send_sla_callbacks_to_processor(dag)
-        if dag_run.callback:
-            self.processor_agent.send_callback_to_execute(dag_run.callback)
+        if callback:
+            self.processor_agent.send_callback_to_execute(callback)
 
     def _send_sla_callbacks_to_processor(self, dag: DAG):
         """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
