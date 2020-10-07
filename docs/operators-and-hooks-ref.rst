@@ -374,7 +374,7 @@ These integrations allow you to copy data from/to Microsoft Azure.
    * - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/microsoft/transfer/blob_storage_to_gcs>`
-     - :mod:`airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.py`
+     - :mod:`airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs`
 
    * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
