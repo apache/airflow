@@ -578,4 +578,5 @@ Cheers,
 </p>
 </details>
 
-- Update the Announce page on [the wiki](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=62694597)
+- Update the Announcement page on
+[Airflow Site](https://github.com/apache/airflow-site/tree/master/landing-pages/site/content/en/announcements)
