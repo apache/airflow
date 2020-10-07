@@ -51,6 +51,7 @@ def conf_vars(overrides):
     finally:
         for (section, key), value in original.items():
             if value is not None:
+                value = value.replace("%(", "%%(")  # Hack to make interpolation work
                 conf.set(section, key, value)
             else:
                 conf.remove_option(section, key)
