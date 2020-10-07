@@ -1253,6 +1253,34 @@ Here are a few rules that are important to keep in mind when you enter our commu
  * It’s OK to express your own emotions while communicating - it helps other people to understand you
  * Be considerate for feelings of others. Tell about how you feel not what you think of others
 
+Committer Responsibilities
+==========================
+
+Committers are more than contributors. While it's important for committers to maintain standing by
+committing code, their key role is to build and foster a healthy and active community.
+This means that committers should:
+
+* Review PRs in a timely and reliable fashion
+* They should also help to actively whittle down the PR backlog
+* Answer questions (i.e. on the dev list, in PRs, in Github Issues, slack, etc...)
+* Take on core changes/bugs/feature requests
+* Some changes are important enough that a committer needs to ensure it gets done. This is especially
+  the case if no one from the community is taking it on.
+* Improve processes and tooling
+* Refactoring code
+
+Commit Policy
+=============
+
+The following commit policy passed by a vote 8(binding FOR) to 0 against on May 27, 2016 on the dev list
+and slightly modified and consensus reached in October 2020:
+
+* Commits need a +1 vote from a committer who is not the author
+* Furthermore, do not merge a PR that regresses linting or does not pass CI tests (unless we have
+  justification such as clearly transient error).
+* When we do AIP voting, both PMC and committer +1s are considered as binding vote based on internal
+  PMC discussion.
+
 Resources & Links
 =================
 - `Airflow’s official documentation <http://airflow.apache.org/>`__
