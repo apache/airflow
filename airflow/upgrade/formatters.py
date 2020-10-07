@@ -19,6 +19,11 @@ from abc import ABCMeta
 from typing import List
 import json
 
+import pygments
+from pygments.console import colorize
+from pygments.formatters.terminal import TerminalFormatter
+from pygments.lexers.markup import RstLexer
+
 from airflow.upgrade.problem import RuleStatus
 from airflow.upgrade.rules.base_rule import BaseRule
 from airflow.utils.cli import header, get_terminal_size
@@ -48,19 +53,19 @@ class ConsoleFormatter(BaseFormatter):
         print()
 
     def end_checking(self, rule_statuses):
-        if rule_statuses:
-            messages_count = sum(
-                len(rule_status.messages)
-                for rule_status in rule_statuses
-            )
-            if messages_count == 1:
-                print("Found {} problem.".format(messages_count))
-            else:
-                print("Found {} problems.".format(messages_count))
-            print()
+        messages_count = sum(
+            len(rule_status.messages)
+            for rule_status in rule_statuses
+        )
+        if messages_count == 1:
+            print("Found {} problem.".format(messages_count))
+        else:
+            print("Found {} problems.".format(messages_count))
+        print()
+
+        if messages_count > 0:
             header("RECOMMENDATIONS", "=")
             print()
-
             self.display_recommendations(rule_statuses)
         else:
             print("Not found any problems. World is beautiful. ")
@@ -68,20 +73,30 @@ class ConsoleFormatter(BaseFormatter):
 
     @staticmethod
     def display_recommendations(rule_statuses):
-
         for rule_status in rule_statuses:
+            if not rule_status.messages:
+                continue
+
+            # Show recommendations only if there are any messaged
             rule = rule_status.rule
-            print(rule.title)
-            print("-" * len(rule.title))
-            print(rule.description)
-            print("")
-            if rule_status.messages:
-                print("Problems:")
-                for message_no, message in enumerate(rule_status.messages, 1):
-                    print('{:>3}.  {}'.format(message_no, message))
+            lines = [
+                rule.title,
+                "-" * len(rule.title),
+                rule.description,
+                "",
+                "Problems:",
+                "",
+            ]
+            lines.extend(['{:>3}.  {}'.format(i, m) for i, m in enumerate(rule_status.messages, 1)])
+            msg = "\n".join(lines)
+
+            formatted_msg = pygments.highlight(
+                code=msg, formatter=TerminalFormatter(), lexer=RstLexer()
+            )
+            print(formatted_msg)
 
     def on_next_rule_status(self, rule_status):
-        status = "SUCCESS" if rule_status.is_success else "FAIL"
+        status = colorize("green", "SUCCESS") if rule_status.is_success else colorize("red", "FAIL")
         status_line_fmt = self.prepare_status_line_format()
         print(status_line_fmt.format(rule_status.rule.title, status))
 
