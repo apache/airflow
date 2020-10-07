@@ -1030,23 +1030,11 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.post('refresh?dag_id=example_bash_operator')
         self.check_content_in_response('', resp, resp_code=302)
 
-    @parameterized.expand([(True,), (False,)])
-    def test_refresh_all(self, dag_serialization):
-        with mock.patch('airflow.www.views.settings.STORE_SERIALIZED_DAGS', dag_serialization):
-            if dag_serialization:
-                with mock.patch.object(
-                    self.app.dag_bag, 'collect_dags_from_db'
-                ) as collect_dags_from_db:
-                    resp = self.client.post("/refresh_all", follow_redirects=True)
-                    self.check_content_in_response('', resp)
-                    collect_dags_from_db.assert_called_once_with()
-            else:
-                with mock.patch.object(
-                    self.app.dag_bag, 'collect_dags'
-                ) as collect_dags:
-                    resp = self.client.post("/refresh_all", follow_redirects=True)
-                    self.check_content_in_response('', resp)
-                    collect_dags.assert_called_once_with(only_if_updated=False)
+    def test_refresh_all(self):
+        with mock.patch.object(self.app.dag_bag, 'collect_dags_from_db') as collect_dags_from_db:
+            resp = self.client.post("/refresh_all", follow_redirects=True)
+            self.check_content_in_response('', resp)
+            collect_dags_from_db.assert_called_once_with()
 
     def test_delete_dag_button_normal(self):
         resp = self.client.get('/', follow_redirects=True)
@@ -2414,7 +2402,6 @@ class TestRenderedView(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response("testdag__task1__20200301", resp)
 
-    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
     def test_user_defined_filter_and_macros_raise_error(self):
         """
         Test that the Rendered View is able to show rendered values

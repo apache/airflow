@@ -112,12 +112,11 @@ class TestGetTask(TestTaskEndpoint):
         assert response.status_code == 200
         assert response.json == expected
 
-    @conf_vars({("core", "store_serialized_dags"): "True"})
     def test_should_response_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             app_serialized = app.create_app(testing=True)
-        dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
+        dag_bag = DagBag(os.devnull, include_examples=False)
         app_serialized.dag_bag = dag_bag
         client = app_serialized.test_client()
 

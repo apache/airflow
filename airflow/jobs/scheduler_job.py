@@ -661,7 +661,12 @@ class DagFileProcessor(LoggingMixin):
         self.log.info("Processing file %s for tasks to queue", file_path)
 
         try:
-            dagbag = DagBag(file_path, include_examples=False, include_smart_sensor=False)
+            dagbag = DagBag(
+                file_path,
+                include_examples=False,
+                include_smart_sensor=False,
+                read_dags_from_db=False,
+            )
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)

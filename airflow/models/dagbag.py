@@ -75,10 +75,8 @@ class DagBag(BaseDagBag, LoggingMixin):
     :param include_smart_sensor: whether to include the smart sensor native
         DAGs that create the smart sensor operators for whole cluster
     :type include_smart_sensor: bool
-    :param read_dags_from_db: Read DAGs from DB if store_serialized_dags is ``True``.
-        If ``False`` DAGs are read from python files. This property is not used when
-        determining whether or not to write Serialized DAGs, that is done by checking
-        the config ``store_serialized_dags``.
+    :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
+        If ``False`` DAGs are read from python files.
     :type read_dags_from_db: bool
     """
 
@@ -91,7 +89,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
         include_smart_sensor: bool = conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-        read_dags_from_db: bool = False,
+        read_dags_from_db: bool = True,
         store_serialized_dags: Optional[bool] = None,
     ):
         # Avoid circular import
@@ -104,6 +102,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                 "You should pass the read_dags_from_db parameter.",
                 DeprecationWarning, stacklevel=2)
             read_dags_from_db = store_serialized_dags
+
+        # TODO [kaxil]: Make dag_folder and read_dags_from_db mutually exclusive
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -527,8 +527,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         from airflow.models.serialized_dag import SerializedDagModel
         self.log.debug("Calling the DAG.bulk_sync_to_db method")
         DAG.bulk_write_to_db(self.dags.values(), session=session)
-        # Write Serialized DAGs to DB if DAG Serialization is turned on
-        # Even though self.read_dags_from_db is False
-        if settings.STORE_SERIALIZED_DAGS or self.read_dags_from_db:
-            self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
-            SerializedDagModel.bulk_sync_to_db(self.dags.values(), session=session)
+        # Write Serialized DAGs to DB
+        self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
+        SerializedDagModel.bulk_sync_to_db(self.dags.values(), session=session)

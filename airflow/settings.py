@@ -344,9 +344,6 @@ MEGABYTE = KILOBYTE * KILOBYTE
 WEB_COLORS = {'LIGHTBLUE': '#4d9de0',
               'LIGHTORANGE': '#FF9933'}
 
-# If store_serialized_dags is True, scheduler writes serialized DAGs to DB, and webserver
-# reads DAGs from DB instead of importing from files.
-STORE_SERIALIZED_DAGS = conf.getboolean('core', 'store_serialized_dags', fallback=False)
 
 # Updating serialized DAG can not be faster than a minimum interval to reduce database
 # write rate.
@@ -360,8 +357,7 @@ MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint(
 
 # Whether to persist DAG files code in DB. If set to True, Webserver reads file contents
 # from DB instead of trying to access files in a DAG folder.
-# Defaults to same as the store_serialized_dags setting.
-STORE_DAG_CODE = conf.getboolean("core", "store_dag_code", fallback=STORE_SERIALIZED_DAGS)
+STORE_DAG_CODE = conf.getboolean("core", "store_dag_code", fallback=True)
 
 # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
 # If the flag is set to False, we remove all handlers from the root logger

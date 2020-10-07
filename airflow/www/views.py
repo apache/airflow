@@ -2159,10 +2159,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @action_logging
     def refresh_all(self):
         """Refresh everything"""
-        if settings.STORE_SERIALIZED_DAGS:
-            current_app.dag_bag.collect_dags_from_db()
-        else:
-            current_app.dag_bag.collect_dags(only_if_updated=False)
+        current_app.dag_bag.collect_dags_from_db()
 
         # sync permissions for all dags
         for dag_id, dag in current_app.dag_bag.dags.items():

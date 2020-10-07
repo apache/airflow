@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Sync permission command"""
-from airflow import settings
 from airflow.models import DagBag
 from airflow.utils import cli as cli_utils
 from airflow.www.app import cached_app
@@ -29,7 +28,7 @@ def sync_perm(args):
     print('Updating permission, view-menu for all existing roles')
     appbuilder.sm.sync_roles()
     print('Updating permission on all DAG views')
-    dags = DagBag(store_serialized_dags=settings.STORE_SERIALIZED_DAGS).dags.values()
+    dags = DagBag(read_dags_from_db=True).dags.values()
     for dag in dags:
         appbuilder.sm.sync_perm_for_dag(
             dag.dag_id,
