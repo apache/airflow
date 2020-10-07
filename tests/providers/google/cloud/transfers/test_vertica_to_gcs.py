@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,8 +24,7 @@ from __future__ import unicode_literals
 import mock
 import unittest
 
-from airflow.providers.google.cloud.transfers.vertica_to_gcs import \
-    VerticaToGoogleCloudStorageOperator
+from airflow.providers.google.cloud.transfers.vertica_to_gcs import VerticaToGoogleCloudStorageOperator
 
 TABLES = {'vertica_to_gcs_operator', 'vertica_to_gcs_operator_empty'}
 
@@ -36,33 +34,32 @@ SQL = 'SELECT * FROM vertica_to_gcs_operator'
 BUCKET = 'gs://test'
 FILENAME = 'test_{}.ndjson'
 
-ROWS = [
-    ('mock_row_content_1', 42),
-    ('mock_row_content_2', 43),
-    ('mock_row_content_3', 44)
-]
+ROWS = [('mock_row_content_1', 42), ('mock_row_content_2', 43), ('mock_row_content_3', 44)]
 CURSOR_DESCRIPTION = (
     ('some_str', 0, None, None, None, None, None),
-    ('some_num', 6, None, None, None, None, None)
+    ('some_num', 6, None, None, None, None, None),
 )
 
 NDJSON_LINES = [
     b'{"some_num": 42, "some_str": "mock_row_content_1"}\n',
     b'{"some_num": 43, "some_str": "mock_row_content_2"}\n',
-    b'{"some_num": 44, "some_str": "mock_row_content_3"}\n'
+    b'{"some_num": 44, "some_str": "mock_row_content_3"}\n',
 ]
 SCHEMA_FILENAME = 'schema_test.json'
-SCHEMA_JSON = b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, ' \
-              b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}]'
+SCHEMA_JSON = (
+    b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, '
+    b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}]'
+)
+
 
 def mock_cursor_iterate():
     return iter(ROWS)
 
+
 class VerticaToGoogleCloudStorageOperatorTest(unittest.TestCase):
     def test_init(self):
         """Test VerticaToGoogleCloudStorageOperator instance is properly initialized."""
-        op = VerticaToGoogleCloudStorageOperator(
-            task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
+        op = VerticaToGoogleCloudStorageOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
         self.assertEqual(op.task_id, TASK_ID)
         self.assertEqual(op.sql, SQL)
         self.assertEqual(op.bucket, BUCKET)
@@ -78,11 +75,8 @@ class VerticaToGoogleCloudStorageOperatorTest(unittest.TestCase):
         vertica_hook_mock.get_conn().cursor().description = CURSOR_DESCRIPTION
 
         op = VerticaToGoogleCloudStorageOperator(
-            task_id=TASK_ID,
-            vertica_conn_id=VERTICA_CONN_ID,
-            sql=SQL,
-            bucket=BUCKET,
-            filename=FILENAME)
+            task_id=TASK_ID, vertica_conn_id=VERTICA_CONN_ID, sql=SQL, bucket=BUCKET, filename=FILENAME
+        )
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
@@ -127,7 +121,8 @@ class VerticaToGoogleCloudStorageOperatorTest(unittest.TestCase):
             sql=SQL,
             bucket=BUCKET,
             filename=FILENAME,
-            approx_max_file_size_bytes=len(expected_upload[FILENAME.format(0)]))
+            approx_max_file_size_bytes=len(expected_upload[FILENAME.format(0)]),
+        )
         op.execute(None)
 
     @mock.patch('airflow.providers.google.cloud.transfers.vertica_to_gcs.VerticaHook')
@@ -149,11 +144,8 @@ class VerticaToGoogleCloudStorageOperatorTest(unittest.TestCase):
         gcs_hook_mock.upload.side_effect = _assert_upload
 
         op = VerticaToGoogleCloudStorageOperator(
-            task_id=TASK_ID,
-            sql=SQL,
-            bucket=BUCKET,
-            filename=FILENAME,
-            schema_filename=SCHEMA_FILENAME)
+            task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME, schema_filename=SCHEMA_FILENAME
+        )
         op.execute(None)
 
         # once for the file and once for the schema

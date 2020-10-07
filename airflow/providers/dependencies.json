@@ -38,7 +38,8 @@
     "mysql",
     "postgres",
     "presto",
-    "sftp"
+    "sftp",
+    "vertica"
   ],
   "hashicorp": [
     "google"
