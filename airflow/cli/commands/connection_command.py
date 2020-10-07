@@ -47,7 +47,8 @@ def _tabulate_connection(conns: List[Connection], tablefmt: str):
             'Is Encrypted': conn.is_encrypted,
             'Is Extra Encrypted': conn.is_encrypted,
             'Extra': conn.extra,
-        } for conn in conns
+        }
+        for conn in conns
     ]
 
     msg = tabulate(tabulate_data, tablefmt=tablefmt, headers='keys')
@@ -67,7 +68,7 @@ def _yamulate_connection(conn: Connection):
         'Is Encrypted': conn.is_encrypted,
         'Is Extra Encrypted': conn.is_encrypted,
         'Extra': conn.extra_dejson,
-        'URI': conn.get_uri()
+        'URI': conn.get_uri(),
     }
     return yaml.safe_dump(yaml_data, sort_keys=False)
 
@@ -150,8 +151,10 @@ def connections_export(args):
             _, filetype = os.path.splitext(args.file.name)
             filetype = filetype.lower()
             if filetype not in allowed_formats:
-                msg = f"Unsupported file format. " \
-                      f"The file must have the extension {', '.join(allowed_formats)}"
+                msg = (
+                    f"Unsupported file format. "
+                    f"The file must have the extension {', '.join(allowed_formats)}"
+                )
                 raise SystemExit(msg)
 
         connections = session.query(Connection).order_by(Connection.conn_id).all()
@@ -164,8 +167,7 @@ def connections_export(args):
             print(f"Connections successfully exported to {args.file.name}")
 
 
-alternative_conn_specs = ['conn_type', 'conn_host',
-                          'conn_login', 'conn_password', 'conn_schema', 'conn_port']
+alternative_conn_specs = ['conn_type', 'conn_host', 'conn_login', 'conn_password', 'conn_schema', 'conn_port']
 
 
 @cli_utils.action_logging
@@ -181,42 +183,51 @@ def connections_add(args):
     elif not args.conn_type:
         missing_args.append('conn-uri or conn-type')
     if missing_args:
-        msg = ('The following args are required to add a connection:' +
-               f' {missing_args!r}')
+        msg = 'The following args are required to add a connection:' + f' {missing_args!r}'
         raise SystemExit(msg)
     if invalid_args:
-        msg = ('The following args are not compatible with the ' +
-               'add flag and --conn-uri flag: {invalid!r}')
+        msg = 'The following args are not compatible with the ' + 'add flag and --conn-uri flag: {invalid!r}'
         msg = msg.format(invalid=invalid_args)
         raise SystemExit(msg)
 
     if args.conn_uri:
         new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
     else:
-        new_conn = Connection(conn_id=args.conn_id,
-                              conn_type=args.conn_type,
-                              host=args.conn_host,
-                              login=args.conn_login,
-                              password=args.conn_password,
-                              schema=args.conn_schema,
-                              port=args.conn_port)
+        new_conn = Connection(
+            conn_id=args.conn_id,
+            conn_type=args.conn_type,
+            host=args.conn_host,
+            login=args.conn_login,
+            password=args.conn_password,
+            schema=args.conn_schema,
+            port=args.conn_port,
+        )
     if args.conn_extra is not None:
         new_conn.set_extra(args.conn_extra)
 
     with create_session() as session:
-        if not (session.query(Connection)
-                .filter(Connection.conn_id == new_conn.conn_id).first()):
+        if not session.query(Connection).filter(Connection.conn_id == new_conn.conn_id).first():
             session.add(new_conn)
             msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-            msg = msg.format(conn_id=new_conn.conn_id,
-                             uri=args.conn_uri or
-                             urlunparse((args.conn_type,
-                                         '{login}:{password}@{host}:{port}'
-                                             .format(login=args.conn_login or '',
-                                                     password='******' if args.conn_password else '',
-                                                     host=args.conn_host or '',
-                                                     port=args.conn_port or ''),
-                                         args.conn_schema or '', '', '', '')))
+            msg = msg.format(
+                conn_id=new_conn.conn_id,
+                uri=args.conn_uri
+                or urlunparse(
+                    (
+                        args.conn_type,
+                        '{login}:{password}@{host}:{port}'.format(
+                            login=args.conn_login or '',
+                            password='******' if args.conn_password else '',
+                            host=args.conn_host or '',
+                            port=args.conn_port or '',
+                        ),
+                        args.conn_schema or '',
+                        '',
+                        '',
+                        '',
+                    )
+                ),
+            )
             print(msg)
         else:
             msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
@@ -229,18 +240,14 @@ def connections_delete(args):
     """Deletes connection from DB"""
     with create_session() as session:
         try:
-            to_delete = (session
-                         .query(Connection)
-                         .filter(Connection.conn_id == args.conn_id)
-                         .one())
+            to_delete = session.query(Connection).filter(Connection.conn_id == args.conn_id).one()
         except exc.NoResultFound:
             msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
             msg = msg.format(conn_id=args.conn_id)
             print(msg)
             return
         except exc.MultipleResultsFound:
-            msg = ('\n\tFound more than one connection with ' +
-                   '`conn_id`={conn_id}\n')
+            msg = '\n\tFound more than one connection with ' + '`conn_id`={conn_id}\n'
             msg = msg.format(conn_id=args.conn_id)
             print(msg)
             return

@@ -28,6 +28,7 @@ import sys
 import warnings
 from base64 import b64encode
 from collections import OrderedDict
+
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 from json.decoder import JSONDecodeError

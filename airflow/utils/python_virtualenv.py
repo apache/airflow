@@ -43,10 +43,7 @@ def _generate_pip_install_cmd(tmp_dir: str, requirements: List[str]) -> Optional
 
 
 def prepare_virtualenv(
-    venv_directory: str,
-    python_bin: str,
-    system_site_packages: bool,
-    requirements: List[str]
+    venv_directory: str, python_bin: str, system_site_packages: bool, requirements: List[str]
 ) -> str:
     """
     Creates a virtual environment and installs the additional python packages
@@ -83,9 +80,6 @@ def write_python_script(jinja_context: dict, filename: str):
     :type filename: str
     """
     template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
-    template_env = jinja2.Environment(
-        loader=template_loader,
-        undefined=jinja2.StrictUndefined
-    )
+    template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
     template = template_env.get_template('python_virtualenv_script.jinja2')
     template.stream(**jinja_context).dump(filename)

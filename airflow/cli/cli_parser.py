@@ -92,8 +92,18 @@ class Arg:
     """Class to keep information about command line argument"""
 
     # pylint: disable=redefined-builtin,unused-argument
-    def __init__(self, flags=_UNSET, help=_UNSET, action=_UNSET, default=_UNSET, nargs=_UNSET, type=_UNSET,
-                 choices=_UNSET, required=_UNSET, metavar=_UNSET):
+    def __init__(
+        self,
+        flags=_UNSET,
+        help=_UNSET,
+        action=_UNSET,
+        default=_UNSET,
+        nargs=_UNSET,
+        type=_UNSET,
+        choices=_UNSET,
+        required=_UNSET,
+        metavar=_UNSET,
+    ):
         self.flags = flags
         self.kwargs = {}
         for k, v in locals().items():
@@ -103,6 +113,7 @@ class Arg:
                 continue
 
             self.kwargs[k] = v
+
     # pylint: enable=redefined-builtin,unused-argument
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
@@ -122,65 +133,47 @@ def positive_int(value):
 
 
 # Shared
-ARG_DAG_ID = Arg(
-    ("dag_id",),
-    help="The id of the dag")
-ARG_TASK_ID = Arg(
-    ("task_id",),
-    help="The id of the task")
-ARG_EXECUTION_DATE = Arg(
-    ("execution_date",),
-    help="The execution date of the DAG",
-    type=parsedate)
+ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
+ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
+ARG_EXECUTION_DATE = Arg(("execution_date",), help="The execution date of the DAG", type=parsedate)
 ARG_TASK_REGEX = Arg(
-    ("-t", "--task-regex"),
-    help="The regex to filter specific task_ids to backfill (optional)")
+    ("-t", "--task-regex"), help="The regex to filter specific task_ids to backfill (optional)"
+)
 ARG_SUBDIR = Arg(
     ("-S", "--subdir"),
     help=(
         "File location or directory from which to look for the dag. "
         "Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the "
-        "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' "),
-    default='[AIRFLOW_HOME]/dags' if BUILD_DOCS else settings.DAGS_FOLDER)
-ARG_START_DATE = Arg(
-    ("-s", "--start-date"),
-    help="Override start_date YYYY-MM-DD",
-    type=parsedate)
-ARG_END_DATE = Arg(
-    ("-e", "--end-date"),
-    help="Override end_date YYYY-MM-DD",
-    type=parsedate)
+        "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' "
+    ),
+    default='[AIRFLOW_HOME]/dags' if BUILD_DOCS else settings.DAGS_FOLDER,
+)
+ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
+ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
 ARG_OUTPUT_PATH = Arg(
-    ("-o", "--output-path",),
+    (
+        "-o",
+        "--output-path",
+    ),
     help="The output for generated yaml files",
     type=str,
-    default="[CWD]" if BUILD_DOCS else os.getcwd())
+    default="[CWD]" if BUILD_DOCS else os.getcwd(),
+)
 ARG_DRY_RUN = Arg(
     ("-n", "--dry-run"),
     help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
-    action="store_true")
-ARG_PID = Arg(
-    ("--pid",),
-    help="PID file location",
-    nargs='?')
-ARG_DAEMON = Arg(
-    ("-D", "--daemon"),
-    help="Daemonize instead of running in the foreground",
-    action="store_true")
-ARG_STDERR = Arg(
-    ("--stderr",),
-    help="Redirect stderr to this file")
-ARG_STDOUT = Arg(
-    ("--stdout",),
-    help="Redirect stdout to this file")
-ARG_LOG_FILE = Arg(
-    ("-l", "--log-file"),
-    help="Location of the log file")
-ARG_YES = Arg(
-    ("-y", "--yes"),
-    help="Do not prompt to confirm reset. Use with care!",
     action="store_true",
-    default=False)
+)
+ARG_PID = Arg(("--pid",), help="PID file location", nargs='?')
+ARG_DAEMON = Arg(
+    ("-D", "--daemon"), help="Daemonize instead of running in the foreground", action="store_true"
+)
+ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file")
+ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file")
+ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file")
+ARG_YES = Arg(
+    ("-y", "--yes"), help="Do not prompt to confirm reset. Use with care!", action="store_true", default=False
+)
 ARG_OUTPUT = Arg(
     ("--output",),
     help=(
@@ -189,238 +182,181 @@ ARG_OUTPUT = Arg(
     ),
     metavar="FORMAT",
     choices=tabulate_formats,
-    default="plain")
+    default="plain",
+)
 ARG_COLOR = Arg(
     ('--color',),
     help="Do emit colored output (default: auto)",
     choices={ColorMode.ON, ColorMode.OFF, ColorMode.AUTO},
-    default=ColorMode.AUTO)
+    default=ColorMode.AUTO,
+)
 
 # list_dag_runs
-ARG_DAG_ID_OPT = Arg(
-    ("-d", "--dag-id"),
-    help="The id of the dag"
-)
+ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
 ARG_NO_BACKFILL = Arg(
-    ("--no-backfill",),
-    help="filter all the backfill dagruns given the dag id",
-    action="store_true")
-ARG_STATE = Arg(
-    ("--state",),
-    help="Only list the dag runs corresponding to the state")
+    ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
+)
+ARG_STATE = Arg(("--state",), help="Only list the dag runs corresponding to the state")
 
 # list_jobs
-ARG_LIMIT = Arg(
-    ("--limit",),
-    help="Return a limited number of records")
+ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
 
 # next_execution
 ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
     type=positive_int,
-    help="The number of next execution datetimes to show")
+    help="The number of next execution datetimes to show",
+)
 
 # backfill
 ARG_MARK_SUCCESS = Arg(
-    ("-m", "--mark-success"),
-    help="Mark jobs as succeeded without running them",
-    action="store_true")
-ARG_VERBOSE = Arg(
-    ("-v", "--verbose"),
-    help="Make logging output more verbose",
-    action="store_true")
-ARG_LOCAL = Arg(
-    ("-l", "--local"),
-    help="Run the task using the LocalExecutor",
-    action="store_true")
+    ("-m", "--mark-success"), help="Mark jobs as succeeded without running them", action="store_true"
+)
+ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
+ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
 ARG_DONOT_PICKLE = Arg(
     ("-x", "--donot-pickle"),
     help=(
         "Do not attempt to pickle the DAG object to send over "
         "to the workers, just tell the workers to run their version "
-        "of the code"),
-    action="store_true")
+        "of the code"
+    ),
+    action="store_true",
+)
 ARG_BF_IGNORE_DEPENDENCIES = Arg(
     ("-i", "--ignore-dependencies"),
     help=(
         "Skip upstream tasks, run only the tasks "
         "matching the regexp. Only works in conjunction "
-        "with task_regex"),
-    action="store_true")
+        "with task_regex"
+    ),
+    action="store_true",
+)
 ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST = Arg(
     ("-I", "--ignore-first-depends-on-past"),
     help=(
         "Ignores depends_on_past dependencies for the first "
         "set of tasks only (subsequent executions in the backfill "
-        "DO respect depends_on_past)"),
-    action="store_true")
+        "DO respect depends_on_past)"
+    ),
+    action="store_true",
+)
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
 ARG_DELAY_ON_LIMIT = Arg(
     ("--delay-on-limit",),
-    help=("Amount of time in seconds to wait when the limit "
-          "on maximum active dag runs (max_active_runs) has "
-          "been reached before trying to execute a dag run "
-          "again"),
+    help=(
+        "Amount of time in seconds to wait when the limit "
+        "on maximum active dag runs (max_active_runs) has "
+        "been reached before trying to execute a dag run "
+        "again"
+    ),
     type=float,
-    default=1.0)
+    default=1.0,
+)
 ARG_RESET_DAG_RUN = Arg(
     ("--reset-dagruns",),
     help=(
         "if set, the backfill will delete existing "
         "backfill-related DAG runs and start "
-        "anew with fresh, running DAG runs"),
-    action="store_true")
+        "anew with fresh, running DAG runs"
+    ),
+    action="store_true",
+)
 ARG_RERUN_FAILED_TASKS = Arg(
     ("--rerun-failed-tasks",),
     help=(
         "if set, the backfill will auto-rerun "
         "all the failed tasks for the backfill date range "
-        "instead of throwing exceptions"),
-    action="store_true")
+        "instead of throwing exceptions"
+    ),
+    action="store_true",
+)
 ARG_RUN_BACKWARDS = Arg(
-    ("-B", "--run-backwards",),
+    (
+        "-B",
+        "--run-backwards",
+    ),
     help=(
         "if set, the backfill will run tasks from the most "
         "recent day first.  if there are tasks that depend_on_past "
-        "this option will throw an exception"),
-    action="store_true")
+        "this option will throw an exception"
+    ),
+    action="store_true",
+)
 # test_dag
 ARG_SHOW_DAGRUN = Arg(
-    ("--show-dagrun", ),
+    ("--show-dagrun",),
     help=(
         "After completing the backfill, shows the diagram for current DAG Run.\n"
         "\n"
-        "The diagram is in DOT language\n"),
-    action='store_true')
+        "The diagram is in DOT language\n"
+    ),
+    action='store_true',
+)
 ARG_IMGCAT_DAGRUN = Arg(
-    ("--imgcat-dagrun", ),
+    ("--imgcat-dagrun",),
     help=(
         "After completing the dag run, prints a diagram on the screen for the "
         "current DAG Run using the imgcat tool.\n"
     ),
-    action='store_true')
+    action='store_true',
+)
 ARG_SAVE_DAGRUN = Arg(
-    ("--save-dagrun", ),
+    ("--save-dagrun",),
     help=(
-        "After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n"
-        "\n"
-    ))
+        "After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n" "\n"
+    ),
+)
 
 # list_tasks
-ARG_TREE = Arg(
-    ("-t", "--tree"),
-    help="Tree view",
-    action="store_true")
+ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
 
 # clear
-ARG_UPSTREAM = Arg(
-    ("-u", "--upstream"),
-    help="Include upstream tasks",
-    action="store_true")
-ARG_ONLY_FAILED = Arg(
-    ("-f", "--only-failed"),
-    help="Only failed jobs",
-    action="store_true")
-ARG_ONLY_RUNNING = Arg(
-    ("-r", "--only-running"),
-    help="Only running jobs",
-    action="store_true")
-ARG_DOWNSTREAM = Arg(
-    ("-d", "--downstream"),
-    help="Include downstream tasks",
-    action="store_true")
-ARG_EXCLUDE_SUBDAGS = Arg(
-    ("-x", "--exclude-subdags"),
-    help="Exclude subdags",
-    action="store_true")
+ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="store_true")
+ARG_ONLY_FAILED = Arg(("-f", "--only-failed"), help="Only failed jobs", action="store_true")
+ARG_ONLY_RUNNING = Arg(("-r", "--only-running"), help="Only running jobs", action="store_true")
+ARG_DOWNSTREAM = Arg(("-d", "--downstream"), help="Include downstream tasks", action="store_true")
+ARG_EXCLUDE_SUBDAGS = Arg(("-x", "--exclude-subdags"), help="Exclude subdags", action="store_true")
 ARG_EXCLUDE_PARENTDAG = Arg(
     ("-X", "--exclude-parentdag"),
     help="Exclude ParentDAGS if the task cleared is a part of a SubDAG",
-    action="store_true")
+    action="store_true",
+)
 ARG_DAG_REGEX = Arg(
-    ("-R", "--dag-regex"),
-    help="Search dag_id as regex instead of exact string",
-    action="store_true")
+    ("-R", "--dag-regex"), help="Search dag_id as regex instead of exact string", action="store_true"
+)
 
 # show_dag
-ARG_SAVE = Arg(
-    ("-s", "--save"),
-    help="Saves the result to the indicated file.")
+ARG_SAVE = Arg(("-s", "--save"), help="Saves the result to the indicated file.")
 
-ARG_IMGCAT = Arg(
-    ("--imgcat", ),
-    help=(
-        "Displays graph using the imgcat tool."),
-    action='store_true')
+ARG_IMGCAT = Arg(("--imgcat",), help=("Displays graph using the imgcat tool."), action='store_true')
 
 # trigger_dag
-ARG_RUN_ID = Arg(
-    ("-r", "--run-id"),
-    help="Helps to identify this run")
-ARG_CONF = Arg(
-    ('-c', '--conf'),
-    help="JSON string that gets pickled into the DagRun's conf attribute")
-ARG_EXEC_DATE = Arg(
-    ("-e", "--exec-date"),
-    help="The execution date of the DAG",
-    type=parsedate)
+ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
+ARG_CONF = Arg(('-c', '--conf'), help="JSON string that gets pickled into the DagRun's conf attribute")
+ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
 
 # pool
-ARG_POOL_NAME = Arg(
-    ("pool",),
-    metavar='NAME',
-    help="Pool name")
-ARG_POOL_SLOTS = Arg(
-    ("slots",),
-    type=int,
-    help="Pool slots")
-ARG_POOL_DESCRIPTION = Arg(
-    ("description",),
-    help="Pool description")
-ARG_POOL_IMPORT = Arg(
-    ("file",),
-    metavar="FILEPATH",
-    help="Import pools from JSON file")
-ARG_POOL_EXPORT = Arg(
-    ("file",),
-    metavar="FILEPATH",
-    help="Export all pools to JSON file")
+ARG_POOL_NAME = Arg(("pool",), metavar='NAME', help="Pool name")
+ARG_POOL_SLOTS = Arg(("slots",), type=int, help="Pool slots")
+ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
+ARG_POOL_IMPORT = Arg(("file",), metavar="FILEPATH", help="Import pools from JSON file")
+ARG_POOL_EXPORT = Arg(("file",), metavar="FILEPATH", help="Export all pools to JSON file")
 
 # variables
-ARG_VAR = Arg(
-    ("key",),
-    help="Variable key")
-ARG_VAR_VALUE = Arg(
-    ("value",),
-    metavar='VALUE',
-    help="Variable value")
+ARG_VAR = Arg(("key",), help="Variable key")
+ARG_VAR_VALUE = Arg(("value",), metavar='VALUE', help="Variable value")
 ARG_DEFAULT = Arg(
-    ("-d", "--default"),
-    metavar="VAL",
-    default=None,
-    help="Default value returned if variable does not exist")
-ARG_JSON = Arg(
-    ("-j", "--json"),
-    help="Deserialize JSON variable",
-    action="store_true")
-ARG_VAR_IMPORT = Arg(
-    ("file",),
-    help="Import variables from JSON file")
-ARG_VAR_EXPORT = Arg(
-    ("file",),
-    help="Export all variables to JSON file")
+    ("-d", "--default"), metavar="VAL", default=None, help="Default value returned if variable does not exist"
+)
+ARG_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
+ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
+ARG_VAR_EXPORT = Arg(("file",), help="Export all variables to JSON file")
 
 # kerberos
-ARG_PRINCIPAL = Arg(
-    ("principal",),
-    help="kerberos principal",
-    nargs='?')
-ARG_KEYTAB = Arg(
-    ("-k", "--keytab"),
-    help="keytab",
-    nargs='?',
-    default=conf.get('kerberos', 'keytab'))
+ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs='?')
+ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs='?', default=conf.get('kerberos', 'keytab'))
 # run
 # TODO(aoen): "force" is a poor choice of name here since it implies it overrides
 # all dependencies (not just past success), e.g. the ignore_depends_on_past
@@ -429,18 +365,20 @@ ARG_KEYTAB = Arg(
 # instead.
 ARG_INTERACTIVE = Arg(
     ('-N', '--interactive'),
-    help='Do not capture standard output and error streams '
-         '(useful for interactive debugging)',
-    action='store_true')
+    help='Do not capture standard output and error streams ' '(useful for interactive debugging)',
+    action='store_true',
+)
 ARG_FORCE = Arg(
     ("-f", "--force"),
     help="Ignore previous task instance state, rerun regardless if task already succeeded/failed",
-    action="store_true")
+    action="store_true",
+)
 ARG_RAW = Arg(("-r", "--raw"), argparse.SUPPRESS, "store_true")
 ARG_IGNORE_ALL_DEPENDENCIES = Arg(
     ("-A", "--ignore-all-dependencies"),
     help="Ignores all non-critical dependencies, including ignore_ti_state and ignore_task_deps",
-    action="store_true")
+    action="store_true",
+)
 # TODO(aoen): ignore_dependencies is a poor choice of name here because it is too
 # vague (e.g. a task being in the appropriate state to be run is also a dependency
 # but is not ignored by this flag), the name 'ignore_task_dependencies' is
@@ -449,24 +387,19 @@ ARG_IGNORE_ALL_DEPENDENCIES = Arg(
 ARG_IGNORE_DEPENDENCIES = Arg(
     ("-i", "--ignore-dependencies"),
     help="Ignore task-specific dependencies, e.g. upstream, depends_on_past, and retry delay dependencies",
-    action="store_true")
+    action="store_true",
+)
 ARG_IGNORE_DEPENDS_ON_PAST = Arg(
     ("-I", "--ignore-depends-on-past"),
     help="Ignore depends_on_past dependencies (but respect upstream dependencies)",
-    action="store_true")
+    action="store_true",
+)
 ARG_SHIP_DAG = Arg(
-    ("--ship-dag",),
-    help="Pickles (serializes) the DAG and ships it to the worker",
-    action="store_true")
-ARG_PICKLE = Arg(
-    ("-p", "--pickle"),
-    help="Serialized pickle object of the entire dag (used internally)")
-ARG_JOB_ID = Arg(
-    ("-j", "--job-id"),
-    help=argparse.SUPPRESS)
-ARG_CFG_PATH = Arg(
-    ("--cfg-path",),
-    help="Path to config file to use instead of airflow.cfg")
+    ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
+)
+ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entire dag (used internally)")
+ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
+ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
 ARG_MIGRATION_TIMEOUT = Arg(
     ("-t", "--migration-wait-timeout"),
     help="timeout to wait for db to migrate ",
@@ -479,220 +412,194 @@ ARG_PORT = Arg(
     ("-p", "--port"),
     default=conf.get('webserver', 'WEB_SERVER_PORT'),
     type=int,
-    help="The port on which to run the server")
+    help="The port on which to run the server",
+)
 ARG_SSL_CERT = Arg(
     ("--ssl-cert",),
     default=conf.get('webserver', 'WEB_SERVER_SSL_CERT'),
-    help="Path to the SSL certificate for the webserver")
+    help="Path to the SSL certificate for the webserver",
+)
 ARG_SSL_KEY = Arg(
     ("--ssl-key",),
     default=conf.get('webserver', 'WEB_SERVER_SSL_KEY'),
-    help="Path to the key to use with the SSL certificate")
+    help="Path to the key to use with the SSL certificate",
+)
 ARG_WORKERS = Arg(
     ("-w", "--workers"),
     default=conf.get('webserver', 'WORKERS'),
     type=int,
-    help="Number of workers to run the webserver on")
+    help="Number of workers to run the webserver on",
+)
 ARG_WORKERCLASS = Arg(
     ("-k", "--workerclass"),
     default=conf.get('webserver', 'WORKER_CLASS'),
     choices=['sync', 'eventlet', 'gevent', 'tornado'],
-    help="The worker class to use for Gunicorn")
+    help="The worker class to use for Gunicorn",
+)
 ARG_WORKER_TIMEOUT = Arg(
     ("-t", "--worker-timeout"),
     default=conf.get('webserver', 'WEB_SERVER_WORKER_TIMEOUT'),
     type=int,
-    help="The timeout for waiting on webserver workers")
+    help="The timeout for waiting on webserver workers",
+)
 ARG_HOSTNAME = Arg(
     ("-H", "--hostname"),
     default=conf.get('webserver', 'WEB_SERVER_HOST'),
-    help="Set the hostname on which to run the web server")
+    help="Set the hostname on which to run the web server",
+)
 ARG_DEBUG = Arg(
-    ("-d", "--debug"),
-    help="Use the server that ships with Flask in debug mode",
-    action="store_true")
+    ("-d", "--debug"), help="Use the server that ships with Flask in debug mode", action="store_true"
+)
 ARG_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
     default=conf.get('webserver', 'ACCESS_LOGFILE'),
-    help="The logfile to store the webserver access log. Use '-' to print to "
-         "stderr")
+    help="The logfile to store the webserver access log. Use '-' to print to " "stderr",
+)
 ARG_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
     default=conf.get('webserver', 'ERROR_LOGFILE'),
-    help="The logfile to store the webserver error log. Use '-' to print to "
-         "stderr")
+    help="The logfile to store the webserver error log. Use '-' to print to " "stderr",
+)
 
 # scheduler
 ARG_NUM_RUNS = Arg(
     ("-n", "--num-runs"),
     default=conf.getint('scheduler', 'num_runs'),
     type=int,
-    help="Set the number of runs to execute before exiting")
+    help="Set the number of runs to execute before exiting",
+)
 ARG_DO_PICKLE = Arg(
     ("-p", "--do-pickle"),
     default=False,
     help=(
         "Attempt to pickle the DAG object to send over "
         "to the workers, instead of letting workers run their version "
-        "of the code"),
-    action="store_true")
+        "of the code"
+    ),
+    action="store_true",
+)
 
 # worker
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
-    default=conf.get('celery', 'DEFAULT_QUEUE'))
+    default=conf.get('celery', 'DEFAULT_QUEUE'),
+)
 ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),
     type=int,
     help="The number of worker processes",
-    default=conf.get('celery', 'worker_concurrency'))
+    default=conf.get('celery', 'worker_concurrency'),
+)
 ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
-    help=("Set the hostname of celery worker "
-          "if you have multiple workers on a single machine"))
+    help=("Set the hostname of celery worker " "if you have multiple workers on a single machine"),
+)
 ARG_UMASK = Arg(
     ("-u", "--umask"),
     help="Set the umask of celery worker in daemon mode",
-    default=conf.get('celery', 'worker_umask'))
+    default=conf.get('celery', 'worker_umask'),
+)
 
 # flower
 ARG_BROKER_API = Arg(("-a", "--broker-api"), help="Broker API")
 ARG_FLOWER_HOSTNAME = Arg(
     ("-H", "--hostname"),
     default=conf.get('celery', 'FLOWER_HOST'),
-    help="Set the hostname on which to run the server")
+    help="Set the hostname on which to run the server",
+)
 ARG_FLOWER_PORT = Arg(
     ("-p", "--port"),
     default=conf.get('celery', 'FLOWER_PORT'),
     type=int,
-    help="The port on which to run the server")
-ARG_FLOWER_CONF = Arg(
-    ("-c", "--flower-conf"),
-    help="Configuration file for flower")
+    help="The port on which to run the server",
+)
+ARG_FLOWER_CONF = Arg(("-c", "--flower-conf"), help="Configuration file for flower")
 ARG_FLOWER_URL_PREFIX = Arg(
-    ("-u", "--url-prefix"),
-    default=conf.get('celery', 'FLOWER_URL_PREFIX'),
-    help="URL prefix for Flower")
+    ("-u", "--url-prefix"), default=conf.get('celery', 'FLOWER_URL_PREFIX'), help="URL prefix for Flower"
+)
 ARG_FLOWER_BASIC_AUTH = Arg(
     ("-A", "--basic-auth"),
     default=conf.get('celery', 'FLOWER_BASIC_AUTH'),
-    help=("Securing Flower with Basic Authentication. "
-          "Accepts user:password pairs separated by a comma. "
-          "Example: flower_basic_auth = user1:password1,user2:password2"))
-ARG_TASK_PARAMS = Arg(
-    ("-t", "--task-params"),
-    help="Sends a JSON params dict to the task")
+    help=(
+        "Securing Flower with Basic Authentication. "
+        "Accepts user:password pairs separated by a comma. "
+        "Example: flower_basic_auth = user1:password1,user2:password2"
+    ),
+)
+ARG_TASK_PARAMS = Arg(("-t", "--task-params"), help="Sends a JSON params dict to the task")
 ARG_POST_MORTEM = Arg(
-    ("-m", "--post-mortem"),
-    action="store_true",
-    help="Open debugger on uncaught exception")
+    ("-m", "--post-mortem"), action="store_true", help="Open debugger on uncaught exception"
+)
 ARG_ENV_VARS = Arg(
-    ("--env-vars", ),
+    ("--env-vars",),
     help="Set env var in both parsing time and runtime for each of entry supplied in a JSON dict",
-    type=json.loads)
+    type=json.loads,
+)
 
 # connections
-ARG_CONN_ID = Arg(
-    ('conn_id',),
-    help='Connection id, required to get/add/delete a connection',
-    type=str)
+ARG_CONN_ID = Arg(('conn_id',), help='Connection id, required to get/add/delete a connection', type=str)
 ARG_CONN_ID_FILTER = Arg(
-    ('--conn-id',),
-    help='If passed, only items with the specified connection ID will be displayed',
-    type=str)
+    ('--conn-id',), help='If passed, only items with the specified connection ID will be displayed', type=str
+)
 ARG_CONN_URI = Arg(
-    ('--conn-uri',),
-    help='Connection URI, required to add a connection without conn_type',
-    type=str)
+    ('--conn-uri',), help='Connection URI, required to add a connection without conn_type', type=str
+)
 ARG_CONN_TYPE = Arg(
-    ('--conn-type',),
-    help='Connection type, required to add a connection without conn_uri',
-    type=str)
-ARG_CONN_HOST = Arg(
-    ('--conn-host',),
-    help='Connection host, optional when adding a connection',
-    type=str)
-ARG_CONN_LOGIN = Arg(
-    ('--conn-login',),
-    help='Connection login, optional when adding a connection',
-    type=str)
+    ('--conn-type',), help='Connection type, required to add a connection without conn_uri', type=str
+)
+ARG_CONN_HOST = Arg(('--conn-host',), help='Connection host, optional when adding a connection', type=str)
+ARG_CONN_LOGIN = Arg(('--conn-login',), help='Connection login, optional when adding a connection', type=str)
 ARG_CONN_PASSWORD = Arg(
-    ('--conn-password',),
-    help='Connection password, optional when adding a connection',
-    type=str)
+    ('--conn-password',), help='Connection password, optional when adding a connection', type=str
+)
 ARG_CONN_SCHEMA = Arg(
-    ('--conn-schema',),
-    help='Connection schema, optional when adding a connection',
-    type=str)
-ARG_CONN_PORT = Arg(
-    ('--conn-port',),
-    help='Connection port, optional when adding a connection',
-    type=str)
+    ('--conn-schema',), help='Connection schema, optional when adding a connection', type=str
+)
+ARG_CONN_PORT = Arg(('--conn-port',), help='Connection port, optional when adding a connection', type=str)
 ARG_CONN_EXTRA = Arg(
-    ('--conn-extra',),
-    help='Connection `Extra` field, optional when adding a connection',
-    type=str)
+    ('--conn-extra',), help='Connection `Extra` field, optional when adding a connection', type=str
+)
 ARG_CONN_EXPORT = Arg(
     ('file',),
     help='Output file path for exporting the connections',
-    type=argparse.FileType('w', encoding='UTF-8'))
+    type=argparse.FileType('w', encoding='UTF-8'),
+)
 ARG_CONN_EXPORT_FORMAT = Arg(
-    ('--format',),
-    help='Format of the connections data in file',
-    type=str,
-    choices=['json', 'yaml', 'env'])
+    ('--format',), help='Format of the connections data in file', type=str, choices=['json', 'yaml', 'env']
+)
 # users
-ARG_USERNAME = Arg(
-    ('-u', '--username'),
-    help='Username of the user',
-    required=True,
-    type=str)
-ARG_USERNAME_OPTIONAL = Arg(
-    ('-u', '--username'),
-    help='Username of the user',
-    type=str)
-ARG_FIRSTNAME = Arg(
-    ('-f', '--firstname'),
-    help='First name of the user',
-    required=True,
-    type=str)
-ARG_LASTNAME = Arg(
-    ('-l', '--lastname'),
-    help='Last name of the user',
-    required=True,
-    type=str)
+ARG_USERNAME = Arg(('-u', '--username'), help='Username of the user', required=True, type=str)
+ARG_USERNAME_OPTIONAL = Arg(('-u', '--username'), help='Username of the user', type=str)
+ARG_FIRSTNAME = Arg(('-f', '--firstname'), help='First name of the user', required=True, type=str)
+ARG_LASTNAME = Arg(('-l', '--lastname'), help='Last name of the user', required=True, type=str)
 ARG_ROLE = Arg(
     ('-r', '--role'),
-    help='Role of the user. Existing roles include Admin, '
-         'User, Op, Viewer, and Public',
+    help='Role of the user. Existing roles include Admin, ' 'User, Op, Viewer, and Public',
     required=True,
-    type=str,)
-ARG_EMAIL = Arg(
-    ('-e', '--email'),
-    help='Email of the user',
-    required=True,
-    type=str)
-ARG_EMAIL_OPTIONAL = Arg(
-    ('-e', '--email'),
-    help='Email of the user',
-    type=str)
+    type=str,
+)
+ARG_EMAIL = Arg(('-e', '--email'), help='Email of the user', required=True, type=str)
+ARG_EMAIL_OPTIONAL = Arg(('-e', '--email'), help='Email of the user', type=str)
 ARG_PASSWORD = Arg(
     ('-p', '--password'),
-    help='Password of the user, required to create a user '
-         'without --use-random-password',
-    type=str)
+    help='Password of the user, required to create a user ' 'without --use-random-password',
+    type=str,
+)
 ARG_USE_RANDOM_PASSWORD = Arg(
     ('--use-random-password',),
     help='Do not prompt for password. Use random string instead.'
-         ' Required to create a user without --password ',
+    ' Required to create a user without --password ',
     default=False,
-    action='store_true')
+    action='store_true',
+)
 ARG_USER_IMPORT = Arg(
     ("import",),
     metavar="FILEPATH",
-    help="Import users from JSON file. Example format::\n" +
-         textwrap.indent(textwrap.dedent('''
+    help="Import users from JSON file. Example format::\n"
+    + textwrap.indent(
+        textwrap.dedent(
+            '''
             [
                 {
                     "email": "foo@bar.org",
@@ -701,49 +608,33 @@ ARG_USER_IMPORT = Arg(
                     "roles": ["Public"],
                     "username": "jondoe"
                 }
-            ]'''), " " * 4))
-ARG_USER_EXPORT = Arg(
-    ("export",),
-    metavar="FILEPATH",
-    help="Export all users to JSON file")
+            ]'''
+        ),
+        " " * 4,
+    ),
+)
+ARG_USER_EXPORT = Arg(("export",), metavar="FILEPATH", help="Export all users to JSON file")
 
 # roles
-ARG_CREATE_ROLE = Arg(
-    ('-c', '--create'),
-    help='Create a new role',
-    action='store_true')
-ARG_LIST_ROLES = Arg(
-    ('-l', '--list'),
-    help='List roles',
-    action='store_true')
-ARG_ROLES = Arg(
-    ('role',),
-    help='The name of a role',
-    nargs='*')
-ARG_AUTOSCALE = Arg(
-    ('-a', '--autoscale'),
-    help="Minimum and Maximum number of worker to autoscale")
+ARG_CREATE_ROLE = Arg(('-c', '--create'), help='Create a new role', action='store_true')
+ARG_LIST_ROLES = Arg(('-l', '--list'), help='List roles', action='store_true')
+ARG_ROLES = Arg(('role',), help='The name of a role', nargs='*')
+ARG_AUTOSCALE = Arg(('-a', '--autoscale'), help="Minimum and Maximum number of worker to autoscale")
 ARG_SKIP_SERVE_LOGS = Arg(
     ("-s", "--skip-serve-logs"),
     default=False,
     help="Don't start the serve logs process along with the workers",
-    action="store_true")
+    action="store_true",
+)
 
 # info
 ARG_ANONYMIZE = Arg(
     ('--anonymize',),
-    help=(
-        'Minimize any personal identifiable information. '
-        'Use it when sharing output with others.'
-    ),
-    action='store_true'
+    help=('Minimize any personal identifiable information. ' 'Use it when sharing output with others.'),
+    action='store_true',
 )
 ARG_FILE_IO = Arg(
-    ('--file-io',),
-    help=(
-        'Send output to file.io service and returns link.'
-    ),
-    action='store_true'
+    ('--file-io',), help=('Send output to file.io service and returns link.'), action='store_true'
 )
 
 # config
@@ -764,7 +655,12 @@ ARG_NAMESPACE = Arg(
 )
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
-    ARG_CONN_TYPE, ARG_CONN_HOST, ARG_CONN_LOGIN, ARG_CONN_PASSWORD, ARG_CONN_SCHEMA, ARG_CONN_PORT
+    ARG_CONN_TYPE,
+    ARG_CONN_HOST,
+    ARG_CONN_LOGIN,
+    ARG_CONN_PASSWORD,
+    ARG_CONN_SCHEMA,
+    ARG_CONN_PORT,
 ]
 
 
@@ -867,23 +763,30 @@ DAGS_COMMANDS = (
     ActionCommand(
         name='show',
         help="Displays DAG's tasks with their dependencies",
-        description=("The --imgcat option only works in iTerm.\n"
-                     "\n"
-                     "For more information, see: https://www.iterm2.com/documentation-images.html\n"
-                     "\n"
-                     "The --save option saves the result to the indicated file.\n"
-                     "\n"
-                     "The file format is determined by the file extension. "
-                     "For more information about supported "
-                     "format, see: https://www.graphviz.org/doc/info/output.html\n"
-                     "\n"
-                     "If you want to create a PNG file then you should execute the following command:\n"
-                     "airflow dags show <DAG_ID> --save output.png\n"
-                     "\n"
-                     "If you want to create a DOT file then you should execute the following command:\n"
-                     "airflow dags show <DAG_ID> --save output.dot\n"),
+        description=(
+            "The --imgcat option only works in iTerm.\n"
+            "\n"
+            "For more information, see: https://www.iterm2.com/documentation-images.html\n"
+            "\n"
+            "The --save option saves the result to the indicated file.\n"
+            "\n"
+            "The file format is determined by the file extension. "
+            "For more information about supported "
+            "format, see: https://www.graphviz.org/doc/info/output.html\n"
+            "\n"
+            "If you want to create a PNG file then you should execute the following command:\n"
+            "airflow dags show <DAG_ID> --save output.png\n"
+            "\n"
+            "If you want to create a DOT file then you should execute the following command:\n"
+            "airflow dags show <DAG_ID> --save output.dot\n"
+        ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_show'),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_SAVE, ARG_IMGCAT,),
+        args=(
+            ARG_DAG_ID,
+            ARG_SUBDIR,
+            ARG_SAVE,
+            ARG_IMGCAT,
+        ),
     ),
     ActionCommand(
         name='backfill',
@@ -896,36 +799,58 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_backfill'),
         args=(
-            ARG_DAG_ID, ARG_TASK_REGEX, ARG_START_DATE, ARG_END_DATE, ARG_MARK_SUCCESS, ARG_LOCAL,
-            ARG_DONOT_PICKLE, ARG_YES, ARG_BF_IGNORE_DEPENDENCIES, ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST,
-            ARG_SUBDIR, ARG_POOL, ARG_DELAY_ON_LIMIT, ARG_DRY_RUN, ARG_VERBOSE, ARG_CONF,
-            ARG_RESET_DAG_RUN, ARG_RERUN_FAILED_TASKS, ARG_RUN_BACKWARDS
+            ARG_DAG_ID,
+            ARG_TASK_REGEX,
+            ARG_START_DATE,
+            ARG_END_DATE,
+            ARG_MARK_SUCCESS,
+            ARG_LOCAL,
+            ARG_DONOT_PICKLE,
+            ARG_YES,
+            ARG_BF_IGNORE_DEPENDENCIES,
+            ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST,
+            ARG_SUBDIR,
+            ARG_POOL,
+            ARG_DELAY_ON_LIMIT,
+            ARG_DRY_RUN,
+            ARG_VERBOSE,
+            ARG_CONF,
+            ARG_RESET_DAG_RUN,
+            ARG_RERUN_FAILED_TASKS,
+            ARG_RUN_BACKWARDS,
         ),
     ),
     ActionCommand(
         name='test',
         help="Execute one single DagRun",
-        description=("Execute one single DagRun for a given DAG and execution date, "
-                     "using the DebugExecutor.\n"
-                     "\n"
-                     "The --imgcat-dagrun option only works in iTerm.\n"
-                     "\n"
-                     "For more information, see: https://www.iterm2.com/documentation-images.html\n"
-                     "\n"
-                     "If --save-dagrun is used, then, after completing the backfill, saves the diagram "
-                     "for current DAG Run to the indicated file.\n"
-                     "The file format is determined by the file extension. "
-                     "For more information about supported format, "
-                     "see: https://www.graphviz.org/doc/info/output.html\n"
-                     "\n"
-                     "If you want to create a PNG file then you should execute the following command:\n"
-                     "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
-                     "\n"
-                     "If you want to create a DOT file then you should execute the following command:\n"
-                     "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"),
+        description=(
+            "Execute one single DagRun for a given DAG and execution date, "
+            "using the DebugExecutor.\n"
+            "\n"
+            "The --imgcat-dagrun option only works in iTerm.\n"
+            "\n"
+            "For more information, see: https://www.iterm2.com/documentation-images.html\n"
+            "\n"
+            "If --save-dagrun is used, then, after completing the backfill, saves the diagram "
+            "for current DAG Run to the indicated file.\n"
+            "The file format is determined by the file extension. "
+            "For more information about supported format, "
+            "see: https://www.graphviz.org/doc/info/output.html\n"
+            "\n"
+            "If you want to create a PNG file then you should execute the following command:\n"
+            "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
+            "\n"
+            "If you want to create a DOT file then you should execute the following command:\n"
+            "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"
+        ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         args=(
-            ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_SHOW_DAGRUN, ARG_IMGCAT_DAGRUN, ARG_SAVE_DAGRUN
+            ARG_DAG_ID,
+            ARG_EXECUTION_DATE,
+            ARG_SUBDIR,
+            ARG_SHOW_DAGRUN,
+            ARG_IMGCAT_DAGRUN,
+            ARG_SAVE_DAGRUN,
         ),
     ),
 )
@@ -941,9 +866,19 @@ TASKS_COMMANDS = (
         help="Clear a set of task instance, as if they never ran",
         func=lazy_load_command('airflow.cli.commands.task_command.task_clear'),
         args=(
-            ARG_DAG_ID, ARG_TASK_REGEX, ARG_START_DATE, ARG_END_DATE, ARG_SUBDIR, ARG_UPSTREAM,
-            ARG_DOWNSTREAM, ARG_YES, ARG_ONLY_FAILED, ARG_ONLY_RUNNING, ARG_EXCLUDE_SUBDAGS,
-            ARG_EXCLUDE_PARENTDAG, ARG_DAG_REGEX
+            ARG_DAG_ID,
+            ARG_TASK_REGEX,
+            ARG_START_DATE,
+            ARG_END_DATE,
+            ARG_SUBDIR,
+            ARG_UPSTREAM,
+            ARG_DOWNSTREAM,
+            ARG_YES,
+            ARG_ONLY_FAILED,
+            ARG_ONLY_RUNNING,
+            ARG_EXCLUDE_SUBDAGS,
+            ARG_EXCLUDE_PARENTDAG,
+            ARG_DAG_REGEX,
         ),
     ),
     ActionCommand(
@@ -974,9 +909,22 @@ TASKS_COMMANDS = (
         help="Run a single task instance",
         func=lazy_load_command('airflow.cli.commands.task_command.task_run'),
         args=(
-            ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_MARK_SUCCESS, ARG_FORCE,
-            ARG_POOL, ARG_CFG_PATH, ARG_LOCAL, ARG_RAW, ARG_IGNORE_ALL_DEPENDENCIES,
-            ARG_IGNORE_DEPENDENCIES, ARG_IGNORE_DEPENDS_ON_PAST, ARG_SHIP_DAG, ARG_PICKLE, ARG_JOB_ID,
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_EXECUTION_DATE,
+            ARG_SUBDIR,
+            ARG_MARK_SUCCESS,
+            ARG_FORCE,
+            ARG_POOL,
+            ARG_CFG_PATH,
+            ARG_LOCAL,
+            ARG_RAW,
+            ARG_IGNORE_ALL_DEPENDENCIES,
+            ARG_IGNORE_DEPENDENCIES,
+            ARG_IGNORE_DEPENDS_ON_PAST,
+            ARG_SHIP_DAG,
+            ARG_PICKLE,
+            ARG_JOB_ID,
             ARG_INTERACTIVE,
         ),
     ),
@@ -989,8 +937,14 @@ TASKS_COMMANDS = (
         ),
         func=lazy_load_command('airflow.cli.commands.task_command.task_test'),
         args=(
-            ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_DRY_RUN,
-            ARG_TASK_PARAMS, ARG_POST_MORTEM, ARG_ENV_VARS
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_EXECUTION_DATE,
+            ARG_SUBDIR,
+            ARG_DRY_RUN,
+            ARG_TASK_PARAMS,
+            ARG_POST_MORTEM,
+            ARG_ENV_VARS,
         ),
     ),
     ActionCommand(
@@ -1011,31 +965,48 @@ POOLS_COMMANDS = (
         name='get',
         help='Get pool size',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_get'),
-        args=(ARG_POOL_NAME, ARG_OUTPUT,),
+        args=(
+            ARG_POOL_NAME,
+            ARG_OUTPUT,
+        ),
     ),
     ActionCommand(
         name='set',
         help='Configure pool',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_set'),
-        args=(ARG_POOL_NAME, ARG_POOL_SLOTS, ARG_POOL_DESCRIPTION, ARG_OUTPUT,),
+        args=(
+            ARG_POOL_NAME,
+            ARG_POOL_SLOTS,
+            ARG_POOL_DESCRIPTION,
+            ARG_OUTPUT,
+        ),
     ),
     ActionCommand(
         name='delete',
         help='Delete pool',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_delete'),
-        args=(ARG_POOL_NAME, ARG_OUTPUT,),
+        args=(
+            ARG_POOL_NAME,
+            ARG_OUTPUT,
+        ),
     ),
     ActionCommand(
         name='import',
         help='Import pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
-        args=(ARG_POOL_IMPORT, ARG_OUTPUT,),
+        args=(
+            ARG_POOL_IMPORT,
+            ARG_OUTPUT,
+        ),
     ),
     ActionCommand(
         name='export',
         help='Export all pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_export'),
-        args=(ARG_POOL_EXPORT, ARG_OUTPUT,),
+        args=(
+            ARG_POOL_EXPORT,
+            ARG_OUTPUT,
+        ),
     ),
 )
 VARIABLES_COMMANDS = (
@@ -1086,9 +1057,7 @@ DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
         help="Check if migration have finished",
-        description=(
-            "Check if migration have finished (or continually check until timeout)"
-        ),
+        description=("Check if migration have finished (or continually check until timeout)"),
         func=lazy_load_command('airflow.cli.commands.db_command.check_migrations'),
         args=(ARG_MIGRATION_TIMEOUT,),
     ),
@@ -1145,18 +1114,23 @@ CONNECTIONS_COMMANDS = (
     ActionCommand(
         name='export',
         help='Export all connections',
-        description=("All connections can be exported in STDOUT using the following command:\n"
-                     "airflow connections export -\n"
-                     "The file format can be determined by the provided file extension. eg, The following "
-                     "command will export the connections in JSON format:\n"
-                     "airflow connections export /tmp/connections.json\n"
-                     "The --format parameter can be used to mention the connections format. eg, "
-                     "the default format is JSON in STDOUT mode, which can be overridden using: \n"
-                     "airflow connections export - --format yaml\n"
-                     "The --format parameter can also be used for the files, for example:\n"
-                     "airflow connections export /tmp/connections --format json\n"),
+        description=(
+            "All connections can be exported in STDOUT using the following command:\n"
+            "airflow connections export -\n"
+            "The file format can be determined by the provided file extension. eg, The following "
+            "command will export the connections in JSON format:\n"
+            "airflow connections export /tmp/connections.json\n"
+            "The --format parameter can be used to mention the connections format. eg, "
+            "the default format is JSON in STDOUT mode, which can be overridden using: \n"
+            "airflow connections export - --format yaml\n"
+            "The --format parameter can also be used for the files, for example:\n"
+            "airflow connections export /tmp/connections --format json\n"
+        ),
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_export'),
-        args=(ARG_CONN_EXPORT, ARG_CONN_EXPORT_FORMAT,),
+        args=(
+            ARG_CONN_EXPORT,
+            ARG_CONN_EXPORT_FORMAT,
+        ),
     ),
 )
 USERS_COMMANDS = (
@@ -1171,8 +1145,13 @@ USERS_COMMANDS = (
         help='Create a user',
         func=lazy_load_command('airflow.cli.commands.user_command.users_create'),
         args=(
-            ARG_ROLE, ARG_USERNAME, ARG_EMAIL, ARG_FIRSTNAME, ARG_LASTNAME, ARG_PASSWORD,
-            ARG_USE_RANDOM_PASSWORD
+            ARG_ROLE,
+            ARG_USERNAME,
+            ARG_EMAIL,
+            ARG_FIRSTNAME,
+            ARG_LASTNAME,
+            ARG_PASSWORD,
+            ARG_USE_RANDOM_PASSWORD,
         ),
         epilog=(
             'examples:\n'
@@ -1184,7 +1163,7 @@ USERS_COMMANDS = (
             '          --lastname LAST_NAME \\\n'
             '          --role Admin \\\n'
             '          --email admin@example.org'
-        )
+        ),
     ),
     ActionCommand(
         name='delete',
@@ -1238,8 +1217,17 @@ CELERY_COMMANDS = (
         help="Start a Celery worker node",
         func=lazy_load_command('airflow.cli.commands.celery_command.worker'),
         args=(
-            ARG_QUEUES, ARG_CONCURRENCY, ARG_CELERY_HOSTNAME, ARG_PID, ARG_DAEMON,
-            ARG_UMASK, ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE, ARG_AUTOSCALE, ARG_SKIP_SERVE_LOGS
+            ARG_QUEUES,
+            ARG_CONCURRENCY,
+            ARG_CELERY_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_UMASK,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
+            ARG_AUTOSCALE,
+            ARG_SKIP_SERVE_LOGS,
         ),
     ),
     ActionCommand(
@@ -1247,9 +1235,17 @@ CELERY_COMMANDS = (
         help="Start a Celery Flower",
         func=lazy_load_command('airflow.cli.commands.celery_command.flower'),
         args=(
-            ARG_FLOWER_HOSTNAME, ARG_FLOWER_PORT, ARG_FLOWER_CONF, ARG_FLOWER_URL_PREFIX,
-            ARG_FLOWER_BASIC_AUTH, ARG_BROKER_API, ARG_PID, ARG_DAEMON, ARG_STDOUT, ARG_STDERR,
-            ARG_LOG_FILE
+            ARG_FLOWER_HOSTNAME,
+            ARG_FLOWER_PORT,
+            ARG_FLOWER_CONF,
+            ARG_FLOWER_URL_PREFIX,
+            ARG_FLOWER_BASIC_AUTH,
+            ARG_BROKER_API,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
         ),
     ),
     ActionCommand(
@@ -1257,7 +1253,7 @@ CELERY_COMMANDS = (
         help="Stop the Celery worker gracefully",
         func=lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
         args=(),
-    )
+    ),
 )
 
 CONFIG_COMMANDS = (
@@ -1265,13 +1261,16 @@ CONFIG_COMMANDS = (
         name='get-value',
         help='Print the value of the configuration',
         func=lazy_load_command('airflow.cli.commands.config_command.get_value'),
-        args=(ARG_SECTION, ARG_OPTION, ),
+        args=(
+            ARG_SECTION,
+            ARG_OPTION,
+        ),
     ),
     ActionCommand(
         name='list',
         help='List options for the configuration',
         func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
-        args=(ARG_COLOR, ),
+        args=(ARG_COLOR,),
     ),
 )
 
@@ -1280,12 +1279,12 @@ KUBERNETES_COMMANDS = (
         name='cleanup-pods',
         help="Clean up Kubernetes pods in evicted/failed/succeeded states",
         func=lazy_load_command('airflow.cli.commands.kubernetes_command.cleanup_pods'),
-        args=(ARG_NAMESPACE, ),
+        args=(ARG_NAMESPACE,),
     ),
     ActionCommand(
         name='generate-dag-yaml',
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
-             "launching into a cluster",
+        "launching into a cluster",
         func=lazy_load_command('airflow.cli.commands.kubernetes_command.generate_pod_yaml'),
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH),
     ),
@@ -1298,9 +1297,7 @@ airflow_commands: List[CLICommand] = [
         subcommands=DAGS_COMMANDS,
     ),
     GroupCommand(
-        name="kubernetes",
-        help='Tools to help run the KubernetesExecutor',
-        subcommands=KUBERNETES_COMMANDS
+        name="kubernetes", help='Tools to help run the KubernetesExecutor', subcommands=KUBERNETES_COMMANDS
     ),
     GroupCommand(
         name='tasks',
@@ -1333,9 +1330,21 @@ airflow_commands: List[CLICommand] = [
         help="Start a Airflow webserver instance",
         func=lazy_load_command('airflow.cli.commands.webserver_command.webserver'),
         args=(
-            ARG_PORT, ARG_WORKERS, ARG_WORKERCLASS, ARG_WORKER_TIMEOUT, ARG_HOSTNAME, ARG_PID,
-            ARG_DAEMON, ARG_STDOUT, ARG_STDERR, ARG_ACCESS_LOGFILE, ARG_ERROR_LOGFILE, ARG_LOG_FILE,
-            ARG_SSL_CERT, ARG_SSL_KEY, ARG_DEBUG
+            ARG_PORT,
+            ARG_WORKERS,
+            ARG_WORKERCLASS,
+            ARG_WORKER_TIMEOUT,
+            ARG_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_ACCESS_LOGFILE,
+            ARG_ERROR_LOGFILE,
+            ARG_LOG_FILE,
+            ARG_SSL_CERT,
+            ARG_SSL_KEY,
+            ARG_DEBUG,
         ),
     ),
     ActionCommand(
@@ -1343,8 +1352,14 @@ airflow_commands: List[CLICommand] = [
         help="Start a scheduler instance",
         func=lazy_load_command('airflow.cli.commands.scheduler_command.scheduler'),
         args=(
-            ARG_SUBDIR, ARG_NUM_RUNS, ARG_DO_PICKLE, ARG_PID, ARG_DAEMON, ARG_STDOUT,
-            ARG_STDERR, ARG_LOG_FILE
+            ARG_SUBDIR,
+            ARG_NUM_RUNS,
+            ARG_DO_PICKLE,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
         ),
     ),
     ActionCommand(
@@ -1391,16 +1406,15 @@ airflow_commands: List[CLICommand] = [
         ),
         args=(),
     ),
-    GroupCommand(
-        name="config",
-        help='View configuration',
-        subcommands=CONFIG_COMMANDS
-    ),
+    GroupCommand(name="config", help='View configuration', subcommands=CONFIG_COMMANDS),
     ActionCommand(
         name='info',
         help='Show information about current Airflow and environment',
         func=lazy_load_command('airflow.cli.commands.info_command.show_info'),
-        args=(ARG_ANONYMIZE, ARG_FILE_IO, ),
+        args=(
+            ARG_ANONYMIZE,
+            ARG_FILE_IO,
+        ),
     ),
     ActionCommand(
         name='plugins',
@@ -1415,13 +1429,11 @@ airflow_commands: List[CLICommand] = [
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
             'https://airflow.readthedocs.io/en/stable/executor/celery.html'
         ),
-        subcommands=CELERY_COMMANDS
-    )
+        subcommands=CELERY_COMMANDS,
+    ),
 ]
 ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
-DAG_CLI_COMMANDS: Set[str] = {
-    'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs'
-}
+DAG_CLI_COMMANDS: Set[str] = {'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs'}
 
 
 class AirflowHelpFormatter(argparse.HelpFormatter):
@@ -1483,17 +1495,18 @@ def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
 
 def _sort_args(args: Iterable[Arg]) -> Iterable[Arg]:
     """Sort subcommand optional args, keep positional args"""
+
     def get_long_option(arg: Arg):
         """Get long option from Arg.flags"""
         return arg.flags[0] if len(arg.flags) == 1 else arg.flags[1]
+
     positional, optional = partition(lambda x: x.flags[0].startswith("-"), args)
     yield from positional
     yield from sorted(optional, key=lambda x: get_long_option(x).lower())
 
 
 def _add_command(
-    subparsers: argparse._SubParsersAction,  # pylint: disable=protected-access
-    sub: CLICommand
+    subparsers: argparse._SubParsersAction, sub: CLICommand  # pylint: disable=protected-access
 ) -> None:
     sub_proc = subparsers.add_parser(
         sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog

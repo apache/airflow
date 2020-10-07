@@ -52,21 +52,21 @@ def get_template_field(env, fullname):
     template_fields = getattr(clazz, "template_fields")
 
     if not template_fields:
-        raise RoleException(
-            f"Could not find the template fields for {classname} class in {modname} module."
-        )
+        raise RoleException(f"Could not find the template fields for {classname} class in {modname} module.")
 
     return list(template_fields)
 
 
-def template_field_role(app,
-                        typ,  # pylint: disable=unused-argument
-                        rawtext,
-                        text,
-                        lineno,
-                        inliner,
-                        options=None,  # pylint: disable=unused-argument
-                        content=None):  # pylint: disable=unused-argument
+def template_field_role(
+    app,
+    typ,  # pylint: disable=unused-argument
+    rawtext,
+    text,
+    lineno,
+    inliner,
+    options=None,  # pylint: disable=unused-argument
+    content=None,
+):  # pylint: disable=unused-argument
     """
     A role that allows you to include a list of template fields in the middle of the text. This is especially
     useful when writing guides describing how to use the operator.
@@ -90,7 +90,10 @@ def template_field_role(app,
     try:
         template_fields = get_template_field(app.env, text)
     except RoleException as e:
-        msg = inliner.reporter.error(f"invalid class name {text} \n{e}", line=lineno)
+        msg = inliner.reporter.error(
+            f"invalid class name {text} \n{e}",
+            line=lineno,
+        )
         prb = inliner.problematic(rawtext, rawtext, msg)
         return [prb], [msg]
 
@@ -106,6 +109,7 @@ def template_field_role(app,
 def setup(app):
     """Sets the extension up"""
     from docutils.parsers.rst import roles  # pylint: disable=wrong-import-order
+
     roles.register_local_role("template-fields", partial(template_field_role, app))
 
     return {"version": "builtin", "parallel_read_safe": True, "parallel_write_safe": True}

@@ -29,10 +29,7 @@ def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:
     if dag_model is None:
         raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
 
-    dagbag = DagBag(
-        dag_folder=dag_model.fileloc,
-        read_dags_from_db=True
-    )
+    dagbag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
     dag = dagbag.get_dag(dag_id)
     if not dag:
         error_message = f"Dag id {dag_id} not found"
@@ -47,7 +44,6 @@ def check_and_get_dagrun(dag: DagModel, execution_date: datetime) -> DagRun:
     """Get DagRun object and check that it exists"""
     dagrun = dag.get_dagrun(execution_date=execution_date)
     if not dagrun:
-        error_message = ('Dag Run for date {} not found in dag {}'
-                         .format(execution_date, dag.dag_id))
+        error_message = f'Dag Run for date {execution_date} not found in dag {dag.dag_id}'
         raise DagRunNotFound(error_message)
     return dagrun

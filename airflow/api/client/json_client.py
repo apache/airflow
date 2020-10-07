@@ -45,12 +45,15 @@ class Client(api_client.Client):
     def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
         endpoint = f'/api/experimental/dags/{dag_id}/dag_runs'
         url = urljoin(self._api_base_url, endpoint)
-        data = self._request(url, method='POST',
-                             json={
-                                 "run_id": run_id,
-                                 "conf": conf,
-                                 "execution_date": execution_date,
-                             })
+        data = self._request(
+            url,
+            method='POST',
+            json={
+                "run_id": run_id,
+                "conf": conf,
+                "execution_date": execution_date,
+            },
+        )
         return data['message']
 
     def delete_dag(self, dag_id):
@@ -74,12 +77,15 @@ class Client(api_client.Client):
     def create_pool(self, name, slots, description):
         endpoint = '/api/experimental/pools'
         url = urljoin(self._api_base_url, endpoint)
-        pool = self._request(url, method='POST',
-                             json={
-                                 'name': name,
-                                 'slots': slots,
-                                 'description': description,
-                             })
+        pool = self._request(
+            url,
+            method='POST',
+            json={
+                'name': name,
+                'slots': slots,
+                'description': description,
+            },
+        )
         return pool['pool'], pool['slots'], pool['description']
 
     def delete_pool(self, name):

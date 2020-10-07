@@ -17,8 +17,8 @@
 # under the License.
 #
 import unittest
-
 from unittest import mock
+
 from google.cloud.dataproc_v1beta2.types import JobStatus  # pylint: disable=no-name-in-module
 
 from airflow.exceptions import AirflowException

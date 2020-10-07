@@ -18,7 +18,7 @@
 """This module contains Google Analytics 360 operators."""
 import csv
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional, Sequence, Union, Any, List
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook

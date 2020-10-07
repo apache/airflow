@@ -36,8 +36,7 @@ def users_list(args):
     users = appbuilder.sm.get_all_users()
     fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
     users = [[user.__getattribute__(field) for field in fields] for user in users]
-    msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
-                   tablefmt=args.output)
+    msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields], tablefmt=args.output)
     print(msg)
 
 
@@ -63,8 +62,7 @@ def users_create(args):
     if appbuilder.sm.find_user(args.username):
         print(f'{args.username} already exist in the db')
         return
-    user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
-                                  args.email, role, password)
+    user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname, args.email, role, password)
     if user:
         print(f'{args.role} user {args.username} created.')
     else:
@@ -77,8 +75,7 @@ def users_delete(args):
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
 
     try:
-        user = next(u for u in appbuilder.sm.get_all_users()
-                    if u.username == args.username)
+        user = next(u for u in appbuilder.sm.get_all_users() if u.username == args.username)
     except StopIteration:
         raise SystemExit(f'{args.username} is not a valid user.')
 
@@ -95,15 +92,12 @@ def users_manage_role(args, remove=False):
         raise SystemExit('Missing args: must supply one of --username or --email')
 
     if args.username and args.email:
-        raise SystemExit('Conflicting args: must supply either --username'
-                         ' or --email, but not both')
+        raise SystemExit('Conflicting args: must supply either --username' ' or --email, but not both')
 
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
-    user = (appbuilder.sm.find_user(username=args.username) or
-            appbuilder.sm.find_user(email=args.email))
+    user = appbuilder.sm.find_user(username=args.username) or appbuilder.sm.find_user(email=args.email)
     if not user:
-        raise SystemExit('User "{}" does not exist'.format(
-            args.username or args.email))
+        raise SystemExit('User "{}" does not exist'.format(args.username or args.email))
 
     role = appbuilder.sm.find_role(args.role)
     if not role:
@@ -114,24 +108,16 @@ def users_manage_role(args, remove=False):
         if role in user.roles:
             user.roles = [r for r in user.roles if r != role]
             appbuilder.sm.update_user(user)
-            print('User "{}" removed from role "{}".'.format(
-                user,
-                args.role))
+            print(f'User "{user}" removed from role "{args.role}".')
         else:
-            raise SystemExit('User "{}" is not a member of role "{}".'.format(
-                user,
-                args.role))
+            raise SystemExit(f'User "{user}" is not a member of role "{args.role}".')
     else:
         if role in user.roles:
-            raise SystemExit('User "{}" is already a member of role "{}".'.format(
-                user,
-                args.role))
+            raise SystemExit(f'User "{user}" is already a member of role "{args.role}".')
         else:
             user.roles.append(role)
             appbuilder.sm.update_user(user)
-            print('User "{}" added to role "{}".'.format(
-                user,
-                args.role))
+            print(f'User "{user}" added to role "{args.role}".')
 
 
 def users_export(args):
@@ -146,9 +132,12 @@ def users_export(args):
         return re.sub("_", "", s)
 
     users = [
-        {remove_underscores(field): user.__getattribute__(field)
-            if field != 'roles' else [r.name for r in user.roles]
-            for field in fields}
+        {
+            remove_underscores(field): user.__getattribute__(field)
+            if field != 'roles'
+            else [r.name for r in user.roles]
+            for field in fields
+        }
         for user in users
     ]
 
@@ -175,12 +164,10 @@ def users_import(args):
 
     users_created, users_updated = _import_users(users_list)
     if users_created:
-        print("Created the following users:\n\t{}".format(
-            "\n\t".join(users_created)))
+        print("Created the following users:\n\t{}".format("\n\t".join(users_created)))
 
     if users_updated:
-        print("Updated the following users:\n\t{}".format(
-            "\n\t".join(users_updated)))
+        print("Updated the following users:\n\t{}".format("\n\t".join(users_updated)))
 
 
 def _import_users(users_list):  # pylint: disable=redefined-outer-name
@@ -199,12 +186,10 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
             else:
                 roles.append(role)
 
-        required_fields = ['username', 'firstname', 'lastname',
-                           'email', 'roles']
+        required_fields = ['username', 'firstname', 'lastname', 'email', 'roles']
         for field in required_fields:
             if not user.get(field):
-                print("Error: '{}' is a required field, but was not "
-                      "specified".format(field))
+                print("Error: '{}' is a required field, but was not " "specified".format(field))
                 sys.exit(1)
 
         existing_user = appbuilder.sm.find_user(email=user['email'])
@@ -215,9 +200,11 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
             existing_user.last_name = user['lastname']
 
             if existing_user.username != user['username']:
-                print("Error: Changing the username is not allowed - "
-                      "please delete and recreate the user with "
-                      "email '{}'".format(user['email']))
+                print(
+                    "Error: Changing the username is not allowed - "
+                    "please delete and recreate the user with "
+                    "email '{}'".format(user['email'])
+                )
                 sys.exit(1)
 
             appbuilder.sm.update_user(existing_user)

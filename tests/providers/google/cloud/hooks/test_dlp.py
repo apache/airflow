@@ -24,9 +24,9 @@ functions in CloudDLPHook
 
 import unittest
 from typing import Any, Dict
-
 from unittest import mock
 from unittest.mock import PropertyMock
+
 from google.cloud.dlp_v2.types import DlpJob
 
 from airflow.exceptions import AirflowException

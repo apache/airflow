@@ -58,33 +58,36 @@ def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
     # minutes to give ourselves a large renewal buffer.
     renewal_lifetime = "%sm" % conf.getint('kerberos', 'reinit_frequency')
 
-    cmd_principal = principal or conf.get('kerberos', 'principal').replace(
-        "_HOST", socket.getfqdn()
-    )
+    cmd_principal = principal or conf.get('kerberos', 'principal').replace("_HOST", socket.getfqdn())
 
     cmdv = [
         conf.get('kerberos', 'kinit_path'),
-        "-r", renewal_lifetime,
+        "-r",
+        renewal_lifetime,
         "-k",  # host ticket
-        "-t", keytab,  # specify keytab
-        "-c", conf.get('kerberos', 'ccache'),  # specify credentials cache
-        cmd_principal
+        "-t",
+        keytab,  # specify keytab
+        "-c",
+        conf.get('kerberos', 'ccache'),  # specify credentials cache
+        cmd_principal,
     ]
     log.info("Re-initialising kerberos from keytab: %s", " ".join(cmdv))
 
-    subp = subprocess.Popen(cmdv,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            close_fds=True,
-                            bufsize=-1,
-                            universal_newlines=True)
+    subp = subprocess.Popen(
+        cmdv,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        close_fds=True,
+        bufsize=-1,
+        universal_newlines=True,
+    )
     subp.wait()
     if subp.returncode != 0:
         log.error(
             "Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s",
             subp.returncode,
             "\n".join(subp.stdout.readlines() if subp.stdout else []),
-            "\n".join(subp.stderr.readlines() if subp.stderr else [])
+            "\n".join(subp.stderr.readlines() if subp.stderr else []),
         )
         if exit_on_fail:
             sys.exit(subp.returncode)
@@ -113,13 +116,14 @@ def perform_krb181_workaround(principal: str):
     :param principal: principal name
     :return: None
     """
-    cmdv = [conf.get('kerberos', 'kinit_path'),
-            "-c", conf.get('kerberos', 'ccache'),
-            "-R"]  # Renew ticket_cache
+    cmdv = [
+        conf.get('kerberos', 'kinit_path'),
+        "-c",
+        conf.get('kerberos', 'ccache'),
+        "-R",
+    ]  # Renew ticket_cache
 
-    log.info(
-        "Renewing kerberos ticket to work around kerberos 1.8.1: %s", " ".join(cmdv)
-    )
+    log.info("Renewing kerberos ticket to work around kerberos 1.8.1: %s", " ".join(cmdv))
 
     ret = subprocess.call(cmdv, close_fds=True)
 
@@ -132,7 +136,10 @@ def perform_krb181_workaround(principal: str):
             "the ticket for '%s' is still renewable:\n  $ kinit -f -c %s\nIf the 'renew until' date is the "
             "same as the 'valid starting' date, the ticket cannot be renewed. Please check your KDC "
             "configuration, and the ticket renewal policy (maxrenewlife) for the '%s' and `krbtgt' "
-            "principals.", princ, ccache, princ
+            "principals.",
+            princ,
+            ccache,
+            princ,
         )
     return ret
 

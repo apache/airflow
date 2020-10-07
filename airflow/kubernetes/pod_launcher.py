@@ -49,11 +49,13 @@ class PodStatus:
 class PodLauncher(LoggingMixin):
     """Launches PODS"""
 
-    def __init__(self,
-                 kube_client: client.CoreV1Api = None,
-                 in_cluster: bool = True,
-                 cluster_context: Optional[str] = None,
-                 extract_xcom: bool = False):
+    def __init__(
+        self,
+        kube_client: client.CoreV1Api = None,
+        in_cluster: bool = True,
+        cluster_context: Optional[str] = None,
+        extract_xcom: bool = False,
+    ):
         """
         Creates the launcher.
 
@@ -63,8 +65,7 @@ class PodLauncher(LoggingMixin):
         :param extract_xcom: whether we should extract xcom
         """
         super().__init__()
-        self._client = kube_client or get_kube_client(in_cluster=in_cluster,
-                                                      cluster_context=cluster_context)
+        self._client = kube_client or get_kube_client(in_cluster=in_cluster, cluster_context=cluster_context)
         self._watch = watch.Watch()
         self.extract_xcom = extract_xcom
 
@@ -77,12 +78,12 @@ class PodLauncher(LoggingMixin):
 
         self.log.debug('Pod Creation Request: \n%s', json_pod)
         try:
-            resp = self._client.create_namespaced_pod(body=sanitized_pod,
-                                                      namespace=pod.metadata.namespace, **kwargs)
+            resp = self._client.create_namespaced_pod(
+                body=sanitized_pod, namespace=pod.metadata.namespace, **kwargs
+            )
             self.log.debug('Pod Creation Response: %s', resp)
         except Exception as e:
-            self.log.exception('Exception when attempting '
-                               'to create Namespaced Pod: %s', json_pod)
+            self.log.exception('Exception when attempting ' 'to create Namespaced Pod: %s', json_pod)
             raise e
         return resp
 
@@ -90,16 +91,14 @@ class PodLauncher(LoggingMixin):
         """Deletes POD"""
         try:
             self._client.delete_namespaced_pod(
-                pod.metadata.name, pod.metadata.namespace, body=client.V1DeleteOptions())
+                pod.metadata.name, pod.metadata.namespace, body=client.V1DeleteOptions()
+            )
         except ApiException as e:
             # If the pod is already deleted
             if e.status != 404:
                 raise
 
-    def start_pod(
-            self,
-            pod: V1Pod,
-            startup_timeout: int = 120):
+    def start_pod(self, pod: V1Pod, startup_timeout: int = 120):
         """
         Launches the pod synchronously and waits for completion.
 
@@ -170,13 +169,11 @@ class PodLauncher(LoggingMixin):
         if split_at == -1:
             raise Exception(f'Log not in "{{timestamp}} {{log}}" format. Got: {line}')
         timestamp = line[:split_at]
-        message = line[split_at + 1:].rstrip()
+        message = line[split_at + 1 :].rstrip()
         return timestamp, message
 
     def _task_status(self, event):
-        self.log.info(
-            'Event: %s had an event of type %s',
-            event.metadata.name, event.status.phase)
+        self.log.info('Event: %s had an event of type %s', event.metadata.name, event.status.phase)
         status = self.process_status(event.metadata.name, event.status.phase)
         return status
 
@@ -193,22 +190,19 @@ class PodLauncher(LoggingMixin):
     def base_container_is_running(self, pod: V1Pod):
         """Tests if base container is running"""
         event = self.read_pod(pod)
-        status = next(iter(filter(lambda s: s.name == 'base',
-                                  event.status.container_statuses)), None)
+        status = next(iter(filter(lambda s: s.name == 'base', event.status.container_statuses)), None)
         if not status:
             return False
         return status.state.running is not None
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
-        wait=tenacity.wait_exponential(),
-        reraise=True
-    )
-    def read_pod_logs(self,
-                      pod: V1Pod,
-                      tail_lines: Optional[int] = None,
-                      timestamps: bool = False,
-                      since_seconds: Optional[int] = None):
+    @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
+    def read_pod_logs(
+        self,
+        pod: V1Pod,
+        tail_lines: Optional[int] = None,
+        timestamps: bool = False,
+        since_seconds: Optional[int] = None,
+    ):
         """Reads log from the POD"""
         additional_kwargs = {}
         if since_seconds:
@@ -225,54 +219,44 @@ class PodLauncher(LoggingMixin):
                 follow=True,
                 timestamps=timestamps,
                 _preload_content=False,
-                **additional_kwargs
+                **additional_kwargs,
             )
         except BaseHTTPError as e:
-            raise AirflowException(
-                f'There was an error reading the kubernetes API: {e}'
-            )
+            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
-        wait=tenacity.wait_exponential(),
-        reraise=True
-    )
+    @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_events(self, pod):
         """Reads events from the POD"""
         try:
             return self._client.list_namespaced_event(
-                namespace=pod.metadata.namespace,
-                field_selector=f"involvedObject.name={pod.metadata.name}"
+                namespace=pod.metadata.namespace, field_selector=f"involvedObject.name={pod.metadata.name}"
             )
         except BaseHTTPError as e:
-            raise AirflowException(
-                f'There was an error reading the kubernetes API: {e}'
-            )
+            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
-        wait=tenacity.wait_exponential(),
-        reraise=True
-    )
+    @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod(self, pod: V1Pod):
         """Read POD information"""
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except BaseHTTPError as e:
-            raise AirflowException(
-                f'There was an error reading the kubernetes API: {e}'
-            )
+            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
 
     def _extract_xcom(self, pod: V1Pod):
-        resp = kubernetes_stream(self._client.connect_get_namespaced_pod_exec,
-                                 pod.metadata.name, pod.metadata.namespace,
-                                 container=PodDefaults.SIDECAR_CONTAINER_NAME,
-                                 command=['/bin/sh'], stdin=True, stdout=True,
-                                 stderr=True, tty=False,
-                                 _preload_content=False)
+        resp = kubernetes_stream(
+            self._client.connect_get_namespaced_pod_exec,
+            pod.metadata.name,
+            pod.metadata.namespace,
+            container=PodDefaults.SIDECAR_CONTAINER_NAME,
+            command=['/bin/sh'],
+            stdin=True,
+            stdout=True,
+            stderr=True,
+            tty=False,
+            _preload_content=False,
+        )
         try:
-            result = self._exec_pod_command(
-                resp, f'cat {PodDefaults.XCOM_MOUNT_PATH}/return.json')
+            result = self._exec_pod_command(resp, f'cat {PodDefaults.XCOM_MOUNT_PATH}/return.json')
             self._exec_pod_command(resp, 'kill -s SIGINT 1')
         finally:
             resp.close()

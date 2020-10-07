@@ -16,13 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import TestCase
+from unittest import TestCase, mock
 
-from unittest import mock
-
-from airflow.providers.amazon.aws.operators.glacier import (
-    GlacierCreateJobOperator,
-)
+from airflow.providers.amazon.aws.operators.glacier import GlacierCreateJobOperator
 
 AWS_CONN_ID = "aws_default"
 BUCKET_NAME = "airflow_bucket"

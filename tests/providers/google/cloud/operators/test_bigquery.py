@@ -18,9 +18,9 @@
 
 import unittest
 from datetime import datetime
+from unittest import mock
 from unittest.mock import MagicMock
 
-from unittest import mock
 import pytest
 from google.cloud.exceptions import Conflict
 from parameterized import parameterized

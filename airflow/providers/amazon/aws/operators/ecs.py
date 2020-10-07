@@ -18,7 +18,7 @@
 import re
 import sys
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 from botocore.waiter import Waiter
 

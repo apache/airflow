@@ -59,10 +59,7 @@ class TestBaseSensor(unittest.TestCase):
         db.clear_db_xcom()
 
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=args)
         self.clean_db()
 
@@ -74,7 +71,7 @@ class TestBaseSensor(unittest.TestCase):
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
     def _make_sensor(self, return_value, task_id=SENSOR_OP, **kwargs):
@@ -86,17 +83,9 @@ class TestBaseSensor(unittest.TestCase):
         if timeout not in kwargs:
             kwargs[timeout] = 0
 
-        sensor = DummySensor(
-            task_id=task_id,
-            return_value=return_value,
-            dag=self.dag,
-            **kwargs
-        )
+        sensor = DummySensor(task_id=task_id, return_value=return_value, dag=self.dag, **kwargs)
 
-        dummy_op = DummyOperator(
-            task_id=DUMMY_OP,
-            dag=self.dag
-        )
+        dummy_op = DummyOperator(task_id=DUMMY_OP, dag=self.dag)
         dummy_op.set_upstream(sensor)
         return sensor
 
@@ -146,10 +135,8 @@ class TestBaseSensor(unittest.TestCase):
 
     def test_soft_fail_with_retries(self):
         sensor = self._make_sensor(
-            return_value=False,
-            soft_fail=True,
-            retries=1,
-            retry_delay=timedelta(milliseconds=1))
+            return_value=False, soft_fail=True, retries=1, retry_delay=timedelta(milliseconds=1)
+        )
         dr = self._make_dag_run()
 
         # first run fails and task instance is marked up to retry
@@ -175,11 +162,7 @@ class TestBaseSensor(unittest.TestCase):
                 self.assertEqual(ti.state, State.NONE)
 
     def test_ok_with_reschedule(self):
-        sensor = self._make_sensor(
-            return_value=None,
-            poke_interval=10,
-            timeout=25,
-            mode='reschedule')
+        sensor = self._make_sensor(return_value=None, poke_interval=10, timeout=25, mode='reschedule')
         sensor.poke = Mock(side_effect=[False, False, True])
         dr = self._make_dag_run()
 
@@ -199,8 +182,9 @@ class TestBaseSensor(unittest.TestCase):
                 task_reschedules = TaskReschedule.find_for_task_instance(ti)
                 self.assertEqual(len(task_reschedules), 1)
                 self.assertEqual(task_reschedules[0].start_date, date1)
-                self.assertEqual(task_reschedules[0].reschedule_date,
-                                 date1 + timedelta(seconds=sensor.poke_interval))
+                self.assertEqual(
+                    task_reschedules[0].reschedule_date, date1 + timedelta(seconds=sensor.poke_interval)
+                )
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
 
@@ -220,8 +204,9 @@ class TestBaseSensor(unittest.TestCase):
                 task_reschedules = TaskReschedule.find_for_task_instance(ti)
                 self.assertEqual(len(task_reschedules), 2)
                 self.assertEqual(task_reschedules[1].start_date, date2)
-                self.assertEqual(task_reschedules[1].reschedule_date,
-                                 date2 + timedelta(seconds=sensor.poke_interval))
+                self.assertEqual(
+                    task_reschedules[1].reschedule_date, date2 + timedelta(seconds=sensor.poke_interval)
+                )
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
 
@@ -240,11 +225,7 @@ class TestBaseSensor(unittest.TestCase):
                 self.assertEqual(ti.state, State.NONE)
 
     def test_fail_with_reschedule(self):
-        sensor = self._make_sensor(
-            return_value=False,
-            poke_interval=10,
-            timeout=5,
-            mode='reschedule')
+        sensor = self._make_sensor(return_value=False, poke_interval=10, timeout=5, mode='reschedule')
         dr = self._make_dag_run()
 
         # first poke returns False and task is re-scheduled
@@ -274,11 +255,8 @@ class TestBaseSensor(unittest.TestCase):
 
     def test_soft_fail_with_reschedule(self):
         sensor = self._make_sensor(
-            return_value=False,
-            poke_interval=10,
-            timeout=5,
-            soft_fail=True,
-            mode='reschedule')
+            return_value=False, poke_interval=10, timeout=5, soft_fail=True, mode='reschedule'
+        )
         dr = self._make_dag_run()
 
         # first poke returns False and task is re-scheduled
@@ -312,7 +290,8 @@ class TestBaseSensor(unittest.TestCase):
             timeout=5,
             retries=1,
             retry_delay=timedelta(seconds=10),
-            mode='reschedule')
+            mode='reschedule',
+        )
         sensor.poke = Mock(side_effect=[False, False, False, True])
         dr = self._make_dag_run()
 
@@ -329,8 +308,9 @@ class TestBaseSensor(unittest.TestCase):
                 task_reschedules = TaskReschedule.find_for_task_instance(ti)
                 self.assertEqual(len(task_reschedules), 1)
                 self.assertEqual(task_reschedules[0].start_date, date1)
-                self.assertEqual(task_reschedules[0].reschedule_date,
-                                 date1 + timedelta(seconds=sensor.poke_interval))
+                self.assertEqual(
+                    task_reschedules[0].reschedule_date, date1 + timedelta(seconds=sensor.poke_interval)
+                )
                 self.assertEqual(task_reschedules[0].try_number, 1)
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
@@ -361,8 +341,9 @@ class TestBaseSensor(unittest.TestCase):
                 task_reschedules = TaskReschedule.find_for_task_instance(ti)
                 self.assertEqual(len(task_reschedules), 1)
                 self.assertEqual(task_reschedules[0].start_date, date3)
-                self.assertEqual(task_reschedules[0].reschedule_date,
-                                 date3 + timedelta(seconds=sensor.poke_interval))
+                self.assertEqual(
+                    task_reschedules[0].reschedule_date, date3 + timedelta(seconds=sensor.poke_interval)
+                )
                 self.assertEqual(task_reschedules[0].try_number, 2)
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
@@ -391,22 +372,20 @@ class TestBaseSensor(unittest.TestCase):
 
     def test_invalid_mode(self):
         with self.assertRaises(AirflowException):
-            self._make_sensor(
-                return_value=True,
-                mode='foo')
+            self._make_sensor(return_value=True, mode='foo')
 
     def test_ok_with_custom_reschedule_exception(self):
-        sensor = self._make_sensor(
-            return_value=None,
-            mode='reschedule')
+        sensor = self._make_sensor(return_value=None, mode='reschedule')
         date1 = timezone.utcnow()
         date2 = date1 + timedelta(seconds=60)
         date3 = date1 + timedelta(seconds=120)
-        sensor.poke = Mock(side_effect=[
-            AirflowRescheduleException(date2),
-            AirflowRescheduleException(date3),
-            True,
-        ])
+        sensor.poke = Mock(
+            side_effect=[
+                AirflowRescheduleException(date2),
+                AirflowRescheduleException(date3),
+                True,
+            ]
+        )
         dr = self._make_dag_run()
 
         # first poke returns False and task is re-scheduled
@@ -455,11 +434,7 @@ class TestBaseSensor(unittest.TestCase):
                 self.assertEqual(ti.state, State.NONE)
 
     def test_reschedule_with_test_mode(self):
-        sensor = self._make_sensor(
-            return_value=None,
-            poke_interval=10,
-            timeout=25,
-            mode='reschedule')
+        sensor = self._make_sensor(return_value=None, poke_interval=10, timeout=25, mode='reschedule')
         sensor.poke = Mock(side_effect=[False])
         dr = self._make_dag_run()
 
@@ -467,9 +442,7 @@ class TestBaseSensor(unittest.TestCase):
         date1 = timezone.utcnow()
         with freeze_time(date1):
             for date in self.dag.date_range(DEFAULT_DATE, end_date=DEFAULT_DATE):
-                TaskInstance(sensor, date).run(
-                    ignore_ti_state=True,
-                    test_mode=True)
+                TaskInstance(sensor, date).run(ignore_ti_state=True, test_mode=True)
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 2)
         for ti in tis:
@@ -491,20 +464,20 @@ class TestBaseSensor(unittest.TestCase):
                 task_id='test_sensor_task_1',
                 return_value=None,
                 poke_interval=negative_poke_interval,
-                timeout=25)
+                timeout=25,
+            )
 
         with self.assertRaises(AirflowException):
             self._make_sensor(
                 task_id='test_sensor_task_2',
                 return_value=None,
                 poke_interval=non_number_poke_interval,
-                timeout=25)
+                timeout=25,
+            )
 
         self._make_sensor(
-            task_id='test_sensor_task_3',
-            return_value=None,
-            poke_interval=positive_poke_interval,
-            timeout=25)
+            task_id='test_sensor_task_3', return_value=None, poke_interval=positive_poke_interval, timeout=25
+        )
 
     def test_sensor_with_invalid_timeout(self):
         negative_timeout = -25
@@ -512,30 +485,20 @@ class TestBaseSensor(unittest.TestCase):
         positive_timeout = 25
         with self.assertRaises(AirflowException):
             self._make_sensor(
-                task_id='test_sensor_task_1',
-                return_value=None,
-                poke_interval=10,
-                timeout=negative_timeout)
+                task_id='test_sensor_task_1', return_value=None, poke_interval=10, timeout=negative_timeout
+            )
 
         with self.assertRaises(AirflowException):
             self._make_sensor(
-                task_id='test_sensor_task_2',
-                return_value=None,
-                poke_interval=10,
-                timeout=non_number_timeout)
+                task_id='test_sensor_task_2', return_value=None, poke_interval=10, timeout=non_number_timeout
+            )
 
         self._make_sensor(
-            task_id='test_sensor_task_3',
-            return_value=None,
-            poke_interval=10,
-            timeout=positive_timeout)
+            task_id='test_sensor_task_3', return_value=None, poke_interval=10, timeout=positive_timeout
+        )
 
     def test_sensor_with_exponential_backoff_off(self):
-        sensor = self._make_sensor(
-            return_value=None,
-            poke_interval=5,
-            timeout=60,
-            exponential_backoff=False)
+        sensor = self._make_sensor(return_value=None, poke_interval=5, timeout=60, exponential_backoff=False)
 
         started_at = timezone.utcnow() - timedelta(seconds=10)
         self.assertEqual(sensor._get_next_poke_interval(started_at, 1), sensor.poke_interval)
@@ -543,11 +506,7 @@ class TestBaseSensor(unittest.TestCase):
 
     def test_sensor_with_exponential_backoff_on(self):
 
-        sensor = self._make_sensor(
-            return_value=None,
-            poke_interval=5,
-            timeout=60,
-            exponential_backoff=True)
+        sensor = self._make_sensor(return_value=None, poke_interval=5, timeout=60, exponential_backoff=True)
 
         with patch('airflow.utils.timezone.utcnow') as mock_utctime:
             mock_utctime.return_value = DEFAULT_DATE
@@ -582,22 +541,14 @@ class DummyPokeOnlySensor(BaseSensorOperator):
 
 
 class TestPokeModeOnly(unittest.TestCase):
-
     def setUp(self):
-        self.dagbag = DagBag(
-            dag_folder=DEV_NULL,
-            include_examples=True
-        )
-        self.args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
+        self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)
 
     def test_poke_mode_only_allows_poke_mode(self):
         try:
-            sensor = DummyPokeOnlySensor(task_id='foo', mode='poke', poke_changes_mode=False,
-                                         dag=self.dag)
+            sensor = DummyPokeOnlySensor(task_id='foo', mode='poke', poke_changes_mode=False, dag=self.dag)
         except ValueError:
             self.fail("__init__ failed with mode='poke'.")
         try:
@@ -610,18 +561,15 @@ class TestPokeModeOnly(unittest.TestCase):
             self.fail("class method failed without changing mode from 'poke'.")
 
     def test_poke_mode_only_bad_class_method(self):
-        sensor = DummyPokeOnlySensor(task_id='foo', mode='poke', poke_changes_mode=False,
-                                     dag=self.dag)
+        sensor = DummyPokeOnlySensor(task_id='foo', mode='poke', poke_changes_mode=False, dag=self.dag)
         with self.assertRaises(ValueError):
             sensor.change_mode('reschedule')
 
     def test_poke_mode_only_bad_init(self):
         with self.assertRaises(ValueError):
-            DummyPokeOnlySensor(task_id='foo', mode='reschedule',
-                                poke_changes_mode=False, dag=self.dag)
+            DummyPokeOnlySensor(task_id='foo', mode='reschedule', poke_changes_mode=False, dag=self.dag)
 
     def test_poke_mode_only_bad_poke(self):
-        sensor = DummyPokeOnlySensor(task_id='foo', mode='poke', poke_changes_mode=True,
-                                     dag=self.dag)
+        sensor = DummyPokeOnlySensor(task_id='foo', mode='poke', poke_changes_mode=True, dag=self.dag)
         with self.assertRaises(ValueError):
             sensor.poke({})

@@ -37,17 +37,14 @@ class GreaterEqualThan(EqualTo):
         try:
             other = form[self.fieldname]
         except KeyError:
-            raise ValidationError(
-                field.gettext("Invalid field name '%s'." % self.fieldname)
-            )
+            raise ValidationError(field.gettext("Invalid field name '%s'." % self.fieldname))
 
         if field.data is None or other.data is None:
             return
 
         if field.data < other.data:
             message_args = {
-                'other_label':
-                    hasattr(other, 'label') and other.label.text or self.fieldname,
+                'other_label': hasattr(other, 'label') and other.label.text or self.fieldname,
                 'other_name': self.fieldname,
             }
             message = self.message
@@ -77,6 +74,4 @@ class ValidJson:
                 json.loads(field.data)
             except JSONDecodeError as ex:
                 message = self.message or f'JSON Validation Error: {ex}'
-                raise ValidationError(
-                    message=field.gettext(message.format(field.data))
-                )
+                raise ValidationError(message=field.gettext(message.format(field.data)))

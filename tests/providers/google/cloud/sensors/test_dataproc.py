@@ -19,9 +19,9 @@ import unittest
 from unittest import mock
 
 from google.cloud.dataproc_v1beta2.types import JobStatus
+
 from airflow import AirflowException
 from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
-
 from airflow.version import version as airflow_version
 
 AIRFLOW_VERSION = "v" + airflow_version.replace(".", "-").replace("+", "-")

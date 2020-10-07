@@ -54,7 +54,10 @@ class TestPiiAnonymizer(unittest.TestCase):
                 "postgresql+psycopg2://:airflow@postgres/airflow",
                 "postgresql+psycopg2://:PASSWORD@postgres/airflow",
             ),
-            ("postgresql+psycopg2://postgres/airflow", "postgresql+psycopg2://postgres/airflow",),
+            (
+                "postgresql+psycopg2://postgres/airflow",
+                "postgresql+psycopg2://postgres/airflow",
+            ),
         ]
     )
     def test_should_remove_pii_from_url(self, before, after):
@@ -100,10 +103,12 @@ class TestConfigInfo(unittest.TestCase):
 
 class TestConfigInfoLogging(unittest.TestCase):
     def test_should_read_logging_configuration(self):
-        with conf_vars({
-            ('logging', 'remote_logging'): 'True',
-            ('logging', 'remote_base_log_folder'): 'stackdriver://logs-name',
-        }):
+        with conf_vars(
+            {
+                ('logging', 'remote_logging'): 'True',
+                ('logging', 'remote_base_log_folder'): 'stackdriver://logs-name',
+            }
+        ):
             importlib.reload(airflow_local_settings)
             configure_logging()
             instance = info_command.ConfigInfo(info_command.NullAnonymizer())
@@ -166,7 +171,7 @@ class TestShowInfo(unittest.TestCase):
                 "link": "https://file.io/TEST",
                 "expiry": "14 days",
             },
-        }
+        },
     )
     def test_show_info_anonymize_fileio(self, mock_requests):
         with contextlib.redirect_stdout(io.StringIO()) as stdout:

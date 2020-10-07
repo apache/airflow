@@ -17,7 +17,7 @@
 # under the License.
 
 import json
-from typing import Union, Optional, List
+from typing import List, Optional, Union
 
 import requests
 from requests import Session

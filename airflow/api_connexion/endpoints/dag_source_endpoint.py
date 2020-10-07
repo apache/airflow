@@ -25,7 +25,6 @@ from airflow.api_connexion.schemas.dag_source_schema import dag_source_schema
 from airflow.models.dagcode import DagCode
 from airflow.security import permissions
 
-
 log = logging.getLogger(__name__)
 
 

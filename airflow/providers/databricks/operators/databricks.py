@@ -19,7 +19,7 @@
 """This module contains Databricks operators."""
 
 import time
-from typing import Union, Optional, Any, Dict, List
+from typing import Any, Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

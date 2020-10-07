@@ -20,8 +20,7 @@ import warnings
 from airflow.operators.sql import BranchSQLOperator
 
 warnings.warn(
-    """This module is deprecated. Please use `airflow.operators.sql`.""",
-    DeprecationWarning, stacklevel=2
+    """This module is deprecated. Please use `airflow.operators.sql`.""", DeprecationWarning, stacklevel=2
 )
 
 
@@ -35,6 +34,7 @@ class BranchSqlOperator(BranchSQLOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.BranchSQLOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(**kwargs)

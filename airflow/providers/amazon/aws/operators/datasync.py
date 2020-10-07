@@ -19,7 +19,7 @@
 
 import logging
 import random
-from typing import Optional, List
+from typing import List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

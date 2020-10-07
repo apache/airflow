@@ -22,6 +22,7 @@ from unittest.mock import patch
 from airflow import AirflowException, example_dags as example_dags_module
 from airflow.models import DagBag
 from airflow.models.dagcode import DagCode
+
 # To move it to a shared module.
 from airflow.utils.file import open_maybe_zipped
 from airflow.utils.session import create_session
@@ -82,7 +83,7 @@ class TestDagCode(unittest.TestCase):
         """Dg code can be bulk written into database."""
         example_dags = make_example_dags(example_dags_module)
         files = [dag.fileloc for dag in example_dags.values()]
-        half_files = files[:int(len(files) / 2)]
+        half_files = files[: int(len(files) / 2)]
         with create_session() as session:
             DagCode.bulk_sync_to_db(half_files, session=session)
             session.commit()
@@ -107,11 +108,12 @@ class TestDagCode(unittest.TestCase):
                     dag.fileloc = dag.parent_dag.fileloc
                 self.assertTrue(DagCode.has_dag(dag.fileloc))
                 dag_fileloc_hash = DagCode.dag_fileloc_hash(dag.fileloc)
-                result = session.query(
-                    DagCode.fileloc, DagCode.fileloc_hash, DagCode.source_code) \
-                    .filter(DagCode.fileloc == dag.fileloc) \
-                    .filter(DagCode.fileloc_hash == dag_fileloc_hash) \
+                result = (
+                    session.query(DagCode.fileloc, DagCode.fileloc_hash, DagCode.source_code)
+                    .filter(DagCode.fileloc == dag.fileloc)
+                    .filter(DagCode.fileloc_hash == dag_fileloc_hash)
                     .one()
+                )
 
                 self.assertEqual(result.fileloc, dag.fileloc)
                 with open_maybe_zipped(dag.fileloc, 'r') as source:
@@ -145,9 +147,7 @@ class TestDagCode(unittest.TestCase):
         example_dag.sync_to_db()
 
         with create_session() as session:
-            result = session.query(DagCode) \
-                .filter(DagCode.fileloc == example_dag.fileloc) \
-                .one()
+            result = session.query(DagCode).filter(DagCode.fileloc == example_dag.fileloc).one()
 
             self.assertEqual(result.fileloc, example_dag.fileloc)
             self.assertIsNotNone(result.source_code)
@@ -160,9 +160,7 @@ class TestDagCode(unittest.TestCase):
                 example_dag.sync_to_db()
 
                 with create_session() as session:
-                    new_result = session.query(DagCode) \
-                        .filter(DagCode.fileloc == example_dag.fileloc) \
-                        .one()
+                    new_result = session.query(DagCode).filter(DagCode.fileloc == example_dag.fileloc).one()
 
                     self.assertEqual(new_result.fileloc, example_dag.fileloc)
                     self.assertEqual(new_result.source_code, "# dummy code")

@@ -25,7 +25,7 @@ import json
 from copy import copy
 from os.path import getsize
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, Optional, IO
+from typing import IO, Any, Callable, Dict, Optional
 from uuid import uuid4
 
 from airflow.models import BaseOperator

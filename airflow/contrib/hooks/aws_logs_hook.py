@@ -24,5 +24,6 @@ from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.logs`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

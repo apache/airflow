@@ -17,7 +17,7 @@
 # under the License.
 import os
 import shutil
-from typing import Optional, Tuple, Dict
+from typing import Dict, Optional, Tuple
 
 from azure.common import AzureHttpError
 from cached_property import cached_property

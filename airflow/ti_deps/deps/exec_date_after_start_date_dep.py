@@ -31,14 +31,13 @@ class ExecDateAfterStartDateDep(BaseTIDep):
         if ti.task.start_date and ti.execution_date < ti.task.start_date:
             yield self._failing_status(
                 reason="The execution date is {} but this is before the task's start "
-                "date {}.".format(
-                    ti.execution_date.isoformat(),
-                    ti.task.start_date.isoformat()))
+                "date {}.".format(ti.execution_date.isoformat(), ti.task.start_date.isoformat())
+            )
 
-        if (ti.task.dag and ti.task.dag.start_date and
-                ti.execution_date < ti.task.dag.start_date):
+        if ti.task.dag and ti.task.dag.start_date and ti.execution_date < ti.task.dag.start_date:
             yield self._failing_status(
                 reason="The execution date is {} but this is before the task's "
                 "DAG's start date {}.".format(
-                    ti.execution_date.isoformat(),
-                    ti.task.dag.start_date.isoformat()))
+                    ti.execution_date.isoformat(), ti.task.dag.start_date.isoformat()
+                )
+            )

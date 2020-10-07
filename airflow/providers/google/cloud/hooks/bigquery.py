@@ -26,7 +26,7 @@ import logging
 import time
 import warnings
 from copy import deepcopy
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
 
 from google.api_core.retry import Retry
@@ -43,7 +43,7 @@ from google.cloud.bigquery import (
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, Table, TableReference
 from google.cloud.exceptions import NotFound
-from googleapiclient.discovery import build, Resource
+from googleapiclient.discovery import Resource, build
 from pandas import DataFrame
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import (

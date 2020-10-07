@@ -41,9 +41,7 @@ log = logging.getLogger(__name__)
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint(
-    'core', 'KILLED_TASK_CLEANUP_TIME'
-)
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint('core', 'KILLED_TASK_CLEANUP_TIME')
 
 
 def reap_process_group(pgid, logger, sig=signal.SIGTERM, timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
@@ -130,13 +128,7 @@ def execute_in_subprocess(cmd: List[str]):
     :type cmd: List[str]
     """
     log.info("Executing cmd: %s", " ".join([shlex.quote(c) for c in cmd]))
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        bufsize=0,
-        close_fds=True
-    )
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True)
     log.info("Output:")
     if proc.stdout:
         with proc.stdout:
@@ -164,12 +156,7 @@ def execute_interactive(cmd: List[str], **kwargs):
     try:  # pylint: disable=too-many-nested-blocks
         # use os.setsid() make it run in a new process group, or bash job control will not be enabled
         proc = subprocess.Popen(
-            cmd,
-            stdin=slave_fd,
-            stdout=slave_fd,
-            stderr=slave_fd,
-            universal_newlines=True,
-            **kwargs
+            cmd, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, universal_newlines=True, **kwargs
         )
 
         while proc.poll() is None:
@@ -238,10 +225,7 @@ def patch_environ(new_env_variables: Dict[str, str]):
 
     :param new_env_variables: Environment variables to set
     """
-    current_env_state = {
-        key: os.environ.get(key)
-        for key in new_env_variables.keys()
-    }
+    current_env_state = {key: os.environ.get(key) for key in new_env_variables.keys()}
     os.environ.update(new_env_variables)
     try:  # pylint: disable=too-many-nested-blocks
         yield

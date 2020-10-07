@@ -29,8 +29,8 @@ import logging
 from typing import Any, Dict, Optional, Tuple, Union
 
 import boto3
-from botocore.credentials import ReadOnlyCredentials
 from botocore.config import Config
+from botocore.credentials import ReadOnlyCredentials
 from cached_property import cached_property
 
 from airflow.exceptions import AirflowException

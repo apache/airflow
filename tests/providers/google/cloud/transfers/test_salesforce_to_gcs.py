@@ -17,7 +17,6 @@
 
 import unittest
 from collections import OrderedDict
-
 from unittest import mock
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook

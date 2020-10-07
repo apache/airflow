@@ -44,12 +44,12 @@ def get_extras_from_setup() -> Dict[str, List[str]]:
     """
     setup_content = get_file_content(SETUP_PY_FILE)
 
-    extras_section_regex = re.compile(
-        r'^EXTRAS_REQUIREMENTS: Dict[^{]+{([^}]+)}', re.MULTILINE)
+    extras_section_regex = re.compile(r'^EXTRAS_REQUIREMENTS: Dict[^{]+{([^}]+)}', re.MULTILINE)
     extras_section = extras_section_regex.findall(setup_content)[0]
 
     extras_regex = re.compile(
-        rf'^\s+[\"\']({PY_IDENTIFIER})[\"\']:\s*({PY_IDENTIFIER})[^#\n]*(#\s*TODO.*)?$', re.MULTILINE)
+        rf'^\s+[\"\']({PY_IDENTIFIER})[\"\']:\s*({PY_IDENTIFIER})[^#\n]*(#\s*TODO.*)?$', re.MULTILINE
+    )
 
     extras_dict: Dict[str, List[str]] = {}
     for extras in extras_regex.findall(extras_section):
@@ -67,8 +67,9 @@ def get_extras_from_docs() -> List[str]:
     """
     docs_content = get_file_content('docs', DOCS_FILE)
 
-    extras_section_regex = re.compile(rf'^\|[^|]+\|.*pip install .apache-airflow\[({PY_IDENTIFIER})\].',
-                                      re.MULTILINE)
+    extras_section_regex = re.compile(
+        rf'^\|[^|]+\|.*pip install .apache-airflow\[({PY_IDENTIFIER})\].', re.MULTILINE
+    )
     extras = extras_section_regex.findall(docs_content)
 
     extras = list(filter(lambda entry: entry != 'all', extras))
@@ -90,10 +91,11 @@ if __name__ == '__main__':
         if f"'{extras}'" not in setup_packages_str:
             output_table += "| {:20} | {:^10} | {:^10} |\n".format(extras, "", "V")
 
-    if(output_table == ""):
+    if output_table == "":
         exit(0)
 
-    print(f"""
+    print(
+        f"""
 ERROR
 
 "EXTRAS_REQUIREMENTS" section in {SETUP_PY_FILE} should be synchronized
@@ -101,7 +103,8 @@ with "Extra Packages" section in documentation file doc/{DOCS_FILE}.
 
 here is a list of packages that are used but are not documented, or
 documented although not used.
-    """)
+    """
+    )
     print(".{:_^22}.{:_^12}.{:_^12}.".format("NAME", "SETUP", "INSTALLATION"))
     print(output_table)
 

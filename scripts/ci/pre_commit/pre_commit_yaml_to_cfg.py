@@ -91,7 +91,8 @@ def _write_section(configfile, section):
     section_description = None
     if section["description"] is not None:
         section_description = list(
-            filter(lambda x: (x is not None) or x != "", section["description"].splitlines()))
+            filter(lambda x: (x is not None) or x != "", section["description"].splitlines())
+        )
     if section_description:
         configfile.write("\n")
         for single_line_desc in section_description:
@@ -106,8 +107,7 @@ def _write_section(configfile, section):
 def _write_option(configfile, idx, option):
     option_description = None
     if option["description"] is not None:
-        option_description = list(
-            filter(lambda x: x is not None, option["description"].splitlines()))
+        option_description = list(filter(lambda x: x is not None, option["description"].splitlines()))
 
     if option_description:
         if idx != 0:
@@ -141,26 +141,26 @@ def _write_option(configfile, idx, option):
 
 if __name__ == '__main__':
     airflow_config_dir = os.path.join(
-        os.path.dirname(__file__),
-        os.pardir, os.pardir, os.pardir,
-        "airflow", "config_templates")
+        os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, "airflow", "config_templates"
+    )
     airflow_default_config_path = os.path.join(airflow_config_dir, "default_airflow.cfg")
     airflow_config_yaml_file_path = os.path.join(airflow_config_dir, "config.yml")
 
     write_config(
-        yaml_config_file_path=airflow_config_yaml_file_path,
-        default_cfg_file_path=airflow_default_config_path
+        yaml_config_file_path=airflow_config_yaml_file_path, default_cfg_file_path=airflow_default_config_path
     )
 
     providers_dir = os.path.join(
-        os.path.dirname(__file__),
-        os.pardir, os.pardir, os.pardir,
-        "airflow", "providers")
+        os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, "airflow", "providers"
+    )
     for root, dir_names, file_names in os.walk(providers_dir):
         for file_name in file_names:
-            if root.endswith("config_templates") and file_name == 'config.yml' and \
-                    os.path.isfile(os.path.join(root, "default_config.cfg")):
+            if (
+                root.endswith("config_templates")
+                and file_name == 'config.yml'
+                and os.path.isfile(os.path.join(root, "default_config.cfg"))
+            ):
                 write_config(
                     yaml_config_file_path=os.path.join(root, "config.yml"),
-                    default_cfg_file_path=os.path.join(root, "default_config.cfg")
+                    default_cfg_file_path=os.path.join(root, "default_config.cfg"),
                 )

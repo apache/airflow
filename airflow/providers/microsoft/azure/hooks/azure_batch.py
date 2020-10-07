@@ -21,7 +21,7 @@ from datetime import timedelta
 from typing import Optional, Set
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
-from azure.batch.models import PoolAddParameter, JobAddParameter, TaskAddParameter
+from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook

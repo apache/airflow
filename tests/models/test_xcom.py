@@ -32,7 +32,6 @@ class CustomXCom(BaseXCom):
 
 
 class TestXCom(unittest.TestCase):
-
     def setUp(self) -> None:
         db.clear_db_xcom()
 
@@ -45,9 +44,7 @@ class TestXCom(unittest.TestCase):
         assert issubclass(cls, CustomXCom)
         assert cls().serialize_value(None) == "custom_value"
 
-    @conf_vars(
-        {("core", "xcom_backend"): "", ("core", "enable_xcom_pickling"): "False"}
-    )
+    @conf_vars({("core", "xcom_backend"): "", ("core", "enable_xcom_pickling"): "False"})
     def test_resolve_xcom_class_fallback_to_basexcom(self):
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
@@ -68,24 +65,28 @@ class TestXCom(unittest.TestCase):
         key = "xcom_test1"
         dag_id = "test_dag1"
         task_id = "test_task1"
-        XCom.set(key=key,
-                 value=json_obj,
-                 dag_id=dag_id,
-                 task_id=task_id,
-                 execution_date=execution_date)
+        XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
 
-        ret_value = XCom.get_many(key=key,
-                                  dag_ids=dag_id,
-                                  task_ids=task_id,
-                                  execution_date=execution_date).first().value
+        ret_value = (
+            XCom.get_many(key=key, dag_ids=dag_id, task_ids=task_id, execution_date=execution_date)
+            .first()
+            .value
+        )
 
         self.assertEqual(ret_value, json_obj)
 
         session = settings.Session()
-        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
-                                               XCom.task_id == task_id,
-                                               XCom.execution_date == execution_date
-                                               ).first().value
+        ret_value = (
+            session.query(XCom)
+            .filter(
+                XCom.key == key,
+                XCom.dag_id == dag_id,
+                XCom.task_id == task_id,
+                XCom.execution_date == execution_date,
+            )
+            .first()
+            .value
+        )
 
         self.assertEqual(ret_value, json_obj)
 
@@ -96,24 +97,24 @@ class TestXCom(unittest.TestCase):
         key = "xcom_test1"
         dag_id = "test_dag1"
         task_id = "test_task1"
-        XCom.set(key=key,
-                 value=json_obj,
-                 dag_id=dag_id,
-                 task_id=task_id,
-                 execution_date=execution_date)
+        XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
 
-        ret_value = XCom.get_one(key=key,
-                                 dag_id=dag_id,
-                                 task_id=task_id,
-                                 execution_date=execution_date)
+        ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
 
         self.assertEqual(ret_value, json_obj)
 
         session = settings.Session()
-        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
-                                               XCom.task_id == task_id,
-                                               XCom.execution_date == execution_date
-                                               ).first().value
+        ret_value = (
+            session.query(XCom)
+            .filter(
+                XCom.key == key,
+                XCom.dag_id == dag_id,
+                XCom.task_id == task_id,
+                XCom.execution_date == execution_date,
+            )
+            .first()
+            .value
+        )
 
         self.assertEqual(ret_value, json_obj)
 
@@ -124,24 +125,28 @@ class TestXCom(unittest.TestCase):
         key = "xcom_test2"
         dag_id = "test_dag2"
         task_id = "test_task2"
-        XCom.set(key=key,
-                 value=json_obj,
-                 dag_id=dag_id,
-                 task_id=task_id,
-                 execution_date=execution_date)
+        XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
 
-        ret_value = XCom.get_many(key=key,
-                                  dag_ids=dag_id,
-                                  task_ids=task_id,
-                                  execution_date=execution_date).first().value
+        ret_value = (
+            XCom.get_many(key=key, dag_ids=dag_id, task_ids=task_id, execution_date=execution_date)
+            .first()
+            .value
+        )
 
         self.assertEqual(ret_value, json_obj)
 
         session = settings.Session()
-        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
-                                               XCom.task_id == task_id,
-                                               XCom.execution_date == execution_date
-                                               ).first().value
+        ret_value = (
+            session.query(XCom)
+            .filter(
+                XCom.key == key,
+                XCom.dag_id == dag_id,
+                XCom.task_id == task_id,
+                XCom.execution_date == execution_date,
+            )
+            .first()
+            .value
+        )
 
         self.assertEqual(ret_value, json_obj)
 
@@ -152,24 +157,24 @@ class TestXCom(unittest.TestCase):
         key = "xcom_test3"
         dag_id = "test_dag"
         task_id = "test_task3"
-        XCom.set(key=key,
-                 value=json_obj,
-                 dag_id=dag_id,
-                 task_id=task_id,
-                 execution_date=execution_date)
+        XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
 
-        ret_value = XCom.get_one(key=key,
-                                 dag_id=dag_id,
-                                 task_id=task_id,
-                                 execution_date=execution_date)
+        ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
 
         self.assertEqual(ret_value, json_obj)
 
         session = settings.Session()
-        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
-                                               XCom.task_id == task_id,
-                                               XCom.execution_date == execution_date
-                                               ).first().value
+        ret_value = (
+            session.query(XCom)
+            .filter(
+                XCom.key == key,
+                XCom.dag_id == dag_id,
+                XCom.task_id == task_id,
+                XCom.execution_date == execution_date,
+            )
+            .first()
+            .value
+        )
 
         self.assertEqual(ret_value, json_obj)
 
@@ -179,12 +184,15 @@ class TestXCom(unittest.TestCase):
             def __reduce__(self):
                 return os.system, ("ls -alt",)
 
-        self.assertRaises(TypeError, XCom.set,
-                          key="xcom_test3",
-                          value=PickleRce(),
-                          dag_id="test_dag3",
-                          task_id="test_task3",
-                          execution_date=timezone.utcnow())
+        self.assertRaises(
+            TypeError,
+            XCom.set,
+            key="xcom_test3",
+            value=PickleRce(),
+            dag_id="test_dag3",
+            task_id="test_task3",
+            execution_date=timezone.utcnow(),
+        )
 
     @conf_vars({("core", "xcom_enable_pickling"): "True"})
     def test_xcom_get_many(self):
@@ -196,17 +204,9 @@ class TestXCom(unittest.TestCase):
         dag_id2 = "test_dag5"
         task_id2 = "test_task5"
 
-        XCom.set(key=key,
-                 value=json_obj,
-                 dag_id=dag_id1,
-                 task_id=task_id1,
-                 execution_date=execution_date)
+        XCom.set(key=key, value=json_obj, dag_id=dag_id1, task_id=task_id1, execution_date=execution_date)
 
-        XCom.set(key=key,
-                 value=json_obj,
-                 dag_id=dag_id2,
-                 task_id=task_id2,
-                 execution_date=execution_date)
+        XCom.set(key=key, value=json_obj, dag_id=dag_id2, task_id=task_id2, execution_date=execution_date)
 
         results = XCom.get_many(key=key, execution_date=execution_date)
 

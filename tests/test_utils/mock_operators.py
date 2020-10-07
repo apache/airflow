@@ -51,6 +51,7 @@ class AirflowLink(BaseOperatorLink):
     """
     Operator Link for Apache Airflow Website
     """
+
     name = 'airflow'
 
     def get_link(self, operator, dttm):
@@ -62,9 +63,8 @@ class Dummy2TestOperator(BaseOperator):
     Example of an Operator that has an extra operator link
     and will be overridden by the one defined in tests/plugins/test_plugin.py
     """
-    operator_extra_links = (
-        AirflowLink(),
-    )
+
+    operator_extra_links = (AirflowLink(),)
 
 
 class Dummy3TestOperator(BaseOperator):
@@ -72,6 +72,7 @@ class Dummy3TestOperator(BaseOperator):
     Example of an operator that has no extra Operator link.
     An operator link would be added to this operator via Airflow plugin
     """
+
     operator_extra_links = ()
 
 
@@ -113,12 +114,8 @@ class CustomOperator(BaseOperator):
         Return operator extra links
         """
         if isinstance(self.bash_command, str) or self.bash_command is None:
-            return (
-                CustomOpLink(),
-            )
-        return (
-            CustomBaseIndexOpLink(i) for i, _ in enumerate(self.bash_command)
-        )
+            return (CustomOpLink(),)
+        return (CustomBaseIndexOpLink(i) for i, _ in enumerate(self.bash_command))
 
     @apply_defaults
     def __init__(self, bash_command=None, **kwargs):
@@ -134,6 +131,7 @@ class GoogleLink(BaseOperatorLink):
     """
     Operator Link for Apache Airflow Website for Google
     """
+
     name = 'google'
     operators = [Dummy3TestOperator, CustomOperator]
 
@@ -145,6 +143,7 @@ class AirflowLink2(BaseOperatorLink):
     """
     Operator Link for Apache Airflow Website for 1.10.5
     """
+
     name = 'airflow'
     operators = [Dummy2TestOperator, Dummy3TestOperator]
 
@@ -156,6 +155,7 @@ class GithubLink(BaseOperatorLink):
     """
     Operator Link for Apache Airflow GitHub
     """
+
     name = 'github'
 
     def get_link(self, operator, dttm):

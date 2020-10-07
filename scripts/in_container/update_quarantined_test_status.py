@@ -66,8 +66,10 @@ reverse_status_map: Dict[bool, str] = {status_map[key]: key for key in status_ma
 
 
 def get_url(result: TestResult) -> str:
-    return f"[{result.name}](https://github.com/{user}/{repo}/blob/" \
-           f"master/{result.file}?test_id={result.test_id}#L{result.line})"
+    return (
+        f"[{result.name}](https://github.com/{user}/{repo}/blob/"
+        f"master/{result.file}?test_id={result.test_id}#L{result.line})"
+    )
 
 
 def parse_state_history(history_string: str) -> List[bool]:
@@ -136,11 +138,7 @@ def update_test_history(history: TestHistory, last_status: bool):
 def create_test_history(result: TestResult) -> TestHistory:
     print(f"Creating test history {result}")
     return TestHistory(
-        test_id=result.test_id,
-        name=result.name,
-        url=get_url(result),
-        states=[result.result],
-        comment=""
+        test_id=result.test_id, name=result.name, url=get_url(result), states=[result.result], comment=""
     )
 
 
@@ -151,9 +149,9 @@ def get_history_status(history: TestHistory):
         return "Flaky"
     if all(history.states):
         return "Stable"
-    if all(history.states[0:num_runs - 1]):
+    if all(history.states[0 : num_runs - 1]):
         return "Just one more"
-    if all(history.states[0:int(num_runs / 2)]):
+    if all(history.states[0 : int(num_runs / 2)]):
         return "Almost there"
     return "Flaky"
 
@@ -163,13 +161,15 @@ def get_table(history_map: Dict[str, TestHistory]) -> str:
     the_table: List[List[str]] = []
     for ordered_key in sorted(history_map.keys()):
         history = history_map[ordered_key]
-        the_table.append([
-            history.url,
-            "Succeeded" if history.states[0] else "Failed",
-            " ".join([reverse_status_map[state] for state in history.states]),
-            get_history_status(history),
-            history.comment
-        ])
+        the_table.append(
+            [
+                history.url,
+                "Succeeded" if history.states[0] else "Failed",
+                " ".join([reverse_status_map[state] for state in history.states]),
+                get_history_status(history),
+                history.comment,
+            ]
+        )
     return tabulate(the_table, headers, tablefmt="github")
 
 
@@ -187,14 +187,16 @@ if __name__ == '__main__':
         if len(test.contents) > 0 and test.contents[0].name == 'skipped':
             print(f"skipping {test['name']}")
             continue
-        test_results.append(TestResult(
-            test_id=test['classname'] + "::" + test['name'],
-            file=test['file'],
-            line=test['line'],
-            name=test['name'],
-            classname=test['classname'],
-            result=len(test.contents) == 0
-        ))
+        test_results.append(
+            TestResult(
+                test_id=test['classname'] + "::" + test['name'],
+                file=test['file'],
+                line=test['line'],
+                name=test['name'],
+                classname=test['classname'],
+                result=len(test.contents) == 0,
+            )
+        )
 
     token = os.environ.get("GITHUB_TOKEN")
     print(f"Token: {token}")
@@ -221,8 +223,7 @@ if __name__ == '__main__':
     for test_result in test_results:
         previous_results = parsed_test_map.get(test_result.test_id)
         if previous_results:
-            updated_results = update_test_history(
-                previous_results, test_result.result)
+            updated_results = update_test_history(previous_results, test_result.result)
             new_test_map[previous_results.test_id] = updated_results
         else:
             new_history = create_test_history(test_result)
@@ -234,8 +235,9 @@ if __name__ == '__main__':
     print(table)
     print()
     with open(join(dirname(realpath(__file__)), "quarantine_issue_header.md")) as f:
-        header = jinja2.Template(f.read(), autoescape=True, undefined=StrictUndefined).\
-            render(DATE_UTC_NOW=datetime.utcnow())
-    quarantined_issue.edit(title=None,
-                           body=header + "\n\n" + str(table),
-                           state='open' if len(test_results) > 0 else 'closed')
+        header = jinja2.Template(f.read(), autoescape=True, undefined=StrictUndefined).render(
+            DATE_UTC_NOW=datetime.utcnow()
+        )
+    quarantined_issue.edit(
+        title=None, body=header + "\n\n" + str(table), state='open' if len(test_results) > 0 else 'closed'
+    )

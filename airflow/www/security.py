@@ -130,8 +130,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     ROLE_CONFIGS = [
         {'role': 'Viewer', 'perms': VIEWER_PERMISSIONS},
-        {'role': 'User', 'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS,},
-        {'role': 'Op', 'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS,},
+        {
+            'role': 'User',
+            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS,
+        },
+        {
+            'role': 'Op',
+            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS,
+        },
         {
             'role': 'Admin',
             'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + ADMIN_PERMISSIONS,

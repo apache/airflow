@@ -23,7 +23,7 @@ import json
 import logging
 import tempfile
 from contextlib import ExitStack, contextmanager
-from typing import Collection, Dict, Optional, Sequence, Tuple, Union, Generator
+from typing import Collection, Dict, Generator, Optional, Sequence, Tuple, Union
 from urllib.parse import urlencode
 
 import google.auth

@@ -46,17 +46,19 @@ def apply_defaults(func: T) -> T:
     # have a different sig_cache.
     sig_cache = signature(func)
     non_optional_args = {
-        name for (name, param) in sig_cache.parameters.items()
-        if param.default == param.empty and
-           param.name != 'self' and
-           param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)}
+        name
+        for (name, param) in sig_cache.parameters.items()
+        if param.default == param.empty
+        and param.name != 'self'
+        and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+    }
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         from airflow.models.dag import DagContext
+
         if len(args) > 1:
-            raise AirflowException(
-                "Use keyword arguments when initializing operators")
+            raise AirflowException("Use keyword arguments when initializing operators")
         dag_args: Dict[str, Any] = {}
         dag_params: Dict[str, Any] = {}
 
@@ -91,6 +93,7 @@ def apply_defaults(func: T) -> T:
 
         result = func(*args, **kwargs)
         return result
+
     return cast(T, wrapper)
 
 

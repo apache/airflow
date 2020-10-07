@@ -96,6 +96,7 @@ class TestLocalSettings(unittest.TestCase):
         mock.attach_mock(import_local_settings, "import_local_settings")
 
         import airflow.settings
+
         airflow.settings.initialize()
 
         mock.assert_has_calls([call.prepare_syspath(), call.import_local_settings()])
@@ -107,6 +108,7 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POLICY_WITH_DUNDER_ALL, "airflow_local_settings"):
             from airflow import settings
+
             settings.import_local_settings()
 
             with self.assertRaises(AttributeError):
@@ -119,6 +121,7 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POLICY_WITH_DUNDER_ALL, "airflow_local_settings"):
             from airflow import settings
+
             settings.import_local_settings()
 
             task_instance = MagicMock()
@@ -133,6 +136,7 @@ class TestLocalSettings(unittest.TestCase):
         if there is no airflow_local_settings module on the syspath.
         """
         from airflow import settings
+
         settings.import_local_settings()
         log_mock.assert_called_once_with("Failed to import airflow_local_settings.", exc_info=True)
 
@@ -143,6 +147,7 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POLICY, "airflow_local_settings"):
             from airflow import settings
+
             settings.import_local_settings()
 
             task_instance = MagicMock()
@@ -157,6 +162,7 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POD_MUTATION_HOOK, "airflow_local_settings"):
             from airflow import settings
+
             settings.import_local_settings()
 
             pod = MagicMock()
@@ -167,6 +173,7 @@ class TestLocalSettings(unittest.TestCase):
     def test_custom_policy(self):
         with SettingsContext(SETTINGS_FILE_CUSTOM_POLICY, "airflow_local_settings"):
             from airflow import settings
+
             settings.import_local_settings()
 
             task_instance = MagicMock()

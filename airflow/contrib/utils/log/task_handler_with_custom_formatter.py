@@ -23,5 +23,6 @@ from airflow.utils.log.task_handler_with_custom_formatter import TaskHandlerWith
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.utils.log.task_handler_with_custom_formatter`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -65,10 +65,7 @@ class BaseTaskRunner(LoggingMixin):
             cfg_path = tmp_configuration_copy(chmod=0o600)
 
             # Give ownership of file to user; only they can read and write
-            subprocess.call(
-                ['sudo', 'chown', self.run_as_user, cfg_path],
-                close_fds=True
-            )
+            subprocess.call(['sudo', 'chown', self.run_as_user, cfg_path], close_fds=True)
 
             # propagate PYTHONPATH environment variable
             pythonpath_value = os.environ.get(PYTHONPATH_VAR, '')
@@ -102,9 +99,12 @@ class BaseTaskRunner(LoggingMixin):
                 line = line.decode('utf-8')
             if not line:
                 break
-            self.log.info('Job %s: Subtask %s %s',
-                          self._task_instance.job_id, self._task_instance.task_id,
-                          line.rstrip('\n'))
+            self.log.info(
+                'Job %s: Subtask %s %s',
+                self._task_instance.job_id,
+                self._task_instance.task_id,
+                line.rstrip('\n'),
+            )
 
     def run_command(self, run_with=None):
         """
@@ -128,7 +128,7 @@ class BaseTaskRunner(LoggingMixin):
             universal_newlines=True,
             close_fds=True,
             env=os.environ.copy(),
-            preexec_fn=os.setsid
+            preexec_fn=os.setsid,
         )
 
         # Start daemon thread to read subprocess logging output

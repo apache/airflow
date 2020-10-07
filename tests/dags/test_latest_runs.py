@@ -24,8 +24,4 @@ from airflow.operators.dummy_operator import DummyOperator
 
 for i in range(1, 2):
     dag = DAG(dag_id=f'test_latest_runs_{i}')
-    task = DummyOperator(
-        task_id='dummy_task',
-        dag=dag,
-        owner='airflow',
-        start_date=datetime(2016, 2, 1))
+    task = DummyOperator(task_id='dummy_task', dag=dag, owner='airflow', start_date=datetime(2016, 2, 1))

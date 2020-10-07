@@ -63,16 +63,14 @@ class MetastoreBrowserView(BaseView):
         """
         hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
         df = hook.get_pandas_df(sql)
-        df.db = (
-            '<a href="/metastorebrowserview/db/?db=' +
-            df.db + '">' + df.db + '</a>')
+        df.db = '<a href="/metastorebrowserview/db/?db=' + df.db + '">' + df.db + '</a>'
         table = df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
             escape=False,
-            na_rep='',)
-        return self.render_template(
-            "metastore_browser/dbs.html", table=Markup(table))
+            na_rep='',
+        )
+        return self.render_template("metastore_browser/dbs.html", table=Markup(table))
 
     @expose('/table/')
     def table(self):
@@ -81,8 +79,8 @@ class MetastoreBrowserView(BaseView):
         metastore = HiveMetastoreHook(METASTORE_CONN_ID)
         table = metastore.get_table(table_name)
         return self.render_template(
-            "metastore_browser/table.html",
-            table=table, table_name=table_name, datetime=datetime, int=int)
+            "metastore_browser/table.html", table=table, table_name=table_name, datetime=datetime, int=int
+        )
 
     @expose('/db/')
     def db(self):
@@ -90,8 +88,7 @@ class MetastoreBrowserView(BaseView):
         db = request.args.get("db")
         metastore = HiveMetastoreHook(METASTORE_CONN_ID)
         tables = sorted(metastore.get_tables(db=db), key=lambda x: x.tableName)
-        return self.render_template(
-            "metastore_browser/db.html", tables=tables, db=db)
+        return self.render_template("metastore_browser/db.html", tables=tables, db=db)
 
     @gzipped
     @expose('/partitions/')
@@ -114,13 +111,16 @@ class MetastoreBrowserView(BaseView):
             b.TBL_NAME like '{table}' AND
             d.NAME like '{schema}'
         ORDER BY PART_NAME DESC
-        """.format(table=table, schema=schema)
+        """.format(
+            table=table, schema=schema
+        )
         hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
         df = hook.get_pandas_df(sql)
         return df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
-            na_rep='',)
+            na_rep='',
+        )
 
     @gzipped
     @expose('/objects/')
@@ -144,11 +144,11 @@ class MetastoreBrowserView(BaseView):
             b.NAME NOT LIKE '%temp%'
         {where_clause}
         LIMIT {LIMIT};
-        """.format(where_clause=where_clause, LIMIT=TABLE_SELECTOR_LIMIT)
+        """.format(
+            where_clause=where_clause, LIMIT=TABLE_SELECTOR_LIMIT
+        )
         hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
-        data = [
-            {'id': row[0], 'text': row[0]}
-            for row in hook.get_records(sql)]
+        data = [{'id': row[0], 'text': row[0]} for row in hook.get_records(sql)]
         return json.dumps(data)
 
     @gzipped
@@ -162,7 +162,8 @@ class MetastoreBrowserView(BaseView):
         return df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
-            na_rep='',)
+            na_rep='',
+        )
 
     @expose('/ddl/')
     def ddl(self):
@@ -175,10 +176,12 @@ class MetastoreBrowserView(BaseView):
 
 # Creating a flask blueprint to integrate the templates and static folder
 bp = Blueprint(
-    "metastore_browser", __name__,
+    "metastore_browser",
+    __name__,
     template_folder='templates',
     static_folder='static',
-    static_url_path='/static/metastore_browser')
+    static_url_path='/static/metastore_browser',
+)
 
 
 class MetastoreBrowserPlugin(AirflowPlugin):
@@ -186,6 +189,6 @@ class MetastoreBrowserPlugin(AirflowPlugin):
 
     name = "metastore_browser"
     flask_blueprints = [bp]
-    appbuilder_views = [{"name": "Hive Metadata Browser",
-                         "category": "Plugins",
-                         "view": MetastoreBrowserView()}]
+    appbuilder_views = [
+        {"name": "Hive Metadata Browser", "category": "Plugins", "view": MetastoreBrowserView()}
+    ]

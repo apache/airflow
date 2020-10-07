@@ -73,7 +73,10 @@ class PythonOperator(BaseOperator):
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects(e.g protobuf).
-    shallow_copy_attrs = ('python_callable', 'op_kwargs',)
+    shallow_copy_attrs = (
+        'python_callable',
+        'op_kwargs',
+    )
 
     @apply_defaults
     def __init__(
@@ -84,11 +87,14 @@ class PythonOperator(BaseOperator):
         op_kwargs: Optional[Dict] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         if kwargs.get("provide_context"):
-            warnings.warn("provide_context is deprecated as of 2.0 and is no longer required",
-                          DeprecationWarning, stacklevel=2)
+            warnings.warn(
+                "provide_context is deprecated as of 2.0 and is no longer required",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             kwargs.pop('provide_context', None)
         super().__init__(**kwargs)
         if not callable(python_callable):
@@ -101,9 +107,7 @@ class PythonOperator(BaseOperator):
             self.template_ext = templates_exts
 
     @staticmethod
-    def determine_op_kwargs(python_callable: Callable,
-                            context: Dict,
-                            num_op_args: int = 0) -> Dict:
+    def determine_op_kwargs(python_callable: Callable, context: Dict, num_op_args: int = 0) -> Dict:
         """
         Function that will inspect the signature of a python_callable to determine which
         values need to be passed to the function.
@@ -190,7 +194,7 @@ class _PythonDecoratedOperator(BaseOperator):
         op_args: Tuple[Any],
         op_kwargs: Dict[str, Any],
         multiple_outputs: bool = False,
-        **kwargs
+        **kwargs,
     ) -> None:
         kwargs['task_id'] = self._get_unique_task_id(task_id, kwargs.get('dag'))
         super().__init__(**kwargs)
@@ -221,9 +225,11 @@ class _PythonDecoratedOperator(BaseOperator):
             return task_id
         core = re.split(r'__\d+$', task_id)[0]
         suffixes = sorted(
-            [int(re.split(r'^.+__', task_id)[1])
-             for task_id in dag.task_ids
-             if re.match(rf'^{core}__\d+$', task_id)]
+            [
+                int(re.split(r'^.+__', task_id)[1])
+                for task_id in dag.task_ids
+                if re.match(rf'^{core}__\d+$', task_id)
+            ]
         )
         if not suffixes:
             return f'{core}__1'
@@ -251,13 +257,16 @@ class _PythonDecoratedOperator(BaseOperator):
         if isinstance(return_value, dict):
             for key in return_value.keys():
                 if not isinstance(key, str):
-                    raise AirflowException('Returned dictionary keys must be strings when using '
-                                           f'multiple_outputs, found {key} ({type(key)}) instead')
+                    raise AirflowException(
+                        'Returned dictionary keys must be strings when using '
+                        f'multiple_outputs, found {key} ({type(key)}) instead'
+                    )
             for key, value in return_value.items():
                 self.xcom_push(context, key, value)
         else:
-            raise AirflowException(f'Returned output was type {type(return_value)} expected dictionary '
-                                   'for multiple_outputs')
+            raise AirflowException(
+                f'Returned output was type {type(return_value)} expected dictionary ' 'for multiple_outputs'
+            )
         return return_value
 
 
@@ -265,9 +274,7 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
 def task(
-    python_callable: Optional[Callable] = None,
-    multiple_outputs: bool = False,
-    **kwargs
+    python_callable: Optional[Callable] = None, multiple_outputs: bool = False, **kwargs
 ) -> Callable[[T], T]:
     """
     Python operator decorator. Wraps a function into an Airflow operator.
@@ -282,6 +289,7 @@ def task(
     :type multiple_outputs: bool
 
     """
+
     def wrapper(f: T):
         """
         Python wrapper to generate PythonDecoratedOperator out of simple python functions.
@@ -292,12 +300,19 @@ def task(
 
         @functools.wraps(f)
         def factory(*args, **f_kwargs):
-            op = _PythonDecoratedOperator(python_callable=f, op_args=args, op_kwargs=f_kwargs,
-                                          multiple_outputs=multiple_outputs, **kwargs)
+            op = _PythonDecoratedOperator(
+                python_callable=f,
+                op_args=args,
+                op_kwargs=f_kwargs,
+                multiple_outputs=multiple_outputs,
+                **kwargs,
+            )
             if f.__doc__:
                 op.doc_md = f.__doc__
             return XComArg(op)
+
         return cast(T, factory)
+
     if callable(python_callable):
         return wrapper(python_callable)
     elif python_callable is not None:
@@ -427,22 +442,16 @@ class PythonVirtualenvOperator(PythonOperator):
         'ts_nodash',
         'ts_nodash_with_tz',
         'yesterday_ds',
-        'yesterday_ds_nodash'
+        'yesterday_ds_nodash',
     }
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
         'execution_date',
         'next_execution_date',
         'prev_execution_date',
         'prev_execution_date_success',
-        'prev_start_date_success'
+        'prev_start_date_success',
     }
-    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
-        'macros',
-        'conf',
-        'dag',
-        'dag_run',
-        'task'
-    }
+    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {'macros', 'conf', 'dag', 'dag_run', 'task'}
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
@@ -458,26 +467,31 @@ class PythonVirtualenvOperator(PythonOperator):
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
-        **kwargs
+        **kwargs,
     ):
         if (
-            not isinstance(python_callable, types.FunctionType) or
-            isinstance(python_callable, types.LambdaType) and python_callable.__name__ == "<lambda>"
+            not isinstance(python_callable, types.FunctionType)
+            or isinstance(python_callable, types.LambdaType)
+            and python_callable.__name__ == "<lambda>"
         ):
             raise AirflowException('PythonVirtualenvOperator only supports functions for python_callable arg')
         if (
-            python_version and str(python_version)[0] != str(sys.version_info.major) and
-            (op_args or op_kwargs)
+            python_version
+            and str(python_version)[0] != str(sys.version_info.major)
+            and (op_args or op_kwargs)
         ):
-            raise AirflowException("Passing op_args or op_kwargs is not supported across different Python "
-                                   "major versions for PythonVirtualenvOperator. Please use string_args.")
+            raise AirflowException(
+                "Passing op_args or op_kwargs is not supported across different Python "
+                "major versions for PythonVirtualenvOperator. Please use string_args."
+            )
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
             op_kwargs=op_kwargs,
             templates_dict=templates_dict,
             templates_exts=templates_exts,
-            **kwargs)
+            **kwargs,
+        )
         self.requirements = list(requirements or [])
         self.string_args = string_args or []
         self.python_version = python_version
@@ -505,7 +519,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 venv_directory=tmp_dir,
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
-                requirements=self.requirements
+                requirements=self.requirements,
             )
 
             self._write_args(input_filename)
@@ -516,18 +530,20 @@ class PythonVirtualenvOperator(PythonOperator):
                     op_kwargs=self.op_kwargs,
                     pickling_library=self.pickling_library.__name__,
                     python_callable=self.python_callable.__name__,
-                    python_callable_source=dedent(inspect.getsource(self.python_callable))
+                    python_callable_source=dedent(inspect.getsource(self.python_callable)),
                 ),
-                filename=script_filename
+                filename=script_filename,
             )
 
-            execute_in_subprocess(cmd=[
-                f'{tmp_dir}/bin/python',
-                script_filename,
-                input_filename,
-                output_filename,
-                string_args_filename
-            ])
+            execute_in_subprocess(
+                cmd=[
+                    f'{tmp_dir}/bin/python',
+                    script_filename,
+                    input_filename,
+                    output_filename,
+                    string_args_filename,
+                ]
+            )
 
             return self._read_result(output_filename)
 
@@ -561,8 +577,10 @@ class PythonVirtualenvOperator(PythonOperator):
             try:
                 return self.pickling_library.load(file)
             except ValueError:
-                self.log.error("Error deserializing result. Note that result deserialization "
-                               "is not supported across major Python versions.")
+                self.log.error(
+                    "Error deserializing result. Note that result deserialization "
+                    "is not supported across major Python versions."
+                )
                 raise
 
 

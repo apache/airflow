@@ -60,13 +60,14 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     if dag.is_subdag:
         parent_dag_id, task_id = dag_id.rsplit(".", 1)
         for model in TaskFail, models.TaskInstance:
-            count += session.query(model).filter(model.dag_id == parent_dag_id,
-                                                 model.task_id == task_id).delete()
+            count += (
+                session.query(model).filter(model.dag_id == parent_dag_id, model.task_id == task_id).delete()
+            )
 
     # Delete entries in Import Errors table for a deleted DAG
     # This handles the case when the dag_id is changed in the file
-    session.query(models.ImportError).filter(
-        models.ImportError.filename == dag.fileloc
-    ).delete(synchronize_session='fetch')
+    session.query(models.ImportError).filter(models.ImportError.filename == dag.fileloc).delete(
+        synchronize_session='fetch'
+    )
 
     return count

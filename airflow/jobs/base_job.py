@@ -53,7 +53,9 @@ class BaseJob(Base, LoggingMixin):
     __tablename__ = "job"
 
     id = Column(Integer, primary_key=True)
-    dag_id = Column(String(ID_LEN),)
+    dag_id = Column(
+        String(ID_LEN),
+    )
     state = Column(String(20))
     job_type = Column(String(30))
     start_date = Column(UtcDateTime())
@@ -63,10 +65,7 @@ class BaseJob(Base, LoggingMixin):
     hostname = Column(String(500))
     unixname = Column(String(1000))
 
-    __mapper_args__ = {
-        'polymorphic_on': job_type,
-        'polymorphic_identity': 'BaseJob'
-    }
+    __mapper_args__ = {'polymorphic_on': job_type, 'polymorphic_identity': 'BaseJob'}
 
     __table_args__ = (
         Index('job_type_heart', job_type, latest_heartbeat),
@@ -95,11 +94,7 @@ class BaseJob(Base, LoggingMixin):
 
     heartrate = conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC')
 
-    def __init__(
-            self,
-            executor=None,
-            heartrate=None,
-            *args, **kwargs):
+    def __init__(self, executor=None, heartrate=None, *args, **kwargs):
         self.hostname = get_hostname()
         self.executor = executor or ExecutorLoader.get_default_executor()
         self.executor_class = self.executor.__class__.__name__
@@ -139,8 +134,9 @@ class BaseJob(Base, LoggingMixin):
         :rtype: boolean
         """
         return (
-            self.state == State.RUNNING and
-            (timezone.utcnow() - self.latest_heartbeat).total_seconds() < self.heartrate * grace_multiplier
+            self.state == State.RUNNING
+            and (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+            < self.heartrate * grace_multiplier
         )
 
     @provide_session
@@ -206,9 +202,9 @@ class BaseJob(Base, LoggingMixin):
             # Figure out how long to sleep for
             sleep_for = 0
             if self.latest_heartbeat:
-                seconds_remaining = self.heartrate - \
-                    (timezone.utcnow() - self.latest_heartbeat)\
-                    .total_seconds()
+                seconds_remaining = (
+                    self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+                )
                 sleep_for = max(0, seconds_remaining)
             sleep(sleep_for)
 
@@ -224,9 +220,7 @@ class BaseJob(Base, LoggingMixin):
                 self.heartbeat_callback(session=session)
                 self.log.debug('[heartbeat]')
         except OperationalError:
-            Stats.incr(
-                convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1,
-                1)
+            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1, 1)
             self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
             self.latest_heartbeat = previous_heartbeat

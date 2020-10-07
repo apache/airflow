@@ -23,7 +23,8 @@ from airflow.providers.google.cloud.hooks.functions import CloudFunctionsHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.functions`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -37,7 +38,8 @@ class GcfHook(CloudFunctionsHook):
         warnings.warn(
             "This class is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook`.",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
 
         super().__init__(*args, **kwargs)

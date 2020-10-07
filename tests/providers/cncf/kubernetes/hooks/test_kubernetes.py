@@ -23,11 +23,10 @@ import unittest
 from unittest import mock
 from unittest.mock import patch
 
+import kubernetes
 from parameterized import parameterized
 
-import kubernetes
 from airflow import AirflowException
-
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.utils import db

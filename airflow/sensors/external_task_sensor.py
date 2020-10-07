@@ -85,15 +85,18 @@ class ExternalTaskSensor(BaseSensorOperator):
         return [ExternalTaskSensorLink()]
 
     @apply_defaults
-    def __init__(self, *,
-                 external_dag_id,
-                 external_task_id=None,
-                 allowed_states=None,
-                 failed_states=None,
-                 execution_delta=None,
-                 execution_date_fn=None,
-                 check_existence=False,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        external_dag_id,
+        external_task_id=None,
+        allowed_states=None,
+        failed_states=None,
+        execution_delta=None,
+        execution_date_fn=None,
+        check_existence=False,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.allowed_states = allowed_states or [State.SUCCESS]
         self.failed_states = failed_states or []
@@ -102,9 +105,10 @@ class ExternalTaskSensor(BaseSensorOperator):
         total_states = set(total_states)
 
         if set(self.failed_states).intersection(set(self.allowed_states)):
-            raise AirflowException("Duplicate values provided as allowed "
-                                   "`{}` and failed states `{}`"
-                                   .format(self.allowed_states, self.failed_states))
+            raise AirflowException(
+                "Duplicate values provided as allowed "
+                "`{}` and failed states `{}`".format(self.allowed_states, self.failed_states)
+            )
 
         if external_task_id:
             if not total_states <= set(State.task_states):
@@ -121,7 +125,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         if execution_delta is not None and execution_date_fn is not None:
             raise ValueError(
                 'Only one of `execution_delta` or `execution_date_fn` may '
-                'be provided to ExternalTaskSensor; not both.')
+                'be provided to ExternalTaskSensor; not both.'
+            )
 
         self.execution_delta = execution_delta
         self.execution_date_fn = execution_date_fn
@@ -141,20 +146,16 @@ class ExternalTaskSensor(BaseSensorOperator):
             dttm = context['execution_date']
 
         dttm_filter = dttm if isinstance(dttm, list) else [dttm]
-        serialized_dttm_filter = ','.join(
-            [datetime.isoformat() for datetime in dttm_filter])
+        serialized_dttm_filter = ','.join([datetime.isoformat() for datetime in dttm_filter])
 
         self.log.info(
-            'Poking for %s.%s on %s ... ',
-            self.external_dag_id, self.external_task_id, serialized_dttm_filter
+            'Poking for %s.%s on %s ... ', self.external_dag_id, self.external_task_id, serialized_dttm_filter
         )
 
         DM = DagModel
         # we only do the check for 1st time, no need for subsequent poke
         if self.check_existence and not self.has_checked_existence:
-            dag_to_wait = session.query(DM).filter(
-                DM.dag_id == self.external_dag_id
-            ).first()
+            dag_to_wait = session.query(DM).filter(DM.dag_id == self.external_dag_id).first()
 
             if not dag_to_wait:
                 raise AirflowException(f'The external DAG {self.external_dag_id} does not exist.')
@@ -204,19 +205,27 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.external_task_id:
             # .count() is inefficient
-            count = session.query(func.count()).filter(
-                TI.dag_id == self.external_dag_id,
-                TI.task_id == self.external_task_id,
-                TI.state.in_(states),  # pylint: disable=no-member
-                TI.execution_date.in_(dttm_filter),
-            ).scalar()
+            count = (
+                session.query(func.count())
+                .filter(
+                    TI.dag_id == self.external_dag_id,
+                    TI.task_id == self.external_task_id,
+                    TI.state.in_(states),  # pylint: disable=no-member
+                    TI.execution_date.in_(dttm_filter),
+                )
+                .scalar()
+            )
         else:
             # .count() is inefficient
-            count = session.query(func.count()).filter(
-                DR.dag_id == self.external_dag_id,
-                DR.state.in_(states),  # pylint: disable=no-member
-                DR.execution_date.in_(dttm_filter),
-            ).scalar()
+            count = (
+                session.query(func.count())
+                .filter(
+                    DR.dag_id == self.external_dag_id,
+                    DR.state.in_(states),  # pylint: disable=no-member
+                    DR.execution_date.in_(dttm_filter),
+                )
+                .scalar()
+            )
         return count
 
     def _handle_execution_date_fn(self, context):
@@ -235,9 +244,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         if num_fxn_params == 2:
             return self.execution_date_fn(context['execution_date'], context)
 
-        raise AirflowException(
-            f'execution_date_fn passed {num_fxn_params} args but only allowed up to 2'
-        )
+        raise AirflowException(f'execution_date_fn passed {num_fxn_params} args but only allowed up to 2')
 
 
 class ExternalTaskMarker(DummyOperator):
@@ -266,12 +273,15 @@ class ExternalTaskMarker(DummyOperator):
     __serialized_fields: Optional[FrozenSet[str]] = None
 
     @apply_defaults
-    def __init__(self, *,
-                 external_dag_id,
-                 external_task_id,
-                 execution_date: Optional[Union[str, datetime.datetime]] = "{{ execution_date.isoformat() }}",
-                 recursion_depth: int = 10,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        external_dag_id,
+        external_task_id,
+        execution_date: Optional[Union[str, datetime.datetime]] = "{{ execution_date.isoformat() }}",
+        recursion_depth: int = 10,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
@@ -280,8 +290,11 @@ class ExternalTaskMarker(DummyOperator):
         elif isinstance(execution_date, str):
             self.execution_date = execution_date
         else:
-            raise TypeError('Expected str or datetime.datetime type for execution_date. Got {}'
-                            .format(type(execution_date)))
+            raise TypeError(
+                'Expected str or datetime.datetime type for execution_date. Got {}'.format(
+                    type(execution_date)
+                )
+            )
         if recursion_depth <= 0:
             raise ValueError("recursion_depth should be a positive integer")
         self.recursion_depth = recursion_depth
@@ -290,9 +303,5 @@ class ExternalTaskMarker(DummyOperator):
     def get_serialized_fields(cls):
         """Serialized ExternalTaskMarker contain exactly these fields + templated_fields ."""
         if not cls.__serialized_fields:
-            cls.__serialized_fields = frozenset(
-                super().get_serialized_fields() | {
-                    "recursion_depth"
-                }
-            )
+            cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"recursion_depth"})
         return cls.__serialized_fields

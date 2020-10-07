@@ -17,7 +17,6 @@
 # under the License.
 import logging
 import unittest
-
 from unittest import mock
 
 from airflow.exceptions import AirflowException

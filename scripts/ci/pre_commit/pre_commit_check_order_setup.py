@@ -38,8 +38,9 @@ def _check_list_sorted(the_list: List[str], message: str) -> None:
     while sorted_list[i] == the_list[i]:
         i += 1
     print(f"{message} NOK")
-    errors.append(f"ERROR in {message}. First wrongly sorted element"
-                  f" {the_list[i]}. Should be {sorted_list[i]}")
+    errors.append(
+        f"ERROR in {message}. First wrongly sorted element" f" {the_list[i]}. Should be {sorted_list[i]}"
+    )
 
 
 def setup() -> str:
@@ -55,7 +56,8 @@ def check_main_dependent_group(setup_context: str) -> None:
     '# Start dependencies group' and '# End dependencies group' in setup.py
     """
     pattern_main_dependent_group = re.compile(
-        '# Start dependencies group\n(.*)# End dependencies group', re.DOTALL)
+        '# Start dependencies group\n(.*)# End dependencies group', re.DOTALL
+    )
     main_dependent_group = pattern_main_dependent_group.findall(setup_context)[0]
 
     pattern_sub_dependent = re.compile(' = \\[.*?\\]\n', re.DOTALL)
@@ -76,8 +78,7 @@ def check_sub_dependent_group(setup_context: str) -> None:
     pattern_dependent_version = re.compile('[~|><=;].*')
 
     for group_name in dependent_group_names:
-        pattern_sub_dependent = re.compile(
-            f'{group_name} = \\[(.*?)\\]', re.DOTALL)
+        pattern_sub_dependent = re.compile(f'{group_name} = \\[(.*?)\\]', re.DOTALL)
         sub_dependent = pattern_sub_dependent.findall(setup_context)[0]
         pattern_dependent = re.compile('\'(.*?)\'')
         dependent = pattern_dependent.findall(sub_dependent)
@@ -104,8 +105,7 @@ def check_install_and_setup_requires(setup_context: str) -> None:
     Test for an order of dependencies in function do_setup section
     install_requires and setup_requires in setup.py
     """
-    pattern_install_and_setup_requires = re.compile(
-        '(setup_requires) ?= ?\\[(.*?)\\]', re.DOTALL)
+    pattern_install_and_setup_requires = re.compile('(setup_requires) ?= ?\\[(.*?)\\]', re.DOTALL)
     install_and_setup_requires = pattern_install_and_setup_requires.findall(setup_context)
 
     for dependent_requires in install_and_setup_requires:
@@ -123,7 +123,8 @@ def check_extras_require(setup_context: str) -> None:
     extras_require in setup.py
     """
     pattern_extras_requires = re.compile(
-        r'EXTRAS_REQUIREMENTS: Dict\[str, Iterable\[str\]] = {(.*?)}', re.DOTALL)
+        r'EXTRAS_REQUIREMENTS: Dict\[str, Iterable\[str\]] = {(.*?)}', re.DOTALL
+    )
     extras_requires = pattern_extras_requires.findall(setup_context)[0]
 
     pattern_dependent = re.compile('\'(.*?)\'')
@@ -137,7 +138,8 @@ def check_provider_requirements(setup_context: str) -> None:
     providers_require in setup.py
     """
     pattern_extras_requires = re.compile(
-        r'PROVIDERS_REQUIREMENTS: Dict\[str, Iterable\[str\]\] = {(.*?)}', re.DOTALL)
+        r'PROVIDERS_REQUIREMENTS: Dict\[str, Iterable\[str\]\] = {(.*?)}', re.DOTALL
+    )
     extras_requires = pattern_extras_requires.findall(setup_context)[0]
 
     pattern_dependent = re.compile('"(.*?)"')

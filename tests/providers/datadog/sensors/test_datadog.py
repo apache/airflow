@@ -19,7 +19,6 @@
 import json
 import unittest
 from typing import List
-
 from unittest.mock import patch
 
 from airflow.models import Connection

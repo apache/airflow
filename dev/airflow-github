@@ -29,8 +29,7 @@ from github import Github
 from github.Issue import Issue
 from github.PullRequest import PullRequest
 
-GIT_COMMIT_FIELDS = ['id', 'author_name',
-                     'author_email', 'date', 'subject', 'body']
+GIT_COMMIT_FIELDS = ['id', 'author_name', 'author_email', 'date', 'subject', 'body']
 GIT_LOG_FORMAT = '%x1f'.join(['%h', '%an', '%ae', '%ad', '%s', '%b']) + '%x1e'
 pr_title_re = re.compile(r".*\((#[0-9]{1,6})\)$")
 
@@ -131,17 +130,20 @@ def cli():
 @cli.command(short_help='Compare a GitHub target version against git merges')
 @click.argument('target_version')
 @click.argument('github-token', envvar='GITHUB_TOKEN')
-@click.option('--previous-version',
-              'previous_version',
-              help="Specify the previous tag on the working branch to limit"
-                   " searching for few commits to find the cherry-picked commits")
+@click.option(
+    '--previous-version',
+    'previous_version',
+    help="Specify the previous tag on the working branch to limit"
+    " searching for few commits to find the cherry-picked commits",
+)
 @click.option('--unmerged', 'show_uncherrypicked_only', help="Show unmerged issues only", is_flag=True)
 def compare(target_version, github_token, previous_version=None, show_uncherrypicked_only=False):
     repo = git.Repo(".", search_parent_directories=True)
 
     github_handler = Github(github_token)
-    milestone_issues: List[Issue] = list(github_handler.search_issues(
-        f"repo:apache/airflow milestone:\"Airflow {target_version}\""))
+    milestone_issues: List[Issue] = list(
+        github_handler.search_issues(f"repo:apache/airflow milestone:\"Airflow {target_version}\"")
+    )
 
     num_cherrypicked = 0
     num_uncherrypicked = Counter()
@@ -151,13 +153,16 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
     # !s forces as string
     formatstr = "{id:<8}|{typ!s:<15}|{status!s}|{description:<83.83}|{merged:<6}|{commit:>9.7}"
 
-    print(formatstr.format(
-        id="ISSUE",
-        typ="TYPE",
-        status="STATUS".ljust(10),
-        description="DESCRIPTION",
-        merged="MERGED",
-        commit="COMMIT"))
+    print(
+        formatstr.format(
+            id="ISSUE",
+            typ="TYPE",
+            status="STATUS".ljust(10),
+            description="DESCRIPTION",
+            merged="MERGED",
+            commit="COMMIT",
+        )
+    )
 
     for issue in milestone_issues:
         commit_in_master = get_commit_in_master_associated_with_pr(repo, issue)
@@ -180,13 +185,17 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
             description=issue.title,
         )
 
-        print(formatstr.format(
-            **fields,
-            merged=cherrypicked,
-            commit=commit_in_master if commit_in_master else ""))
+        print(
+            formatstr.format(
+                **fields, merged=cherrypicked, commit=commit_in_master if commit_in_master else ""
+            )
+        )
 
-    print("Commits on branch: {:d}, {:d} ({}) yet to be cherry-picked".format(
-        num_cherrypicked, sum(num_uncherrypicked.values()), dict(num_uncherrypicked)))
+    print(
+        "Commits on branch: {:d}, {:d} ({}) yet to be cherry-picked".format(
+            num_cherrypicked, sum(num_uncherrypicked.values()), dict(num_uncherrypicked)
+        )
+    )
 
 
 @cli.command(short_help='Build a CHANGELOG grouped by GitHub Issue type')
@@ -196,8 +205,7 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
 def changelog(previous_version, target_version, github_token):
     repo = git.Repo(".", search_parent_directories=True)
     # Get a list of issues/PRs that have been committed on the current branch.
-    log_args = [
-        f'--format={GIT_LOG_FORMAT}', previous_version + ".." + target_version]
+    log_args = [f'--format={GIT_LOG_FORMAT}', previous_version + ".." + target_version]
     log = repo.git.log(*log_args)
 
     log = log.strip('\n\x1e').split("\x1e")
@@ -221,6 +229,7 @@ def changelog(previous_version, target_version, github_token):
 
 if __name__ == "__main__":
     import doctest
+
     (failure_count, test_count) = doctest.testmod()
     if failure_count:
         sys.exit(-1)

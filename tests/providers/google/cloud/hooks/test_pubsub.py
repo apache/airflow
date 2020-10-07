@@ -18,8 +18,8 @@
 
 import unittest
 from typing import List
-
 from unittest import mock
+
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1.types import ReceivedMessage

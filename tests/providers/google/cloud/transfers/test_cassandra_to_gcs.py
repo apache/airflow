@@ -18,7 +18,6 @@
 
 import unittest
 from unittest import mock
-
 from unittest.mock import call
 
 from airflow.providers.google.cloud.transfers.cassandra_to_gcs import CassandraToGCSOperator

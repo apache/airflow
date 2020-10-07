@@ -17,8 +17,8 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
+
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException

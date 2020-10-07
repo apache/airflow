@@ -132,6 +132,7 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 def requires_authentication(function: T):
     """Decorator for functions that require authentication with Kerberos"""
+
     @wraps(function)
     def decorated(*args, **kwargs):
         header = request.headers.get("Authorization")
@@ -144,11 +145,11 @@ def requires_authentication(function: T):
                 response = function(*args, **kwargs)
                 response = make_response(response)
                 if ctx.kerberos_token is not None:
-                    response.headers['WWW-Authenticate'] = ' '.join(['negotiate',
-                                                                     ctx.kerberos_token])
+                    response.headers['WWW-Authenticate'] = ' '.join(['negotiate', ctx.kerberos_token])
 
                 return response
             if return_code != kerberos.AUTH_GSS_CONTINUE:
                 return _forbidden()
         return _unauthorized()
+
     return cast(T, decorated)

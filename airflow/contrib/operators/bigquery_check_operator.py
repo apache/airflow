@@ -21,10 +21,13 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.google.cloud.operators.bigquery import (  # noqa
-    BigQueryCheckOperator, BigQueryIntervalCheckOperator, BigQueryValueCheckOperator,
+    BigQueryCheckOperator,
+    BigQueryIntervalCheckOperator,
+    BigQueryValueCheckOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigquery`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

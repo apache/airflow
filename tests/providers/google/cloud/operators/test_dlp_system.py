@@ -23,9 +23,9 @@ example_gcp_dlp DAG
 """
 import pytest
 
+from airflow.providers.google.cloud.example_dags.example_dlp import OUTPUT_BUCKET, OUTPUT_FILENAME
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DLP_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
-from airflow.providers.google.cloud.example_dags.example_dlp import OUTPUT_BUCKET, OUTPUT_FILENAME
 
 
 @pytest.fixture(scope="class")

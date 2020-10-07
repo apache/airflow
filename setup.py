@@ -131,6 +131,7 @@ def git_version(version_: str) -> str:
     """
     try:
         import git
+
         try:
             repo = git.Repo(os.path.join(*[my_dir, '.git']))
         except git.NoSuchPathError:
@@ -208,10 +209,7 @@ cgroups = [
 cloudant = [
     'cloudant>=2.0',
 ]
-dask = [
-    'cloudpickle>=1.4.1, <1.5.0',
-    'distributed>=2.11.1, <2.20'
-]
+dask = ['cloudpickle>=1.4.1, <1.5.0', 'distributed>=2.11.1, <2.20']
 databricks = [
     'requests>=2.20.0, <3',
 ]
@@ -227,7 +225,7 @@ doc = [
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
     "sphinxcontrib-redoc>=1.6.0",
-    "sphinxcontrib-spelling==5.2.1"
+    "sphinxcontrib-spelling==5.2.1",
 ]
 docker = [
     'docker~=3.0',
@@ -316,9 +314,7 @@ kubernetes = [
     'cryptography>=2.0.0',
     'kubernetes>=3.0.0, <12.0.0',
 ]
-kylin = [
-    'kylinpy>=2.6'
-]
+kylin = ['kylinpy>=2.6']
 ldap = [
     'ldap3>=2.5.1',
 ]
@@ -359,9 +355,7 @@ plexus = [
 postgres = [
     'psycopg2-binary>=2.7.4',
 ]
-presto = [
-    'presto-python-client>=0.7.0,<0.8'
-]
+presto = ['presto-python-client>=0.7.0,<0.8']
 qds = [
     'qds-sdk>=1.10.4',
 ]
@@ -429,8 +423,21 @@ zendesk = [
 ]
 # End dependencies group
 
-all_dbs = (cassandra + cloudant + druid + exasol + hdfs + hive + mongo + mssql + mysql +
-           pinot + postgres + presto + vertica)
+all_dbs = (
+    cassandra
+    + cloudant
+    + druid
+    + exasol
+    + hdfs
+    + hive
+    + mongo
+    + mssql
+    + mysql
+    + pinot
+    + postgres
+    + presto
+    + vertica
+)
 
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
@@ -456,7 +463,7 @@ devel = [
     'jira',
     'mongomock',
     'moto==1.3.14',  # TODO - fix Datasync issues to get higher version of moto:
-                     #        See: https://github.com/apache/airflow/issues/10985
+    #        See: https://github.com/apache/airflow/issues/10985
     'parameterized',
     'paramiko',
     'pipdeptree',
@@ -599,7 +606,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'jdbc': jdbc,
     'jira': jira,
     'kerberos': kerberos,
-    'kubernetes': kubernetes,   # TODO: remove this in Airflow 2.1
+    'kubernetes': kubernetes,  # TODO: remove this in Airflow 2.1
     'ldap': ldap,
     "microsoft.azure": azure,
     "microsoft.mssql": mssql,
@@ -639,16 +646,22 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
 }
 
 # Make devel_all contain all providers + extras + unique
-devel_all = list(set(devel +
-                     [req for req_list in EXTRAS_REQUIREMENTS.values() for req in req_list] +
-                     [req for req_list in PROVIDERS_REQUIREMENTS.values() for req in req_list]))
+devel_all = list(
+    set(
+        devel
+        + [req for req_list in EXTRAS_REQUIREMENTS.values() for req in req_list]
+        + [req for req_list in PROVIDERS_REQUIREMENTS.values() for req in req_list]
+    )
+)
 
 PACKAGES_EXCLUDED_FOR_ALL = []
 
 if PY3:
-    PACKAGES_EXCLUDED_FOR_ALL.extend([
-        'snakebite',
-    ])
+    PACKAGES_EXCLUDED_FOR_ALL.extend(
+        [
+            'snakebite',
+        ]
+    )
 
 # Those packages are excluded because they break tests (downgrading mock) and they are
 # not needed to run our test suite.
@@ -668,13 +681,17 @@ def is_package_excluded(package: str, exclusion_list: List[str]):
     return any(package.startswith(excluded_package) for excluded_package in exclusion_list)
 
 
-devel_all = [package for package in devel_all if not is_package_excluded(
-    package=package,
-    exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
+devel_all = [
+    package
+    for package in devel_all
+    if not is_package_excluded(package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
 ]
-devel_ci = [package for package in devel_all if not is_package_excluded(
-    package=package,
-    exclusion_list=PACKAGES_EXCLUDED_FOR_CI + PACKAGES_EXCLUDED_FOR_ALL)
+devel_ci = [
+    package
+    for package in devel_all
+    if not is_package_excluded(
+        package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_CI + PACKAGES_EXCLUDED_FOR_ALL
+    )
 ]
 
 EXTRAS_REQUIREMENTS.update(
@@ -748,9 +765,11 @@ INSTALL_REQUIREMENTS = [
 def do_setup():
     """Perform the Airflow package setup."""
     install_providers_from_sources = os.getenv('INSTALL_PROVIDERS_FROM_SOURCES')
-    exclude_patterns = \
-        [] if install_providers_from_sources and install_providers_from_sources == 'true' \
+    exclude_patterns = (
+        []
+        if install_providers_from_sources and install_providers_from_sources == 'true'
         else ['airflow.providers', 'airflow.providers.*']
+    )
     write_version()
     setup(
         name='apache-airflow',
@@ -759,13 +778,15 @@ def do_setup():
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(
-            include=['airflow*'],
-            exclude=exclude_patterns),
+        packages=find_packages(include=['airflow*'], exclude=exclude_patterns),
         package_data={
             'airflow': ['py.typed'],
-            '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
-                 "airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
+            '': [
+                'airflow/alembic.ini',
+                "airflow/git_version",
+                "*.ipynb",
+                "airflow/providers/cncf/kubernetes/example_dags/*.yaml",
+            ],
             'airflow.api_connexion.openapi': ['*.yaml'],
             'airflow.serialization': ["*.json"],
         },
@@ -800,8 +821,7 @@ def do_setup():
         author='Apache Software Foundation',
         author_email='dev@airflow.apache.org',
         url='http://airflow.apache.org/',
-        download_url=(
-            'https://archive.apache.org/dist/airflow/' + version),
+        download_url=('https://archive.apache.org/dist/airflow/' + version),
         cmdclass={
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets,

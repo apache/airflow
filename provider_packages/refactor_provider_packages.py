@@ -27,7 +27,9 @@ from fissix.fixer_util import Comma, KeywordArg, Name
 from fissix.pytree import Leaf
 
 from provider_packages.prepare_provider_packages import (
-    get_source_airflow_folder, get_source_providers_folder, get_target_providers_folder,
+    get_source_airflow_folder,
+    get_source_providers_folder,
+    get_target_providers_folder,
     get_target_providers_package_folder,
 )
 
@@ -36,6 +38,7 @@ def copy_provider_sources() -> None:
     """
     Copies provider sources to directory where they will be refactored.
     """
+
     def rm_build_dir() -> None:
         """
         Removes build directory.
@@ -111,6 +114,7 @@ class RefactorBackportPackages:
 
         :param class_name: name to remove
         """
+
         def _remover(node: LN, capture: Capture, filename: Filename) -> None:
             node.remove()
 
@@ -181,27 +185,23 @@ class RefactorBackportPackages:
                  )
 
         """
+
         def add_provide_context_to_python_operator(node: LN, capture: Capture, filename: Filename) -> None:
             fn_args = capture['function_arguments'][0]
-            if len(fn_args.children) > 0 and (not isinstance(fn_args.children[-1], Leaf)
-                                              or fn_args.children[-1].type != token.COMMA):
+            if len(fn_args.children) > 0 and (
+                not isinstance(fn_args.children[-1], Leaf) or fn_args.children[-1].type != token.COMMA
+            ):
                 fn_args.append_child(Comma())
 
             provide_context_arg = KeywordArg(Name('provide_context'), Name('True'))
             provide_context_arg.prefix = fn_args.children[0].prefix
             fn_args.append_child(provide_context_arg)
 
+        (self.qry.select_function("PythonOperator").is_call().modify(add_provide_context_to_python_operator))
         (
-            self.qry.
-            select_function("PythonOperator").
-            is_call().
-            modify(add_provide_context_to_python_operator)
-        )
-        (
-            self.qry.
-            select_function("BranchPythonOperator").
-            is_call().
-            modify(add_provide_context_to_python_operator)
+            self.qry.select_function("BranchPythonOperator")
+            .is_call()
+            .modify(add_provide_context_to_python_operator)
         )
 
     def remove_super_init_call(self):
@@ -259,6 +259,7 @@ class RefactorBackportPackages:
                      self.max_ingestion_time = max_ingestion_time
 
         """
+
         def remove_super_init_call_modifier(node: LN, capture: Capture, filename: Filename) -> None:
             for ch in node.post_order():
                 if isinstance(ch, Leaf) and ch.value == "super":
@@ -294,6 +295,7 @@ class RefactorBackportPackages:
              ) as dag:
 
         """
+
         def remove_tags_modifier(_: LN, capture: Capture, filename: Filename) -> None:
             for node in capture['function_arguments'][0].post_order():
                 if isinstance(node, Leaf) and node.value == "tags" and node.type == TOKEN.NAME:
@@ -324,6 +326,7 @@ class RefactorBackportPackages:
                 Checks for changes in the number of objects at prefix in Google Cloud Storage
 
         """
+
         def find_and_remove_poke_mode_only_import(node: LN):
             for child in node.children:
                 if isinstance(child, Leaf) and child.type == 1 and child.value == 'poke_mode_only':
@@ -353,9 +356,14 @@ class RefactorBackportPackages:
             find_and_remove_poke_mode_only_import(current_node)
 
         def is_poke_mode_only_decorator(node: LN) -> bool:
-            return node.children and len(node.children) >= 2 and \
-                isinstance(node.children[0], Leaf) and node.children[0].value == '@' and \
-                isinstance(node.children[1], Leaf) and node.children[1].value == 'poke_mode_only'
+            return (
+                node.children
+                and len(node.children) >= 2
+                and isinstance(node.children[0], Leaf)
+                and node.children[0].value == '@'
+                and isinstance(node.children[1], Leaf)
+                and node.children[1].value == 'poke_mode_only'
+            )
 
         def remove_poke_mode_only_modifier(node: LN, capture: Capture, filename: Filename) -> None:
             for child in capture['node'].parent.children:
@@ -391,36 +399,37 @@ class RefactorBackportPackages:
         def amazon_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             return filename.startswith("./airflow/providers/amazon/")
 
-        os.makedirs(os.path.join(get_target_providers_package_folder("amazon"), "common", "utils"),
-                    exist_ok=True)
-        copyfile(
-            os.path.join(get_source_airflow_folder(), "airflow", "utils", "__init__.py"),
-            os.path.join(get_target_providers_package_folder("amazon"), "common", "__init__.py")
+        os.makedirs(
+            os.path.join(get_target_providers_package_folder("amazon"), "common", "utils"), exist_ok=True
         )
         copyfile(
             os.path.join(get_source_airflow_folder(), "airflow", "utils", "__init__.py"),
-            os.path.join(get_target_providers_package_folder("amazon"), "common", "utils", "__init__.py")
+            os.path.join(get_target_providers_package_folder("amazon"), "common", "__init__.py"),
+        )
+        copyfile(
+            os.path.join(get_source_airflow_folder(), "airflow", "utils", "__init__.py"),
+            os.path.join(get_target_providers_package_folder("amazon"), "common", "utils", "__init__.py"),
         )
         copyfile(
             os.path.join(get_source_airflow_folder(), "airflow", "typing_compat.py"),
-            os.path.join(get_target_providers_package_folder("amazon"), "common", "utils", "typing_compat.py")
+            os.path.join(
+                get_target_providers_package_folder("amazon"), "common", "utils", "typing_compat.py"
+            ),
         )
         (
-            self.qry.
-            select_module("airflow.typing_compat").
-            filter(callback=amazon_package_filter).
-            rename("airflow.providers.amazon.common.utils.typing_compat")
+            self.qry.select_module("airflow.typing_compat")
+            .filter(callback=amazon_package_filter)
+            .rename("airflow.providers.amazon.common.utils.typing_compat")
         )
 
         copyfile(
             os.path.join(get_source_airflow_folder(), "airflow", "utils", "email.py"),
-            os.path.join(get_target_providers_package_folder("amazon"), "common", "utils", "email.py")
+            os.path.join(get_target_providers_package_folder("amazon"), "common", "utils", "email.py"),
         )
         (
-            self.qry.
-            select_module("airflow.utils.email").
-            filter(callback=amazon_package_filter).
-            rename("airflow.providers.amazon.common.utils.email")
+            self.qry.select_module("airflow.utils.email")
+            .filter(callback=amazon_package_filter)
+            .rename("airflow.providers.amazon.common.utils.email")
         )
 
     def refactor_google_package(self):
@@ -517,6 +526,7 @@ class RefactorBackportPackages:
              KEY_REGEX = re.compile(r'^[\\w.-]+$')
 
         """
+
         def google_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             return filename.startswith("./airflow/providers/google/")
 
@@ -524,64 +534,66 @@ class RefactorBackportPackages:
             """Check if select is exactly [airflow, . , models]"""
             return len(list(node.children[1].leaves())) == 3
 
-        os.makedirs(os.path.join(get_target_providers_package_folder("google"), "common", "utils"),
-                    exist_ok=True)
+        os.makedirs(
+            os.path.join(get_target_providers_package_folder("google"), "common", "utils"), exist_ok=True
+        )
         copyfile(
             os.path.join(get_source_airflow_folder(), "airflow", "utils", "__init__.py"),
-            os.path.join(get_target_providers_package_folder("google"), "common", "utils", "__init__.py")
+            os.path.join(get_target_providers_package_folder("google"), "common", "utils", "__init__.py"),
         )
         copyfile(
             os.path.join(get_source_airflow_folder(), "airflow", "utils", "python_virtualenv.py"),
-            os.path.join(get_target_providers_package_folder("google"), "common", "utils",
-                         "python_virtualenv.py")
+            os.path.join(
+                get_target_providers_package_folder("google"), "common", "utils", "python_virtualenv.py"
+            ),
         )
 
-        copy_helper_py_file(os.path.join(
-            get_target_providers_package_folder("google"), "common", "utils", "helpers.py"))
+        copy_helper_py_file(
+            os.path.join(get_target_providers_package_folder("google"), "common", "utils", "helpers.py")
+        )
 
         copyfile(
             os.path.join(get_source_airflow_folder(), "airflow", "utils", "module_loading.py"),
-            os.path.join(get_target_providers_package_folder("google"), "common", "utils",
-                         "module_loading.py")
+            os.path.join(
+                get_target_providers_package_folder("google"), "common", "utils", "module_loading.py"
+            ),
         )
         (
-            self.qry.
-            select_module("airflow.utils.python_virtualenv").
-            filter(callback=google_package_filter).
-            rename("airflow.providers.google.common.utils.python_virtualenv")
+            self.qry.select_module("airflow.utils.python_virtualenv")
+            .filter(callback=google_package_filter)
+            .rename("airflow.providers.google.common.utils.python_virtualenv")
         )
         copyfile(
             os.path.join(get_source_airflow_folder(), "airflow", "utils", "process_utils.py"),
-            os.path.join(get_target_providers_package_folder("google"), "common", "utils", "process_utils.py")
+            os.path.join(
+                get_target_providers_package_folder("google"), "common", "utils", "process_utils.py"
+            ),
         )
         (
-            self.qry.
-            select_module("airflow.utils.process_utils").
-            filter(callback=google_package_filter).
-            rename("airflow.providers.google.common.utils.process_utils")
-        )
-
-        (
-            self.qry.
-            select_module("airflow.utils.helpers").
-            filter(callback=google_package_filter).
-            rename("airflow.providers.google.common.utils.helpers")
+            self.qry.select_module("airflow.utils.process_utils")
+            .filter(callback=google_package_filter)
+            .rename("airflow.providers.google.common.utils.process_utils")
         )
 
         (
-            self.qry.
-            select_module("airflow.utils.module_loading").
-            filter(callback=google_package_filter).
-            rename("airflow.providers.google.common.utils.module_loading")
+            self.qry.select_module("airflow.utils.helpers")
+            .filter(callback=google_package_filter)
+            .rename("airflow.providers.google.common.utils.helpers")
+        )
+
+        (
+            self.qry.select_module("airflow.utils.module_loading")
+            .filter(callback=google_package_filter)
+            .rename("airflow.providers.google.common.utils.module_loading")
         )
 
         (
             # Fix BaseOperatorLinks imports
-            self.qry.select_module("airflow.models").
-            is_filename(include=r"bigquery\.py|mlengine\.py").
-            filter(callback=google_package_filter).
-            filter(pure_airflow_models_filter).
-            rename("airflow.models.baseoperator")
+            self.qry.select_module("airflow.models")
+            .is_filename(include=r"bigquery\.py|mlengine\.py")
+            .filter(callback=google_package_filter)
+            .filter(pure_airflow_models_filter)
+            .rename("airflow.models.baseoperator")
         )
 
     def refactor_odbc_package(self):
@@ -608,22 +620,21 @@ class RefactorBackportPackages:
 
 
         """
+
         def odbc_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             return filename.startswith("./airflow/providers/odbc/")
 
         os.makedirs(os.path.join(get_target_providers_folder(), "odbc", "utils"), exist_ok=True)
         copyfile(
             os.path.join(get_source_airflow_folder(), "airflow", "utils", "__init__.py"),
-            os.path.join(get_target_providers_package_folder("odbc"), "utils", "__init__.py")
+            os.path.join(get_target_providers_package_folder("odbc"), "utils", "__init__.py"),
         )
-        copy_helper_py_file(os.path.join(
-            get_target_providers_package_folder("odbc"), "utils", "helpers.py"))
+        copy_helper_py_file(os.path.join(get_target_providers_package_folder("odbc"), "utils", "helpers.py"))
 
         (
-            self.qry.
-            select_module("airflow.utils.helpers").
-            filter(callback=odbc_package_filter).
-            rename("airflow.providers.odbc.utils.helpers")
+            self.qry.select_module("airflow.utils.helpers")
+            .filter(callback=odbc_package_filter)
+            .rename("airflow.providers.odbc.utils.helpers")
         )
 
     def refactor_kubernetes_pod_operator(self):
@@ -631,11 +642,10 @@ class RefactorBackportPackages:
             return filename.startswith("./airflow/providers/cncf/kubernetes")
 
         (
-            self.qry.
-            select_class("KubernetesPodOperator").
-            select_method("add_xcom_sidecar").
-            filter(callback=kubernetes_package_filter).
-            rename("add_sidecar")
+            self.qry.select_class("KubernetesPodOperator")
+            .select_method("add_xcom_sidecar")
+            .filter(callback=kubernetes_package_filter)
+            .rename("add_sidecar")
         )
 
     def do_refactor(self, in_process: bool = False) -> None:  # noqa
@@ -653,7 +663,7 @@ class RefactorBackportPackages:
 
 
 if __name__ == '__main__':
-    BACKPORT_PACKAGES = (os.getenv('BACKPORT_PACKAGES') == "true")
+    BACKPORT_PACKAGES = os.getenv('BACKPORT_PACKAGES') == "true"
     in_process = False
     if len(sys.argv) > 1:
         if sys.argv[1] in ['--help', '-h']:

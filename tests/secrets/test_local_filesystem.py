@@ -107,10 +107,13 @@ class TestLoadVariables(unittest.TestCase):
     @parameterized.expand(
         (
             ("KEY: AAA", {"KEY": "AAA"}),
-            ("""
+            (
+                """
             KEY_A: AAA
             KEY_B: BBB
-            """, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            """,
+                {"KEY_A": "AAA", "KEY_B": "BBB"},
+            ),
         )
     )
     def test_yaml_file_should_load_variables(self, file_content, expected_variables):
@@ -141,8 +144,7 @@ class TestLoadConnection(unittest.TestCase):
         with mock_local_file(file_content):
             connection_by_conn_id = local_filesystem.load_connections_dict("a.env")
             connection_uris_by_conn_id = {
-                conn_id: connection.get_uri()
-                for conn_id, connection in connection_by_conn_id.items()
+                conn_id: connection.get_uri() for conn_id, connection in connection_by_conn_id.items()
             }
 
             self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
@@ -170,8 +172,7 @@ class TestLoadConnection(unittest.TestCase):
         with mock_local_file(json.dumps(file_content)):
             connections_by_conn_id = local_filesystem.load_connections_dict("a.json")
             connection_uris_by_conn_id = {
-                conn_id: connection.get_uri()
-                for conn_id, connection in connections_by_conn_id.items()
+                conn_id: connection.get_uri() for conn_id, connection in connections_by_conn_id.items()
             }
 
             self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
@@ -203,7 +204,8 @@ class TestLoadConnection(unittest.TestCase):
     @parameterized.expand(
         (
             ("""CONN_A: 'mysql://host_a'""", {"CONN_A": "mysql://host_a"}),
-            ("""
+            (
+                """
             conn_a: mysql://hosta
             conn_b:
                conn_type: scheme
@@ -216,18 +218,22 @@ class TestLoadConnection(unittest.TestCase):
                  extra__google_cloud_platform__keyfile_dict:
                    a: b
                  extra__google_cloud_platform__keyfile_path: asaa""",
-                {"conn_a": "mysql://hosta",
-                    "conn_b": ''.join("""scheme://Login:None@host:1234/lschema?
+                {
+                    "conn_a": "mysql://hosta",
+                    "conn_b": ''.join(
+                        """scheme://Login:None@host:1234/lschema?
                         extra__google_cloud_platform__keyfile_dict=%7B%27a%27%3A+%27b%27%7D
-                        &extra__google_cloud_platform__keyfile_path=asaa""".split())}),
+                        &extra__google_cloud_platform__keyfile_path=asaa""".split()
+                    ),
+                },
+            ),
         )
     )
     def test_yaml_file_should_load_connection(self, file_content, expected_connection_uris):
         with mock_local_file(file_content):
             connections_by_conn_id = local_filesystem.load_connections_dict("a.yaml")
             connection_uris_by_conn_id = {
-                conn_id: connection.get_uri()
-                for conn_id, connection in connections_by_conn_id.items()
+                conn_id: connection.get_uri() for conn_id, connection in connections_by_conn_id.items()
             }
 
             self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
@@ -295,7 +301,8 @@ class TestLoadConnection(unittest.TestCase):
 
     @parameterized.expand(
         (
-            ("""conn_c:
+            (
+                """conn_c:
                conn_type: scheme
                host: host
                schema: lschema
@@ -307,7 +314,9 @@ class TestLoadConnection(unittest.TestCase):
                extra_dejson:
                  aws_conn_id: bbb
                  region_name: ccc
-                 """, "The extra and extra_dejson parameters are mutually exclusive."),
+                 """,
+                "The extra and extra_dejson parameters are mutually exclusive.",
+            ),
         )
     )
     def test_yaml_invalid_extra(self, file_content, expected_message):
@@ -316,9 +325,7 @@ class TestLoadConnection(unittest.TestCase):
                 local_filesystem.load_connections_dict("a.yaml")
 
     @parameterized.expand(
-        (
-            "CONN_ID=mysql://host_1/\nCONN_ID=mysql://host_2/",
-        ),
+        ("CONN_ID=mysql://host_1/\nCONN_ID=mysql://host_2/",),
     )
     def test_ensure_unique_connection_env(self, file_content):
         with mock_local_file(file_content):
@@ -327,12 +334,8 @@ class TestLoadConnection(unittest.TestCase):
 
     @parameterized.expand(
         (
-            (
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
-            ),
-            (
-                {"CONN_ID": [{"uri": "mysql://host_1"}, {"uri": "mysql://host_2"}]},
-            ),
+            ({"CONN_ID": ["mysql://host_1", "mysql://host_2"]},),
+            ({"CONN_ID": [{"uri": "mysql://host_1"}, {"uri": "mysql://host_2"}]},),
         )
     )
     def test_ensure_unique_connection_json(self, file_content):
@@ -342,10 +345,12 @@ class TestLoadConnection(unittest.TestCase):
 
     @parameterized.expand(
         (
-            ("""
+            (
+                """
             conn_a:
               - mysql://hosta
-              - mysql://hostb"""),
+              - mysql://hostb"""
+            ),
         ),
     )
     def test_ensure_unique_connection_yaml(self, file_content):

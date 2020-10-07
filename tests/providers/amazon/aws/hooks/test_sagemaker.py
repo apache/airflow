@@ -20,8 +20,8 @@
 import time
 import unittest
 from datetime import datetime
-
 from unittest import mock
+
 from tzlocal import get_localzone
 
 from airflow.exceptions import AirflowException

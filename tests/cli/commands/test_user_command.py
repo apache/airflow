@@ -47,6 +47,7 @@ class TestCliUsers(unittest.TestCase):
 
     def setUp(self):
         from airflow.www import app as application
+
         self.app = application.create_app(testing=True)
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
         self.clear_roles_and_roles()
@@ -64,41 +65,94 @@ class TestCliUsers(unittest.TestCase):
                 self.appbuilder.sm.delete_role(role_name)
 
     def test_cli_create_user_random_password(self):
-        args = self.parser.parse_args([
-            'users', 'create', '--username', 'test1', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', 'jdoe@foo.com', '--role', 'Viewer', '--use-random-password'
-        ])
+        args = self.parser.parse_args(
+            [
+                'users',
+                'create',
+                '--username',
+                'test1',
+                '--lastname',
+                'doe',
+                '--firstname',
+                'jon',
+                '--email',
+                'jdoe@foo.com',
+                '--role',
+                'Viewer',
+                '--use-random-password',
+            ]
+        )
         user_command.users_create(args)
 
     def test_cli_create_user_supplied_password(self):
-        args = self.parser.parse_args([
-            'users', 'create', '--username', 'test2', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', 'jdoe@apache.org', '--role', 'Viewer', '--password', 'test'
-        ])
+        args = self.parser.parse_args(
+            [
+                'users',
+                'create',
+                '--username',
+                'test2',
+                '--lastname',
+                'doe',
+                '--firstname',
+                'jon',
+                '--email',
+                'jdoe@apache.org',
+                '--role',
+                'Viewer',
+                '--password',
+                'test',
+            ]
+        )
         user_command.users_create(args)
 
     def test_cli_delete_user(self):
-        args = self.parser.parse_args([
-            'users', 'create', '--username', 'test3', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', 'jdoe@example.com', '--role', 'Viewer', '--use-random-password'
-        ])
+        args = self.parser.parse_args(
+            [
+                'users',
+                'create',
+                '--username',
+                'test3',
+                '--lastname',
+                'doe',
+                '--firstname',
+                'jon',
+                '--email',
+                'jdoe@example.com',
+                '--role',
+                'Viewer',
+                '--use-random-password',
+            ]
+        )
         user_command.users_create(args)
-        args = self.parser.parse_args([
-            'users', 'delete', '--username', 'test3',
-        ])
+        args = self.parser.parse_args(
+            [
+                'users',
+                'delete',
+                '--username',
+                'test3',
+            ]
+        )
         user_command.users_delete(args)
 
     def test_cli_list_users(self):
         for i in range(0, 3):
-            args = self.parser.parse_args([
-                'users', 'create', '--username', f'user{i}', '--lastname',
-                'doe', '--firstname', 'jon',
-                '--email', f'jdoe+{i}@gmail.com', '--role', 'Viewer',
-                '--use-random-password'
-            ])
+            args = self.parser.parse_args(
+                [
+                    'users',
+                    'create',
+                    '--username',
+                    f'user{i}',
+                    '--lastname',
+                    'doe',
+                    '--firstname',
+                    'jon',
+                    '--email',
+                    f'jdoe+{i}@gmail.com',
+                    '--role',
+                    'Viewer',
+                    '--use-random-password',
+                ]
+            )
             user_command.users_create(args)
         with redirect_stdout(io.StringIO()) as stdout:
             user_command.users_list(self.parser.parse_args(['users', 'list']))
@@ -122,15 +176,19 @@ class TestCliUsers(unittest.TestCase):
         assert_user_not_in_roles(TEST_USER2_EMAIL, ['Public'])
         users = [
             {
-                "username": "imported_user1", "lastname": "doe1",
-                "firstname": "jon", "email": TEST_USER1_EMAIL,
-                "roles": ["Admin", "Op"]
+                "username": "imported_user1",
+                "lastname": "doe1",
+                "firstname": "jon",
+                "email": TEST_USER1_EMAIL,
+                "roles": ["Admin", "Op"],
             },
             {
-                "username": "imported_user2", "lastname": "doe2",
-                "firstname": "jon", "email": TEST_USER2_EMAIL,
-                "roles": ["Public"]
-            }
+                "username": "imported_user2",
+                "lastname": "doe2",
+                "firstname": "jon",
+                "email": TEST_USER2_EMAIL,
+                "roles": ["Public"],
+            },
         ]
         self._import_users_from_file(users)
 
@@ -139,15 +197,19 @@ class TestCliUsers(unittest.TestCase):
 
         users = [
             {
-                "username": "imported_user1", "lastname": "doe1",
-                "firstname": "jon", "email": TEST_USER1_EMAIL,
-                "roles": ["Public"]
+                "username": "imported_user1",
+                "lastname": "doe1",
+                "firstname": "jon",
+                "email": TEST_USER1_EMAIL,
+                "roles": ["Public"],
             },
             {
-                "username": "imported_user2", "lastname": "doe2",
-                "firstname": "jon", "email": TEST_USER2_EMAIL,
-                "roles": ["Admin"]
-            }
+                "username": "imported_user2",
+                "lastname": "doe2",
+                "firstname": "jon",
+                "email": TEST_USER2_EMAIL,
+                "roles": ["Admin"],
+            },
         ]
         self._import_users_from_file(users)
 
@@ -157,12 +219,20 @@ class TestCliUsers(unittest.TestCase):
         assert_user_in_roles(TEST_USER2_EMAIL, ['Admin'])
 
     def test_cli_export_users(self):
-        user1 = {"username": "imported_user1", "lastname": "doe1",
-                 "firstname": "jon", "email": TEST_USER1_EMAIL,
-                 "roles": ["Public"]}
-        user2 = {"username": "imported_user2", "lastname": "doe2",
-                 "firstname": "jon", "email": TEST_USER2_EMAIL,
-                 "roles": ["Admin"]}
+        user1 = {
+            "username": "imported_user1",
+            "lastname": "doe1",
+            "firstname": "jon",
+            "email": TEST_USER1_EMAIL,
+            "roles": ["Public"],
+        }
+        user2 = {
+            "username": "imported_user2",
+            "lastname": "doe2",
+            "firstname": "jon",
+            "email": TEST_USER2_EMAIL,
+            "roles": ["Admin"],
+        }
         self._import_users_from_file([user1, user2])
 
         users_filename = self._export_users_to_file()
@@ -190,63 +260,79 @@ class TestCliUsers(unittest.TestCase):
             f.write(json_file_content.encode())
             f.flush()
 
-            args = self.parser.parse_args([
-                'users', 'import', f.name
-            ])
+            args = self.parser.parse_args(['users', 'import', f.name])
             user_command.users_import(args)
         finally:
             os.remove(f.name)
 
     def _export_users_to_file(self):
         f = tempfile.NamedTemporaryFile(delete=False)
-        args = self.parser.parse_args([
-            'users', 'export', f.name
-        ])
+        args = self.parser.parse_args(['users', 'export', f.name])
         user_command.users_export(args)
         return f.name
 
     def test_cli_add_user_role(self):
-        args = self.parser.parse_args([
-            'users', 'create', '--username', 'test4', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', TEST_USER1_EMAIL, '--role', 'Viewer', '--use-random-password'
-        ])
+        args = self.parser.parse_args(
+            [
+                'users',
+                'create',
+                '--username',
+                'test4',
+                '--lastname',
+                'doe',
+                '--firstname',
+                'jon',
+                '--email',
+                TEST_USER1_EMAIL,
+                '--role',
+                'Viewer',
+                '--use-random-password',
+            ]
+        )
         user_command.users_create(args)
 
         self.assertFalse(
             _does_user_belong_to_role(appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Op'),
-            "User should not yet be a member of role 'Op'"
+            "User should not yet be a member of role 'Op'",
         )
 
-        args = self.parser.parse_args([
-            'users', 'add-role', '--username', 'test4', '--role', 'Op'
-        ])
+        args = self.parser.parse_args(['users', 'add-role', '--username', 'test4', '--role', 'Op'])
         user_command.users_manage_role(args, remove=False)
 
         self.assertTrue(
             _does_user_belong_to_role(appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Op'),
-            "User should have been added to role 'Op'"
+            "User should have been added to role 'Op'",
         )
 
     def test_cli_remove_user_role(self):
-        args = self.parser.parse_args([
-            'users', 'create', '--username', 'test4', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', TEST_USER1_EMAIL, '--role', 'Viewer', '--use-random-password'
-        ])
+        args = self.parser.parse_args(
+            [
+                'users',
+                'create',
+                '--username',
+                'test4',
+                '--lastname',
+                'doe',
+                '--firstname',
+                'jon',
+                '--email',
+                TEST_USER1_EMAIL,
+                '--role',
+                'Viewer',
+                '--use-random-password',
+            ]
+        )
         user_command.users_create(args)
 
         self.assertTrue(
             _does_user_belong_to_role(appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Viewer'),
-            "User should have been created with role 'Viewer'"
+            "User should have been created with role 'Viewer'",
         )
 
-        args = self.parser.parse_args([
-            'users', 'remove-role', '--username', 'test4', '--role', 'Viewer'
-        ])
+        args = self.parser.parse_args(['users', 'remove-role', '--username', 'test4', '--role', 'Viewer'])
         user_command.users_manage_role(args, remove=True)
 
         self.assertFalse(
             _does_user_belong_to_role(appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Viewer'),
-            "User should have been removed from role 'Viewer'"
+            "User should have been removed from role 'Viewer'",
         )

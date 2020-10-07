@@ -15,10 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Union, Optional, List
+from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
-
 from airflow.providers.dingding.hooks.dingding import DingdingHook
 from airflow.utils.decorators import apply_defaults
 

@@ -63,6 +63,7 @@ def action_logging(f: T) -> T:
     :param f: function instance
     :return: wrapped function
     """
+
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         """
@@ -76,8 +77,9 @@ def action_logging(f: T) -> T:
         if not args:
             raise ValueError("Args should be set")
         if not isinstance(args[0], Namespace):
-            raise ValueError("1st positional argument should be argparse.Namespace instance,"
-                             f"but is {type(args[0])}")
+            raise ValueError(
+                "1st positional argument should be argparse.Namespace instance," f"but is {type(args[0])}"
+            )
         metrics = _build_metrics(f.__name__, args[0])
         cli_action_loggers.on_pre_execution(**metrics)
         try:
@@ -115,12 +117,17 @@ def _build_metrics(func_name, namespace):
                 if command.startswith(f'{sensitive_field}='):
                     full_command[idx] = f'{sensitive_field}={"*" * 8}'
 
-    metrics = {'sub_command': func_name, 'start_datetime': datetime.utcnow(),
-               'full_command': f'{full_command}', 'user': getpass.getuser()}
+    metrics = {
+        'sub_command': func_name,
+        'start_datetime': datetime.utcnow(),
+        'full_command': f'{full_command}',
+        'user': getpass.getuser(),
+    }
 
     if not isinstance(namespace, Namespace):
-        raise ValueError("namespace argument should be argparse.Namespace instance,"
-                         f"but is {type(namespace)}")
+        raise ValueError(
+            "namespace argument should be argparse.Namespace instance," f"but is {type(namespace)}"
+        )
     tmp_dic = vars(namespace)
     metrics['dag_id'] = tmp_dic.get('dag_id')
     metrics['task_id'] = tmp_dic.get('task_id')
@@ -135,7 +142,8 @@ def _build_metrics(func_name, namespace):
         extra=extra,
         task_id=metrics.get('task_id'),
         dag_id=metrics.get('dag_id'),
-        execution_date=metrics.get('execution_date'))
+        execution_date=metrics.get('execution_date'),
+    )
     metrics['log'] = log
     return metrics
 
@@ -157,7 +165,8 @@ def get_dag_by_file_location(dag_id: str):
     if dag_model is None:
         raise AirflowException(
             'dag_id could not be found: {}. Either the dag did not exist or it failed to '
-            'parse.'.format(dag_id))
+            'parse.'.format(dag_id)
+        )
     dagbag = DagBag(dag_folder=dag_model.fileloc)
     return dagbag.dags[dag_id]
 
@@ -168,7 +177,8 @@ def get_dag(subdir: Optional[str], dag_id: str) -> DAG:
     if dag_id not in dagbag.dags:
         raise AirflowException(
             'dag_id could not be found: {}. Either the dag did not exist or it failed to '
-            'parse.'.format(dag_id))
+            'parse.'.format(dag_id)
+        )
     return dagbag.dags[dag_id]
 
 
@@ -181,7 +191,8 @@ def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
     if not matched_dags:
         raise AirflowException(
             'dag_id could not be found with regex: {}. Either the dag did not exist '
-            'or it failed to parse.'.format(dag_id))
+            'or it failed to parse.'.format(dag_id)
+        )
     return matched_dags
 
 
@@ -238,11 +249,9 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
     id_to_name = {th.ident: th.name for th in threading.enumerate()}
     code = []
     for thread_id, stack in sys._current_frames().items():  # pylint: disable=protected-access
-        code.append("\n# Thread: {}({})"
-                    .format(id_to_name.get(thread_id, ""), thread_id))
+        code.append("\n# Thread: {}({})".format(id_to_name.get(thread_id, ""), thread_id))
         for filename, line_number, name, line in traceback.extract_stack(stack):
-            code.append('File: "{}", line {}, in {}'
-                        .format(filename, line_number, name))
+            code.append(f'File: "{filename}", line {line_number}, in {name}')
             if line:
                 code.append(f"  {line.strip()}")
     print("\n".join(code))

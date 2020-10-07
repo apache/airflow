@@ -67,8 +67,10 @@ def get_provider_from_file_name(file_name: str) -> Optional[str]:
     :param file_name: name of the file
     :return: provider name or None if no provider could be found
     """
-    if AIRFLOW_PROVIDERS_FILE_PREFIX not in file_name and \
-            AIRFLOW_TESTS_PROVIDERS_FILE_PREFIX not in file_name:
+    if (
+        AIRFLOW_PROVIDERS_FILE_PREFIX not in file_name
+        and AIRFLOW_TESTS_PROVIDERS_FILE_PREFIX not in file_name
+    ):
         # We should only check file that are provider
         errors.append(f"Wrong file not in the providers package = {file_name}")
         return None
@@ -84,9 +86,9 @@ def get_provider_from_file_name(file_name: str) -> Optional[str]:
 
 def get_file_suffix(file_name):
     if AIRFLOW_PROVIDERS_FILE_PREFIX in file_name:
-        return file_name[file_name.find(AIRFLOW_PROVIDERS_FILE_PREFIX):]
+        return file_name[file_name.find(AIRFLOW_PROVIDERS_FILE_PREFIX) :]
     if AIRFLOW_TESTS_PROVIDERS_FILE_PREFIX in file_name:
-        return file_name[file_name.find(AIRFLOW_TESTS_PROVIDERS_FILE_PREFIX):]
+        return file_name[file_name.find(AIRFLOW_TESTS_PROVIDERS_FILE_PREFIX) :]
     return None
 
 
@@ -99,7 +101,7 @@ def get_provider_from_import(import_name: str) -> Optional[str]:
     if AIRFLOW_PROVIDERS_IMPORT_PREFIX not in import_name:
         # skip silently - we expect non-providers imports
         return None
-    suffix = import_name[import_name.find(AIRFLOW_PROVIDERS_IMPORT_PREFIX):]
+    suffix = import_name[import_name.find(AIRFLOW_PROVIDERS_IMPORT_PREFIX) :]
     split_import = suffix.split(".")[2:]
     provider = find_provider(split_import)
     if not provider:
@@ -111,6 +113,7 @@ class ImportFinder(NodeVisitor):
     """
     AST visitor that collects all imported names in its imports
     """
+
     def __init__(self, filename):
         self.imports: List[str] = []
         self.filename = filename
@@ -174,12 +177,16 @@ def check_if_different_provider_used(file_name: str):
 
 def parse_arguments():
     import argparse
+
     parser = argparse.ArgumentParser(
-        description='Checks if dependencies between packages are handled correctly.')
-    parser.add_argument("-f", "--provider-dependencies-file",
-                        help="Stores dependencies between providers in the file")
-    parser.add_argument("-d", "--documentation-file",
-                        help="Updates package documentation in the file specified (.rst)")
+        description='Checks if dependencies between packages are handled correctly.'
+    )
+    parser.add_argument(
+        "-f", "--provider-dependencies-file", help="Stores dependencies between providers in the file"
+    )
+    parser.add_argument(
+        "-d", "--documentation-file", help="Updates package documentation in the file specified (.rst)"
+    )
     parser.add_argument('files', nargs='*')
     args = parser.parse_args()
 

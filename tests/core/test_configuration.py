@@ -26,48 +26,49 @@ from unittest import mock
 
 from airflow import configuration
 from airflow.configuration import (
-    DEFAULT_CONFIG, AirflowConfigException, AirflowConfigParser, conf, expand_env_var, get_airflow_config,
-    get_airflow_home, parameterized_config, run_command,
+    DEFAULT_CONFIG,
+    AirflowConfigException,
+    AirflowConfigParser,
+    conf,
+    expand_env_var,
+    get_airflow_config,
+    get_airflow_home,
+    parameterized_config,
+    run_command,
 )
 from tests.test_utils.config import conf_vars
 from tests.test_utils.reset_warning_registry import reset_warning_registry
 
 
-@unittest.mock.patch.dict('os.environ', {
-    'AIRFLOW__TESTSECTION__TESTKEY': 'testvalue',
-    'AIRFLOW__TESTSECTION__TESTPERCENT': 'with%percent',
-    'AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD': 'echo -n "OK"',
-    'AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD': 'echo -n "NOT OK"'
-})
+@unittest.mock.patch.dict(
+    'os.environ',
+    {
+        'AIRFLOW__TESTSECTION__TESTKEY': 'testvalue',
+        'AIRFLOW__TESTSECTION__TESTPERCENT': 'with%percent',
+        'AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD': 'echo -n "OK"',
+        'AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD': 'echo -n "NOT OK"',
+    },
+)
 class TestConf(unittest.TestCase):
-
     def test_airflow_home_default(self):
         with unittest.mock.patch.dict('os.environ'):
             if 'AIRFLOW_HOME' in os.environ:
                 del os.environ['AIRFLOW_HOME']
-            self.assertEqual(
-                get_airflow_home(),
-                expand_env_var('~/airflow'))
+            self.assertEqual(get_airflow_home(), expand_env_var('~/airflow'))
 
     def test_airflow_home_override(self):
         with unittest.mock.patch.dict('os.environ', AIRFLOW_HOME='/path/to/airflow'):
-            self.assertEqual(
-                get_airflow_home(),
-                '/path/to/airflow')
+            self.assertEqual(get_airflow_home(), '/path/to/airflow')
 
     def test_airflow_config_default(self):
         with unittest.mock.patch.dict('os.environ'):
             if 'AIRFLOW_CONFIG' in os.environ:
                 del os.environ['AIRFLOW_CONFIG']
-            self.assertEqual(
-                get_airflow_config('/home/airflow'),
-                expand_env_var('/home/airflow/airflow.cfg'))
+            self.assertEqual(get_airflow_config('/home/airflow'), expand_env_var('/home/airflow/airflow.cfg'))
 
     def test_airflow_config_override(self):
         with unittest.mock.patch.dict('os.environ', AIRFLOW_CONFIG='/path/to/airflow/airflow.cfg'):
-            self.assertEqual(
-                get_airflow_config('/home//airflow'),
-                '/path/to/airflow/airflow.cfg')
+            self.assertEqual(get_airflow_config('/home//airflow'), '/path/to/airflow/airflow.cfg')
 
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_case_sensitivity(self):
@@ -87,15 +88,13 @@ class TestConf(unittest.TestCase):
         self.assertTrue(conf.has_option('testsection', 'testkey'))
 
         with unittest.mock.patch.dict(
-            'os.environ',
-            AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY='nested'
+            'os.environ', AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY='nested'
         ):
             opt = conf.get('kubernetes_environment_variables', 'AIRFLOW__TESTSECTION__TESTKEY')
             self.assertEqual(opt, 'nested')
 
     @mock.patch.dict(
-        'os.environ',
-        AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY='nested'
+        'os.environ', AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY='nested'
     )
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
@@ -109,18 +108,15 @@ class TestConf(unittest.TestCase):
         # test env vars
         self.assertEqual(cfg_dict['testsection']['testkey'], '< hidden >')
         self.assertEqual(
-            cfg_dict['kubernetes_environment_variables']['AIRFLOW__TESTSECTION__TESTKEY'],
-            '< hidden >')
+            cfg_dict['kubernetes_environment_variables']['AIRFLOW__TESTSECTION__TESTKEY'], '< hidden >'
+        )
 
     def test_conf_as_dict_source(self):
         # test display_source
         cfg_dict = conf.as_dict(display_source=True)
-        self.assertEqual(
-            cfg_dict['core']['load_examples'][1], 'airflow.cfg')
-        self.assertEqual(
-            cfg_dict['core']['load_default_connections'][1], 'airflow.cfg')
-        self.assertEqual(
-            cfg_dict['testsection']['testkey'], ('< hidden >', 'env var'))
+        self.assertEqual(cfg_dict['core']['load_examples'][1], 'airflow.cfg')
+        self.assertEqual(cfg_dict['core']['load_default_connections'][1], 'airflow.cfg')
+        self.assertEqual(cfg_dict['testsection']['testkey'], ('< hidden >', 'env var'))
 
     def test_conf_as_dict_sensitive(self):
         # test display_sensitive
@@ -130,8 +126,7 @@ class TestConf(unittest.TestCase):
 
         # test display_source and display_sensitive
         cfg_dict = conf.as_dict(display_sensitive=True, display_source=True)
-        self.assertEqual(
-            cfg_dict['testsection']['testkey'], ('testvalue', 'env var'))
+        self.assertEqual(cfg_dict['testsection']['testkey'], ('testvalue', 'env var'))
 
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict_raw(self):
@@ -166,8 +161,7 @@ key2 = airflow
 key6 = value6
 '''
 
-        test_conf = AirflowConfigParser(
-            default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ('test', 'key2'),
@@ -204,10 +198,12 @@ key6 = value6
         self.assertEqual('printf key4_result', cfg_dict['test']['key4_cmd'])
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    @conf_vars({
-        ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
-        ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
-    })
+    @conf_vars(
+        {
+            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+        }
+    )
     def test_config_from_secret_backend(self, mock_hvac):
         """Get Config Value from a Secret Backend"""
         mock_client = mock.MagicMock()
@@ -217,14 +213,18 @@ key6 = value6
             'lease_id': '',
             'renewable': False,
             'lease_duration': 0,
-            'data': {'data': {'value': 'sqlite:////Users/airflow/airflow/airflow.db'},
-                     'metadata': {'created_time': '2020-03-28T02:10:54.301784Z',
-                                  'deletion_time': '',
-                                  'destroyed': False,
-                                  'version': 1}},
+            'data': {
+                'data': {'value': 'sqlite:////Users/airflow/airflow/airflow.db'},
+                'metadata': {
+                    'created_time': '2020-03-28T02:10:54.301784Z',
+                    'deletion_time': '',
+                    'destroyed': False,
+                    'version': 1,
+                },
+            },
             'wrap_info': None,
             'warnings': None,
-            'auth': None
+            'auth': None,
         }
 
         test_config = '''[test]
@@ -241,7 +241,8 @@ sql_alchemy_conn = airflow
         }
 
         self.assertEqual(
-            'sqlite:////Users/airflow/airflow/airflow.db', test_conf.get('test', 'sql_alchemy_conn'))
+            'sqlite:////Users/airflow/airflow/airflow.db', test_conf.get('test', 'sql_alchemy_conn')
+        )
 
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""
@@ -268,7 +269,7 @@ key8 = true #123
             re.escape(
                 'Failed to convert value to bool. Please check "key1" key in "type_validation" section. '
                 'Current value: "non_bool_value".'
-            )
+            ),
         ):
             test_conf.getboolean('type_validation', 'key1')
         self.assertTrue(isinstance(test_conf.getboolean('true', 'key3'), bool))
@@ -295,7 +296,7 @@ key2 = 1
             re.escape(
                 'Failed to convert value to int. Please check "key1" key in "invalid" section. '
                 'Current value: "str".'
-            )
+            ),
         ):
             test_conf.getint('invalid', 'key1')
         self.assertTrue(isinstance(test_conf.getint('valid', 'key2'), int))
@@ -316,7 +317,7 @@ key2 = 1.23
             re.escape(
                 'Failed to convert value to float. Please check "key1" key in "invalid" section. '
                 'Current value: "str".'
-            )
+            ),
         ):
             test_conf.getfloat('invalid', 'key1')
         self.assertTrue(isinstance(test_conf.getfloat('valid', 'key2'), float))
@@ -342,8 +343,7 @@ key1 = awesome
 key2 = airflow
 '''
 
-        test_conf = AirflowConfigParser(
-            default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
 
         self.assertEqual('hello', test_conf.get('test', 'key1'))
@@ -366,20 +366,13 @@ key2 = airflow
 [testsection]
 key3 = value3
 '''
-        test_conf = AirflowConfigParser(
-            default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
 
+        self.assertEqual(OrderedDict([('key1', 'hello'), ('key2', 'airflow')]), test_conf.getsection('test'))
         self.assertEqual(
-            OrderedDict([('key1', 'hello'), ('key2', 'airflow')]),
-            test_conf.getsection('test')
-        )
-        self.assertEqual(
-            OrderedDict([
-                ('key3', 'value3'),
-                ('testkey', 'testvalue'),
-                ('testpercent', 'with%percent')]),
-            test_conf.getsection('testsection')
+            OrderedDict([('key3', 'value3'), ('testkey', 'testvalue'), ('testpercent', 'with%percent')]),
+            test_conf.getsection('testsection'),
         )
 
     def test_get_section_should_respect_cmd_env_variable(self):
@@ -390,9 +383,7 @@ key3 = value3
             os.chmod(cmd_file.name, 0o0555)
             cmd_file.close()
 
-            with mock.patch.dict(
-                "os.environ", {"AIRFLOW__KUBERNETES__GIT_PASSWORD_CMD": cmd_file.name}
-            ):
+            with mock.patch.dict("os.environ", {"AIRFLOW__KUBERNETES__GIT_PASSWORD_CMD": cmd_file.name}):
                 content = conf.getsection("kubernetes")
             os.unlink(cmd_file.name)
         self.assertEqual(content["git_password"], "difficult_unpredictable_cat_password")
@@ -406,13 +397,12 @@ AIRFLOW_HOME = /root/airflow
         test_config_default = '''
 [kubernetes_environment_variables]
 '''
-        test_conf = AirflowConfigParser(
-            default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
 
         self.assertEqual(
             OrderedDict([('key1', 'hello'), ('AIRFLOW_HOME', '/root/airflow')]),
-            test_conf.getsection('kubernetes_environment_variables')
+            test_conf.getsection('kubernetes_environment_variables'),
         )
 
     def test_broker_transport_options(self):
@@ -422,10 +412,12 @@ AIRFLOW_HOME = /root/airflow
         self.assertTrue(isinstance(section_dict['_test_only_float'], float))
         self.assertTrue(isinstance(section_dict['_test_only_string'], str))
 
-    @conf_vars({
-        ("celery", "worker_concurrency"): None,
-        ("celery", "celeryd_concurrency"): None,
-    })
+    @conf_vars(
+        {
+            ("celery", "worker_concurrency"): None,
+            ("celery", "celeryd_concurrency"): None,
+        }
+    )
     def test_deprecated_options(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
@@ -443,10 +435,12 @@ AIRFLOW_HOME = /root/airflow
         with self.assertWarns(DeprecationWarning), conf_vars({('celery', 'celeryd_concurrency'): '99'}):
             self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
 
-    @conf_vars({
-        ('logging', 'logging_level'): None,
-        ('core', 'logging_level'): None,
-    })
+    @conf_vars(
+        {
+            ('logging', 'logging_level'): None,
+            ('core', 'logging_level'): None,
+        }
+    )
     def test_deprecated_options_with_new_section(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
@@ -465,11 +459,13 @@ AIRFLOW_HOME = /root/airflow
         with self.assertWarns(DeprecationWarning), conf_vars({('core', 'logging_level'): 'VALUE'}):
             self.assertEqual(conf.get('logging', 'logging_level'), "VALUE")
 
-    @conf_vars({
-        ("celery", "result_backend"): None,
-        ("celery", "celery_result_backend"): None,
-        ("celery", "celery_result_backend_cmd"): None,
-    })
+    @conf_vars(
+        {
+            ("celery", "result_backend"): None,
+            ("celery", "celery_result_backend"): None,
+            ("celery", "celery_result_backend_cmd"): None,
+        }
+    )
     def test_deprecated_options_cmd(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
@@ -497,14 +493,16 @@ AIRFLOW_HOME = /root/airflow
                     'hostname_callable': (re.compile(r':'), r'.', '2.0'),
                 },
             }
-            test_conf.read_dict({
-                'core': {
-                    'executor': 'SequentialExecutor',
-                    'task_runner': 'BashTaskRunner',
-                    'sql_alchemy_conn': 'sqlite://',
-                    'hostname_callable': 'socket:getfqdn',
-                },
-            })
+            test_conf.read_dict(
+                {
+                    'core': {
+                        'executor': 'SequentialExecutor',
+                        'task_runner': 'BashTaskRunner',
+                        'sql_alchemy_conn': 'sqlite://',
+                        'hostname_callable': 'socket:getfqdn',
+                    },
+                }
+            )
             return test_conf
 
         with self.assertWarns(FutureWarning):
@@ -526,9 +524,11 @@ AIRFLOW_HOME = /root/airflow
 
         with reset_warning_registry():
             with warnings.catch_warnings(record=True) as warning:
-                with unittest.mock.patch.dict('os.environ',
-                                              AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner',
-                                              AIRFLOW__CORE__HOSTNAME_CALLABLE='CarrierPigeon'):
+                with unittest.mock.patch.dict(
+                    'os.environ',
+                    AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner',
+                    AIRFLOW__CORE__HOSTNAME_CALLABLE='CarrierPigeon',
+                ):
                     test_conf = make_config()
 
                     self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
@@ -537,8 +537,17 @@ AIRFLOW_HOME = /root/airflow
                     self.assertListEqual([], warning)
 
     def test_deprecated_funcs(self):
-        for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
-                     'remove_option', 'as_dict', 'set']:
+        for func in [
+            'load_test_config',
+            'get',
+            'getboolean',
+            'getfloat',
+            'getint',
+            'has_option',
+            'remove_option',
+            'as_dict',
+            'set',
+        ]:
             with mock.patch(f'airflow.configuration.conf.{func}') as mock_method:
                 with self.assertWarns(DeprecationWarning):
                     getattr(configuration, func)()
@@ -583,10 +592,7 @@ notacommand = OK
         fernet_key = conf.get('core', 'FERNET_KEY')
 
         with conf_vars({('core', 'FERNET_KEY_CMD'): 'printf HELLO'}):
-            fallback_fernet_key = conf.get(
-                "core",
-                "FERNET_KEY"
-            )
+            fallback_fernet_key = conf.get("core", "FERNET_KEY")
 
         self.assertEqual(fernet_key, fallback_fernet_key)
 
@@ -648,10 +654,7 @@ notacommand = OK
         self.assertTrue(store_serialized_dags)
         self.assertTrue(store_dag_code)
 
-    @conf_vars({
-        ("core", "store_serialized_dags"): "True",
-        ("core", "store_dag_code"): "False"
-    })
+    @conf_vars({("core", "store_serialized_dags"): "True", ("core", "store_dag_code"): "False"})
     def test_store_dag_code_config_when_set(self):
         store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
         store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)

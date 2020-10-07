@@ -22,7 +22,7 @@ import logging
 import os
 import pathlib
 import time
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 from qds_sdk.commands import (
     Command,
@@ -31,12 +31,12 @@ from qds_sdk.commands import (
     DbTapQueryCommand,
     HadoopCommand,
     HiveCommand,
+    JupyterNotebookCommand,
     PigCommand,
     PrestoCommand,
     ShellCommand,
     SparkCommand,
     SqlCommand,
-    JupyterNotebookCommand,
 )
 from qds_sdk.qubole import Qubole
 

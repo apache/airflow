@@ -141,6 +141,7 @@ class DagShape(Enum):
     """
     Define shape of the Dag that will be used for testing.
     """
+
     NO_STRUCTURE = "no_structure"
     LINEAR = "linear"
     BINARY_TREE = "binary_tree"
@@ -168,25 +169,25 @@ if "PERF_MAX_RUNS" in os.environ:
 
 for dag_no in range(1, DAG_COUNT + 1):
     dag = DAG(
-        dag_id=safe_dag_id("__".join(
-            [
-                DAG_PREFIX,
-                f"SHAPE={SHAPE.name.lower()}",
-                f"DAGS_COUNT={dag_no}_of_{DAG_COUNT}",
-                f"TASKS_COUNT=${TASKS_COUNT}",
-                f"START_DATE=${START_DATE_ENV}",
-                f"SCHEDULE_INTERVAL=${SCHEDULE_INTERVAL_ENV}",
-            ]
-        )),
+        dag_id=safe_dag_id(
+            "__".join(
+                [
+                    DAG_PREFIX,
+                    f"SHAPE={SHAPE.name.lower()}",
+                    f"DAGS_COUNT={dag_no}_of_{DAG_COUNT}",
+                    f"TASKS_COUNT=${TASKS_COUNT}",
+                    f"START_DATE=${START_DATE_ENV}",
+                    f"SCHEDULE_INTERVAL=${SCHEDULE_INTERVAL_ENV}",
+                ]
+            )
+        ),
         is_paused_upon_creation=False,
         default_args=args,
         schedule_interval=SCHEDULE_INTERVAL,
     )
 
     elastic_dag_tasks = [
-        BashOperator(
-            task_id="__".join(["tasks", f"{i}_of_{TASKS_COUNT}"]), bash_command='echo test', dag=dag
-        )
+        BashOperator(task_id="__".join(["tasks", f"{i}_of_{TASKS_COUNT}"]), bash_command='echo test', dag=dag)
         for i in range(1, TASKS_COUNT + 1)
     ]
 

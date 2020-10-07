@@ -22,7 +22,7 @@ import tempfile
 import time
 import warnings
 from functools import partial
-from typing import Dict, List, Optional, Set, Any, Callable, Generator
+from typing import Any, Callable, Dict, Generator, List, Optional, Set
 
 from botocore.exceptions import ClientError
 

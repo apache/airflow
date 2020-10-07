@@ -17,7 +17,7 @@
 # under the License.
 
 from contextlib import closing
-from typing import Union, Optional, List, Tuple, Any
+from typing import Any, List, Optional, Tuple, Union
 
 import pyexasol
 from pyexasol import ExaConnection

@@ -71,13 +71,14 @@ class SQLCheckOperator(BaseOperator):
     """
 
     template_fields: Iterable[str] = ("sql",)
-    template_ext: Iterable[str] = (".hql", ".sql",)
+    template_ext: Iterable[str] = (
+        ".hql",
+        ".sql",
+    )
     ui_color = "#fff7e6"
 
     @apply_defaults
-    def __init__(
-        self, *, sql: str, conn_id: Optional[str] = None, **kwargs
-    ) -> None:
+    def __init__(self, *, sql: str, conn_id: Optional[str] = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.sql = sql
@@ -90,11 +91,7 @@ class SQLCheckOperator(BaseOperator):
         if not records:
             raise AirflowException("The query returned None")
         elif not all(bool(r) for r in records):
-            raise AirflowException(
-                "Test failed.\nQuery:\n{query}\nResults:\n{records!s}".format(
-                    query=self.sql, records=records
-                )
-            )
+            raise AirflowException(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
         self.log.info("Success.")
 
@@ -148,7 +145,8 @@ class SQLValueCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
@@ -191,9 +189,7 @@ class SQLValueCheckOperator(BaseOperator):
             try:
                 numeric_records = self._to_float(records)
             except (ValueError, TypeError):
-                raise AirflowException(
-                    f"Converting a result to float failed.\n{error_msg}"
-                )
+                raise AirflowException(f"Converting a result to float failed.\n{error_msg}")
             tests = self._get_numeric_matches(numeric_records, pass_value_conv)
         else:
             tests = []
@@ -257,7 +253,10 @@ class SQLIntervalCheckOperator(BaseOperator):
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
     template_fields: Iterable[str] = ("sql1", "sql2")
-    template_ext: Iterable[str] = (".hql", ".sql",)
+    template_ext: Iterable[str] = (
+        ".hql",
+        ".sql",
+    )
     ui_color = "#fff7e6"
 
     ratio_formulas = {
@@ -267,7 +266,8 @@ class SQLIntervalCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         table: str,
         metrics_thresholds: Dict[str, int],
         date_filter_column: Optional[str] = "ds",
@@ -279,15 +279,10 @@ class SQLIntervalCheckOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         if ratio_formula not in self.ratio_formulas:
-            msg_template = (
-                "Invalid diff_method: {diff_method}. "
-                "Supported diff methods are: {diff_methods}"
-            )
+            msg_template = "Invalid diff_method: {diff_method}. Supported diff methods are: {diff_methods}"
 
             raise AirflowException(
-                msg_template.format(
-                    diff_method=ratio_formula, diff_methods=self.ratio_formulas
-                )
+                msg_template.format(diff_method=ratio_formula, diff_methods=self.ratio_formulas)
             )
         self.ratio_formula = ratio_formula
         self.ignore_zero = ignore_zero
@@ -332,9 +327,7 @@ class SQLIntervalCheckOperator(BaseOperator):
                 ratios[metric] = None
                 test_results[metric] = self.ignore_zero
             else:
-                ratios[metric] = self.ratio_formulas[self.ratio_formula](
-                    current[metric], reference[metric]
-                )
+                ratios[metric] = self.ratio_formulas[self.ratio_formula](current[metric], reference[metric])
                 test_results[metric] = ratios[metric] < threshold
 
             self.log.info(
@@ -368,9 +361,7 @@ class SQLIntervalCheckOperator(BaseOperator):
                     self.metrics_thresholds[k],
                 )
             raise AirflowException(
-                "The following tests have failed:\n {}".format(
-                    ", ".join(sorted(failed_tests))
-                )
+                "The following tests have failed:\n {}".format(", ".join(sorted(failed_tests)))
             )
 
         self.log.info("All tests have passed")
@@ -411,7 +402,8 @@ class SQLThresholdCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         sql: str,
         min_threshold: Any,
         max_threshold: Any,
@@ -500,7 +492,8 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
 
     @apply_defaults
     def __init__(
-        self, *,
+        self,
+        *,
         sql: str,
         follow_task_ids_if_true: List[str],
         follow_task_ids_if_false: List[str],
@@ -525,7 +518,9 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
         if conn.conn_type not in ALLOWED_CONN_TYPE:
             raise AirflowException(
                 "The connection type is not supported by BranchSQLOperator.\
-                Supported connection types: {}".format(list(ALLOWED_CONN_TYPE))
+                Supported connection types: {}".format(
+                    list(ALLOWED_CONN_TYPE)
+                )
             )
 
         if not self._hook:
@@ -540,22 +535,16 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
         self._hook = self._get_hook()
 
         if self._hook is None:
-            raise AirflowException(
-                "Failed to establish connection to '%s'" % self.conn_id
-            )
+            raise AirflowException("Failed to establish connection to '%s'" % self.conn_id)
 
         if self.sql is None:
             raise AirflowException("Expected 'sql' parameter is missing.")
 
         if self.follow_task_ids_if_true is None:
-            raise AirflowException(
-                "Expected 'follow_task_ids_if_true' parameter is missing."
-            )
+            raise AirflowException("Expected 'follow_task_ids_if_true' parameter is missing.")
 
         if self.follow_task_ids_if_false is None:
-            raise AirflowException(
-                "Expected 'follow_task_ids_if_false' parameter is missing."
-            )
+            raise AirflowException("Expected 'follow_task_ids_if_false' parameter is missing.")
 
         self.log.info(
             "Executing: %s (with parameters %s) with connection: %s",
@@ -595,16 +584,14 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
                     follow_branch = self.follow_task_ids_if_true
             else:
                 raise AirflowException(
-                    "Unexpected query return result '%s' type '%s'"
-                    % (query_result, type(query_result))
+                    "Unexpected query return result '{}' type '{}'".format(query_result, type(query_result))
                 )
 
             if follow_branch is None:
                 follow_branch = self.follow_task_ids_if_false
         except ValueError:
             raise AirflowException(
-                "Unexpected query return result '%s' type '%s'"
-                % (query_result, type(query_result))
+                "Unexpected query return result '{}' type '{}'".format(query_result, type(query_result))
             )
 
         self.skip_all_except(context["ti"], follow_branch)

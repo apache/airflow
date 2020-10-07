@@ -17,7 +17,6 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
 
 from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator

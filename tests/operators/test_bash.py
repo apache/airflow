@@ -36,7 +36,6 @@ INTERVAL = timedelta(hours=12)
 
 
 class TestBashOperator(unittest.TestCase):
-
     def test_echo_env_variables(self):
         """
         Test that env variables are exported correctly to the
@@ -46,13 +45,11 @@ class TestBashOperator(unittest.TestCase):
         now = now.replace(tzinfo=timezone.utc)
 
         dag = DAG(
-            dag_id='bash_op_test', default_args={
-                'owner': 'airflow',
-                'retries': 100,
-                'start_date': DEFAULT_DATE
-            },
+            dag_id='bash_op_test',
+            default_args={'owner': 'airflow', 'retries': 100, 'start_date': DEFAULT_DATE},
             schedule_interval='@daily',
-            dagrun_timeout=timedelta(minutes=60))
+            dagrun_timeout=timedelta(minutes=60),
+        )
 
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -67,19 +64,17 @@ class TestBashOperator(unittest.TestCase):
                 task_id='echo_env_vars',
                 dag=dag,
                 bash_command='echo $AIRFLOW_HOME>> {0};'
-                             'echo $PYTHONPATH>> {0};'
-                             'echo $AIRFLOW_CTX_DAG_ID >> {0};'
-                             'echo $AIRFLOW_CTX_TASK_ID>> {0};'
-                             'echo $AIRFLOW_CTX_EXECUTION_DATE>> {0};'
-                             'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(tmp_file.name)
+                'echo $PYTHONPATH>> {0};'
+                'echo $AIRFLOW_CTX_DAG_ID >> {0};'
+                'echo $AIRFLOW_CTX_TASK_ID>> {0};'
+                'echo $AIRFLOW_CTX_EXECUTION_DATE>> {0};'
+                'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(tmp_file.name),
             )
 
-            with mock.patch.dict('os.environ', {
-                'AIRFLOW_HOME': 'MY_PATH_TO_AIRFLOW_HOME',
-                'PYTHONPATH': 'AWESOME_PYTHONPATH'
-            }):
-                task.run(DEFAULT_DATE, DEFAULT_DATE,
-                         ignore_first_depends_on_past=True, ignore_ti_state=True)
+            with mock.patch.dict(
+                'os.environ', {'AIRFLOW_HOME': 'MY_PATH_TO_AIRFLOW_HOME', 'PYTHONPATH': 'AWESOME_PYTHONPATH'}
+            ):
+                task.run(DEFAULT_DATE, DEFAULT_DATE, ignore_first_depends_on_past=True, ignore_ti_state=True)
 
             with open(tmp_file.name) as file:
                 output = ''.join(file.readlines())
@@ -92,60 +87,44 @@ class TestBashOperator(unittest.TestCase):
                 self.assertIn(DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE), output)
 
     def test_return_value(self):
-        bash_operator = BashOperator(
-            bash_command='echo "stdout"',
-            task_id='test_return_value',
-            dag=None
-        )
+        bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_return_value', dag=None)
         return_value = bash_operator.execute(context={})
 
         self.assertEqual(return_value, 'stdout')
 
     def test_raise_exception_on_non_zero_exit_code(self):
-        bash_operator = BashOperator(
-            bash_command='exit 42',
-            task_id='test_return_value',
-            dag=None
-        )
+        bash_operator = BashOperator(bash_command='exit 42', task_id='test_return_value', dag=None)
         with self.assertRaisesRegex(
-            AirflowException,
-            "Bash command failed\\. The command returned a non-zero exit code\\."
+            AirflowException, "Bash command failed\\. The command returned a non-zero exit code\\."
         ):
             bash_operator.execute(context={})
 
     def test_task_retries(self):
         bash_operator = BashOperator(
-            bash_command='echo "stdout"',
-            task_id='test_task_retries',
-            retries=2,
-            dag=None
+            bash_command='echo "stdout"', task_id='test_task_retries', retries=2, dag=None
         )
 
         self.assertEqual(bash_operator.retries, 2)
 
     def test_default_retries(self):
-        bash_operator = BashOperator(
-            bash_command='echo "stdout"',
-            task_id='test_default_retries',
-            dag=None
-        )
+        bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_default_retries', dag=None)
 
         self.assertEqual(bash_operator.retries, 0)
 
     @mock.patch.dict('os.environ', clear=True)
-    @mock.patch("airflow.operators.bash.TemporaryDirectory", **{  # type: ignore
-        'return_value.__enter__.return_value': '/tmp/airflowtmpcatcat'
-    })
-    @mock.patch("airflow.operators.bash.Popen", **{  # type: ignore
-        'return_value.stdout.readline.side_effect': [b'BAR', b'BAZ'],
-        'return_value.returncode': 0
-    })
+    @mock.patch(
+        "airflow.operators.bash.TemporaryDirectory",
+        **{'return_value.__enter__.return_value': '/tmp/airflowtmpcatcat'},  # type: ignore
+    )
+    @mock.patch(
+        "airflow.operators.bash.Popen",
+        **{  # type: ignore
+            'return_value.stdout.readline.side_effect': [b'BAR', b'BAZ'],
+            'return_value.returncode': 0,
+        },
+    )
     def test_should_exec_subprocess(self, mock_popen, mock_temporary_directory):
-        bash_operator = BashOperator(
-            bash_command='echo "stdout"',
-            task_id='test_return_value',
-            dag=None
-        )
+        bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_return_value', dag=None)
         bash_operator.execute({})
 
         mock_popen.assert_called_once_with(
@@ -154,5 +133,5 @@ class TestBashOperator(unittest.TestCase):
             env={},
             preexec_fn=mock.ANY,
             stderr=STDOUT,
-            stdout=PIPE
+            stdout=PIPE,
         )

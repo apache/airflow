@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import quote_plus
 
 import requests
-from googleapiclient.discovery import build, Resource
+from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
 

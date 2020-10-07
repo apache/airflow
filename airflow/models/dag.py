@@ -29,7 +29,18 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
-    TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union,
+    TYPE_CHECKING,
+    Callable,
+    Collection,
+    Dict,
+    FrozenSet,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
     cast,
 )
 
@@ -253,7 +264,7 @@ class DAG(BaseDag, LoggingMixin):
         access_control: Optional[Dict] = None,
         is_paused_upon_creation: Optional[bool] = None,
         jinja_environment_kwargs: Optional[Dict] = None,
-        tags: Optional[List[str]] = None
+        tags: Optional[List[str]] = None,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -286,9 +297,7 @@ class DAG(BaseDag, LoggingMixin):
             self.timezone = start_date.tzinfo
         elif 'start_date' in self.default_args and self.default_args['start_date']:
             if isinstance(self.default_args['start_date'], str):
-                self.default_args['start_date'] = (
-                    timezone.parse(self.default_args['start_date'])
-                )
+                self.default_args['start_date'] = timezone.parse(self.default_args['start_date'])
             self.timezone = self.default_args['start_date'].tzinfo
 
         if not hasattr(self, 'timezone') or not self.timezone:
@@ -297,8 +306,8 @@ class DAG(BaseDag, LoggingMixin):
         # Apply the timezone we settled on to end_date if it wasn't supplied
         if 'end_date' in self.default_args and self.default_args['end_date']:
             if isinstance(self.default_args['end_date'], str):
-                self.default_args['end_date'] = (
-                    timezone.parse(self.default_args['end_date'], timezone=self.timezone)
+                self.default_args['end_date'] = timezone.parse(
+                    self.default_args['end_date'], timezone=self.timezone
                 )
 
         self.start_date = timezone.convert_to_utc(start_date)
@@ -306,13 +315,9 @@ class DAG(BaseDag, LoggingMixin):
 
         # also convert tasks
         if 'start_date' in self.default_args:
-            self.default_args['start_date'] = (
-                timezone.convert_to_utc(self.default_args['start_date'])
-            )
+            self.default_args['start_date'] = timezone.convert_to_utc(self.default_args['start_date'])
         if 'end_date' in self.default_args:
-            self.default_args['end_date'] = (
-                timezone.convert_to_utc(self.default_args['end_date'])
-            )
+            self.default_args['end_date'] = timezone.convert_to_utc(self.default_args['end_date'])
 
         self.schedule_interval = schedule_interval
         if isinstance(template_searchpath, str):
@@ -328,13 +333,17 @@ class DAG(BaseDag, LoggingMixin):
         if default_view in DEFAULT_VIEW_PRESETS:
             self._default_view: str = default_view
         else:
-            raise AirflowException(f'Invalid values of dag.default_view: only support '
-                                   f'{DEFAULT_VIEW_PRESETS}, but get {default_view}')
+            raise AirflowException(
+                f'Invalid values of dag.default_view: only support '
+                f'{DEFAULT_VIEW_PRESETS}, but get {default_view}'
+            )
         if orientation in ORIENTATION_PRESETS:
             self.orientation = orientation
         else:
-            raise AirflowException(f'Invalid values of dag.orientation: only support '
-                                   f'{ORIENTATION_PRESETS}, but get {orientation}')
+            raise AirflowException(
+                f'Invalid values of dag.orientation: only support '
+                f'{ORIENTATION_PRESETS}, but get {orientation}'
+            )
         self.catchup = catchup
         self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
 
@@ -354,8 +363,7 @@ class DAG(BaseDag, LoggingMixin):
         return f"<DAG: {self.dag_id}>"
 
     def __eq__(self, other):
-        if (type(self) == type(other) and
-                self.dag_id == other.dag_id):
+        if type(self) == type(other) and self.dag_id == other.dag_id:
 
             # Use getattr() instead of __dict__ as __dict__ doesn't return
             # correct values for properties.
@@ -414,7 +422,8 @@ class DAG(BaseDag, LoggingMixin):
             warnings.warn(
                 "The 'can_dag_read' and 'can_dag_edit' permissions are deprecated. "
                 "Please use 'can_read' and 'can_edit', respectively.",
-                DeprecationWarning, stacklevel=3
+                DeprecationWarning,
+                stacklevel=3,
             )
 
         return updated_access_control
@@ -428,8 +437,8 @@ class DAG(BaseDag, LoggingMixin):
         if num is not None:
             end_date = None
         return utils_date_range(
-            start_date=start_date, end_date=end_date,
-            num=num, delta=self.normalized_schedule_interval)
+            start_date=start_date, end_date=end_date, num=num, delta=self.normalized_schedule_interval
+        )
 
     def is_fixed_time_schedule(self):
         """
@@ -516,8 +525,9 @@ class DAG(BaseDag, LoggingMixin):
             "automated" DagRuns for this dag (scheduled or backfill, but not
             manual)
         """
-        if (self.schedule_interval == "@once" and date_last_automated_dagrun) or \
-                self.schedule_interval is None:
+        if (
+            self.schedule_interval == "@once" and date_last_automated_dagrun
+        ) or self.schedule_interval is None:
             # Manual trigger, or already created the run for @once, can short circuit
             return (None, None)
         next_execution_date = self.next_dagrun_after_date(date_last_automated_dagrun)
@@ -588,10 +598,7 @@ class DAG(BaseDag, LoggingMixin):
             if next_run_date == self.start_date:
                 next_run_date = self.normalize_schedule(self.start_date)
 
-            self.log.debug(
-                "Dag start date: %s. Next run date: %s",
-                self.start_date, next_run_date
-            )
+            self.log.debug("Dag start date: %s. Next run date: %s", self.start_date, next_run_date)
 
         # Don't schedule a dag beyond its end_date (as specified by the dag param)
         if next_run_date and self.end_date and next_run_date > self.end_date:
@@ -630,8 +637,7 @@ class DAG(BaseDag, LoggingMixin):
 
         # next run date for a subdag isn't relevant (schedule_interval for subdags
         # is ignored) so we use the dag run's start date in the case of a subdag
-        next_run_date = (self.normalize_schedule(using_start_date)
-                         if not self.is_subdag else using_start_date)
+        next_run_date = self.normalize_schedule(using_start_date) if not self.is_subdag else using_start_date
 
         while next_run_date and next_run_date <= using_end_date:
             run_dates.append(next_run_date)
@@ -653,8 +659,9 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
-        return get_last_dagrun(self.dag_id, session=session,
-                               include_externally_triggered=include_externally_triggered)
+        return get_last_dagrun(
+            self.dag_id, session=session, include_externally_triggered=include_externally_triggered
+        )
 
     @property
     def dag_id(self) -> str:
@@ -720,8 +727,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @tasks.setter
     def tasks(self, val):
-        raise AttributeError(
-            'DAG.tasks can not be modified. Use dag.add_task() instead.')
+        raise AttributeError('DAG.tasks can not be modified. Use dag.add_task() instead.')
 
     @property
     def task_ids(self) -> List[str]:
@@ -783,8 +789,7 @@ class DAG(BaseDag, LoggingMixin):
     @provide_session
     def get_is_paused(self, session=None):
         """Returns a boolean indicating whether this DAG is paused"""
-        qry = session.query(DagModel).filter(
-            DagModel.dag_id == self.dag_id)
+        qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
         return qry.value(DagModel.is_paused)
 
     @property
@@ -870,10 +875,11 @@ class DAG(BaseDag, LoggingMixin):
         :return: number greater than 0 for active dag runs
         """
         # .count() is inefficient
-        query = (session
-                 .query(func.count())
-                 .filter(DagRun.dag_id == self.dag_id)
-                 .filter(DagRun.state == State.RUNNING))
+        query = (
+            session.query(func.count())
+            .filter(DagRun.dag_id == self.dag_id)
+            .filter(DagRun.state == State.RUNNING)
+        )
 
         if external_trigger is not None:
             query = query.filter(DagRun.external_trigger == external_trigger)
@@ -892,10 +898,9 @@ class DAG(BaseDag, LoggingMixin):
         """
         dagrun = (
             session.query(DagRun)
-            .filter(
-                DagRun.dag_id == self.dag_id,
-                DagRun.execution_date == execution_date)
-            .first())
+            .filter(DagRun.dag_id == self.dag_id, DagRun.execution_date == execution_date)
+            .first()
+        )
 
         return dagrun
 
@@ -914,17 +919,17 @@ class DAG(BaseDag, LoggingMixin):
             .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.execution_date >= start_date,
-                DagRun.execution_date <= end_date)
-            .all())
+                DagRun.execution_date <= end_date,
+            )
+            .all()
+        )
 
         return dagruns
 
     @provide_session
     def get_latest_execution_date(self, session=None):
         """Returns the latest date for which at least one dag run exists"""
-        return session.query(func.max(DagRun.execution_date)).filter(
-            DagRun.dag_id == self.dag_id
-        ).scalar()
+        return session.query(func.max(DagRun.execution_date)).filter(DagRun.dag_id == self.dag_id).scalar()
 
     @property
     def latest_execution_date(self):
@@ -941,12 +946,16 @@ class DAG(BaseDag, LoggingMixin):
         """Returns a list of the subdag objects associated to this DAG"""
         # Check SubDag for class but don't check class directly
         from airflow.operators.subdag_operator import SubDagOperator
+
         subdag_lst = []
         for task in self.tasks:
-            if (isinstance(task, SubDagOperator) or
-                    # TODO remove in Airflow 2.0
-                    type(task).__name__ == 'SubDagOperator' or
-                    task.task_type == 'SubDagOperator'):
+            if (
+                isinstance(task, SubDagOperator)
+                or
+                # TODO remove in Airflow 2.0
+                type(task).__name__ == 'SubDagOperator'
+                or task.task_type == 'SubDagOperator'
+            ):
                 subdag_lst.append(task.subdag)
                 subdag_lst += task.subdag.subdags
         return subdag_lst
@@ -967,7 +976,7 @@ class DAG(BaseDag, LoggingMixin):
             'loader': jinja2.FileSystemLoader(searchpath),
             'undefined': self.template_undefined,
             'extensions': ["jinja2.ext.do"],
-            'cache_size': 0
+            'cache_size': 0,
         }
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
@@ -988,16 +997,13 @@ class DAG(BaseDag, LoggingMixin):
         Simple utility method to set dependency between two tasks that
         already have been added to the DAG using add_task()
         """
-        self.get_task(upstream_task_id).set_downstream(
-            self.get_task(downstream_task_id))
+        self.get_task(upstream_task_id).set_downstream(self.get_task(downstream_task_id))
 
     @provide_session
-    def get_task_instances(
-            self, start_date=None, end_date=None, state=None, session=None):
+    def get_task_instances(self, start_date=None, end_date=None, state=None, session=None):
         if not start_date:
             start_date = (timezone.utcnow() - timedelta(30)).date()
-            start_date = timezone.make_aware(
-                datetime.combine(start_date, datetime.min.time()))
+            start_date = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
 
         tis = session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
@@ -1020,8 +1026,7 @@ class DAG(BaseDag, LoggingMixin):
                     else:
                         not_none_state = [s for s in state if s]
                         tis = tis.filter(
-                            or_(TaskInstance.state.in_(not_none_state),
-                                TaskInstance.state.is_(None))
+                            or_(TaskInstance.state.in_(not_none_state), TaskInstance.state.is_(None))
                         )
                 else:
                     tis = tis.filter(TaskInstance.state.in_(state))
@@ -1088,18 +1093,17 @@ class DAG(BaseDag, LoggingMixin):
                         graph_sorted.extend(node.subdag.topological_sort(include_subdag_tasks=True))
 
             if not acyclic:
-                raise AirflowException("A cyclic dependency occurred in dag: {}"
-                                       .format(self.dag_id))
+                raise AirflowException(f"A cyclic dependency occurred in dag: {self.dag_id}")
 
         return tuple(graph_sorted)
 
     @provide_session
     def set_dag_runs_state(
-            self,
-            state: str = State.RUNNING,
-            session: Session = None,
-            start_date: Optional[datetime] = None,
-            end_date: Optional[datetime] = None,
+        self,
+        state: str = State.RUNNING,
+        session: Session = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> None:
         query = session.query(DagRun).filter_by(dag_id=self.dag_id)
         if start_date:
@@ -1110,20 +1114,22 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def clear(
-            self, start_date=None, end_date=None,
-            only_failed=False,
-            only_running=False,
-            confirm_prompt=False,
-            include_subdags=True,
-            include_parentdag=True,
-            dag_run_state: str = State.RUNNING,
-            dry_run=False,
-            session=None,
-            get_tis=False,
-            recursion_depth=0,
-            max_recursion_depth=None,
-            dag_bag=None,
-            visited_external_tis=None,
+        self,
+        start_date=None,
+        end_date=None,
+        only_failed=False,
+        only_running=False,
+        confirm_prompt=False,
+        include_subdags=True,
+        include_parentdag=True,
+        dag_run_state: str = State.RUNNING,
+        dry_run=False,
+        session=None,
+        get_tis=False,
+        recursion_depth=0,
+        max_recursion_depth=None,
+        dag_bag=None,
+        visited_external_tis=None,
     ):
         """
         Clears a set of task instances associated with the current dag for
@@ -1169,10 +1175,7 @@ class DAG(BaseDag, LoggingMixin):
             # Crafting the right filter for dag_id and task_ids combo
             conditions = []
             for dag in self.subdags + [self]:
-                conditions.append(
-                    (TI.dag_id == dag.dag_id) &
-                    TI.task_id.in_(dag.task_ids)
-                )
+                conditions.append((TI.dag_id == dag.dag_id) & TI.task_id.in_(dag.task_ids))
             tis = tis.filter(or_(*conditions))
         else:
             tis = session.query(TI).filter(TI.dag_id == self.dag_id)
@@ -1182,32 +1185,34 @@ class DAG(BaseDag, LoggingMixin):
             p_dag = self.parent_dag.sub_dag(
                 task_ids_or_regex=r"^{}$".format(self.dag_id.split('.')[1]),
                 include_upstream=False,
-                include_downstream=True)
+                include_downstream=True,
+            )
 
-            tis = tis.union(p_dag.clear(
-                start_date=start_date, end_date=end_date,
-                only_failed=only_failed,
-                only_running=only_running,
-                confirm_prompt=confirm_prompt,
-                include_subdags=include_subdags,
-                include_parentdag=False,
-                dag_run_state=dag_run_state,
-                get_tis=True,
-                session=session,
-                recursion_depth=recursion_depth,
-                max_recursion_depth=max_recursion_depth,
-                dag_bag=dag_bag,
-                visited_external_tis=visited_external_tis
-            ))
+            tis = tis.union(
+                p_dag.clear(
+                    start_date=start_date,
+                    end_date=end_date,
+                    only_failed=only_failed,
+                    only_running=only_running,
+                    confirm_prompt=confirm_prompt,
+                    include_subdags=include_subdags,
+                    include_parentdag=False,
+                    dag_run_state=dag_run_state,
+                    get_tis=True,
+                    session=session,
+                    recursion_depth=recursion_depth,
+                    max_recursion_depth=max_recursion_depth,
+                    dag_bag=dag_bag,
+                    visited_external_tis=visited_external_tis,
+                )
+            )
 
         if start_date:
             tis = tis.filter(TI.execution_date >= start_date)
         if end_date:
             tis = tis.filter(TI.execution_date <= end_date)
         if only_failed:
-            tis = tis.filter(or_(
-                TI.state == State.FAILED,
-                TI.state == State.UPSTREAM_FAILED))
+            tis = tis.filter(or_(TI.state == State.FAILED, TI.state == State.UPSTREAM_FAILED))
         if only_running:
             tis = tis.filter(TI.state == State.RUNNING)
 
@@ -1224,8 +1229,9 @@ class DAG(BaseDag, LoggingMixin):
                     if ti_key not in visited_external_tis:
                         # Only clear this ExternalTaskMarker if it's not already visited by the
                         # recursive calls to dag.clear().
-                        task: ExternalTaskMarker = cast(ExternalTaskMarker,
-                                                        copy.copy(self.get_task(ti.task_id)))
+                        task: ExternalTaskMarker = cast(
+                            ExternalTaskMarker, copy.copy(self.get_task(ti.task_id))
+                        )
                         ti.task = task
 
                         if recursion_depth == 0:
@@ -1235,16 +1241,19 @@ class DAG(BaseDag, LoggingMixin):
 
                         if recursion_depth + 1 > max_recursion_depth:
                             # Prevent cycles or accidents.
-                            raise AirflowException("Maximum recursion depth {} reached for {} {}. "
-                                                   "Attempted to clear too many tasks "
-                                                   "or there may be a cyclic dependency."
-                                                   .format(max_recursion_depth,
-                                                           ExternalTaskMarker.__name__, ti.task_id))
+                            raise AirflowException(
+                                "Maximum recursion depth {} reached for {} {}. "
+                                "Attempted to clear too many tasks "
+                                "or there may be a cyclic dependency.".format(
+                                    max_recursion_depth, ExternalTaskMarker.__name__, ti.task_id
+                                )
+                            )
                         ti.render_templates()
-                        external_tis = session.query(TI).filter(TI.dag_id == task.external_dag_id,
-                                                                TI.task_id == task.external_task_id,
-                                                                TI.execution_date ==
-                                                                pendulum.parse(task.execution_date))
+                        external_tis = session.query(TI).filter(
+                            TI.dag_id == task.external_dag_id,
+                            TI.task_id == task.external_task_id,
+                            TI.execution_date == pendulum.parse(task.execution_date),
+                        )
 
                         for tii in external_tis:
                             if not dag_bag:
@@ -1255,22 +1264,26 @@ class DAG(BaseDag, LoggingMixin):
                             downstream = external_dag.sub_dag(
                                 task_ids_or_regex=fr"^{tii.task_id}$",
                                 include_upstream=False,
-                                include_downstream=True
+                                include_downstream=True,
                             )
-                            tis = tis.union(downstream.clear(start_date=tii.execution_date,
-                                                             end_date=tii.execution_date,
-                                                             only_failed=only_failed,
-                                                             only_running=only_running,
-                                                             confirm_prompt=confirm_prompt,
-                                                             include_subdags=include_subdags,
-                                                             include_parentdag=False,
-                                                             dag_run_state=dag_run_state,
-                                                             get_tis=True,
-                                                             session=session,
-                                                             recursion_depth=recursion_depth + 1,
-                                                             max_recursion_depth=max_recursion_depth,
-                                                             dag_bag=dag_bag,
-                                                             visited_external_tis=visited_external_tis))
+                            tis = tis.union(
+                                downstream.clear(
+                                    start_date=tii.execution_date,
+                                    end_date=tii.execution_date,
+                                    only_failed=only_failed,
+                                    only_running=only_running,
+                                    confirm_prompt=confirm_prompt,
+                                    include_subdags=include_subdags,
+                                    include_parentdag=False,
+                                    dag_run_state=dag_run_state,
+                                    get_tis=True,
+                                    session=session,
+                                    recursion_depth=recursion_depth + 1,
+                                    max_recursion_depth=max_recursion_depth,
+                                    dag_bag=dag_bag,
+                                    visited_external_tis=visited_external_tis,
+                                )
+                            )
                         visited_external_tis.add(ti_key)
 
         if get_tis:
@@ -1291,9 +1304,8 @@ class DAG(BaseDag, LoggingMixin):
         if confirm_prompt:
             ti_list = "\n".join([str(t) for t in tis])
             question = (
-                "You are about to delete these {count} tasks:\n"
-                "{ti_list}\n\n"
-                "Are you sure? (yes/no): ").format(count=count, ti_list=ti_list)
+                "You are about to delete these {count} tasks:\n" "{ti_list}\n\n" "Are you sure? (yes/no): "
+            ).format(count=count, ti_list=ti_list)
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
@@ -1318,16 +1330,17 @@ class DAG(BaseDag, LoggingMixin):
 
     @classmethod
     def clear_dags(
-            cls, dags,
-            start_date=None,
-            end_date=None,
-            only_failed=False,
-            only_running=False,
-            confirm_prompt=False,
-            include_subdags=True,
-            include_parentdag=False,
-            dag_run_state=State.RUNNING,
-            dry_run=False,
+        cls,
+        dags,
+        start_date=None,
+        end_date=None,
+        only_failed=False,
+        only_running=False,
+        confirm_prompt=False,
+        include_subdags=True,
+        include_parentdag=False,
+        dag_run_state=State.RUNNING,
+        dry_run=False,
     ):
         all_tis = []
         for dag in dags:
@@ -1340,7 +1353,8 @@ class DAG(BaseDag, LoggingMixin):
                 include_subdags=include_subdags,
                 include_parentdag=include_parentdag,
                 dag_run_state=dag_run_state,
-                dry_run=True)
+                dry_run=True,
+            )
             all_tis.extend(tis)
 
         if dry_run:
@@ -1354,22 +1368,22 @@ class DAG(BaseDag, LoggingMixin):
         if confirm_prompt:
             ti_list = "\n".join([str(t) for t in all_tis])
             question = (
-                "You are about to delete these {} tasks:\n"
-                "{}\n\n"
-                "Are you sure? (yes/no): ").format(count, ti_list)
+                "You are about to delete these {} tasks:\n" "{}\n\n" "Are you sure? (yes/no): "
+            ).format(count, ti_list)
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
             for dag in dags:
-                dag.clear(start_date=start_date,
-                          end_date=end_date,
-                          only_failed=only_failed,
-                          only_running=only_running,
-                          confirm_prompt=False,
-                          include_subdags=include_subdags,
-                          dag_run_state=dag_run_state,
-                          dry_run=False,
-                          )
+                dag.clear(
+                    start_date=start_date,
+                    end_date=end_date,
+                    only_failed=only_failed,
+                    only_running=only_running,
+                    confirm_prompt=False,
+                    include_subdags=include_subdags,
+                    dag_run_state=dag_run_state,
+                    dry_run=False,
+                )
         else:
             count = 0
             print("Cancelled, nothing was cleared.")
@@ -1432,8 +1446,7 @@ class DAG(BaseDag, LoggingMixin):
         self._task_group = task_group
 
         if isinstance(task_ids_or_regex, (str, PatternType)):
-            matched_tasks = [
-                t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
+            matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
 
@@ -1448,8 +1461,10 @@ class DAG(BaseDag, LoggingMixin):
 
         # Compiling the unique list of tasks that made the cut
         # Make sure to not recursively deepcopy the dag while copying the task
-        dag.task_dict = {t.task_id: copy.deepcopy(t, {id(t.dag): dag})  # type: ignore
-                         for t in matched_tasks + also_include}
+        dag.task_dict = {
+            t.task_id: copy.deepcopy(t, {id(t.dag): dag})  # type: ignore
+            for t in matched_tasks + also_include
+        }
 
         def filter_task_group(group, parent_group):
             """Exclude tasks not included in the subdag from the given TaskGroup."""
@@ -1487,8 +1502,7 @@ class DAG(BaseDag, LoggingMixin):
             # Removing upstream/downstream references to tasks that did not
             # make the cut
             t._upstream_task_ids = t.upstream_task_ids.intersection(dag.task_dict.keys())
-            t._downstream_task_ids = t.downstream_task_ids.intersection(
-                dag.task_dict.keys())
+            t._downstream_task_ids = t.downstream_task_ids.intersection(dag.task_dict.keys())
 
         if len(dag.tasks) < len(self.tasks):
             dag.partial = True
@@ -1523,12 +1537,10 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def pickle(self, session=None) -> DagPickle:
-        dag = session.query(
-            DagModel).filter(DagModel.dag_id == self.dag_id).first()
+        dag = session.query(DagModel).filter(DagModel.dag_id == self.dag_id).first()
         dp = None
         if dag and dag.pickle_id:
-            dp = session.query(DagPickle).filter(
-                DagPickle.id == dag.pickle_id).first()
+            dp = session.query(DagPickle).filter(DagPickle.id == dag.pickle_id).first()
         if not dp or dp.pickle != self:
             dp = DagPickle(dag=self)
             session.add(dp)
@@ -1540,6 +1552,7 @@ class DAG(BaseDag, LoggingMixin):
 
     def tree_view(self) -> None:
         """Print an ASCII tree representation of the DAG."""
+
         def get_downstream(task, level=0):
             print((" " * level * 4) + str(task))
             level += 1
@@ -1552,6 +1565,7 @@ class DAG(BaseDag, LoggingMixin):
     @property
     def task(self):
         from airflow.operators.python import task
+
         return functools.partial(task, dag=self)
 
     def add_task(self, task):
@@ -1579,10 +1593,10 @@ class DAG(BaseDag, LoggingMixin):
         elif task.end_date and self.end_date:
             task.end_date = min(task.end_date, self.end_date)
 
-        if ((task.task_id in self.task_dict and self.task_dict[task.task_id] is not task)
-                or task.task_id in self._task_group.used_group_ids):
-            raise DuplicateTaskIdFound(
-                f"Task id '{task.task_id}' has already been added to the DAG")
+        if (
+            task.task_id in self.task_dict and self.task_dict[task.task_id] is not task
+        ) or task.task_id in self._task_group.used_group_ids:
+            raise DuplicateTaskIdFound(f"Task id '{task.task_id}' has already been added to the DAG")
         else:
             self.task_dict[task.task_id] = task
             task.dag = self
@@ -1602,21 +1616,21 @@ class DAG(BaseDag, LoggingMixin):
             self.add_task(task)
 
     def run(
-            self,
-            start_date=None,
-            end_date=None,
-            mark_success=False,
-            local=False,
-            executor=None,
-            donot_pickle=conf.getboolean('core', 'donot_pickle'),
-            ignore_task_deps=False,
-            ignore_first_depends_on_past=True,
-            pool=None,
-            delay_on_limit_secs=1.0,
-            verbose=False,
-            conf=None,
-            rerun_failed_tasks=False,
-            run_backwards=False,
+        self,
+        start_date=None,
+        end_date=None,
+        mark_success=False,
+        local=False,
+        executor=None,
+        donot_pickle=conf.getboolean('core', 'donot_pickle'),
+        ignore_task_deps=False,
+        ignore_first_depends_on_past=True,
+        pool=None,
+        delay_on_limit_secs=1.0,
+        verbose=False,
+        conf=None,
+        rerun_failed_tasks=False,
+        run_backwards=False,
     ):
         """
         Runs the DAG.
@@ -1654,11 +1668,14 @@ class DAG(BaseDag, LoggingMixin):
 
         """
         from airflow.jobs.backfill_job import BackfillJob
+
         if not executor and local:
             from airflow.executors.local_executor import LocalExecutor
+
             executor = LocalExecutor()
         elif not executor:
             from airflow.executors.executor_loader import ExecutorLoader
+
             executor = ExecutorLoader.get_default_executor()
         job = BackfillJob(
             self,
@@ -1681,6 +1698,7 @@ class DAG(BaseDag, LoggingMixin):
     def cli(self):
         """Exposes a CLI specific to this DAG"""
         from airflow.cli import cli_parser
+
         parser = cli_parser.get_parser(dag_parser=True)
         args = parser.parse_args()
         args.func(args, self)
@@ -1747,7 +1765,7 @@ class DAG(BaseDag, LoggingMixin):
             state=state,
             run_type=run_type,
             dag_hash=dag_hash,
-            creating_job_id=creating_job_id
+            creating_job_id=creating_job_id,
         )
         session.add(run)
         session.flush()
@@ -1791,10 +1809,10 @@ class DAG(BaseDag, LoggingMixin):
         dag_by_ids = {dag.dag_id: dag for dag in dags}
         dag_ids = set(dag_by_ids.keys())
         query = (
-            session
-            .query(DagModel)
+            session.query(DagModel)
             .options(joinedload(DagModel.tags, innerjoin=False))
-            .filter(DagModel.dag_id.in_(dag_ids)))
+            .filter(DagModel.dag_id.in_(dag_ids))
+        )
         orm_dags = with_row_locks(query, of=DagModel).all()
 
         existing_dag_ids = {orm_dag.dag_id for orm_dag in orm_dags}
@@ -1811,21 +1829,31 @@ class DAG(BaseDag, LoggingMixin):
             orm_dags.append(orm_dag)
 
         # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
-        most_recent_dag_runs = dict(session.query(DagRun.dag_id, func.max_(DagRun.execution_date)).filter(
-            DagRun.dag_id.in_(existing_dag_ids),
-            or_(
-                DagRun.run_type == DagRunType.BACKFILL_JOB,
-                DagRun.run_type == DagRunType.SCHEDULED,
-                DagRun.external_trigger.is_(True),
-            ),
-        ).group_by(DagRun.dag_id).all())
+        most_recent_dag_runs = dict(
+            session.query(DagRun.dag_id, func.max_(DagRun.execution_date))
+            .filter(
+                DagRun.dag_id.in_(existing_dag_ids),
+                or_(
+                    DagRun.run_type == DagRunType.BACKFILL_JOB,
+                    DagRun.run_type == DagRunType.SCHEDULED,
+                    DagRun.external_trigger.is_(True),
+                ),
+            )
+            .group_by(DagRun.dag_id)
+            .all()
+        )
 
         # Get number of active dagruns for all dags we are processing as a single query.
-        num_active_runs = dict(session.query(DagRun.dag_id, func.count('*')).filter(
-            DagRun.dag_id.in_(existing_dag_ids),
-            DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
-            DagRun.external_trigger.is_(False)
-        ).group_by(DagRun.dag_id).all())
+        num_active_runs = dict(
+            session.query(DagRun.dag_id, func.count('*'))
+            .filter(
+                DagRun.dag_id.in_(existing_dag_ids),
+                DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
+                DagRun.external_trigger.is_(False),
+            )
+            .group_by(DagRun.dag_id)
+            .all()
+        )
 
         for orm_dag in sorted(orm_dags, key=lambda d: d.dag_id):
             dag = dag_by_ids[orm_dag.dag_id]
@@ -1843,9 +1871,7 @@ class DAG(BaseDag, LoggingMixin):
             orm_dag.description = dag.description
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.concurrency = dag.concurrency
-            orm_dag.has_task_concurrency_limits = any(
-                t.task_concurrency is not None for t in dag.tasks
-            )
+            orm_dag.has_task_concurrency_limits = any(t.task_concurrency is not None for t in dag.tasks)
 
             orm_dag.calculate_dagrun_date_fields(
                 dag,
@@ -1906,8 +1932,7 @@ class DAG(BaseDag, LoggingMixin):
         """
         if len(active_dag_ids) == 0:
             return
-        for dag in session.query(
-                DagModel).filter(~DagModel.dag_id.in_(active_dag_ids)).all():
+        for dag in session.query(DagModel).filter(~DagModel.dag_id.in_(active_dag_ids)).all():
             dag.is_active = False
             session.merge(dag)
         session.commit()
@@ -1924,12 +1949,15 @@ class DAG(BaseDag, LoggingMixin):
         :type expiration_date: datetime
         :return: None
         """
-        for dag in session.query(
-                DagModel).filter(DagModel.last_scheduler_run < expiration_date,
-                                 DagModel.is_active).all():
+        for dag in (
+            session.query(DagModel)
+            .filter(DagModel.last_scheduler_run < expiration_date, DagModel.is_active)
+            .all()
+        ):
             log.info(
                 "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
-                dag.dag_id, dag.last_scheduler_run.isoformat()
+                dag.dag_id,
+                dag.last_scheduler_run.isoformat(),
             )
             dag.is_active = False
             session.merge(dag)
@@ -1965,9 +1993,9 @@ class DAG(BaseDag, LoggingMixin):
                     qry = qry.filter(TaskInstance.state.is_(None))
                 else:
                     not_none_states = [state for state in states if state]
-                    qry = qry.filter(or_(
-                        TaskInstance.state.in_(not_none_states),
-                        TaskInstance.state.is_(None)))
+                    qry = qry.filter(
+                        or_(TaskInstance.state.in_(not_none_states), TaskInstance.state.is_(None))
+                    )
             else:
                 qry = qry.filter(TaskInstance.state.in_(states))
         return qry.scalar()
@@ -1977,12 +2005,25 @@ class DAG(BaseDag, LoggingMixin):
         """Stringified DAGs and operators contain exactly these fields."""
         if not cls.__serialized_fields:
             cls.__serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
-                'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
-                '_full_filepath', 'user_defined_filters', 'user_defined_macros',
-                'partial', '_old_context_manager_dags',
-                '_pickle_id', '_log', 'is_subdag', 'task_dict', 'template_searchpath',
-                'sla_miss_callback', 'on_success_callback', 'on_failure_callback',
-                'template_undefined', 'jinja_environment_kwargs'
+                'parent_dag',
+                '_old_context_manager_dags',
+                'safe_dag_id',
+                'last_loaded',
+                '_full_filepath',
+                'user_defined_filters',
+                'user_defined_macros',
+                'partial',
+                '_old_context_manager_dags',
+                '_pickle_id',
+                '_log',
+                'is_subdag',
+                'task_dict',
+                'template_searchpath',
+                'sla_miss_callback',
+                'on_success_callback',
+                'on_failure_callback',
+                'template_undefined',
+                'jinja_environment_kwargs',
             }
         return cls.__serialized_fields
 
@@ -2009,9 +2050,7 @@ class DagModel(Base):
     root_dag_id = Column(String(ID_LEN))
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
-    is_paused_at_creation = conf\
-        .getboolean('core',
-                    'dags_are_paused_at_creation')
+    is_paused_at_creation = conf.getboolean('core', 'dags_are_paused_at_creation')
     is_paused = Column(Boolean, default=is_paused_at_creation)
     # Whether the DAG is a subdag
     is_subdag = Column(Boolean, default=False)
@@ -2058,11 +2097,7 @@ class DagModel(Base):
         Index('idx_next_dagrun_create_after', next_dagrun_create_after, unique=False),
     )
 
-    NUM_DAGS_PER_DAGRUN_QUERY = conf.getint(
-        'scheduler',
-        'max_dagruns_to_create_per_loop',
-        fallback=10
-    )
+    NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2091,8 +2126,9 @@ class DagModel(Base):
 
     @provide_session
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
-        return get_last_dagrun(self.dag_id, session=session,
-                               include_externally_triggered=include_externally_triggered)
+        return get_last_dagrun(
+            self.dag_id, session=session, include_externally_triggered=include_externally_triggered
+        )
 
     @staticmethod
     @provide_session
@@ -2127,10 +2163,7 @@ class DagModel(Base):
         return self.dag_id.replace('.', '__dot__')
 
     @provide_session
-    def set_is_paused(self,
-                      is_paused: bool,
-                      including_subdags: bool = True,
-                      session=None) -> None:
+    def set_is_paused(self, is_paused: bool, including_subdags: bool = True, session=None) -> None:
         """
         Pause/Un-pause a DAG.
 
@@ -2142,12 +2175,8 @@ class DagModel(Base):
             DagModel.dag_id == self.dag_id,
         ]
         if including_subdags:
-            filter_query.append(
-                DagModel.root_dag_id == self.dag_id
-            )
-        session.query(DagModel).filter(or_(
-            *filter_query
-        )).update(
+            filter_query.append(DagModel.root_dag_id == self.dag_id)
+        session.query(DagModel).filter(or_(*filter_query)).update(
             {DagModel.is_paused: is_paused}, synchronize_session='fetch'
         )
         session.commit()
@@ -2162,8 +2191,7 @@ class DagModel(Base):
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
-        log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ",
-                  cls.__tablename__)
+        log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
 
         dag_models = session.query(cls).all()
         try:
@@ -2195,21 +2223,21 @@ class DagModel(Base):
         # TODO[HA]: Bake this query, it is run _A lot_
         # We limit so that _one_ scheduler doesn't try to do all the creation
         # of dag runs
-        query = session.query(cls).filter(
-            cls.is_paused.is_(False),
-            cls.is_active.is_(True),
-            cls.next_dagrun_create_after <= func.now(),
-        ).order_by(
-            cls.next_dagrun_create_after
-        ).limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
+        query = (
+            session.query(cls)
+            .filter(
+                cls.is_paused.is_(False),
+                cls.is_active.is_(True),
+                cls.next_dagrun_create_after <= func.now(),
+            )
+            .order_by(cls.next_dagrun_create_after)
+            .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
+        )
 
         return with_row_locks(query, of=cls, **skip_locked(session=session))
 
     def calculate_dagrun_date_fields(
-        self,
-        dag: DAG,
-        most_recent_dag_run: Optional[pendulum.DateTime],
-        active_runs_of_dag: int
+        self, dag: DAG, most_recent_dag_run: Optional[pendulum.DateTime], active_runs_of_dag: int
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``
@@ -2224,7 +2252,9 @@ class DagModel(Base):
             # Since this happens every time the dag is parsed it would be quite spammy at info
             log.debug(
                 "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
-                dag.dag_id, active_runs_of_dag, dag.max_active_runs
+                dag.dag_id,
+                active_runs_of_dag,
+                dag.max_active_runs,
             )
             self.next_dagrun_create_after = None
 
@@ -2241,6 +2271,7 @@ def dag(*dag_args, **dag_kwargs):
     :param dag_kwargs: Kwargs for DAG object.
     :type dag_kwargs: dict
     """
+
     def wrapper(f: Callable):
         # Get dag initializer signature and bind it to validate that dag_args, and dag_kwargs are correct
         dag_sig = signature(DAG.__init__)
@@ -2276,7 +2307,9 @@ def dag(*dag_args, **dag_kwargs):
 
             # Return dag object such that it's accessible in Globals.
             return dag_obj
+
         return factory
+
     return wrapper
 
 
@@ -2287,6 +2320,7 @@ if STATICA_HACK:  # pragma: no cover
     from sqlalchemy.orm import relationship
 
     from airflow.models.serialized_dag import SerializedDagModel
+
     DagModel.serialized_dag = relationship(SerializedDagModel)
 
 

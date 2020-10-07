@@ -71,6 +71,7 @@ with DAG(
 
         order_data_dict = json.loads(data_string)
         return order_data_dict
+
     # [END extract]
 
     # [START transform]
@@ -87,6 +88,7 @@ with DAG(
             total_order_value += value
 
         return {"total_order_value": total_order_value}
+
     # [END transform]
 
     # [START load]
@@ -99,6 +101,7 @@ with DAG(
         """
 
         print("Total order value is: %.2f" % total_order_value)
+
     # [END load]
 
     # [START main_flow]

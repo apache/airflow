@@ -21,7 +21,6 @@
 import json
 import unittest
 import uuid
-
 from unittest import mock
 
 from airflow.models import Connection

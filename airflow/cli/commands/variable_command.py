@@ -37,17 +37,10 @@ def variables_get(args):
     """Displays variable by a given name"""
     try:
         if args.default is None:
-            var = Variable.get(
-                args.key,
-                deserialize_json=args.json
-            )
+            var = Variable.get(args.key, deserialize_json=args.json)
             print(var)
         else:
-            var = Variable.get(
-                args.key,
-                deserialize_json=args.json,
-                default_var=args.default
-            )
+            var = Variable.get(args.key, deserialize_json=args.json, default_var=args.default)
             print(var)
     except (ValueError, KeyError) as e:
         print(str(e), file=sys.stderr)

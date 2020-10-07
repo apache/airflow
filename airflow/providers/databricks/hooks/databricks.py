@@ -26,7 +26,7 @@ from time import sleep
 from urllib.parse import urlparse
 
 import requests
-from requests import exceptions as requests_exceptions, PreparedRequest
+from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase
 
 from airflow import __version__

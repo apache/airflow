@@ -25,9 +25,9 @@ from inspect import isclass
 from typing import List
 
 
-def import_all_provider_classes(source_paths: str,
-                                provider_ids: List[str] = None,
-                                print_imports: bool = False) -> List[str]:
+def import_all_provider_classes(
+    source_paths: str, provider_ids: List[str] = None, print_imports: bool = False
+) -> List[str]:
     """
     Imports all classes in providers packages. This method loads and imports
     all the classes found in providers, so that we can find all the subclasses
@@ -61,8 +61,9 @@ def import_all_provider_classes(source_paths: str,
         provider_ids = ['']
 
     for provider_id in provider_ids:
-        for modinfo in pkgutil.walk_packages(mk_path(provider_id), prefix=mk_prefix(provider_id),
-                                             onerror=onerror):
+        for modinfo in pkgutil.walk_packages(
+            mk_path(provider_id), prefix=mk_prefix(provider_id), onerror=onerror
+        ):
             if print_imports:
                 print(f"Importing module: {modinfo.name}")
             try:
@@ -78,9 +79,12 @@ def import_all_provider_classes(source_paths: str,
                 exception_str = traceback.format_exc()
                 tracebacks.append(exception_str)
     if tracebacks:
-        print("""
+        print(
+            """
 ERROR: There were some import errors
-""", file=sys.stderr)
+""",
+            file=sys.stderr,
+        )
         for trace in tracebacks:
             print("----------------------------------------", file=sys.stderr)
             print(trace, file=sys.stderr)
@@ -93,6 +97,7 @@ ERROR: There were some import errors
 if __name__ == '__main__':
     try:
         import airflow.providers
+
         install_source_path = list(iter(airflow.providers.__path__))
     except ImportError as e:
         print("----------------------------------------", file=sys.stderr)

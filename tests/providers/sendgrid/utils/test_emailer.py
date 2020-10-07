@@ -21,7 +21,6 @@ import copy
 import os
 import tempfile
 import unittest
-
 from unittest import mock
 
 from airflow.providers.sendgrid.utils.emailer import send_email

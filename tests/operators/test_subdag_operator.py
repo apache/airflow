@@ -42,7 +42,6 @@ default_args = dict(
 
 
 class TestSubDagOperator(unittest.TestCase):
-
     def setUp(self):
         clear_db_runs()
         self.dag_run_running = DagRun()
@@ -63,15 +62,9 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_bad3 = DAG('bad.bad', default_args=default_args)
 
         SubDagOperator(task_id='test', dag=dag, subdag=subdag_good)
-        self.assertRaises(
-            AirflowException,
-            SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad1)
-        self.assertRaises(
-            AirflowException,
-            SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad2)
-        self.assertRaises(
-            AirflowException,
-            SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad3)
+        self.assertRaises(AirflowException, SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad1)
+        self.assertRaises(AirflowException, SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad2)
+        self.assertRaises(AirflowException, SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad3)
 
     def test_subdag_in_context_manager(self):
         """
@@ -101,14 +94,12 @@ class TestSubDagOperator(unittest.TestCase):
         DummyOperator(task_id='dummy', dag=subdag, pool='test_pool_1')
 
         self.assertRaises(
-            AirflowException,
-            SubDagOperator,
-            task_id='child', dag=dag, subdag=subdag, pool='test_pool_1')
+            AirflowException, SubDagOperator, task_id='child', dag=dag, subdag=subdag, pool='test_pool_1'
+        )
 
         # recreate dag because failed subdagoperator was already added
         dag = DAG('parent', default_args=default_args)
-        SubDagOperator(
-            task_id='child', dag=dag, subdag=subdag, pool='test_pool_10')
+        SubDagOperator(task_id='child', dag=dag, subdag=subdag, pool='test_pool_10')
 
         session.delete(pool_1)
         session.delete(pool_10)
@@ -132,9 +123,7 @@ class TestSubDagOperator(unittest.TestCase):
         DummyOperator(task_id='dummy', dag=subdag, pool='test_pool_10')
 
         mock_session = Mock()
-        SubDagOperator(
-            task_id='child', dag=dag, subdag=subdag, pool='test_pool_1',
-            session=mock_session)
+        SubDagOperator(task_id='child', dag=dag, subdag=subdag, pool='test_pool_1', session=mock_session)
         self.assertFalse(mock_session.query.called)
 
         session.delete(pool_1)
@@ -272,22 +261,19 @@ class TestSubDagOperator(unittest.TestCase):
         sub_dagrun.refresh_from_db()
         self.assertEqual(sub_dagrun.state, State.RUNNING)
 
-    @parameterized.expand([
-        (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SKIPPED], True),
-        (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SUCCESS], False),
-        (SkippedStatePropagationOptions.ANY_LEAF, [State.SKIPPED, State.SUCCESS], True),
-        (SkippedStatePropagationOptions.ANY_LEAF, [State.FAILED, State.SKIPPED], True),
-        (None, [State.SKIPPED, State.SKIPPED], False),
-    ])
+    @parameterized.expand(
+        [
+            (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SKIPPED], True),
+            (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SUCCESS], False),
+            (SkippedStatePropagationOptions.ANY_LEAF, [State.SKIPPED, State.SUCCESS], True),
+            (SkippedStatePropagationOptions.ANY_LEAF, [State.FAILED, State.SKIPPED], True),
+            (None, [State.SKIPPED, State.SKIPPED], False),
+        ]
+    )
     @mock.patch('airflow.operators.subdag_operator.SubDagOperator.skip')
     @mock.patch('airflow.operators.subdag_operator.get_task_instance')
     def test_subdag_with_propagate_skipped_state(
-        self,
-        propagate_option,
-        states,
-        skip_parent,
-        mock_get_task_instance,
-        mock_skip
+        self, propagate_option, states, skip_parent, mock_get_task_instance, mock_skip
     ):
         """
         Tests that skipped state of leaf tasks propagates to the parent dag.
@@ -296,15 +282,10 @@ class TestSubDagOperator(unittest.TestCase):
         dag = DAG('parent', default_args=default_args)
         subdag = DAG('parent.test', default_args=default_args)
         subdag_task = SubDagOperator(
-            task_id='test',
-            subdag=subdag,
-            dag=dag,
-            poke_interval=1,
-            propagate_skipped_state=propagate_option
+            task_id='test', subdag=subdag, dag=dag, poke_interval=1, propagate_skipped_state=propagate_option
         )
         dummy_subdag_tasks = [
-            DummyOperator(task_id=f'dummy_subdag_{i}', dag=subdag)
-            for i in range(len(states))
+            DummyOperator(task_id=f'dummy_subdag_{i}', dag=subdag) for i in range(len(states))
         ]
         dummy_dag_task = DummyOperator(task_id='dummy_dag', dag=dag)
         subdag_task >> dummy_dag_task
@@ -312,25 +293,14 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_task._get_dagrun = Mock()
         subdag_task._get_dagrun.return_value = self.dag_run_success
         mock_get_task_instance.side_effect = [
-            TaskInstance(
-                task=task,
-                execution_date=DEFAULT_DATE,
-                state=state
-            ) for task, state in zip(dummy_subdag_tasks, states)
+            TaskInstance(task=task, execution_date=DEFAULT_DATE, state=state)
+            for task, state in zip(dummy_subdag_tasks, states)
         ]
 
-        context = {
-            'execution_date': DEFAULT_DATE,
-            'dag_run': DagRun(),
-            'task': subdag_task
-        }
+        context = {'execution_date': DEFAULT_DATE, 'dag_run': DagRun(), 'task': subdag_task}
         subdag_task.post_execute(context)
 
         if skip_parent:
-            mock_skip.assert_called_once_with(
-                context['dag_run'],
-                context['execution_date'],
-                [dummy_dag_task]
-            )
+            mock_skip.assert_called_once_with(context['dag_run'], context['execution_date'], [dummy_dag_task])
         else:
             mock_skip.assert_not_called()

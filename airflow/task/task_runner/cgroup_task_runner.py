@@ -92,8 +92,7 @@ class CgroupTaskRunner(BaseTaskRunner):
                 node = node.create_cgroup(path_element)
             else:
                 self.log.debug(
-                    "Not creating cgroup %s in %s since it already exists",
-                    path_element, node.path.decode()
+                    "Not creating cgroup %s in %s since it already exists", path_element, node.path.decode()
                 )
                 node = name_to_node[path_element]
         return node
@@ -122,20 +121,21 @@ class CgroupTaskRunner(BaseTaskRunner):
     def start(self):
         # Use bash if it's already in a cgroup
         cgroups = self._get_cgroup_names()
-        if ((cgroups.get("cpu") and cgroups.get("cpu") != "/") or
-                (cgroups.get("memory") and cgroups.get("memory") != "/")):
+        if (cgroups.get("cpu") and cgroups.get("cpu") != "/") or (
+            cgroups.get("memory") and cgroups.get("memory") != "/"
+        ):
             self.log.debug(
-                "Already running in a cgroup (cpu: %s memory: %s) so not "
-                "creating another one",
-                cgroups.get("cpu"), cgroups.get("memory")
+                "Already running in a cgroup (cpu: %s memory: %s) so not " "creating another one",
+                cgroups.get("cpu"),
+                cgroups.get("memory"),
             )
             self.process = self.run_command()
             return
 
         # Create a unique cgroup name
-        cgroup_name = "airflow/{}/{}".format(datetime.datetime.utcnow().
-                                             strftime("%Y-%m-%d"),
-                                             str(uuid.uuid4()))
+        cgroup_name = "airflow/{}/{}".format(
+            datetime.datetime.utcnow().strftime("%Y-%m-%d"), str(uuid.uuid4())
+        )
 
         self.mem_cgroup_name = f"memory/{cgroup_name}"
         self.cpu_cgroup_name = f"cpu/{cgroup_name}"
@@ -151,30 +151,19 @@ class CgroupTaskRunner(BaseTaskRunner):
         mem_cgroup_node = self._create_cgroup(self.mem_cgroup_name)
         self._created_mem_cgroup = True
         if self._mem_mb_limit > 0:
-            self.log.debug(
-                "Setting %s with %s MB of memory",
-                self.mem_cgroup_name, self._mem_mb_limit
-            )
+            self.log.debug("Setting %s with %s MB of memory", self.mem_cgroup_name, self._mem_mb_limit)
             mem_cgroup_node.controller.limit_in_bytes = self._mem_mb_limit * 1024 * 1024
 
         # Create the CPU cgroup
         cpu_cgroup_node = self._create_cgroup(self.cpu_cgroup_name)
         self._created_cpu_cgroup = True
         if self._cpu_shares > 0:
-            self.log.debug(
-                "Setting %s with %s CPU shares",
-                self.cpu_cgroup_name, self._cpu_shares
-            )
+            self.log.debug("Setting %s with %s CPU shares", self.cpu_cgroup_name, self._cpu_shares)
             cpu_cgroup_node.controller.shares = self._cpu_shares
 
         # Start the process w/ cgroups
-        self.log.debug(
-            "Starting task process with cgroups cpu,memory: %s",
-            cgroup_name
-        )
-        self.process = self.run_command(
-            ['cgexec', '-g', f'cpu,memory:{cgroup_name}']
-        )
+        self.log.debug("Starting task process with cgroups cpu,memory: %s", cgroup_name)
+        self.process = self.run_command(['cgexec', '-g', f'cpu,memory:{cgroup_name}'])
 
     def return_code(self):
         return_code = self.process.poll()
@@ -186,10 +175,12 @@ class CgroupTaskRunner(BaseTaskRunner):
         # I wasn't able to track down the root cause of the package install failures, but
         # we might want to revisit that approach at some other point.
         if return_code == 137:
-            self.log.error("Task failed with return code of 137. This may indicate "
-                           "that it was killed due to excessive memory usage. "
-                           "Please consider optimizing your task or using the "
-                           "resources argument to reserve more memory for your task")
+            self.log.error(
+                "Task failed with return code of 137. This may indicate "
+                "that it was killed due to excessive memory usage. "
+                "Please consider optimizing your task or using the "
+                "resources argument to reserve more memory for your task"
+            )
         return return_code
 
     def terminate(self):

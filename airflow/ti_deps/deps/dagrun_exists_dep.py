@@ -34,24 +34,22 @@ class DagrunRunningDep(BaseTIDep):
         if not dagrun:
             # The import is needed here to avoid a circular dependency
             from airflow.models.dagrun import DagRun
+
             running_dagruns = DagRun.find(
-                dag_id=dag.dag_id,
-                state=State.RUNNING,
-                external_trigger=False,
-                session=session
+                dag_id=dag.dag_id, state=State.RUNNING, external_trigger=False, session=session
             )
 
             if len(running_dagruns) >= dag.max_active_runs:
-                reason = ("The maximum number of active dag runs ({}) for this task "
-                          "instance's DAG '{}' has been reached.".format(
-                              dag.max_active_runs,
-                              ti.dag_id))
+                reason = (
+                    "The maximum number of active dag runs ({}) for this task "
+                    "instance's DAG '{}' has been reached.".format(dag.max_active_runs, ti.dag_id)
+                )
             else:
                 reason = "Unknown reason"
-            yield self._failing_status(
-                reason=f"Task instance's dagrun did not exist: {reason}.")
+            yield self._failing_status(reason=f"Task instance's dagrun did not exist: {reason}.")
         else:
             if dagrun.state != State.RUNNING:
                 yield self._failing_status(
                     reason="Task instance's dagrun was not in the 'running' state but in "
-                           "the state '{}'.".format(dagrun.state))
+                    "the state '{}'.".format(dagrun.state)
+                )

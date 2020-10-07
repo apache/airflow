@@ -26,7 +26,6 @@ from collections import OrderedDict
 from gzip import GzipFile
 from itertools import product
 from tempfile import NamedTemporaryFile, mkdtemp
-
 from unittest import mock
 
 from airflow.exceptions import AirflowException

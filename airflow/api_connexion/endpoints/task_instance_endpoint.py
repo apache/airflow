@@ -16,31 +16,31 @@
 # under the License.
 from typing import Any, List, Optional, Tuple
 
-from flask import request, current_app
+from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import and_, func
 
 from airflow.api.common.experimental.mark_tasks import set_state
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound, BadRequest
+from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import format_datetime, format_parameters
 from airflow.api_connexion.schemas.task_instance_schema import (
-    clear_task_instance_form,
     TaskInstanceCollection,
-    task_instance_collection_schema,
-    task_instance_schema,
-    task_instance_batch_form,
-    task_instance_reference_collection_schema,
     TaskInstanceReferenceCollection,
+    clear_task_instance_form,
     set_task_instance_state_form,
+    task_instance_batch_form,
+    task_instance_collection_schema,
+    task_instance_reference_collection_schema,
+    task_instance_schema,
 )
 from airflow.exceptions import SerializedDagNotFound
-from airflow.models.dagrun import DagRun as DR
-from airflow.models.taskinstance import clear_task_instances, TaskInstance as TI
 from airflow.models import SlaMiss
+from airflow.models.dagrun import DagRun as DR
+from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
-from airflow.utils.state import State
 from airflow.utils.session import provide_session
+from airflow.utils.state import State
 
 
 @security.requires_access(

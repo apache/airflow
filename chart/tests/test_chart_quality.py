@@ -18,10 +18,9 @@
 import json
 import os
 import unittest
+
 import yaml
-
 from jsonschema import validate
-
 
 CHART_FOLDER = os.path.dirname(os.path.dirname(__file__))
 

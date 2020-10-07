@@ -52,12 +52,10 @@ def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt: str = "fancy_grid") -> 
             'Execution date': dag_run.execution_date.isoformat(),
             'Start date': dag_run.start_date.isoformat() if dag_run.start_date else '',
             'End date': dag_run.end_date.isoformat() if dag_run.end_date else '',
-        } for dag_run in dag_runs
+        }
+        for dag_run in dag_runs
     )
-    return tabulate(
-        tabular_data=tabulate_data,
-        tablefmt=tablefmt
-    )
+    return tabulate(tabular_data=tabulate_data, tablefmt=tablefmt)
 
 
 def _tabulate_dags(dags: List[DAG], tablefmt: str = "fancy_grid") -> str:
@@ -66,27 +64,25 @@ def _tabulate_dags(dags: List[DAG], tablefmt: str = "fancy_grid") -> str:
             'DAG ID': dag.dag_id,
             'Filepath': dag.filepath,
             'Owner': dag.owner,
-        } for dag in sorted(dags, key=lambda d: d.dag_id)
+        }
+        for dag in sorted(dags, key=lambda d: d.dag_id)
     )
-    return tabulate(
-        tabular_data=tabulate_data,
-        tablefmt=tablefmt,
-        headers='keys'
-    )
+    return tabulate(tabular_data=tabulate_data, tablefmt=tablefmt, headers='keys')
 
 
 @cli_utils.action_logging
 def dag_backfill(args, dag=None):
     """Creates backfill job or dry run for a DAG"""
-    logging.basicConfig(
-        level=settings.LOGGING_LEVEL,
-        format=settings.SIMPLE_LOG_FORMAT)
+    logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
     signal.signal(signal.SIGTERM, sigint_handler)
 
     import warnings
-    warnings.warn('--ignore-first-depends-on-past is deprecated as the value is always set to True',
-                  category=PendingDeprecationWarning)
+
+    warnings.warn(
+        '--ignore-first-depends-on-past is deprecated as the value is always set to True',
+        category=PendingDeprecationWarning,
+    )
 
     if args.ignore_first_depends_on_past is False:
         args.ignore_first_depends_on_past = True
@@ -102,16 +98,15 @@ def dag_backfill(args, dag=None):
 
     if args.task_regex:
         dag = dag.partial_subset(
-            task_ids_or_regex=args.task_regex,
-            include_upstream=not args.ignore_dependencies)
+            task_ids_or_regex=args.task_regex, include_upstream=not args.ignore_dependencies
+        )
 
     run_conf = None
     if args.conf:
         run_conf = json.loads(args.conf)
 
     if args.dry_run:
-        print("Dry run of DAG {} on {}".format(args.dag_id,
-                                               args.start_date))
+        print(f"Dry run of DAG {args.dag_id} on {args.start_date}")
         for task in dag.tasks:
             print(f"Task {task.task_id}")
             ti = TaskInstance(task, args.start_date)
@@ -132,8 +127,7 @@ def dag_backfill(args, dag=None):
             end_date=args.end_date,
             mark_success=args.mark_success,
             local=args.local,
-            donot_pickle=(args.donot_pickle or
-                          conf.getboolean('core', 'donot_pickle')),
+            donot_pickle=(args.donot_pickle or conf.getboolean('core', 'donot_pickle')),
             ignore_first_depends_on_past=args.ignore_first_depends_on_past,
             ignore_task_deps=args.ignore_dependencies,
             pool=args.pool,
@@ -141,7 +135,7 @@ def dag_backfill(args, dag=None):
             verbose=args.verbose,
             conf=run_conf,
             rerun_failed_tasks=args.rerun_failed_tasks,
-            run_backwards=args.run_backwards
+            run_backwards=args.run_backwards,
         )
 
 
@@ -150,10 +144,9 @@ def dag_trigger(args):
     """Creates a dag run for the specified dag"""
     api_client = get_current_api_client()
     try:
-        message = api_client.trigger_dag(dag_id=args.dag_id,
-                                         run_id=args.run_id,
-                                         conf=args.conf,
-                                         execution_date=args.exec_date)
+        message = api_client.trigger_dag(
+            dag_id=args.dag_id, run_id=args.run_id, conf=args.conf, execution_date=args.exec_date
+        )
         print(message)
     except OSError as err:
         raise AirflowException(err)
@@ -163,9 +156,13 @@ def dag_trigger(args):
 def dag_delete(args):
     """Deletes all DB records related to the specified dag"""
     api_client = get_current_api_client()
-    if args.yes or input(
-            "This will drop all existing records related to the specified DAG. "
-            "Proceed? (y/n)").upper() == "Y":
+    if (
+        args.yes
+        or input(
+            "This will drop all existing records related to the specified DAG. " "Proceed? (y/n)"
+        ).upper()
+        == "Y"
+    ):
         try:
             message = api_client.delete_dag(dag_id=args.dag_id)
             print(message)
@@ -207,7 +204,7 @@ def dag_show(args):
         print(
             "Option --save and --imgcat are mutually exclusive. "
             "Please remove one option to execute the command.",
-            file=sys.stderr
+            file=sys.stderr,
         )
         sys.exit(1)
     elif filename:
@@ -280,8 +277,11 @@ def dag_next_execution(args):
         next_execution_dttm = dag.following_schedule(latest_execution_date)
 
         if next_execution_dttm is None:
-            print("[WARN] No following schedule can be found. " +
-                  "This DAG may have schedule interval '@once' or `None`.", file=sys.stderr)
+            print(
+                "[WARN] No following schedule can be found. "
+                + "This DAG may have schedule interval '@once' or `None`.",
+                file=sys.stderr,
+            )
             print(None)
         else:
             print(next_execution_dttm)
@@ -327,17 +327,18 @@ def dag_list_jobs(args, dag=None):
         queries.append(BaseJob.state == args.state)
 
     with create_session() as session:
-        all_jobs = (session
-                    .query(BaseJob)
-                    .filter(*queries)
-                    .order_by(BaseJob.start_date.desc())
-                    .limit(args.limit)
-                    .all())
+        all_jobs = (
+            session.query(BaseJob)
+            .filter(*queries)
+            .order_by(BaseJob.start_date.desc())
+            .limit(args.limit)
+            .all()
+        )
         fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
         all_jobs = [[job.__getattribute__(field) for field in fields] for job in all_jobs]
-        msg = tabulate(all_jobs,
-                       [field.capitalize().replace('_', ' ') for field in fields],
-                       tablefmt=args.output)
+        msg = tabulate(
+            all_jobs, [field.capitalize().replace('_', ' ') for field in fields], tablefmt=args.output
+        )
         print(msg)
 
 
@@ -367,10 +368,7 @@ def dag_list_dag_runs(args, dag=None):
         return
 
     dag_runs.sort(key=lambda x: x.execution_date, reverse=True)
-    table = _tabulate_dag_runs(
-        dag_runs,
-        tablefmt=args.output
-    )
+    table = _tabulate_dag_runs(dag_runs, tablefmt=args.output)
     print(table)
 
 
@@ -389,10 +387,14 @@ def dag_test(args, session=None):
     imgcat = args.imgcat_dagrun
     filename = args.save_dagrun
     if show_dagrun or imgcat or filename:
-        tis = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == args.dag_id,
-            TaskInstance.execution_date == args.execution_date,
-        ).all()
+        tis = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == args.dag_id,
+                TaskInstance.execution_date == args.execution_date,
+            )
+            .all()
+        )
 
         dot_graph = render_dag(dag, tis=tis)
         print()

@@ -149,11 +149,13 @@ class TestDagRunOperator(TestCase):
     def test_trigger_dagrun_with_reset_dag_run_false(self):
         """Test TriggerDagRunOperator with reset_dag_run."""
         execution_date = DEFAULT_DATE
-        task = TriggerDagRunOperator(task_id="test_task",
-                                     trigger_dag_id=TRIGGERED_DAG_ID,
-                                     execution_date=execution_date,
-                                     reset_dag_run=False,
-                                     dag=self.dag)
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=execution_date,
+            reset_dag_run=False,
+            dag=self.dag,
+        )
         task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
 
         with self.assertRaises(DagRunAlreadyExists):
@@ -162,11 +164,13 @@ class TestDagRunOperator(TestCase):
     def test_trigger_dagrun_with_reset_dag_run_true(self):
         """Test TriggerDagRunOperator with reset_dag_run."""
         execution_date = DEFAULT_DATE
-        task = TriggerDagRunOperator(task_id="test_task",
-                                     trigger_dag_id=TRIGGERED_DAG_ID,
-                                     execution_date=execution_date,
-                                     reset_dag_run=True,
-                                     dag=self.dag)
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=execution_date,
+            reset_dag_run=True,
+            dag=self.dag,
+        )
         task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
         task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
 

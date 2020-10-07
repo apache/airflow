@@ -17,7 +17,6 @@
 
 import unittest
 from io import StringIO
-
 from unittest import mock
 
 from airflow.exceptions import AirflowConfigException

@@ -24,10 +24,22 @@ import string
 import slugify
 
 # order is important
-_licenses = {'MIT': ['Permission is hereby granted free of charge', 'The above copyright notice and this permission notice shall'],
-             'BSD-3': ['Redistributions of source code must retain the above copyright', 'Redistributions in binary form must reproduce the above copyright', 'specific prior written permission'],
-             'BSD-2': ['Redistributions of source code must retain the above copyright', 'Redistributions in binary form must reproduce the above copyright'],
-             'AL': ['http://www.apache.org/licenses/LICENSE-2.0']}
+_licenses = {
+    'MIT': [
+        'Permission is hereby granted free of charge',
+        'The above copyright notice and this permission notice shall',
+    ],
+    'BSD-3': [
+        'Redistributions of source code must retain the above copyright',
+        'Redistributions in binary form must reproduce the above copyright',
+        'specific prior written permission',
+    ],
+    'BSD-2': [
+        'Redistributions of source code must retain the above copyright',
+        'Redistributions in binary form must reproduce the above copyright',
+    ],
+    'AL': ['http://www.apache.org/licenses/LICENSE-2.0'],
+}
 
 
 def get_notices():
@@ -56,16 +68,14 @@ def parse_license_file(project_name):
 
 
 if __name__ == "__main__":
-    print("{:<30}|{:<50}||{:<20}||{:<10}"
-          .format("PROJECT", "URL", "LICENSE TYPE DEFINED", "DETECTED"))
+    print("{:<30}|{:<50}||{:<20}||{:<10}".format("PROJECT", "URL", "LICENSE TYPE DEFINED", "DETECTED"))
 
     notices = get_notices()
 
     for notice in notices:
         notice = notice[0]
         license = parse_license_file(notice[1])
-        print("{:<30}|{:<50}||{:<20}||{:<10}"
-              .format(notice[1], notice[2][:50], notice[0], license))
+        print("{:<30}|{:<50}||{:<20}||{:<10}".format(notice[1], notice[2][:50], notice[0], license))
 
     file_count = len([name for name in os.listdir("../licenses")])
     print("Defined licenses: {} Files found: {}".format(len(notices), file_count))

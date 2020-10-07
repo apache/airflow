@@ -35,9 +35,7 @@ class TestMovingCoreToContrib(TestCase):
         assert any(msg in str(w) for w in warning.warnings), error
 
     def assert_is_subclass(self, clazz, other):
-        self.assertTrue(
-            issubclass(clazz, other), f"{clazz} is not subclass of {other}"
-        )
+        self.assertTrue(issubclass(clazz, other), f"{clazz} is not subclass of {other}")
 
     def assert_proper_import(self, old_resource, new_resource):
         new_path, _, _ = new_resource.rpartition(".")
@@ -66,9 +64,7 @@ class TestMovingCoreToContrib(TestCase):
         if isabstract(class_) and not parent:
             class_name = f"Mock({class_.__name__})"
 
-            attributes = {
-                a: mock.MagicMock() for a in class_.__abstractmethods__
-            }
+            attributes = {a: mock.MagicMock() for a in class_.__abstractmethods__}
 
             new_class = type(class_name, (class_,), attributes)
             return new_class
@@ -111,9 +107,7 @@ class TestMovingCoreToContrib(TestCase):
 
         This will tell us to use new_A instead of old_B.
         """
-        all_classes_by_old = {
-            old: new for new, old in ALL
-        }
+        all_classes_by_old = {old: new for new, old in ALL}
 
         for new, old in ALL:
             # Using if statement allows us to create a developer-friendly message only when we need it.

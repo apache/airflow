@@ -29,8 +29,7 @@ from tests.test_utils.config import conf_vars
 DEFAULT_DATE = datetime(2019, 1, 1)
 TASK_LOGGER = 'airflow.task'
 TASK_HANDLER = 'task'
-TASK_HANDLER_CLASS = 'airflow.utils.log.task_handler_with_custom_formatter.' \
-                     'TaskHandlerWithCustomFormatter'
+TASK_HANDLER_CLASS = 'airflow.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter'
 PREV_TASK_HANDLER = DEFAULT_LOGGING_CONFIG['handlers']['task']
 
 
@@ -40,7 +39,7 @@ class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
         DEFAULT_LOGGING_CONFIG['handlers']['task'] = {
             'class': TASK_HANDLER_CLASS,
             'formatter': 'airflow',
-            'stream': 'sys.stdout'
+            'stream': 'sys.stdout',
         }
 
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)

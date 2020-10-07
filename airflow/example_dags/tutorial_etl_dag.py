@@ -30,6 +30,7 @@ import json
 
 # The DAG object; we'll need this to instantiate a DAG
 from airflow import DAG
+
 # Operators; we need this to operate!
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
@@ -63,6 +64,7 @@ with DAG(
         ti = kwargs['ti']
         data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
         ti.xcom_push('order_data', data_string)
+
     # [END extract_function]
 
     # [START transform_function]
@@ -78,6 +80,7 @@ with DAG(
         total_value = {"total_order_value": total_order_value}
         total_value_json_string = json.dumps(total_value)
         ti.xcom_push('total_order_value', total_value_json_string)
+
     # [END transform_function]
 
     # [START load_function]
@@ -87,6 +90,7 @@ with DAG(
         total_order_value = json.loads(total_value_string)
 
         print(total_order_value)
+
     # [END load_function]
 
     # [START main_flow]

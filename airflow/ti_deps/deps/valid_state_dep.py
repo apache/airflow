@@ -38,8 +38,7 @@ class ValidStateDep(BaseTIDep):
         super().__init__()
 
         if not valid_states:
-            raise AirflowException(
-                'ValidStatesDep received an empty set of valid states.')
+            raise AirflowException('ValidStatesDep received an empty set of valid states.')
         self._valid_states = valid_states
 
     def __eq__(self, other):
@@ -51,8 +50,7 @@ class ValidStateDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
         if dep_context.ignore_ti_state:
-            yield self._passing_status(
-                reason="Context specified that state should be ignored.")
+            yield self._passing_status(reason="Context specified that state should be ignored.")
             return
 
         if ti.state in self._valid_states:
@@ -61,5 +59,5 @@ class ValidStateDep(BaseTIDep):
 
         yield self._failing_status(
             reason="Task is in the '{}' state which is not a valid state for "
-                   "execution. The task must be cleared in order to be run.".format(
-                       ti.state))
+            "execution. The task must be cleared in order to be run.".format(ti.state)
+        )

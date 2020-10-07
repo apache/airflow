@@ -32,17 +32,35 @@ from airflow.exceptions import AirflowConfigException
 log = logging.getLogger(__name__)
 
 
-def send_email(to: Union[List[str], Iterable[str]], subject: str, html_content: str,
-               files=None, dryrun=False, cc=None, bcc=None,
-               mime_subtype='mixed', mime_charset='utf-8', **kwargs):
+def send_email(
+    to: Union[List[str], Iterable[str]],
+    subject: str,
+    html_content: str,
+    files=None,
+    dryrun=False,
+    cc=None,
+    bcc=None,
+    mime_subtype='mixed',
+    mime_charset='utf-8',
+    **kwargs,
+):
     """Send email using backend specified in EMAIL_BACKEND."""
     backend = conf.getimport('email', 'EMAIL_BACKEND')
     to_list = get_email_address_list(to)
     to_comma_separated = ", ".join(to_list)
 
-    return backend(to_comma_separated, subject, html_content, files=files,
-                   dryrun=dryrun, cc=cc, bcc=bcc,
-                   mime_subtype=mime_subtype, mime_charset=mime_charset, **kwargs)
+    return backend(
+        to_comma_separated,
+        subject,
+        html_content,
+        files=files,
+        dryrun=dryrun,
+        cc=cc,
+        bcc=bcc,
+        mime_subtype=mime_subtype,
+        mime_charset=mime_charset,
+        **kwargs,
+    )
 
 
 def send_email_smtp(
@@ -132,10 +150,7 @@ def build_mime_message(
     for fname in files or []:
         basename = os.path.basename(fname)
         with open(fname, "rb") as file:
-            part = MIMEApplication(
-                file.read(),
-                Name=basename
-            )
+            part = MIMEApplication(file.read(), Name=basename)
             part['Content-Disposition'] = f'attachment; filename="{basename}"'
             part['Content-ID'] = f'<{basename}>'
             msg.attach(part)

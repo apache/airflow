@@ -23,7 +23,8 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.gcs_to_bigquery`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -37,6 +38,7 @@ class GoogleCloudStorageToBigQueryOperator(GCSToBigQueryOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.transfers.gcs_to_bq.GCSToBigQueryOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

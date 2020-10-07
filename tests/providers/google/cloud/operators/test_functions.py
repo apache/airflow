@@ -18,8 +18,8 @@
 
 import unittest
 from copy import deepcopy
-
 from unittest import mock
+
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 

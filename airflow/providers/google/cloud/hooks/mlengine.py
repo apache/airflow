@@ -21,7 +21,7 @@ import random
 import time
 from typing import Callable, Dict, List, Optional
 
-from googleapiclient.discovery import build, Resource
+from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook

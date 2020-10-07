@@ -25,7 +25,6 @@ from airflow.models import Connection
 
 
 class TestDbApiHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -45,8 +44,7 @@ class TestDbApiHook(unittest.TestCase):
 
     def test_get_records(self):
         statement = "SQL"
-        rows = [("hello",),
-                ("world",)]
+        rows = [("hello",), ("world",)]
 
         self.cur.fetchall.return_value = rows
 
@@ -59,8 +57,7 @@ class TestDbApiHook(unittest.TestCase):
     def test_get_records_parameters(self):
         statement = "SQL"
         parameters = ["X", "Y", "Z"]
-        rows = [("hello",),
-                ("world",)]
+        rows = [("hello",), ("world",)]
 
         self.cur.fetchall.return_value = rows
 
@@ -83,8 +80,7 @@ class TestDbApiHook(unittest.TestCase):
 
     def test_insert_rows(self):
         table = "table"
-        rows = [("hello",),
-                ("world",)]
+        rows = [("hello",), ("world",)]
 
         self.db_hook.insert_rows(table, rows)
 
@@ -100,8 +96,7 @@ class TestDbApiHook(unittest.TestCase):
 
     def test_insert_rows_replace(self):
         table = "table"
-        rows = [("hello",),
-                ("world",)]
+        rows = [("hello",), ("world",)]
 
         self.db_hook.insert_rows(table, rows, replace=True)
 
@@ -117,8 +112,7 @@ class TestDbApiHook(unittest.TestCase):
 
     def test_insert_rows_target_fields(self):
         table = "table"
-        rows = [("hello",),
-                ("world",)]
+        rows = [("hello",), ("world",)]
         target_fields = ["field"]
 
         self.db_hook.insert_rows(table, rows, target_fields)
@@ -135,8 +129,7 @@ class TestDbApiHook(unittest.TestCase):
 
     def test_insert_rows_commit_every(self):
         table = "table"
-        rows = [("hello",),
-                ("world",)]
+        rows = [("hello",), ("world",)]
         commit_every = 1
 
         self.db_hook.insert_rows(table, rows, commit_every=commit_every)
@@ -152,25 +145,24 @@ class TestDbApiHook(unittest.TestCase):
             self.cur.execute.assert_any_call(sql, row)
 
     def test_get_uri_schema_not_none(self):
-        self.db_hook.get_connection = mock.MagicMock(return_value=Connection(
-            conn_type="conn_type",
-            host="host",
-            login="login",
-            password="password",
-            schema="schema",
-            port=1
-        ))
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn_type",
+                host="host",
+                login="login",
+                password="password",
+                schema="schema",
+                port=1,
+            )
+        )
         self.assertEqual("conn_type://login:password@host:1/schema", self.db_hook.get_uri())
 
     def test_get_uri_schema_none(self):
-        self.db_hook.get_connection = mock.MagicMock(return_value=Connection(
-            conn_type="conn_type",
-            host="host",
-            login="login",
-            password="password",
-            schema=None,
-            port=1
-        ))
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn_type", host="host", login="login", password="password", schema=None, port=1
+            )
+        )
         self.assertEqual("conn_type://login:password@host:1/", self.db_hook.get_uri())
 
     def test_run_log(self):

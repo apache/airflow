@@ -105,10 +105,12 @@ class TestLogView(unittest.TestCase):
 
         self.assertEqual(
             [
-                ('',
-                 f"*** Reading local file: "
-                 f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                 f"try_number=1.\n")
+                (
+                    '',
+                    f"*** Reading local file: "
+                    f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                    f"try_number=1.\n",
+                )
             ],
             logs[0],
         )
@@ -120,18 +122,30 @@ class TestLogView(unittest.TestCase):
 
         self.assertEqual(
             [
-                [('',
-                  "*** Reading local file: "
-                  f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                  "try_number=1.\n")],
-                [('',
-                  f"*** Reading local file: "
-                  f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-                  f"try_number=2.\n")],
-                [('',
-                  f"*** Reading local file: "
-                  f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-                  f"try_number=3.\n")],
+                [
+                    (
+                        '',
+                        "*** Reading local file: "
+                        f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                        "try_number=1.\n",
+                    )
+                ],
+                [
+                    (
+                        '',
+                        f"*** Reading local file: "
+                        f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
+                        f"try_number=2.\n",
+                    )
+                ],
+                [
+                    (
+                        '',
+                        f"*** Reading local file: "
+                        f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
+                        f"try_number=3.\n",
+                    )
+                ],
             ],
             logs,
         )

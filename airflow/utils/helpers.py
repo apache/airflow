@@ -36,12 +36,12 @@ def validate_key(k, max_length=250):
     if not isinstance(k, str):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
-        raise AirflowException(
-            f"The key has to be less than {max_length} characters")
+        raise AirflowException(f"The key has to be less than {max_length} characters")
     elif not KEY_REGEX.match(k):
         raise AirflowException(
             "The key ({k}) has to be made of alphanumeric characters, dashes, "
-            "dots and underscores exclusively".format(k=k))
+            "dots and underscores exclusively".format(k=k)
+        )
     else:
         return True
 
@@ -101,15 +101,10 @@ def chunks(items: List[T], chunk_size: int) -> Generator[List[T], None, None]:
     if chunk_size <= 0:
         raise ValueError('Chunk size must be a positive integer')
     for i in range(0, len(items), chunk_size):
-        yield items[i:i + chunk_size]
+        yield items[i : i + chunk_size]
 
 
-def reduce_in_chunks(
-    fn: Callable[[S, List[T]], S],
-    iterable: List[T],
-    initializer: S,
-    chunk_size: int = 0
-):
+def reduce_in_chunks(fn: Callable[[S, List[T]], S], iterable: List[T], initializer: S, chunk_size: int = 0):
     """
     Reduce the given list of items by splitting it into chunks
     of the given size and passing each chunk through the reducer
@@ -155,10 +150,12 @@ def render_log_filename(ti, try_number, filename_template):
         jinja_context['try_number'] = try_number
         return filename_jinja_template.render(**jinja_context)
 
-    return filename_template.format(dag_id=ti.dag_id,
-                                    task_id=ti.task_id,
-                                    execution_date=ti.execution_date.isoformat(),
-                                    try_number=try_number)
+    return filename_template.format(
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        execution_date=ti.execution_date.isoformat(),
+        try_number=try_number,
+    )
 
 
 def convert_camel_to_snake(camel_str):
@@ -191,7 +188,8 @@ def chain(*args, **kwargs):
     """This function is deprecated. Please use `airflow.models.baseoperator.chain`."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.chain`.",
-        DeprecationWarning, stacklevel=2
+        DeprecationWarning,
+        stacklevel=2,
     )
     return import_string('airflow.models.baseoperator.chain')(*args, **kwargs)
 
@@ -200,6 +198,7 @@ def cross_downstream(*args, **kwargs):
     """This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
-        DeprecationWarning, stacklevel=2
+        DeprecationWarning,
+        stacklevel=2,
     )
     return import_string('airflow.models.baseoperator.cross_downstream')(*args, **kwargs)

@@ -29,8 +29,8 @@
 import logging
 import os
 import sys
-
 from os.path import dirname
+
 from setuptools import find_packages, setup
 
 logger = logging.getLogger(__name__)

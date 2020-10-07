@@ -55,15 +55,8 @@ class ClassWithCustomAttributes:
 
 
 # Objects with circular references (for testing purpose)
-object1 = ClassWithCustomAttributes(
-    attr="{{ foo }}_1",
-    template_fields=["ref"]
-)
-object2 = ClassWithCustomAttributes(
-    attr="{{ foo }}_2",
-    ref=object1,
-    template_fields=["ref"]
-)
+object1 = ClassWithCustomAttributes(attr="{{ foo }}_1", template_fields=["ref"])
+object2 = ClassWithCustomAttributes(attr="{{ foo }}_2", ref=object1, template_fields=["ref"])
 setattr(object1, 'ref', object2)
 
 
@@ -98,29 +91,31 @@ class TestBaseOperator(unittest.TestCase):
             ),
             (
                 # check deep nested fields can be templated
-                ClassWithCustomAttributes(nested1=ClassWithCustomAttributes(att1="{{ foo }}_1",
-                                                                            att2="{{ foo }}_2",
-                                                                            template_fields=["att1"]),
-                                          nested2=ClassWithCustomAttributes(att3="{{ foo }}_3",
-                                                                            att4="{{ foo }}_4",
-                                                                            template_fields=["att3"]),
-                                          template_fields=["nested1"]),
+                ClassWithCustomAttributes(
+                    nested1=ClassWithCustomAttributes(
+                        att1="{{ foo }}_1", att2="{{ foo }}_2", template_fields=["att1"]
+                    ),
+                    nested2=ClassWithCustomAttributes(
+                        att3="{{ foo }}_3", att4="{{ foo }}_4", template_fields=["att3"]
+                    ),
+                    template_fields=["nested1"],
+                ),
                 {"foo": "bar"},
-                ClassWithCustomAttributes(nested1=ClassWithCustomAttributes(att1="bar_1",
-                                                                            att2="{{ foo }}_2",
-                                                                            template_fields=["att1"]),
-                                          nested2=ClassWithCustomAttributes(att3="{{ foo }}_3",
-                                                                            att4="{{ foo }}_4",
-                                                                            template_fields=["att3"]),
-                                          template_fields=["nested1"]),
+                ClassWithCustomAttributes(
+                    nested1=ClassWithCustomAttributes(
+                        att1="bar_1", att2="{{ foo }}_2", template_fields=["att1"]
+                    ),
+                    nested2=ClassWithCustomAttributes(
+                        att3="{{ foo }}_3", att4="{{ foo }}_4", template_fields=["att3"]
+                    ),
+                    template_fields=["nested1"],
+                ),
             ),
             (
                 # check null value on nested template field
-                ClassWithCustomAttributes(att1=None,
-                                          template_fields=["att1"]),
+                ClassWithCustomAttributes(att1=None, template_fields=["att1"]),
                 {},
-                ClassWithCustomAttributes(att1=None,
-                                          template_fields=["att1"]),
+                ClassWithCustomAttributes(att1=None, template_fields=["att1"]),
             ),
             (
                 # check there is no RecursionError on circular references
@@ -214,8 +209,9 @@ class TestBaseOperator(unittest.TestCase):
         with self.assertRaises(AttributeError) as e:
             task.render_template(ClassWithCustomAttributes(template_fields=["missing_field"]), {})
 
-        self.assertEqual("'ClassWithCustomAttributes' object has no attribute 'missing_field'",
-                         str(e.exception))
+        self.assertEqual(
+            "'ClassWithCustomAttributes' object has no attribute 'missing_field'", str(e.exception)
+        )
 
     def test_jinja_invalid_expression_is_just_propagated(self):
         """Test render_template propagates Jinja invalid expression errors."""
@@ -236,9 +232,9 @@ class TestBaseOperator(unittest.TestCase):
 
     def test_set_jinja_env_additional_option(self):
         """Test render_template given various input types."""
-        with DAG("test-dag",
-                 start_date=DEFAULT_DATE,
-                 jinja_environment_kwargs={'keep_trailing_newline': True}):
+        with DAG(
+            "test-dag", start_date=DEFAULT_DATE, jinja_environment_kwargs={'keep_trailing_newline': True}
+        ):
             task = DummyOperator(task_id="op1")
 
         result = task.render_template("{{ foo }}\n\n", {"foo": "bar"})
@@ -246,9 +242,7 @@ class TestBaseOperator(unittest.TestCase):
 
     def test_override_jinja_env_option(self):
         """Test render_template given various input types."""
-        with DAG("test-dag",
-                 start_date=DEFAULT_DATE,
-                 jinja_environment_kwargs={'cache_size': 50}):
+        with DAG("test-dag", start_date=DEFAULT_DATE, jinja_environment_kwargs={'cache_size': 50}):
             task = DummyOperator(task_id="op1")
 
         result = task.render_template("{{ foo }}", {"foo": "bar"})
@@ -270,9 +264,7 @@ class TestBaseOperator(unittest.TestCase):
 
     def test_email_on_actions(self):
         test_task = DummyOperator(
-            task_id='test_default_email_on_actions',
-            email_on_retry=False,
-            email_on_failure=True
+            task_id='test_default_email_on_actions', email_on_retry=False, email_on_failure=True
         )
         assert test_task.email_on_retry is False
         assert test_task.email_on_failure is True
@@ -291,10 +283,7 @@ class TestBaseOperatorMethods(unittest.TestCase):
 
     def test_chain(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
-        [op1, op2, op3, op4, op5, op6] = [
-            DummyOperator(task_id=f't{i}', dag=dag)
-            for i in range(1, 7)
-        ]
+        [op1, op2, op3, op4, op5, op6] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 7)]
         chain(op1, [op2, op3], [op4, op5], op6)
 
         self.assertCountEqual([op2, op3], op1.get_direct_relatives(upstream=False))
@@ -390,9 +379,7 @@ class TestXComArgsRelationsAreResolved:
         op = CustomOp(task_id="test_task")
         op_copy = op.prepare_for_execution()
 
-        with mock.patch(
-            "airflow.models.baseoperator.BaseOperator.set_xcomargs_dependencies"
-        ) as method_mock:
+        with mock.patch("airflow.models.baseoperator.BaseOperator.set_xcomargs_dependencies") as method_mock:
             op_copy.execute({})
         assert method_mock.call_count == 0
 
