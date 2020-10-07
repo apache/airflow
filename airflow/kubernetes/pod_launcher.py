@@ -16,6 +16,7 @@
 # under the License.
 """Launches PODs"""
 import json
+import math
 import time
 from datetime import datetime as dt
 from typing import Optional, Tuple
@@ -124,9 +125,21 @@ class PodLauncher(LoggingMixin):
         :return:  Tuple[State, Optional[str]]
         """
         if get_logs:
-            logs = self.read_pod_logs(pod)
-            for line in logs:
-                self.log.info(line)
+            read_logs_since_sec = None
+            while True:
+                logs = self.read_pod_logs(pod, since_seconds=read_logs_since_sec)
+                for line in logs:
+                    self.log.info(line)
+                curr_time = dt.now()
+                time.sleep(1)
+
+                if not self.base_container_is_running(pod):
+                    break
+
+                self.log.warning('Pod %s log read interrupted', pod.metadata.name)
+                delta = dt.now() - curr_time
+                # Prefer logs duplication rather than loss
+                read_logs_since_sec = math.ceil(delta.total_seconds())
         result = None
         if self.extract_xcom:
             while self.base_container_is_running(pod):
@@ -171,16 +184,23 @@ class PodLauncher(LoggingMixin):
         wait=tenacity.wait_exponential(),
         reraise=True
     )
-    def read_pod_logs(self, pod: V1Pod, tail_lines: int = 10):
+    def read_pod_logs(self, pod: V1Pod, tail_lines: Optional[int] = None, since_seconds: Optional[int] = None):
         """Reads log from the POD"""
+        additional_kwargs = {}
+        if since_seconds:
+            additional_kwargs['since_seconds'] = since_seconds
+
+        if tail_lines:
+            additional_kwargs['tail_lines'] = tail_lines
+
         try:
             return self._client.read_namespaced_pod_log(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
                 container='base',
                 follow=True,
-                tail_lines=tail_lines,
-                _preload_content=False
+                _preload_content=False,
+                **additional_kwargs
             )
         except BaseHTTPError as e:
             raise AirflowException(
