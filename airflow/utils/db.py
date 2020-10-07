@@ -547,7 +547,7 @@ def initdb():
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections()
 
-    dagbag = DagBag(read_dags_from_db=False)
+    dagbag = DagBag()
     # Save DAGs in the ORM
     dagbag.sync_to_db()
 

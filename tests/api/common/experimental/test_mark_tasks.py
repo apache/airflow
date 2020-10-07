@@ -42,7 +42,9 @@ class TestMarkTasks(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        dagbag = models.DagBag(include_examples=True)
+        models.DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
+        dagbag = models.DagBag(include_examples=True, read_dags_from_db=True)
+        dagbag.collect_dags_from_db()
         cls.dag1 = dagbag.dags['example_bash_operator']
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
@@ -281,7 +283,7 @@ class TestMarkDAGRun(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
         cls.dag1 = dagbag.dags['example_bash_operator']
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']

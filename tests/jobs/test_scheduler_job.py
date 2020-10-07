@@ -547,7 +547,10 @@ class TestDagFileProcessor(unittest.TestCase):
 
         scheduler = SchedulerJob()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
-        scheduler.dagbag.sync_to_db()
+
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            scheduler.dagbag.sync_to_db()
 
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
@@ -729,9 +732,8 @@ class TestDagFileProcessor(unittest.TestCase):
         )
 
         # Write DAGs to dag and serialized_dag table
-        with mock.patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", return_value=True):
-            dagbag = DagBag(dag_folder=dag_file, include_examples=False)
-            dagbag.sync_to_db()
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False, read_dags_from_db=False)
+        dagbag.sync_to_db()
 
         scheduler_job = SchedulerJob()
         scheduler_job.processor_agent = mock.MagicMock()
@@ -895,8 +897,9 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.processor_agent = mock.MagicMock()
 
         session = settings.Session()
-        dag.sync_to_db(session=session)
-        dag2.sync_to_db(session=session)
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dag.sync_to_db(session=session)
+            dag2.sync_to_db(session=session)
 
         ti1 = TaskInstance(task1, DEFAULT_DATE)
         ti1.state = State.QUEUED
@@ -1411,7 +1414,9 @@ class TestSchedulerJob(unittest.TestCase):
         session = settings.Session()
 
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
-        scheduler.dagbag.sync_to_db(session=session)
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            scheduler.dagbag.sync_to_db(session=session)
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dr1 = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
@@ -1923,9 +1928,10 @@ class TestSchedulerJob(unittest.TestCase):
             op1 = DummyOperator(task_id='op1')
 
         # Write Dag to DB
-        with mock.patch.object(settings, "STORE_SERIALIZED_DAGS", True):
-            dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
-            dagbag.bag_dag(dag, root_dag=dag)
+        dagbag = DagBag(dag_folder="/dev/null", include_examples=False, read_dags_from_db=False)
+        dagbag.bag_dag(dag, root_dag=dag)
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
             dagbag.sync_to_db()
 
         dag = DagBag(read_dags_from_db=True, include_examples=False).get_dag(dag_id)
@@ -1982,7 +1988,10 @@ class TestSchedulerJob(unittest.TestCase):
 
         scheduler = SchedulerJob()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
-        scheduler.dagbag.sync_to_db()
+
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            scheduler.dagbag.sync_to_db()
 
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
@@ -2049,7 +2058,9 @@ class TestSchedulerJob(unittest.TestCase):
 
         scheduler = SchedulerJob()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
-        scheduler.dagbag.sync_to_db()
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            scheduler.dagbag.sync_to_db()
 
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
@@ -2116,8 +2127,9 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler._send_sla_callbacks_to_processor = mock.Mock()
 
         # Sync DAG into DB
-        scheduler.dagbag.bag_dag(dag, root_dag=dag)
-        scheduler.dagbag.sync_to_db()
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            scheduler.dagbag.bag_dag(dag, root_dag=dag)
+            scheduler.dagbag.sync_to_db()
 
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
@@ -2162,7 +2174,9 @@ class TestSchedulerJob(unittest.TestCase):
             owner='airflow')
 
         session = settings.Session()
-        dag.sync_to_db(session=session)
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dag.sync_to_db(session=session)
         session.flush()
 
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
@@ -2524,7 +2538,9 @@ class TestSchedulerJob(unittest.TestCase):
                         include_examples=False,
                         read_dags_from_db=True)
         dagbag.bag_dag(dag=dag, root_dag=dag)
-        dagbag.sync_to_db()
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dagbag.sync_to_db()
 
         session = settings.Session()
         pool = Pool(pool='test_scheduler_verify_pool_full', slots=1)
@@ -2577,7 +2593,9 @@ class TestSchedulerJob(unittest.TestCase):
                         include_examples=False,
                         read_dags_from_db=True)
         dagbag.bag_dag(dag=dag, root_dag=dag)
-        dagbag.sync_to_db()
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dagbag.sync_to_db()
 
         session = settings.Session()
         pool = Pool(pool='test_scheduler_verify_pool_full_2_slots_per_task', slots=6)
@@ -2651,7 +2669,9 @@ class TestSchedulerJob(unittest.TestCase):
                         include_examples=False,
                         read_dags_from_db=True)
         dagbag.bag_dag(dag=dag, root_dag=dag)
-        dagbag.sync_to_db()
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dagbag.sync_to_db()
 
         session = settings.Session()
         pool = Pool(pool='test_scheduler_verify_priority_and_slots', slots=2)
@@ -2699,7 +2719,9 @@ class TestSchedulerJob(unittest.TestCase):
 
         scheduler = SchedulerJob()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
-        scheduler.dagbag.sync_to_db()
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            scheduler.dagbag.sync_to_db()
 
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
@@ -2748,7 +2770,9 @@ class TestSchedulerJob(unittest.TestCase):
 
         scheduler = SchedulerJob()
         scheduler.dagbag.bag_dag(dag, root_dag=dag)
-        scheduler.dagbag.sync_to_db()
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            scheduler.dagbag.sync_to_db()
 
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
@@ -2829,7 +2853,9 @@ class TestSchedulerJob(unittest.TestCase):
             session.merge(orm_dag)
 
         dagbag.bag_dag(dag=dag, root_dag=dag)
-        dagbag.sync_to_db()
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dagbag.sync_to_db()
 
         @mock.patch('airflow.jobs.scheduler_job.DagBag', return_value=dagbag)
         def do_schedule(mock_dagbag):
@@ -3508,7 +3534,9 @@ class TestSchedulerJob(unittest.TestCase):
             read_dags_from_db=True
         )
         dagbag.bag_dag(dag=dag, root_dag=dag)
-        dagbag.sync_to_db()
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dagbag.sync_to_db()
         dag_model = DagModel.get_dagmodel(dag.dag_id)
 
         scheduler = SchedulerJob(executor=self.null_exec)
@@ -3543,7 +3571,9 @@ class TestSchedulerJob(unittest.TestCase):
         )
 
         dagbag.bag_dag(dag=dag, root_dag=dag)
-        dagbag.sync_to_db(session=session)
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dagbag.sync_to_db(session=session)
 
         run1 = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
@@ -3562,7 +3592,9 @@ class TestSchedulerJob(unittest.TestCase):
             session=session,
         )
 
-        dag.sync_to_db(session=session)  # Update the date fields
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dag.sync_to_db(session=session)  # Update the date fields
 
         job = SchedulerJob()
         job.executor = MockExecutor(do_update=False)
@@ -3602,7 +3634,9 @@ class TestSchedulerJob(unittest.TestCase):
         )
 
         dagbag.bag_dag(dag=dag, root_dag=dag)
-        dagbag.sync_to_db(session=session)
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dagbag.sync_to_db(session=session)
 
         dag_run = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
@@ -3611,7 +3645,9 @@ class TestSchedulerJob(unittest.TestCase):
             session=session,
         )
 
-        dag.sync_to_db(session=session)  # Update the date fields
+        # Since we don't want to store the code for the DAG defined in this file
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            dag.sync_to_db(session=session)  # Update the date fields
 
         job = SchedulerJob()
         job.executor = MockExecutor(do_update=False)

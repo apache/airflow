@@ -1716,7 +1716,7 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
 
     @parameterized.expand([
         # Expected queries, mark_success
-        (7, False),
+        (10, False),
         (5, True),
     ])
     def test_execute_queries_count(self, expected_query_count, mark_success):

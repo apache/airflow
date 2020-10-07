@@ -79,8 +79,6 @@ class TestBackfillJob(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        dagbag = DagBag(include_examples=True, read_dags_from_db=False)
-        dagbag.sync_to_db()
         cls.dagbag = DagBag(include_examples=True)
 
     @staticmethod

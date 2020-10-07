@@ -114,7 +114,7 @@ def trigger_dag(
     if dag_model is None:
         raise DagNotFound("Dag id {} not found in DagModel".format(dag_id))
 
-    dagbag = DagBag(dag_folder=dag_model.fileloc)
+    dagbag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
     triggers = _trigger_dag(
         dag_id=dag_id,
         dag_bag=dagbag,

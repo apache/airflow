@@ -164,7 +164,7 @@ def get_dag_by_file_location(dag_id: str):
 
 def get_dag(subdir: Optional[str], dag_id: str) -> DAG:
     """Returns DAG of a given dag_id"""
-    dagbag = DagBag(process_subdir(subdir), read_dags_from_db=False)
+    dagbag = DagBag(process_subdir(subdir))
     if dag_id not in dagbag.dags:
         raise AirflowException(
             'dag_id could not be found: {}. Either the dag did not exist or it failed to '
@@ -176,7 +176,7 @@ def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
     """Returns DAG(s) matching a given regex or dag_id"""
     if not use_regex:
         return [get_dag(subdir, dag_id)]
-    dagbag = DagBag(process_subdir(subdir), read_dags_from_db=False)
+    dagbag = DagBag(process_subdir(subdir))
     matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(

@@ -1867,7 +1867,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Get Dag as duration graph."""
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
-        dag = current_app.dag_bag.get_dag(dag_id)
+
+        try:
+            dag = current_app.dag_bag.get_dag(dag_id)
+        except airflow.exceptions.SerializedDagNotFound:
+            dag = None
+
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run

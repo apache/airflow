@@ -79,7 +79,8 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
         clear_db_sla_miss()
-        self.dagbag = DagBag(include_examples=True)
+        DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
+        self.dagbag = DagBag(include_examples=True, read_dags_from_db=True)
 
     def create_task_instances(
         self,
@@ -92,7 +93,7 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
     ):
         """Method to create task instances using kwargs and default arguments"""
 
-        dag = self.dagbag.dags[dag_id]
+        dag = self.dagbag.get_dag(dag_id)
         tasks = dag.tasks
         counter = len(tasks)
         if task_instances is not None:

@@ -1574,9 +1574,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         }
 
     def get_rendered_template_fields(self):
-        """
-        Fetch rendered template fields from DB
-        """
+        """Fetch rendered template fields from DB"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self)
         if rendered_task_instance_fields:

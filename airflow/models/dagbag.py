@@ -36,7 +36,7 @@ from tabulate import tabulate
 from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
-from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException
+from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, SerializedDagNotFound
 from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -89,7 +89,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
         include_smart_sensor: bool = conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-        read_dags_from_db: bool = True,
+        read_dags_from_db: bool = False,
         store_serialized_dags: Optional[bool] = None,
     ):
         # Avoid circular import
@@ -102,8 +102,6 @@ class DagBag(BaseDagBag, LoggingMixin):
                 "You should pass the read_dags_from_db parameter.",
                 DeprecationWarning, stacklevel=2)
             read_dags_from_db = store_serialized_dags
-
-        # TODO [kaxil]: Make dag_folder and read_dags_from_db mutually exclusive
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -214,7 +212,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         from airflow.models.serialized_dag import SerializedDagModel
         row = SerializedDagModel.get(dag_id, session)
         if not row:
-            raise ValueError(f"DAG '{dag_id}' not found in serialized_dag table")
+            raise SerializedDagNotFound(f"DAG '{dag_id}' not found in serialized_dag table")
 
         dag = row.dag
         for subdag in dag.subdags:
