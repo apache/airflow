@@ -306,6 +306,11 @@ Step 5: Pass PR Review
 Note that committers will use **Squash and Merge** instead of **Rebase and Merge**
 when merging PRs and your commit will be squashed to single commit.
 
+You need to have review of at least one committer (if you are committer yourself, it has to be
+another committer). Ideally you should have 2 or more committers reviewing the code that touches
+the core of Airflow.
+
+
 Pull Request Guidelines
 =======================
 

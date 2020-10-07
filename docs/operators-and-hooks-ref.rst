@@ -73,7 +73,7 @@ Fundamentals
    * - :mod:`airflow.operators.generic_transfer`
      -
 
-   * - :mod:`airflow.operators.latest_only_operator`
+   * - :mod:`airflow.operators.latest_only`
      -
 
    * - :mod:`airflow.operators.python`
@@ -964,6 +964,11 @@ These integrations allow you to copy data from/to Google Cloud.
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
      - :mod:`airflow.providers.google.cloud.transfers.adls_to_gcs`
+
+   * - `Azure FileShare <https://cloud.google.com/storage/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/google/transfer/azure_fileshare_to_gcs>`
+     - :mod:`airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs`
 
    * - `Facebook Ads <http://business.facebook.com>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__

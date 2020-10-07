@@ -1203,6 +1203,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
 
+  --no-rbac-ui
+          Disables RBAC UI when Airflow 1.10.* is installed.
+
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
 
@@ -2143,6 +2146,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
+
+  --no-rbac-ui
+          Disables RBAC UI when Airflow 1.10.* is installed.
 
   ****************************************************************************************************
    Credentials

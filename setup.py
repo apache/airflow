@@ -735,7 +735,7 @@ INSTALL_REQUIREMENTS = [
     'sqlalchemy>=1.3.18, <2',
     'sqlalchemy_jsonfield~=0.9',
     'tabulate>=0.7.5, <0.9',
-    'tenacity>=4.12.0, <5.2',
+    'tenacity~=6.2.0',
     'termcolor>=1.1.0',
     'thrift>=0.9.2',
     'typing;python_version<"3.6"',

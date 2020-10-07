@@ -986,6 +986,16 @@ class GCSHook(GoogleBaseHook):
         return to_copy_blobs, to_delete_blobs, to_rewrite_blobs
 
 
+def gcs_object_is_directory(bucket: str) -> bool:
+    """
+    Return True if given Google Cloud Storage URL (gs://<bucket>/<blob>)
+    is a directory or an empty bucket. Otherwise return False.
+    """
+    _, blob = _parse_gcs_url(bucket)
+
+    return len(blob) == 0 or blob.endswith('/')
+
+
 def _parse_gcs_url(gsurl: str) -> Tuple[str, str]:
     """
     Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a

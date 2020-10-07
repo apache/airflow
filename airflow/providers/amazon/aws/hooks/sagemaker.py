@@ -22,7 +22,7 @@ import tempfile
 import time
 import warnings
 from functools import partial
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from botocore.exceptions import ClientError
 
@@ -51,7 +51,7 @@ class LogState:
 Position = collections.namedtuple('Position', ['timestamp', 'skip'])
 
 
-def argmin(arr, f):
+def argmin(arr, f) -> Optional[int]:
     """Return the index, i, in arr that minimizes f(arr[i])"""
     min_value = None
     min_idx = None
@@ -63,7 +63,7 @@ def argmin(arr, f):
     return min_idx
 
 
-def secondary_training_status_changed(current_job_description, prev_job_description):
+def secondary_training_status_changed(current_job_description: dict, prev_job_description: dict) -> bool:
     """
     Returns true if training job's secondary status message has changed.
 
@@ -157,7 +157,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         self.s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         self.logs_hook = AwsLogsHook(aws_conn_id=self.aws_conn_id)
 
-    def tar_and_s3_upload(self, path, key, bucket):
+    def tar_and_s3_upload(self, path: str, key: str, bucket: str) -> None:
         """
         Tar the local file or directory and upload to s3
 
@@ -180,7 +180,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             temp_file.seek(0)
             self.s3_hook.load_file_obj(temp_file, key, bucket, replace=True)
 
-    def configure_s3_resources(self, config):
+    def configure_s3_resources(self, config: dict) -> None:
         """
         Extract the S3 operations from the configuration and execute them.
 
@@ -201,7 +201,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
                 else:
                     self.s3_hook.load_file(op['Path'], op['Key'], op['Bucket'])
 
-    def check_s3_url(self, s3url):
+    def check_s3_url(self, s3url: str) -> bool:
         """
         Check if an S3 URL exists
 
@@ -225,7 +225,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             )
         return True
 
-    def check_training_config(self, training_config):
+    def check_training_config(self, training_config: dict) -> None:
         """
         Check if a training configuration is valid
 
@@ -237,7 +237,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             for channel in training_config['InputDataConfig']:
                 self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
 
-    def check_tuning_config(self, tuning_config):
+    def check_tuning_config(self, tuning_config: dict) -> None:
         """
         Check if a tuning configuration is valid
 
@@ -317,7 +317,12 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
                 events[i] = None
 
     def create_training_job(
-        self, config, wait_for_completion=True, print_log=True, check_interval=30, max_ingestion_time=None
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        print_log: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
     ):
         """
         Create a training job
@@ -363,7 +368,13 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
         return response
 
-    def create_tuning_job(self, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None):
+    def create_tuning_job(
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+    ):
         """
         Create a tuning job
 
@@ -394,7 +405,11 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         return response
 
     def create_transform_job(
-        self, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
     ):
         """
         Create a transform job
@@ -426,7 +441,11 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         return response
 
     def create_processing_job(
-        self, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
     ):
         """
         Create a processing job
@@ -455,7 +474,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             )
         return response
 
-    def create_model(self, config):
+    def create_model(self, config: dict):
         """
         Create a model job
 
@@ -465,7 +484,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().create_model(**config)
 
-    def create_endpoint_config(self, config):
+    def create_endpoint_config(self, config: dict):
         """
         Create an endpoint config
 
@@ -475,7 +494,13 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().create_endpoint_config(**config)
 
-    def create_endpoint(self, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None):
+    def create_endpoint(
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+    ):
         """
         Create an endpoint
 
@@ -504,7 +529,13 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             )
         return response
 
-    def update_endpoint(self, config, wait_for_completion=True, check_interval=30, max_ingestion_time=None):
+    def update_endpoint(
+        self,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+    ):
         """
         Update an endpoint
 
@@ -533,7 +564,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             )
         return response
 
-    def describe_training_job(self, name):
+    def describe_training_job(self, name: str):
         """
         Return the training job info associated with the name
 
@@ -606,7 +637,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
                 state = LogState.JOB_COMPLETE
         return state, last_description, last_describe_job_call
 
-    def describe_tuning_job(self, name):
+    def describe_tuning_job(self, name: str):
         """
         Return the tuning job info associated with the name
 
@@ -616,7 +647,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().describe_hyper_parameter_tuning_job(HyperParameterTuningJobName=name)
 
-    def describe_model(self, name):
+    def describe_model(self, name: str):
         """
         Return the SageMaker model info associated with the name
 
@@ -626,7 +657,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().describe_model(ModelName=name)
 
-    def describe_transform_job(self, name):
+    def describe_transform_job(self, name: str):
         """
         Return the transform job info associated with the name
 
@@ -636,7 +667,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().describe_transform_job(TransformJobName=name)
 
-    def describe_processing_job(self, name):
+    def describe_processing_job(self, name: str):
         """
         Return the processing job info associated with the name
 
@@ -646,7 +677,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().describe_processing_job(ProcessingJobName=name)
 
-    def describe_endpoint_config(self, name):
+    def describe_endpoint_config(self, name: str):
         """
         Return the endpoint config info associated with the name
 
@@ -656,7 +687,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().describe_endpoint_config(EndpointConfigName=name)
 
-    def describe_endpoint(self, name):
+    def describe_endpoint(self, name: str):
         """
         :param name: the name of the endpoint
         :type name: str
@@ -665,7 +696,13 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         return self.get_conn().describe_endpoint(EndpointName=name)
 
     def check_status(
-        self, job_name, key, describe_function, check_interval, max_ingestion_time, non_terminal_states=None
+        self,
+        job_name: str,
+        key: str,
+        describe_function,
+        check_interval: int,
+        max_ingestion_time: Optional[int] = None,
+        non_terminal_states: Optional[Set] = None,
     ):
         """
         Check status of a SageMaker job
@@ -725,12 +762,12 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
     def check_training_status_with_log(
         self,
-        job_name,
-        non_terminal_states,
-        failed_states,
-        wait_for_completion,
-        check_interval,
-        max_ingestion_time,
+        job_name: str,
+        non_terminal_states: set,
+        failed_states: set,
+        wait_for_completion: bool,
+        check_interval: int,
+        max_ingestion_time: Optional[int] = None,
     ):
         """
         Display the logs for a given training job, optionally tailing them until the
@@ -759,8 +796,8 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         instance_count = description['ResourceConfig']['InstanceCount']
         status = description['TrainingJobStatus']
 
-        stream_names = []  # The list of log streams
-        positions = {}  # The current position in each stream, map of stream name -> position
+        stream_names: list = []  # The list of log streams
+        positions: dict = {}  # The current position in each stream, map of stream name -> position
 
         job_already_completed = status not in non_terminal_states
 

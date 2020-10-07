@@ -256,11 +256,11 @@ jobs:
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "::set-env name=DEFAULT_BRANCH::${DEFAULT_BRANCH}"
+          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
           DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "::set-env name=DEFAULT_CONSTRAINTS_BRANCH::${DEFAULT_CONSTRAINTS_BRANCH}"
+          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
           if [[ \
             ${DEFAULT_BRANCH} != "master" || \
             ( ${PYTHON_MAJOR_MINOR_VERSION} != "2.7" && ${PYTHON_MAJOR_MINOR_VERSION} != "3.5" ) \

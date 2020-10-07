@@ -200,7 +200,7 @@ class AwsBatchClientHook(AwsBaseHook):
 
     def __init__(
         self, *args, max_retries: Optional[int] = None, status_retries: Optional[int] = None, **kwargs
-    ):
+    ) -> None:
         # https://github.com/python/mypy/issues/6799 hence type: ignore
         super().__init__(client_type='batch', *args, **kwargs)  # type: ignore
         self.max_retries = max_retries or self.MAX_RETRIES
@@ -260,7 +260,7 @@ class AwsBatchClientHook(AwsBaseHook):
 
         raise AirflowException("AWS Batch job ({}) has unknown status: {}".format(job_id, job))
 
-    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None):
+    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
         Wait for batch job to complete
 
@@ -277,7 +277,7 @@ class AwsBatchClientHook(AwsBaseHook):
         self.poll_for_job_complete(job_id, delay)
         self.log.info("AWS Batch job (%s) has completed", job_id)
 
-    def poll_for_job_running(self, job_id: str, delay: Union[int, float, None] = None):
+    def poll_for_job_running(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
         Poll for job running. The status that indicates a job is running or
         already complete are: 'RUNNING'|'SUCCEEDED'|'FAILED'.
@@ -301,7 +301,7 @@ class AwsBatchClientHook(AwsBaseHook):
         running_status = ["RUNNING", "SUCCEEDED", "FAILED"]
         self.poll_job_status(job_id, running_status)
 
-    def poll_for_job_complete(self, job_id: str, delay: Union[int, float, None] = None):
+    def poll_for_job_complete(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
         Poll for job completion. The status that indicates job completion
         are: 'SUCCEEDED'|'FAILED'.
@@ -467,7 +467,7 @@ class AwsBatchClientHook(AwsBaseHook):
         return uniform(lower, upper)
 
     @staticmethod
-    def delay(delay: Union[int, float, None] = None):
+    def delay(delay: Union[int, float, None] = None) -> None:
         """
         Pause execution for ``delay`` seconds.
 
