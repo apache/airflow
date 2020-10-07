@@ -42,12 +42,6 @@ from airflow.decorators import task
 # You can override them on a per-task basis during operator initialization
 default_args = {
     'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
 }
 # [END default_args]
 
@@ -56,7 +50,7 @@ with DAG(
     'tutorial_functional_etl_dag',
     default_args=default_args,
     description='Functional ETL DAG tutorial',
-    schedule_interval=timedelta(days=1),
+    schedule_interval=None,
     start_date=days_ago(2),
     tags=['example'],
 ) as dag:
@@ -74,10 +68,10 @@ with DAG(
         return order_data
 # [END extract]
     extract.doc_md = """\
-    #### Extract task
-    A simple Extract task to get data ready for the rest of the data pipeline.
-    In this case, getting data is simulated by reading from a hardcoded JSON string.
-    """
+#### Extract task
+A simple Extract task to get data ready for the rest of the data pipeline.
+In this case, getting data is simulated by reading from a hardcoded JSON string.
+"""
 
 # [START transform]
     @dag.task(multiple_outputs=True)
@@ -90,10 +84,10 @@ with DAG(
         return {"total_order_value": total_order_value}
 # [END transform]
     transform.doc_md = """\
-    #### Transform task
-    A simple Transform task which takes in the collection of order data and computes
-    the total order value.
-    """
+#### Transform task
+A simple Transform task which takes in the collection of order data and computes
+the total order value.
+"""
 
 # [START load]
     @dag.task()
@@ -102,10 +96,10 @@ with DAG(
         print("Total order value is: %.2f" % total_order_value)
 # [END load]
     load.doc_md = """\
-    #### Load task
-    A simple Load task which takes in the result of the Transform task and instead of
-    saving it to end user review, just prints it out.
-    """
+#### Load task
+A simple Load task which takes in the result of the Transform task and instead of
+saving it to end user review, just prints it out.
+"""
 
     order_data = extract()
     order_summary = transform(order_data)
