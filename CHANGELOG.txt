@@ -9,6 +9,7 @@ New Features
 - Get Airflow configs with sensitive data from Secret Backends (#9645)
 - [AIRFLOW-4734] Upsert functionality for PostgresHook.insert_rows() (#8625)
 - Allow defining custom XCom class (#8560)
+- [AIRFLOW] Adding Vertica to GCS cloud transfer (#11318)
 
 Bug Fixes
 """""""""
