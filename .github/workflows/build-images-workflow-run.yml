@@ -59,7 +59,7 @@ jobs:
     if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
       - name: "Cancel duplicated 'CI Build' runs"
-        uses: potiuk/cancel-workflow-runs@e9e87cb7738dbb999654aa90d69359d62c9e4eae #v3
+        uses: potiuk/cancel-workflow-runs@ca4b70a6910d33990e16d95e0c116914cdc0dfd0 #v3_1
         id: cancel
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -78,7 +78,7 @@ jobs:
         # in GitHub Actions, we have to use Job names to match Event/Repo/Branch from the
         # build-info step there to find the duplicates ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@e9e87cb7738dbb999654aa90d69359d62c9e4eae #v3
+        uses: potiuk/cancel-workflow-runs@ca4b70a6910d33990e16d95e0c116914cdc0dfd0 #v3_1
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -96,7 +96,7 @@ jobs:
         # can cancel all the matching "Build Images" workflow runs in the two following steps.
         # Yeah. Adding to the complexity ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@e9e87cb7738dbb999654aa90d69359d62c9e4eae #v3
+        uses: potiuk/cancel-workflow-runs@ca4b70a6910d33990e16d95e0c116914cdc0dfd0 #v3_1
         id: cancel-failed
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -133,7 +133,7 @@ jobs:
         # followed by one of the run ids. Yes I know it's super complex ¯\_(ツ)_/¯.
 
         if: env.BUILD_IMAGES == 'true' && steps.cancel-failed.outputs.cancelledRuns != '[]'
-        uses: potiuk/cancel-workflow-runs@e9e87cb7738dbb999654aa90d69359d62c9e4eae #v3
+        uses: potiuk/cancel-workflow-runs@ca4b70a6910d33990e16d95e0c116914cdc0dfd0 #v3_1
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -333,16 +333,33 @@ jobs:
             [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
 
-  cancel-on-build-failure:
-    name: "Cancel 'CI Build' jobs on build image failure"
+  cancel-on-build-cancel:
+    name: "Cancel 'CI Build' jobs on build image cancelling."
     runs-on: ubuntu-latest
-    if: cancelled() || failure()
+    if: cancelled()
     needs: [build-images]
     steps:
       - name: "Canceling the 'CI Build' source workflow in case of failure!"
-        uses: potiuk/cancel-workflow-runs@e9e87cb7738dbb999654aa90d69359d62c9e4eae #v3
+        uses: potiuk/cancel-workflow-runs@cancel_message #v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: self
           notifyPRCancel: true
+          notifyPRCancelMessage: "Building image for the PR has been cancelled"
+          sourceRunId: ${{ github.event.workflow_run.id }}
+
+  cancel-on-build-failure:
+    name: "Cancel 'CI Build' jobs on build image failing."
+    runs-on: ubuntu-latest
+    if: failure()
+    needs: [build-images]
+    steps:
+      - name: "Canceling the 'CI Build' source workflow in case of failure!"
+        uses: potiuk/cancel-workflow-runs@ca4b70a6910d33990e16d95e0c116914cdc0dfd0 #v3_1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          cancelMode: self
+          notifyPRCancel: true
+          notifyPRCancelMessage: |
+            Building images for the PR has failed. Follow the the workflow link to check the reason.
           sourceRunId: ${{ github.event.workflow_run.id }}

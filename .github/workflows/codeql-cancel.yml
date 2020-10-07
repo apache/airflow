@@ -12,7 +12,7 @@ jobs:
     if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
       - name: "Cancel duplicated 'CodeQL' runs"
-        uses: potiuk/cancel-workflow-runs@e9e87cb7738dbb999654aa90d69359d62c9e4eae #v3
+        uses: potiuk/cancel-workflow-runs@ca4b70a6910d33990e16d95e0c116914cdc0dfd0 #v3_1
         id: cancel
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
