@@ -4,7 +4,6 @@ Transfers data from Snowflake into a S3 Bucket.
 from typing import List, Optional, Union
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.plugins_manager import AirflowPlugin
 from airflow.contrib.hooks.snowflake_hook import SnowflakeHook
 
 
