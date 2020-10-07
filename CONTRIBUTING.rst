@@ -1181,10 +1181,9 @@ The following commit policy passed by a vote 8(binding FOR) to 0 against on May 
 and slightly modified and consensus reached in October 2020:
 
 * Commits need a +1 vote from a committer who is not the author
-* Furthermore, do not merge a PR that regresses linting or does not pass CI tests (unless we have
+* Do not merge a PR that regresses linting or does not pass CI tests (unless we have
   justification such as clearly transient error).
-* When we do AIP voting, both PMC and committer +1s are considered as binding vote based on internal
-  PMC discussion.
+* When we do AIP voting, both PMC and committer +1s are considered as binding vote.
 
 Resources & Links
 =================
