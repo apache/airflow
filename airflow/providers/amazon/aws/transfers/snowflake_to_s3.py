@@ -18,18 +18,18 @@ class SnowflakeToS3Operator(BaseOperator):
     :type s3_bucket: str
     :param s3_key: reference to a specific S3 key within the previous bucket
     :type s3_key: str
-    :param file_format: can be either a previous file format created in Snowflake console or hardcoded one like
-        `type = csv
+    :param file_format: can be eit`her a previous file format created in Snowflake console or hardcoded one like
+        ``type = csv
          field_delimiter = ','
          skip_header = 1
-         compression=None`
+         compression=None``
     :type file_format: str
     :param sql: optional parameter to unload a customized query instead an entire table
     :type sql: str
     :param snowflake_conn_id: reference to a specific snowflake database
     :type snowflake_conn_id: str
     :param unload_options: reference to a str of UNLOAD options. For instance, a valid string would be:
-          `SINGLE=TRUE
+          ``SINGLE=TRUE
            MAX_FILE_SIZE = 5368709119
            OVERWRITE = TRUE``
     :type unload_options: str
