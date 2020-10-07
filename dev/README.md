@@ -235,19 +235,11 @@ You can use any of the installation methods you prefer (you can even install it 
 downloaded from the SVN).
 
 There is also an easy way of installation with Breeze if you have the latest sources of Apache Airflow.
-Here is a typical scenario:
+Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
-1. `./breeze --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres`
-2. `tmux`
-3. Hit Ctrl-B followed by "
-4. `airflow resetdb -y`
-5. if you want RBAC:
-     * Change RBAC setting: `sed "s/rbac = False/rbac = True/" -i /root/airflow/airflow.cfg`
-     * airflow resetdb -y
-     * Run`airflow create_user  -r Admin -u airflow -e airflow@apache.org -f Airflow -l User -p airflow
-6. `airflow scheduler`
-7. Ctrl-B "up-arrow"
-8. `airflow webserver`
+```
+./breeze start-airflow --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
+```
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check
 that the Airflow works as you expected.
