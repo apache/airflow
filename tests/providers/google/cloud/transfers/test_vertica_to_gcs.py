@@ -22,11 +22,11 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import mock
 import unittest
 
 from airflow.providers.google.cloud.transfers.vertica_to_gcs import \
     VerticaToGoogleCloudStorageOperator
-import mock
 
 TABLES = {'vertica_to_gcs_operator', 'vertica_to_gcs_operator_empty'}
 
@@ -68,7 +68,7 @@ class VerticaToGoogleCloudStorageOperatorTest(unittest.TestCase):
         self.assertEqual(op.bucket, BUCKET)
         self.assertEqual(op.filename, FILENAME)
 
-    @mock.patch('airflow.providers.google.cloud.transfers.vertica_to_gcs_operator.VerticaHook')
+    @mock.patch('airflow.providers.google.cloud.transfers.vertica_to_gcs.VerticaHook')
     @mock.patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
     def test_exec_success(self, gcs_hook_mock_class, vertica_hook_mock_class):
         """Test the execute function in case where the run is successful."""
@@ -98,7 +98,7 @@ class VerticaToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         op.execute(None)
 
-    @mock.patch('airflow.providers.google.cloud.transfers.vertica_to_gcs_operator.VerticaHook')
+    @mock.patch('airflow.providers.google.cloud.transfers.vertica_to_gcs.VerticaHook')
     @mock.patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
     def test_file_splitting(self, gcs_hook_mock_class, vertica_hook_mock_class):
         """Test that ndjson is split by approx_max_file_size_bytes param."""
@@ -130,7 +130,7 @@ class VerticaToGoogleCloudStorageOperatorTest(unittest.TestCase):
             approx_max_file_size_bytes=len(expected_upload[FILENAME.format(0)]))
         op.execute(None)
 
-    @mock.patch('airflow.providers.google.cloud.transfers.vertica_to_gcs_operator.VerticaHook')
+    @mock.patch('airflow.providers.google.cloud.transfers.vertica_to_gcs.VerticaHook')
     @mock.patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
     def test_schema_file(self, gcs_hook_mock_class, vertica_hook_mock_class):
         """Test writing schema files."""

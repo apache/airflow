@@ -89,6 +89,6 @@ class VerticaToGoogleCloudStorageOperator(BaseSQLToGCSOperator):
             return float(value)
         return value
 
-    def getCursorIterator(self, cursor):
+    def get_cursor_iterator(self, cursor):
+        """Returns iterator for vertica cursor"""
         return cursor.iterate()
-

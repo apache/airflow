@@ -1073,6 +1073,11 @@ These integrations allow you to copy data from/to Google Cloud.
      - :doc:`How to use <howto/operator/google/transfer/gcs_to_sheets>`
      - :mod:`airflow.providers.google.suite.transfers.gcs_to_sheets`
 
+   * - `Vertica <https://www.vertica.com/>`__
+      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+      -
+      - :mod:`airflow.providers.google.cloud.transfers.vertica_to_gcs`
+
 .. _integration:GCP-Discovery:
 
 :ref:`[1] <integration:GCP-Discovery-ref>` Those discovery-based operators use
@@ -1600,6 +1605,11 @@ These integrations allow you to copy data.
      - `MySQL <https://www.mysql.com/>`__
      -
      - :mod:`airflow.providers.mysql.transfers.vertica_to_mysql`
+
+   * - `Vertica <https://www.vertica.com/>`__
+       - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+       -
+       - :mod:`airflow.providers.google.cloud.transfers.vertica_to_gcs`
 
 .. _protocol:
 
