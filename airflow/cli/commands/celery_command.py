@@ -130,7 +130,6 @@ def worker(args):
             pass
 
     # Setup Celery worker
-    worker_instance = worker_bin.worker(app=celery_app)
     options = {
         'optimization': 'fair',
         'O': 'fair',
@@ -141,6 +140,7 @@ def worker(args):
         'loglevel': conf.get('logging', 'LOGGING_LEVEL'),
         'pidfile': pid_file_path,
     }
+    worker_instance = celery_app.Worker(**options)
 
     if conf.has_option("celery", "pool"):
         pool = conf.get("celery", "pool")
@@ -169,14 +169,14 @@ def worker(args):
         )
         with ctx:
             sub_proc = _serve_logs(skip_serve_logs)
-            worker_instance.run(**options)
+            worker_instance.start()
 
         stdout.close()
         stderr.close()
     else:
         # Run Celery worker in the same process
         sub_proc = _serve_logs(skip_serve_logs)
-        worker_instance.run(**options)
+        worker_instance.start()
 
     if sub_proc:
         sub_proc.terminate()
