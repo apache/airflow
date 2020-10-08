@@ -615,7 +615,9 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
         self.start_date = current_time
-        self.end_date = current_time
+        if self.state in State.finished():
+            self.end_date = current_time
+            self.duration = 0
         session.merge(self)
 
     @property
