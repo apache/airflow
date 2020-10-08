@@ -2235,6 +2235,10 @@ class TestSchedulerJob(unittest.TestCase):
 
         ti3.refresh_from_db(session=session)
         self.assertEqual(ti3.state, State.NONE)
+        self.assertIsNotNone(ti3.start_date)
+        self.assertIsNotNone(ti3.end_date)
+        self.assertEqual(ti3.start_date, ti3.end_date)
+        self.assertEqual(ti3.duration, 0.0)
 
         dr1.refresh_from_db(session=session)
         dr1.state = State.FAILED

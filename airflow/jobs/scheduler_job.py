@@ -1159,9 +1159,11 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             tis_to_change: List[TI] = query.with_for_update().all()
             for ti in tis_to_change:
                 ti.set_state(new_state, session=session)
+                ti.duration = 0
                 tis_changed += 1
         else:
             subq = query.subquery()
+            current_time = timezone.utcnow()
             tis_changed = session \
                 .query(models.TaskInstance) \
                 .filter(
@@ -1169,7 +1171,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     models.TaskInstance.task_id == subq.c.task_id,
                     models.TaskInstance.execution_date ==
                     subq.c.execution_date) \
-                .update({models.TaskInstance.state: new_state}, synchronize_session=False)
+                .update({
+                    models.TaskInstance.state: new_state,
+                    models.TaskInstance.start_date: current_time,
+                    models.TaskInstance.end_date: current_time,
+                    models.TaskInstance.duration: 0,
+                }, synchronize_session=False)
             session.commit()
 
         if tis_changed > 0:

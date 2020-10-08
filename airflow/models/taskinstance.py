@@ -611,10 +611,11 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         :param session: SQLAlchemy ORM Session
         :type session: Session
         """
+        current_time = timezone.utcnow()
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
-        self.start_date = timezone.utcnow()
-        self.end_date = timezone.utcnow()
+        self.start_date = current_time
+        self.end_date = current_time
         session.merge(self)
 
     @property
