@@ -18,7 +18,7 @@
 
 import os
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 import unicodecsv as csv
 
@@ -103,7 +103,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
             csv_writer.writerows(cursor)
             csvfile.flush()
 
-    def execute(self, context: Dict[Any, Any]) -> None:
+    def execute(self, context: dict) -> None:
         oracle_hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         azure_data_lake_hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
 

@@ -105,7 +105,7 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         "filename",
     )
 
-    def execute(self, context):
+    def execute(self, context: dict) -> str:
         azure_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
