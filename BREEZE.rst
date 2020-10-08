@@ -1184,6 +1184,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
 
+  --no-rbac-ui
+          Disables RBAC UI when Airflow 1.10.* is installed.
+
+  --install-wheels
+          If specified it will look for wheel packages placed in dist folder and it will install the
+          wheels from there after installing Airflow. This is useful for testing backport
+          packages as well as in the future for testing provider packages for 2.0.
+
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
 
@@ -1211,6 +1219,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
+
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
 
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
@@ -1261,9 +1272,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Url to the constraints file. In case of the production image it can also be a path to the
           constraint file placed in 'docker-context-files' folder, in which case it has to be
           in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
-
-  --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
 
   --install-local-pip-wheels
           This flag is only used in production image building. If it is used then instead of
@@ -1710,6 +1718,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
 
@@ -1759,9 +1770,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Url to the constraints file. In case of the production image it can also be a path to the
           constraint file placed in 'docker-context-files' folder, in which case it has to be
           in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
-
-  --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
 
   --install-local-pip-wheels
           This flag is only used in production image building. If it is used then instead of
@@ -1950,9 +1958,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  cassandra kerberos mongo openldap presto rabbitmq redis all
 
-  --rbac-ui
-          Enable RBAC UI.
-
   --init-script INIT_SCRIPT_FILE
           Initialization script name - Sourced from files/airflow-breeze-config. Default value
           init.sh. It will be executed after the environment is configured and started.
@@ -2036,6 +2041,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
 
+  --no-rbac-ui
+          Disables RBAC UI when Airflow 1.10.* is installed.
+
+  --install-wheels
+          If specified it will look for wheel packages placed in dist folder and it will install the
+          wheels from there after installing Airflow. This is useful for testing backport
+          packages as well as in the future for testing provider packages for 2.0.
+
   ****************************************************************************************************
    Credentials
 
@@ -2070,6 +2083,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
+
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
 
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
@@ -2120,9 +2136,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Url to the constraints file. In case of the production image it can also be a path to the
           constraint file placed in 'docker-context-files' folder, in which case it has to be
           in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
-
-  --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
 
   --install-local-pip-wheels
           This flag is only used in production image building. If it is used then instead of
