@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# pylint: disable=missing-function-docstring
 """
 ### Functional DAG Tutorial Documentation
 
@@ -23,17 +24,15 @@ This is a simple ETL data pipeline example which demonstrates the use of Functio
 using three simple tasks for Extract, Transform, and Load.
 
 Documentation that goes along with the Airflow Functional DAG tutorial located
-[here](https://airflow.apache.org/tutorial_functional_dag.html)
+[here](https://airflow.apache.org/tutorial_functional.html)
 """
 # [START tutorial]
 # [START import_module]
-from datetime import timedelta
 import json
 
 # The DAG object; we'll need this to instantiate a DAG
 from airflow import DAG
 from airflow.utils.dates import days_ago
-from airflow.decorators import task
 
 # [END import_module]
 
@@ -54,18 +53,19 @@ with DAG(
     start_date=days_ago(2),
     tags=['example'],
 ) as dag:
-# [END instantiate_dag]
-# [START documentation]
+    # [END instantiate_dag]
+
+    # [START documentation]
     dag.doc_md = __doc__
-# [END documentation]
+    # [END documentation]
 
 # [START extract]
     @dag.task(multiple_outputs=True)
     def extract():
         data_string = u'{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
 
-        order_data = json.loads(data_string)
-        return order_data
+        order_data_dict = json.loads(data_string)
+        return order_data_dict
 # [END extract]
     extract.doc_md = """\
 #### Extract task
@@ -75,10 +75,10 @@ In this case, getting data is simulated by reading from a hardcoded JSON string.
 
 # [START transform]
     @dag.task(multiple_outputs=True)
-    def transform(order_data: dict):
+    def transform(order_data_dict: dict):
         total_order_value = 0
 
-        for value in order_data.values():
+        for value in order_data_dict.values():
             total_order_value += value
 
         return {"total_order_value": total_order_value}
@@ -101,9 +101,11 @@ A simple Load task which takes in the result of the Transform task and instead o
 saving it to end user review, just prints it out.
 """
 
+# [START main_flow]
     order_data = extract()
     order_summary = transform(order_data)
     load(order_summary["total_order_value"])
+# [END main_flow]
 
 
 # [END tutorial]

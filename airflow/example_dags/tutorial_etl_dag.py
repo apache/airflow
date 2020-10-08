@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# pylint: disable=missing-function-docstring
+
 """
 ### ETL DAG Tutorial Documentation
 This ETL DAG is compatible with Airflow 1.10.x (specifically tested with 1.10.12) and is referenced
@@ -24,7 +26,6 @@ as part of the documentation that goes along with the Airflow Functional DAG tut
 """
 # [START tutorial]
 # [START import_module]
-from datetime import timedelta
 import json
 
 # The DAG object; we'll need this to instantiate a DAG
@@ -52,19 +53,19 @@ with DAG(
     start_date=days_ago(2),
     tags=['example'],
 ) as dag:
-# [END instantiate_dag]
-# [START documentation]
+    # [END instantiate_dag]
+    # [START documentation]
     dag.doc_md = __doc__
-# [END documentation]
+    # [END documentation]
 
-# [START extract_function]
+    # [START extract_function]
     def extract(**kwargs):
         ti = kwargs['ti']
         data_string = u'{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
         ti.xcom_push('order_data', data_string)
-# [END extract_function]
+    # [END extract_function]
 
-# [START transform_function]
+    # [START transform_function]
     def transform(**kwargs):
         ti = kwargs['ti']
         extract_data_string = ti.xcom_pull(task_ids='extract', key='order_data')
@@ -77,23 +78,22 @@ with DAG(
         total_value = {"total_order_value": total_order_value}
         total_value_json_string = json.dumps(total_value)
         ti.xcom_push('total_order_value', total_value_json_string)
-# [END transform_function]
+    # [END transform_function]
 
-# [START load_function]
+    # [START load_function]
     def load(**kwargs):
         ti = kwargs['ti']
         total_value_string = ti.xcom_pull(task_ids='transform', key='total_order_value')
         total_order_value = json.loads(total_value_string)
 
         print(total_order_value)
-# [END load_function]
+    # [END load_function]
 
-# [START extract_task]
+    # [START main_flow]
     extract_task = PythonOperator(
         task_id='extract',
         python_callable=extract,
     )
-# [END basic_task]
     extract_task.doc_md = """\
 #### Extract task
 A simple Extract task to get data ready for the rest of the data pipeline.
@@ -124,5 +124,6 @@ from xcom and instead of saving it to end user review, just prints it out.
 
     extract_task >> transform_task >> load_task
 
+# [END main_flow]
 
 # [END tutorial]
