@@ -977,4 +977,43 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         with self.assertRaises(ApiException):
             pod = client.read_namespaced_pod(name=name, namespace=namespace)
 
+    def test_reattach_failing_pod_once(self):
+        from airflow.utils.state import State
+        client = kube_client.get_kube_client(in_cluster=False)
+        name = "test"
+        namespace = "default"
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["exit 1"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id=name,
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=False,
+            termination_grace_period=0,
+        )
+
+        context = create_context(k)
+
+        with mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod") as monitor_mock:
+            monitor_mock.return_value = (State.SUCCESS, None)
+            k.execute(context)
+            name = k.pod.metadata.name
+            pod = client.read_namespaced_pod(name=name, namespace=namespace)
+            while pod.status.phase != "Failed":
+                pod = client.read_namespaced_pod(name=name, namespace=namespace)
+        with self.assertRaises(AirflowException):
+            k.execute(context)
+        pod = client.read_namespaced_pod(name=name, namespace=namespace)
+        self.assertEqual(pod.metadata.labels["already_checked"], "True")
+        with mock.patch("airflow.providers.cncf.kubernetes"
+                        ".operators.kubernetes_pod.KubernetesPodOperator"
+                        ".create_new_pod_for_operator") as create_mock:
+            create_mock.return_value = ("success", {}, {})
+            k.execute(context)
+            create_mock.assert_called_once()
+
 # pylint: enable=unused-argument
