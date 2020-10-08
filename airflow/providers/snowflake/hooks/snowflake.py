@@ -142,3 +142,13 @@ class SnowflakeHook(DbApiHook):
 
     def get_autocommit(self, conn):
         return getattr(conn, 'autocommit_mode', False)
+
+    def run(self, sql, autocommit=False, parameters=None):
+        """Snowflake-connector doesn't allow natively the execution of multiple SQL statements in the same call. So for
+        allowing to pass files or strings with several queries we code this method, that relies on run from DBApiHook"""
+        if isinstance(sql, str):
+            queries = sql.split(';')
+            for query in queries:
+                super(SnowflakeHook, self).run(query, autocommit, parameters)
+        else:  # for lists
+            super(SnowflakeHook, self).run(sql, autocommit, parameters)
