@@ -18,7 +18,7 @@ class SnowflakeToS3Operator(BaseOperator):
     :type s3_bucket: str
     :param s3_key: reference to a specific S3 key within the previous bucket
     :type s3_key: str
-    :param file_format: can be eit`her a previous file format created in Snowflake console or hardcoded one like
+    :param file_format: can be either a previous file format created in Snowflake console or hardcoded one like
         ``type = csv
          field_delimiter = ','
          skip_header = 1
