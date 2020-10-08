@@ -41,7 +41,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 RUN mkdir /app/
 
 # Supervisord
-RUN pip install supervisor==3.3.4
+RUN pip install --no-cache-dir supervisor==3.3.4
 
 COPY ./krb-conf/server/kdc.conf /etc/krb5kdc/kdc.conf
 COPY ./krb-conf/server/kadm5.acl /etc/krb5kdc/kadm5.acl

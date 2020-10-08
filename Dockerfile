@@ -168,7 +168,7 @@ RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
        if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
           AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
        fi; \
-       pip install --user \
+       pip install --no-cache-dir --user \
           "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
           --constraint "${AIRFLOW_CONSTRAINTS_URL}" && pip uninstall --yes apache-airflow; \
     fi
@@ -205,9 +205,9 @@ WORKDIR /opt/airflow
 RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
     fi; \
-    pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+    pip install --no-cache-dir --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
     --constraint "${AIRFLOW_CONSTRAINTS_URL}" && \
-    if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then pip install --user ${ADDITIONAL_PYTHON_DEPS} \
+    if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then pip install --no-cache-dir --user ${ADDITIONAL_PYTHON_DEPS} \
     --constraint "${AIRFLOW_CONSTRAINTS_URL}"; fi && \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r && \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
