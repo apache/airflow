@@ -87,20 +87,18 @@ function check_db_backend {
 }
 
 function resetdb_if_requested() {
-    if [[ ${DB_RESET:="false"} == "true" ]]; then
+    if [[ ${DB_RESET="false"} == "true" ]]; then
         if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
             airflow resetdb -y
         else
             airflow db reset -y
         fi
+        return $?
     fi
-    return $?
 }
 
 function startairflow_if_requested() {
-    if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
-
-
+    if [[ ${START_AIRFLOW="false"} == "true" ]]; then
         export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
 
@@ -116,9 +114,8 @@ function startairflow_if_requested() {
         fi
 
         . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
-
+        return $?
     fi
-    return $?
 }
 
 echo "==============================================================================================="
