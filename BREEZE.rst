@@ -1206,11 +1206,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
-  --install-wheels
-          If specified it will look for wheel packages placed in dist folder and it will install the
-          wheels from there after installing Airflow. This is useful for testing backport
-          packages as well as in the future for testing provider packages for 2.0.
-
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
 
@@ -2154,11 +2149,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
-
-  --install-wheels
-          If specified it will look for wheel packages placed in dist folder and it will install the
-          wheels from there after installing Airflow. This is useful for testing backport
-          packages as well as in the future for testing provider packages for 2.0.
 
   ****************************************************************************************************
    Credentials

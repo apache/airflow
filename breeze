@@ -117,7 +117,7 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW="false"
 
-    # If set to true, the test connections will be created
+    # If set to true, the test connections will be create
     export LOAD_DEFAULT_CONNECTIONS="false"
 
     # If set to true, the sample dags will be used
@@ -133,10 +133,6 @@ function breeze::setup_default_breeze_constants() {
     # If it is set to specified reference (tag/branch), then the source version
     # of Airflow is removed and the specified version of Airflow is installed from GitHub
     export INSTALL_AIRFLOW_REFERENCE=""
-
-    # if set to true, the ci image will look for wheel packages in dist folder and will install them
-    # during entering the container
-    export INSTALL_WHEELS="false"
 
     # Determines whether to force build without checking if it is needed
     # Can be overridden by '--force-build-images' flag.
@@ -1109,12 +1105,6 @@ function breeze::parse_arguments() {
         --no-rbac-ui)
             export DISABLE_RBAC="true"
             echo "When installing Airflow 1.10, RBAC UI will be disabled."
-            echo
-            shift
-            ;;
-        --install-wheels)
-            export INSTALL_WHEELS="true"
-            echo "Install wheels found in dist folder"
             echo
             shift
             ;;
@@ -2179,10 +2169,6 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 --no-rbac-ui
         Disables RBAC UI when Airflow 1.10.* is installed.
 
---install-wheels
-        If specified it will look for wheel packages placed in dist folder and it will install the
-        wheels from there after installing Airflow. This is useful for testing backport
-        packages as well as in the future for testing provider packages for 2.0.
 "
 }
 

@@ -97,9 +97,6 @@ else
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 
-if [[ ${INSTALL_WHEELS} == "true" ]]; then
-  pip install /dist/*.whl || true
-fi
 
 export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
 
