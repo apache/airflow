@@ -37,11 +37,13 @@ from googleapiclient.discovery import build
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.timeout import timeout
 from airflow.utils.python_virtualenv import prepare_virtualenv
 
 # This is the default location
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 DEFAULT_DATAFLOW_LOCATION = 'us-central1'
+DEFAULT_CANCEL_JOB_TIMEOUT = 5 * 60
 
 
 JOB_ID_PATTERN = re.compile(
@@ -356,7 +358,9 @@ class _DataflowJobsController(LoggingMixin):
                     )
                 )
             batch.execute()
-            self._wait_for_states({DataflowJobStatus.JOB_STATE_CANCELLED})
+            timeout_error_message = "Canceling jobs failed due to timeout: {}".format(", ".join(job_ids))
+            with timeout(seconds=DEFAULT_CANCEL_JOB_TIMEOUT, error_message=timeout_error_message):
+                self._wait_for_states({DataflowJobStatus.JOB_STATE_CANCELLED})
         else:
             self.log.info("No jobs to cancel")
 
