@@ -53,21 +53,13 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
         )
         op.execute(None)
 
-        copy_query = """
+        copy_query = f"""
             COPY {schema}.{table}
             FROM 's3://{s3_bucket}/{s3_key}'
             with credentials
             'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
             {copy_options};
-        """.format(
-            schema=schema,
-            table=table,
-            s3_bucket=s3_bucket,
-            s3_key=s3_key,
-            access_key=access_key,
-            secret_key=secret_key,
-            copy_options=copy_options,
-        )
+        """
 
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
@@ -99,21 +91,14 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
         )
         op.execute(None)
 
-        copy_statement = """
+        copy_statement = f"""
                     COPY {schema}.{table}
                     FROM 's3://{s3_bucket}/{s3_key}'
                     with credentials
                     'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
                     {copy_options};
-                """.format(
-            schema=schema,
-            table=table,
-            s3_bucket=s3_bucket,
-            s3_key=s3_key,
-            access_key=access_key,
-            secret_key=secret_key,
-            copy_options=copy_options,
-        )
+                """
+
         truncate_statement = f'TRUNCATE TABLE {schema}.{table}'
         transaction = f"""
                     BEGIN;
