@@ -178,6 +178,9 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
             'hostname_callable': (re.compile(r':'), r'.', '2.0'),
         },
+        'webserver': {
+            'navbar_color': (re.compile(r'\A#007A87\Z', re.IGNORECASE), '#fff', '2.1'),
+        },
         'email': {
             'email_backend': (
                 re.compile(r'^airflow\.contrib\.utils\.sendgrid\.send_email$'),

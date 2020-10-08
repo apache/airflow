@@ -91,6 +91,9 @@ class TestAzureBatchHook(unittest.TestCase):
             pool_id='mypool',
             vm_size="test_vm_size",
             target_dedicated_nodes=1,
+            vm_publisher="test.vm.publisher",
+            vm_offer="test.vm.offer",
+            sku_starts_with="test-sku",
         )
         self.assertIsInstance(pool, batch_models.PoolAddParameter)
 
@@ -100,6 +103,9 @@ class TestAzureBatchHook(unittest.TestCase):
             pool_id='mypool',
             vm_size="test_vm_size",
             target_dedicated_nodes=1,
+            vm_publisher="test.vm.publisher",
+            vm_offer="test.vm.offer",
+            sku_starts_with="test-sku",
         )
         self.assertIsInstance(pool, batch_models.PoolAddParameter)
 
@@ -115,6 +121,9 @@ class TestAzureBatchHook(unittest.TestCase):
                 pool_id='mypool',
                 vm_size="test_vm_size",
                 use_latest_image_and_sku=True,
+                vm_publisher="test.vm.publisher",
+                vm_offer="test.vm.offer",
+                sku_starts_with="test-sku",
             )
             self.assertIsInstance(pool, batch_models.PoolAddParameter)
 
@@ -126,6 +135,9 @@ class TestAzureBatchHook(unittest.TestCase):
             pool_id='mypool',
             vm_size="test_vm_size",
             target_dedicated_nodes=1,
+            vm_publisher="test.vm.publisher",
+            vm_offer="test.vm.offer",
+            sku_starts_with="test-sku",
         )
         hook.create_pool(pool=pool)
         mock_instance.assert_called_once_with(pool)
@@ -138,6 +150,9 @@ class TestAzureBatchHook(unittest.TestCase):
             pool_id='mypool',
             vm_size="test_vm_size",
             target_dedicated_nodes=1,
+            vm_publisher="test.vm.publisher",
+            vm_offer="test.vm.offer",
+            sku_starts_with="test-sku",
         )
         hook.create_pool(pool=pool)
         mock_instance.assert_called_once_with(pool)

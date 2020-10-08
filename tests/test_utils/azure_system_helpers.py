@@ -18,7 +18,6 @@
 import random
 import string
 from contextlib import contextmanager
-from typing import Optional
 
 import pytest
 
@@ -27,9 +26,7 @@ from tests.test_utils.system_tests_class import SystemTest
 
 
 @contextmanager
-def provide_azure_fileshare(
-    share_name: str, wasb_conn_id: str, file_name: str, directory: Optional[str] = None
-):
+def provide_azure_fileshare(share_name: str, wasb_conn_id: str, file_name: str, directory: str):
     AzureSystemTest.prepare_share(
         share_name=share_name,
         wasb_conn_id=wasb_conn_id,
@@ -54,7 +51,7 @@ class AzureSystemTest(SystemTest):
         hook.delete_share(share_name)
 
     @classmethod
-    def create_directory(cls, share_name: str, wasb_conn_id: str, directory: Optional[str] = None):
+    def create_directory(cls, share_name: str, wasb_conn_id: str, directory: str):
         hook = AzureFileShareHook(wasb_conn_id=wasb_conn_id)
         hook.create_directory(share_name=share_name, directory_name=directory)
 
@@ -65,7 +62,7 @@ class AzureSystemTest(SystemTest):
         share_name: str,
         wasb_conn_id: str,
         file_name: str,
-        directory: Optional[str] = None
+        directory: str,
     ):
         hook = AzureFileShareHook(wasb_conn_id=wasb_conn_id)
         hook.load_string(
@@ -76,9 +73,7 @@ class AzureSystemTest(SystemTest):
         )
 
     @classmethod
-    def prepare_share(
-        cls, share_name: str, wasb_conn_id: str, file_name: str, directory: Optional[str] = None
-    ):
+    def prepare_share(cls, share_name: str, wasb_conn_id: str, file_name: str, directory: str):
         """
         Create share with a file in given directory. If directory is None, file is in root dir.
         """

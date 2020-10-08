@@ -656,10 +656,10 @@ jobs:
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
         env:
-          cache-name: cache-kubernetes-tests-virtualenv-v3
+          cache-name: cache-kubernetes-tests-virtualenv-v4
         with:
           path: .build/.kubernetes_venv
-          key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}-v1"
+          key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}"
       - name: "Kubernetes Tests"
         run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
       - name: "Upload KinD logs"
@@ -822,7 +822,7 @@ jobs:
       - name: "Commit changed constraint files for ${{needs.build-info.outputs.pythonVersions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
       - name: "Push changes"
-        uses: ad-m/github-push-action@master
+        uses: ad-m/github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6 # v0.6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}
@@ -856,7 +856,7 @@ jobs:
           echo "Tagging ${BRANCH_NAME}"
           git tag -f nightly-${BRANCH_NAME} HEAD
       - name: "Push tags"
-        uses: ad-m/github-push-action@master
+        uses: ad-m/github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6 # v0.6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tags: true

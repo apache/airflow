@@ -337,7 +337,7 @@ You can optionally reset database if specified as extra ``--db-reset`` flag and 
 start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
-You can also have breeze launch Airflow automatically ``breeze --start-airflow``, this will drop you in a
+You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
 tmux session with three panes (one to monitor the scheduler, one for the webserver and one with a shell
 for additional commands.
 
