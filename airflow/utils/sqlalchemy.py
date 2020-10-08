@@ -24,6 +24,7 @@ from typing import Any, Dict
 import pendulum
 from dateutil import relativedelta
 from sqlalchemy import event, nullsfirst
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
 from sqlalchemy.types import DateTime, Text, TypeDecorator
 
@@ -246,3 +247,21 @@ def prohibit_commit(session):
             # session.commit()
     """
     return CommitProhibitorGuard(session)
+
+
+def is_lock_not_available_error(error: OperationalError):
+    """Check if the Error is about not being able to acquire lock"""
+    # DB specific error codes:
+    # Postgres: 55P03
+    # MySQL: 3572, 'Statement aborted because lock(s) could not be acquired immediately and NOWAIT
+    #               is set.'
+    # MySQL: 1205, 'Lock wait timeout exceeded; try restarting transaction
+    #              (when NOWAIT isn't available)
+    db_err_code = getattr(error.orig, 'pgcode', None) or error.orig.args[0]
+
+    # We could test if error.orig is an instance of
+    # psycopg2.errors.LockNotAvailable/_mysql_exceptions.OperationalError, but that involves
+    # importing it. This doesn't
+    if db_err_code in ('55P03', 1205, 3572):
+        return True
+    return False

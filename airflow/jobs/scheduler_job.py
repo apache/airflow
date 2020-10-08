@@ -55,12 +55,12 @@ from airflow.utils import timezone
 from airflow.utils.callback_requests import (
     CallbackRequest, DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest,
 )
-from airflow.utils.dag_processing import AbstractDagFileProcessorProcess, DagFileProcessorAgent, SimpleDagBag
+from airflow.utils.dag_processing import AbstractDagFileProcessorProcess, DagFileProcessorAgent
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
+from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, skip_locked, with_row_locks
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -590,7 +590,11 @@ class DagFileProcessor(LoggingMixin):
                 elif isinstance(request, DagCallbackRequest):
                     self._execute_dag_callbacks(dagbag, request, session)
             except Exception:  # pylint: disable=broad-except
-                self.log.exception("Error executing callback for File: %s", request.full_filepath)
+                self.log.exception(
+                    "Error executing %s callback for file: %s",
+                    request.__class__.__name__,
+                    request.full_filepath
+                )
 
         session.commit()
 
@@ -821,13 +825,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     @provide_session
     def _change_state_for_tis_without_dagrun(
         self,
-        simple_dag_bag: SimpleDagBag,
         old_states: List[str],
         new_state: str,
         session: Session = None
     ) -> None:
         """
-        For all DAG IDs in the SimpleDagBag, look for task instances in the
+        For all DAG IDs in the DagBag, look for task instances in the
         old_states and set them to new_state if the corresponding DagRun
         does not exist or exists but is not in the running state. This
         normally should not happen, but it can if the state of DagRuns are
@@ -837,17 +840,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         :type old_states: list[airflow.utils.state.State]
         :param new_state: set TaskInstances to this state
         :type new_state: airflow.utils.state.State
-        :param simple_dag_bag: TaskInstances associated with DAGs in the
-            simple_dag_bag and with states in the old_states will be examined
-        :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         """
         tis_changed = 0
         query = session \
             .query(models.TaskInstance) \
-            .outerjoin(models.DagRun, and_(
-                models.TaskInstance.dag_id == models.DagRun.dag_id,
-                models.TaskInstance.execution_date == models.DagRun.execution_date)) \
-            .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids)) \
+            .outerjoin(models.TaskInstance.dag_run) \
+            .filter(models.TaskInstance.dag_id.in_(list(self.dagbag.dag_ids))) \
             .filter(models.TaskInstance.state.in_(old_states)) \
             .filter(or_(
                 # pylint: disable=comparison-with-callable
@@ -883,7 +881,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     models.TaskInstance.execution_date ==
                     subq.c.execution_date) \
                 .update(ti_prop_update, synchronize_session=False)
-            session.commit()
+            session.flush()
 
         if tis_changed > 0:
             self.log.warning(
@@ -1494,10 +1492,30 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             session.expunge_all()
             # END: schedule TIs
 
-            # TODO[HA]: Do we need to call
-            # _change_state_for_tis_without_dagrun (2x) that we were before
-            # to tidy up manually tweaked TIs. Do we need to do it every
-            # time?
+            # TODO[HA]: Do we need to do it every time?
+            try:
+                self._change_state_for_tis_without_dagrun(
+                    old_states=[State.UP_FOR_RETRY],
+                    new_state=State.FAILED,
+                    session=session
+                )
+
+                self._change_state_for_tis_without_dagrun(
+                    old_states=[State.QUEUED,
+                                State.SCHEDULED,
+                                State.UP_FOR_RESCHEDULE,
+                                State.SENSING],
+                    new_state=State.NONE,
+                    session=session
+                )
+
+                guard.commit()
+            except OperationalError as e:
+                if is_lock_not_available_error(error=e):
+                    self.log.debug("Lock held by another Scheduler")
+                    session.rollback()
+                else:
+                    raise
 
             try:
                 if self.executor.slots_available <= 0:
@@ -1517,18 +1535,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             except OperationalError as e:
                 timer.stop(send=False)
 
-                # DB specific error codes:
-                # Postgres: 55P03
-                # MySQL: 3572, 'Statement aborted because lock(s) could not be acquired immediately and NOWAIT
-                #               is set.'
-                # MySQL: 1205, 'Lock wait timeout exceeded; try restarting transaction
-                #              (when NOWAIT isn't available)
-                db_err_code = getattr(e.orig, 'pgcode', None) or e.orig.args[0]
-
-                # We could test if e.orig is an instance of
-                # psycopg2.errors.LockNotAvailable/_mysql_exceptions.OperationalError, but that involves
-                # importing it. This doesn't
-                if db_err_code in ('55P03', 1205, 3572):
+                if is_lock_not_available_error(error=e):
                     self.log.debug("Critical section lock held by another Scheduler")
                     Stats.incr('scheduler.critical_section_busy')
                     session.rollback()

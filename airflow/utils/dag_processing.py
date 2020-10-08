@@ -30,7 +30,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Any, Callable, Dict, KeysView, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Union, cast
 
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 from sqlalchemy import or_
@@ -38,11 +38,8 @@ from tabulate import tabulate
 
 import airflow.models
 from airflow.configuration import conf
-from airflow.dag.base_dag import BaseDagBag
-from airflow.exceptions import AirflowException
 from airflow.models import errors
 from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import STORE_DAG_CODE, STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -53,45 +50,6 @@ from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
-
-
-class SimpleDagBag(BaseDagBag):
-    """
-    A collection of SimpleDag objects with some convenience methods.
-    """
-
-    def __init__(self, serialized_dags: List[SerializedDAG]):
-        """
-        Constructor.
-
-        :param serialized_dags: SimpleDag objects that should be in this
-        :type serialized_dags: list[dict]
-        """
-        self.serialized_dags = serialized_dags
-        self.dag_id_to_simple_dag: Dict[str, SerializedDAG] = {}
-
-        for serialized_dag in serialized_dags:
-            self.dag_id_to_simple_dag[serialized_dag.dag_id] = serialized_dag
-
-    @property
-    def dag_ids(self) -> KeysView[str]:
-        """
-        :return: IDs of all the DAGs in this
-        :rtype: list[unicode]
-        """
-        return self.dag_id_to_simple_dag.keys()
-
-    def get_dag(self, dag_id: str) -> SerializedDAG:
-        """
-        :param dag_id: DAG ID
-        :type dag_id: unicode
-        :return: if the given DAG ID exists in the bag, return the BaseDag
-        corresponding to that ID. Otherwise, throw an Exception
-        :rtype: SerializedDAG
-        """
-        if dag_id not in self.dag_id_to_simple_dag:
-            raise AirflowException("Unknown DAG ID {}".format(dag_id))
-        return self.dag_id_to_simple_dag[dag_id]
 
 
 class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
