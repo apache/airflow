@@ -63,7 +63,6 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    FORWARD_CREDENTIALS
 #    DB_RESET
 #    START_AIRFLOW
-#    RBAC_UI
 #    INSTALL_AIRFLOW_VERSION
 #    INSTALL_AIRFLOW_REFERENCE
 #    FORCE_BUILD_IMAGES
@@ -124,8 +123,8 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, the sample dags will be created
     export LOAD_EXAMPLES="false"
 
-    # If set to true, RBAC mode is enabled
-    export RBAC_UI="false"
+    # If set to true, RBAC UI will not be used for 1.10 version
+    export DISABLE_RBAC="false"
 
     # If it set is set to specified version, then the source version of Airflow
     # is removed and the specified version of Airflow is installed from PyPi
@@ -134,6 +133,10 @@ function breeze::setup_default_breeze_constants() {
     # If it is set to specified reference (tag/branch), then the source version
     # of Airflow is removed and the specified version of Airflow is installed from GitHub
     export INSTALL_AIRFLOW_REFERENCE=""
+
+    # if set to true, the ci image will look for wheel packages in dist folder and will install them
+    # during entering the container
+    export INSTALL_WHEELS="false"
 
     # Determines whether to force build without checking if it is needed
     # Can be overridden by '--force-build-images' flag.
@@ -1078,12 +1081,6 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
-        --rbac-ui)
-            echo "Enable RBAC UI"
-            echo
-            export RBAC_UI="true"
-            shift
-            ;;
         --load-example-dags)
             export LOAD_EXAMPLES="true"
             echo "Include Airflow sample dags"
@@ -1093,6 +1090,18 @@ function breeze::parse_arguments() {
         --load-default-connections)
             export LOAD_DEFAULT_CONNECTIONS="true"
             echo "Include Airflow default connections"
+            echo
+            shift
+            ;;
+        --no-rbac-ui)
+            export DISABLE_RBAC="true"
+            echo "When installing Airflow 1.10, RBAC UI will be disabled."
+            echo
+            shift
+            ;;
+        --install-wheels)
+            export INSTALL_WHEELS="true"
+            echo "Install wheels found in dist folder"
             echo
             shift
             ;;
@@ -1978,9 +1987,6 @@ function breeze::flag_breeze_actions() {
 
 ${FORMATTED_INTEGRATIONS}
 
---rbac-ui
-        Enable RBAC UI.
-
 --init-script INIT_SCRIPT_FILE
         Initialization script name - Sourced from files/airflow-breeze-config. Default value
         init.sh. It will be executed after the environment is configured and started.
@@ -2078,6 +2084,14 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         If specified, installs Airflow directly from reference in GitHub. This happens at
         image building time in production image and at container entering time for CI image.
+
+--no-rbac-ui
+        Disables RBAC UI when Airflow 1.10.* is installed.
+
+--install-wheels
+        If specified it will look for wheel packages placed in dist folder and it will install the
+        wheels from there after installing Airflow. This is useful for testing backport
+        packages as well as in the future for testing provider packages for 2.0.
 "
 }
 
@@ -2186,6 +2200,9 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 --image-tag TAG
         Additional tag in the image.
 
+--disable-pip-cache
+        Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
 --additional-extras ADDITIONAL_EXTRAS
         Additional extras to pass to build images The default is no additional extras.
 
@@ -2235,9 +2252,6 @@ Build options:
         Url to the constraints file. In case of the production image it can also be a path to the
         constraint file placed in 'docker-context-files' folder, in which case it has to be
         in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
-
---disable-pip-cache
-        Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
 
 --install-local-pip-wheels
         This flag is only used in production image building. If it is used then instead of
