@@ -352,9 +352,9 @@ class DagBag(BaseDagBag, LoggingMixin):
                     dag.fileloc = filepath
             try:
                 dag.is_subdag = False
-                self.bag_dag(dag=dag, root_dag=dag)
                 if isinstance(dag.normalized_schedule_interval, str):
                     croniter(dag.normalized_schedule_interval)
+                self.bag_dag(dag=dag, root_dag=dag)
                 found_dags.append(dag)
                 found_dags += dag.subdags
             except (CroniterBadCronError,
