@@ -104,7 +104,7 @@ All of the processing shown above is being done in the new Airflow 2.0 dag as we
 it is all abstracted from the DAG developer.
 
 Let's examine this in detail by looking at the Transform task in isolation since it is
-in the middle of this al. In Airflow 1.x, this task is defined as shown below:
+in the middle of the data pipeline. In Airflow 1.x, this task is defined as shown below:
 
 .. exampleinclude:: /../airflow/example_dags/tutorial_etl_dag.py
     :language: python

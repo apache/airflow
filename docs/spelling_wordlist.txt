@@ -1224,6 +1224,7 @@ subtask
 subtasks
 sudo
 sudoers
+summarization
 superclass
 svg
 swp
