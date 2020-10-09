@@ -299,7 +299,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
             if len(pod_list.items) == 1:
                 try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
-                final_state, result = self.handle_pod_overlap(labels, try_numbers_match, launcher, pod_list)
+                final_state, result = self.handle_pod_overlap(
+                    labels, try_numbers_match, launcher, pod_list.items[0]
+                )
             else:
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
             if final_state != State.SUCCESS:
@@ -309,7 +311,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
-    def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod_list):
+    def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod):
         """
         In cases where the Scheduler restarts while a KubernetsPodOperator task is running,
         this function will either continue to monitor the existing pod or launch a new pod
@@ -319,17 +321,20 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :param try_numbers_match: do the try numbers match? Only needed for logging purposes
         :type try_numbers_match: bool
         :param launcher: PodLauncher
-        :param pod_list: list of pods found
+        :param pod: Pod found
         """
         if try_numbers_match:
             log_line = "found a running pod with labels {} and the same try_number.".format(labels)
         else:
             log_line = "found a running pod with labels {} but a different try_number.".format(labels)
 
-        if self.reattach_on_restart:
+        # In case of failed pods, should reattach the first time, but only once
+        # as the task will have already failed.
+        if self.reattach_on_restart and not pod.metadata.labels.get("already_checked"):
             log_line = log_line + " Will attach to this pod and monitor instead of starting new one"
             self.log.info(log_line)
-            final_state, result = self.monitor_launched_pod(launcher, pod_list.items[0])
+            self.pod = pod
+            final_state, result = self.monitor_launched_pod(launcher, pod)
         else:
             log_line = log_line + "creating pod with labels {} and launcher {}".format(labels, launcher)
             self.log.info(log_line)
@@ -452,6 +457,14 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 launcher.delete_pod(self.pod)
         return final_state, self.pod, result
 
+    def patch_already_checked(self, pod):
+        """
+        Add an "already tried annotation to ensure we only retry once
+        """
+        pod.metadata.labels["already_checked"] = "True"
+        body = PodGenerator.serialize_pod(pod)
+        self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
+
     def monitor_launched_pod(self, launcher, pod):
         """
         Monitors a pod to completion that was created by a previous KubernetesPodOperator
@@ -469,6 +482,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             if self.log_events_on_failure:
                 for event in launcher.read_pod_events(pod).items:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
+            self.patch_already_checked(self.pod)
             raise AirflowException(
                 'Pod returned a failure: {state}'.format(state=final_state)
             )
