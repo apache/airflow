@@ -27,7 +27,7 @@ from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
+@security.requires_access([('can_read', 'Dag'), ('can_read', 'DagRun'), ('can_read', 'Task')])
 @provide_session
 def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=False, token=None):
     """

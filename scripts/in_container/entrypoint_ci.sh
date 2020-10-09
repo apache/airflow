@@ -19,6 +19,15 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
+function disable_rbac_if_requested() {
+    if [[ ${DISABLE_RBAC:="false"} == "true" ]]; then
+        export AIRFLOW__WEBSERVER__RBAC="False"
+    else
+        export AIRFLOW__WEBSERVER__RBAC="True"
+    fi
+}
+
+
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . /opt/airflow/scripts/in_container/_in_container_script_init.sh
 
@@ -100,6 +109,8 @@ unset AIRFLOW__CORE__UNIT_TEST_MODE
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
+disable_rbac_if_requested
+
 set +e
 "${IN_CONTAINER_DIR}/check_environment.sh"
 ENVIRONMENT_EXIT_CODE=$?
@@ -155,6 +166,12 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 
 # shellcheck source=scripts/in_container/configure_environment.sh
 . "${IN_CONTAINER_DIR}/configure_environment.sh"
+
+# shellcheck source=scripts/in_container/run_init_script.sh
+. "${IN_CONTAINER_DIR}/run_init_script.sh"
+
+# shellcheck source=scripts/in_container/run_tmux.sh
+. "${IN_CONTAINER_DIR}/run_tmux.sh"
 
 cd "${AIRFLOW_SOURCES}"
 
@@ -215,6 +232,15 @@ elif [[ ${ONLY_RUN_LONG_RUNNING_TESTS:=""} == "true" ]]; then
         "--setup-timeout=30"
         "--execution-timeout=120"
         "--teardown-timeout=30"
+    )
+elif [[ ${ONLY_RUN_HEISEN_TESTS:=""} == "true" ]]; then
+    EXTRA_PYTEST_ARGS+=(
+        "-m" "heisentests"
+        "--include-heisentests"
+        "--verbosity=1"
+        "--setup-timeout=20"
+        "--execution-timeout=50"
+        "--teardown-timeout=20"
     )
 elif [[ ${ONLY_RUN_QUARANTINED_TESTS:=""} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(

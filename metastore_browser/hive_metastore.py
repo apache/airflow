@@ -201,6 +201,7 @@ class MetastoreBrowserPlugin(AirflowPlugin):
     """
     Defining the plugin class
     """
+
     name = "metastore_browser"
     flask_blueprints = [bp]
     appbuilder_views = [{"name": "Hive Metadata Browser",

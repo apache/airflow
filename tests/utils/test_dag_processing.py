@@ -382,6 +382,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
             self.assertFalse(os.path.isfile(log_file_loc))
 
+    @conf_vars({('core', 'load_examples'): 'False'})
     def test_parse_once(self):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')

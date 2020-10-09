@@ -147,7 +147,8 @@ ENV_VALUE = "/tmp/a"
 class TestProvideGcpCredentialFile(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            MODULE_NAME + '.GoogleBaseHook.__init__', new=mock_base_gcp_hook_default_project_id,
+            MODULE_NAME + '.GoogleBaseHook.__init__',
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.instance = hook.GoogleBaseHook(gcp_conn_id="google-cloud-default")
 
@@ -432,7 +433,9 @@ class TestGoogleBaseHook(unittest.TestCase):
         )
         self.assertEqual(("CREDENTIALS", 'SECOND_PROJECT_ID'), result)
 
-    def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self,):
+    def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(
+        self,
+    ):
         self.instance.extras = {
             'extra__google_cloud_platform__project': "PROJECT_ID",
             'extra__google_cloud_platform__key_path': "KEY_PATH",
@@ -443,7 +446,9 @@ class TestGoogleBaseHook(unittest.TestCase):
         ):
             self.instance._get_credentials_and_project_id()
 
-    def test_get_credentials_and_project_id_with_invalid_keyfile_dict(self,):
+    def test_get_credentials_and_project_id_with_invalid_keyfile_dict(
+        self,
+    ):
         self.instance.extras = {
             'extra__google_cloud_platform__keyfile_dict': 'INVALID_DICT',
         }
@@ -610,7 +615,12 @@ class TestGoogleBaseHook(unittest.TestCase):
     )
     @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
     def test_get_credentials_and_project_id_with_impersonation_chain(
-        self, _, impersonation_chain, target_principal, delegates, mock_get_creds_and_proj_id,
+        self,
+        _,
+        impersonation_chain,
+        target_principal,
+        delegates,
+        mock_get_creds_and_proj_id,
     ):
         mock_credentials = mock.MagicMock()
         mock_get_creds_and_proj_id.return_value = (mock_credentials, PROJECT_ID)
@@ -630,7 +640,8 @@ class TestGoogleBaseHook(unittest.TestCase):
 class TestProvideAuthorizedGcloud(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            MODULE_NAME + '.GoogleBaseHook.__init__', new=mock_base_gcp_hook_default_project_id,
+            MODULE_NAME + '.GoogleBaseHook.__init__',
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.instance = hook.GoogleBaseHook(gcp_conn_id="google-cloud-default")
 

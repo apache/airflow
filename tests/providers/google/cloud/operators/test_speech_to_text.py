@@ -45,7 +45,8 @@ class TestCloudSql(unittest.TestCase):
         ).execute(context={"task_instance": Mock()})
 
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.recognize_speech.assert_called_once_with(
             config=CONFIG, audio=AUDIO, retry=None, timeout=None

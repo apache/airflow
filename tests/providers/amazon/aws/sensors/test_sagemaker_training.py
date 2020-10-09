@@ -31,7 +31,9 @@ DESCRIBE_TRAINING_COMPLETED_RESPONSE = {
     'ResourceConfig': {'InstanceCount': 1, 'InstanceType': 'ml.c4.xlarge', 'VolumeSizeInGB': 10},
     'TrainingStartTime': datetime(2018, 2, 17, 7, 15, 0, 103000),
     'TrainingEndTime': datetime(2018, 2, 17, 7, 19, 34, 953000),
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
 }
 
 DESCRIBE_TRAINING_INPROGRESS_RESPONSE = dict(DESCRIBE_TRAINING_COMPLETED_RESPONSE)

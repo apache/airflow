@@ -19,8 +19,6 @@ import unittest
 from datetime import timedelta
 from unittest import mock
 
-import pytest
-
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag
 from airflow.utils import timezone
@@ -83,7 +81,6 @@ class TestDaskExecutor(TestBaseDask):
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
         self.assert_tasks_on_executor(executor)
 
-    @pytest.mark.quarantined
     def test_backfill_integration(self):
         """
         Test that DaskExecutor can be used to backfill example dags

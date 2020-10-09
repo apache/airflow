@@ -39,7 +39,10 @@ class TestGoogleDisplayVideo360ReportSensor(TestCase):
         )
         op.poke(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION, impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.get_query.assert_called_once_with(query_id=report_id)
 
@@ -52,11 +55,16 @@ class TestGoogleDisplayVideo360Sensor(TestCase):
     def test_poke(self, mock_base_op, hook_mock):
         operation_name = "operation_name"
         op = GoogleDisplayVideo360GetSDFDownloadOperationSensor(
-            operation_name=operation_name, api_version=API_VERSION, task_id="test_task",
+            operation_name=operation_name,
+            api_version=API_VERSION,
+            task_id="test_task",
         )
         op.poke(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION, impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.get_sdf_download_operation.assert_called_once_with(
             operation_name=operation_name

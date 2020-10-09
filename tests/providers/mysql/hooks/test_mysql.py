@@ -39,7 +39,11 @@ class TestMySqlHookConn(unittest.TestCase):
         super().setUp()
 
         self.connection = Connection(
-            conn_type='mysql', login='login', password='password', host='host', schema='schema',
+            conn_type='mysql',
+            login='login',
+            password='password',
+            host='host',
+            schema='schema',
         )
 
         self.db_hook = MySqlHook()
@@ -348,7 +352,16 @@ class TestMySql(unittest.TestCase):
                 conn.execute("DROP TABLE IF EXISTS {}".format(table))
 
     @parameterized.expand(
-        [("mysqlclient",), ("mysql-connector-python",),]
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
+    )
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_AIRFLOW_DB': 'mysql://root@mysql/airflow?charset=utf8mb4&local_infile=1',
+        },
     )
     def test_mysql_hook_test_bulk_load(self, client):
         with MySqlContext(client):
@@ -376,7 +389,10 @@ class TestMySql(unittest.TestCase):
                     self.assertEqual(sorted(results), sorted(records))
 
     @parameterized.expand(
-        [("mysqlclient",), ("mysql-connector-python",),]
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
     )
     def test_mysql_hook_test_bulk_dump(self, client):
         with MySqlContext(client):
@@ -385,11 +401,16 @@ class TestMySql(unittest.TestCase):
             if priv and priv[0]:
                 # Confirm that no error occurs
                 hook.bulk_dump("INFORMATION_SCHEMA.TABLES", os.path.join(priv[0], "TABLES_{}".format(client)))
+            elif priv == ("",):
+                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", "TABLES_{}".format(client))
             else:
                 self.skipTest("Skip test_mysql_hook_test_bulk_load " "since file output is not permitted")
 
     @parameterized.expand(
-        [("mysqlclient",), ("mysql-connector-python",),]
+        [
+            ("mysqlclient",),
+            ("mysql-connector-python",),
+        ]
     )
     @mock.patch('airflow.providers.mysql.hooks.mysql.MySqlHook.get_conn')
     def test_mysql_hook_test_bulk_dump_mock(self, client, mock_get_conn):

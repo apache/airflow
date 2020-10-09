@@ -16,6 +16,7 @@
 # under the License.
 
 import json
+from typing import Optional, Dict, Any, Union
 
 import yandexcloud
 
@@ -31,7 +32,12 @@ class YandexCloudBaseHook(BaseHook):
     :type connection_id: str
     """
 
-    def __init__(self, connection_id=None, default_folder_id=None, default_public_ssh_key=None):
+    def __init__(
+        self,
+        connection_id: Optional[str] = None,
+        default_folder_id: Union[dict, bool, None] = None,
+        default_public_ssh_key: Optional[str] = None,
+    ) -> None:
         super().__init__()
         self.connection_id = connection_id or 'yandexcloud_default'
         self.connection = self.get_connection(self.connection_id)
@@ -42,7 +48,7 @@ class YandexCloudBaseHook(BaseHook):
         self.default_public_ssh_key = default_public_ssh_key or self._get_field('public_ssh_key', False)
         self.client = self.sdk.client
 
-    def _get_credentials(self):
+    def _get_credentials(self) -> Dict[str, Any]:
         service_account_json_path = self._get_field('service_account_json_path', False)
         service_account_json = self._get_field('service_account_json', False)
         oauth_token = self._get_field('oauth', False)
@@ -60,7 +66,7 @@ class YandexCloudBaseHook(BaseHook):
         else:
             return {'token': oauth_token}
 
-    def _get_field(self, field_name, default=None):
+    def _get_field(self, field_name: str, default: Any = None) -> Any:
         """
         Fetches a field from extras, and returns it.
         """

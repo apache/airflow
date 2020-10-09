@@ -111,7 +111,12 @@ TEST_FAILED_APPLICATION = {
             "memory": "512m",
             "serviceAccount": "default",
         },
-        "executor": {"cores": 1, "instances": 1, "labels": {"version": "2.4.4"}, "memory": "512m",},
+        "executor": {
+            "cores": 1,
+            "instances": 1,
+            "labels": {"version": "2.4.4"},
+            "memory": "512m",
+        },
         "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
         "imagePullPolicy": "Always",
         "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
@@ -230,7 +235,12 @@ TEST_NOT_PROCESSED_APPLICATION = {
             "memory": "512m",
             "serviceAccount": "default",
         },
-        "executor": {"cores": 1, "instances": 1, "labels": {"version": "2.4.4"}, "memory": "512m",},
+        "executor": {
+            "cores": 1,
+            "instances": 1,
+            "labels": {"version": "2.4.4"},
+            "memory": "512m",
+        },
         "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
         "imagePullPolicy": "Always",
         "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
@@ -271,7 +281,12 @@ TEST_RUNNING_APPLICATION = {
             "memory": "512m",
             "serviceAccount": "default",
         },
-        "executor": {"cores": 1, "instances": 1, "labels": {"version": "2.4.4"}, "memory": "512m",},
+        "executor": {
+            "cores": 1,
+            "instances": 1,
+            "labels": {"version": "2.4.4"},
+            "memory": "512m",
+        },
         "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
         "imagePullPolicy": "Always",
         "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
@@ -328,7 +343,12 @@ TEST_SUBMITTED_APPLICATION = {
             "memory": "512m",
             "serviceAccount": "default",
         },
-        "executor": {"cores": 1, "instances": 1, "labels": {"version": "2.4.4"}, "memory": "512m",},
+        "executor": {
+            "cores": 1,
+            "instances": 1,
+            "labels": {"version": "2.4.4"},
+            "memory": "512m",
+        },
         "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
         "imagePullPolicy": "Always",
         "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
@@ -384,7 +404,12 @@ TEST_NEW_APPLICATION = {
             "memory": "512m",
             "serviceAccount": "default",
         },
-        "executor": {"cores": 1, "instances": 1, "labels": {"version": "2.4.4"}, "memory": "512m",},
+        "executor": {
+            "cores": 1,
+            "instances": 1,
+            "labels": {"version": "2.4.4"},
+            "memory": "512m",
+        },
         "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
         "imagePullPolicy": "Always",
         "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
@@ -426,7 +451,12 @@ TEST_PENDING_RERUN_APPLICATION = {
             "memory": "512m",
             "serviceAccount": "default",
         },
-        "executor": {"cores": 1, "instances": 1, "labels": {"version": "2.4.4"}, "memory": "512m",},
+        "executor": {
+            "cores": 1,
+            "instances": 1,
+            "labels": {"version": "2.4.4"},
+            "memory": "512m",
+        },
         "image": "gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus",
         "imagePullPolicy": "Always",
         "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar",
@@ -460,7 +490,13 @@ TEST_POD_LOG_RESULT = "LOG LINE 1\nLOG LINE 2"
 class TestSparkKubernetesSensor(unittest.TestCase):
     def setUp(self):
         db.merge_conn(Connection(conn_id='kubernetes_default', conn_type='kubernetes', extra=json.dumps({})))
-        db.merge_conn(Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({}),))
+        db.merge_conn(
+            Connection(
+                conn_id="kubernetes_default",
+                conn_type="kubernetes",
+                extra=json.dumps({}),
+            )
+        )
         db.merge_conn(
             Connection(
                 conn_id="kubernetes_with_namespace",
@@ -655,7 +691,10 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         self, mock_log_call, error_log_call, mock_get_namespaced_crd, mock_kube_conn
     ):
         sensor = SparkKubernetesSensor(
-            application_name="spark_pi", attach_log=True, dag=self.dag, task_id="test_task_id",
+            application_name="spark_pi",
+            attach_log=True,
+            dag=self.dag,
+            task_id="test_task_id",
         )
         self.assertRaises(AirflowException, sensor.poke, None)
         mock_log_call.assert_called_once_with("spark_pi-driver")
@@ -674,7 +713,10 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         self, mock_log_call, info_log_call, mock_get_namespaced_crd, mock_kube_conn
     ):
         sensor = SparkKubernetesSensor(
-            application_name="spark_pi", attach_log=True, dag=self.dag, task_id="test_task_id",
+            application_name="spark_pi",
+            attach_log=True,
+            dag=self.dag,
+            task_id="test_task_id",
         )
         sensor.poke(None)
         mock_log_call.assert_called_once_with("spark_pi-driver")
@@ -695,7 +737,10 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         self, mock_log_call, warn_log_call, mock_get_namespaced_crd, mock_kube_conn
     ):
         sensor = SparkKubernetesSensor(
-            application_name="spark_pi", attach_log=True, dag=self.dag, task_id="test_task_id",
+            application_name="spark_pi",
+            attach_log=True,
+            dag=self.dag,
+            task_id="test_task_id",
         )
         sensor.poke(None)
         warn_log_call.assert_called_once()

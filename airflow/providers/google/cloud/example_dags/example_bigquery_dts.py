@@ -76,7 +76,9 @@ with models.DAG(
 ) as dag:
     # [START howto_bigquery_create_data_transfer]
     gcp_bigquery_create_transfer = BigQueryCreateDataTransferOperator(
-        transfer_config=TRANSFER_CONFIG, project_id=GCP_PROJECT_ID, task_id="gcp_bigquery_create_transfer",
+        transfer_config=TRANSFER_CONFIG,
+        project_id=GCP_PROJECT_ID,
+        task_id="gcp_bigquery_create_transfer",
     )
 
     transfer_config_id = (

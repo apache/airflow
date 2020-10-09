@@ -20,7 +20,7 @@ import argparse
 import os
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_COMPUTE_KEY, GcpAuthenticator
-from tests.utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import LoggingCommandExecutor
 
 GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'testinstance')
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')

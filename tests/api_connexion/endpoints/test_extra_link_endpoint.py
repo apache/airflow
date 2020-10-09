@@ -46,12 +46,23 @@ class TestGetExtraLinks(unittest.TestCase):
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[
+                ('can_read', 'Dag'),
+                ('can_read', 'DagRun'),
+                ('can_read', 'Task'),
+                ('can_read', 'TaskInstance'),
+            ],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     @provide_session
     def setUp(self, session) -> None:
@@ -82,7 +93,12 @@ class TestGetExtraLinks(unittest.TestCase):
 
     @staticmethod
     def _create_dag():
-        with DAG(dag_id="TEST_DAG_ID", default_args=dict(start_date=days_ago(2),)) as dag:
+        with DAG(
+            dag_id="TEST_DAG_ID",
+            default_args=dict(
+                start_date=days_ago(2),
+            ),
+        ) as dag:
             BigQueryExecuteQueryOperator(task_id="TEST_SINGLE_QUERY", sql="SELECT 1")
             BigQueryExecuteQueryOperator(task_id="TEST_MULTIPLE_QUERY", sql=["SELECT 1", "SELECT 2"])
         return dag
@@ -124,6 +140,13 @@ class TestGetExtraLinks(unittest.TestCase):
             response.json,
         )
 
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get(
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+        assert response.status_code == 403
+
     @mock_plugin_manager(plugins=[])
     def test_should_response_200(self):
         XCom.set(
@@ -152,7 +175,8 @@ class TestGetExtraLinks(unittest.TestCase):
 
         self.assertEqual(200, response.status_code, response.data)
         self.assertEqual(
-            {"BigQuery Console": None}, response.json,
+            {"BigQuery Console": None},
+            response.json,
         )
 
     @mock_plugin_manager(plugins=[])
@@ -187,7 +211,8 @@ class TestGetExtraLinks(unittest.TestCase):
 
         self.assertEqual(200, response.status_code, response.data)
         self.assertEqual(
-            {"BigQuery Console #1": None, "BigQuery Console #2": None}, response.json,
+            {"BigQuery Console #1": None, "BigQuery Console #2": None},
+            response.json,
         )
 
     def test_should_response_200_support_plugins(self):

@@ -35,6 +35,7 @@ class K8SModel(ABC):
     can be avoided. All of these models implement the
     `attach_to_pod` method so that they integrate with the kubernetes client.
     """
+
     @abstractmethod
     def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
         """

@@ -58,6 +58,7 @@ class SerializedDagModel(Base):
     Because reading from database is lightweight compared to importing from files,
     it solves the webserver scalability issue.
     """
+
     __tablename__ = 'serialized_dag'
 
     dag_id = Column(String(ID_LEN), primary_key=True)

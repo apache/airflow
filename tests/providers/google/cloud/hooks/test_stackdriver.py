@@ -92,7 +92,8 @@ class TestStackdriverHookMethods(unittest.TestCase):
         method = mock_policy_client.return_value.list_alert_policies
         hook = stackdriver.StackdriverHook()
         hook.list_alert_policies(
-            filter_=TEST_FILTER, project_id=PROJECT_ID,
+            filter_=TEST_FILTER,
+            project_id=PROJECT_ID,
         )
         method.assert_called_once_with(
             name='projects/{project}'.format(project=PROJECT_ID),
@@ -119,7 +120,8 @@ class TestStackdriverHookMethods(unittest.TestCase):
 
         mock_policy_client.return_value.list_alert_policies.return_value = alert_policies
         hook.enable_alert_policies(
-            filter_=TEST_FILTER, project_id=PROJECT_ID,
+            filter_=TEST_FILTER,
+            project_id=PROJECT_ID,
         )
         mock_policy_client.return_value.list_alert_policies.assert_called_once_with(
             name='projects/{project}'.format(project=PROJECT_ID),
@@ -156,7 +158,8 @@ class TestStackdriverHookMethods(unittest.TestCase):
             alert_policy_disabled,
         ]
         hook.disable_alert_policies(
-            filter_=TEST_FILTER, project_id=PROJECT_ID,
+            filter_=TEST_FILTER,
+            project_id=PROJECT_ID,
         )
         mock_policy_client.return_value.list_alert_policies.assert_called_once_with(
             name='projects/{project}'.format(project=PROJECT_ID),
@@ -240,9 +243,14 @@ class TestStackdriverHookMethods(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_policy_client')
     def test_stackdriver_delete_alert_policy(self, mock_policy_client, mock_get_creds_and_project_id):
         hook = stackdriver.StackdriverHook()
-        hook.delete_alert_policy(name='test-alert',)
+        hook.delete_alert_policy(
+            name='test-alert',
+        )
         mock_policy_client.return_value.delete_alert_policy.assert_called_once_with(
-            name='test-alert', retry=DEFAULT, timeout=DEFAULT, metadata=None,
+            name='test-alert',
+            retry=DEFAULT,
+            timeout=DEFAULT,
+            metadata=None,
         )
 
     @mock.patch(
@@ -253,7 +261,8 @@ class TestStackdriverHookMethods(unittest.TestCase):
     def test_stackdriver_list_notification_channel(self, mock_channel_client, mock_get_creds_and_project_id):
         hook = stackdriver.StackdriverHook()
         hook.list_notification_channels(
-            filter_=TEST_FILTER, project_id=PROJECT_ID,
+            filter_=TEST_FILTER,
+            project_id=PROJECT_ID,
         )
         mock_channel_client.return_value.list_notification_channels.assert_called_once_with(
             name='projects/{project}'.format(project=PROJECT_ID),
@@ -286,7 +295,8 @@ class TestStackdriverHookMethods(unittest.TestCase):
         ]
 
         hook.enable_notification_channels(
-            filter_=TEST_FILTER, project_id=PROJECT_ID,
+            filter_=TEST_FILTER,
+            project_id=PROJECT_ID,
         )
 
         notification_channel_disabled.enabled.value = True  # pylint: disable=no-member
@@ -321,7 +331,8 @@ class TestStackdriverHookMethods(unittest.TestCase):
         ]
 
         hook.disable_notification_channels(
-            filter_=TEST_FILTER, project_id=PROJECT_ID,
+            filter_=TEST_FILTER,
+            project_id=PROJECT_ID,
         )
 
         notification_channel_enabled.enabled.value = False  # pylint: disable=no-member
@@ -385,7 +396,9 @@ class TestStackdriverHookMethods(unittest.TestCase):
         self, mock_channel_client, mock_get_creds_and_project_id
     ):
         hook = stackdriver.StackdriverHook()
-        hook.delete_notification_channel(name='test-channel',)
+        hook.delete_notification_channel(
+            name='test-channel',
+        )
         mock_channel_client.return_value.delete_notification_channel.assert_called_once_with(
             name='test-channel', retry=DEFAULT, timeout=DEFAULT, metadata=None
         )

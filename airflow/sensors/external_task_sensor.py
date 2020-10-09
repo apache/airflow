@@ -18,7 +18,7 @@
 
 import datetime
 import os
-from typing import Optional, Union
+from typing import FrozenSet, Optional, Union
 
 from sqlalchemy import func
 
@@ -62,6 +62,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         or DAG does not exist (default value: False).
     :type check_existence: bool
     """
+
     template_fields = ['external_dag_id', 'external_task_id']
     ui_color = '#19647e'
 
@@ -239,8 +240,12 @@ class ExternalTaskMarker(DummyOperator):
         this number if necessary. However, too many levels of transitive dependencies will make
         it slower to clear tasks in the web UI.
     """
+
     template_fields = ['external_dag_id', 'external_task_id', 'execution_date']
     ui_color = '#19647e'
+
+    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
+    __serialized_fields: Optional[FrozenSet[str]] = None
 
     @apply_defaults
     def __init__(self, *,
@@ -262,3 +267,14 @@ class ExternalTaskMarker(DummyOperator):
         if recursion_depth <= 0:
             raise ValueError("recursion_depth should be a positive integer")
         self.recursion_depth = recursion_depth
+
+    @classmethod
+    def get_serialized_fields(cls):
+        """Serialized ExternalTaskMarker contain exactly these fields + templated_fields ."""
+        if not cls.__serialized_fields:
+            cls.__serialized_fields = frozenset(
+                super().get_serialized_fields() | {
+                    "recursion_depth"
+                }
+            )
+        return cls.__serialized_fields

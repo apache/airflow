@@ -939,7 +939,9 @@ class PubSubPullOperator(BaseOperator):
 
         if pulled_messages and self.ack_messages:
             hook.acknowledge(
-                project_id=self.project_id, subscription=self.subscription, messages=pulled_messages,
+                project_id=self.project_id,
+                subscription=self.subscription,
+                messages=pulled_messages,
             )
 
         return ret
@@ -958,7 +960,6 @@ class PubSubPullOperator(BaseOperator):
         :param context: same as in `execute`
         :return: value to be saved to XCom.
         """
-
         messages_json = [MessageToDict(m) for m in pulled_messages]
 
         return messages_json

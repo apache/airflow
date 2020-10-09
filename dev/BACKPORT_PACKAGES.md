@@ -131,7 +131,7 @@ The script generates two types of files:
 
 Note that our CI system builds the release notes for backport packages automatically with every build and
 current date - this way you might be sure the automated generation of the release notes continues to
-work. You can also preview the generated readme files (by downloading artifacts from Github Actions).
+work. You can also preview the generated readme files (by downloading artifacts from GitHub Actions).
 The script does not modify the README and CHANGES files if there is no change in the repo for that provider.
 
 # Preparing backport packages
@@ -296,13 +296,15 @@ mv apache-airflow-backport-providers-${VERSION}-source.tar.gz dist
 * Sign all your packages
 
 ```bash
-./dev/sign.sh dist/*
+pushd dist
+../dev/sign.sh *
+popd
 ```
 
-* Push tags
+* Push tags to Apache repository (asuming that you have apache remote pointing to apache/airflow repo)]
 
 ```bash
-git push --tags
+git push apache backport-providers-${VERSION}
 ```
 
 ### Committing the packages to Apache SVN repo

@@ -21,11 +21,7 @@
 export const defaultFormat = 'YYYY-MM-DD, HH:mm:ss';
 export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
 export const defaultTZFormat = 'z (Z)';
-
-export function setDisplayedTimezone(tz) {
-  moment.tz.setDefault(tz);
-  updateAllDateTimes();
-}
+export const dateTimeAttrFormat = 'YYYY-MM-DDThh:mm:ssTZD';
 
 export function formatTimezone(what) {
   if (what instanceof moment) {
@@ -42,37 +38,35 @@ export function formatTimezone(what) {
 export function isoDateToTimeEl(datetime, options) {
   const dateTimeObj = moment(datetime);
 
-  const addTitle = $.extend({title: true}, options).title;
+  const addTitle = $.extend({ title: true }, options).title;
 
   const el = document.createElement('time');
-  el.setAttribute('datetime', dateTimeObj.format())
+  el.setAttribute('datetime', dateTimeObj.format());
   if (addTitle) {
-    el.setAttribute('title',dateTimeObj.isUTC() ? '' : `UTC: ${dateTimeObj.clone().utc().format()}`);
+    el.setAttribute('title', dateTimeObj.isUTC() ? '' : `UTC: ${dateTimeObj.clone().utc().format()}`);
   }
   el.innerText = dateTimeObj.format(defaultFormat);
   return el;
 }
 
-export const formatDateTime = (datetime) => {
-  return moment(datetime).format(defaultFormatWithTZ)
-}
+export const formatDateTime = (datetime) => moment(datetime).format(defaultFormatWithTZ);
 
 export const convertAndFormatUTC = (datetime, tz) => {
   let dateTimeObj = moment.utc(datetime);
   if (tz) dateTimeObj = dateTimeObj.tz(tz);
-  return dateTimeObj.format(defaultFormatWithTZ)
-}
+  return dateTimeObj.format(defaultFormatWithTZ);
+};
 
 export const secondsToString = (seconds) => {
   let numdays    = Math.floor((seconds % 31536000) / 86400);
   let numhours   = Math.floor(((seconds % 31536000) % 86400) / 3600);
   let numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
   let numseconds = Math.floor((((seconds % 31536000) % 86400) % 3600) % 60);
-  return (numdays > 0    ? numdays    + (numdays    === 1 ? " day "    : " days ")    : "") +
-         (numhours > 0   ? numhours   + (numhours   === 1 ? " hour "   : " hours ")   : "") +
-         (numminutes > 0 ? numminutes + (numminutes === 1 ? " minute " : " minutes ") : "") +
-         (numseconds > 0 ? numseconds + (numseconds === 1 ? " second"  : " seconds")  : "");
-}
+  return (numdays > 0    ? numdays    + (numdays    === 1 ? ' day '    : ' days ')    : '') +
+         (numhours > 0   ? numhours   + (numhours   === 1 ? ' hour '   : ' hours ')   : '') +
+         (numminutes > 0 ? numminutes + (numminutes === 1 ? ' minute ' : ' minutes ') : '') +
+         (numseconds > 0 ? numseconds + (numseconds === 1 ? ' second'  : ' seconds')  : '');
+};
 
 export function updateAllDateTimes() {
   // Called after `moment.tz.setDefault` has changed the default TZ to display.
@@ -83,26 +77,20 @@ export function updateAllDateTimes() {
     $el.text(dt.format(defaultFormat));
     if ($el.attr('title') !== undefined) {
       // If displayed date is not UTC, have the UTC date in a title attriubte
-      $el.attr('title', dt.isUTC() ? "" : `UTC: ${dt.clone().utc().format()}`);
+      $el.attr('title', dt.isUTC() ? '' : `UTC: ${dt.clone().utc().format()}`);
     }
   });
 
-  // A simple sprintf-like function
-  function sprintf(value, args) {
-    let i = 0;
-
-    while (value.indexOf('%') > 0) {
-      value = value.replace('%', args[i]);
-      i++;
-    }
-
-    return value;
-  }
   // Update any date-time inputs.
   //
   // Since we have set the default timezone for moment, it will automatically
   // convert it to the new target for us
   $('.datetime input').each((_, el) => {
     el.value = moment(el.value).format();
-  })
+  });
+}
+
+export function setDisplayedTimezone(tz) {
+  moment.tz.setDefault(tz);
+  updateAllDateTimes();
 }

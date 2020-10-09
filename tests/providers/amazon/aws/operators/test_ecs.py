@@ -160,7 +160,10 @@ class TestECSOperator(unittest.TestCase):
             placementConstraints=[{'expression': 'attribute:ecs.instance-type =~ t2.*', 'type': 'memberOf'}],
             placementStrategy=[{'field': 'memory', 'type': 'binpack'}],
             networkConfiguration={
-                'awsvpcConfiguration': {'securityGroups': ['sg-123abc'], 'subnets': ['subnet-123456ab'],}
+                'awsvpcConfiguration': {
+                    'securityGroups': ['sg-123abc'],
+                    'subnets': ['subnet-123456ab'],
+                }
             },
             propagateTags='TASK_DEFINITION',
         )

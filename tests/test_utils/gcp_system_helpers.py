@@ -28,8 +28,8 @@ from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY, GCP_SECRET_MANAGER_KEY
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
+from tests.test_utils.logging_command_executor import get_executor
 from tests.test_utils.system_tests_class import SystemTest
-from tests.utils.logging_command_executor import get_executor
 
 CLOUD_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "cloud", "example_dags"
@@ -102,6 +102,14 @@ def provide_gcp_context(
         yield
 
 
+@contextmanager
+@provide_gcp_context(GCP_GCS_KEY)
+def provide_gcs_bucket(bucket_name: str):
+    GoogleSystemTest.create_gcs_bucket(bucket_name)
+    yield
+    GoogleSystemTest.delete_gcs_bucket(bucket_name)
+
+
 @pytest.mark.system("google")
 class GoogleSystemTest(SystemTest):
     @staticmethod
@@ -153,7 +161,7 @@ class GoogleSystemTest(SystemTest):
             with open(tmp_path, "w") as file:
                 file.writelines(lines)
                 file.flush()
-            os.chmod(tmp_path, 555)
+            os.chmod(tmp_path, 777)
             cls.upload_to_gcs(tmp_path, bucket_name)
 
     @classmethod

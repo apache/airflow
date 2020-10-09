@@ -129,7 +129,11 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
                     'ActionOnFailure': 'CONTINUE',
                     'HadoopJarStep': {
                         'Jar': 'command-runner.jar',
-                        'Args': ['/usr/lib/spark/bin/run-example', '2016-12-31', '2017-01-01',],
+                        'Args': [
+                            '/usr/lib/spark/bin/run-example',
+                            '2016-12-31',
+                            '2017-01-01',
+                        ],
                     },
                 }
             ],

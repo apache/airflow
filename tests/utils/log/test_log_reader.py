@@ -105,11 +105,12 @@ class TestLogView(unittest.TestCase):
 
         self.assertEqual(
             [
-                f"*** Reading local file: "
-                f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                f"try_number=1.\n"
+                ('',
+                 f"*** Reading local file: "
+                 f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                 f"try_number=1.\n")
             ],
-            logs,
+            logs[0],
         )
         self.assertEqual({"end_of_log": True}, metadatas)
 
@@ -119,15 +120,18 @@ class TestLogView(unittest.TestCase):
 
         self.assertEqual(
             [
-                "*** Reading local file: "
-                f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                "try_number=1.\n",
-                f"*** Reading local file: "
-                f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-                f"try_number=2.\n",
-                f"*** Reading local file: "
-                f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-                f"try_number=3.\n",
+                [('',
+                  "*** Reading local file: "
+                  f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                  "try_number=1.\n")],
+                [('',
+                  f"*** Reading local file: "
+                  f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
+                  f"try_number=2.\n")],
+                [('',
+                  f"*** Reading local file: "
+                  f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
+                  f"try_number=3.\n")],
             ],
             logs,
         )
@@ -139,7 +143,7 @@ class TestLogView(unittest.TestCase):
 
         self.assertEqual(
             [
-                "*** Reading local file: "
+                "\n*** Reading local file: "
                 f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
                 "try_number=1.\n"
                 "\n"
@@ -152,15 +156,15 @@ class TestLogView(unittest.TestCase):
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
         self.assertEqual(
             [
-                "*** Reading local file: "
+                "\n*** Reading local file: "
                 f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
                 "try_number=1.\n"
                 "\n",
-                "*** Reading local file: "
+                "\n*** Reading local file: "
                 f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
                 "try_number=2.\n"
                 "\n",
-                "*** Reading local file: "
+                "\n*** Reading local file: "
                 f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
                 "try_number=3.\n"
                 "\n",
@@ -170,15 +174,15 @@ class TestLogView(unittest.TestCase):
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
     def test_read_log_stream_should_support_multiple_chunks(self, mock_read):
-        first_return = (["1st line"], [{}])
-        second_return = (["2nd line"], [{"end_of_log": False}])
-        third_return = (["3rd line"], [{"end_of_log": True}])
-        fourth_return = (["should never be read"], [{"end_of_log": True}])
+        first_return = ([[('', "1st line")]], [{}])
+        second_return = ([[('', "2nd line")]], [{"end_of_log": False}])
+        third_return = ([[('', "3rd line")]], [{"end_of_log": True}])
+        fourth_return = ([[('', "should never be read")]], [{"end_of_log": True}])
         mock_read.side_effect = [first_return, second_return, third_return, fourth_return]
 
         task_log_reader = TaskLogReader()
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
-        self.assertEqual(["1st line\n", "2nd line\n", "3rd line\n"], list(log_stream))
+        self.assertEqual(["\n1st line\n", "\n2nd line\n", "\n3rd line\n"], list(log_stream))
 
         mock_read.assert_has_calls(
             [
@@ -191,15 +195,15 @@ class TestLogView(unittest.TestCase):
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
     def test_read_log_stream_should_read_each_try_in_turn(self, mock_read):
-        first_return = (["try_number=1."], [{"end_of_log": True}])
-        second_return = (["try_number=2."], [{"end_of_log": True}])
-        third_return = (["try_number=3."], [{"end_of_log": True}])
-        fourth_return = (["should never be read"], [{"end_of_log": True}])
+        first_return = ([[('', "try_number=1.")]], [{"end_of_log": True}])
+        second_return = ([[('', "try_number=2.")]], [{"end_of_log": True}])
+        third_return = ([[('', "try_number=3.")]], [{"end_of_log": True}])
+        fourth_return = ([[('', "should never be read")]], [{"end_of_log": True}])
         mock_read.side_effect = [first_return, second_return, third_return, fourth_return]
 
         task_log_reader = TaskLogReader()
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
-        self.assertEqual(['try_number=1.\n', 'try_number=2.\n', 'try_number=3.\n'], list(log_stream))
+        self.assertEqual(['\ntry_number=1.\n', '\ntry_number=2.\n', '\ntry_number=3.\n'], list(log_stream))
 
         mock_read.assert_has_calls(
             [

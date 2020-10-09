@@ -23,9 +23,8 @@ Initializing a Database Backend
 If you want to take a real test drive of Airflow, you should consider
 setting up a real database backend and switching to the LocalExecutor.
 
-As Airflow was built to interact with its metadata using the great SqlAlchemy
-library, you should be able to use any database backend supported as a
-SqlAlchemy backend. We recommend using **MySQL** or **Postgres**.
+Airflow was built to interact with its metadata using SqlAlchemy
+with **MySQL**,  **Postgres** and **SQLite** as supported backends (SQLite is used primarily for development purpose).
 
 .. note:: We rely on more strict ANSI SQL settings for MySQL in order to have
    sane defaults. Make sure to have specified ``explicit_defaults_for_timestamp=1``
@@ -48,13 +47,56 @@ SqlAlchemy backend. We recommend using **MySQL** or **Postgres**.
    want to set a default schema for your role with a
    command similar to ``ALTER ROLE username SET search_path = airflow, foobar;``
 
+Setup your database to host Airflow
+-----------------------------------
+
+Create a database called ``airflow`` and a database user that Airflow
+will use to access this database.
+
+Example, for **MySQL**:
+
+.. code-block:: sql
+
+   CREATE DATABASE airflow CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+   CREATE USER 'airflow' IDENTIFIED BY 'airflow';
+   GRANT ALL PRIVILEGES ON airflow.* TO 'airflow';
+
+Example, for **Postgres**:
+
+.. code-block:: sql
+
+   CREATE DATABASE airflow;
+   CREATE USER airflow WITH PASSWORD 'airflow';
+   GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow;
+
+You may need to update your Postgres ``pg_hba.conf`` to add the
+``airflow`` user to the database access control list; and to reload
+the database configuration to load your change. See
+`The pg_hba.conf File <https://www.postgresql.org/docs/current/auth-pg-hba-conf.html>`__
+in the Postgres documentation to learn more.
+
+Configure Airflow's database connection string
+----------------------------------------------
+
 Once you've setup your database to host Airflow, you'll need to alter the
-SqlAlchemy connection string located in your configuration file
-``$AIRFLOW_HOME/airflow.cfg``. You should then also change the "executor"
-setting to use "LocalExecutor", an executor that can parallelize task
-instances locally.
+SqlAlchemy connection string located in ``sql_alchemy_conn`` option in ``[core]`` section in your configuration file
+``$AIRFLOW_HOME/airflow.cfg``.
+
+You can also define connection URI using ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` environment variable.
+
+Configure a worker that supports parallelism
+--------------------------------------------
+
+You should then also change the "executor" option in the ``[core]`` option to use "LocalExecutor", an executor that can parallelize task instances locally.
+
+Initialize the database
+-----------------------
 
 .. code-block:: bash
 
     # initialize the database
     airflow db init
+
+.. spelling::
+
+     hba

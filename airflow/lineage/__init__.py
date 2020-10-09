@@ -44,6 +44,7 @@ class Metadata:
     """
     Class for serialized entities.
     """
+
     type_name: str = attr.ib()
     source: str = attr.ib()
     data: Dict = attr.ib()

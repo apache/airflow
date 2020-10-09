@@ -59,7 +59,9 @@ class TestGceInstanceStart(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.start_instance.assert_called_once_with(
             zone=GCE_ZONE, resource_id=RESOURCE_ID, project_id=GCP_PROJECT_ID
@@ -137,7 +139,9 @@ class TestGceInstanceStop(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.stop_instance.assert_called_once_with(
             zone=GCE_ZONE, resource_id=RESOURCE_ID, project_id=GCP_PROJECT_ID
@@ -183,7 +187,9 @@ class TestGceInstanceStop(unittest.TestCase):
         op = ComputeEngineStopInstanceOperator(zone=GCE_ZONE, resource_id=RESOURCE_ID, task_id='id')
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.stop_instance.assert_called_once_with(
             zone=GCE_ZONE, resource_id=RESOURCE_ID, project_id=None
@@ -225,7 +231,9 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.set_machine_type.assert_called_once_with(
             zone=GCE_ZONE, resource_id=RESOURCE_ID, body=SET_MACHINE_TYPE_BODY, project_id=GCP_PROJECT_ID
@@ -278,7 +286,9 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
         )
         op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.set_machine_type.assert_called_once_with(
             zone=GCE_ZONE, resource_id=RESOURCE_ID, body=SET_MACHINE_TYPE_BODY, project_id=None
@@ -324,7 +334,9 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
         err = cm.exception
         self.assertIn("The required body field 'machineType' is missing. Please add it.", str(err))
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
 
     MOCK_OP_RESPONSE = (
@@ -402,7 +414,12 @@ GCE_INSTANCE_TEMPLATE_BODY_GET = {
                 "kind": "compute#networkInterface",
                 "network": "https://www.googleapis.com/compute/v1/"
                 "projects/project/global/networks/default",
-                "accessConfigs": [{"kind": "compute#accessConfig", "type": "ONE_TO_ONE_NAT",}],
+                "accessConfigs": [
+                    {
+                        "kind": "compute#accessConfig",
+                        "type": "ONE_TO_ONE_NAT",
+                    }
+                ],
             },
             {
                 "network": "https://www.googleapis.com/compute/v1/"
@@ -410,7 +427,15 @@ GCE_INSTANCE_TEMPLATE_BODY_GET = {
                 "accessConfigs": [{"kind": "compute#accessConfig", "networkTier": "PREMIUM"}],
             },
         ],
-        "disks": [{"kind": "compute#attachedDisk", "type": "PERSISTENT", "licenses": ["A String",]}],
+        "disks": [
+            {
+                "kind": "compute#attachedDisk",
+                "type": "PERSISTENT",
+                "licenses": [
+                    "A String",
+                ],
+            }
+        ],
         "metadata": {"kind": "compute#metadata", "fingerprint": "GDPUYxlwHe4="},
     },
     "selfLink": "https://www.googleapis.com/compute/v1/projects/project"
@@ -426,7 +451,11 @@ GCE_INSTANCE_TEMPLATE_BODY_INSERT = {
             {
                 "network": "https://www.googleapis.com/compute/v1/"
                 "projects/project/global/networks/default",
-                "accessConfigs": [{"type": "ONE_TO_ONE_NAT",}],
+                "accessConfigs": [
+                    {
+                        "type": "ONE_TO_ONE_NAT",
+                    }
+                ],
             },
             {
                 "network": "https://www.googleapis.com/compute/v1/"
@@ -434,7 +463,11 @@ GCE_INSTANCE_TEMPLATE_BODY_INSERT = {
                 "accessConfigs": [{"networkTier": "PREMIUM"}],
             },
         ],
-        "disks": [{"type": "PERSISTENT",}],
+        "disks": [
+            {
+                "type": "PERSISTENT",
+            }
+        ],
         "metadata": {"fingerprint": "GDPUYxlwHe4="},
     },
 }
@@ -459,7 +492,9 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.insert_instance_template.assert_called_once_with(
             project_id=GCP_PROJECT_ID, body=GCE_INSTANCE_TEMPLATE_BODY_INSERT, request_id=None
@@ -480,7 +515,9 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.insert_instance_template.assert_called_once_with(
             project_id=None, body=GCE_INSTANCE_TEMPLATE_BODY_INSERT, request_id=None
@@ -498,7 +535,9 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.insert_instance_template.assert_not_called()
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
@@ -519,7 +558,9 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.insert_instance_template.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
@@ -544,13 +585,17 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
 
         body_insert = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_INSERT)
         body_insert["description"] = "New description"
         mock_hook.return_value.insert_instance_template.assert_called_once_with(
-            project_id=GCP_PROJECT_ID, body=body_insert, request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
+            project_id=GCP_PROJECT_ID,
+            body=body_insert,
+            request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
         )
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
@@ -573,13 +618,17 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         body_insert = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_INSERT)
         body_insert["some_wrong_field"] = "test"
         body_insert["properties"]["some_other_wrong_field"] = "test"
         mock_hook.return_value.insert_instance_template.assert_called_once_with(
-            project_id=GCP_PROJECT_ID, body=body_insert, request_id=None,
+            project_id=GCP_PROJECT_ID,
+            body=body_insert,
+            request_id=None,
         )
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
@@ -596,12 +645,16 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             task_id='id',
             body_patch={
                 "name": GCE_INSTANCE_TEMPLATE_NEW_NAME,
-                "properties": {"machineType": "n1-standard-2",},
+                "properties": {
+                    "machineType": "n1-standard-2",
+                },
             },
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         body_insert = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_INSERT)
         body_insert["properties"]["machineType"] = "n1-standard-2"
@@ -637,7 +690,9 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         body_insert = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_INSERT)
         body_insert["properties"]["networkInterfaces"] = [
@@ -667,11 +722,19 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
                 "name": GCE_INSTANCE_TEMPLATE_NEW_NAME,
                 "properties": {
                     "disks": [
-                        {"kind": "compute#attachedDisk", "type": "SCRATCH", "licenses": ["Updated String",]},
+                        {
+                            "kind": "compute#attachedDisk",
+                            "type": "SCRATCH",
+                            "licenses": [
+                                "Updated String",
+                            ],
+                        },
                         {
                             "kind": "compute#attachedDisk",
                             "type": "PERSISTENT",
-                            "licenses": ["Another String",],
+                            "licenses": [
+                                "Another String",
+                            ],
                         },
                     ],
                 },
@@ -679,16 +742,32 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='v1',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
 
         body_insert = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_INSERT)
         body_insert["properties"]["disks"] = [
-            {"kind": "compute#attachedDisk", "type": "SCRATCH", "licenses": ["Updated String",]},
-            {"kind": "compute#attachedDisk", "type": "PERSISTENT", "licenses": ["Another String",]},
+            {
+                "kind": "compute#attachedDisk",
+                "type": "SCRATCH",
+                "licenses": [
+                    "Updated String",
+                ],
+            },
+            {
+                "kind": "compute#attachedDisk",
+                "type": "PERSISTENT",
+                "licenses": [
+                    "Another String",
+                ],
+            },
         ]
         mock_hook.return_value.insert_instance_template.assert_called_once_with(
-            project_id=GCP_PROJECT_ID, body=body_insert, request_id=None,
+            project_id=GCP_PROJECT_ID,
+            body=body_insert,
+            request_id=None,
         )
         self.assertEqual(GCE_INSTANCE_TEMPLATE_BODY_GET_NEW, result)
 
@@ -743,7 +822,10 @@ GCE_INSTANCE_GROUP_MANAGER_GET = {
     "instanceTemplate": GCE_INSTANCE_TEMPLATE_SOURCE_URL,
     "versions": [
         {"name": "v1", "instanceTemplate": GCE_INSTANCE_TEMPLATE_SOURCE_URL, "targetSize": {"calculated": 1}},
-        {"name": "v2", "instanceTemplate": GCE_INSTANCE_TEMPLATE_OTHER_URL,},
+        {
+            "name": "v2",
+            "instanceTemplate": GCE_INSTANCE_TEMPLATE_OTHER_URL,
+        },
     ],
     "instanceGroup": GCE_INSTANCE_TEMPLATE_SOURCE_URL,
     "baseInstanceName": GCE_INSTANCE_GROUP_MANAGER_NAME,
@@ -775,7 +857,10 @@ GCE_INSTANCE_GROUP_MANAGER_EXPECTED_PATCH = {
             "instanceTemplate": GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
             "targetSize": {"calculated": 1},
         },
-        {"name": "v2", "instanceTemplate": GCE_INSTANCE_TEMPLATE_OTHER_URL,},
+        {
+            "name": "v2",
+            "instanceTemplate": GCE_INSTANCE_TEMPLATE_OTHER_URL,
+        },
     ],
 }
 
@@ -806,7 +891,9 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='beta', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.patch_instance_group_manager.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
@@ -831,7 +918,9 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='beta', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.patch_instance_group_manager.assert_called_once_with(
             project_id=None,
@@ -857,7 +946,9 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='beta', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         expected_patch_no_instance_template = deepcopy(GCE_INSTANCE_GROUP_MANAGER_EXPECTED_PATCH)
         del expected_patch_no_instance_template['instanceTemplate']
@@ -885,7 +976,9 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='beta', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         expected_patch_no_versions = deepcopy(GCE_INSTANCE_GROUP_MANAGER_EXPECTED_PATCH)
         del expected_patch_no_versions['versions']
@@ -914,7 +1007,9 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='beta', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         expected_patch_with_update_policy = deepcopy(GCE_INSTANCE_GROUP_MANAGER_EXPECTED_PATCH)
         expected_patch_with_update_policy['updatePolicy'] = GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY
@@ -943,7 +1038,9 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='beta', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.patch_instance_group_manager.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
@@ -984,7 +1081,9 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(
-            api_version='beta', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version='beta',
+            gcp_conn_id='google_cloud_default',
+            impersonation_chain=None,
         )
         mock_hook.return_value.patch_instance_group_manager.assert_not_called()
         self.assertTrue(result)

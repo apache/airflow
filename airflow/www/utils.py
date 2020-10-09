@@ -96,7 +96,6 @@ def generate_pages(current_page,
     :param window: the number of pages to be shown in the paging component (7 default)
     :return: the HTML string of the paging component
     """
-
     void_link = 'javascript:void(0)'
     first_node = Markup("""<li class="paginate_button {disabled}" id="dags_first">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&laquo;</a>
@@ -224,8 +223,8 @@ def task_instance_link(attr):
         <span style="white-space: nowrap;">
         <a href="{url}">{task_id}</a>
         <a href="{url_root}" title="Filter on this task and upstream">
-        <span class="glyphicon glyphicon-filter" style="margin-left:0;"
-            aria-hidden="true"></span>
+        <span class="material-icons" style="margin-left:0;"
+            aria-hidden="true">filter_alt</span>
         </a>
         </span>
         """).format(url=url, task_id=task_id, url_root=url_root)
@@ -235,7 +234,7 @@ def state_token(state):
     """Returns a formatted string with HTML for a given State"""
     color = State.color(state)
     return Markup(  # noqa
-        '<span class="label" style="background-color:{color};">'
+        '<span class="label" style="background-color:{color};" title="Current State: {state}">'
         '{state}</span>').format(color=color, state=state)
 
 
@@ -334,12 +333,12 @@ def wrapped_markdown(s, css_class=None):
         '<div class="rich_doc {css_class}" >'.format(css_class=css_class) + markdown.markdown(s) + "</div>"
     )
 
+
 # pylint: disable=no-member
-
-
 def get_attr_renderer():
     """Return Dictionary containing different Pygments Lexers for Rendering & Highlighting"""
     return {
+        'bash': lambda x: render(x, lexers.BashLexer),
         'bash_command': lambda x: render(x, lexers.BashLexer),
         'hql': lambda x: render(x, lexers.SqlLexer),
         'sql': lambda x: render(x, lexers.SqlLexer),
@@ -348,9 +347,13 @@ def get_attr_renderer():
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
+        'json': lambda x: render(x, lexers.JsonLexer),
+        'md': wrapped_markdown,
+        'py': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
+        'rst': lambda x: render(x, lexers.RstLexer),
+        'yaml': lambda x: render(x, lexers.YamlLexer),
     }
-
 # pylint: enable=no-member
 
 
@@ -369,6 +372,7 @@ class UtcAwareFilterMixin:  # noqa: D101
     """
     Mixin for filter for UTC time.
     """
+
     def apply(self, query, value):
         """Apply the filter."""
         value = timezone.parse(value, timezone=timezone.utc)
@@ -421,6 +425,7 @@ class CustomSQLAInterface(SQLAInterface):
     '_' from the key to lookup the column names.
 
     """
+
     def __init__(self, obj, session=None):
         super().__init__(obj, session=session)
 

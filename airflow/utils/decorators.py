@@ -40,7 +40,6 @@ def apply_defaults(func: T) -> T:
     inheritance and argument defaults, this decorator also alerts with
     specific information about the missing arguments.
     """
-
     # Cache inspect.signature for the wrapper closure to avoid calling it
     # at every decorated invocation. This is separate sig_cache created
     # per decoration, i.e. each function decorated using apply_defaults will

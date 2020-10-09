@@ -15,12 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 import socket
 
 import pendulum
 
+import airflow
 from airflow.configuration import conf
 from airflow.settings import STATE_COLORS
+from airflow.utils.platform import get_airflow_git_version
 
 
 def init_jinja_globals(app):
@@ -42,6 +45,14 @@ def init_jinja_globals(app):
     expose_hostname = conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
     hosstname = socket.getfqdn() if expose_hostname else 'redact'
 
+    try:
+        airflow_version = airflow.__version__
+    except Exception as e:  # pylint: disable=broad-except
+        airflow_version = None
+        logging.error(e)
+
+    git_version = get_airflow_git_version()
+
     def prepare_jinja_globals():
         extra_globals = {
             'server_timezone': server_timezone,
@@ -51,7 +62,9 @@ def init_jinja_globals(app):
             'log_fetch_delay_sec': conf.getint('webserver', 'log_fetch_delay_sec', fallback=2),
             'log_auto_tailing_offset': conf.getint('webserver', 'log_auto_tailing_offset', fallback=30),
             'log_animation_speed': conf.getint('webserver', 'log_animation_speed', fallback=1000),
-            'state_color_mapping': STATE_COLORS
+            'state_color_mapping': STATE_COLORS,
+            'airflow_version': airflow_version,
+            'git_version': git_version
         }
 
         if 'analytics_tool' in conf.getsection('webserver'):

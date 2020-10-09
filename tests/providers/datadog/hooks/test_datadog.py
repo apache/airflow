@@ -47,7 +47,12 @@ class TestDatadogHook(unittest.TestCase):
     @mock.patch('airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection')
     def setUp(self, mock_get_connection, mock_initialize):
         mock_get_connection.return_value = Connection(
-            extra=json.dumps({'app_key': APP_KEY, 'api_key': API_KEY,})
+            extra=json.dumps(
+                {
+                    'app_key': APP_KEY,
+                    'api_key': API_KEY,
+                }
+            )
         )
         self.hook = DatadogHook()
 
@@ -73,7 +78,11 @@ class TestDatadogHook(unittest.TestCase):
     def test_send_metric(self, mock_send):
         mock_send.return_value = {'status': 'ok'}
         self.hook.send_metric(
-            METRIC_NAME, DATAPOINT, tags=TAGS, type_=TYPE, interval=INTERVAL,
+            METRIC_NAME,
+            DATAPOINT,
+            tags=TAGS,
+            type_=TYPE,
+            interval=INTERVAL,
         )
         mock_send.assert_called_once_with(
             metric=METRIC_NAME,
@@ -92,7 +101,9 @@ class TestDatadogHook(unittest.TestCase):
         mock_query.return_value = {'status': 'ok'}
         self.hook.query_metric('query', 60, 30)
         mock_query.assert_called_once_with(
-            start=now - 60, end=now - 30, query='query',
+            start=now - 60,
+            end=now - 30,
+            query='query',
         )
 
     @mock.patch('airflow.providers.datadog.hooks.datadog.api.Event.create')

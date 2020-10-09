@@ -67,7 +67,9 @@ class DataFusionHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
@@ -165,7 +167,12 @@ class DataFusionHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("datafusion", self.api_version, http=http_authorized, cache_discovery=False,)
+            self._conn = build(
+                "datafusion",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+            )
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -215,7 +222,11 @@ class DataFusionHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_instance(
-        self, instance_name: str, instance: Dict[str, Any], location: str, project_id: str,
+        self,
+        instance_name: str,
+        instance: Dict[str, Any],
+        location: str,
+        project_id: str,
     ) -> Operation:
         """
         Creates a new Data Fusion instance in the specified project and location.
@@ -235,7 +246,11 @@ class DataFusionHook(GoogleBaseHook):
             .projects()
             .locations()
             .instances()
-            .create(parent=self._parent(project_id, location), body=instance, instanceId=instance_name,)
+            .create(
+                parent=self._parent(project_id, location),
+                body=instance,
+                instanceId=instance_name,
+            )
             .execute(num_retries=self.num_retries)
         )
         return operation
@@ -264,7 +279,12 @@ class DataFusionHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def patch_instance(
-        self, instance_name: str, instance: Dict[str, Any], update_mask: str, location: str, project_id: str,
+        self,
+        instance_name: str,
+        instance: Dict[str, Any],
+        update_mask: str,
+        location: str,
+        project_id: str,
     ) -> Operation:
         """
         Updates a single Data Fusion instance.
@@ -292,14 +312,20 @@ class DataFusionHook(GoogleBaseHook):
             .locations()
             .instances()
             .patch(
-                name=self._name(project_id, location, instance_name), updateMask=update_mask, body=instance,
+                name=self._name(project_id, location, instance_name),
+                updateMask=update_mask,
+                body=instance,
             )
             .execute(num_retries=self.num_retries)
         )
         return operation
 
     def create_pipeline(
-        self, pipeline_name: str, pipeline: Dict[str, Any], instance_url: str, namespace: str = "default",
+        self,
+        pipeline_name: str,
+        pipeline: Dict[str, Any],
+        instance_url: str,
+        namespace: str = "default",
     ) -> None:
         """
         Creates a Cloud Data Fusion pipeline.
@@ -386,7 +412,11 @@ class DataFusionHook(GoogleBaseHook):
         return json.loads(response.data)
 
     def _get_workflow_state(
-        self, pipeline_name: str, instance_url: str, pipeline_id: str, namespace: str = "default",
+        self,
+        pipeline_name: str,
+        instance_url: str,
+        pipeline_id: str,
+        namespace: str = "default",
     ) -> str:
         url = os.path.join(
             self._base_url(instance_url, namespace),
@@ -426,7 +456,13 @@ class DataFusionHook(GoogleBaseHook):
         # TODO: This API endpoint starts multiple pipelines. There will eventually be a fix
         #  return the run Id as part of the API request to run a single pipeline.
         #  https://github.com/apache/airflow/pull/8954#discussion_r438223116
-        url = os.path.join(instance_url, "v3", "namespaces", quote(namespace), "start",)
+        url = os.path.join(
+            instance_url,
+            "v3",
+            "namespaces",
+            quote(namespace),
+            "start",
+        )
         runtime_args = runtime_args or {}
         body = [
             {

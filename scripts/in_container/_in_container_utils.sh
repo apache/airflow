@@ -235,7 +235,7 @@ EOF
 }
 
 function stop_output_heartbeat() {
-    kill "${HEARTBEAT_PID}"
+    kill "${HEARTBEAT_PID}" || true
     wait "${HEARTBEAT_PID}" || true 2> /dev/null
 }
 
@@ -261,6 +261,9 @@ function setup_kerberos() {
     RES_3=$?
 
     if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
+        echo
+        echo "Error when setting up Kerberos: ${RES_1} ${RES_2} ${RES_3}}!"
+        echo
         exit 1
     else
         echo

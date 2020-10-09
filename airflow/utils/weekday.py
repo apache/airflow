@@ -25,6 +25,7 @@ class WeekDay(enum.IntEnum):
     """
     Python Enum containing Days of the Week
     """
+
     MONDAY = 1
     TUESDAY = 2
     WEDNESDAY = 3

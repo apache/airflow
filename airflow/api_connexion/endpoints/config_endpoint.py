@@ -61,7 +61,7 @@ def _config_to_json(config: Config) -> str:
     return json.dumps(config_schema.dump(config), indent=4)
 
 
-@security.requires_authentication
+@security.requires_access([("can_read", "Config")])
 def get_config() -> Response:
     """
     Get current configuration.

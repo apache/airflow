@@ -110,7 +110,8 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
 
     def execute(self, context):
         hook = CloudSpeechToTextHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         respones = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout

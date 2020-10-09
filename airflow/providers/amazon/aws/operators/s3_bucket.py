@@ -84,7 +84,7 @@ class S3DeleteBucketOperator(BaseOperator):
     def __init__(
         self,
         bucket_name,
-        force_delete: Optional[bool] = False,
+        force_delete: bool = False,
         aws_conn_id: Optional[str] = "aws_default",
         **kwargs,
     ) -> None:

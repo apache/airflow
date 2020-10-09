@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 @test "empty test" {
   load bats_utils
 

@@ -55,7 +55,9 @@ class GKEHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None
         self.location = location
@@ -164,7 +166,6 @@ class GKEHook(GoogleBaseHook):
         :type timeout: float
         :return: The full url to the delete operation if successful, else None
         """
-
         self.log.info("Deleting (project_id=%s, zone=%s, cluster_id=%s)", project_id, self.location, name)
 
         try:
@@ -205,7 +206,6 @@ class GKEHook(GoogleBaseHook):
             ParseError: On JSON parsing problems when trying to convert dict
             AirflowException: cluster is not dict type nor Cluster proto type
         """
-
         if isinstance(cluster, dict):
             cluster_proto = Cluster()
             cluster = ParseDict(cluster, cluster_proto)

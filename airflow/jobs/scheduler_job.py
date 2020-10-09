@@ -34,6 +34,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
+from sqlalchemy.orm import load_only
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
@@ -51,7 +52,7 @@ from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULED_DEPS
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.utils import asciiart, helpers, timezone
+from airflow.utils import helpers, timezone
 from airflow.utils.dag_processing import (
     AbstractDagFileProcessorProcess, DagFileProcessorAgent, FailureCallbackRequest, SimpleDagBag,
 )
@@ -59,6 +60,7 @@ from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import provide_session
+from airflow.utils.sqlalchemy import skip_locked
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -118,6 +120,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
     @staticmethod
     def _run_file_processor(
         result_channel: MultiprocessingConnection,
+        parent_channel: MultiprocessingConnection,
         file_path: str,
         pickle_dags: bool,
         dag_ids: Optional[List[str]],
@@ -128,6 +131,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         Process the given file.
 
         :param result_channel: the connection to use for passing back the result
+        :type result_channel: multiprocessing.Connection
+        :param parent_channel: the parent end of the channel to close in the child
         :type result_channel: multiprocessing.Connection
         :param file_path: the file to process
         :type file_path: str
@@ -146,6 +151,13 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         """
         # This helper runs in the newly created process
         log: logging.Logger = logging.getLogger("airflow.processor")
+
+        # Since we share all open FDs from the parent, we need to close the parent side of the pipe here in
+        # the child, else it won't get closed properly until we exit.
+        log.info("Closing parent pipe")
+
+        parent_channel.close()
+        del parent_channel
 
         set_context(log, file_path)
         setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
@@ -181,10 +193,11 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
             log.exception("Got an exception! Propagating...")
             raise
         finally:
-            result_channel.close()
             # We re-initialized the ORM within this Process above so we need to
             # tear it down manually here
             settings.dispose_orm()
+
+            result_channel.close()
 
     def start(self) -> None:
         """
@@ -193,11 +206,12 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         start_method = self._get_multiprocessing_start_method()
         context = multiprocessing.get_context(start_method)
 
-        self._parent_channel, _child_channel = context.Pipe()
+        _parent_channel, _child_channel = context.Pipe(duplex=False)
         process = context.Process(
             target=type(self)._run_file_processor,
             args=(
                 _child_channel,
+                _parent_channel,
                 self.file_path,
                 self._pickle_dags,
                 self._dag_ids,
@@ -209,6 +223,15 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         self._process = process
         self._start_time = timezone.utcnow()
         process.start()
+
+        # Close the child side of the pipe now the subprocess has started -- otherwise this would prevent it
+        # from closing in some cases
+        _child_channel.close()
+        del _child_channel
+
+        # Don't store it on self until after we've started the child process - we don't want to keep it from
+        # getting GCd/closed
+        self._parent_channel = _parent_channel
 
     def kill(self) -> None:
         """
@@ -241,8 +264,10 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
             raise AirflowException("Tried to kill process before starting!")
 
         if self._process.is_alive() and self._process.pid:
-            self.log.warning("Killing PID %s", self._process.pid)
+            self.log.warning("Killing DAGFileProcessorProcess (PID=%d)", self._process.pid)
             os.kill(self._process.pid, signal.SIGKILL)
+        if self._parent_channel:
+            self._parent_channel.close()
 
     @property
     def pid(self) -> int:
@@ -291,7 +316,16 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
                 self._parent_channel.close()
                 return True
             except EOFError:
-                pass
+                # If we get an EOFError, it means the child end of the pipe has been closed. This only happens
+                # in the finally block. But due to a possible race condition, the process may have not yet
+                # terminated (it could be doing cleanup/python shutdown still). So we kill it here after a
+                # "suitable" timeout.
+                self._done = True
+                # Arbitrary timeout -- error/race condition only, so this doesn't need to be tunable.
+                self._process.join(timeout=5)
+                if self._process.is_alive():
+                    # Didn't shut down cleanly - kill it
+                    self._kill_process()
 
         if not self._process.is_alive():
             self._done = True
@@ -366,7 +400,7 @@ class DagFileProcessor(LoggingMixin):
         We are assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
-        if not any([isinstance(ti.sla, timedelta) for ti in dag.tasks]):
+        if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
             self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
@@ -451,21 +485,19 @@ class DagFileProcessor(LoggingMixin):
             notification_sent = False
             if dag.sla_miss_callback:
                 # Execute the alert callback
-                self.log.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
+                self.log.info('Calling SLA miss callback')
                 try:
                     dag.sla_miss_callback(dag, task_list, blocking_task_list, slas,
                                           blocking_tis)
                     notification_sent = True
                 except Exception:  # pylint: disable=broad-except
-                    self.log.exception("Could not call sla_miss_callback for DAG %s",
-                                       dag.dag_id)
-            email_content = """\
+                    self.log.exception("Could not call sla_miss_callback for DAG %s", dag.dag_id)
+            email_content = f"""\
             Here's a list of tasks that missed their SLAs:
             <pre><code>{task_list}\n<code></pre>
             Blocking tasks:
-            <pre><code>{blocking_task_list}\n{bug}<code></pre>
-            """.format(task_list=task_list, blocking_task_list=blocking_task_list,
-                       bug=asciiart.bug)
+            <pre><code>{blocking_task_list}<code></pre>
+            """
 
             tasks_missed_sla = []
             for sla in slas:
@@ -490,8 +522,9 @@ class DagFileProcessor(LoggingMixin):
                 try:
                     send_email(
                         emails,
-                        "[airflow] SLA miss on DAG=" + dag.dag_id,
-                        email_content)
+                        f"[airflow] SLA miss on DAG={dag.dag_id}",
+                        email_content
+                    )
                     email_sent = True
                     notification_sent = True
                 except Exception:  # pylint: disable=broad-except
@@ -501,8 +534,7 @@ class DagFileProcessor(LoggingMixin):
             # If we sent any notification, update the sla_miss table
             if notification_sent:
                 for sla in slas:
-                    if email_sent:
-                        sla.email_sent = True
+                    sla.email_sent = email_sent
                     sla.notification_sent = True
                     session.merge(sla)
             session.commit()
@@ -689,7 +721,6 @@ class DagFileProcessor(LoggingMixin):
         active DAG runs and adding task instances that should run to the
         queue.
         """
-
         # update the state of the previously active dag runs
         active_dag_runs = 0
         task_instances_list = []
@@ -862,7 +893,7 @@ class DagFileProcessor(LoggingMixin):
         self.log.info("Processing file %s for tasks to queue", file_path)
 
         try:
-            dagbag = DagBag(file_path, include_examples=False)
+            dagbag = DagBag(file_path, include_examples=False, include_smart_sensor=False)
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
@@ -918,7 +949,7 @@ class DagFileProcessor(LoggingMixin):
 
         :param dagbag: DagBag
         :type dagbag: DagBag
-        :param ti_keys_to_schedule: List of task instnace keys which can be scheduled.
+        :param ti_keys_to_schedule: List of task instance keys which can be scheduled.
         :type ti_keys_to_schedule: list
         """
         # Refresh all task instances that will be scheduled
@@ -1387,7 +1418,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # set TIs to queued state
         filter_for_tis = TI.filter_for_tis(tis_to_set_to_queued)
         session.query(TI).filter(filter_for_tis).update(
-            {TI.state: State.QUEUED, TI.queued_dttm: timezone.utcnow()}, synchronize_session=False
+            {TI.state: State.QUEUED, TI.queued_dttm: timezone.utcnow(), TI.queued_by_job_id: self.id},
+            synchronize_session=False
         )
         session.commit()
 
@@ -1541,7 +1573,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 "exited with status %s for try_number %s",
                 ti_key.dag_id, ti_key.task_id, ti_key.execution_date, state, ti_key.try_number
             )
-            if state in (State.FAILED, State.SUCCESS):
+            if state in (State.FAILED, State.SUCCESS, State.QUEUED):
                 tis_with_right_state.append(ti_key)
 
         # Return if no finished tasks
@@ -1557,6 +1589,11 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             state, info = event_buffer.pop(buffer_key)
 
             # TODO: should we fail RUNNING as well, as we do in Backfills?
+            if state == State.QUEUED:
+                ti.external_executor_id = info
+                self.log.info("Setting external_id for %s to %s", ti, info)
+                continue
+
             if ti.try_number == buffer_key.try_number and ti.state == State.QUEUED:
                 Stats.incr('scheduler.tasks.killed_externally')
                 msg = "Executor reports task instance %s finished (%s) although the " \
@@ -1594,10 +1631,11 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         )
 
         try:
+            self.executor.job_id = self.id
             self.executor.start()
 
             self.log.info("Resetting orphaned tasks for active dag runs")
-            self.reset_state_for_orphaned_tasks()
+            self.adopt_or_reset_orphaned_tasks()
 
             self.register_exit_signals()
 
@@ -1625,7 +1663,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
             settings.Session.remove()  # type: ignore
         except Exception:  # pylint: disable=broad-except
-            self.log.exception("Exception when executing execute_helper")
+            self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
         finally:
             self.processor_agent.end()
             self.log.info("Exited execute loop")
@@ -1743,7 +1781,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # NONE so we don't try to re-run it.
         self._change_state_for_tis_without_dagrun(
             simple_dag_bag=simple_dag_bag,
-            old_states=[State.QUEUED, State.SCHEDULED, State.UP_FOR_RESCHEDULE],
+            old_states=[State.QUEUED,
+                        State.SCHEDULED,
+                        State.UP_FOR_RESCHEDULE,
+                        State.SENSING],
             new_state=State.NONE
         )
         self._execute_task_instances(simple_dag_bag)
@@ -1759,3 +1800,62 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     @provide_session
     def heartbeat_callback(self, session: Session = None) -> None:
         Stats.incr('scheduler_heartbeat', 1, 1)
+
+    @provide_session
+    def adopt_or_reset_orphaned_tasks(self, session: Session = None):
+        """
+        Reset any TaskInstance still in QUEUED or SCHEDULED states that were
+        enqueued by a SchedulerJob that is no longer running.
+
+        :return: the number of TIs reset
+        :rtype: int
+        """
+        timeout = conf.getint('scheduler', 'scheduler_health_check_threshold')
+
+        num_failed = session.query(SchedulerJob).filter(
+            SchedulerJob.state == State.RUNNING,
+            SchedulerJob.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout))
+        ).update({"state": State.FAILED})
+
+        if num_failed:
+            self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
+            Stats.incr(self.__class__.__name__.lower() + '_end', num_failed)
+
+        resettable_states = [State.SCHEDULED, State.QUEUED, State.RUNNING]
+        tis_to_reset_or_adopt = (
+            session.query(TI).filter(TI.state.in_(resettable_states))
+            # outerjoin is because we didn't use to have queued_by_job
+            # set, so we need to pick up anything pre upgrade. This (and the
+            # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
+            # released.
+            .outerjoin(TI.queued_by_job)
+            .filter(or_(TI.queued_by_job_id.is_(None), SchedulerJob.state != State.RUNNING))
+            .join(TI.dag_run)
+            .filter(DagRun.run_type != DagRunType.BACKFILL_JOB.value,
+                    # pylint: disable=comparison-with-callable
+                    DagRun.state == State.RUNNING)
+            .options(load_only(TI.dag_id, TI.task_id, TI.execution_date))
+            # Lock these rows, so that another scheduler can't try and adopt these too
+            .with_for_update(of=TI, **skip_locked(session=session))
+            .all()
+        )
+        to_reset = self.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
+
+        reset_tis_message = []
+        for ti in to_reset:
+            reset_tis_message.append(repr(ti))
+            ti.state = State.NONE
+            ti.queued_by_job_id = None
+
+        for ti in set(tis_to_reset_or_adopt) - set(to_reset):
+            ti.queued_by_job_id = self.id
+
+        Stats.incr('scheduler.orphaned_tasks.cleared', len(to_reset))
+        Stats.incr('scheduler.orphaned_tasks.adopted', len(tis_to_reset_or_adopt) - len(to_reset))
+
+        if to_reset:
+            task_instance_str = '\n\t'.join(reset_tis_message)
+            self.log.info("Reset the following %s orphaned TaskInstances:\n\t%s",
+                          len(to_reset), task_instance_str)
+
+        return len(to_reset)

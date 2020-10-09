@@ -154,7 +154,21 @@ function push_pull_remove_images::push_ci_images_to_github() {
         PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     fi
     docker tag "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+    set +e
     docker push "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+    local result=$?
+    set -e
+    if [[ ${result} != "0" ]]; then
+        >&2 echo
+        >&2 echo "There was an unexpected error when pushing images to the GitHub Registry"
+        >&2 echo
+        >&2 echo "If you see 'unknown blob' or similar kind of error it means that it was a transient error"
+        >&2 echo "And it will likely be gone next time"
+        >&2 echo
+        >&2 echo "Please rebase your change or 'git commit --amend; git push --force' and try again"
+        >&2 echo
+        exit "${result}"
+    fi
 }
 
 
@@ -198,7 +212,22 @@ function push_pull_remove_images::push_prod_images_to_github () {
     # Also push prod build image
     AIRFLOW_PROD_BUILD_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     docker tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${AIRFLOW_PROD_BUILD_TAGGED_IMAGE}"
+    set +e
     docker push "${AIRFLOW_PROD_BUILD_TAGGED_IMAGE}"
+    local result=$?
+    set -e
+    if [[ ${result} != "0" ]]; then
+        >&2 echo
+        >&2 echo "There was an unexpected error when pushing images to the GitHub Registry"
+        >&2 echo
+        >&2 echo "If you see 'unknown blob' or similar kind of error it means that it was a transient error"
+        >&2 echo "And it will likely be gone next time"
+        >&2 echo
+        >&2 echo "Please rebase your change or 'git commit --amend; git push --force' and try again"
+        >&2 echo
+        exit "${result}"
+    fi
+
 }
 
 
@@ -212,25 +241,10 @@ function push_pull_remove_images::push_prod_images() {
     fi
 }
 
-# Removes airflow CI and base images
-function push_pull_remove_images::remove_all_images() {
-    echo
-    "${AIRFLOW_SOURCES}/confirm" "Removing all local images ."
-    echo
-    docker rmi "${PYTHON_BASE_IMAGE}" || true
-    docker rmi "${AIRFLOW_CI_IMAGE}" || true
-    echo
-    echo "###################################################################"
-    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
-    echo "       But the disk space in docker will be reclaimed only after"
-    echo "       running 'docker system prune' command."
-    echo "###################################################################"
-    echo
-}
-
 # waits for an image to be available in the github registry
 function push_pull_remove_images::wait_for_github_registry_image() {
-    GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${GITHUB_REPOSITORY_LOWERCASE}"
+    github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
+    GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${github_repository_lowercase}"
     IMAGE_NAME="${1}"
     IMAGE_TAG=${2}
     echo "Waiting for ${IMAGE_NAME}:${IMAGE_TAG} image"
@@ -247,9 +261,6 @@ function push_pull_remove_images::wait_for_github_registry_image() {
         fi
         sleep 10
     done
-    echo
-    echo
-    echo "Found ${IMAGE_NAME}:${IMAGE_TAG} image"
-    echo "Digest: '${digest}'"
-    echo
+    verbosity::print_info "Found ${IMAGE_NAME}:${IMAGE_TAG} image"
+    verbosity::print_info "Digest: '${digest}'"
 }

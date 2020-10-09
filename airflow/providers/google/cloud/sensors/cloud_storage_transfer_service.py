@@ -86,7 +86,8 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
 
     def poke(self, context):
         hook = CloudDataTransferServiceHook(
-            gcp_conn_id=self.gcp_cloud_conn_id, impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_cloud_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         operations = hook.list_transfer_operations(
             request_filter={'project_id': self.project_id, 'job_names': [self.job_name]}

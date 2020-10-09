@@ -21,8 +21,6 @@
 
 # Are we using a local/sequenial executor?
 {{- $local := or (eq .Values.executor "LocalExecutor") (eq .Values.executor "SequentialExecutor") }}
-# Are we using the kubernetes executor?
-{{- $kube := eq .Values.executor "KubernetesExecutor" }}
 # Is persistence enabled on the _workers_?
 # This is important because in $local mode, the scheduler assumes the role of the worker
 {{- $persistence := .Values.workers.persistence.enabled }}
@@ -83,7 +81,7 @@ spec:
 {{ toYaml .Values.tolerations | indent 8 }}
       restartPolicy: Always
       terminationGracePeriodSeconds: 10
-      serviceAccountName: {{ .Release.Name }}-scheduler-serviceaccount
+      serviceAccountName: {{ .Release.Name }}-scheduler
       securityContext:
         runAsUser: {{ .Values.uid }}
         fsGroup: {{ .Values.gid }}
@@ -133,6 +131,10 @@ spec:
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
           volumeMounts:
+            - name: config
+              mountPath: {{ include "airflow_pod_template_file" . }}/pod_template_file.yaml
+              subPath: pod_template_file.yaml
+              readOnly: true
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
             - name: config

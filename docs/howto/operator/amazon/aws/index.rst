@@ -26,6 +26,7 @@ Amazon AWS Operators
     :glob:
 
     *
+    transfer/index
 
 .. note::
     You can learn how to use Amazon AWS integrations by analyzing the

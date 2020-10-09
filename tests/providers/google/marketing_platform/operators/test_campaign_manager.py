@@ -37,7 +37,13 @@ CONVERSION = {
     "floodlightConfigurationId": 1234,
     "gclid": "971nc2849184c1914019v1c34c14",
     "ordinal": "0",
-    "customVariables": [{"kind": "dfareporting#customFloodlightVariable", "type": "U10", "value": "value",}],
+    "customVariables": [
+        {
+            "kind": "dfareporting#customFloodlightVariable",
+            "type": "U10",
+            "value": "value",
+        }
+    ],
 }
 
 
@@ -50,11 +56,17 @@ class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
         op = GoogleCampaignManagerDeleteReportOperator(
-            profile_id=profile_id, report_id=report_id, api_version=API_VERSION, task_id="test_task",
+            profile_id=profile_id,
+            report_id=report_id,
+            api_version=API_VERSION,
+            task_id="test_task",
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION, impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.delete_report.assert_called_once_with(
             profile_id=profile_id, report_id=report_id
@@ -74,7 +86,13 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
         "campaign_manager.GoogleCampaignManagerDownloadReportOperator.xcom_push"
     )
     def test_execute(
-        self, xcom_mock, mock_base_op, gcs_hook_mock, hook_mock, tempfile_mock, http_mock,
+        self,
+        xcom_mock,
+        mock_base_op,
+        gcs_hook_mock,
+        hook_mock,
+        tempfile_mock,
+        http_mock,
     ):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"
@@ -99,13 +117,18 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION, impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.get_report_file.assert_called_once_with(
             profile_id=profile_id, report_id=report_id, file_id=file_id
         )
         gcs_hook_mock.assert_called_once_with(
-            google_cloud_storage_conn_id=GCP_CONN_ID, delegate_to=None, impersonation_chain=None,
+            google_cloud_storage_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=None,
         )
         gcs_hook_mock.return_value.upload.assert_called_once_with(
             bucket_name=bucket_name,
@@ -134,11 +157,17 @@ class TestGoogleCampaignManagerInsertReportOperator(TestCase):
         hook_mock.return_value.insert_report.return_value = {"id": report_id}
 
         op = GoogleCampaignManagerInsertReportOperator(
-            profile_id=profile_id, report=report, api_version=API_VERSION, task_id="test_task",
+            profile_id=profile_id,
+            report=report,
+            api_version=API_VERSION,
+            task_id="test_task",
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION, impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.insert_report.assert_called_once_with(profile_id=profile_id, report=report)
         xcom_mock.assert_called_once_with(None, key="report_id", value=report_id)
@@ -150,7 +179,10 @@ class TestGoogleCampaignManagerInsertReportOperator(TestCase):
             f.write(json.dumps(report))
             f.flush()
             op = GoogleCampaignManagerInsertReportOperator(
-                profile_id=profile_id, report=f.name, api_version=API_VERSION, task_id="test_task",
+                profile_id=profile_id,
+                report=f.name,
+                api_version=API_VERSION,
+                task_id="test_task",
             )
             op.prepare_template()
 
@@ -184,7 +216,10 @@ class TestGoogleCampaignManagerRunReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION, impersonation_chain=None,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.run_report.assert_called_once_with(
             profile_id=profile_id, report_id=report_id, synchronous=synchronous

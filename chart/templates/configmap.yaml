@@ -55,3 +55,15 @@ data:
   known_hosts: |
     {{ .Values.dags.gitSync.knownHosts | nindent 4 }}
 {{- end }}
+{{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+  pod_template_file.yaml: |-
+{{- if .Values.podTemplate }}
+    {{ .Values.podTemplate | nindent 4 }}
+{{- else }}
+{{ tpl (.Files.Get "files/pod-template-file.yaml") . | nindent 4 }}
+{{- end }}
+{{- if .Values.kerberos.enabled }}
+  krb5.conf: |
+    {{ tpl .Values.kerberos.config . | nindent 4 }}
+{{- end }}
+{{- end }}

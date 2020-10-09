@@ -561,7 +561,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             Unable to run or restart due to an unrecoverable error
             (e.g. missing jar file)
         """
-
         # When your Spark Standalone cluster is not performing well
         # due to misconfiguration or heavy loads.
         # it is possible that the polling request will timeout.
@@ -604,7 +603,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Construct the spark-submit command to kill a driver.
         :return: full command to kill a driver
         """
-
         # If the spark_home is passed then build the spark-submit executable path using
         # the spark_home; otherwise assume that spark-submit is present in the path to
         # the executing user
@@ -630,7 +628,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """
         Kill Spark submit command
         """
-
         self.log.debug("Kill Command is being called")
 
         if self._should_track_driver_status:

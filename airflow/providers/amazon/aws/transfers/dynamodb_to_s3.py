@@ -42,7 +42,9 @@ def _upload_file_to_s3(file_obj, bucket_name, s3_key_prefix):
     s3_client = S3Hook().get_conn()
     file_obj.seek(0)
     s3_client.upload_file(
-        Filename=file_obj.name, Bucket=bucket_name, Key=s3_key_prefix + str(uuid4()),
+        Filename=file_obj.name,
+        Bucket=bucket_name,
+        Key=s3_key_prefix + str(uuid4()),
     )
 
 

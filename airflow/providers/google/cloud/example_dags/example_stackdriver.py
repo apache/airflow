@@ -129,28 +129,36 @@ with models.DAG(
 
     # [START howto_operator_gcp_stackdriver_enable_alert_policy]
     enable_alert_policy = StackdriverEnableAlertPoliciesOperator(
-        task_id='enable-alert-policies', filter_='(displayName="test alert 1" OR displayName="test alert 2")',
+        task_id='enable-alert-policies',
+        filter_='(displayName="test alert 1" OR displayName="test alert 2")',
     )
     # [END howto_operator_gcp_stackdriver_enable_alert_policy]
 
     # [START howto_operator_gcp_stackdriver_disable_alert_policy]
     disable_alert_policy = StackdriverDisableAlertPoliciesOperator(
-        task_id='disable-alert-policies', filter_='displayName="test alert 1"',
+        task_id='disable-alert-policies',
+        filter_='displayName="test alert 1"',
     )
     # [END howto_operator_gcp_stackdriver_disable_alert_policy]
 
     # [START howto_operator_gcp_stackdriver_list_alert_policy]
-    list_alert_policies = StackdriverListAlertPoliciesOperator(task_id='list-alert-policies',)
+    list_alert_policies = StackdriverListAlertPoliciesOperator(
+        task_id='list-alert-policies',
+    )
     # [END howto_operator_gcp_stackdriver_list_alert_policy]
 
     # [START howto_operator_gcp_stackdriver_delete_notification_channel]
     delete_notification_channel = StackdriverDeleteNotificationChannelOperator(
-        task_id='delete-notification-channel', name='test-channel',
+        task_id='delete-notification-channel',
+        name='test-channel',
     )
     # [END howto_operator_gcp_stackdriver_delete_notification_channel]
 
     # [START howto_operator_gcp_stackdriver_delete_alert_policy]
-    delete_alert_policy = StackdriverDeleteAlertOperator(task_id='delete-alert-polciy', name='test-alert',)
+    delete_alert_policy = StackdriverDeleteAlertOperator(
+        task_id='delete-alert-polciy',
+        name='test-alert',
+    )
     # [END howto_operator_gcp_stackdriver_delete_alert_policy]
 
     create_notification_channel >> enable_notification_channel >> disable_notification_channel

@@ -278,7 +278,10 @@ class TestHttpHook(unittest.TestCase):
         self.assertEqual(hook.base_url, 'http://')
 
     @parameterized.expand(
-        ['GET', 'POST',]
+        [
+            'GET',
+            'POST',
+        ]
     )
     @requests_mock.mock()
     def test_json_request(self, method, mock_requests):

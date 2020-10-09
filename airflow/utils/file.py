@@ -67,7 +67,6 @@ def correct_maybe_zipped(fileloc):
     If the path contains a folder with a .zip suffix, then
     the folder is treated as a zip archive and path to zip is returned.
     """
-
     _, archive, _ = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
         return archive
@@ -99,7 +98,6 @@ def find_path_from_directory(
 
     :return : file path not to be ignored.
     """
-
     patterns_by_dir: Dict[str, List[Pattern[str]]] = {}
 
     for root, dirs, files in os.walk(str(base_dir_path), followlinks=True):
@@ -132,7 +130,9 @@ def find_path_from_directory(
 
 def list_py_file_paths(directory: str,
                        safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
-                       include_examples: Optional[bool] = None):
+                       include_examples: Optional[bool] = None,
+                       include_smart_sensor: Optional[bool] =
+                       conf.getboolean('smart_sensor', 'use_smart_sensor')):
     """
     Traverse a directory and look for Python files.
 
@@ -145,6 +145,8 @@ def list_py_file_paths(directory: str,
     :type safe_mode: bool
     :param include_examples: include example DAGs
     :type include_examples: bool
+    :param include_smart_sensor: include smart sensor native control DAGs
+    :type include_examples: bool
     :return: a list of paths to Python files in the specified directory
     :rtype: list[unicode]
     """
@@ -152,21 +154,24 @@ def list_py_file_paths(directory: str,
         include_examples = conf.getboolean('core', 'LOAD_EXAMPLES')
     file_paths: List[str] = []
     if directory is None:
-        return []
+        file_paths = []
     elif os.path.isfile(directory):
-        return [directory]
+        file_paths = [directory]
     elif os.path.isdir(directory):
         find_dag_file_paths(directory, file_paths, safe_mode)
     if include_examples:
         from airflow import example_dags
         example_dag_folder = example_dags.__path__[0]  # type: ignore
-        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False))
+        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False, False))
+    if include_smart_sensor:
+        from airflow import smart_sensor_dags
+        smart_sensor_dag_folder = smart_sensor_dags.__path__[0]  # type: ignore
+        file_paths.extend(list_py_file_paths(smart_sensor_dag_folder, safe_mode, False, False))
     return file_paths
 
 
 def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
     """Finds file paths of all DAG files."""
-
     for file_path in find_path_from_directory(
             directory, ".airflowignore"):
         try:

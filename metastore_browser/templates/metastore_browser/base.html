@@ -19,39 +19,39 @@
 
 {% extends base_template %}
 
+{% block head %}
+  {{ super() }}
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename="dataTables.bootstrap.css") }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='select2.css') }}">
+{% endblock %}
+
 {% block body %}
-<div>
+  <div>
     <h3 style="float: left">
         {% block page_header %}Hive Metastore Browser{% endblock%}
     </h3>
     <div id="object" class="select2-drop-mask" style="margin-top: 25px; width: 400px;float: right"></div>
     <div style="clear: both"></div>
-</div>
-{% block plugin_content %}{% endblock %}
-{% endblock %}
-
-{% block head %}
-{{ super() }}
-<link rel="stylesheet" type="text/css" href="{{ url_for("static", filename="dataTables.bootstrap.css") }}">
-<link href="{{ url_for('static', filename='select2.css') }}" rel="stylesheet">
+  </div>
+  {% block plugin_content %}{% endblock %}
 {% endblock %}
 
 {% block tail %}
-{{ super() }}
-<script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
-<script src="{{ url_for('static', filename='dataTables.bootstrap.js') }}"></script>
-<script src="{{ url_for('static', filename='select2.min.js') }}" type="text/javascript"></script>
-<script>
+  {{ super() }}
+  <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='dataTables.bootstrap.js') }}"></script>
+  <script src="{{ url_for('static', filename='select2.min.js') }}"></script>
+  <script>
     // Filling up the table selector
     url = "{{ url_for('.objects') }}";
     $.get(url, function( data ) {
-        $("#object").select2({
-            data: data,
-            placeholder: "Table Selector",
-        })
-        .on("change", function(e){
-            window.location = "{{ url_for('.table') }}?table=" + e.val;
-        });
+      $("#object").select2({
+        data: data,
+        placeholder: "Table Selector",
+      })
+      .on("change", function(e){
+        window.location = "{{ url_for('.table') }}?table=" + e.val;
+      });
     }, "json");
-</script>
+  </script>
 {% endblock %}

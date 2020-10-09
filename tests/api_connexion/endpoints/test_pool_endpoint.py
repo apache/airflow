@@ -33,12 +33,24 @@ class TestBasePoolEndpoints(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[
+                ("can_create", "Pool"),
+                ("can_read", "Pool"),
+                ("can_edit", "Pool"),
+                ("can_delete", "Pool"),
+            ],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -89,6 +101,10 @@ class TestGetPools(TestBasePoolEndpoints):
 
         assert_401(response)
 
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get("/api/v1/pools", environ_overrides={'REMOTE_USER': "test_no_permissions"})
+        assert response.status_code == 403
+
 
 class TestGetPoolsPagination(TestBasePoolEndpoints):
     @parameterized.expand(
@@ -100,9 +116,15 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
             ("/api/v1/pools?limit=2", ["default_pool", "test_pool1"]),
             ("/api/v1/pools?limit=1", ["default_pool"]),
             # Limit and offset test data
-            ("/api/v1/pools?limit=100&offset=1", [f"test_pool{i}" for i in range(1, 101)],),
+            (
+                "/api/v1/pools?limit=100&offset=1",
+                [f"test_pool{i}" for i in range(1, 101)],
+            ),
             ("/api/v1/pools?limit=2&offset=1", ["test_pool1", "test_pool2"]),
-            ("/api/v1/pools?limit=3&offset=2", ["test_pool2", "test_pool3", "test_pool4"],),
+            (
+                "/api/v1/pools?limit=3&offset=2",
+                ["test_pool2", "test_pool3", "test_pool4"],
+            ),
         ]
     )
     @provide_session
@@ -267,8 +289,16 @@ class TestPostPool(TestBasePoolEndpoints):
 
     @parameterized.expand(
         [
-            ("for missing pool name", {"slots": 3}, "'name' is a required property",),
-            ("for missing slots", {"name": "invalid_pool"}, "'slots' is a required property",),
+            (
+                "for missing pool name",
+                {"slots": 3},
+                "'name' is a required property",
+            ),
+            (
+                "for missing slots",
+                {"name": "invalid_pool"},
+                "'slots' is a required property",
+            ),
             (
                 "for extra fields",
                 {"name": "invalid_pool", "slots": 3, "extra_field_1": "extra"},
@@ -359,7 +389,10 @@ class TestPatchPool(TestBasePoolEndpoints):
         session.add(pool)
         session.commit()
 
-        response = self.client.patch("api/v1/pools/test_pool", json={"name": "test_pool_a", "slots": 3},)
+        response = self.client.patch(
+            "api/v1/pools/test_pool",
+            json={"name": "test_pool_a", "slots": 3},
+        )
 
         assert_401(response)
 
@@ -476,7 +509,12 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
                 "test_pool",
                 2,
             ),
-            ("api/v1/pools/test_pool?update_mask=slots", {"slots": 2}, "test_pool", 2,),
+            (
+                "api/v1/pools/test_pool?update_mask=slots",
+                {"slots": 2},
+                "test_pool",
+                2,
+            ),
         ]
     )
     @provide_session

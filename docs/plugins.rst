@@ -66,6 +66,25 @@ Airflow has many components that can be reused when building an application:
 * Airflow is deployed, you can just piggy back on its deployment logistics
 * Basic charting capabilities, underlying libraries and abstractions
 
+.. _plugins:loading:
+
+When are plugins (re)loaded?
+----------------------------
+
+Plugins are loaded once at the start of every Airflow process, and never reloaded.
+
+This means that if you make any changes to plugins and you want the webserver or scheduler to use that new
+code you will need to restart those processes.
+
+By default, task execution will use forking to avoid the slow down of having to create a whole new python
+interpreter and re-parse all of the Airflow code and start up routines -- this is a big benefit for shorter
+running tasks. This does mean that if you use plugins in your tasks, and want them to update you will either
+need to restart the worker (if using CeleryExecutor) or scheduler (Local or Sequential executors). The other
+option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
+config setting to True, resulting in launching a whole new python interpreter for tasks.
+
+(Modules only imported by DAG files on the other hand do not suffer this problem, as DAG files are not
+loaded/parsed in any long-running Airflow process.)
 
 Interface
 ---------

@@ -19,7 +19,9 @@
 This module contains Google BigQuery to Google Cloud Storage operator.
 """
 import warnings
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
+
+from google.cloud.bigquery.table import TableReference
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -139,14 +141,26 @@ class BigQueryToGCSOperator(BaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-        conn = hook.get_conn()
-        cursor = conn.cursor()
-        cursor.run_extract(
-            source_project_dataset_table=self.source_project_dataset_table,
-            destination_cloud_storage_uris=self.destination_cloud_storage_uris,
-            compression=self.compression,
-            export_format=self.export_format,
-            field_delimiter=self.field_delimiter,
-            print_header=self.print_header,
-            labels=self.labels,
-        )
+
+        table_ref = TableReference.from_string(self.source_project_dataset_table, hook.project_id)
+
+        configuration: Dict[str, Any] = {
+            'extract': {
+                'sourceTable': table_ref.to_api_repr(),
+                'compression': self.compression,
+                'destinationUris': self.destination_cloud_storage_uris,
+                'destinationFormat': self.export_format,
+            }
+        }
+
+        if self.labels:
+            configuration['labels'] = self.labels
+
+        if self.export_format == 'CSV':
+            # Only set fieldDelimiter and printHeader fields if using CSV.
+            # Google does not like it if you set these fields for other export
+            # formats.
+            configuration['extract']['fieldDelimiter'] = self.field_delimiter
+            configuration['extract']['printHeader'] = self.print_header
+
+        hook.insert_job(configuration=configuration)

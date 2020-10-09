@@ -33,12 +33,23 @@ class TestConnectionEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[
+                ("can_create", "Connection"),
+                ("can_read", "Connection"),
+                ("can_edit", "Connection"),
+                ("can_delete", "Connection"),
+            ],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -89,6 +100,12 @@ class TestDeleteConnection(TestConnectionEndpoint):
         response = self.client.delete("/api/v1/connections/test-connection")
 
         assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get(
+            "/api/v1/connections/test-connection-id", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
 
 
 class TestGetConnection(TestConnectionEndpoint):
@@ -193,7 +210,13 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
             ("/api/v1/connections?limit=2", ['TEST_CONN_ID1', "TEST_CONN_ID2"]),
             (
                 "/api/v1/connections?offset=5",
-                ["TEST_CONN_ID6", "TEST_CONN_ID7", "TEST_CONN_ID8", "TEST_CONN_ID9", "TEST_CONN_ID10",],
+                [
+                    "TEST_CONN_ID6",
+                    "TEST_CONN_ID7",
+                    "TEST_CONN_ID8",
+                    "TEST_CONN_ID9",
+                    "TEST_CONN_ID10",
+                ],
             ),
             (
                 "/api/v1/connections?offset=0",
@@ -212,7 +235,10 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
             ),
             ("/api/v1/connections?limit=1&offset=5", ["TEST_CONN_ID6"]),
             ("/api/v1/connections?limit=1&offset=1", ["TEST_CONN_ID2"]),
-            ("/api/v1/connections?limit=2&offset=2", ["TEST_CONN_ID3", "TEST_CONN_ID4"],),
+            (
+                "/api/v1/connections?limit=2&offset=2",
+                ["TEST_CONN_ID3", "TEST_CONN_ID4"],
+            ),
         ]
     )
     @provide_session

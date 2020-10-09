@@ -28,11 +28,11 @@ function makeDateTimeHTML(start, end) {
   if (end && end instanceof moment) {
     return (
       `Started: ${start.format(defaultFormat)} <br> Ended: ${end.format(defaultFormat)} <br>`
-    )
+    );
   }
   return (
     `Started: ${start.format(defaultFormat)} <br> Ended: Not ended yet <br>`
-  )
+  );
 }
 
 function generateTooltipDateTimes(startDate, endDate, dagTZ) {
@@ -47,7 +47,7 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   dagTZ = dagTZ.toUpperCase();
 
   // Generate UTC Start and End Date
-  let tooltipHTML = `<br><strong>UTC:</strong><br>`;
+  let tooltipHTML = '<br><strong>UTC:</strong><br>';
   tooltipHTML += makeDateTimeHTML(startDate, endDate);
 
   // Generate User's Local Start and End Date
@@ -67,7 +67,7 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   return tooltipHTML;
 }
 
-export default function tiTooltip(ti, {includeTryNumber = false} = {}) {
+export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
   let tt = '';
   if (ti.state !== undefined) {
     tt += `<strong>Status:</strong> ${escapeHtml(ti.state)}<br><br>`;
@@ -89,9 +89,9 @@ export default function tiTooltip(ti, {includeTryNumber = false} = {}) {
     tt += `Started: ${escapeHtml(ti.start_date)}<br>`;
   }
   // Calculate duration on the fly if task instance is still running
-  if(ti.state === "running") {
-    let start_date = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
-    ti.duration = moment().diff(start_date, 'second')
+  if (ti.state === 'running') {
+    const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
+    ti.duration = moment().diff(startDate, 'second');
   }
 
   tt += `Duration: ${escapeHtml(convertSecsToHumanReadable(ti.duration))}<br>`;
@@ -99,8 +99,9 @@ export default function tiTooltip(ti, {includeTryNumber = false} = {}) {
   if (includeTryNumber) {
     tt += `Try Number: ${escapeHtml(ti.try_number)}<br>`;
   }
-  tt += generateTooltipDateTimes(ti.start_date, ti.end_date, dagTZ); // dagTZ has been defined in dag.html
+  // dagTZ has been defined in dag.html
+  tt += generateTooltipDateTimes(ti.start_date, ti.end_date, dagTZ);
   return tt;
 }
 
-window.tiTooltip = tiTooltip
+window.tiTooltip = tiTooltip;

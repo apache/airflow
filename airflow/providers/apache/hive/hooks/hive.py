@@ -184,7 +184,7 @@ class HiveCliHook(BaseHook):
         self,
         hql: Union[str, Text],
         schema: Optional[str] = None,
-        verbose: Optional[bool] = True,
+        verbose: bool = True,
         hive_conf: Optional[Dict[Any, Any]] = None,
     ) -> Any:
         """
@@ -979,7 +979,6 @@ class HiveServer2Hook(DbApiHook):
         :type hive_conf: dict
 
         """
-
         results_iter = self._get_results(hql, schema, fetch_size=fetch_size, hive_conf=hive_conf)
         header = next(results_iter)
         message = None

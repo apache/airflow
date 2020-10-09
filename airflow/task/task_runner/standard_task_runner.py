@@ -21,16 +21,16 @@ import os
 import psutil
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 
+from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.process_utils import reap_process_group
-
-CAN_FORK = hasattr(os, "fork")
 
 
 class StandardTaskRunner(BaseTaskRunner):
     """
     Standard runner for all tasks.
     """
+
     def __init__(self, local_task_job):
         super().__init__(local_task_job)
         self._rc = None

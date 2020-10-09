@@ -93,6 +93,7 @@ class AWSDataSyncOperator(BaseOperator):
     :raises AirflowException: If ``choose_task`` or ``choose_location`` fails.
     :raises AirflowException: If Task creation, update, execution or delete fails.
     """
+
     template_fields = (
         "task_arn",
         "source_location_uri",
@@ -182,7 +183,8 @@ class AWSDataSyncOperator(BaseOperator):
         """
         if not self.hook:
             self.hook = AWSDataSyncHook(
-                aws_conn_id=self.aws_conn_id, wait_interval_seconds=self.wait_interval_seconds,
+                aws_conn_id=self.aws_conn_id,
+                wait_interval_seconds=self.wait_interval_seconds,
             )
         return self.hook
 
@@ -239,7 +241,8 @@ class AWSDataSyncOperator(BaseOperator):
 
         self.log.info("Finding DataSync TaskArns that have these LocationArns")
         self.candidate_task_arns = hook.get_task_arns_for_location_arns(
-            self.candidate_source_location_arns, self.candidate_destination_location_arns,
+            self.candidate_source_location_arns,
+            self.candidate_destination_location_arns,
         )
         self.log.info("Found candidate DataSync TaskArns %s", self.candidate_task_arns)
 

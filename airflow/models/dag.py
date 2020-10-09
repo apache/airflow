@@ -27,7 +27,9 @@ import traceback
 import warnings
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union, cast
+from typing import (
+    TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union, cast,
+)
 
 import jinja2
 import pendulum
@@ -58,6 +60,9 @@ from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.utils.task_group import TaskGroup
 
 log = logging.getLogger(__name__)
 
@@ -118,7 +123,7 @@ class DAG(BaseDag, LoggingMixin):
         default
     :type template_searchpath: str or list[str]
     :param template_undefined: Template undefined type.
-    :type template_undefined: jinja2.Undefined
+    :type template_undefined: jinja2.StrictUndefined
     :param user_defined_macros: a dictionary of macros that will be exposed
         in your jinja templates. For example, passing ``dict(foo='bar')``
         to this argument allows you to ``{{ foo }}`` in all jinja
@@ -196,6 +201,7 @@ class DAG(BaseDag, LoggingMixin):
     :param tags: List of tags to help filtering DAGS in the UI.
     :type tags: List[str]
     """
+
     _comps = {
         'dag_id',
         'task_ids',
@@ -218,7 +224,7 @@ class DAG(BaseDag, LoggingMixin):
         end_date: Optional[datetime] = None,
         full_filepath: Optional[str] = None,
         template_searchpath: Optional[Union[str, Iterable[str]]] = None,
-        template_undefined: Type[jinja2.Undefined] = jinja2.Undefined,
+        template_undefined: Type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
         user_defined_macros: Optional[Dict] = None,
         user_defined_filters: Optional[Dict] = None,
         default_args: Optional[Dict] = None,
@@ -238,6 +244,8 @@ class DAG(BaseDag, LoggingMixin):
         jinja_environment_kwargs: Optional[Dict] = None,
         tags: Optional[List[str]] = None
     ):
+        from airflow.utils.task_group import TaskGroup
+
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
         self.default_args = copy.deepcopy(default_args or {})
@@ -329,6 +337,7 @@ class DAG(BaseDag, LoggingMixin):
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.tags = tags
+        self._task_group = TaskGroup.create_root(self)
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -569,6 +578,10 @@ class DAG(BaseDag, LoggingMixin):
     @property
     def task_ids(self) -> List[str]:
         return list(self.task_dict.keys())
+
+    @property
+    def task_group(self) -> "TaskGroup":
+        return self._task_group
 
     @property
     def filepath(self) -> str:
@@ -813,7 +826,6 @@ class DAG(BaseDag, LoggingMixin):
 
     def get_template_env(self) -> jinja2.Environment:
         """Build a Jinja2 environment."""
-
         # Collect directories to search for template files
         searchpath = [self.folder]
         if self.template_searchpath:
@@ -1240,7 +1252,6 @@ class DAG(BaseDag, LoggingMixin):
         based on a regex that should match one or many tasks, and includes
         upstream and downstream neighbours based on the flag passed.
         """
-
         # deep-copying self.task_dict takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
         task_dict = self.task_dict
@@ -1261,9 +1272,38 @@ class DAG(BaseDag, LoggingMixin):
         # Make sure to not recursively deepcopy the dag while copying the task
         dag.task_dict = {t.task_id: copy.deepcopy(t, {id(t.dag): dag})
                          for t in regex_match + also_include}
+
+        # Remove tasks not included in the subdag from task_group
+        def remove_excluded(group):
+            for child in list(group.children.values()):
+                if isinstance(child, BaseOperator):
+                    if child.task_id not in dag.task_dict:
+                        group.children.pop(child.task_id)
+                    else:
+                        # The tasks in the subdag are a copy of tasks in the original dag
+                        # so update the reference in the TaskGroups too.
+                        group.children[child.task_id] = dag.task_dict[child.task_id]
+                else:
+                    remove_excluded(child)
+
+                    # Remove this TaskGroup if it doesn't contain any tasks in this subdag
+                    if not child.children:
+                        group.children.pop(child.group_id)
+
+        remove_excluded(dag.task_group)
+
+        # Removing upstream/downstream references to tasks and TaskGroups that did not make
+        # the cut.
+        subdag_task_groups = dag.task_group.get_task_group_dict()
+        for group in subdag_task_groups.values():
+            group.upstream_group_ids = group.upstream_group_ids.intersection(subdag_task_groups.keys())
+            group.downstream_group_ids = group.downstream_group_ids.intersection(subdag_task_groups.keys())
+            group.upstream_task_ids = group.upstream_task_ids.intersection(dag.task_dict.keys())
+            group.downstream_task_ids = group.downstream_task_ids.intersection(dag.task_dict.keys())
+
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
-            # made the cut
+            # make the cut
             t._upstream_task_ids = t.upstream_task_ids.intersection(dag.task_dict.keys())
             t._downstream_task_ids = t.downstream_task_ids.intersection(
                 dag.task_dict.keys())
@@ -1357,12 +1397,15 @@ class DAG(BaseDag, LoggingMixin):
         elif task.end_date and self.end_date:
             task.end_date = min(task.end_date, self.end_date)
 
-        if task.task_id in self.task_dict and self.task_dict[task.task_id] is not task:
+        if ((task.task_id in self.task_dict and self.task_dict[task.task_id] is not task)
+                or task.task_id in self._task_group.used_group_ids):
             raise DuplicateTaskIdFound(
                 "Task id '{}' has already been added to the DAG".format(task.task_id))
         else:
             self.task_dict[task.task_id] = task
             task.dag = self
+            # Add task_id to used_group_ids to prevent group_id and task_id collisions.
+            self._task_group.used_group_ids.add(task.task_id)
 
         self.task_count = len(self.task_dict)
 
@@ -1621,6 +1664,13 @@ class DAG(BaseDag, LoggingMixin):
         """
         self.bulk_sync_to_db([self], sync_time, session)
 
+    def get_default_view(self):
+        """This is only there for backward compatible jinja2 templates"""
+        if self.default_view is None:
+            return conf.get('webserver', 'dag_default_view').lower()
+        else:
+            return self.default_view
+
     @staticmethod
     @provide_session
     def deactivate_unknown_dags(active_dag_ids, session=None):
@@ -1632,7 +1682,6 @@ class DAG(BaseDag, LoggingMixin):
         :type active_dag_ids: list[unicode]
         :return: None
         """
-
         if len(active_dag_ids) == 0:
             return
         for dag in session.query(
@@ -1720,6 +1769,7 @@ class DagTag(Base):
     """
     A tag name per dag, to allow quick filtering in the DAG view.
     """
+
     __tablename__ = "dag_tag"
     name = Column(String(100), primary_key=True)
     dag_id = Column(String(ID_LEN), ForeignKey('dag.dag_id'), primary_key=True)
@@ -1819,6 +1869,14 @@ class DagModel(Base):
 
         paused_dag_ids = set(paused_dag_id for paused_dag_id, in paused_dag_ids)
         return paused_dag_ids
+
+    def get_default_view(self) -> str:
+        """
+        Get the Default DAG View, returns the default config value if DagModel does not
+        have a value
+        """
+        # This is for backwards-compatibility with old dags that don't have None as default_view
+        return self.default_view or conf.get('webserver', 'dag_default_view').lower()
 
     @property
     def safe_dag_id(self):

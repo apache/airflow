@@ -38,7 +38,10 @@ from airflow.providers.microsoft.azure.hooks.azure_container_registry import Azu
 from airflow.providers.microsoft.azure.hooks.azure_container_volume import AzureContainerVolumeHook
 from airflow.utils.decorators import apply_defaults
 
-Volume = namedtuple('Volume', ['conn_id', 'account_name', 'share_name', 'mount_path', 'read_only'],)
+Volume = namedtuple(
+    'Volume',
+    ['conn_id', 'account_name', 'share_name', 'mount_path', 'read_only'],
+)
 
 
 DEFAULT_ENVIRONMENT_VARIABLES = {}  # type: Dict[str, str]
@@ -222,7 +225,9 @@ class AzureContainerInstancesOperator(BaseOperator):
 
             container_group = ContainerGroup(
                 location=self.region,
-                containers=[container,],
+                containers=[
+                    container,
+                ],
                 image_registry_credentials=image_registry_credentials,
                 volumes=volumes,
                 restart_policy='Never',

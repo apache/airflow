@@ -28,7 +28,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-method
     """
     Interact with Google Cloud Deployment Manager using the Google Cloud connection.
-    This allows for scheduled and programatic inspection and deletion fo resources managed by GDM.
+    This allows for scheduled and programmatic inspection and deletion fo resources managed by GDM.
     """
 
     def __init__(
@@ -38,7 +38,9 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super(GoogleDeploymentManagerHook, self).__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
 
     def get_conn(self):

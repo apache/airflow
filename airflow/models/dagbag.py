@@ -23,6 +23,7 @@ import importlib.util
 import os
 import sys
 import textwrap
+import traceback
 import warnings
 import zipfile
 from datetime import datetime, timedelta
@@ -48,6 +49,7 @@ class FileLoadStat(NamedTuple):
     """
     Information about single file
     """
+
     file: str
     duration: timedelta
     dag_num: int
@@ -70,6 +72,9 @@ class DagBag(BaseDagBag, LoggingMixin):
     :param include_examples: whether to include the examples that ship
         with airflow or not
     :type include_examples: bool
+    :param include_smart_sensor: whether to include the smart sensor native
+        DAGs that create the smart sensor operators for whole cluster
+    :type include_smart_sensor: bool
     :param read_dags_from_db: Read DAGs from DB if store_serialized_dags is ``True``.
         If ``False`` DAGs are read from python files. This property is not used when
         determining whether or not to write Serialized DAGs, that is done by checking
@@ -84,6 +89,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self,
         dag_folder: Optional[str] = None,
         include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
+        include_smart_sensor: bool = conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
         read_dags_from_db: bool = False,
         store_serialized_dags: Optional[bool] = None,
@@ -110,9 +116,13 @@ class DagBag(BaseDagBag, LoggingMixin):
         # Only used by read_dags_from_db=True
         self.dags_last_fetched: Dict[str, datetime] = {}
 
+        self.dagbag_import_error_tracebacks = conf.getboolean('core', 'dagbag_import_error_tracebacks')
+        self.dagbag_import_error_traceback_depth = conf.getint('core', 'dagbag_import_error_traceback_depth')
+
         self.collect_dags(
             dag_folder=dag_folder,
             include_examples=include_examples,
+            include_smart_sensor=include_smart_sensor,
             safe_mode=safe_mode)
 
     def size(self) -> int:
@@ -259,7 +269,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
-        with timeout(self.DAGBAG_IMPORT_TIMEOUT):
+        timeout_msg = f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s"
+        with timeout(self.DAGBAG_IMPORT_TIMEOUT, error_message=timeout_msg):
             try:
                 loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
                 spec = importlib.util.spec_from_loader(mod_name, loader)
@@ -269,7 +280,12 @@ class DagBag(BaseDagBag, LoggingMixin):
                 return [new_module]
             except Exception as e:  # pylint: disable=broad-except
                 self.log.exception("Failed to import: %s", filepath)
-                self.import_errors[filepath] = str(e)
+                if self.dagbag_import_error_tracebacks:
+                    self.import_errors[filepath] = traceback.format_exc(
+                        limit=-self.dagbag_import_error_traceback_depth
+                    )
+                else:
+                    self.import_errors[filepath] = str(e)
         return []
 
     def _load_modules_from_zip(self, filepath, safe_mode):
@@ -308,7 +324,12 @@ class DagBag(BaseDagBag, LoggingMixin):
                 mods.append(current_module)
             except Exception as e:  # pylint: disable=broad-except
                 self.log.exception("Failed to import: %s", filepath)
-                self.import_errors[filepath] = str(e)
+                if self.dagbag_import_error_tracebacks:
+                    self.import_errors[filepath] = traceback.format_exc(
+                        limit=-self.dagbag_import_error_traceback_depth
+                    )
+                else:
+                    self.import_errors[filepath] = str(e)
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
@@ -355,7 +376,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         Adds the DAG into the bag, recurses into sub dags.
         Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
-
         test_cycle(dag)  # throws if a task cycle is found
 
         dag.resolve_template_files()
@@ -391,6 +411,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             dag_folder=None,
             only_if_updated=True,
             include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+            include_smart_sensor=conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
             safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
         """
         Given a file path or a folder, this method looks for python modules,
@@ -414,8 +435,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
 
         dag_folder = correct_maybe_zipped(dag_folder)
-        for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
-                                           include_examples=include_examples):
+        for filepath in list_py_file_paths(dag_folder,
+                                           safe_mode=safe_mode,
+                                           include_examples=include_examples,
+                                           include_smart_sensor=include_smart_sensor):
             try:
                 file_parse_start_dttm = timezone.utcnow()
                 found_dags = self.process_file(

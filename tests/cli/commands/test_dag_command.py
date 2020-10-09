@@ -23,7 +23,6 @@ import unittest
 from datetime import datetime, timedelta
 
 import mock
-import pytest
 
 from airflow import settings
 from airflow.cli import cli_parser
@@ -381,7 +380,6 @@ class TestCliDags(unittest.TestCase):
         dag_command.dag_unpause(args)
         self.assertIn(self.dagbag.dags['example_bash_operator'].get_is_paused(), [False, 0])
 
-    @pytest.mark.quarantined
     def test_trigger_dag(self):
         dag_command.dag_trigger(self.parser.parse_args([
             'dags', 'trigger', 'example_bash_operator',

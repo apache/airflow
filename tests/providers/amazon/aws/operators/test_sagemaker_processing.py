@@ -158,7 +158,10 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
         # Expect to see ProcessingJobName suffixed with "-2" because we return one existing job
         expected_config["ProcessingJobName"] = f"{job_name}-2"
         mock_create_processing_job.assert_called_once_with(
-            expected_config, wait_for_completion=False, check_interval=5, max_ingestion_time=None,
+            expected_config,
+            wait_for_completion=False,
+            check_interval=5,
+            max_ingestion_time=None,
         )
 
     @mock.patch.object(SageMakerHook, "get_conn")

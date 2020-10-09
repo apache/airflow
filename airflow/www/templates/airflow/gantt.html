@@ -22,59 +22,76 @@
 {% block page_title %}{{ dag.dag_id }} - Gantt - Airflow{% endblock %}
 
 {% block head_css %}
-{{ super() }}
-<link type="text/css" href="{{ url_for('static', filename='css/gantt.css') }}" rel="stylesheet" />
-<link type="text/css" href="{{ url_for('static', filename='css/tree.css') }}" rel="stylesheet" />
-<style type="text/css">
-  {% for state, state_color in state_color_mapping.items() %}
-    rect.{{state}} {
-      fill: {{state_color}};
-    }
-  {% endfor %}
-</style>
+  {{ super() }}
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('gantt.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('tree.css') }}">
+  <style type="text/css">
+    {% for state, state_color in state_color_mapping.items() %}
+      rect.{{state}} {
+        fill: {{state_color}};
+      }
+    {% endfor %}
+  </style>
 {% endblock %}
 
 {% block content %}
-{{ super() }}
-<form method="get">
-  <div class="form-inline">
-    Base date: {{ form.base_date(class_="form-control") }}
-    Number of runs: {{ form.num_runs(class_="form-control") }}
-    Run:<input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
-    {{ form.execution_date(class_="form-control") }}
-    <input type="submit" value="Go" class="btn btn-default" action="" method="get">
-    <input type="hidden" name="root" value="{{ root if root else '' }}">
-    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+  {{ super() }}
+  <div class="row dag-view-tools">
+    <div class="col-md-12">
+      <form method="get" class="form-inline">
+        <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
+        <input type="hidden" name="root" value="{{ root if root else '' }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label class="sr-only" for="base_date">Base date</label>
+          <div class="input-group">
+            {{ form.base_date(class_="form-control") }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="sr-only" for="num_runs">Number of runs</label>
+          <div class="input-group">
+            <div class="input-group-addon">Runs</div>
+            {{ form.num_runs(class_="form-control") }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="sr-only" for="execution_date">Run</label>
+          <div class="input-group">
+            <div class="input-group-addon">Run</div>
+            {{ form.execution_date(class_="form-control") }}
+          </div>
+        </div>
+        <button type="submit" class="btn">Update</button>
+      </form>
+    </div>
   </div>
-</form>
-<div style="clear: both;"></div>
-<div class="container">
-  <div class="gantt"></div>
-</div>
+  <div class="container">
+    <div class="gantt"></div>
+  </div>
 {% endblock %}
 
-{% block tail %}
-{{ super() }}
-<script src="{{ url_for_asset('d3.min.js') }}"></script>
-<script src="{{ url_for_asset('d3-tip.js') }}"></script>/
-<script src="{{ url_for_asset('ganttChartD3v2.js') }}"></script>
-<script src="{{ url_for_asset('task-instances.js') }}"></script>
-<script>
-  $( document ).ready(function() {
-    var dag_id = '{{ dag.dag_id }}';
-    var task_id = '';
-    var execution_date = '';
-    data = {{ data |tojson }};
-    var gantt = d3.gantt()
-      .taskTypes(data.taskNames)
-      .height(data.height)
-      .selector('.gantt')
-      .tickFormat("%H:%M:%S");
-    gantt(data.tasks);
-    $('body').on('airflow.timezone-change', (e) => {
-      gantt.redraw(data.tasks);
+{% block tail_js %}
+  {{ super() }}
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3-tip.js') }}"></script>/
+  <script src="{{ url_for_asset('ganttChartD3v2.js') }}"></script>
+  <script src="{{ url_for_asset('taskInstances.js') }}"></script>
+  <script>
+    $( document ).ready(function() {
+      var dag_id = '{{ dag.dag_id }}';
+      var task_id = '';
+      var execution_date = '';
+      data = {{ data |tojson }};
+      var gantt = d3.gantt()
+        .taskTypes(data.taskNames)
+        .height(data.height)
+        .selector('.gantt')
+        .tickFormat("%H:%M:%S");
+      gantt(data.tasks);
+      $('body').on('airflow.timezone-change', (e) => {
+        gantt.redraw(data.tasks);
+      });
     });
-  });
-</script>
-
+  </script>
 {% endblock %}
