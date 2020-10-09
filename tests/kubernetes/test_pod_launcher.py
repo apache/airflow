@@ -184,7 +184,8 @@ class TestPodLauncher(unittest.TestCase):
         )
 
     def test_parse_log_line(self):
-        timestamp, message = self.pod_launcher.parse_log_line('2020-10-08T14:16:17.793417674Z Valid message\n')
+        timestamp, message = \
+            self.pod_launcher.parse_log_line('2020-10-08T14:16:17.793417674Z Valid message\n')
 
         self.assertEqual(timestamp, '2020-10-08T14:16:17.793417674Z')
         self.assertEqual(message, 'Valid message')
