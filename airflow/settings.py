@@ -385,3 +385,5 @@ CHECK_SLAS = conf.getboolean('core', 'check_slas', fallback=True)
 # Currently used in the following places:
 # `DagFileProcessor.process_file` to retry `dagbag.sync_to_db`
 MAX_DB_RETRIES = conf.getint('core', 'max_db_retries', fallback=3)
+
+USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=True)

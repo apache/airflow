@@ -3621,7 +3621,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             "PERF_SCHEDULE_INTERVAL": "30m",
             "PERF_SHAPE": "no_structure",
         }), conf_vars({
-            ('scheduler', 'use_job_schedule'): 'True',
+            ('scheduler', 'use_job_schedule'): 'False',
             ('core', 'load_examples'): 'False',
         }):
 

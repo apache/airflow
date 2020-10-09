@@ -1456,12 +1456,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
 
-            query = DagModel.dags_needing_dagruns(session)
-            self._create_dag_runs(query.all(), session)
+            if settings.USE_JOB_SCHEDULE:
+                query = DagModel.dags_needing_dagruns(session)
+                self._create_dag_runs(query.all(), session)
 
-            # commit the session - Release the write lock on DagModel table.
-            guard.commit()
-            # END: create dagruns
+                # commit the session - Release the write lock on DagModel table.
+                guard.commit()
+                # END: create dagruns
 
             dag_runs = DagRun.next_dagruns_to_examine(session)
 
