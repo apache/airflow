@@ -530,6 +530,7 @@ class DataflowHook(GoogleBaseHook):
         append_job_name: bool = True,
         on_new_job_id_callback: Optional[Callable[[str], None]] = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
+        environment: Optional[Dict] = None,
     ) -> Dict:
         """
         Starts Dataflow template job.
@@ -537,6 +538,7 @@ class DataflowHook(GoogleBaseHook):
         :param job_name: The name of the job.
         :type job_name: str
         :param variables: Map of job runtime environment options.
+            It will update environment argument if passed.
 
             .. seealso::
                 For more information on possible configurations, look at the API documentation
@@ -556,8 +558,47 @@ class DataflowHook(GoogleBaseHook):
         :type on_new_job_id_callback: callable
         :param location: Job location.
         :type location: str
+        :type environment: Optional, Map of job runtime environment options.
+
+            .. seealso::
+                For more information on possible configurations, look at the API documentation
+                `https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+                <https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment>`__
+
+        :type environment: Optional[dict]
         """
         name = self._build_dataflow_job_name(job_name, append_job_name)
+
+        environment = environment or {}
+        # available keys for runtime environment are listed here:
+        # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
+        environment_keys = [
+            'numWorkers',
+            'maxWorkers',
+            'zone',
+            'serviceAccountEmail',
+            'tempLocation',
+            'bypassTempDirValidation',
+            'machineType',
+            'additionalExperiments',
+            'network',
+            'subnetwork',
+            'additionalUserLabels',
+            'kmsKeyName',
+            'ipConfiguration',
+            'workerRegion',
+            'workerZone',
+        ]
+
+        for key in variables:
+            if key in environment_keys:
+                if key in environment:
+                    self.log.warning(
+                        "'%s' parameter in 'variables' will override of "
+                        "the same one passed in 'environment'!",
+                        key,
+                    )
+                environment.update({key: variables[key]})
 
         service = self.get_conn()
         # pylint: disable=no-member
@@ -569,7 +610,7 @@ class DataflowHook(GoogleBaseHook):
                 projectId=project_id,
                 location=location,
                 gcsPath=dataflow_template,
-                body={"jobName": name, "parameters": parameters, "environment": variables},
+                body={"jobName": name, "parameters": parameters, "environment": environment},
             )
         )
         response = request.execute(num_retries=self.num_retries)

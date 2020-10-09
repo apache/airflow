@@ -78,7 +78,7 @@ class SSHOperator(BaseOperator):
         self.command = command
         self.timeout = timeout
         self.environment = environment
-        self.get_pty = self.command.startswith('sudo') or get_pty  # type: ignore[union-attr]
+        self.get_pty = (self.command.startswith('sudo') or get_pty) if self.command else get_pty
 
     def execute(self, context) -> Union[bytes, str, bool]:
         try:

@@ -22,6 +22,7 @@ import json
 import logging
 import math
 import socket
+import sys
 import traceback
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -70,6 +71,7 @@ from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.version import version
 from airflow.www import utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped, has_dag_access
 from airflow.www.forms import (
@@ -318,19 +320,19 @@ def circles(error):  # pylint: disable=unused-argument
 
 def show_traceback(error):  # pylint: disable=unused-argument
     """Show Traceback for a given error"""
-    from airflow.utils import asciiart as ascii_
-
     return render_template(
         'airflow/traceback.html',  # noqa
+        python_version=sys.version.split(" ")[0],
+        airflow_version=version,
         hostname=socket.getfqdn() if conf.getboolean(
             'webserver',
             'EXPOSE_HOSTNAME',
             fallback=True) else 'redact',
-        nukular=ascii_.nukular,
         info=traceback.format_exc() if conf.getboolean(
             'webserver',
             'EXPOSE_STACKTRACE',
-            fallback=True) else 'Error! Please contact server admin'), 500
+            fallback=True) else 'Error! Please contact server admin.'
+    ), 500
 
 ######################################################################################
 #                                    BaseViews
@@ -2002,6 +2004,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
         tries = sorted(list({ti.try_number for ti in tis}))
         max_date = max([ti.execution_date for ti in tis]) if tries else None
+        chart.create_y_axis('yAxis', format='.02f', custom_format=False, label='Tries')
+        chart.axislist['yAxis']['axisLabelDistance'] = '-15'
 
         session.commit()
 

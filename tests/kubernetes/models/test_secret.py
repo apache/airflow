@@ -65,6 +65,29 @@ class TestSecret(unittest.TestCase):
         ))
 
     @mock.patch('uuid.uuid4')
+    def test_only_mount_sub_secret(self, mock_uuid):
+        mock_uuid.return_value = '0'
+        items = [k8s.V1KeyToPath(
+            key="my-username",
+            path="/extra/path"
+        )
+        ]
+        secret = Secret('volume', '/etc/foo', 'secret_b', items=items)
+        self.assertEqual(secret.to_volume_secret(), (
+            k8s.V1Volume(
+                name='secretvol0',
+                secret=k8s.V1SecretVolumeSource(
+                    secret_name='secret_b',
+                    items=items)
+            ),
+            k8s.V1VolumeMount(
+                mount_path='/etc/foo',
+                name='secretvol0',
+                read_only=True
+            )
+        ))
+
+    @mock.patch('uuid.uuid4')
     def test_attach_to_pod(self, mock_uuid):
         static_uuid = uuid.UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
         mock_uuid.return_value = static_uuid

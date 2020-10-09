@@ -37,7 +37,9 @@ from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cleanup
 from celery.result import AsyncResult
+from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 
+import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -78,6 +80,45 @@ def execute_command(command_to_exec: CommandType) -> None:
     """Executes command."""
     BaseExecutor.validate_command(command_to_exec)
     log.info("Executing command in Celery: %s", command_to_exec)
+
+    if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
+        _execute_in_subprocees(command_to_exec)
+    else:
+        _execute_in_fork(command_to_exec)
+
+
+def _execute_in_fork(command_to_exec: CommandType) -> None:
+    pid = os.fork()
+    if pid:
+        # In parent, wait for the child
+        pid, ret = os.waitpid(pid, 0)
+        if ret == 0:
+            return
+
+        raise AirflowException('Celery command failed on host: ' + get_hostname())
+
+    from airflow.sentry import Sentry
+
+    ret = 1
+    try:
+        from airflow.cli.cli_parser import get_parser
+        parser = get_parser()
+        # [1:] - remove "airflow" from the start of the command
+        args = parser.parse_args(command_to_exec[1:])
+
+        setproctitle(f"airflow task supervisor: {command_to_exec}")
+
+        args.func(args)
+        ret = 0
+    except Exception as e:  # pylint: disable=broad-except
+        log.error("Failed to execute task %s.", str(e))
+        ret = 1
+    finally:
+        Sentry.flush()
+        os._exit(ret)  # pylint: disable=protected-access
+
+
+def _execute_in_subprocees(command_to_exec: CommandType) -> None:
     env = os.environ.copy()
     try:
         # pylint: disable=unexpected-keyword-arg
