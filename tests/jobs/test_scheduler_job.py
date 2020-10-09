@@ -3604,49 +3604,6 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
     @parameterized.expand(
         [
             # pylint: disable=bad-whitespace
-            # expected, dag_count, task_count
-            # One DAG with one task per DAG file
-            (10, 1, 1),  # noqa
-            # One DAG with five tasks per DAG  file
-            (10, 1, 5),  # noqa
-            # 10 DAGs with 10 tasks per DAG file
-            (10, 10, 10),  # noqa
-        ]
-    )
-    @pytest.mark.xfail(condition=True, reason="This test has timing based flakyness")
-    def test_execute_queries_count_no_harvested_dags(self, expected_query_count, dag_count, task_count):
-        with mock.patch.dict("os.environ", {
-            "PERF_DAGS_COUNT": str(dag_count),
-            "PERF_TASKS_COUNT": str(task_count),
-            "PERF_START_AGO": "1d",
-            "PERF_SCHEDULE_INTERVAL": "30m",
-            "PERF_SHAPE": "no_structure",
-        }), conf_vars({
-            ('scheduler', 'use_job_schedule'): 'False',
-            ('core', 'load_examples'): 'False',
-        }):
-
-            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
-            for i, dag in enumerate(dagbag.dags.values()):
-                dr = dag.create_dagrun(state=State.RUNNING, run_id=f"{DagRunType.MANUAL.value}__{i}")
-                for ti in dr.get_task_instances():
-                    ti.set_state(state=State.SCHEDULED)
-
-            mock_agent = mock.MagicMock()
-            mock_agent.harvest_serialized_dags.return_value = []
-
-            job = SchedulerJob(subdir=PERF_DAGS_FOLDER)
-            job.executor = MockExecutor()
-            job.heartbeat = mock.MagicMock()
-            job.processor_agent = mock_agent
-
-            with assert_queries_count(expected_query_count):
-                with create_session() as session:
-                    job._do_scheduling(session)
-
-    @parameterized.expand(
-        [
-            # pylint: disable=bad-whitespace
             # expected, dag_count, task_count, start_ago, schedule_interval, shape
             # One DAG with one task per DAG file
             ([10,  10,  10, 10],  1,  1, "1d",  "None",  "no_structure"),  # noqa
