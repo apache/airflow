@@ -79,6 +79,7 @@ Content
     start
     installation
     tutorial
+    tutorial_functional
     howto/index
     ui
     concepts

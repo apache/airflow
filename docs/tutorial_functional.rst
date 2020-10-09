@@ -116,6 +116,7 @@ variables. In turn, the summarized data from the Transform function is also plac
 into another Xcom variable which will then be used by the Load task.
 
 Contrasting that with Functional DAGs in Airflow 2.0 as shown below.
+
 .. exampleinclude:: /../airflow/example_dags/tutorial_functional_etl_dag.py
     :language: python
     :start-after: [START transform]
