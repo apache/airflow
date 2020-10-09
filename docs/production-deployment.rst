@@ -206,7 +206,7 @@ but in most likely scenario, those wheel files should be copied from an internal
 files. Note that ``AIRFLOW_INSTALL_VERSION`` is only there for reference, the apache airflow .whl file
 in the right version is part of the .whl files downloaded.
 
-Note that 'pip download' will only works on linux host as some of the packages need to be compiled from
+Note that 'pip download' will only works on Linux host as some of the packages need to be compiled from
 sources and you cannot install them providing ``--platform`` switch. They also need to be downloaded using
 the same python version as the target image.
 
