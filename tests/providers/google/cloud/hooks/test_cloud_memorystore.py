@@ -437,7 +437,9 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
 
 
 class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
-    def setUp(self,):
+    def setUp(
+        self,
+    ):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -560,7 +562,10 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
     )
     def test_list_instances(self, mock_get_conn, mock_project_id):
         self.hook.list_instances(  # pylint: disable=no-value-for-parameter
-            location=TEST_LOCATION, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA,
+            location=TEST_LOCATION,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.list_instances.assert_called_once_with(
             parent=TEST_PARENT_DEFAULT_PROJECT_ID,

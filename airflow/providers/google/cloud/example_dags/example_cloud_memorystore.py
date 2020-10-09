@@ -263,7 +263,10 @@ with models.DAG(
 
     # [START howto_operator_get_instance_memcached]
     get_instance_2 = CloudMemorystoreMemcachedGetInstanceOperator(
-        task_id="get-instance-2", location="europe-north1", instance=INSTANCE_NAME, project_id=GCP_PROJECT_ID,
+        task_id="get-instance-2",
+        location="europe-north1",
+        instance=INSTANCE_NAME_4,
+        project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_get_instance_memcached]
 
@@ -277,7 +280,7 @@ with models.DAG(
     update_instance_2 = CloudMemorystoreMemcachedUpdateInstanceOperator(
         task_id="update-instance-2",
         location="europe-north1",
-        instance_id=INSTANCE_NAME,
+        instance_id=INSTANCE_NAME_4,
         project_id=GCP_PROJECT_ID,
         update_mask={"displayName": "New Name"},
         instance={"memory_size_gb": 2},
@@ -288,7 +291,7 @@ with models.DAG(
     update_parameters = CloudMemorystoreMemcachedUpdateParametersOperator(
         task_id="update-parameters",
         location="europe-north1",
-        instance_id=INSTANCE_NAME,
+        instance_id=INSTANCE_NAME_4,
         project_id=GCP_PROJECT_ID,
         update_mask="protocol,hash_algorithm",
         parameters={"protocol": "ascii", "hash_algorithm": "jenkins"},
@@ -297,7 +300,7 @@ with models.DAG(
     apply_parameters = CloudMemorystoreMemcachedApplyParametersOperator(
         task_id="apply-parameters",
         location="europe-north1",
-        instance_id=INSTANCE_NAME,
+        instance_id=INSTANCE_NAME_4,
         project_id=GCP_PROJECT_ID,
         node_ids=["node-1", "node-2"],
         apply_all=False,
@@ -305,3 +308,6 @@ with models.DAG(
 
     update_parameters >> apply_parameters
     # [END howto_operator_update_and_apply_parameters_memcached]
+
+    create_instance_3 >> get_instance_2 >> update_instance_2 >> delete_instance_3
+    apply_parameters >> delete_instance_3

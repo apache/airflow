@@ -451,7 +451,8 @@ class TestCloudMemorystoreMemcachedGetInstanceOperator(TestCase):
         )
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.get_instance.assert_called_once_with(
             location=TEST_LOCATION,
@@ -478,7 +479,8 @@ class TestCloudMemorystoreMemcachedListInstancesOperator(TestCase):
         )
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list_instances.assert_called_once_with(
             location=TEST_LOCATION,
@@ -507,7 +509,8 @@ class TestCloudMemorystoreMemcachedUpdateInstanceOperator(TestCase):
         )
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
-            gcp_conn_id=TEST_GCP_CONN_ID, impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.update_instance.assert_called_once_with(
             update_mask=TEST_UPDATE_MASK_MEMCACHED,

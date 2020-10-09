@@ -539,11 +539,15 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client: Optional[CloudMemcacheClient] = None
 
-    def get_conn(self,):
+    def get_conn(
+        self,
+    ):
         """
         Retrieves client library object that allow access to Cloud Memorystore Memcached service.
         """
@@ -771,7 +775,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         """
         client = self.get_conn()
         name = CloudMemcacheClient.instance_path(project_id, location, instance)
-        result = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata)
+        result = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata or ())
         self.log.info("Fetched Instance: %s", name)
         return result
 
