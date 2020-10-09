@@ -564,6 +564,14 @@ class PodGenerator(object):
         return reduce(PodGenerator.reconcile_pods, pod_list)
 
     @staticmethod
+    def serialize_pod(pod):
+        """
+        Converts a k8s.V1Pod into a jsonified object
+        """
+        api_client = ApiClient()
+        return api_client.sanitize_for_serialization(pod)
+
+    @staticmethod
     def deserialize_model_file(path):
         """
         :param path: Path to the file
