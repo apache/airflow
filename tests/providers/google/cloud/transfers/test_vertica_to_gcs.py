@@ -24,7 +24,7 @@ from __future__ import unicode_literals
 import unittest
 import mock
 
-from airflow.providers.google.cloud.transfers.vertica_to_gcs import VerticaToGoogleCloudStorageOperator
+from airflow.providers.google.cloud.transfers.vertica_to_gcs import VerticaToGCSOperator
 
 TABLES = {'vertica_to_gcs_operator', 'vertica_to_gcs_operator_empty'}
 
@@ -57,10 +57,10 @@ def mock_cursor_iterate():
     return iter(ROWS)
 
 
-class VerticaToGoogleCloudStorageOperatorTest(unittest.TestCase):
+class VerticaToGCSOperatorTest(unittest.TestCase):
     def test_init(self):
-        """Test VerticaToGoogleCloudStorageOperator instance is properly initialized."""
-        op = VerticaToGoogleCloudStorageOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
+        """Test VerticaToGCSOperator instance is properly initialized."""
+        op = VerticaToGCSOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
         self.assertEqual(op.task_id, TASK_ID)
         self.assertEqual(op.sql, SQL)
         self.assertEqual(op.bucket, BUCKET)
@@ -75,7 +75,7 @@ class VerticaToGoogleCloudStorageOperatorTest(unittest.TestCase):
         vertica_hook_mock.get_conn().cursor().iterate = mock_cursor_iterate
         vertica_hook_mock.get_conn().cursor().description = CURSOR_DESCRIPTION
 
-        op = VerticaToGoogleCloudStorageOperator(
+        op = VerticaToGCSOperator(
             task_id=TASK_ID, vertica_conn_id=VERTICA_CONN_ID, sql=SQL, bucket=BUCKET, filename=FILENAME
         )
 
@@ -117,7 +117,7 @@ class VerticaToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
-        op = VerticaToGoogleCloudStorageOperator(
+        op = VerticaToGCSOperator(
             task_id=TASK_ID,
             sql=SQL,
             bucket=BUCKET,
@@ -144,7 +144,7 @@ class VerticaToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
-        op = VerticaToGoogleCloudStorageOperator(
+        op = VerticaToGCSOperator(
             task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME, schema_filename=SCHEMA_FILENAME
         )
         op.execute(None)

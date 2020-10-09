@@ -17,7 +17,7 @@
 
 import os
 from airflow import models
-from airflow.providers.google.cloud.transfers.vertica_to_gcs import VerticaToGoogleCloudStorageOperator
+from airflow.providers.google.cloud.transfers.vertica_to_gcs import VerticaToGCSOperator
 from airflow.utils import dates
 
 GCS_BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-airflow-vertica-gcs")
@@ -32,7 +32,7 @@ with models.DAG(
     tags=['example'],
 ) as dag:
     # [START howto_operator_vertica_to_gcs]
-    upload = VerticaToGoogleCloudStorageOperator(
+    upload = VerticaToGCSOperator(
         task_id='vertica_to_gcs',
         sql=SQL_QUERY,
         bucket=GCS_BUCKET,

@@ -31,13 +31,13 @@ Prerequisite Tasks
 
 .. include::/howto/operator/google/_partials/prerequisite_tasks.rst
 
-.. _howto/operator:VerticaToGoogleCloudStorageOperator:
+.. _howto/operator:VerticaToGCSOperator:
 
-VerticaToGoogleCloudStorageOperator
+VerticaToGCSOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :class:`~airflow.providers.google.cloud.transfers.vertica_to_gcs.
-VerticaToGoogleCloudStorageOperator` allows you to upload data from Vertica to GCS.
+VerticaToGCSOperator` allows you to upload data from Vertica to GCS.
 
 When you use this operator, you can optionally compress the data being uploaded to gzip format.
 

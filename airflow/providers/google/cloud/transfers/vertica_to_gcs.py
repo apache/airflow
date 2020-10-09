@@ -29,7 +29,7 @@ from airflow.utils.decorators import apply_defaults
 PY3 = sys.version_info[0] == 3
 
 
-class VerticaToGoogleCloudStorageOperator(BaseSQLToGCSOperator):
+class VerticaToGCSOperator(BaseSQLToGCSOperator):
     """
     Copy data from Vertica to Google Cloud Storage in JSON or CSV format.
 
@@ -61,7 +61,7 @@ class VerticaToGoogleCloudStorageOperator(BaseSQLToGCSOperator):
 
     @apply_defaults
     def __init__(self, vertica_conn_id='vertica_default', *args, **kwargs):
-        super(VerticaToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super(VerticaToGCSOperator, self).__init__(*args, **kwargs)
         self.vertica_conn_id = vertica_conn_id
 
     def query(self):
