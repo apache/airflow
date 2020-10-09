@@ -1681,7 +1681,7 @@ class DAG(BaseDag, LoggingMixin):
     @classmethod
     @provide_session
     def bulk_sync_to_db(cls, dags: Collection["DAG"], session=None):
-        """This method is deprecated in favour of bulk_write_to_db"""
+        """This method is deprecated in favor of bulk_write_to_db"""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use bulk_write_to_db",
             DeprecationWarning,
@@ -2138,7 +2138,6 @@ class DagModel(Base):
         :param most_recent_dag_run: DateTime of most recent run of this dag, or none if not yet scheduled.
         :param active_runs_of_dag: Number of currently active runs of this dag
         """
-
         self.next_dagrun, self.next_dagrun_create_after = dag.next_dagrun_info(most_recent_dag_run)
 
         if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
