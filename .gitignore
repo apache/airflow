@@ -10,7 +10,6 @@ secrets.py
 airflow.db
 unittests.db
 
-
 # Airflow temporary artifacts
 airflow/git_version
 airflow/www/static/coverage/
@@ -149,6 +148,8 @@ tramp
 # Spark
 rat-results.txt
 
+# Git stuff
+.gitattributes
 # Kubernetes generated templated files
 *.generated
 *.tar.gz
@@ -185,8 +186,24 @@ dmypy.json
 /.kube
 /.inputrc
 log.txt*
+/backport_packages/CHANGELOG.txt
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Terraform variables
+*.tfvars
 
 Chart.lock
 
 # Chart dependencies
 **/charts/*.tgz
+
+# Might be generated when you build wheels
+pip-wheel-metadata
+
+.pypirc
