@@ -310,4 +310,5 @@ with models.DAG(
     # [END howto_operator_update_and_apply_parameters_memcached]
 
     create_instance_3 >> get_instance_2 >> update_instance_2 >> delete_instance_3
+    get_instance_2 >> update_parameters
     apply_parameters >> delete_instance_3
