@@ -60,7 +60,7 @@ with DAG(
     # [END documentation]
 
     # [START extract]
-    @dag.task(multiple_outputs=True)
+    @dag.task()
     def extract():
         data_string = u'{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
 
