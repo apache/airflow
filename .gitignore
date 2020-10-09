@@ -205,3 +205,5 @@ Chart.lock
 
 # Might be generated when you build wheels
 pip-wheel-metadata
+
+.pypirc
