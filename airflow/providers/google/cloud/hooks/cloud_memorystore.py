@@ -586,7 +586,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
     ):
         """
         Will update current set of Parameters to the set of specified nodes of the Memcached Instance.
@@ -633,7 +633,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
     ):
         """
         Creates a Memcached instance based on the specified tier and memory size.
@@ -710,7 +710,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
     ):
         """
         Deletes a specific Memcached instance.  Instance stops serving and data is deleted.
@@ -786,7 +786,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
     ):
         """
         Lists all Memcached instances owned by a project in either the specified location (region) or all
@@ -827,7 +827,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
     ):
         """
         Updates the metadata and configuration of a specific Memcached instance.
@@ -890,7 +890,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
     ):
         """
         Updates the defined Memcached Parameters for an existing Instance. This method only stages the
