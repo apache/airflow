@@ -1682,9 +1682,10 @@ class DAG(BaseDag, LoggingMixin):
     @provide_session
     def bulk_sync_to_db(cls, dags: Collection["DAG"], session=None):
         """
-        Save attributes about list of DAG to the DB. Note that this method
-        can be called for both DAGs and SubDAGs. A SubDag is actually a
-        SubDagOperator.
+        Ensure the DagModel rows for the given dags are up-to-date in the dag table in the DB, including
+        calculated fields.
+
+        Note that this method can be called for both DAGs and SubDAGs. A SubDag is actually a SubDagOperator.
 
         :param dags: the DAG objects to save to the DB
         :type dags: List[airflow.models.dag.DAG]
@@ -1726,6 +1727,7 @@ class DAG(BaseDag, LoggingMixin):
             ),
         ).group_by(DagRun.dag_id).all())
 
+        # Get number of active dagruns for all dags we are processing as a single query.
         num_active_runs = dict(session.query(DagRun.dag_id, func.count('*')).filter(
             DagRun.dag_id.in_(existing_dag_ids),
             DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
@@ -1752,20 +1754,11 @@ class DAG(BaseDag, LoggingMixin):
                 t.task_concurrency is not None for t in dag.tasks
             )
 
-            orm_dag.next_dagrun, orm_dag.next_dagrun_create_after = dag.next_dagrun_info(
+            orm_dag.calculate_dagrun_date_fields(
+                dag,
                 most_recent_dag_runs.get(dag.dag_id),
+                num_active_runs.get(dag.dag_id, 0),
             )
-
-            active_runs_of_dag = num_active_runs.get(dag.dag_id, 0)
-            if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
-                # Since this happens every time the dag is parsed it would be quite spammy at info
-                log.debug(
-                    "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
-                    dag.dag_id, active_runs_of_dag, dag.max_active_runs
-                )
-                orm_dag.next_dagrun_create_after = None
-
-            log.info("Setting next_dagrun for %s to %s", dag.dag_id, orm_dag.next_dagrun)
 
             for orm_tag in list(orm_dag.tags):
                 if orm_tag.name not in orm_dag.tags:
@@ -2120,6 +2113,32 @@ class DagModel(Base):
         ).limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
 
         return with_row_locks(query, of=cls, **skip_locked(session=session))
+
+    def calculate_dagrun_date_fields(
+        self,
+        dag: DAG,
+        most_recent_dag_run: Optional[datetime],
+        active_runs_of_dag: int
+    ) -> None:
+        """
+        Calculate ``next_dagrun`` and `next_dagrun_create_after``
+
+        :param dag: The DAG object
+        :param most_recent_dag_run: DateTime of most recent run of this dag, or none if not yet scheduled.
+        :param active_runs_of_dag: Number of currently active runs of this dag
+        """
+
+        self.next_dagrun, self.next_dagrun_create_after = dag.next_dagrun_info(most_recent_dag_run)
+
+        if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
+            # Since this happens every time the dag is parsed it would be quite spammy at info
+            log.debug(
+                "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
+                dag.dag_id, active_runs_of_dag, dag.max_active_runs
+            )
+            self.next_dagrun_create_after = None
+
+        log.info("Setting next_dagrun for %s to %s", dag.dag_id, self.next_dagrun)
 
 
 STATICA_HACK = True
