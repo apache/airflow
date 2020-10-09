@@ -3613,6 +3613,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             (10, 10, 10),  # noqa
         ]
     )
+    @pytest.mark.xfail(condition=True, reason="This test has timing based flakyness")
     def test_execute_queries_count_no_harvested_dags(self, expected_query_count, dag_count, task_count):
         with mock.patch.dict("os.environ", {
             "PERF_DAGS_COUNT": str(dag_count),
