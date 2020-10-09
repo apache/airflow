@@ -156,7 +156,15 @@ class PodLauncher(LoggingMixin):
             time.sleep(2)
         return self._task_status(self.read_pod(pod)), result
 
-    def parse_log_line(self, line):
+    def parse_log_line(self, line: str) -> Tuple[str, str]:
+        """
+        Parse K8s log line and returns the final state
+
+        :param line: k8s log line
+        :type line: str
+        :return: timestamp and log message
+        :rtype: Tuple[str, str]
+        """
         split_at = line.find(' ')
         if split_at == -1:
             raise Exception('Log not in "{{timestamp}} {{log}}" format. Got: {}'.format(line))
