@@ -122,7 +122,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
-        JOB_STATE_RUNNING state.
+        RUNNING state.
     :type poll_sleep: int
     :param job_class: The name of the dataflow job class to be executed, it
         is often not the main class configured in the dataflow jar file.
@@ -306,7 +306,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
-        JOB_STATE_RUNNING state.
+        RUNNING state.
     :type poll_sleep: int
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -516,7 +516,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
-        JOB_STATE_RUNNING state.
+        RUNNING state.
     :type poll_sleep: int
     """
 

@@ -98,13 +98,13 @@ class DataflowJobStatus:
     Helper class with Dataflow job statuses.
     """
 
-    JOB_STATE_DONE = "JOB_STATE_DONE"
-    JOB_STATE_RUNNING = "JOB_STATE_RUNNING"
-    JOB_STATE_FAILED = "JOB_STATE_FAILED"
-    JOB_STATE_CANCELLED = "JOB_STATE_CANCELLED"
-    JOB_STATE_PENDING = "JOB_STATE_PENDING"
-    FAILED_END_STATES = {JOB_STATE_FAILED, JOB_STATE_CANCELLED}
-    SUCCEEDED_END_STATES = {JOB_STATE_DONE}
+    DONE = "DONE"
+    RUNNING = "RUNNING"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    PENDING = "PENDING"
+    FAILED_END_STATES = {FAILED, CANCELLED}
+    SUCCEEDED_END_STATES = {DONE}
     END_STATES = SUCCEEDED_END_STATES | FAILED_END_STATES
 
 
@@ -250,20 +250,20 @@ class _DataflowJobsController(LoggingMixin):
         :rtype: bool
         :raise: Exception
         """
-        if DataflowJobStatus.JOB_STATE_DONE == job['currentState']:
+        if DataflowJobStatus.DONE == job['currentState']:
             return True
-        elif DataflowJobStatus.JOB_STATE_FAILED == job['currentState']:
+        elif DataflowJobStatus.FAILED == job['currentState']:
             raise Exception("Google Cloud Dataflow job {} has failed.".format(job['name']))
-        elif DataflowJobStatus.JOB_STATE_CANCELLED == job['currentState']:
+        elif DataflowJobStatus.CANCELLED == job['currentState']:
             raise Exception("Google Cloud Dataflow job {} was cancelled.".format(job['name']))
         elif (
-            DataflowJobStatus.JOB_STATE_RUNNING == job['currentState']
+            DataflowJobStatus.RUNNING == job['currentState']
             and DataflowJobType.JOB_TYPE_STREAMING == job['type']
         ):
             return True
         elif job['currentState'] in {
-            DataflowJobStatus.JOB_STATE_RUNNING,
-            DataflowJobStatus.JOB_STATE_PENDING,
+            DataflowJobStatus.RUNNING,
+            DataflowJobStatus.PENDING,
         }:
             return False
         self.log.debug("Current job: %s", str(job))
@@ -313,7 +313,7 @@ class _DataflowJobsController(LoggingMixin):
                     projectId=self._project_number,
                     location=self._job_location,
                     jobId=job_id,
-                    body={"requestedState": DataflowJobStatus.JOB_STATE_CANCELLED},
+                    body={"requestedState": DataflowJobStatus.CANCELLED},
                 )
             )
         batch.execute()

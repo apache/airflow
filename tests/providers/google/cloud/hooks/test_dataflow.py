@@ -844,7 +844,7 @@ class TestDataflowJob(unittest.TestCase):
         )
 
     def test_dataflow_job_init_without_job_id(self):
-        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.DONE}
 
         mock_list = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list
         (mock_list.return_value.execute.return_value) = {'jobs': [job]}
@@ -863,7 +863,7 @@ class TestDataflowJob(unittest.TestCase):
         mock_list.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION)
 
     def test_dataflow_job_wait_for_multiple_jobs(self):
-        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.DONE}
         # fmt: off
         (
             self.mock_dataflow.projects.return_value.
@@ -913,8 +913,8 @@ class TestDataflowJob(unittest.TestCase):
             execute.return_value
         ) = {
             "jobs": [
-                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
-                {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.JOB_STATE_FAILED}
+                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.DONE},
+                {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.FAILED}
             ]
         }
         (
@@ -947,8 +947,8 @@ class TestDataflowJob(unittest.TestCase):
             execute.return_value
         ) = {
             "jobs": [
-                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
-                {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
+                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.DONE},
+                {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.CANCELLED}
             ]
         }
         (
@@ -981,7 +981,7 @@ class TestDataflowJob(unittest.TestCase):
             execute.return_value
         ) = {
             "jobs": [
-                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.JOB_STATE_DONE},
+                {"id": "id-1", "name": "name-1", "currentState": DataflowJobStatus.DONE},
                 {"id": "id-2", "name": "name-2", "currentState": "unknown"}
             ]
         }
@@ -1018,7 +1018,7 @@ class TestDataflowJob(unittest.TestCase):
                 {
                     "id": "id-2",
                     "name": "name-2",
-                    "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+                    "currentState": DataflowJobStatus.RUNNING,
                     "type": DataflowJobType.JOB_TYPE_STREAMING
                 }
             ]
@@ -1045,7 +1045,7 @@ class TestDataflowJob(unittest.TestCase):
         self.assertEqual(1, mock_jobs_list.call_count)
 
     def test_dataflow_job_wait_for_single_jobs(self):
-        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        job = {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME, "currentState": DataflowJobStatus.DONE}
         # fmt: off
         self.mock_dataflow.projects.return_value.locations.return_value. \
             jobs.return_value.get.return_value.execute.return_value = job
@@ -1117,7 +1117,7 @@ class TestDataflowJob(unittest.TestCase):
         job = {
             "id": TEST_JOB_ID,
             "name": UNIQUE_JOB_NAME,
-            "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+            "currentState": DataflowJobStatus.RUNNING,
         }
         # fmt: off
         get_method = (
@@ -1163,7 +1163,7 @@ class TestDataflowJob(unittest.TestCase):
         )
         # fmt: on
         mock_update.assert_called_once_with(
-            body={'requestedState': 'JOB_STATE_CANCELLED'},
+            body={'requestedState': 'CANCELLED'},
             jobId='test-job-id',
             location=TEST_LOCATION,
             projectId='test-project',
