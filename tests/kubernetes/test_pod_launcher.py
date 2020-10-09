@@ -48,6 +48,7 @@ class TestPodLauncher(unittest.TestCase):
                 _preload_content=False,
                 container='base',
                 follow=True,
+                timestamps=False,
                 name=mock.sentinel.metadata.name,
                 namespace=mock.sentinel.metadata.namespace
             ),
@@ -55,6 +56,7 @@ class TestPodLauncher(unittest.TestCase):
                 _preload_content=False,
                 container='base',
                 follow=True,
+                timestamps=False,
                 name=mock.sentinel.metadata.name,
                 namespace=mock.sentinel.metadata.namespace
             )
@@ -85,6 +87,7 @@ class TestPodLauncher(unittest.TestCase):
                 _preload_content=False,
                 container='base',
                 follow=True,
+                timestamps=False,
                 name=mock.sentinel.metadata.name,
                 namespace=mock.sentinel.metadata.namespace,
                 tail_lines=100
@@ -103,6 +106,7 @@ class TestPodLauncher(unittest.TestCase):
                 _preload_content=False,
                 container='base',
                 follow=True,
+                timestamps=False,
                 name=mock.sentinel.metadata.name,
                 namespace=mock.sentinel.metadata.namespace,
                 since_seconds=2
@@ -177,4 +181,15 @@ class TestPodLauncher(unittest.TestCase):
             AirflowException,
             self.pod_launcher.read_pod,
             mock.sentinel
+        )
+
+    def test_parse_log_line(self):
+        timestamp, message = self.pod_launcher.parse_log_line('2020-10-08T14:16:17.793417674Z Valid message\n')
+
+        self.assertEqual(timestamp, '2020-10-08T14:16:17.793417674Z')
+        self.assertEqual(message, 'Valid message')
+
+        self.assertRaises(
+            Exception,
+            self.pod_launcher.parse_log_line('2020-10-08T14:16:17.793417674ZInvalid message\n'),
         )

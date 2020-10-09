@@ -21,6 +21,7 @@ import time
 from datetime import datetime as dt
 from typing import Optional, Tuple
 
+import pendulum
 import tenacity
 from kubernetes import client, watch
 from kubernetes.client.models.v1_pod import V1Pod
@@ -126,18 +127,20 @@ class PodLauncher(LoggingMixin):
         """
         if get_logs:
             read_logs_since_sec = None
+            last_log_time = None
             while True:
-                logs = self.read_pod_logs(pod, since_seconds=read_logs_since_sec)
+                logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
                 for line in logs:
-                    self.log.info(line)
-                curr_time = dt.now()
+                    timestamp, message = self.parse_log_line(line.decode('utf-8'))
+                    last_log_time = pendulum.parse(timestamp)
+                    self.log.info(message)
                 time.sleep(1)
 
                 if not self.base_container_is_running(pod):
                     break
 
                 self.log.warning('Pod %s log read interrupted', pod.metadata.name)
-                delta = dt.now() - curr_time
+                delta = pendulum.now() - last_log_time
                 # Prefer logs duplication rather than loss
                 read_logs_since_sec = math.ceil(delta.total_seconds())
         result = None
@@ -152,6 +155,14 @@ class PodLauncher(LoggingMixin):
             self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
             time.sleep(2)
         return self._task_status(self.read_pod(pod)), result
+
+    def parse_log_line(self, line):
+        split_at = line.find(' ')
+        if split_at == -1:
+            raise Exception('Log not in "{{timestamp}} {{log}}" format. Got: {}'.format(line))
+        timestamp = line[:split_at]
+        message = line[split_at + 1:].rstrip()
+        return timestamp, message
 
     def _task_status(self, event):
         self.log.info(
@@ -187,6 +198,7 @@ class PodLauncher(LoggingMixin):
     def read_pod_logs(self,
                       pod: V1Pod,
                       tail_lines: Optional[int] = None,
+                      timestamps: bool = False,
                       since_seconds: Optional[int] = None):
         """Reads log from the POD"""
         additional_kwargs = {}
@@ -202,6 +214,7 @@ class PodLauncher(LoggingMixin):
                 namespace=pod.metadata.namespace,
                 container='base',
                 follow=True,
+                timestamps=timestamps,
                 _preload_content=False,
                 **additional_kwargs
             )
