@@ -532,7 +532,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         from airflow.models.dag import DAG
         from airflow.models.serialized_dag import SerializedDagModel
         self.log.debug("Calling the DAG.bulk_sync_to_db method")
-        DAG.bulk_sync_to_db(self.dags.values(), session=session)
+        DAG.bulk_write_to_db(self.dags.values(), session=session)
         # Write Serialized DAGs to DB if DAG Serialization is turned on
         # Even though self.read_dags_from_db is False
         if settings.STORE_SERIALIZED_DAGS or self.read_dags_from_db:

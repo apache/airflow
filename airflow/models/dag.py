@@ -1681,6 +1681,17 @@ class DAG(BaseDag, LoggingMixin):
     @classmethod
     @provide_session
     def bulk_sync_to_db(cls, dags: Collection["DAG"], session=None):
+        """This method is deprecated in favour of bulk_write_to_db"""
+        warnings.warn(
+            "This method is deprecated and will be removed in a future version. Please use bulk_write_to_db",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return cls.bulk_write_to_db(dags, session)
+
+    @classmethod
+    @provide_session
+    def bulk_write_to_db(cls, dags: Collection["DAG"], session=None):
         """
         Ensure the DagModel rows for the given dags are up-to-date in the dag table in the DB, including
         calculated fields.
@@ -1780,7 +1791,7 @@ class DAG(BaseDag, LoggingMixin):
         session.flush()
 
         for dag in dags:
-            cls.bulk_sync_to_db(dag.subdags, session=session)
+            cls.bulk_write_to_db(dag.subdags, session=session)
 
     @provide_session
     def sync_to_db(self, session=None):
@@ -1791,7 +1802,7 @@ class DAG(BaseDag, LoggingMixin):
 
         :return: None
         """
-        self.bulk_sync_to_db([self], session)
+        self.bulk_write_to_db([self], session)
 
     def get_default_view(self):
         """This is only there for backward compatible jinja2 templates"""
@@ -2117,7 +2128,7 @@ class DagModel(Base):
     def calculate_dagrun_date_fields(
         self,
         dag: DAG,
-        most_recent_dag_run: Optional[datetime],
+        most_recent_dag_run: Optional[pendulum.DateTime],
         active_runs_of_dag: int
     ) -> None:
         """

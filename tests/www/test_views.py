@@ -409,7 +409,7 @@ class TestAirflowBaseViews(TestBase):
         super().setUpClass()
         cls.dagbag = models.DagBag(include_examples=True)
         cls.app.dag_bag = cls.dagbag
-        DAG.bulk_sync_to_db(cls.dagbag.dags.values())
+        DAG.bulk_write_to_db(cls.dagbag.dags.values())
 
     def setUp(self):
         super().setUp()
@@ -1649,7 +1649,7 @@ class TestDagACLView(TestBase):
     def setUpClass(cls):
         super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
-        DAG.bulk_sync_to_db(dagbag.dags.values())
+        DAG.bulk_write_to_db(dagbag.dags.values())
 
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
@@ -2868,7 +2868,7 @@ class TestDecorators(TestBase):
     def setUpClass(cls):
         super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
-        DAG.bulk_sync_to_db(dagbag.dags.values())
+        DAG.bulk_write_to_db(dagbag.dags.values())
 
     def setUp(self):
         super().setUp()

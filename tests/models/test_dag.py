@@ -683,14 +683,14 @@ class TestDag(unittest.TestCase):
                              {repr(t) for t in session.query(DagTag).filter(
                                  DagTag.dag_id == 'dag-test-dagtag').all()})
 
-    def test_bulk_sync_to_db(self):
+    def test_bulk_write_to_db(self):
         clear_db_dags()
         dags = [
             DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)
         ]
 
         with assert_queries_count(5):
-            DAG.bulk_sync_to_db(dags)
+            DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
                 {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
@@ -707,14 +707,14 @@ class TestDag(unittest.TestCase):
             )
         # Re-sync should do fewer queries
         with assert_queries_count(3):
-            DAG.bulk_sync_to_db(dags)
+            DAG.bulk_write_to_db(dags)
         with assert_queries_count(3):
-            DAG.bulk_sync_to_db(dags)
+            DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.append("test-dag2")
         with assert_queries_count(4):
-            DAG.bulk_sync_to_db(dags)
+            DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
                 {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
@@ -737,7 +737,7 @@ class TestDag(unittest.TestCase):
         for dag in dags:
             dag.tags.remove("test-dag")
         with assert_queries_count(4):
-            DAG.bulk_sync_to_db(dags)
+            DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
                 {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
@@ -753,7 +753,7 @@ class TestDag(unittest.TestCase):
                 set(session.query(DagTag.dag_id, DagTag.name).all())
             )
 
-    def test_bulk_sync_to_db_max_active_runs(self):
+    def test_bulk_write_to_db_max_active_runs(self):
         """
         Test that DagModel.next_dagrun_create_after is set to NULL when the dag cannot be created due to max
         active runs being hit.
@@ -770,7 +770,7 @@ class TestDag(unittest.TestCase):
 
         session = settings.Session()
         dag.clear()
-        DAG.bulk_sync_to_db([dag], session)
+        DAG.bulk_write_to_db([dag], session)
 
         model = session.query(DagModel).get((dag.dag_id,))
 
@@ -785,7 +785,7 @@ class TestDag(unittest.TestCase):
             session=session,
         )
         assert dr is not None
-        DAG.bulk_sync_to_db([dag])
+        DAG.bulk_write_to_db([dag])
 
         model = session.query(DagModel).get((dag.dag_id,))
         assert model.next_dagrun == period_end
