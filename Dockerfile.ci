@@ -292,15 +292,14 @@ ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
-# Usually we will install versions constrained to the current constraints file
+# Usually we will install versions based on the dependencies in setup.py and upgraded only if needed.
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
 RUN \
     if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" != "false" ]]; then \
         pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
     else \
-        pip install -e ".[${AIRFLOW_EXTRAS}]" \
-            --constraint "${AIRFLOW_CONSTRAINTS_URL}" ; \
+        pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy only-if-needed; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY

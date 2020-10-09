@@ -608,7 +608,10 @@ config:
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     delete_worker_pods: 'True'
+    multi_namespace_mode: '{{ .Values.multiNamespaceMode }}'
 # yamllint enable rule:line-length
+
+multiNamespaceMode: 'False'
 
 podTemplate: ~
 

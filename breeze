@@ -117,11 +117,14 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW="false"
 
-    # If set to true, the test connections will be created
+    # If set to true, the test connections will be create
     export LOAD_DEFAULT_CONNECTIONS="false"
 
-    # If set to true, the sample dags will be created
+    # If set to true, the sample dags will be used
     export LOAD_EXAMPLES="false"
+
+    # If set to true, RBAC UI will not be used for 1.10 version
+    export DISABLE_RBAC="false"
 
     # If it set is set to specified version, then the source version of Airflow
     # is removed and the specified version of Airflow is installed from PyPi
@@ -1096,6 +1099,12 @@ function breeze::parse_arguments() {
         --load-default-connections)
             export LOAD_DEFAULT_CONNECTIONS="true"
             echo "Include Airflow default connections"
+            echo
+            shift
+            ;;
+        --no-rbac-ui)
+            export DISABLE_RBAC="true"
+            echo "When installing Airflow 1.10, RBAC UI will be disabled."
             echo
             shift
             ;;
@@ -2156,6 +2165,10 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         If specified, installs Airflow directly from reference in GitHub. This happens at
         image building time in production image and at container entering time for CI image.
+
+--no-rbac-ui
+        Disables RBAC UI when Airflow 1.10.* is installed.
+
 "
 }
 
@@ -2427,7 +2440,6 @@ function breeze::flag_start_airflow() {
 
 --load-default-connections
         Include Airflow Default Connections.
-
 "
 }
 

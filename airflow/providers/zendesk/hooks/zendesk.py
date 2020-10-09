@@ -17,6 +17,7 @@
 # under the License.
 
 import time
+from typing import Optional
 
 from zdesk import RateLimitError, Zendesk, ZendeskError
 
@@ -40,7 +41,7 @@ class ZendeskHook(BaseHook):
             zdesk_url=self.__url, zdesk_email=conn.login, zdesk_password=conn.password, zdesk_token=True
         )
 
-    def __handle_rate_limit_exception(self, rate_limit_exception) -> None:
+    def __handle_rate_limit_exception(self, rate_limit_exception: ZendeskError) -> None:
         """
         Sleep for the time specified in the exception. If not specified, wait
         for 60 seconds.
@@ -49,7 +50,13 @@ class ZendeskHook(BaseHook):
         self.log.info("Hit Zendesk API rate limit. Pausing for %s seconds", retry_after)
         time.sleep(retry_after)
 
-    def call(self, path, query=None, get_all_pages: bool = True, side_loading: bool = False) -> dict:
+    def call(
+        self,
+        path: str,
+        query: Optional[dict] = None,
+        get_all_pages: bool = True,
+        side_loading: bool = False,
+    ) -> dict:
         """
         Call Zendesk API and return results
 
@@ -64,12 +71,13 @@ class ZendeskHook(BaseHook):
                to load. For more information on side-loading see
                https://developer.zendesk.com/rest_api/docs/core/side_loading
         """
+        query_params = query or {}
         zendesk = self.get_conn()
         first_request_successful = False
 
         while not first_request_successful:
             try:
-                results = zendesk.call(path, query)
+                results = zendesk.call(path, query_params)
                 first_request_successful = True
             except RateLimitError as rle:
                 self.__handle_rate_limit_exception(rle)
@@ -78,7 +86,7 @@ class ZendeskHook(BaseHook):
         keys = [path.split("/")[-1].split(".json")[0]]
         next_page = results['next_page']
         if side_loading:
-            keys += query['include'].split(',')
+            keys += query_params['include'].split(',')
         results = {key: results[key] for key in keys}
 
         # pylint: disable=too-many-nested-blocks

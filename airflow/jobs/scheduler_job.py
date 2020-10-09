@@ -52,7 +52,7 @@ from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULED_DEPS
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.utils import asciiart, helpers, timezone
+from airflow.utils import helpers, timezone
 from airflow.utils.dag_processing import (
     AbstractDagFileProcessorProcess, DagFileProcessorAgent, FailureCallbackRequest, SimpleDagBag,
 )
@@ -120,6 +120,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
     @staticmethod
     def _run_file_processor(
         result_channel: MultiprocessingConnection,
+        parent_channel: MultiprocessingConnection,
         file_path: str,
         pickle_dags: bool,
         dag_ids: Optional[List[str]],
@@ -130,6 +131,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         Process the given file.
 
         :param result_channel: the connection to use for passing back the result
+        :type result_channel: multiprocessing.Connection
+        :param parent_channel: the parent end of the channel to close in the child
         :type result_channel: multiprocessing.Connection
         :param file_path: the file to process
         :type file_path: str
@@ -148,6 +151,13 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         """
         # This helper runs in the newly created process
         log: logging.Logger = logging.getLogger("airflow.processor")
+
+        # Since we share all open FDs from the parent, we need to close the parent side of the pipe here in
+        # the child, else it won't get closed properly until we exit.
+        log.info("Closing parent pipe")
+
+        parent_channel.close()
+        del parent_channel
 
         set_context(log, file_path)
         setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
@@ -183,10 +193,11 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
             log.exception("Got an exception! Propagating...")
             raise
         finally:
-            result_channel.close()
             # We re-initialized the ORM within this Process above so we need to
             # tear it down manually here
             settings.dispose_orm()
+
+            result_channel.close()
 
     def start(self) -> None:
         """
@@ -195,11 +206,12 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         start_method = self._get_multiprocessing_start_method()
         context = multiprocessing.get_context(start_method)
 
-        self._parent_channel, _child_channel = context.Pipe()
+        _parent_channel, _child_channel = context.Pipe(duplex=False)
         process = context.Process(
             target=type(self)._run_file_processor,
             args=(
                 _child_channel,
+                _parent_channel,
                 self.file_path,
                 self._pickle_dags,
                 self._dag_ids,
@@ -211,6 +223,15 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         self._process = process
         self._start_time = timezone.utcnow()
         process.start()
+
+        # Close the child side of the pipe now the subprocess has started -- otherwise this would prevent it
+        # from closing in some cases
+        _child_channel.close()
+        del _child_channel
+
+        # Don't store it on self until after we've started the child process - we don't want to keep it from
+        # getting GCd/closed
+        self._parent_channel = _parent_channel
 
     def kill(self) -> None:
         """
@@ -245,6 +266,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         if self._process.is_alive() and self._process.pid:
             self.log.warning("Killing DAGFileProcessorProcess (PID=%d)", self._process.pid)
             os.kill(self._process.pid, signal.SIGKILL)
+        if self._parent_channel:
+            self._parent_channel.close()
 
     @property
     def pid(self) -> int:
@@ -293,7 +316,16 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
                 self._parent_channel.close()
                 return True
             except EOFError:
-                pass
+                # If we get an EOFError, it means the child end of the pipe has been closed. This only happens
+                # in the finally block. But due to a possible race condition, the process may have not yet
+                # terminated (it could be doing cleanup/python shutdown still). So we kill it here after a
+                # "suitable" timeout.
+                self._done = True
+                # Arbitrary timeout -- error/race condition only, so this doesn't need to be tunable.
+                self._process.join(timeout=5)
+                if self._process.is_alive():
+                    # Didn't shut down cleanly - kill it
+                    self._kill_process()
 
         if not self._process.is_alive():
             self._done = True
@@ -453,21 +485,19 @@ class DagFileProcessor(LoggingMixin):
             notification_sent = False
             if dag.sla_miss_callback:
                 # Execute the alert callback
-                self.log.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
+                self.log.info('Calling SLA miss callback')
                 try:
                     dag.sla_miss_callback(dag, task_list, blocking_task_list, slas,
                                           blocking_tis)
                     notification_sent = True
                 except Exception:  # pylint: disable=broad-except
-                    self.log.exception("Could not call sla_miss_callback for DAG %s",
-                                       dag.dag_id)
-            email_content = """\
+                    self.log.exception("Could not call sla_miss_callback for DAG %s", dag.dag_id)
+            email_content = f"""\
             Here's a list of tasks that missed their SLAs:
             <pre><code>{task_list}\n<code></pre>
             Blocking tasks:
-            <pre><code>{blocking_task_list}\n{bug}<code></pre>
-            """.format(task_list=task_list, blocking_task_list=blocking_task_list,
-                       bug=asciiart.bug)
+            <pre><code>{blocking_task_list}<code></pre>
+            """
 
             tasks_missed_sla = []
             for sla in slas:
@@ -492,8 +522,9 @@ class DagFileProcessor(LoggingMixin):
                 try:
                     send_email(
                         emails,
-                        "[airflow] SLA miss on DAG=" + dag.dag_id,
-                        email_content)
+                        f"[airflow] SLA miss on DAG={dag.dag_id}",
+                        email_content
+                    )
                     email_sent = True
                     notification_sent = True
                 except Exception:  # pylint: disable=broad-except
@@ -503,8 +534,7 @@ class DagFileProcessor(LoggingMixin):
             # If we sent any notification, update the sla_miss table
             if notification_sent:
                 for sla in slas:
-                    if email_sent:
-                        sla.email_sent = True
+                    sla.email_sent = email_sent
                     sla.notification_sent = True
                     session.merge(sla)
             session.commit()
@@ -1132,6 +1162,19 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 tis_changed += 1
         else:
             subq = query.subquery()
+            current_time = timezone.utcnow()
+            ti_prop_update = {
+                models.TaskInstance.state: new_state,
+                models.TaskInstance.start_date: current_time,
+            }
+
+            # Only add end_date and duration if the new_state is 'success', 'failed' or 'skipped'
+            if new_state in State.finished():
+                ti_prop_update.update({
+                    models.TaskInstance.end_date: current_time,
+                    models.TaskInstance.duration: 0,
+                })
+
             tis_changed = session \
                 .query(models.TaskInstance) \
                 .filter(
@@ -1139,7 +1182,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     models.TaskInstance.task_id == subq.c.task_id,
                     models.TaskInstance.execution_date ==
                     subq.c.execution_date) \
-                .update({models.TaskInstance.state: new_state}, synchronize_session=False)
+                .update(ti_prop_update, synchronize_session=False)
             session.commit()
 
         if tis_changed > 0:

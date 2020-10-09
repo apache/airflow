@@ -2068,8 +2068,9 @@ class BigQueryInsertJobOperator(BaseOperator):
         if self.job_id:
             return f"{self.job_id}_{uniqueness_suffix}"
 
-        exec_date = re.sub(r"\:|-|\+", "_", context['execution_date'].isoformat())
-        return f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
+        exec_date = context['execution_date'].isoformat()
+        job_id = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
+        return re.sub(r"\:|-|\+\.", "_", job_id)
 
     def execute(self, context: Any):
         hook = BigQueryHook(

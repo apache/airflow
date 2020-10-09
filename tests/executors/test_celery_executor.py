@@ -225,18 +225,20 @@ class TestCeleryExecutor(unittest.TestCase):
         [['airflow', 'version'], ValueError],
         [['airflow', 'tasks', 'run'], None]
     ))
-    @mock.patch('subprocess.check_output')
-    def test_command_validation(self, command, expected_exception, mock_check_output):
+    def test_command_validation(self, command, expected_exception):
         # Check that we validate _on the receiving_ side, not just sending side
-        if expected_exception:
-            with pytest.raises(expected_exception):
+        with mock.patch('airflow.executors.celery_executor._execute_in_subprocees') as mock_subproc, \
+             mock.patch('airflow.executors.celery_executor._execute_in_fork') as mock_fork:
+            if expected_exception:
+                with pytest.raises(expected_exception):
+                    celery_executor.execute_command(command)
+                mock_subproc.assert_not_called()
+                mock_fork.assert_not_called()
+            else:
                 celery_executor.execute_command(command)
-            mock_check_output.assert_not_called()
-        else:
-            celery_executor.execute_command(command)
-            mock_check_output.assert_called_once_with(
-                command, stderr=mock.ANY, close_fds=mock.ANY, env=mock.ANY,
-            )
+                # One of these should be called.
+                assert mock_subproc.call_args == ((command,),) or \
+                    mock_fork.call_args == ((command,),)
 
     @pytest.mark.backend("mysql", "postgres")
     def test_try_adopt_task_instances_none(self):

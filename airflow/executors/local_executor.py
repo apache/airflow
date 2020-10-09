@@ -22,12 +22,17 @@ LocalExecutor
     For more information on how the LocalExecutor works, take a look at the guide:
     :ref:`executor:LocalExecutor`
 """
+import os
 import subprocess
+from abc import abstractmethod
 from multiprocessing import Manager, Process
 from multiprocessing.managers import SyncManager
 from queue import Empty, Queue  # pylint: disable=unused-import  # noqa: F401
 from typing import Any, List, Optional, Tuple, Union  # pylint: disable=unused-import # noqa: F401
 
+from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+
+from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, PARALLELISM, BaseExecutor, CommandType
 from airflow.models.taskinstance import (  # pylint: disable=unused-import # noqa: F401
@@ -51,9 +56,15 @@ class LocalWorkerBase(Process, LoggingMixin):
     """
 
     def __init__(self, result_queue: 'Queue[TaskInstanceStateType]'):
-        super().__init__()
+        super().__init__(target=self.do_work)
         self.daemon: bool = True
         self.result_queue: 'Queue[TaskInstanceStateType]' = result_queue
+
+    def run(self):
+        # We know we've just started a new process, so lets disconnect from the metadata db now
+        settings.engine.pool.dispose()
+        settings.engine.dispose()
+        return super().run()
 
     def execute_work(self, key: TaskInstanceKey, command: CommandType) -> None:
         """
@@ -64,14 +75,61 @@ class LocalWorkerBase(Process, LoggingMixin):
         """
         if key is None:
             return
+
         self.log.info("%s running %s", self.__class__.__name__, command)
+        if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
+            state = self._execute_work_in_subprocess(command)
+        else:
+            state = self._execute_work_in_fork(command)
+
+        self.result_queue.put((key, state))
+
+    def _execute_work_in_subprocess(self, command: CommandType) -> str:
         try:
             subprocess.check_call(command, close_fds=True)
-            state = State.SUCCESS
+            return State.SUCCESS
         except subprocess.CalledProcessError as e:
-            state = State.FAILED
             self.log.error("Failed to execute task %s.", str(e))
-        self.result_queue.put((key, state))
+            return State.FAILED
+
+    def _execute_work_in_fork(self, command: CommandType) -> str:
+        pid = os.fork()
+        if pid:
+            # In parent, wait for the child
+            pid, ret = os.waitpid(pid, 0)
+            return State.SUCCESS if ret == 0 else State.FAILED
+
+        from airflow.sentry import Sentry
+        ret = 1
+        try:
+            import signal
+
+            from airflow.cli.cli_parser import get_parser
+
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+            signal.signal(signal.SIGTERM, signal.SIG_DFL)
+
+            parser = get_parser()
+            # [1:] - remove "airflow" from the start of the command
+            args = parser.parse_args(command[1:])
+
+            setproctitle(f"airflow task supervisor: {command}")
+
+            args.func(args)
+            ret = 0
+            return State.SUCCESS
+        except Exception as e:  # pylint: disable=broad-except
+            self.log.error("Failed to execute task %s.", str(e))
+        finally:
+            Sentry.flush()
+            os._exit(ret)  # pylint: disable=protected-access
+
+    @abstractmethod
+    def do_work(self):
+        """
+        Called in the subprocess and should then execute tasks
+        """
+        raise NotImplementedError()
 
 
 class LocalWorker(LocalWorkerBase):
@@ -91,7 +149,7 @@ class LocalWorker(LocalWorkerBase):
         self.key: TaskInstanceKey = key
         self.command: CommandType = command
 
-    def run(self) -> None:
+    def do_work(self) -> None:
         self.execute_work(key=self.key, command=self.command)
 
 
@@ -111,7 +169,7 @@ class QueuedLocalWorker(LocalWorkerBase):
         super().__init__(result_queue=result_queue)
         self.task_queue = task_queue
 
-    def run(self) -> None:
+    def do_work(self) -> None:
         while True:
             key, command = self.task_queue.get()
             try:

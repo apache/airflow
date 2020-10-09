@@ -19,7 +19,7 @@
 import re
 from collections import namedtuple
 from time import sleep
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, List, Optional, Sequence, Union, Dict
 
 from azure.mgmt.containerinstance.models import (
     Container,
@@ -44,9 +44,9 @@ Volume = namedtuple(
 )
 
 
-DEFAULT_ENVIRONMENT_VARIABLES = {}  # type: Dict[str, str]
-DEFAULT_SECURED_VARIABLES = []  # type: Sequence[str]
-DEFAULT_VOLUMES = []  # type: Sequence[Volume]
+DEFAULT_ENVIRONMENT_VARIABLES: Dict[str, str] = {}
+DEFAULT_SECURED_VARIABLES: Sequence[str] = []
+DEFAULT_VOLUMES: Sequence[Volume] = []
 DEFAULT_MEMORY_IN_GB = 2.0
 DEFAULT_CPU = 1.0
 
@@ -136,9 +136,9 @@ class AzureContainerInstancesOperator(BaseOperator):
         name: str,
         image: str,
         region: str,
-        environment_variables: Optional[Dict[Any, Any]] = None,
+        environment_variables: Optional[dict] = None,
         secured_variables: Optional[str] = None,
-        volumes: Optional[List[Any]] = None,
+        volumes: Optional[list] = None,
         memory_in_gb: Optional[Any] = None,
         cpu: Optional[Any] = None,
         gpu: Optional[Any] = None,
@@ -168,7 +168,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         self._ci_hook: Any = None
         self.tags = tags
 
-    def execute(self, context: Dict[Any, Any]) -> int:
+    def execute(self, context: dict) -> int:
         # Check name again in case it was templated.
         self._check_name(self.name)
 
@@ -181,7 +181,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         if self.registry_conn_id:
             registry_hook = AzureContainerRegistryHook(self.registry_conn_id)
-            image_registry_credentials: Optional[List[Any]] = [
+            image_registry_credentials: Optional[list] = [
                 registry_hook.connection,
             ]
         else:
@@ -327,7 +327,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         sleep(1)
 
-    def _log_last(self, logs: Optional[List[Any]], last_line_logged: Any) -> Optional[Any]:
+    def _log_last(self, logs: Optional[list], last_line_logged: Any) -> Optional[Any]:
         if logs:
             # determine the last line which was logged before
             last_line_index = 0

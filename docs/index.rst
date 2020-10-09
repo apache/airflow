@@ -108,7 +108,7 @@ Content
     :caption: References
 
     Operators and hooks <operators-and-hooks-ref>
-    CLI <cli-ref>
+    CLI <cli-and-env-variables-ref>
     Macros <macros-ref>
     Python API <_api/index>
     Experimental REST API <rest-api-ref>

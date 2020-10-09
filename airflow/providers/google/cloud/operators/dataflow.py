@@ -281,6 +281,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     :param job_name: The 'jobName' to use when executing the DataFlow template
         (templated).
     :param options: Map of job runtime environment options.
+        It will update environment argument if passed.
 
         .. seealso::
             For more information on possible configurations, look at the API documentation
@@ -316,6 +317,13 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :type environment: Optional, Map of job runtime environment options.
+
+        .. seealso::
+            For more information on possible configurations, look at the API documentation
+            `https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+            <https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment>`__
+    :type environment: Optional[dict]
 
     It's a good practice to define dataflow_* parameters in the default_args of the dag
     like the project, zone and staging location.
@@ -373,6 +381,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         'location',
         'gcp_conn_id',
         'impersonation_chain',
+        'environment',
     ]
     ui_color = '#0273d4'
 
@@ -391,6 +400,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         poll_sleep: int = 10,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        environment: Optional[Dict] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -407,6 +417,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.job_id = None
         self.hook: Optional[DataflowHook] = None
         self.impersonation_chain = impersonation_chain
+        self.environment = environment
 
     def execute(self, context):
         self.hook = DataflowHook(
@@ -421,7 +432,6 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
         options = self.dataflow_default_options
         options.update(self.options)
-
         job = self.hook.start_template_dataflow(
             job_name=self.job_name,
             variables=options,
@@ -430,6 +440,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             on_new_job_id_callback=set_current_job_id,
             project_id=self.project_id,
             location=self.location,
+            environment=self.environment,
         )
 
         return job

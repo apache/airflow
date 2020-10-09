@@ -210,6 +210,7 @@ exclude_patterns: List[str] = [
     # Templates or partials
     'autoapi_templates',
     'howto/operator/google/_partials',
+    'howto/operator/microsoft/_partials'
 ]
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))

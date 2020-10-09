@@ -82,6 +82,9 @@ class GCSToS3Operator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
+    :param s3_acl_policy: Optional The string to specify the canned ACL policy for the
+        object to be uploaded in S3
+    :type s3_acl_policy: str
     """
 
     template_fields: Iterable[str] = (
@@ -109,6 +112,7 @@ class GCSToS3Operator(BaseOperator):
         replace=False,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         dest_s3_extra_args: Optional[Dict] = None,
+        s3_acl_policy: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -133,6 +137,7 @@ class GCSToS3Operator(BaseOperator):
         self.replace = replace
         self.google_impersonation_chain = google_impersonation_chain
         self.dest_s3_extra_args = dest_s3_extra_args or {}
+        self.s3_acl_policy = s3_acl_policy
 
     def execute(self, context):
         # list all files in an Google Cloud Storage bucket
@@ -177,7 +182,9 @@ class GCSToS3Operator(BaseOperator):
                 dest_key = self.dest_s3_key + file
                 self.log.info("Saving file to %s", dest_key)
 
-                s3_hook.load_bytes(file_bytes, key=dest_key, replace=self.replace)
+                s3_hook.load_bytes(
+                    file_bytes, key=dest_key, replace=self.replace, acl_policy=self.s3_acl_policy
+                )
 
             self.log.info("All done, uploaded %d files to S3", len(files))
         else:

@@ -54,7 +54,7 @@ class MsSqlHook(DbApiHook):
     default_conn_name = 'mssql_default'
     supports_autocommit = True
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         warnings.warn(
             (
                 "This class is deprecated and will be removed in Airflow 2.0.\n"
@@ -67,11 +67,13 @@ class MsSqlHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 
-    def get_conn(self):
+    def get_conn(self) -> pymssql.connect:
         """
         Returns a mssql connection object
         """
-        conn = self.get_connection(self.mssql_conn_id)  # pylint: disable=no-member
+        conn = self.get_connection(
+            self.mssql_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
+        )
         # pylint: disable=c-extension-no-member
         conn = pymssql.connect(
             server=conn.host,
@@ -82,8 +84,8 @@ class MsSqlHook(DbApiHook):
         )
         return conn
 
-    def set_autocommit(self, conn, autocommit):
+    def set_autocommit(self, conn: pymssql.connect, autocommit: bool) -> None:
         conn.autocommit(autocommit)
 
-    def get_autocommit(self, conn):
+    def get_autocommit(self, conn: pymssql.connect):
         return conn.autocommit_state

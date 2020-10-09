@@ -30,7 +30,7 @@ from airflow.kubernetes.k8s_model import K8SModel
 class Secret(K8SModel):
     """Defines Kubernetes Secret Volume"""
 
-    def __init__(self, deploy_type, deploy_target, secret, key=None):
+    def __init__(self, deploy_type, deploy_target, secret, key=None, items=None):
         """
         Initialize a Kubernetes Secret Object. Used to track requested secrets from
         the user.
@@ -47,12 +47,17 @@ class Secret(K8SModel):
         :param key: (Optional) Key of the secret within the Kubernetes Secret
             if not provided in `deploy_type` `env` it will mount all secrets in object
         :type key: str or None
+        :param items: (Optional) items that can be added to a volume secret for specifying projects of
+        secret keys to paths
+        https://kubernetes.io/docs/concepts/configuration/secret/#projection-of-secret-keys-to-specific-paths
+        :type items: List[k8s.V1KeyToPath]
         """
         if deploy_type not in ('env', 'volume'):
             raise AirflowConfigException("deploy_type must be env or volume")
 
         self.deploy_type = deploy_type
         self.deploy_target = deploy_target
+        self.items = items or []
 
         if deploy_target is not None and deploy_type == 'env':
             # if deploying to env, capitalize the deploy target
@@ -87,13 +92,11 @@ class Secret(K8SModel):
     def to_volume_secret(self) -> Tuple[k8s.V1Volume, k8s.V1VolumeMount]:
         """Converts to volume secret"""
         vol_id = 'secretvol{}'.format(uuid.uuid4())
+        volume = k8s.V1Volume(name=vol_id, secret=k8s.V1SecretVolumeSource(secret_name=self.secret))
+        if self.items:
+            volume.secret.items = self.items
         return (
-            k8s.V1Volume(
-                name=vol_id,
-                secret=k8s.V1SecretVolumeSource(
-                    secret_name=self.secret
-                )
-            ),
+            volume,
             k8s.V1VolumeMount(
                 mount_path=self.deploy_target,
                 name=vol_id,

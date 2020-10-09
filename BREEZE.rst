@@ -337,7 +337,7 @@ You can optionally reset database if specified as extra ``--db-reset`` flag and 
 start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
-You can also have breeze launch Airflow automatically ``breeze --start-airflow``, this will drop you in a
+You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
 tmux session with three panes (one to monitor the scheduler, one for the webserver and one with a shell
 for additional commands.
 
@@ -1202,6 +1202,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
+
+  --no-rbac-ui
+          Disables RBAC UI when Airflow 1.10.* is installed.
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -2143,6 +2146,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
+
+  --no-rbac-ui
+          Disables RBAC UI when Airflow 1.10.* is installed.
 
   ****************************************************************************************************
    Credentials

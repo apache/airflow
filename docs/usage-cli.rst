@@ -22,7 +22,7 @@ Using the Command Line Interface
 This document is meant to give an overview of all common tasks while using the CLI.
 
 .. note::
-    For more information on CLI commands, see :doc:`cli-ref`
+    For more information on CLI commands, see :doc:`cli-and-env-variables-ref`
 
 .. _cli-remote:
 

@@ -208,6 +208,16 @@
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/plugins"
+    - name: execute_tasks_new_python_interpreter
+      description: |
+        Should tasks be executed via forking of the parent process ("False",
+        the speedier option) or by spawning a new python process ("True" slow,
+        but means plugin changes picked up by tasks straight away)
+      default: "False"
+      example: ~
+      version_added: "2.0.0"
+      see_also: ":ref:`plugins:loading`"
+      type: boolean
     - name: fernet_key
       description: |
         Secret key to save connection passwords in the db

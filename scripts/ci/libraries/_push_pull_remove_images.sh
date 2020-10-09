@@ -154,7 +154,21 @@ function push_pull_remove_images::push_ci_images_to_github() {
         PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     fi
     docker tag "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+    set +e
     docker push "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+    local result=$?
+    set -e
+    if [[ ${result} != "0" ]]; then
+        >&2 echo
+        >&2 echo "There was an unexpected error when pushing images to the GitHub Registry"
+        >&2 echo
+        >&2 echo "If you see 'unknown blob' or similar kind of error it means that it was a transient error"
+        >&2 echo "And it will likely be gone next time"
+        >&2 echo
+        >&2 echo "Please rebase your change or 'git commit --amend; git push --force' and try again"
+        >&2 echo
+        exit "${result}"
+    fi
 }
 
 
@@ -198,7 +212,22 @@ function push_pull_remove_images::push_prod_images_to_github () {
     # Also push prod build image
     AIRFLOW_PROD_BUILD_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     docker tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${AIRFLOW_PROD_BUILD_TAGGED_IMAGE}"
+    set +e
     docker push "${AIRFLOW_PROD_BUILD_TAGGED_IMAGE}"
+    local result=$?
+    set -e
+    if [[ ${result} != "0" ]]; then
+        >&2 echo
+        >&2 echo "There was an unexpected error when pushing images to the GitHub Registry"
+        >&2 echo
+        >&2 echo "If you see 'unknown blob' or similar kind of error it means that it was a transient error"
+        >&2 echo "And it will likely be gone next time"
+        >&2 echo
+        >&2 echo "Please rebase your change or 'git commit --amend; git push --force' and try again"
+        >&2 echo
+        exit "${result}"
+    fi
+
 }
 
 

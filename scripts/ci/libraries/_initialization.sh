@@ -111,9 +111,15 @@ function initialization::initialize_base_variables() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW=${START_AIRFLOW:="false"}
 
+    # If set to true, the sample dags will be used
     export LOAD_EXAMPLES=${LOAD_EXAMPLES:="false"}
 
+    # If set to true, the test connections will be created
     export LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS:="false"}
+
+    # If set to true, RBAC UI will not be used for 1.10 version
+    export DISABLE_RBAC=${DISABLE_RBAC:="false"}
+
     # If set the specified file will be used to initialized Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
     export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
@@ -537,6 +543,7 @@ Initialization variables:
     INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE}
     LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
     LOAD_EXAMPLES: ${LOAD_EXAMPLES}
+    DISABLE_RBAC: ${DISABLE_RBAC}
 
 EOF
 

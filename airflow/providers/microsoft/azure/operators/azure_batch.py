@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from azure.batch import models as batch_models
 
@@ -161,6 +161,9 @@ class AzureBatchOperator(BaseOperator):
         batch_job_id: str,
         batch_task_command_line: str,
         batch_task_id: str,
+        vm_publisher: str,
+        vm_offer: str,
+        sku_starts_with: str,
         batch_pool_display_name: Optional[str] = None,
         batch_job_display_name: Optional[str] = None,
         batch_job_manager_task: Optional[batch_models.JobManagerTask] = None,
@@ -179,9 +182,6 @@ class AzureBatchOperator(BaseOperator):
         auto_scale_formula: Optional[str] = None,
         azure_batch_conn_id='azure_batch_default',
         use_latest_verified_vm_image_and_sku: bool = False,
-        vm_publisher: Optional[str] = None,
-        vm_offer: Optional[str] = None,
-        sku_starts_with: Optional[str] = None,
         timeout: int = 25,
         should_delete_job: bool = False,
         should_delete_pool: bool = False,
@@ -266,7 +266,7 @@ class AzureBatchOperator(BaseOperator):
                 "Some required parameters are missing.Please you must set " "all the required parameters. "
             )
 
-    def execute(self, context: Dict[Any, Any]) -> None:
+    def execute(self, context: dict) -> None:
         self._check_inputs()
         self.hook.connection.config.retry_policy = self.batch_max_retries
 
@@ -350,7 +350,7 @@ class AzureBatchOperator(BaseOperator):
         """
         if job_id:
             self.log.info("Deleting job: %s", job_id)
-            self.hook.connection.job.delete(pool_id)
+            self.hook.connection.job.delete(job_id)
         if pool_id:
             self.log.info("Deleting pool: %s", pool_id)
             self.hook.connection.pool.delete(pool_id)

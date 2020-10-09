@@ -174,6 +174,7 @@ class TestDagBag(unittest.TestCase):
         for file in invalid_dag_files:
             dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, file))
         self.assertEqual(len(dagbag.import_errors), len(invalid_dag_files))
+        self.assertEqual(len(dagbag.dags), 0)
 
     @patch.object(DagModel, 'get_current')
     def test_get_dag_without_refresh(self, mock_dagmodel):

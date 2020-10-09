@@ -2235,6 +2235,9 @@ class TestSchedulerJob(unittest.TestCase):
 
         ti3.refresh_from_db(session=session)
         self.assertEqual(ti3.state, State.NONE)
+        self.assertIsNotNone(ti3.start_date)
+        self.assertIsNone(ti3.end_date)
+        self.assertIsNone(ti3.duration)
 
         dr1.refresh_from_db(session=session)
         dr1.state = State.FAILED
@@ -2396,6 +2399,11 @@ class TestSchedulerJob(unittest.TestCase):
 
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti.state, expected_task_state)
+        self.assertIsNotNone(ti.start_date)
+        if expected_task_state in State.finished():
+            self.assertIsNotNone(ti.end_date)
+            self.assertEqual(ti.start_date, ti.end_date)
+            self.assertIsNotNone(ti.duration)
 
     @provide_session
     def evaluate_dagrun(

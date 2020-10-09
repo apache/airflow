@@ -20,10 +20,13 @@
 This module contains a BigQuery Hook, as well as a very basic PEP 249
 implementation for BigQuery.
 """
+import hashlib
+import json
 import logging
 import time
 import warnings
 from copy import deepcopy
+from datetime import timedelta, datetime
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
 
 from google.api_core.retry import Retry
@@ -1443,6 +1446,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job = client.get_job(job_id=job_id, project=project_id, location=location)
         return job
 
+    @staticmethod
+    def _custom_job_id(configuration: Dict[str, Any]) -> str:
+        hash_base = json.dumps(configuration, sort_keys=True)
+        uniqueness_suffix = hashlib.md5(hash_base.encode()).hexdigest()
+        microseconds_from_epoch = int(
+            (datetime.now() - datetime.fromtimestamp(0)) / timedelta(microseconds=1)
+        )
+        return f"airflow_{microseconds_from_epoch}_{uniqueness_suffix}"
+
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_job(
         self,
@@ -1472,7 +1484,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type location: str
         """
         location = location or self.location
-        job_id = job_id or f"airflow_{int(time.time())}"
+        job_id = job_id or self._custom_job_id(configuration)
 
         client = self.get_client(project_id=project_id, location=location)
         job_data = {

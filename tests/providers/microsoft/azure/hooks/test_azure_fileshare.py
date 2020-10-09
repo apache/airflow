@@ -29,6 +29,7 @@ import json
 import unittest
 
 import mock
+from azure.storage.file import File, Directory
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
@@ -113,6 +114,20 @@ class TestAzureFileshareHook(unittest.TestCase):
         mock_instance.list_directories_and_files.assert_called_once_with('share', 'directory', timeout=1)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService', autospec=True)
+    def test_list_files(self, mock_service):
+        mock_instance = mock_service.return_value
+        mock_instance.list_directories_and_files.return_value = [
+            File("file1"),
+            File("file2"),
+            Directory("dir1"),
+            Directory("dir2"),
+        ]
+        hook = AzureFileShareHook(wasb_conn_id='wasb_test_sas_token')
+        files = hook.list_files('share', 'directory', timeout=1)
+        self.assertEqual(files, ["file1", 'file2'])
+        mock_instance.list_directories_and_files.assert_called_once_with('share', 'directory', timeout=1)
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService', autospec=True)
     def test_create_directory(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(wasb_conn_id='wasb_test_sas_token')
@@ -136,3 +151,17 @@ class TestAzureFileshareHook(unittest.TestCase):
         mock_instance.get_file_to_stream.assert_called_once_with(
             'share', 'directory', 'file', 'stream', max_connections=1
         )
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService', autospec=True)
+    def test_create_share(self, mock_service):
+        mock_instance = mock_service.return_value
+        hook = AzureFileShareHook(wasb_conn_id='wasb_test_sas_token')
+        hook.create_share('my_share')
+        mock_instance.create_share.assert_called_once_with('my_share')
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService', autospec=True)
+    def test_delete_share(self, mock_service):
+        mock_instance = mock_service.return_value
+        hook = AzureFileShareHook(wasb_conn_id='wasb_test_sas_token')
+        hook.delete_share('my_share')
+        mock_instance.delete_share.assert_called_once_with('my_share')

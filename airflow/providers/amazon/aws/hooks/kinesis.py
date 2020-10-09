@@ -38,7 +38,7 @@ class AwsFirehoseHook(AwsBaseHook):
     :type delivery_stream: str
     """
 
-    def __init__(self, delivery_stream, *args, **kwargs) -> None:
+    def __init__(self, delivery_stream: str, *args, **kwargs) -> None:
         self.delivery_stream = delivery_stream
         kwargs["client_type"] = "firehose"
         super().__init__(*args, **kwargs)

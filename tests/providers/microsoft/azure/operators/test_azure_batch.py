@@ -99,6 +99,9 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            sku_starts_with=self.test_vm_sku,
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
             target_dedicated_nodes=1,
@@ -110,6 +113,9 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            sku_starts_with=self.test_vm_sku,
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
             enable_auto_scale=True,
@@ -122,6 +128,9 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            sku_starts_with=self.test_vm_sku,
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
             enable_auto_scale=True,
@@ -133,11 +142,15 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            sku_starts_with=self.test_vm_sku,
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
             timeout=2,
         )
         self.batch_client = mock_batch.return_value
+        self.mock_instance = mock_hook.return_value
         self.assertEqual(self.batch_client, self.operator.hook.connection)
 
     @mock.patch.object(AzureBatchHook, 'wait_for_all_node_state')
@@ -194,3 +207,12 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
         with self.assertRaises(AirflowException) as e:
             self.operator2_no_formula.execute(None)
         self.assertEqual(str(e.exception), "The auto_scale_formula is required when enable_auto_scale is set")
+
+    def test_cleaning_works(self):
+        self.operator.clean_up(job_id="myjob")
+        self.batch_client.job.delete.assert_called_once_with("myjob")
+        self.operator.clean_up("mypool")
+        self.batch_client.pool.delete.assert_called_once_with("mypool")
+        self.operator.clean_up("mypool", "myjob")
+        self.batch_client.job.delete.assert_called_with("myjob")
+        self.batch_client.pool.delete.assert_called_with('mypool')
