@@ -24,6 +24,7 @@ Create Date: 2020-10-01 17:25:10.006322
 
 """
 
+from airflow.security import permissions
 from airflow.www.app import cached_app
 
 # revision identifiers, used by Alembic.
@@ -43,7 +44,7 @@ def downgrade():   # noqa: D103
     permissions = ['can_read', 'can_edit']
     vms = cached_app().appbuilder.sm.get_all_view_menu()
     view_menus = [
-        vm for vm in vms if (vm.name == 'Dag' or vm.name.startswith('DAG:'))
+        vm for vm in vms if (vm.name == permissions.RESOURCE_ALL_DAGS or vm.name.startswith('DAG:'))
     ]
     convert_permissions(permissions, view_menus, downgrade_action, downgrade_dag_id)
 
@@ -51,7 +52,7 @@ def downgrade():   # noqa: D103
 def upgrade_dag_id(dag_id):
     """Adds the 'DAG:' prefix to a DAG view if appropriate."""
     if dag_id == 'all_dags':
-        return 'Dag'
+        return permissions.RESOURCE_ALL_DAGS
     if dag_id.startswith("DAG:"):
         return dag_id
     return f"DAG:{dag_id}"
@@ -59,7 +60,7 @@ def upgrade_dag_id(dag_id):
 
 def downgrade_dag_id(dag_id):
     """Removes the 'DAG:' prefix from a DAG view name to return the DAG id."""
-    if dag_id == 'Dag':
+    if dag_id == permissions.RESOURCE_ALL_DAGS:
         return 'all_dags'
     if dag_id.startswith("DAG:"):
         return dag_id[len("DAG:"):]

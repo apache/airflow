@@ -29,6 +29,7 @@ from sqlalchemy.orm import joinedload
 from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
+from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.www.utils import CustomSQLAInterface
@@ -40,14 +41,6 @@ EXISTING_ROLES = {
     'Op',
     'Public',
 }
-
-CAN_CREATE = 'can_create'
-CAN_READ = 'can_read'
-CAN_EDIT = 'can_edit'
-CAN_DELETE = 'can_delete'
-DAG_PREFIX = 'DAG:'
-
-RESOURCE_ALL_DAGS = 'AllDags'
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
@@ -161,17 +154,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     # [END security_op_perms]
 
     # global view-menu for dag-level access
-    DAG_VMS = {RESOURCE_ALL_DAGS}
+    DAG_VMS = {permissions.RESOURCE_ALL_DAGS}
 
-    WRITE_DAG_PERMS = {
-        'can_edit',
-    }
-
-    READ_DAG_PERMS = {
-        'can_read',
-    }
-
-    DAG_PERMS = WRITE_DAG_PERMS | READ_DAG_PERMS
+    READ_DAG_PERMS = {permissions.ACTION_CAN_READ}
+    DAG_PERMS = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
 
     ###########################################################################
     #                     DEFAULT ROLE CONFIGURATIONS
@@ -279,11 +265,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def get_readable_dags(self, user):
         """Gets the DAGs readable by authenticated user."""
-        return self.get_accessible_dags([CAN_READ], user)
+        return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
 
     def get_editable_dags(self, user):
         """Gets the DAGs editable by authenticated user."""
-        return self.get_accessible_dags([CAN_EDIT], user)
+        return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
 
     def get_readable_dag_ids(self, user) -> Set[str]:
         """Gets the DAG IDs readable by authenticated user."""
@@ -295,7 +281,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def get_accessible_dag_ids(self, user) -> Set[str]:
         """Gets the DAG IDs editable or readable by authenticated user."""
-        accessible_dags = self.get_accessible_dags([CAN_EDIT, CAN_READ], user)
+        accessible_dags = self.get_accessible_dags(
+            [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ], user
+        )
         return set(dag.dag_id for dag in accessible_dags)
 
     @provide_session
@@ -322,12 +310,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 if action not in user_actions:
                     continue
 
-                if resource.startswith(DAG_PREFIX):
-                    resources.add(resource[len(DAG_PREFIX) :])
+                if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
+                    resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
                 else:
                     resources.add(resource)
 
-        if RESOURCE_ALL_DAGS in resources:
+        if permissions.RESOURCE_ALL_DAGS in resources:
             return session.query(DagModel)
 
         return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
@@ -337,9 +325,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if not user:
             user = g.user
         prefixed_dag_id = self.prefixed_dag_id(dag_id)
-        return self._has_view_access(user, CAN_READ, RESOURCE_ALL_DAGS) or self._has_view_access(
-            user, CAN_READ, prefixed_dag_id
-        )
+        return self._has_view_access(
+            user, permissions.ACTION_CAN_READ, permissions.RESOURCE_ALL_DAGS
+        ) or self._has_view_access(user, permissions.ACTION_CAN_READ, prefixed_dag_id)
 
     def can_edit_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG edit access."""
@@ -347,18 +335,18 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             user = g.user
         prefixed_dag_id = self.prefixed_dag_id(dag_id)
 
-        return self._has_view_access(user, CAN_EDIT, RESOURCE_ALL_DAGS) or self._has_view_access(
-            user, CAN_EDIT, prefixed_dag_id
-        )
+        return self._has_view_access(
+            user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ALL_DAGS
+        ) or self._has_view_access(user, permissions.ACTION_CAN_EDIT, prefixed_dag_id)
 
     def prefixed_dag_id(self, dag_id):
         """Returns the permission name for a DAG id."""
-        if dag_id == RESOURCE_ALL_DAGS:
+        if dag_id == permissions.RESOURCE_ALL_DAGS:
             return dag_id
 
-        if dag_id.startswith(DAG_PREFIX):
+        if dag_id.startswith(permissions.RESOURCE_DAG_PREFIX):
             return dag_id
-        return f"{DAG_PREFIX}{dag_id}"
+        return f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}"
 
     def has_access(self, permission, resource, user=None) -> bool:
         """
@@ -382,9 +370,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         has_access = self._has_view_access(user, permission, resource)
 
-        if permission == CAN_READ:
+        if permission == permissions.ACTION_CAN_READ:
             has_access |= self.can_read_dag(resource, user)
-        elif permission == CAN_EDIT:
+        elif permission == permissions.ACTION_CAN_EDIT:
             has_access |= self.can_edit_dag(resource, user)
 
         return has_access
@@ -423,8 +411,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         return (
             self._has_role(['Admin', 'Viewer', 'Op', 'User'])
-            or self._has_perm(CAN_READ, RESOURCE_ALL_DAGS)
-            or self._has_perm(CAN_EDIT, RESOURCE_ALL_DAGS)
+            or self._has_perm(permissions.ACTION_CAN_READ, permissions.RESOURCE_ALL_DAGS)
+            or self._has_perm(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ALL_DAGS)
         )
 
     def clean_perms(self):
@@ -522,7 +510,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         update_perm_views = []
 
         # need to remove all_dag vm from all the existing view-menus
-        dag_vm = self.find_view_menu(RESOURCE_ALL_DAGS)
+        dag_vm = self.find_view_menu(permissions.RESOURCE_ALL_DAGS)
         ab_perm_view_role = sqla_models.assoc_permissionview_role
         perm_view = self.permissionview_model
         view_menu = self.viewmenu_model
@@ -567,10 +555,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        all_dag_view = self.find_view_menu(RESOURCE_ALL_DAGS)
+        all_dag_view = self.find_view_menu(permissions.RESOURCE_ALL_DAGS)
         pvs = (
             self.get_session.query(sqla_models.ViewMenu)
-            .filter(sqla_models.ViewMenu.name.like(f"{DAG_PREFIX}%"))
+            .filter(sqla_models.ViewMenu.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
             .all()
         )
         pv_ids = [pv.id for pv in pvs]
@@ -615,14 +603,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         self.update_admin_perm_view()
         self.clean_perms()
 
-    def sync_resource_permissions(self, permissions=None):
+    def sync_resource_permissions(self, perms=None):
         """
         Populates resource-based permissions.
         """
-        if not permissions:
+        if not perms:
             return
 
-        for action, resource in permissions:
+        for action, resource in perms:
             self.add_view_menu(resource)
             self.add_permission_view_menu(action, resource)
 
