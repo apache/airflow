@@ -41,7 +41,7 @@ from airflow.utils.dag_processing import (
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from tests.test_logging_config import SETTINGS_FILE_VALID, settings_context
+from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 

@@ -17,21 +17,22 @@
 # under the License.
 
 # Reads environment variable passed as first parameter from the .build cache file
-function parameters::read_from_file {
+function parameters::read_from_file() {
     cat "${BUILD_CACHE_DIR}/.$1" 2>/dev/null || true
 }
 
 # Saves environment variable passed as first parameter to the .build cache file
-function parameters::save_to_file {
+function parameters::save_to_file() {
     # shellcheck disable=SC2005
-    echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
+    echo "$(eval echo "\$$1")" >"${BUILD_CACHE_DIR}/.$1"
 }
 
 # check if parameter set for the variable is allowed (should be on the _breeze_allowed list)
-# and if it is, it saves it to .build cache file. In case the parameter is wrong, the
-# saved variable is removed (so that bad value is not used again in case it comes from there)
-# and exits with an error
-function parameters::check_and_save_allowed_param {
+# parameters:
+# $1 - name of the variable
+# $2 - descriptive name of the parameter
+# $3 - flag used to set te parameter
+function parameters::check_allowed_param() {
     _VARIABLE_NAME="${1}"
     _VARIABLE_DESCRIPTIVE_NAME="${2}"
     _FLAG="${3}"
@@ -44,9 +45,7 @@ function parameters::check_and_save_allowed_param {
         echo >&2
         echo >&2 "Switch to supported value with ${_FLAG} flag."
 
-        if [[ -n ${!_VARIABLE_NAME} && \
-            -f "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}" && \
-            ${!_VARIABLE_NAME} == $(cat "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}" ) ]]; then
+        if [[ -n ${!_VARIABLE_NAME} && -f "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}" && ${!_VARIABLE_NAME} == $(cat "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}") ]]; then
             echo >&2
             echo >&2 "Removing ${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}. Next time you run it, it should be OK."
             echo >&2
@@ -54,5 +53,12 @@ function parameters::check_and_save_allowed_param {
         fi
         exit 1
     fi
-    parameters::save_to_file "${_VARIABLE_NAME}"
+}
+# check if parameter set for the variable is allowed (should be on the _breeze_allowed list)
+# and if it is, it saves it to .build cache file. In case the parameter is wrong, the
+# saved variable is removed (so that bad value is not used again in case it comes from there)
+# and exits with an error
+function parameters::check_and_save_allowed_param() {
+    parameters::check_allowed_param "${@}"
+    parameters::save_to_file "${1}"
 }

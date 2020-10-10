@@ -1990,7 +1990,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  Run 'breeze flags' to see all applicable flags.
+  --test-type TEST_TYPE
+          Type of the test to run. One of:
+
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL
+
+          Default: All
 
 
   ####################################################################################################
@@ -2337,6 +2342,16 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If you use this flag, automatically --github-registry is enabled.
 
           Default: latest.
+
+  ****************************************************************************************************
+   Flags for running tests
+
+  --test-type TEST_TYPE
+          Type of the test to run. One of:
+
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL
+
+          Default: All
 
   ****************************************************************************************************
    Flags for generation of the backport packages

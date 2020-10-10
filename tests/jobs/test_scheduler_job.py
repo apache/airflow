@@ -3547,7 +3547,6 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
         clear_db_serialized_dags()
         clear_db_dags()
 
-    @pytest.mark.quarantined
     @parameterized.expand(
         [
             # pylint: disable=bad-whitespace
@@ -3560,6 +3559,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             (95, 10, 10),  # noqa
         ]
     )
+    @pytest.mark.quarantined
     def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
         with mock.patch.dict("os.environ", {
             "PERF_DAGS_COUNT": str(dag_count),

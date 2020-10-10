@@ -1072,6 +1072,7 @@ function breeze::parse_arguments() {
             export SKIP_BUILDING_PROD_IMAGE="true"
             export MOUNT_LOCAL_SOURCES="false"
             export SKIP_CHECK_REMOTE_IMAGE="true"
+            export FAIL_ON_GITHUB_DOCKER_PULL_ERROR="true"
             shift 2
             ;;
         --init-script)
@@ -1127,6 +1128,12 @@ function breeze::parse_arguments() {
             echo "Install wheels found in dist folder"
             echo
             shift
+            ;;
+        --test-type)
+            export TEST_TYPE="${2}"
+            echo "Selected test type: ${TEST_TYPE}"
+            echo
+            shift 2
             ;;
         --)
             shift
@@ -1288,12 +1295,8 @@ function breeze::parse_arguments() {
             ;;
         tests)
             last_subcommand="${1}"
-            if [[ $# -lt 2 ]]; then
-                run_help="true"
-            else
-                shift
-            fi
             command_to_run="run_tests"
+            shift
             ;;
         toggle-suppress-cheatsheet)
             last_subcommand="${1}"
@@ -1437,6 +1440,11 @@ function breeze::prepare_formatted_versions() {
     FORMATTED_DEFAULT_PROD_EXTRAS=$(echo "${DEFAULT_PROD_EXTRAS=}" |
         tr ',' ' ' | fold -w "${indented_screen_width}" -s | sed "s/ /,/g; s/^/${list_prefix}/")
     readonly FORMATTED_DEFAULT_PROD_EXTRAS
+
+    FORMATTED_TEST_TYPES=$(echo "${_breeze_allowed_test_types=""}" |
+        tr ',' ' ' | fold -w "${indented_screen_width}" -s | sed "s/ /,/g; s/^/${list_prefix}/")
+    readonly FORMATTED_TEST_TYPES
+
 }
 
 #######################################################################################################
@@ -1835,7 +1843,7 @@ ${CMDNAME} tests [FLAGS] [TEST_TARGET ..] [-- <EXTRA_ARGS>]
       '${CMDNAME} tests tests
 
 Flags:
-$(breeze::flag_footer)
+$(breeze::flag_tests)
 "
     readonly DETAILED_USAGE_TESTS
     export DETAILED_USAGE_TOGGLE_SUPPRESS_CHEATSHEET="
@@ -2477,6 +2485,25 @@ function breeze::flag_start_airflow() {
 "
 }
 
+#####################################################################################################
+#
+# Prints flags that control tests
+#
+# Outputs:
+#    Flag information.
+#######################################################################################################
+function breeze::flag_tests() {
+    echo "
+--test-type TEST_TYPE
+        Type of the test to run. One of:
+
+${FORMATTED_TEST_TYPES}
+
+        Default: ${_breeze_default_test_type:=}
+
+"
+}
+
 #######################################################################################################
 #
 # Prints all flags
@@ -2537,6 +2564,10 @@ $(breeze::flag_build_docker_images)
 $(breeze::print_star_line)
  Flags for pulling/pushing Docker images (both CI and production)
 $(breeze::flag_pull_push_docker_images)
+
+$(breeze::print_star_line)
+ Flags for running tests
+$(breeze::flag_tests)
 
 $(breeze::print_star_line)
  Flags for generation of the backport packages
@@ -2698,6 +2729,7 @@ function breeze::check_and_save_all_params() {
         fi
     fi
 
+
     parameters::check_and_save_allowed_param "BACKEND" "backend" "--backend"
     parameters::check_and_save_allowed_param "KUBERNETES_MODE" "Kubernetes mode" "--kubernetes-mode"
     parameters::check_and_save_allowed_param "KUBERNETES_VERSION" "Kubernetes version" "--kubernetes-version"
@@ -2705,6 +2737,8 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "HELM_VERSION" "Helm version" "--helm-version"
     parameters::check_and_save_allowed_param "POSTGRES_VERSION" "Postgres version" "--postgres-version"
     parameters::check_and_save_allowed_param "MYSQL_VERSION" "Mysql version" "--mysql-version"
+
+    parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
 
     # Can't verify those - they can be anything, so let's just save them
     parameters::save_to_file DOCKERHUB_USER

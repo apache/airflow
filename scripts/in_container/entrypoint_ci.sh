@@ -200,17 +200,102 @@ if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
         "--pythonwarnings=ignore::DeprecationWarning"
         "--pythonwarnings=ignore::PendingDeprecationWarning"
         "--junitxml=${RESULT_LOG_FILE}"
+        # timeouts in seconds for individual tests
+        "--setup-timeout=20"
+        "--execution-timeout=60"
+        "--teardown-timeout=20"
+        # Only display summary for non-expected case
+        # f - failed
+        # E - error
+        # X - xpessed (passed even if expected to fail)
+        # The following cases are not displayed:
+        # s - skipped
+        # x - xfailed (expected to fail and failed)
+        # p - passed
+        # P - passed with output
+        "-rfEX"
         )
 else
-    EXTRA_PYTEST_ARGS=()
+    EXTRA_PYTEST_ARGS=(
+        "-rfEX"
+    )
 fi
 
-declare -a TESTS_TO_RUN
-TESTS_TO_RUN=("tests")
+declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
+    ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
+
+# Finds all directories that are not on the list of tests
+# - so that we do not skip any in the future if new directories are added
+function find_all_other_tests() {
+    local all_tests_dirs
+    all_tests_dirs=$(find "tests" -type d)
+    all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
+    all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
+    local path
+    for path in "${ALL_PRESELECTED_TESTS[@]}"
+    do
+        escaped_path="${path//\//\\\/}"
+        all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/${escaped_path}/d" )
+    done
+    for path in ${all_tests_dirs}
+    do
+        ALL_OTHER_TESTS+=("${path}")
+    done
+}
 
 if [[ ${#@} -gt 0 && -n "$1" ]]; then
-    TESTS_TO_RUN=("${@}")
+    SELECTED_TESTS=("${@}")
+else
+    CLI_TESTS=("tests/cli")
+    API_TESTS=("tests/api" "tests/api_connexion")
+    PROVIDERS_TESTS=("tests/providers")
+    CORE_TESTS=(
+        "tests/core"
+        "tests/executors"
+        "tests/jobs"
+        "tests/models"
+        "tests/serialization"
+        "tests/ti_deps"
+        "tests/utils"
+    )
+    WWW_TESTS=("tests/www")
+    ALL_TESTS=("tests")
+    ALL_PRESELECTED_TESTS=(
+        "${CLI_TESTS[@]}"
+        "${API_TESTS[@]}"
+        "${PROVIDERS_TESTS[@]}"
+        "${CORE_TESTS[@]}"
+        "${WWW_TESTS[@]}"
+    )
+
+    if [[ ${TEST_TYPE:=""} == "CLI" ]]; then
+        SELECTED_TESTS=("${CLI_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "API" ]]; then
+        SELECTED_TESTS=("${API_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Providers" ]]; then
+        SELECTED_TESTS=("${PROVIDERS_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Core" ]]; then
+        SELECTED_TESTS=("${CORE_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
+        SELECTED_TESTS=("${WWW_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Other" ]]; then
+        find_all_other_tests
+        SELECTED_TESTS=("${ALL_OTHER_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "All" || ${TEST_TYPE} == "Quarantined" || \
+            ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
+            ${TEST_TYPE} == "Heisentests" || ${TEST_TYPE} == "Long" || \
+            ${TEST_TYPE} == "Integration" ]]; then
+        SELECTED_TESTS=("${ALL_TESTS[@]}")
+    else
+        >&2 echo
+        >&2 echo "Wrong test type ${TEST_TYPE}"
+        >&2 echo
+        exit 1
+    fi
+
 fi
+readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
+    ALL_TESTS ALL_PRESELECTED_TESTS
 
 if [[ -n ${RUN_INTEGRATION_TESTS=} ]]; then
     # Integration tests
@@ -218,52 +303,38 @@ if [[ -n ${RUN_INTEGRATION_TESTS=} ]]; then
     do
         EXTRA_PYTEST_ARGS+=("--integration" "${INT}")
     done
-    EXTRA_PYTEST_ARGS+=(
-        # timeouts in seconds for individual tests
-        "--setup-timeout=20"
-        "--execution-timeout=60"
-        "--teardown-timeout=20"
-        # Do not display skipped tests
-        "-rfExFpP"
-    )
-
-elif [[ ${ONLY_RUN_LONG_RUNNING_TESTS:=""} == "true" ]]; then
+elif [[ ${TEST_TYPE:=""} == "Long" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "long_running"
         "--include-long-running"
-        "--verbosity=1"
-        "--setup-timeout=30"
-        "--execution-timeout=120"
-        "--teardown-timeout=30"
     )
-elif [[ ${ONLY_RUN_HEISEN_TESTS:=""} == "true" ]]; then
+elif [[ ${TEST_TYPE:=""} == "Heisentests" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "heisentests"
         "--include-heisentests"
-        "--verbosity=1"
-        "--setup-timeout=20"
-        "--execution-timeout=50"
-        "--teardown-timeout=20"
     )
-elif [[ ${ONLY_RUN_QUARANTINED_TESTS:=""} == "true" ]]; then
+elif [[ ${TEST_TYPE:=""} == "Postgres" ]]; then
+    EXTRA_PYTEST_ARGS+=(
+        "--backend"
+        "postgres"
+    )
+elif [[ ${TEST_TYPE:=""} == "MySQL" ]]; then
+    EXTRA_PYTEST_ARGS+=(
+        "--backend"
+        "mysql"
+    )
+elif [[ ${TEST_TYPE:=""} == "Quarantined" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "quarantined"
         "--include-quarantined"
-        "--verbosity=1"
-        "--setup-timeout=10"
-        "--execution-timeout=50"
-        "--teardown-timeout=10"
-    )
-else
-    # Core tests
-    EXTRA_PYTEST_ARGS+=(
-        "--setup-timeout=10"
-        "--execution-timeout=30"
-        "--teardown-timeout=10"
     )
 fi
 
-ARGS=("${EXTRA_PYTEST_ARGS[@]}" "${TESTS_TO_RUN[@]}")
+echo
+echo "Running tests ${SELECTED_TESTS[*]}"
+echo
+
+ARGS=("${EXTRA_PYTEST_ARGS[@]}" "${SELECTED_TESTS[@]}")
 
 if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
     "${IN_CONTAINER_DIR}/run_system_tests.sh" "${ARGS[@]}"

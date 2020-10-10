@@ -43,7 +43,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
-  TEST_TYPES: '["Core", "Integration", "Heisentests"]'
+  TEST_TYPES: '["Core", "Providers", "API", "CLI", "Integration", "Other", "WWW", "Heisentests"]'
 
   # You can switch between building the image in "Build Images" workflow or building them in CI workflow
   # Separately for each job.
@@ -79,7 +79,7 @@ jobs:
       postgresVersions: ${{ steps.versions.outputs.postgres-versions }}
       defaultPostgresVersion: ${{ steps.versions.outputs.default-postgres-version }}
       mysqlVersions: ${{ steps.versions.outputs.mysql-versions }}
-      defaultMysqlVersion: ${{ steps.versions.outputs.default-mysql-version }}
+      defaultMySQLVersion: ${{ steps.versions.outputs.default-mysql-version }}
       helmVersions: ${{ steps.versions.outputs.helm-versions }}
       defaultHelmVersion: ${{ steps.versions.outputs.default-helm-version }}
       kindVersions: ${{ steps.versions.outputs.kind-versions }}
@@ -369,6 +369,12 @@ jobs:
         postgres-version: ${{ fromJson(needs.build-info.outputs.postgresVersions) }}
         test-type: ${{ fromJson(needs.build-info.outputs.testTypes) }}
         exclude: ${{ fromJson(needs.build-info.outputs.postgresExclude) }}
+        # Additionally include all postgres-only tests but only for default versions
+        # in case the regular tests are excluded in the future
+        include:
+          - python_version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+            postgres-version: ${{ needs.build-info.outputs.defaultPostgresVersion }}
+            test-type: "Postgres"
       fail-fast: false
     env:
       BACKEND: postgres
@@ -416,6 +422,12 @@ jobs:
         mysql-version: ${{ fromJson(needs.build-info.outputs.mysqlVersions) }}
         test-type: ${{ fromJson(needs.build-info.outputs.testTypes) }}
         exclude: ${{ fromJson(needs.build-info.outputs.mysqlExclude) }}
+        # Additionally include all mysql-only tests but only for default versions
+        # in case the regular tests are excluded in the future
+        include:
+          - python_version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+            postgres-version: ${{ needs.build-info.outputs.defaultMySQLVersion }}
+            test-type: "MySQL"
       fail-fast: false
     env:
       BACKEND: mysql
@@ -500,9 +512,16 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     needs: [build-info, trigger-tests, ci-images]
+    strategy:
+      matrix:
+        include:
+          - backend: mysql
+          - backend: postgres
+          - backend: sqlite
     env:
-      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      BACKEND: postgres
+      BACKEND: ${{ matrix.backend }}
+      PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
+      MYSQL_VERSION: ${{needs.build-info.outputs.defaultMySQLVersion}}
       POSTGRES_VERSION: ${{needs.build-info.outputs.defaultPostgresVersion}}
       RUN_TESTS: true
       TEST_TYPE: Quarantined

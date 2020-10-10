@@ -24,7 +24,7 @@ import unittest
 from parameterized import parameterized
 
 ROOT_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
 
 
@@ -138,7 +138,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
                     "Can you remove it from the list of missing example, please?"
                 )
 
-        with self.subTest("Revmoe extra elements"):
+        with self.subTest("Remove extra elements"):
             extra_example_dags = set(self.MISSING_EXAMPLE_DAGS) - set(operator_sets)
             if extra_example_dags:
                 new_example_dag_text = '\n'.join(str(f) for f in extra_example_dags)

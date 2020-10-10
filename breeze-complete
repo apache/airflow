@@ -33,6 +33,7 @@ _breeze_allowed_kind_versions="v0.8.0"
 _breeze_allowed_mysql_versions="5.7 8"
 _breeze_allowed_postgres_versions="9.6 10"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell"
+_breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Heisentests Postgres MySQL"
 
 # shellcheck disable=SC2034
 {
@@ -44,6 +45,7 @@ _breeze_allowed_kind_operations="start stop restart status deploy test shell"
     _breeze_default_kind_version=$(echo "${_breeze_allowed_kind_versions}" | awk '{print $1}')
     _breeze_default_postgres_version=$(echo "${_breeze_allowed_postgres_versions}" | awk '{print $1}')
     _breeze_default_mysql_version=$(echo "${_breeze_allowed_mysql_versions}" | awk '{print $1}')
+    _breeze_default_test_type=$(echo "${_breeze_allowed_test_types}" | awk '{print $1}')
 }
 
 _breeze_allowed_install_airflow_versions=$(cat <<-EOF
@@ -156,6 +158,7 @@ dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-comma
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
 install-wheels no-rbac-ui
+test-type:
 "
 
 _breeze_commands="
@@ -180,7 +183,8 @@ kind-cluster
 prepare-backport-readme
 prepare-backport-packages
 static-check
-tests"
+tests
+"
 
 _breeze_help_commands="
 flags
@@ -264,6 +268,12 @@ function breeze_complete::get_known_values_breeze() {
         ;;
     kind-cluster)
         _breeze_known_values="${_breeze_allowed_kind_operations}"
+        ;;
+    tests)
+        _breeze_known_values="$(find tests -name '*.py')"
+        ;;
+    --test-type)
+        _breeze_known_values="${_breeze_allowed_test_types}"
         ;;
     *)
         _breeze_known_values=""

@@ -105,24 +105,24 @@ class TestStats(unittest.TestCase):
 
     @conf_vars({
         ("scheduler", "statsd_on"): "True",
-        ("scheduler", "statsd_custom_client_path"): "tests.test_stats.CustomStatsd",
+        ("scheduler", "statsd_custom_client_path"): "tests.core.test_stats.CustomStatsd",
     })
     def test_load_custom_statsd_client(self):
         importlib.reload(airflow.stats)
-        assert isinstance(airflow.stats.Stats.statsd, CustomStatsd)
+        self.assertEqual('CustomStatsd', type(airflow.stats.Stats.statsd).__name__)
 
     @conf_vars({
         ("scheduler", "statsd_on"): "True",
-        ("scheduler", "statsd_custom_client_path"): "tests.test_stats.CustomStatsd",
+        ("scheduler", "statsd_custom_client_path"): "tests.core.test_stats.CustomStatsd",
     })
     def test_does_use_custom_statsd_client(self):
         importlib.reload(airflow.stats)
         airflow.stats.Stats.incr("dummy_key")
-        assert CustomStatsd.incr_calls == 1
+        assert airflow.stats.Stats.statsd.incr_calls == 1
 
     @conf_vars({
         ("scheduler", "statsd_on"): "True",
-        ("scheduler", "statsd_custom_client_path"): "tests.test_stats.InvalidCustomStatsd",
+        ("scheduler", "statsd_custom_client_path"): "tests.core.test_stats.InvalidCustomStatsd",
     })
     def test_load_invalid_custom_stats_client(self):
         with self.assertRaisesRegex(
@@ -265,7 +265,7 @@ def always_valid(stat_name):
 class TestCustomStatsName(unittest.TestCase):
     @conf_vars({
         ('scheduler', 'statsd_on'): 'True',
-        ('scheduler', 'stat_name_handler'): 'tests.test_stats.always_invalid'
+        ('scheduler', 'stat_name_handler'): 'tests.core.test_stats.always_invalid'
     })
     @mock.patch("statsd.StatsClient")
     def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self, mock_statsd):
@@ -275,7 +275,7 @@ class TestCustomStatsName(unittest.TestCase):
 
     @conf_vars({
         ('scheduler', 'statsd_datadog_enabled'): 'True',
-        ('scheduler', 'stat_name_handler'): 'tests.test_stats.always_invalid'
+        ('scheduler', 'stat_name_handler'): 'tests.core.test_stats.always_invalid'
     })
     @mock.patch("datadog.DogStatsd")
     def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(self, mock_dogstatsd):
@@ -285,7 +285,7 @@ class TestCustomStatsName(unittest.TestCase):
 
     @conf_vars({
         ('scheduler', 'statsd_on'): 'True',
-        ('scheduler', 'stat_name_handler'): 'tests.test_stats.always_valid'
+        ('scheduler', 'stat_name_handler'): 'tests.core.test_stats.always_valid'
     })
     @mock.patch("statsd.StatsClient")
     def test_does_send_stats_using_statsd_when_the_name_is_valid(self, mock_statsd):
@@ -295,7 +295,7 @@ class TestCustomStatsName(unittest.TestCase):
 
     @conf_vars({
         ('scheduler', 'statsd_datadog_enabled'): 'True',
-        ('scheduler', 'stat_name_handler'): 'tests.test_stats.always_valid'
+        ('scheduler', 'stat_name_handler'): 'tests.core.test_stats.always_valid'
     })
     @mock.patch("datadog.DogStatsd")
     def test_does_send_stats_using_dogstatsd_when_the_name_is_valid(self, mock_dogstatsd):
