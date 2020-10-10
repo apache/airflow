@@ -16,7 +16,6 @@
 # under the License.
 
 from airflow import conf
-from airflow.exceptions import AirflowConfigException
 from airflow.upgrade.rules.base_rule import BaseRule
 from airflow.utils.module_loading import import_string
 
@@ -56,15 +55,9 @@ class TaskHandlersMovedRule(BaseRule):
     )
 
     def check(self):
-        try:
-            logging_class = conf.get("core", "logging_config_class")
-        except AirflowConfigException:
-            return []
+        logging_class = conf.get("core", "logging_config_class", fallback=None)
         if logging_class:
-            # No need to catch exception here as logging configuration will raise error
-            # if logging is not configured well
             config = import_string(logging_class)
-
             configured_path = config['handlers']['task']['class']
             for new_path, old_path in LOGS:
                 if configured_path == old_path:
