@@ -58,7 +58,7 @@ class DagRun(Base, LoggingMixin):
     end_date = Column(UtcDateTime)
     _state = Column('state', String(50), default=State.RUNNING)
     run_id = Column(String(ID_LEN))
-    supervising_job_id = Column(Integer)
+    creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
     conf = Column(PickleType)

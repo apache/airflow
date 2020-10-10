@@ -82,9 +82,9 @@ class BaseJob(Base, LoggingMixin):
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=id == DagRun.supervising_job_id,
+        primaryjoin=id == DagRun.creating_job_id,
         foreign_keys=id,
-        backref=backref('supervising_job'),
+        backref=backref('creating_job'),
     )
 
     """

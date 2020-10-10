@@ -1658,8 +1658,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 )
                 return 0
 
-        # This DagRun will be schedule by this job so we set up the supervising_job_id
-        dag_run.supervising_job_id = self.id
+        # This DagRun will be schedule by this job so we set up the creating_job_id
+        dag_run.creating_job_id = self.id
 
         self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session)
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
