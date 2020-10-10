@@ -22,8 +22,13 @@ Airflow docker images
 
 Airflow has two images (build from Dockerfiles):
 
-* Production image (Dockerfile) - that can be used to build your own production-ready Airflow installation
-* CI image (Dockerfile.ci) - used for running tests and local development
+  * Production image (Dockerfile) - that can be used to build your own production-ready Airflow installation
+    You can read more about building and using the production image in the
+    `Production Deployments <docs/production-deployment.rst>`_ document. The image is built using
+    `Dockerfile <Dockerfile>`_
+
+  * CI image (Dockerfile.ci) - used for running tests and local development. The image is built using
+    `Dockerfile.ci <Dockerfile.ci>`_
 
 Image naming conventions
 ========================
@@ -332,7 +337,6 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg ADDITIONAL_RUNTIME_ENV_VARS="ACCEPT_EULA=Y" \
     --tag my-image
 
-
 CI image build arguments
 ........................
 
@@ -377,6 +381,21 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_CI_BUILD_EPOCH``               | ``1``                                    | increasing this value will reinstall PIP |
 |                                          |                                          | dependencies from the repository from    |
 |                                          |                                          | scratch                                  |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_CONSTRAINTS_LOCATION``         |                                          | If not empty, it will override the       |
+|                                          |                                          | source of the constraints with the       |
+|                                          |                                          | specified URL or file. Note that the     |
+|                                          |                                          | file has to be in docker context so      |
+|                                          |                                          | it's best to place such file in          |
+|                                          |                                          | one of the folders included in           |
+|                                          |                                          | dockerignore                             |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_LOCAL_PIP_WHEELS``             | ``false``                                | If set to true, Airflow and it's         |
+|                                          |                                          | dependencies are installed from locally  |
+|                                          |                                          | downloaded .whl files placed in the      |
+|                                          |                                          | ``docker-context-files``. Implies        |
+|                                          |                                          | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      |
+|                                          |                                          | to be false.                             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | ``all``                                  | extras to install                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
