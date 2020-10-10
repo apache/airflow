@@ -295,7 +295,7 @@ jobs:
           else
               echo "::set-output name=proceed::false"
           fi
-      - name: Initiate Github Checks for Building image
+      - name: Initiate GitHub Checks for Building image
         uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
         id: build-image-check
         with:
@@ -343,7 +343,7 @@ jobs:
       - name: "Push PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
         if: matrix.image-type == 'PROD' && steps.defaults.outputs.proceed == 'true'
-      - name: Update Github Checks for Building image with status
+      - name: Update GitHub Checks for Building image with status
         uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
         if: always() && steps.defaults.outputs.proceed == 'true'
         with:

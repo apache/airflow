@@ -167,7 +167,7 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 COPY .pypirc /root/.pypirc
 
 # In case of Production build image segment we want to pre-install master version of airflow
-# dependencies from github so that we do not have to always reinstall it from the scratch.
+# dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
        if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
           AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \

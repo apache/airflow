@@ -631,7 +631,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function build_images::prepare_prod_build() {
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
-        # When --install-airflow-reference is used then the image is build from github tag
+        # When --install-airflow-reference is used then the image is build from GitHub tag
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
             "--build-arg" "AIRFLOW_INSTALL_SOURCES=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
         )
