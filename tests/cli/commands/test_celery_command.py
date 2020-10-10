@@ -189,3 +189,4 @@ class TestWorkerStart(unittest.TestCase):
             hostname=celery_hostname,
             loglevel=conf.get('logging', 'LOGGING_LEVEL'),
         )
+        mock_worker.return_value.start.assert_called_once_with()
