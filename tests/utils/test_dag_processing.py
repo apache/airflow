@@ -25,22 +25,25 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
+import pytest
+
 from airflow.configuration import conf
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.jobs.scheduler_job import DagFileProcessorProcess
-from airflow.models import DagBag, TaskInstance as TI
+from airflow.models import DagBag, DagModel, TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
+from airflow.utils.callback_requests import TaskCallbackRequest
 from airflow.utils.dag_processing import (
     DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, DagParsingSignal, DagParsingStat,
-    FailureCallbackRequest,
 )
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags')
@@ -51,14 +54,14 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 class FakeDagFileProcessorRunner(DagFileProcessorProcess):
     # This fake processor will return the zombies it received in constructor
     # as its processing result w/o actually parsing anything.
-    def __init__(self, file_path, pickle_dags, dag_ids, zombies):
-        super().__init__(file_path, pickle_dags, dag_ids, zombies)
+    def __init__(self, file_path, pickle_dags, dag_ids, callbacks):
+        super().__init__(file_path, pickle_dags, dag_ids, callbacks)
         # We need a "real" selectable handle for waitable_handle to work
         readable, writable = multiprocessing.Pipe(duplex=False)
         writable.send('abc')
         writable.close()
         self._waitable_handle = readable
-        self._result = zombies, 0
+        self._result = 0, 0
 
     def start(self):
         pass
@@ -80,12 +83,12 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
         return self._result
 
     @staticmethod
-    def _fake_dag_processor_factory(file_path, zombies, dag_ids, pickle_dags):
+    def _fake_dag_processor_factory(file_path, callbacks, dag_ids, pickle_dags):
         return FakeDagFileProcessorRunner(
             file_path,
             pickle_dags,
             dag_ids,
-            zombies
+            callbacks,
         )
 
     @property
@@ -214,6 +217,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             self.assertEqual(1, len(requests))
             self.assertEqual(requests[0].full_filepath, dag.full_filepath)
             self.assertEqual(requests[0].msg, "Detected as zombie")
+            self.assertEqual(requests[0].is_failure_callback, True)
             self.assertIsInstance(requests[0].simple_task_instance, SimpleTaskInstance)
             self.assertEqual(ti.dag_id, requests[0].simple_task_instance.dag_id)
             self.assertEqual(ti.task_id, requests[0].simple_task_instance.task_id)
@@ -249,8 +253,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 ti.job_id = local_job.id
                 session.commit()
 
-                fake_failure_callback_requests = [
-                    FailureCallbackRequest(
+                expected_failure_callback_requests = [
+                    TaskCallbackRequest(
                         full_filepath=dag.full_filepath,
                         simple_task_instance=SimpleTaskInstance(ti),
                         msg="Message"
@@ -262,23 +266,41 @@ class TestDagFileProcessorManager(unittest.TestCase):
             child_pipe, parent_pipe = multiprocessing.Pipe()
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
 
+            fake_processors = []
+
+            def fake_processor_factory(*args, **kwargs):
+                nonlocal fake_processors
+                processor = FakeDagFileProcessorRunner._fake_dag_processor_factory(*args, **kwargs)
+                fake_processors.append(processor)
+                return processor
+
             manager = DagFileProcessorManager(
                 dag_directory=test_dag_path,
                 max_runs=1,
-                processor_factory=FakeDagFileProcessorRunner._fake_dag_processor_factory,
+                processor_factory=fake_processor_factory,
                 processor_timeout=timedelta.max,
                 signal_conn=child_pipe,
                 dag_ids=[],
                 pickle_dags=False,
                 async_mode=async_mode)
 
-            parsing_result = self.run_processor_manager_one_loop(manager, parent_pipe)
+            self.run_processor_manager_one_loop(manager, parent_pipe)
 
-            self.assertEqual(len(fake_failure_callback_requests), len(parsing_result))
-            self.assertEqual(
-                set(zombie.simple_task_instance.key for zombie in fake_failure_callback_requests),
-                set(result.simple_task_instance.key for result in parsing_result)
+            if async_mode:
+                # Once for initial parse, and then again for the add_callback_to_queue
+                assert len(fake_processors) == 2
+                assert fake_processors[0]._file_path == test_dag_path
+                assert fake_processors[0]._callback_requests == []
+            else:
+                assert len(fake_processors) == 1
+
+            assert fake_processors[-1]._file_path == test_dag_path
+            callback_requests = fake_processors[-1]._callback_requests
+            assert (
+                set(zombie.simple_task_instance.key for zombie in expected_failure_callback_requests) ==
+                set(result.simple_task_instance.key for result in callback_requests)
             )
+
             child_pipe.close()
             parent_pipe.close()
 
@@ -321,6 +343,50 @@ class TestDagFileProcessorManager(unittest.TestCase):
         manager._processors = {'abc.txt': processor}
         manager._kill_timed_out_processors()
         mock_dag_file_processor.kill.assert_not_called()
+
+    @conf_vars({('core', 'load_examples'): 'False'})
+    @pytest.mark.execution_timeout(10)
+    def test_dag_with_system_exit(self):
+        """
+        Test to check that a DAG with a system.exit() doesn't break the scheduler.
+        """
+
+        # We need to _actually_ parse the files here to test the behaviour.
+        # Right now the parsing code lives in SchedulerJob, even though it's
+        # called via utils.dag_processing.
+        from airflow.jobs.scheduler_job import SchedulerJob
+
+        dag_id = 'exit_test_dag'
+        dag_directory = os.path.normpath(os.path.join(TEST_DAG_FOLDER, os.pardir, "dags_with_system_exit"))
+
+        # Delete the one valid DAG/SerializedDAG, and check that it gets re-created
+        clear_db_dags()
+        clear_db_serialized_dags()
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+
+        manager = DagFileProcessorManager(
+            dag_directory=dag_directory,
+            dag_ids=[],
+            max_runs=1,
+            processor_factory=SchedulerJob._create_dag_file_processor,
+            processor_timeout=timedelta(seconds=5),
+            signal_conn=child_pipe,
+            pickle_dags=False,
+            async_mode=True)
+
+        manager._run_parsing_loop()
+
+        while parent_pipe.poll(timeout=None):
+            result = parent_pipe.recv()
+            if isinstance(result, DagParsingStat) and result.done:
+                break
+
+        # Three files in folder should be processed
+        assert len(result.file_paths) == 3
+
+        with create_session() as session:
+            assert session.query(DagModel).get(dag_id) is not None
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):
@@ -384,6 +450,9 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
     @conf_vars({('core', 'load_examples'): 'False'})
     def test_parse_once(self):
+        clear_db_serialized_dags()
+        clear_db_dags()
+
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
         processor_agent = DagFileProcessorAgent(test_dag_path,
@@ -394,16 +463,22 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 False,
                                                 async_mode)
         processor_agent.start()
-        parsing_result = []
         if not async_mode:
             processor_agent.run_single_parsing_loop()
         while not processor_agent.done:
             if not async_mode:
                 processor_agent.wait_until_finished()
-            parsing_result.extend(processor_agent.harvest_serialized_dags())
+            processor_agent.heartbeat()
 
-        dag_ids = [result.dag_id for result in parsing_result]
-        self.assertEqual(dag_ids.count('test_start_date_scheduling'), 1)
+        assert processor_agent.all_files_processed
+        assert processor_agent.done
+
+        with create_session() as session:
+            dag_ids = session.query(DagModel.dag_id).order_by("dag_id").all()
+            assert dag_ids == [('test_start_date_scheduling',), ('test_task_start_date_scheduling',)]
+
+            dag_ids = session.query(SerializedDagModel.dag_id).order_by("dag_id").all()
+            assert dag_ids == [('test_start_date_scheduling',), ('test_task_start_date_scheduling',)]
 
     def test_launch_process(self):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')

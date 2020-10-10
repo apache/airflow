@@ -34,6 +34,12 @@ function initialization::create_directories() {
     export FILES_DIR="${AIRFLOW_SOURCES}/files"
     readonly FILES_DIR
 
+    # Create an empty .pypirc file that you can customise. It is .gitignored so it will never
+    # land in the repository - it is only added to the "build image" of production image
+    # So you can keep your credentials safe as long as you do not push the build image.
+    # The final image does not contain it.
+    touch "${AIRFLOW_SOURCES}/.pypirc"
+
     # Directory where all the build cache is stored - we keep there status of all the docker images
     # As well as hashes of the important files, but also we generate build scripts there that are
     # Used to execute the commands for breeze
@@ -119,6 +125,10 @@ function initialization::initialize_base_variables() {
 
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC=${DISABLE_RBAC:="false"}
+
+    # if set to true, the ci image will look for wheel packages in dist folder and will install them
+    # during entering the container
+    export INSTALL_WHEELS=${INSTALL_WHEELS:="false"}
 
     # If set the specified file will be used to initialized Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
@@ -543,6 +553,7 @@ Initialization variables:
     INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE}
     LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
     LOAD_EXAMPLES: ${LOAD_EXAMPLES}
+    INSTALL_WHEELS: ${INSTALL_WHEELS}
     DISABLE_RBAC: ${DISABLE_RBAC}
 
 EOF

@@ -26,7 +26,7 @@ from sqlalchemy.exc import StatementError
 from airflow import settings
 from airflow.models import DAG
 from airflow.settings import Session
-from airflow.utils.sqlalchemy import skip_locked
+from airflow.utils.sqlalchemy import nowait, skip_locked
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
@@ -109,6 +109,18 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         session.bind.dialect.name = dialect
         session.bind.dialect.supports_for_update_of = supports_for_update_of
         self.assertEqual(skip_locked(session=session), expected_return_value)
+
+    @parameterized.expand([
+        ("postgresql", True, {'nowait': True}, ),
+        ("mysql", False, {}, ),
+        ("mysql", True, {'nowait': True}, ),
+        ("sqlite", False, {'nowait': True, }, ),
+    ])
+    def test_nowait(self, dialect, supports_for_update_of, expected_return_value):
+        session = mock.Mock()
+        session.bind.dialect.name = dialect
+        session.bind.dialect.supports_for_update_of = supports_for_update_of
+        self.assertEqual(nowait(session=session), expected_return_value)
 
     def tearDown(self):
         self.session.close()

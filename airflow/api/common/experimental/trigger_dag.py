@@ -89,6 +89,7 @@ def _trigger_dag(
             state=State.RUNNING,
             conf=run_conf,
             external_trigger=True,
+            dag_hash=dag_bag.dags_hash.get(dag_id, None),
         )
 
         triggers.append(trigger)
