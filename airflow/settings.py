@@ -172,11 +172,12 @@ def configure_orm(disable_connection_pool=False):
     engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args)
     setup_event_handlers(engine)
 
-    Session = scoped_session(
-        sessionmaker(autocommit=False,
-                     autoflush=False,
-                     bind=engine,
-                     expire_on_commit=False))
+    Session = scoped_session(sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=engine,
+        expire_on_commit=False,
+    ))
 
 
 def prepare_engine_args(disable_connection_pool=False):
