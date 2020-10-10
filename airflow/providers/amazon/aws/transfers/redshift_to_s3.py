@@ -79,6 +79,7 @@ class RedshiftToS3Operator(BaseOperator):
         s3_key: str,
         redshift_conn_id: str = 'redshift_default',
         aws_conn_id: str = 'aws_default',
+        aws_iam_role: Optional[str] = None,
         verify: Optional[Union[bool, str]] = None,
         unload_options: Optional[List] = None,
         autocommit: bool = False,
@@ -93,6 +94,7 @@ class RedshiftToS3Operator(BaseOperator):
         self.s3_key = s3_key
         self.redshift_conn_id = redshift_conn_id
         self.aws_conn_id = aws_conn_id
+        self.aws_iam_role = aws_iam_role
         self.verify = verify
         self.unload_options = unload_options or []  # type: List
         self.autocommit = autocommit
@@ -106,24 +108,30 @@ class RedshiftToS3Operator(BaseOperator):
 
     def execute(self, context):
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
-        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
-        credentials = s3_hook.get_credentials()
+        if self.aws_iam_role is not None:
+            access_options = "IAM_ROLE '{}'".format(self.aws_iam_role)
+        else:
+            s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+            credentials = s3_hook.get_credentials()
+            access_options = "CREDENTIALS 'aws_access_key_id={};aws_secret_access_key={}'".format(
+                credentials.access_key,
+                credentials.secret_key,
+            )
+
         unload_options = '\n\t\t\t'.join(self.unload_options)
         s3_key = '{}/{}_'.format(self.s3_key, self.table) if self.table_as_file_name else self.s3_key
         select_query = "SELECT * FROM {schema}.{table}".format(schema=self.schema, table=self.table)
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'
-                    with credentials
-                    'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
+                    {access_options}
                     {unload_options};
                     """.format(
             select_query=select_query,
             s3_bucket=self.s3_bucket,
             s3_key=s3_key,
-            access_key=credentials.access_key,
-            secret_key=credentials.secret_key,
+            access_options=access_options,
             unload_options=unload_options,
         )
 

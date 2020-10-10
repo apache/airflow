@@ -73,8 +73,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'
-                    with credentials
-                    'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
+                    CREDENTIALS 'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
                     {unload_options};
                     """.format(
             select_query=select_query,
@@ -83,6 +82,55 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
             access_key=access_key,
             secret_key=secret_key,
             unload_options=unload_options,
+        )
+
+        assert mock_run.call_count == 1
+        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
+    def test_execute_iam_role(
+        self,
+        mock_run,
+        mock_session,
+    ):
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+        iam_role = "my-role"
+        unload_options = [
+            'HEADER',
+        ]
+
+        RedshiftToS3Operator(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            unload_options=unload_options,
+            include_header=True,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            aws_iam_role=iam_role,
+            table_as_file_name=False,
+            task_id="task_id",
+            dag=None,
+        ).execute(None)
+
+        unload_options = '\n\t\t\t'.join(unload_options)
+        select_query = "SELECT * FROM {schema}.{table}".format(schema=schema, table=table)
+        unload_query = """
+                    UNLOAD ('{select_query}')
+                    TO 's3://{s3_bucket}/{s3_key}'
+                    IAM_ROLE '{iam_role}'
+                    {unload_options};
+                    """.format(
+            select_query=select_query,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            unload_options=unload_options,
+            iam_role=iam_role,
         )
 
         assert mock_run.call_count == 1
