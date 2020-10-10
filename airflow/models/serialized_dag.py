@@ -155,7 +155,7 @@ class SerializedDagModel(Base):
                 dags[row.dag_id] = dag
             else:
                 log.warning(
-                    "dag_id Mismatch in DB: Row with dag_id '%s' has Serialised DAG " "with '%s' dag_id",
+                    "dag_id mismatch in DB: row with dag_id '%s' has serialised DAG " "with '%s' dag_id",
                     row.dag_id,
                     dag.dag_id,
                 )

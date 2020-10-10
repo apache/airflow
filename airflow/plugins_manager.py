@@ -301,7 +301,7 @@ def initialize_web_ui_plugins():
             plugin.menu_links and not plugin.appbuilder_menu_items
         ):
             log.warning(
-                "Plugin \'%s\' may not be compatible with the current Airflow version. "
+                "Plugin '%s' may not be compatible with the current Airflow version. "
                 "Please contact the author of the plugin.",
                 plugin.name,
             )

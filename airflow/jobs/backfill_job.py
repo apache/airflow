@@ -222,12 +222,12 @@ class BackfillJob(BaseJob):
                 continue
             # special case: if the task needs to run again put it back
             if ti.state == State.UP_FOR_RETRY:
-                self.log.warning("Task instance %s is up for retry", ti)
+                self.log.info("Task instance %s is up for retry", ti)
                 ti_status.running.pop(key)
                 ti_status.to_run[key] = ti
             # special case: if the task needs to be rescheduled put it back
             elif ti.state == State.UP_FOR_RESCHEDULE:
-                self.log.warning("Task instance %s is up for reschedule", ti)
+                self.log.info("Task instance %s is up for reschedule", ti)
                 ti_status.running.pop(key)
                 ti_status.to_run[key] = ti
             # special case: The state of the task can be set to NONE by the task itself

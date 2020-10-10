@@ -227,7 +227,7 @@ class _SessionFactory(LoggingMixin):
         log_idp_response = 'log_idp_response' in saml_config and saml_config['log_idp_response']
         if log_idp_response:
             self.log.warning(
-                'The IDP response contains sensitive information,' ' but log_idp_response is ON (%s).',
+                'The IDP response contains sensitive information, but log_idp_response is ON (%s).',
                 log_idp_response,
             )
             self.log.info('idp_response.content= %s', idp_response.content)
@@ -317,8 +317,9 @@ class AwsBaseHook(BaseHook):
             return session, endpoint_url
 
         except AirflowException:
-            self.log.warning("Unable to use Airflow Connection for credentials.")
-            self.log.info("Fallback on boto3 credential strategy")
+            self.log.warning(
+                "Unable to use Airflow Connection for credentials. Fallback on boto3 credential strategy."
+            )
             # http://boto3.readthedocs.io/en/latest/guide/configuration.html
 
         self.log.info(

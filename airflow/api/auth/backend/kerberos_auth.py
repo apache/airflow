@@ -88,7 +88,7 @@ def init_app(app):
         log.info("Kerberos init: %s %s", service, hostname)
         principal = kerberos.getServerPrincipalDetails(service, hostname)
     except kerberos.KrbError as err:
-        log.warning("Kerberos: %s", err)
+        log.warning("Initializing Kerberos failed: %s", err)
     else:
         log.info("Kerberos API: server is %s", principal)
 

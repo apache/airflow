@@ -340,10 +340,6 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
                 self.airflow_defaults.get(section, key, **kwargs))
 
         else:
-            log.warning(
-                "section/key [%s/%s] not found in config", section, key
-            )
-
             raise AirflowConfigException(
                 "section/key [{section}/{key}] not found "
                 "in config".format(section=section, key=key))

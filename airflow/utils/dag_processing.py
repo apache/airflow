@@ -393,7 +393,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         if self._process and not self._process.is_alive():
             self._process.join(timeout=0)
             if not self.done:
-                self.log.warning(
+                self.log.debug(
                     "DagFileProcessorManager (PID=%d) exited with exit code %d - re-launching",
                     self._process.pid,
                     self._process.exitcode,
@@ -448,7 +448,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         :return:
         """
         if not self._process:
-            self.log.warning('Ending without manager process.')
+            self.log.debug('Ending without manager process.')
             return
         # Give the Manager some time to cleanly shut down, but not too long, as
         # it's better to finish sooner than wait for (non-critical) work to
@@ -638,7 +638,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
                 # This shouldn't happen, as in sync mode poll should block for
                 # ever. Lets be defensive about that.
-                self.log.warning(
+                self.log.debug(
                     "wait() unexpectedly returned nothing ready after infinite timeout (%r)!", poll_time
                 )
 
@@ -933,7 +933,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             if file_path in new_file_paths:
                 filtered_processors[file_path] = processor
             else:
-                self.log.warning("Stopping processor for %s", file_path)
+                self.log.info("Stopping processor for %s", file_path)
                 Stats.decr('dag_processing.processes')
                 processor.terminate()
                 self._file_stats.pop(file_path)
