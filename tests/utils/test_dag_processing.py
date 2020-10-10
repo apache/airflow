@@ -247,7 +247,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 session.add(local_job)
                 session.commit()
 
-                # TODO: If there was an actual Relationshop between TI and Job
+                # TODO: If there was an actual Relationship between TI and Job
                 # we wouldn't need this extra commit
                 session.add(ti)
                 ti.job_id = local_job.id

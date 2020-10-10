@@ -227,7 +227,7 @@ class TestCeleryExecutor(unittest.TestCase):
     ))
     def test_command_validation(self, command, expected_exception):
         # Check that we validate _on the receiving_ side, not just sending side
-        with mock.patch('airflow.executors.celery_executor._execute_in_subprocees') as mock_subproc, \
+        with mock.patch('airflow.executors.celery_executor._execute_in_subprocess') as mock_subproc, \
              mock.patch('airflow.executors.celery_executor._execute_in_fork') as mock_fork:
             if expected_exception:
                 with pytest.raises(expected_exception):
