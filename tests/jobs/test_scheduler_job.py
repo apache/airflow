@@ -3547,6 +3547,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
         clear_db_serialized_dags()
         clear_db_dags()
 
+    @pytest.mark.quarantined
     @parameterized.expand(
         [
             # pylint: disable=bad-whitespace
