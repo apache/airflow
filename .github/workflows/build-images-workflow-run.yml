@@ -55,7 +55,7 @@ jobs:
       sourceEvent: ${{ steps.source-run-info.outputs.sourceEvent }}
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
       buildImages: ${{ steps.build-images.outputs.buildImages }}
-      upgradeToLatestConstraints: ${{ steps.upgrade-constraints.upgradeToLatestConstraints }}
+      upgradeToLatestConstraints: ${{ steps.upgrade-constraints.outputs.upgradeToLatestConstraints }}
     if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
       - name: "Get information about the origin 'CI Build' run"
@@ -157,8 +157,8 @@ jobs:
       - name: "Set upgrade to latest constraints"
         id: upgrade-constraints
         run: |
-          if [[ ${{ needs.cancel-workflow-runs.outputs.sourceEvent == 'push' ||
-              needs.cancel-workflow-runs.outputs.sourceEvent == 'scheduled' }} == 'true' ]]; then
+          if [[ ${{ steps.cancel.outputs.sourceEvent == 'push' ||
+              steps.cancel.outputs.sourceEvent == 'scheduled' }} == 'true' ]]; then
               echo "::set-output name=upgradeToLatestConstraints::${{ github.sha }}"
           else
               echo "::set-output name=upgradeToLatestConstraints::false"
