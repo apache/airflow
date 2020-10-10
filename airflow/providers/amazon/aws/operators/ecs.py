@@ -40,29 +40,33 @@ class ECSProtocol(Protocol):
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
     """
 
+    # pylint: disable=C0103, line-too-long
     def run_task(self, **kwargs) -> Dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501  # pylint: disable=line-too-long
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
         ...
 
     def get_waiter(self, x: str):
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501  # pylint: disable=line-too-long
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501
         ...
 
     def describe_tasks(self, cluster: str, tasks) -> Dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks"""  # noqa: E501  # pylint: disable=line-too-long
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks"""  # noqa: E501
         ...
 
     def stop_task(self, cluster, task, reason: str) -> Dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501  # pylint: disable=line-too-long
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501
         ...
 
-    def describe_task_definition(self, taskDefinition: str) -> Dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition"""  # noqa: E501  # pylint: disable=line-too-long
+    def describe_task_definition(self, taskDefinition: str) -> Dict:  # pylint: disable=C0103, line-too-long
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition"""  # noqa: E501
         ...
 
-    def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> Dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501  # pylint: disable=line-too-long
+    def list_tasks(
+        self, cluster: str, launchType: str, desiredStatus: str, family: str
+    ) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
         ...
+        # pylint: enable=C0103, line-too-long
 
 
 class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -146,7 +150,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         awslogs_region=None,
         awslogs_stream_prefix=None,
         propagate_tags=None,
-        reattach:bool=False,
+        reattach: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -233,22 +237,19 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         ecs_task_family = task_def_resp['taskDefinition']['family']
 
         list_tasks_resp = self.client.list_tasks(
-            cluster=self.cluster,
-            launchType=self.launch_type,
-            desiredStatus='RUNNING',
-            family=ecs_task_family
+            cluster=self.cluster, launchType=self.launch_type, desiredStatus='RUNNING', family=ecs_task_family
         )
         running_tasks = list_tasks_resp['taskArns']
 
         running_tasks_count = len(running_tasks)
         if running_tasks_count > 1:
             self.arn = running_tasks[0]
-            self.log.warning(f'More than 1 ECS Task found. Reattaching to {self.arn}')
+            self.log.warning('More than 1 ECS Task found. Reattaching to %s', self.arn)
         elif running_tasks_count == 1:
             self.arn = running_tasks[0]
-            self.log.info(f'Reattaching task: {self.arn}')
+            self.log.info('Reattaching task: %s', self.arn)
         else:
-            self.log.info(f'No active tasks found to reattach')
+            self.log.info('No active tasks found to reattach')
 
     def _wait_for_task_ended(self):
         waiter = self.client.get_waiter('tasks_stopped')
