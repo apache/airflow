@@ -72,14 +72,14 @@ Suppose we have the following fragment of the file with tests.
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
 
-    def test_bulk_sync_to_db(self):
+    def test_bulk_write_to_db(self):
         clear_db_dags()
         dags = [
             DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)
         ]
 
         with assert_queries_count(3):
-            DAG.bulk_sync_to_db(dags)
+            DAG.bulk_write_to_db(dags)
 
 You can add a code snippet before the method definition, and then perform only one test and count the
 queries in it.
@@ -96,20 +96,20 @@ queries in it.
     from tests.utils.perf.perf_kit.sqlalchemy import trace_queries
 
     @trace_queries
-    def test_bulk_sync_to_db(self):
+    def test_bulk_write_to_db(self):
         clear_db_dags()
         dags = [
             DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)
         ]
 
         with assert_queries_count(3):
-            DAG.bulk_sync_to_db(dags)
+            DAG.bulk_write_to_db(dags)
 
 To run the test, execute the command
 
 .. code-block:: bash
 
-    pytest tests.models.dag -k test_bulk_sync_to_db -s
+    pytest tests.models.dag -k test_bulk_write_to_db -s
 
 This is not a beautiful solution, but it allows you to easily check a random piece of code.
 

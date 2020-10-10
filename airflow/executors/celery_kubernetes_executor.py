@@ -62,17 +62,19 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self.celery_executor.start()
         self.kubernetes_executor.start()
 
-    def queue_command(self,
-                      simple_task_instance: SimpleTaskInstance,
-                      command: CommandType,
-                      priority: int = 1,
-                      queue: Optional[str] = None):
+    def queue_command(
+        self,
+        task_instance: TaskInstance,
+        command: CommandType,
+        priority: int = 1,
+        queue: Optional[str] = None
+    ):
         """Queues command via celery or kubernetes executor"""
-        executor = self._router(simple_task_instance)
-        self.log.debug("Using executor: %s for %s",
-                       executor.__class__.__name__, simple_task_instance.key
-                       )
-        executor.queue_command(simple_task_instance, command, priority, queue)
+        executor = self._router(task_instance)
+        self.log.debug(
+            "Using executor: %s for %s", executor.__class__.__name__, task_instance.key
+        )
+        executor.queue_command(task_instance, command, priority, queue)
 
     def queue_task_instance(
             self,

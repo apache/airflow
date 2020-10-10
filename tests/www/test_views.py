@@ -52,7 +52,6 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.settings import Session
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
@@ -410,7 +409,7 @@ class TestAirflowBaseViews(TestBase):
         super().setUpClass()
         cls.dagbag = models.DagBag(include_examples=True)
         cls.app.dag_bag = cls.dagbag
-        DAG.bulk_sync_to_db(cls.dagbag.dags.values())
+        DAG.bulk_write_to_db(cls.dagbag.dags.values())
 
     def setUp(self):
         super().setUp()
@@ -639,10 +638,10 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('example_bash_operator', resp)
 
     @parameterized.expand([
-        ("hello\nworld", r'\"conf\":{\"abc\":\"hello\\nworld\"}}'),
-        ("hello'world", r'\"conf\":{\"abc\":\"hello\\u0027world\"}}'),
-        ("<script>", r'\"conf\":{\"abc\":\"\\u003cscript\\u003e\"}}'),
-        ("\"", r'\"conf\":{\"abc\":\"\\\"\"}}'),
+        ("hello\nworld", r'\"conf\":{\"abc\":\"hello\\nworld\"}'),
+        ("hello'world", r'\"conf\":{\"abc\":\"hello\\u0027world\"}'),
+        ("<script>", r'\"conf\":{\"abc\":\"\\u003cscript\\u003e\"}'),
+        ("\"", r'\"conf\":{\"abc\":\"\\\"\"}'),
     ])
     def test_escape_in_tree_view(self, test_str, expected_text):
         dag = self.dagbag.dags['test_tree_view']
@@ -1650,7 +1649,7 @@ class TestDagACLView(TestBase):
     def setUpClass(cls):
         super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
-        DAG.bulk_sync_to_db(dagbag.dags.values())
+        DAG.bulk_write_to_db(dagbag.dags.values())
 
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
@@ -2381,8 +2380,8 @@ class TestTriggerDag(TestBase):
 
     def setUp(self):
         super().setUp()
-        self.session = Session()
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
+        self.session.commit()
 
     def test_trigger_dag_button_normal_exist(self):
         resp = self.client.get('/', follow_redirects=True)
@@ -2694,6 +2693,7 @@ class TestDagRunModelView(TestBase):
     def setUpClass(cls):
         super().setUpClass()
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
+        cls.session.commit()
         cls.clear_table(models.DagRun)
         cls.clear_table(models.TaskInstance)
 
@@ -2868,7 +2868,7 @@ class TestDecorators(TestBase):
     def setUpClass(cls):
         super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
-        DAG.bulk_sync_to_db(dagbag.dags.values())
+        DAG.bulk_write_to_db(dagbag.dags.values())
 
     def setUp(self):
         super().setUp()

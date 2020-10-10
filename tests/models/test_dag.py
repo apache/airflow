@@ -24,6 +24,7 @@ import pickle
 import re
 import unittest
 from contextlib import redirect_stdout
+from datetime import timedelta
 from tempfile import NamedTemporaryFile
 from typing import Optional
 from unittest import mock
@@ -31,12 +32,12 @@ from unittest.mock import patch
 
 import pendulum
 from dateutil.relativedelta import relativedelta
+from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
-from airflow.jobs.scheduler_job import DagFileProcessor
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
@@ -52,6 +53,8 @@ from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 
 class TestDag(unittest.TestCase):
@@ -652,6 +655,25 @@ class TestDag(unittest.TestCase):
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
 
+    def test_following_schedule_relativedelta(self):
+        """
+        Tests following_schedule a dag with a relativedelta schedule_interval
+        """
+        dag_id = "test_schedule_dag_relativedelta"
+        delta = relativedelta(hours=+1)
+        dag = DAG(dag_id=dag_id,
+                  schedule_interval=delta)
+        dag.add_task(BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=TEST_DATE))
+
+        _next = dag.following_schedule(TEST_DATE)
+        self.assertEqual(_next.isoformat(), "2015-01-02T01:00:00+00:00")
+
+        _next = dag.following_schedule(_next)
+        self.assertEqual(_next.isoformat(), "2015-01-02T02:00:00+00:00")
+
     def test_dagtag_repr(self):
         clear_db_dags()
         dag = DAG('dag-test-dagtag', start_date=DEFAULT_DATE, tags=['tag-1', 'tag-2'])
@@ -661,14 +683,14 @@ class TestDag(unittest.TestCase):
                              {repr(t) for t in session.query(DagTag).filter(
                                  DagTag.dag_id == 'dag-test-dagtag').all()})
 
-    def test_bulk_sync_to_db(self):
+    def test_bulk_write_to_db(self):
         clear_db_dags()
         dags = [
             DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)
         ]
 
-        with assert_queries_count(3):
-            DAG.bulk_sync_to_db(dags)
+        with assert_queries_count(5):
+            DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
                 {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
@@ -684,15 +706,15 @@ class TestDag(unittest.TestCase):
                 set(session.query(DagTag.dag_id, DagTag.name).all())
             )
         # Re-sync should do fewer queries
-        with assert_queries_count(2):
-            DAG.bulk_sync_to_db(dags)
-        with assert_queries_count(2):
-            DAG.bulk_sync_to_db(dags)
+        with assert_queries_count(3):
+            DAG.bulk_write_to_db(dags)
+        with assert_queries_count(3):
+            DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.append("test-dag2")
-        with assert_queries_count(3):
-            DAG.bulk_sync_to_db(dags)
+        with assert_queries_count(4):
+            DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
                 {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
@@ -714,8 +736,8 @@ class TestDag(unittest.TestCase):
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(3):
-            DAG.bulk_sync_to_db(dags)
+        with assert_queries_count(4):
+            DAG.bulk_write_to_db(dags)
         with create_session() as session:
             self.assertEqual(
                 {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'},
@@ -731,8 +753,46 @@ class TestDag(unittest.TestCase):
                 set(session.query(DagTag.dag_id, DagTag.name).all())
             )
 
-    @patch('airflow.models.dag.timezone.utcnow')
-    def test_sync_to_db(self, mock_now):
+    def test_bulk_write_to_db_max_active_runs(self):
+        """
+        Test that DagModel.next_dagrun_create_after is set to NULL when the dag cannot be created due to max
+        active runs being hit.
+        """
+        dag = DAG(
+            dag_id='test_scheduler_verify_max_active_runs',
+            start_date=DEFAULT_DATE)
+        dag.max_active_runs = 1
+
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        dag.clear()
+        DAG.bulk_write_to_db([dag], session)
+
+        model = session.query(DagModel).get((dag.dag_id,))
+
+        period_end = dag.following_schedule(DEFAULT_DATE)
+        assert model.next_dagrun == DEFAULT_DATE
+        assert model.next_dagrun_create_after == period_end
+
+        dr = dag.create_dagrun(
+            state=State.RUNNING,
+            execution_date=model.next_dagrun,
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+        )
+        assert dr is not None
+        DAG.bulk_write_to_db([dag])
+
+        model = session.query(DagModel).get((dag.dag_id,))
+        assert model.next_dagrun == period_end
+        # We signle "at max active runs" by saying this run is never eligible to be created
+        assert model.next_dagrun_create_after is None
+
+    def test_sync_to_db(self):
         dag = DAG(
             'dag',
             start_date=DEFAULT_DATE,
@@ -748,31 +808,25 @@ class TestDag(unittest.TestCase):
                 owner='owner2',
                 subdag=subdag
             )
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
-        mock_now.return_value = now
         session = settings.Session()
         dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
         self.assertEqual(set(orm_dag.owners.split(', ')), {'owner1', 'owner2'})
-        self.assertEqual(orm_dag.last_scheduler_run, now)
         self.assertTrue(orm_dag.is_active)
         self.assertIsNotNone(orm_dag.default_view)
         self.assertEqual(orm_dag.default_view,
                          conf.get('webserver', 'dag_default_view').lower())
         self.assertEqual(orm_dag.safe_dag_id, 'dag')
 
-        orm_subdag = session.query(DagModel).filter(
-            DagModel.dag_id == 'dag.subtask').one()
+        orm_subdag = session.query(DagModel).filter(DagModel.dag_id == 'dag.subtask').one()
         self.assertEqual(set(orm_subdag.owners.split(', ')), {'owner1', 'owner2'})
-        self.assertEqual(orm_subdag.last_scheduler_run, now)
         self.assertTrue(orm_subdag.is_active)
         self.assertEqual(orm_subdag.safe_dag_id, 'dag__dot__subtask')
         self.assertEqual(orm_subdag.fileloc, orm_dag.fileloc)
         session.close()
 
-    @patch('airflow.models.dag.timezone.utcnow')
-    def test_sync_to_db_default_view(self, mock_now):
+    def test_sync_to_db_default_view(self):
         dag = DAG(
             'dag',
             start_date=DEFAULT_DATE,
@@ -788,8 +842,6 @@ class TestDag(unittest.TestCase):
                     start_date=DEFAULT_DATE,
                 )
             )
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
-        mock_now.return_value = now
         session = settings.Session()
         dag.sync_to_db(session=session)
 
@@ -1038,65 +1090,25 @@ class TestDag(unittest.TestCase):
         dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
-            start_date=datetime_tz(2015, 1, 2, 0, 0)))
+            start_date=TEST_DATE))
 
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag_run = dag_file_processor.create_dag_run(dag)
+        dag_run = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=TEST_DATE,
+            state=State.RUNNING,
+        )
         self.assertIsNotNone(dag_run)
         self.assertEqual(dag.dag_id, dag_run.dag_id)
         self.assertIsNotNone(dag_run.run_id)
         self.assertNotEqual('', dag_run.run_id)
         self.assertEqual(
-            datetime_tz(2015, 1, 2, 0, 0),
+            TEST_DATE,
             dag_run.execution_date,
             msg='dag_run.execution_date did not match expectation: {0}'
             .format(dag_run.execution_date)
         )
         self.assertEqual(State.RUNNING, dag_run.state)
         self.assertFalse(dag_run.external_trigger)
-        dag.clear()
-        self._clean_up(dag_id)
-
-    def test_schedule_dag_relativedelta(self):
-        """
-        Tests scheduling a dag with a relativedelta schedule_interval
-        """
-        dag_id = "test_schedule_dag_relativedelta"
-        delta = relativedelta(hours=+1)
-        dag = DAG(dag_id=dag_id,
-                  schedule_interval=delta)
-        dag.add_task(BaseOperator(
-            task_id="faketastic",
-            owner='Also fake',
-            start_date=datetime_tz(2015, 1, 2, 0, 0)))
-
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag_run = dag_file_processor.create_dag_run(dag)
-        self.assertIsNotNone(dag_run)
-        self.assertEqual(dag.dag_id, dag_run.dag_id)
-        self.assertIsNotNone(dag_run.run_id)
-        self.assertNotEqual('', dag_run.run_id)
-        self.assertEqual(
-            datetime_tz(2015, 1, 2, 0, 0),
-            dag_run.execution_date,
-            msg='dag_run.execution_date did not match expectation: {0}'
-            .format(dag_run.execution_date)
-        )
-        self.assertEqual(State.RUNNING, dag_run.state)
-        self.assertFalse(dag_run.external_trigger)
-        dag_run2 = dag_file_processor.create_dag_run(dag)
-        self.assertIsNotNone(dag_run2)
-        self.assertEqual(dag.dag_id, dag_run2.dag_id)
-        self.assertIsNotNone(dag_run2.run_id)
-        self.assertNotEqual('', dag_run2.run_id)
-        self.assertEqual(
-            datetime_tz(2015, 1, 2, 0, 0) + delta,
-            dag_run2.execution_date,
-            msg='dag_run2.execution_date did not match expectation: {0}'
-            .format(dag_run2.execution_date)
-        )
-        self.assertEqual(State.RUNNING, dag_run2.state)
-        self.assertFalse(dag_run2.external_trigger)
         dag.clear()
         self._clean_up(dag_id)
 
@@ -1113,13 +1125,13 @@ class TestDag(unittest.TestCase):
             # callback with invalid signature should not cause crashes
             on_success_callback=lambda: 1,
             on_failure_callback=mock_callback_with_exception)
+        when = TEST_DATE
         dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
-            start_date=datetime_tz(2015, 1, 2, 0, 0)))
+            start_date=when))
 
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag_run = dag_file_processor.create_dag_run(dag)
+        dag_run = dag.create_dagrun(State.RUNNING, when, run_type=DagRunType.MANUAL)
         # should not rause any exception
         dag.handle_callback(dag_run, success=False)
         dag.handle_callback(dag_run, success=True)
@@ -1129,7 +1141,7 @@ class TestDag(unittest.TestCase):
         dag.clear()
         self._clean_up(dag_id)
 
-    def test_schedule_dag_fake_scheduled_previous(self):
+    def test_next_dagrun_after_fake_scheduled_previous(self):
         """
         Test scheduling a dag where there is a prior DagRun
         which has the same run_id as the next run should have
@@ -1144,24 +1156,19 @@ class TestDag(unittest.TestCase):
             owner='Also fake',
             start_date=DEFAULT_DATE))
 
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                           execution_date=DEFAULT_DATE,
                           state=State.SUCCESS,
                           external_trigger=True)
-        dag_run = dag_file_processor.create_dag_run(dag)
-        self.assertIsNotNone(dag_run)
-        self.assertEqual(dag.dag_id, dag_run.dag_id)
-        self.assertIsNotNone(dag_run.run_id)
-        self.assertNotEqual('', dag_run.run_id)
-        self.assertEqual(
-            DEFAULT_DATE + delta,
-            dag_run.execution_date,
-            msg='dag_run.execution_date did not match expectation: {0}'
-            .format(dag_run.execution_date)
-        )
-        self.assertEqual(State.RUNNING, dag_run.state)
-        self.assertFalse(dag_run.external_trigger)
+        dag.sync_to_db()
+        with create_session() as session:
+            model = session.query(DagModel).get((dag.dag_id,))
+
+        # Even though there is a run for this date already, it is marked as manual/external, so we should
+        # create a scheduled one anyway!
+        assert model.next_dagrun == DEFAULT_DATE
+        assert model.next_dagrun_create_after == dag.following_schedule(DEFAULT_DATE)
+
         self._clean_up(dag_id)
 
     def test_schedule_dag_once(self):
@@ -1176,13 +1183,22 @@ class TestDag(unittest.TestCase):
         dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
-            start_date=datetime_tz(2015, 1, 2, 0, 0)))
-        dag_run = DagFileProcessor(dag_ids=[], log=mock.MagicMock()).create_dag_run(dag)
-        dag_run2 = DagFileProcessor(dag_ids=[], log=mock.MagicMock()).create_dag_run(dag)
+            start_date=TEST_DATE))
 
-        self.assertIsNotNone(dag_run)
-        self.assertIsNone(dag_run2)
-        dag.clear()
+        # Sync once to create the DagModel
+        dag.sync_to_db()
+
+        dag.create_dagrun(run_type=DagRunType.SCHEDULED,
+                          execution_date=TEST_DATE,
+                          state=State.SUCCESS)
+
+        # Then sync again after creating the dag run -- this should update next_dagrun
+        dag.sync_to_db()
+        with create_session() as session:
+            model = session.query(DagModel).get((dag.dag_id,))
+
+        assert model.next_dagrun is None
+        assert model.next_dagrun_create_after is None
         self._clean_up(dag_id)
 
     def test_fractional_seconds(self):
@@ -1195,7 +1211,7 @@ class TestDag(unittest.TestCase):
         dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
-            start_date=datetime_tz(2015, 1, 2, 0, 0)))
+            start_date=TEST_DATE))
 
         start_date = timezone.utcnow()
 
@@ -1213,77 +1229,6 @@ class TestDag(unittest.TestCase):
                          "dag run execution_date loses precision")
         self.assertEqual(start_date, run.start_date,
                          "dag run start_date loses precision ")
-        self._clean_up(dag_id)
-
-    def test_schedule_dag_start_end_dates(self):
-        """
-        Tests that an attempt to schedule a task after the Dag's end_date
-        does not succeed.
-        """
-        delta = datetime.timedelta(hours=1)
-        runs = 3
-        start_date = DEFAULT_DATE
-        end_date = start_date + (runs - 1) * delta
-        dag_id = "test_schedule_dag_start_end_dates"
-        dag = DAG(dag_id=dag_id,
-                  start_date=start_date,
-                  end_date=end_date,
-                  schedule_interval=delta)
-        dag.add_task(BaseOperator(task_id='faketastic', owner='Also fake'))
-
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        # Create and schedule the dag runs
-        dag_runs = []
-        for _ in range(runs):
-            dag_runs.append(dag_file_processor.create_dag_run(dag))
-
-        additional_dag_run = dag_file_processor.create_dag_run(dag)
-
-        for dag_run in dag_runs:
-            self.assertIsNotNone(dag_run)
-
-        self.assertIsNone(additional_dag_run)
-        self._clean_up(dag_id)
-
-    def test_schedule_dag_no_end_date_up_to_today_only(self):
-        """
-        Tests that a Dag created without an end_date can only be scheduled up
-        to and including the current datetime.
-
-        For example, if today is 2016-01-01 and we are scheduling from a
-        start_date of 2015-01-01, only jobs up to, but not including
-        2016-01-01 should be scheduled.
-        """
-        session = settings.Session()
-        delta = datetime.timedelta(days=1)
-        now = pendulum.now('UTC')
-        start_date = now.subtract(weeks=1)
-
-        runs = (now - start_date).days
-        dag_id = "test_schedule_dag_no_end_date_up_to_today_only"
-        dag = DAG(dag_id=dag_id,
-                  start_date=start_date,
-                  schedule_interval=delta)
-        dag.add_task(BaseOperator(task_id='faketastic', owner='Also fake'))
-
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag_runs = []
-        for _ in range(runs):
-            dag_run = dag_file_processor.create_dag_run(dag)
-            dag_runs.append(dag_run)
-
-            # Mark the DagRun as complete
-            dag_run.state = State.SUCCESS
-            session.merge(dag_run)
-            session.commit()
-
-        # Attempt to schedule an additional dag run (for 2016-01-01)
-        additional_dag_run = dag_file_processor.create_dag_run(dag)
-
-        for dag_run in dag_runs:
-            self.assertIsNotNone(dag_run)
-
-        self.assertIsNone(additional_dag_run)
         self._clean_up(dag_id)
 
     def test_pickling(self):
@@ -1489,6 +1434,290 @@ class TestDag(unittest.TestCase):
         self.assertEqual(task_instance.state, ti_state_end)
         self._clean_up(dag_id)
 
+    def test_next_dagrun_after_date_once(self):
+        dag = DAG(
+            'test_scheduler_dagrun_once',
+            start_date=timezone.datetime(2015, 1, 1),
+            schedule_interval="@once")
+
+        next_date = dag.next_dagrun_after_date(None)
+
+        assert next_date == timezone.datetime(2015, 1, 1)
+
+        next_date = dag.next_dagrun_after_date(next_date)
+        assert next_date is None
+
+    def test_next_dagrun_after_date_start_end_dates(self):
+        """
+        Tests that an attempt to schedule a task after the Dag's end_date
+        does not succeed.
+        """
+        delta = datetime.timedelta(hours=1)
+        runs = 3
+        start_date = DEFAULT_DATE
+        end_date = start_date + (runs - 1) * delta
+        dag_id = "test_schedule_dag_start_end_dates"
+        dag = DAG(dag_id=dag_id,
+                  start_date=start_date,
+                  end_date=end_date,
+                  schedule_interval=delta)
+        dag.add_task(BaseOperator(task_id='faketastic', owner='Also fake'))
+
+        # Create and schedule the dag runs
+        dates = []
+        date = None
+        for _ in range(runs):
+            date = dag.next_dagrun_after_date(date)
+            dates.append(date)
+
+        for date in dates:
+            assert date is not None
+
+        assert dates[-1] == end_date
+
+        assert dag.next_dagrun_after_date(date) is None
+
+    def test_next_dagrun_after_date_catcup(self):
+        """
+        Test to check that a DAG with catchup = False only schedules beginning now, not back to the start date
+        """
+
+        def make_dag(dag_id, schedule_interval, start_date, catchup):
+            default_args = {
+                'owner': 'airflow',
+                'depends_on_past': False,
+            }
+            dag = DAG(dag_id,
+                      schedule_interval=schedule_interval,
+                      start_date=start_date,
+                      catchup=catchup,
+                      default_args=default_args)
+
+            op1 = DummyOperator(task_id='t1', dag=dag)
+            op2 = DummyOperator(task_id='t2', dag=dag)
+            op3 = DummyOperator(task_id='t3', dag=dag)
+            op1 >> op2 >> op3
+
+            return dag
+
+        now = timezone.utcnow()
+        six_hours_ago_to_the_hour = (now - datetime.timedelta(hours=6)).replace(
+            minute=0, second=0, microsecond=0)
+        half_an_hour_ago = now - datetime.timedelta(minutes=30)
+        two_hours_ago = now - datetime.timedelta(hours=2)
+
+        dag1 = make_dag(dag_id='dag_without_catchup_ten_minute',
+                        schedule_interval='*/10 * * * *',
+                        start_date=six_hours_ago_to_the_hour,
+                        catchup=False)
+        next_date = dag1.next_dagrun_after_date(None)
+        # The DR should be scheduled in the last half an hour, not 6 hours ago
+        assert next_date > half_an_hour_ago
+        assert next_date < timezone.utcnow()
+
+        dag2 = make_dag(dag_id='dag_without_catchup_hourly',
+                        schedule_interval='@hourly',
+                        start_date=six_hours_ago_to_the_hour,
+                        catchup=False)
+
+        next_date = dag2.next_dagrun_after_date(None)
+        # The DR should be scheduled in the last 2 hours, not 6 hours ago
+        assert next_date > two_hours_ago
+        # The DR should be scheduled BEFORE now
+        assert next_date < timezone.utcnow()
+
+        dag3 = make_dag(dag_id='dag_without_catchup_once',
+                        schedule_interval='@once',
+                        start_date=six_hours_ago_to_the_hour,
+                        catchup=False)
+
+        next_date = dag3.next_dagrun_after_date(None)
+        # The DR should be scheduled in the last 2 hours, not 6 hours ago
+        assert next_date == six_hours_ago_to_the_hour
+
+    @freeze_time(timezone.datetime(2020, 1, 5))
+    def test_next_dagrun_after_date_timedelta_schedule_and_catchup_false(self):
+        """
+        Test that the dag file processor does not create multiple dagruns
+        if a dag is scheduled with 'timedelta' and catchup=False
+        """
+        dag = DAG(
+            'test_scheduler_dagrun_once_with_timedelta_and_catchup_false',
+            start_date=timezone.datetime(2015, 1, 1),
+            schedule_interval=timedelta(days=1),
+            catchup=False)
+
+        next_date = dag.next_dagrun_after_date(None)
+        assert next_date == timezone.datetime(2020, 1, 4)
+
+        # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
+        next_date = dag.next_dagrun_after_date(next_date)
+        assert next_date == timezone.datetime(2020, 1, 5)
+
+    @freeze_time(timezone.datetime(2020, 5, 4))
+    def test_next_dagrun_after_date_timedelta_schedule_and_catchup_true(self):
+        """
+        Test that the dag file processor creates multiple dagruns
+        if a dag is scheduled with 'timedelta' and catchup=True
+        """
+        dag = DAG(
+            'test_scheduler_dagrun_once_with_timedelta_and_catchup_true',
+            start_date=timezone.datetime(2020, 5, 1),
+            schedule_interval=timedelta(days=1),
+            catchup=True)
+
+        next_date = dag.next_dagrun_after_date(None)
+        assert next_date == timezone.datetime(2020, 5, 1)
+
+        next_date = dag.next_dagrun_after_date(next_date)
+        assert next_date == timezone.datetime(2020, 5, 2)
+
+        next_date = dag.next_dagrun_after_date(next_date)
+        assert next_date == timezone.datetime(2020, 5, 3)
+
+        # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
+        next_date = dag.next_dagrun_after_date(next_date)
+        assert next_date == timezone.datetime(2020, 5, 4)
+
+    def test_next_dagrun_after_auto_align(self):
+        """
+        Test if the schedule_interval will be auto aligned with the start_date
+        such that if the start_date coincides with the schedule the first
+        execution_date will be start_date, otherwise it will be start_date +
+        interval.
+        """
+        dag = DAG(
+            dag_id='test_scheduler_auto_align_1',
+            start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
+            schedule_interval="4 5 * * *"
+        )
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        next_date = dag.next_dagrun_after_date(None)
+        assert next_date == timezone.datetime(2016, 1, 2, 5, 4)
+
+        dag = DAG(
+            dag_id='test_scheduler_auto_align_2',
+            start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
+            schedule_interval="10 10 * * *"
+        )
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        next_date = dag.next_dagrun_after_date(None)
+        assert next_date == timezone.datetime(2016, 1, 1, 10, 10)
+
+    def test_next_dagrun_after_not_for_subdags(self):
+        """
+        Test the subdags are never marked to have dagruns created, as they are
+        handled by the SubDagOperator, not the scheduler
+        """
+
+        def subdag(parent_dag_name, child_dag_name, args):
+            """
+            Create a subdag.
+            """
+            dag_subdag = DAG(dag_id='%s.%s' % (parent_dag_name, child_dag_name),
+                             schedule_interval="@daily",
+                             default_args=args)
+
+            for i in range(2):
+                DummyOperator(task_id='%s-task-%s' % (child_dag_name, i + 1), dag=dag_subdag)
+
+            return dag_subdag
+
+        with DAG(
+            dag_id='test_subdag_operator',
+            start_date=datetime.datetime(2019, 1, 1),
+            max_active_runs=1,
+            schedule_interval=timedelta(minutes=1),
+        ) as dag:
+            section_1 = SubDagOperator(
+                task_id='section-1',
+                subdag=subdag(dag.dag_id, 'section-1', {'start_date': dag.start_date}),
+            )
+
+        subdag = section_1.subdag
+        # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
+        subdag.parent_dag = dag
+        subdag.is_subdag = True
+
+        next_date = dag.next_dagrun_after_date(None)
+        assert next_date == timezone.datetime(2019, 1, 1, 0, 0)
+
+        next_subdag_date = subdag.next_dagrun_after_date(None)
+        assert next_subdag_date is None, "SubDags should never have DagRuns created by the scheduler"
+
+
+class TestDagModel:
+
+    def test_dags_needing_dagruns_not_too_early(self):
+        dag = DAG(
+            dag_id='far_future_dag',
+            start_date=timezone.datetime(2038, 1, 1))
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            concurrency=1,
+            has_task_concurrency_limits=False,
+            next_dagrun=dag.start_date,
+            next_dagrun_create_after=timezone.datetime(2038, 1, 2),
+            is_active=True,
+        )
+        session.add(orm_dag)
+        session.flush()
+
+        dag_models = DagModel.dags_needing_dagruns(session).all()
+        assert dag_models == []
+
+        session.rollback()
+        session.close()
+
+    def test_dags_needing_dagruns_only_unpaused(self):
+        """
+        We should never create dagruns for unpaused DAGs
+        """
+        dag = DAG(
+            dag_id='test_dags',
+            start_date=DEFAULT_DATE)
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            has_task_concurrency_limits=False,
+            next_dagrun=dag.start_date,
+            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
+            is_active=True,
+        )
+        session.add(orm_dag)
+        session.flush()
+
+        needed = DagModel.dags_needing_dagruns(session).all()
+        assert needed == [orm_dag]
+
+        orm_dag.is_paused = True
+        session.flush()
+
+        dag_models = DagModel.dags_needing_dagruns(session).all()
+        assert dag_models == []
+
+        session.rollback()
+        session.close()
+
 
 class TestQueries(unittest.TestCase):
 
@@ -1506,8 +1735,9 @@ class TestQueries(unittest.TestCase):
         dag = DAG('test_dagrun_query_count', start_date=DEFAULT_DATE)
         for i in range(tasks_count):
             DummyOperator(task_id=f'dummy_task_{i}', owner='test', dag=dag)
-        with assert_queries_count(3):
+        with assert_queries_count(2):
             dag.create_dagrun(
                 run_id="test_dagrun_query_count",
-                state=State.RUNNING
+                state=State.RUNNING,
+                execution_date=TEST_DATE,
             )
