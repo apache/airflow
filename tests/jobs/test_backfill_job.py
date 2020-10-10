@@ -1536,3 +1536,17 @@ class TestBackfillJob(unittest.TestCase):
         ti2.refresh_from_db(session=session)
         self.assertEqual(State.SCHEDULED, ti1.state)
         self.assertEqual(State.NONE, ti2.state)
+
+    def test_job_id_is_assigned_to_dag_run(self):
+        dag_id = 'test_job_id_is_assigned_to_dag_run'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
+        DummyOperator(task_id="dummy_task", dag=dag)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=MockExecutor(),
+            start_date=datetime.datetime.now() - datetime.timedelta(days=1)
+        )
+        job.run()
+        dr: DagRun = dag.get_last_dagrun()
+        assert dr.creating_job_id == job.id
