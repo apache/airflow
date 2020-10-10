@@ -81,6 +81,9 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     if config:
         flask_app.config.from_mapping(config)
 
+    if 'SQLALCHEMY_ENGINE_OPTIONS' not in app.config:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = settings.prepare_engine_args()
+
     # Configure the JSON encoder used by `|tojson` filter from Flask
     flask_app.json_encoder = AirflowJsonEncoder
 
