@@ -598,7 +598,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             perms = config['perms']
             self.init_role(role, vms, perms)
         self.create_custom_dag_permission_view()
-        self.log.warning('Loading sync_roles.')
         # init existing roles, the rest role could be created through UI.
         self.update_admin_perm_view()
         self.clean_perms()
