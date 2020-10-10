@@ -233,7 +233,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         return files_to_upload
 
     def get_cursor_iterator(self, cursor):
-        """Returns cursor iterator for datastores"""
+        """Returns cursor iterator for datastore"""
         return cursor
 
     def _configure_csv_file(self, file_handle, schema):

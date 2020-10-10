@@ -33,10 +33,6 @@ with models.DAG(
 ) as dag:
     # [START howto_operator_vertica_to_gcs]
     upload = VerticaToGCSOperator(
-        task_id='vertica_to_gcs',
-        sql=SQL_QUERY,
-        bucket=GCS_BUCKET,
-        filename=FILENAME,
-        export_format='csv'
+        task_id='vertica_to_gcs', sql=SQL_QUERY, bucket=GCS_BUCKET, filename=FILENAME, export_format='csv'
     )
     # [END howto_operator_vertica_to_gcs]
