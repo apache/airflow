@@ -200,7 +200,7 @@ class TestACIOperator(unittest.TestCase):
             self.assertEqual(checked_name, name)
 
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
     )
     def test_execute_with_ipaddress(self, aci_mock):
         expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
@@ -227,7 +227,7 @@ class TestACIOperator(unittest.TestCase):
         self.assertEqual(called_cg.ip_address, ipaddress)
 
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
     )
     def test_execute_with_windows_os_and_diff_restart_policy(self, aci_mock):
         expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
@@ -255,7 +255,7 @@ class TestACIOperator(unittest.TestCase):
         self.assertEqual(called_cg.os_type, 'Windows')
 
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
     )
     def test_execute_fails_with_incorrect_os_type(self, aci_mock):
         expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
@@ -285,7 +285,7 @@ class TestACIOperator(unittest.TestCase):
         )
 
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
     )
     def test_execute_fails_with_incorrect_restart_policy(self, aci_mock):
         expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
