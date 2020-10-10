@@ -189,6 +189,71 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg ADDITIONAL_RUNTIME_ENV_VARS="ACCEPT_EULA=Y" \
     --tag my-image
 
+Customizing images in high security restricted environments
+...........................................................
+
+You can also make sure your image is only build using local constraint file and locally downloaded
+wheel files. This is often useful in Enterprise environments where the binary files are verified and
+vetted by the security teams.
+
+This builds below builds the production image in version 3.7 with packages and constraints used from the local
+``docker-context-files`` rather than installed from PyPI or GitHub. It also disables MySQL client
+installation as it is using external installation method.
+
+Note that as a prerequisite - you need to have downloaded wheel files. In the example below we
+first download such constraint file locally and then use ``pip download`` to get the .whl files needed
+but in most likely scenario, those wheel files should be copied from an internal repository of such .whl
+files. Note that ``AIRFLOW_INSTALL_VERSION`` is only there for reference, the apache airflow .whl file
+in the right version is part of the .whl files downloaded.
+
+Note that 'pip download' will only works on Linux host as some of the packages need to be compiled from
+sources and you cannot install them providing ``--platform`` switch. They also need to be downloaded using
+the same python version as the target image.
+
+The ``pip download`` might happen in a separate environment. The files can be committed to a separate
+binary repository and vetted/verified by the security team and used subsequently to build images
+of Airflow when needed on an air-gaped system.
+
+Preparing the constraint files and wheel files:
+
+.. code-block:: bash
+
+  rm docker-context-files/*.whl docker-context-files/*.txt
+
+  curl -Lo "docker-context-files/constraints-1-10.txt" \
+    https://raw.githubusercontent.com/apache/airflow/constraints-1-10/constraints-3.7.txt
+
+  pip download --dest docker-context-files \
+    --constraint docker-context-files/constraints-1-10.txt  \
+    apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv]==1.10.12
+
+
+Building the image (after copying the files downloaded to the "docker-context-files" directory:
+
+.. code-block:: bash
+
+  ./breeze build-image \
+      --production-image --python 3.7 --install-airflow-version=1.10.12 \
+      --disable-mysql-client-installation --disable-pip-cache --install-local-pip-wheels \
+      --constraints-location="/docker-context-files/constraints-1-10.txt"
+
+or
+
+.. code-block:: bash
+
+  docker build . \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
+    --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.12" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_SOURCES_FROM="empty" \
+    --build-arg AIRFLOW_SOURCES_TO="/empty" \
+    --build-arg INSTALL_MYSQL_CLIENT="false" \
+    --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
+    --build-arg AIRFLOW_LOCAL_PIP_WHEELS="true" \
+    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-1-10.txt"
+
 
 Customizing & extending the image together
 ..........................................
@@ -522,6 +587,7 @@ additional apt dev and runtime dependencies.
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
     --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
+
 
 
 More details about the images
