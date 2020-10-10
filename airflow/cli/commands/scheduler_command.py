@@ -32,7 +32,6 @@ def scheduler(args):
     """Starts Airflow Scheduler"""
     print(settings.HEADER)
     job = SchedulerJob(
-        dag_id=args.dag_id,
         subdir=process_subdir(args.subdir),
         num_runs=args.num_runs,
         do_pickle=args.do_pickle)

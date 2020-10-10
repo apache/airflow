@@ -559,6 +559,15 @@
       type: string
       example: "connexion,sqlalchemy"
       default: ""
+    - name: max_db_retries
+      description: |
+        Number of times the code should be retried in case of DB Operational Errors.
+        Not all transactions will be retried as it can cause undesired state.
+        Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
+      version_added: ~
+      type: int
+      example: ~
+      default: "3"
 - name: secrets
   description: ~
   options:
@@ -1572,6 +1581,41 @@
       type: string
       example: ~
       default: "512"
+    - name: use_row_level_locking
+      description: |
+        Should the scheduler issue `SELECT ... FOR UPDATE` in relevant queries.
+        If this is set to False then you should not run more than a single
+        scheduler at once
+      version_added: 2.0.0
+      type: boolean
+      example: ~
+      default: "True"
+    - name: max_dagruns_to_create_per_loop
+      description: |
+        This changes the number of dags that are locked by each scheduler when
+        creating dag runs. One possible reason for setting this lower is if you
+        have huge dags and are running multiple schedules, you won't want one
+        scheduler to do all the work.
+
+        Default: 10
+      example: ~
+      version_added: 2.0.0
+      type: string
+      default: ~
+    - name: max_dagruns_per_loop_to_schedule
+      description: |
+        How many DagRuns should a scheduler examine (and lock) when scheduling
+        and queuing tasks. Increasing this limit will allow more throughput for
+        smaller DAGs but will likely slow down throughput for larger (>500
+        tasks for example) DAGs. Setting this too high when using multiple
+        schedulers could also lead to one scheduler taking all the dag runs
+        leaving no work for the others.
+
+        Default: 20
+      example: ~
+      version_added: 2.0.0
+      type: string
+      default: ~
     - name: statsd_on
       description: |
         Statsd (https://github.com/etsy/statsd) integration settings

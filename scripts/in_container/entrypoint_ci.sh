@@ -79,7 +79,7 @@ if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" ]]; then
         pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
         echo
-        echo "Building production version of javascript files (Sources mounted from Host)"
+        echo "Building production version of JavaScript files (Sources mounted from Host)"
         echo
         echo
         yarn run prod
@@ -97,6 +97,9 @@ else
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 
+if [[ ${INSTALL_WHEELS} == "true" ]]; then
+  pip install /dist/*.whl || true
+fi
 
 export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
 

@@ -28,7 +28,8 @@ import warnings
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import (
-    TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union, cast,
+    TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union,
+    cast,
 )
 
 import jinja2
@@ -57,7 +58,7 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import Interval, UtcDateTime
+from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -156,8 +157,7 @@ class DAG(BaseDag, LoggingMixin):
     :type max_active_runs: int
     :param dagrun_timeout: specify how long a DagRun should be up before
         timing out / failing, so that new DagRuns can be created. The timeout
-        is only enforced for scheduled DagRuns, and only once the
-        # of active DagRuns == max_active_runs.
+        is only enforced for scheduled DagRuns.
     :type dagrun_timeout: datetime.timedelta
     :param sla_miss_callback: specify a function to call when reporting SLA
         timeouts.
@@ -467,6 +467,109 @@ class DAG(BaseDag, LoggingMixin):
         elif self.normalized_schedule_interval is not None:
             return timezone.convert_to_utc(dttm - self.normalized_schedule_interval)
 
+    def next_dagrun_info(
+        self,
+        date_last_automated_dagrun: Optional[pendulum.DateTime],
+    ) -> Tuple[Optional[pendulum.DateTime], Optional[pendulum.DateTime]]:
+        """
+        Get information about the next DagRun of this dag after ``date_last_automated_dagrun`` -- the
+        execution date, and the earliest it could be scheduled
+
+        :param date_last_automated_dagrun: The max(execution_date) of existing
+            "automated" DagRuns for this dag (scheduled or backfill, but not
+            manual)
+        """
+        if (self.schedule_interval == "@once" and date_last_automated_dagrun) or \
+                self.schedule_interval is None:
+            # Manual trigger, or already created the run for @once, can short circuit
+            return (None, None)
+        next_execution_date = self.next_dagrun_after_date(date_last_automated_dagrun)
+
+        if next_execution_date is None:
+            return (None, None)
+
+        if self.schedule_interval == "@once":
+            # For "@once" it can be created "now"
+            return (next_execution_date, next_execution_date)
+
+        return (next_execution_date, self.following_schedule(next_execution_date))
+
+    def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
+        """
+        Get the next execution date after the given ``date_last_automated_dagrun``, according to
+        schedule_interval, start_date, end_date etc.  This doesn't check max active run or any other
+        "concurrency" type limits, it only performs calculations based on the various date and interval fields
+        of this dag and it's tasks.
+
+        :param date_last_automated_dagrun: The execution_date of the last scheduler or
+            backfill triggered run for this dag
+        :type date_last_automated_dagrun: pendulum.Pendulum
+        """
+        if not self.schedule_interval or self.is_subdag:
+            return None
+
+        # don't schedule @once again
+        if self.schedule_interval == '@once' and date_last_automated_dagrun:
+            return None
+
+        # don't do scheduler catchup for dag's that don't have dag.catchup = True
+        if not (self.catchup or self.schedule_interval == '@once'):
+            # The logic is that we move start_date up until
+            # one period before, so that timezone.utcnow() is AFTER
+            # the period end, and the job can be created...
+            now = timezone.utcnow()
+            next_start = self.following_schedule(now)
+            last_start = self.previous_schedule(now)
+            if next_start <= now or isinstance(self.schedule_interval, timedelta):
+                new_start = last_start
+            else:
+                new_start = self.previous_schedule(last_start)
+
+            if self.start_date:
+                if new_start >= self.start_date:
+                    self.start_date = new_start
+            else:
+                self.start_date = new_start
+
+        next_run_date = None
+        if not date_last_automated_dagrun:
+            # First run
+            task_start_dates = [t.start_date for t in self.tasks]
+            if task_start_dates:
+                next_run_date = self.normalize_schedule(min(task_start_dates))
+                self.log.debug("Next run date based on tasks %s", next_run_date)
+        else:
+            next_run_date = self.following_schedule(date_last_automated_dagrun)
+
+        if date_last_automated_dagrun and next_run_date:
+            while next_run_date <= date_last_automated_dagrun:
+                next_run_date = self.following_schedule(next_run_date)
+
+        # don't ever schedule prior to the dag's start_date
+        if self.start_date:
+            next_run_date = self.start_date if not next_run_date else max(next_run_date, self.start_date)
+            if next_run_date == self.start_date:
+                next_run_date = self.normalize_schedule(self.start_date)
+
+            self.log.debug(
+                "Dag start date: %s. Next run date: %s",
+                self.start_date, next_run_date
+            )
+
+        # Don't schedule a dag beyond its end_date (as specified by the dag param)
+        if next_run_date and self.end_date and next_run_date > self.end_date:
+            return None
+
+        # Don't schedule a dag beyond its end_date (as specified by the task params)
+        # Get the min task end date, which may come from the dag.default_args
+        task_end_dates = [t.end_date for t in self.tasks if t.end_date]
+        if task_end_dates and next_run_date:
+            min_task_end_date = min(task_end_dates)
+            if next_run_date > min_task_end_date:
+                return None
+
+        return next_run_date
+
     def get_run_dates(self, start_date, end_date=None):
         """
         Returns a list of dates between the interval received as parameter using this
@@ -609,10 +712,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return conf.getboolean(
-            'scheduler',
-            'allow_trigger_in_future',
-            fallback=False) and self.schedule_interval is None
+        return settings.ALLOW_FUTURE_EXEC_DATES and self.schedule_interval is None
 
     @provide_session
     def get_concurrency_reached(self, session=None) -> bool:
@@ -1237,12 +1337,14 @@ class DAG(BaseDag, LoggingMixin):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if k not in ('user_defined_macros', 'user_defined_filters', 'params'):
+            if k not in ('user_defined_macros', 'user_defined_filters', 'params', '_log'):
                 setattr(result, k, copy.deepcopy(v, memo))
 
         result.user_defined_macros = self.user_defined_macros
         result.user_defined_filters = self.user_defined_filters
         result.params = self.params
+        if hasattr(self, '_log'):
+            result._log = self._log
         return result
 
     def sub_dag(self, task_regex, include_downstream=False,
@@ -1506,15 +1608,18 @@ class DAG(BaseDag, LoggingMixin):
         args.func(args, self)
 
     @provide_session
-    def create_dagrun(self,
-                      state,
-                      execution_date=None,
-                      run_id=None,
-                      start_date=None,
-                      external_trigger=False,
-                      conf=None,
-                      run_type=None,
-                      session=None):
+    def create_dagrun(
+        self,
+        state,
+        execution_date=None,
+        run_id=None,
+        start_date=None,
+        external_trigger=False,
+        conf=None,
+        run_type=None,
+        session=None,
+        dag_hash=None
+    ):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
         Returns the dag run.
@@ -1535,6 +1640,8 @@ class DAG(BaseDag, LoggingMixin):
         :type conf: dict
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
+        :param dag_hash: Hash of Serialized DAG
+        :type dag_hash: str
         """
         if run_id and not run_type:
             if not isinstance(run_id, str):
@@ -1558,10 +1665,10 @@ class DAG(BaseDag, LoggingMixin):
             conf=conf,
             state=state,
             run_type=run_type.value,
+            dag_hash=dag_hash
         )
         session.add(run)
-
-        session.commit()
+        session.flush()
 
         run.dag = self
 
@@ -1573,34 +1680,40 @@ class DAG(BaseDag, LoggingMixin):
 
     @classmethod
     @provide_session
-    def bulk_sync_to_db(cls, dags: Collection["DAG"], sync_time=None, session=None):
+    def bulk_sync_to_db(cls, dags: Collection["DAG"], session=None):
+        """This method is deprecated in favor of bulk_write_to_db"""
+        warnings.warn(
+            "This method is deprecated and will be removed in a future version. Please use bulk_write_to_db",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return cls.bulk_write_to_db(dags, session)
+
+    @classmethod
+    @provide_session
+    def bulk_write_to_db(cls, dags: Collection["DAG"], session=None):
         """
-        Save attributes about list of DAG to the DB. Note that this method
-        can be called for both DAGs and SubDAGs. A SubDag is actually a
-        SubDagOperator.
+        Ensure the DagModel rows for the given dags are up-to-date in the dag table in the DB, including
+        calculated fields.
+
+        Note that this method can be called for both DAGs and SubDAGs. A SubDag is actually a SubDagOperator.
 
         :param dags: the DAG objects to save to the DB
         :type dags: List[airflow.models.dag.DAG]
-        :param sync_time: The time that the DAG should be marked as sync'ed
-        :type sync_time: datetime
         :return: None
         """
         if not dags:
             return
 
-        if sync_time is None:
-            sync_time = timezone.utcnow()
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
         dag_ids = set(dag_by_ids.keys())
-        orm_dags = (
+        query = (
             session
             .query(DagModel)
             .options(joinedload(DagModel.tags, innerjoin=False))
-            .filter(DagModel.dag_id.in_(dag_ids))
-            .with_for_update(of=DagModel)
-            .all()
-        )
+            .filter(DagModel.dag_id.in_(dag_ids)))
+        orm_dags = with_row_locks(query, of=DagModel).all()
 
         existing_dag_ids = {orm_dag.dag_id for orm_dag in orm_dags}
         missing_dag_ids = dag_ids.difference(existing_dag_ids)
@@ -1615,6 +1728,23 @@ class DAG(BaseDag, LoggingMixin):
             session.add(orm_dag)
             orm_dags.append(orm_dag)
 
+        # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
+        most_recent_dag_runs = dict(session.query(DagRun.dag_id, func.max_(DagRun.execution_date)).filter(
+            DagRun.dag_id.in_(existing_dag_ids),
+            or_(
+                DagRun.run_type == DagRunType.BACKFILL_JOB.value,
+                DagRun.run_type == DagRunType.SCHEDULED.value,
+                DagRun.external_trigger.is_(True),
+            ),
+        ).group_by(DagRun.dag_id).all())
+
+        # Get number of active dagruns for all dags we are processing as a single query.
+        num_active_runs = dict(session.query(DagRun.dag_id, func.count('*')).filter(
+            DagRun.dag_id.in_(existing_dag_ids),
+            DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
+            DagRun.external_trigger.is_(False)
+        ).group_by(DagRun.dag_id).all())
+
         for orm_dag in sorted(orm_dags, key=lambda d: d.dag_id):
             dag = dag_by_ids[orm_dag.dag_id]
             if dag.is_subdag:
@@ -1627,10 +1757,20 @@ class DAG(BaseDag, LoggingMixin):
                 orm_dag.fileloc = dag.fileloc
                 orm_dag.owners = dag.owner
             orm_dag.is_active = True
-            orm_dag.last_scheduler_run = sync_time
             orm_dag.default_view = dag.default_view
             orm_dag.description = dag.description
             orm_dag.schedule_interval = dag.schedule_interval
+            orm_dag.concurrency = dag.concurrency
+            orm_dag.has_task_concurrency_limits = any(
+                t.task_concurrency is not None for t in dag.tasks
+            )
+
+            orm_dag.calculate_dagrun_date_fields(
+                dag,
+                most_recent_dag_runs.get(dag.dag_id),
+                num_active_runs.get(dag.dag_id, 0),
+            )
+
             for orm_tag in list(orm_dag.tags):
                 if orm_tag.name not in orm_dag.tags:
                     session.delete(orm_tag)
@@ -1646,23 +1786,23 @@ class DAG(BaseDag, LoggingMixin):
         if settings.STORE_DAG_CODE:
             DagCode.bulk_sync_to_db([dag.fileloc for dag in orm_dags])
 
-        session.commit()
+        # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
+        # decide when to commit
+        session.flush()
 
         for dag in dags:
-            cls.bulk_sync_to_db(dag.subdags, sync_time=sync_time, session=session)
+            cls.bulk_write_to_db(dag.subdags, session=session)
 
     @provide_session
-    def sync_to_db(self, sync_time=None, session=None):
+    def sync_to_db(self, session=None):
         """
         Save attributes about this DAG to the DB. Note that this method
         can be called for both DAGs and SubDAGs. A SubDag is actually a
         SubDagOperator.
 
-        :param sync_time: The time that the DAG should be marked as sync'ed
-        :type sync_time: datetime
         :return: None
         """
-        self.bulk_sync_to_db([self], sync_time, session)
+        self.bulk_write_to_db([self], session)
 
     def get_default_view(self):
         """This is only there for backward compatible jinja2 templates"""
@@ -1824,9 +1964,33 @@ class DagModel(Base):
     # Tags for view filter
     tags = relationship('DagTag', cascade='all,delete-orphan', backref=backref('dag'))
 
+    concurrency = Column(Integer, nullable=False)
+
+    has_task_concurrency_limits = Column(Boolean, nullable=False)
+
+    # The execution_date of the next dag run
+    next_dagrun = Column(UtcDateTime)
+    # Earliest time at which this ``next_dagrun`` can be created
+    next_dagrun_create_after = Column(UtcDateTime)
+
     __table_args__ = (
         Index('idx_root_dag_id', root_dag_id, unique=False),
+        Index('idx_next_dagrun_create_after', next_dagrun_create_after, unique=False),
     )
+
+    NUM_DAGS_PER_DAGRUN_QUERY = conf.getint(
+        'scheduler',
+        'max_dagruns_to_create_per_loop',
+        fallback=10
+    )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.concurrency is None:
+            self.concurrency = conf.getint('core', 'dag_concurrency')
+        if self.has_task_concurrency_limits is None:
+            # Be safe -- this will be updated later once the DAG is parsed
+            self.has_task_concurrency_limits = True
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -1938,6 +2102,63 @@ class DagModel(Base):
         except Exception:
             session.rollback()
             raise
+
+    @classmethod
+    def dags_needing_dagruns(cls, session: Session):
+        """
+        Return (and lock) a list of Dag objects that are due to create a new DagRun.
+
+        This will return a resultset of rows  that is row-level-locked with a "SELECT ... FOR UPDATE" query,
+        you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
+        transaction is committed it will be unlocked.
+        """
+        # TODO[HA]: Bake this query, it is run _A lot_
+        # We limit so that _one_ scheduler doesn't try to do all the creation
+        # of dag runs
+        query = session.query(cls).filter(
+            cls.is_paused.is_(False),
+            cls.is_active.is_(True),
+            cls.next_dagrun_create_after <= func.now(),
+        ).order_by(
+            cls.next_dagrun_create_after
+        ).limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
+
+        return with_row_locks(query, of=cls, **skip_locked(session=session))
+
+    def calculate_dagrun_date_fields(
+        self,
+        dag: DAG,
+        most_recent_dag_run: Optional[pendulum.DateTime],
+        active_runs_of_dag: int
+    ) -> None:
+        """
+        Calculate ``next_dagrun`` and `next_dagrun_create_after``
+
+        :param dag: The DAG object
+        :param most_recent_dag_run: DateTime of most recent run of this dag, or none if not yet scheduled.
+        :param active_runs_of_dag: Number of currently active runs of this dag
+        """
+        self.next_dagrun, self.next_dagrun_create_after = dag.next_dagrun_info(most_recent_dag_run)
+
+        if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
+            # Since this happens every time the dag is parsed it would be quite spammy at info
+            log.debug(
+                "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
+                dag.dag_id, active_runs_of_dag, dag.max_active_runs
+            )
+            self.next_dagrun_create_after = None
+
+        log.info("Setting next_dagrun for %s to %s", dag.dag_id, self.next_dagrun)
+
+
+STATICA_HACK = True
+globals()['kcah_acitats'[::-1].upper()] = False
+if STATICA_HACK:  # pragma: no cover
+    # Let pylint know about these relationships, without introducing an import cycle
+    from sqlalchemy.orm import relationship
+
+    from airflow.models.serialized_dag import SerializedDagModel
+    DagModel.serialized_dag = relationship(SerializedDagModel)
 
 
 class DagContext:

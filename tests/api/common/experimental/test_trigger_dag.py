@@ -148,6 +148,7 @@ class TestTriggerDag(unittest.TestCase):
         dag = DAG(dag_id, default_args={'start_date': timezone.datetime(2016, 9, 5, 10, 10, 0)})
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
+        dag_bag_mock.dags_hash = {}
         dag_run = DagRun()
 
         triggers = _trigger_dag(
@@ -174,6 +175,9 @@ class TestTriggerDag(unittest.TestCase):
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         dag_run = DagRun()
+
+        dag_bag_mock.dags_hash = {}
+
         triggers = _trigger_dag(
             dag_id,
             dag_bag_mock,
