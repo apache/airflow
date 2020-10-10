@@ -81,7 +81,7 @@ class TestErrorCollectionSchema(TestErrorSchemaBase):
         serialized_data = import_error_collection_schema.dump(
             ImportErrorCollection(import_errors=query_list, total_entries=2)
         )
-        # To maintain consistency in the key sequence accross the db in tests
+        # To maintain consistency in the key sequence across the db in tests
         serialized_data["import_errors"][0]["import_error_id"] = 1
         serialized_data["import_errors"][1]["import_error_id"] = 2
         self.assertEqual(
