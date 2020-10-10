@@ -67,11 +67,9 @@ class CloudMemorystoreHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None  # type: Optional[CloudRedisClient]
+        self._client: Optional[CloudRedisClient] = None
 
-    def get_conn(
-        self,
-    ):
+    def get_conn(self):
         """
         Retrieves client library object that allow access to Cloud Memorystore service.
 

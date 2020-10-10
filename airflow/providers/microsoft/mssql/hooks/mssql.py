@@ -67,7 +67,9 @@ class MsSqlHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 
-    def get_conn(self) -> pymssql.connect:
+    def get_conn(
+        self,
+    ) -> pymssql.connect:  # pylint: disable=protected-access  # pylint: disable=c-extension-no-member
         """
         Returns a mssql connection object
         """
@@ -84,8 +86,12 @@ class MsSqlHook(DbApiHook):
         )
         return conn
 
-    def set_autocommit(self, conn: pymssql.connect, autocommit: bool) -> None:
+    def set_autocommit(
+        self,
+        conn: pymssql.connect,  # pylint: disable=c-extension-no-member
+        autocommit: bool,
+    ) -> None:
         conn.autocommit(autocommit)
 
-    def get_autocommit(self, conn: pymssql.connect):
+    def get_autocommit(self, conn: pymssql.connect):  # pylint: disable=c-extension-no-member
         return conn.autocommit_state

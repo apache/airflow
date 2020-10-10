@@ -72,7 +72,7 @@ class GCSToGoogleSheetsOperator(BaseOperator):
         *,
         spreadsheet_id: str,
         bucket_name: str,
-        object_name: Optional[str] = None,
+        object_name: str,
         spreadsheet_range: str = "Sheet1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
