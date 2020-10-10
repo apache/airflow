@@ -150,7 +150,7 @@ def worker(args):
         maybe_patch_concurrency(['-P', pool])
 
     worker_instance = celery_app.Worker(**options)
-    
+
     if args.daemon:
         # Run Celery worker as daemon
         handle = setup_logging(log_file)
