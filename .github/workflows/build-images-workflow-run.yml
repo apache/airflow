@@ -124,11 +124,11 @@ jobs:
         # to match the jobs using job name rather than use proper API because that feature
         # is currently missing in GitHub Actions ¯\_(ツ)_/¯.
         id: extract-cancelled-failed-runs
-        if: steps.source-run-info-failed.outputs.cancelledRuns != '[]'
+        if: steps.cancel-failed.outputs.cancelledRuns != '[]'
         run: |
             REGEXP="Source Run id: "
             SEPARATOR=""
-            for run_id in $(echo "${{ steps.source-run-info-failed.outputs.cancelledRuns }}" | jq '.[]')
+            for run_id in $(echo "${{ steps.cancel-failed.outputs.cancelledRuns }}" | jq '.[]')
             do
                 REGEXP="${REGEXP}${SEPARATOR}(${run_id})"
                 SEPARATOR="|"
