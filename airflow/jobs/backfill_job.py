@@ -280,8 +280,7 @@ class BackfillJob(BaseJob):
                     ti.handle_failure(msg)
 
     @provide_session
-    def _get_dag_run(self, run_date: datetime, dag: DAG, session: Session = None,
-                     supervising_job_id: int = None):
+    def _get_dag_run(self, run_date: datetime, dag: DAG, session: Session = None):
         """
         Returns a dag run for the given run date, which will be matched to an existing
         dag run if available or create a new dag run otherwise. If the max_active_runs
@@ -290,7 +289,6 @@ class BackfillJob(BaseJob):
         :param run_date: the execution date for the dag run
         :param dag: DAG
         :param session: the database session object
-        :param supervising_job_id: id of the supervising job
         :return: a DagRun in state RUNNING or None
         """
         # consider max_active_runs but ignore when running subdags
@@ -335,7 +333,7 @@ class BackfillJob(BaseJob):
         # explicitly mark as backfill and running
         run.state = State.RUNNING
         run.run_id = run.generate_run_id(DagRunType.BACKFILL_JOB, run_date)
-        run.supervising_job_id = supervising_job_id
+        run.supervising_job_id = self.id
         run.run_type = DagRunType.BACKFILL_JOB.value
         run.verify_integrity(session=session)
         return run
@@ -722,7 +720,7 @@ class BackfillJob(BaseJob):
         """
         for next_run_date in run_dates:
             for dag in [self.dag] + self.dag.subdags:
-                dag_run = self._get_dag_run(next_run_date, dag, session=session, supervising_job_id=self.id)
+                dag_run = self._get_dag_run(next_run_date, dag, session=session)
                 tis_map = self._task_instances_for_dag_run(dag_run,
                                                            session=session)
                 if dag_run is None:
