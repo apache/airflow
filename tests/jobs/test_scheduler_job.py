@@ -3595,7 +3595,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             job.heartbeat = mock.MagicMock()
             job.processor_agent = mock_agent
 
-            with assert_queries_count(expected_query_count, margin_of_error=2):
+            with assert_queries_count(expected_query_count, margin_of_error=5):
                 with mock.patch.object(DagRun, 'next_dagruns_to_examine') as mock_dagruns:
                     mock_dagruns.return_value = dagruns
 
@@ -3663,5 +3663,5 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             job.processor_agent = mock_agent
             for expected_query_count in expected_query_counts:
                 with create_session() as session:
-                    with assert_queries_count(expected_query_count, margin_of_error=2):
+                    with assert_queries_count(expected_query_count, margin_of_error=5):
                         job._do_scheduling(session)
