@@ -205,7 +205,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         bucket, key = S3Hook.parse_s3_url(s3url)
         if not self.s3_hook.check_for_bucket(bucket_name=bucket):
-            raise AirflowException("The input S3 Bucket {} does not exist ".format(bucket))
+            raise AirflowException(f"The input S3 Bucket {bucket} does not exist ")
         if (
             key
             and not self.s3_hook.check_for_key(key=key, bucket_name=bucket)
@@ -842,7 +842,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             status = last_description['TrainingJobStatus']
             if status in failed_states:
                 reason = last_description.get('FailureReason', '(No reason provided)')
-                raise AirflowException('Error training {}: {} Reason: {}'.format(job_name, status, reason))
+                raise AirflowException(f'Error training {job_name}: {status} Reason: {reason}')
             billable_time = (
                 last_description['TrainingEndTime'] - last_description['TrainingStartTime']
             ) * instance_count

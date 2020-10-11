@@ -87,7 +87,7 @@ class FacebookAdsReportingHook(BaseHook):
         config = conn.extra_dejson
         missing_keys = self.client_required_fields - config.keys()
         if missing_keys:
-            message = "{missing_keys} fields are missing".format(missing_keys=missing_keys)
+            message = f"{missing_keys} fields are missing"
             raise AirflowException(message)
         return config
 
@@ -124,7 +124,7 @@ class FacebookAdsReportingHook(BaseHook):
                 self.log.info("Job run completed")
                 break
             if async_status in [JobStatus.SKIPPED.value, JobStatus.FAILED.value]:
-                message = "{async_status}. Please retry.".format(async_status=async_status)
+                message = f"{async_status}. Please retry."
                 raise AirflowException(message)
             time.sleep(sleep_time)
         report_run_id = _async.api_get()["report_run_id"]

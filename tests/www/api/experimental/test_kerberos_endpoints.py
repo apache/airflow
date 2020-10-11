@@ -63,7 +63,7 @@ class TestApiKerberos(unittest.TestCase):
             )
             self.assertEqual(401, response.status_code)
 
-            response.url = 'http://{}'.format(socket.getfqdn())
+            response.url = f'http://{socket.getfqdn()}'
 
             class Request:
                 headers = {}

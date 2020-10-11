@@ -303,7 +303,7 @@ class TestSubDagOperator(unittest.TestCase):
             propagate_skipped_state=propagate_option
         )
         dummy_subdag_tasks = [
-            DummyOperator(task_id='dummy_subdag_{}'.format(i), dag=subdag)
+            DummyOperator(task_id=f'dummy_subdag_{i}', dag=subdag)
             for i in range(len(states))
         ]
         dummy_dag_task = DummyOperator(task_id='dummy_dag', dag=dag)

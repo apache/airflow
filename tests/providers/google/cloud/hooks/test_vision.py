@@ -47,7 +47,7 @@ PRODUCT_ID_TEST_2 = 'p-id-2'
 PRODUCT_NAME_TEST = "projects/{}/locations/{}/products/{}".format(
     PROJECT_ID_TEST, LOC_ID_TEST, PRODUCT_ID_TEST
 )
-PRODUCT_NAME = "projects/{}/locations/{}/products/{}".format(PROJECT_ID_TEST, LOC_ID_TEST, PRODUCT_ID_TEST)
+PRODUCT_NAME = f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}/products/{PRODUCT_ID_TEST}"
 REFERENCE_IMAGE_ID_TEST = 'ri-id'
 REFERENCE_IMAGE_GEN_ID_TEST = 'ri-id'
 ANNOTATE_IMAGE_REQUEST = {

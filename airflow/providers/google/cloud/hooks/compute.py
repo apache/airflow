@@ -355,7 +355,7 @@ class ComputeEngineHook(GoogleBaseHook):
                     msg = operation_response.get("httpErrorMessage")
                     # Extracting the errors list as string and trimming square braces
                     error_msg = str(error.get("errors"))[1:-1]
-                    raise AirflowException("{} {}: ".format(code, msg) + error_msg)
+                    raise AirflowException(f"{code} {msg}: " + error_msg)
                 break
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
 

@@ -35,7 +35,7 @@ class SampleConn:
     def __init__(self, conn_id, variation: str):
         self.conn_id = conn_id
         self.var_name = "AIRFLOW_CONN_" + self.conn_id.upper()
-        self.host = "host_{}.com".format(variation)
+        self.host = f"host_{variation}.com"
         self.conn_uri = (
             "mysql://user:pw@" + self.host + "/schema?extra1=val%2B1&extra2=val%2B2"
         )

@@ -113,14 +113,14 @@ class TestSecurity(unittest.TestCase):
         for perm in perms:
             self.assertTrue(
                 self._has_dag_perm(perm, dag_id, user),
-                "User should have '{}' on DAG '{}'".format(perm, dag_id),
+                f"User should have '{perm}' on DAG '{dag_id}'",
             )
 
     def assert_user_does_not_have_dag_perms(self, dag_id, perms, user=None):
         for perm in perms:
             self.assertFalse(
                 self._has_dag_perm(perm, dag_id, user),
-                "User should not have '{}' on DAG '{}'".format(perm, dag_id),
+                f"User should not have '{perm}' on DAG '{dag_id}'",
             )
 
     def _has_dag_perm(self, perm, dag_id, user):

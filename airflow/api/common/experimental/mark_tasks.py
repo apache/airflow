@@ -94,11 +94,11 @@ def set_state(
         return []
 
     if not timezone.is_localized(execution_date):
-        raise ValueError("Received non-localized date {}".format(execution_date))
+        raise ValueError(f"Received non-localized date {execution_date}")
 
     task_dags = {task.dag for task in tasks}
     if len(task_dags) > 1:
-        raise ValueError("Received tasks from multiple DAGs: {}".format(task_dags))
+        raise ValueError(f"Received tasks from multiple DAGs: {task_dags}")
     dag = next(iter(task_dags))
     if dag is None:
         raise ValueError("Received tasks with no DAG")
@@ -247,7 +247,7 @@ def get_execution_dates(dag, execution_date, future, past):
     """Returns dates of DAG execution"""
     latest_execution_date = dag.get_latest_execution_date()
     if latest_execution_date is None:
-        raise ValueError("Received non-localized date {}".format(execution_date))
+        raise ValueError(f"Received non-localized date {execution_date}")
     # determine date range of dag runs and tasks to consider
     end_date = latest_execution_date if future else execution_date
     if 'start_date' in dag.default_args:

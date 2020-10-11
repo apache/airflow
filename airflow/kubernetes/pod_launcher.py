@@ -168,7 +168,7 @@ class PodLauncher(LoggingMixin):
         """
         split_at = line.find(' ')
         if split_at == -1:
-            raise Exception('Log not in "{{timestamp}} {{log}}" format. Got: {}'.format(line))
+            raise Exception(f'Log not in "{{timestamp}} {{log}}" format. Got: {line}')
         timestamp = line[:split_at]
         message = line[split_at + 1:].rstrip()
         return timestamp, message
@@ -229,7 +229,7 @@ class PodLauncher(LoggingMixin):
             )
         except BaseHTTPError as e:
             raise AirflowException(
-                'There was an error reading the kubernetes API: {}'.format(e)
+                f'There was an error reading the kubernetes API: {e}'
             )
 
     @tenacity.retry(
@@ -242,11 +242,11 @@ class PodLauncher(LoggingMixin):
         try:
             return self._client.list_namespaced_event(
                 namespace=pod.metadata.namespace,
-                field_selector="involvedObject.name={}".format(pod.metadata.name)
+                field_selector=f"involvedObject.name={pod.metadata.name}"
             )
         except BaseHTTPError as e:
             raise AirflowException(
-                'There was an error reading the kubernetes API: {}'.format(e)
+                f'There was an error reading the kubernetes API: {e}'
             )
 
     @tenacity.retry(
@@ -260,7 +260,7 @@ class PodLauncher(LoggingMixin):
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except BaseHTTPError as e:
             raise AirflowException(
-                'There was an error reading the kubernetes API: {}'.format(e)
+                f'There was an error reading the kubernetes API: {e}'
             )
 
     def _extract_xcom(self, pod: V1Pod):
@@ -272,12 +272,12 @@ class PodLauncher(LoggingMixin):
                                  _preload_content=False)
         try:
             result = self._exec_pod_command(
-                resp, 'cat {}/return.json'.format(PodDefaults.XCOM_MOUNT_PATH))
+                resp, f'cat {PodDefaults.XCOM_MOUNT_PATH}/return.json')
             self._exec_pod_command(resp, 'kill -s SIGINT 1')
         finally:
             resp.close()
         if result is None:
-            raise AirflowException('Failed to extract xcom from pod: {}'.format(pod.metadata.name))
+            raise AirflowException(f'Failed to extract xcom from pod: {pod.metadata.name}')
         return result
 
     def _exec_pod_command(self, resp, command):

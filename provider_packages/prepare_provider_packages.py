@@ -276,7 +276,7 @@ def get_package_extras(provider_package_id: str, backport_packages: bool) -> Dic
     """
     if provider_package_id == 'providers':
         return {}
-    with open(DEPENDENCIES_JSON_FILE, "rt") as dependencies_file:
+    with open(DEPENDENCIES_JSON_FILE) as dependencies_file:
         cross_provider_dependencies: Dict[str, List[str]] = json.load(dependencies_file)
     extras_dict = {module: [get_pip_package_name(module, backport_packages=backport_packages)]
                    for module in cross_provider_dependencies[provider_package_id]} \
@@ -798,7 +798,7 @@ def get_all_releases(provider_package_path: str, backport_packages: bool) -> Lis
     for file_name in sorted(changes_file_names, reverse=True):
         if file_name.startswith(changes_file_prefix) and file_name.endswith(".md"):
             changes_file_path = os.path.join(provider_package_path, file_name)
-            with open(changes_file_path, "rt") as changes_file:
+            with open(changes_file_path) as changes_file:
                 content = changes_file.read()
             found = re.search(r'/([a-z0-9]*)\)', content, flags=re.MULTILINE)
             if not found:
@@ -892,7 +892,7 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> List[str]
     :param provider_package_id: package id
     :return: list of cross-provider dependencies
     """
-    with open(os.path.join(PROVIDERS_PATH, "dependencies.json"), "rt") as dependencies_file:
+    with open(os.path.join(PROVIDERS_PATH, "dependencies.json")) as dependencies_file:
         dependent_packages = json.load(dependencies_file).get(provider_package_id) or []
     return dependent_packages
 
@@ -973,7 +973,7 @@ def get_additional_package_info(provider_package_path: str) -> str:
     """
     additional_info_file_path = os.path.join(provider_package_path, "ADDITIONAL_INFO.md")
     if os.path.isfile(additional_info_file_path):
-        with open(additional_info_file_path, "rt") as additional_info_file:
+        with open(additional_info_file_path) as additional_info_file:
             additional_info = additional_info_file.read()
 
         additional_info_lines = additional_info.splitlines(keepends=True)
@@ -1151,7 +1151,7 @@ def prepare_readme_and_changes_files(backport_packages, context, current_release
                                     "BACKPORT_PROVIDER_README.md" if backport_packages else "README.md")
     old_text = ""
     if os.path.isfile(readme_file_path):
-        with open(readme_file_path, "rt") as readme_file_read:
+        with open(readme_file_path) as readme_file_read:
             old_text = readme_file_read.read()
     if old_text != readme:
         _, temp_file_path = tempfile.mkstemp(".md")
@@ -1333,7 +1333,7 @@ def copy_readme_and_changelog(provider_package_id: str,
     readme_target = os.path.join(MY_DIR_PATH, "README.md")
     copyfile(readme_source, readme_target)
     changelog_target = os.path.join(MY_DIR_PATH, "CHANGELOG.txt")
-    with open(readme_source, "rt") as infile, open(changelog_target, 'wt') as outfile:
+    with open(readme_source) as infile, open(changelog_target, 'wt') as outfile:
         copy = False
         for line in infile:
             if line.strip() == "## Releases":

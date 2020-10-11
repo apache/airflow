@@ -196,7 +196,7 @@ class TestPythonOperator(TestPythonBase):
             recorded_calls[0],
             Call(4,
                  date(2019, 1, 1),
-                 "dag {} ran on {}.".format(self.dag.dag_id, ds_templated),
+                 f"dag {self.dag.dag_id} ran on {ds_templated}.",
                  Named(ds_templated, 'unchanged'))
         )
 
@@ -262,7 +262,7 @@ class TestPythonOperator(TestPythonBase):
         def func(dag):
             # An ValueError should be triggered since we're using dag as a
             # reserved keyword
-            raise RuntimeError("Should not be triggered, dag: {}".format(dag))
+            raise RuntimeError(f"Should not be triggered, dag: {dag}")
 
         python_operator = PythonOperator(
             task_id='python_operator',
@@ -444,7 +444,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
             recorded_calls[0],
             Call(4,
                  date(2019, 1, 1),
-                 "dag {} ran on {}.".format(self.dag.dag_id, ds_templated),
+                 f"dag {self.dag.dag_id} ran on {ds_templated}.",
                  Named(ds_templated, 'unchanged'))
         )
 

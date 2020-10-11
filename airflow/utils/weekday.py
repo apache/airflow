@@ -43,7 +43,7 @@ class WeekDay(enum.IntEnum):
 
         if sanitized_week_day_str not in cls.__members__:
             raise AttributeError(
-                'Invalid Week Day passed: "{}"'.format(week_day_str)
+                f'Invalid Week Day passed: "{week_day_str}"'
             )
 
         return cls[sanitized_week_day_str]

@@ -31,16 +31,16 @@ _licenses = {'MIT': ['Permission is hereby granted free of charge', 'The above c
 
 
 def get_notices():
-    license_file = open("../LICENSE", "r")
+    license_file = open("../LICENSE")
     regex = r"\((.+?)\) (.+?) \((http.+?)\)"
 
     return list(filter(None, [re.findall(regex, line) for line in license_file]))
 
 
 def parse_license_file(project_name):
-    name = re.match("^[a-z0-9\-]+", project_name.lower())
+    name = re.match(r"^[a-z0-9\-]+", project_name.lower())
     name = slugify.slugify(name.group(0))
-    path = "../licenses/LICENSE-{}.txt".format(name)
+    path = f"../licenses/LICENSE-{name}.txt"
     if os.path.exists(path):
         data = " ".join(line.strip() for line in open(path)).lower()
         data = data.translate(None, string.punctuation)

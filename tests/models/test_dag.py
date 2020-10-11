@@ -387,7 +387,7 @@ class TestDag(unittest.TestCase):
                  default_args={'owner': 'owner1'}) as dag:
             pipeline = [
                 [DummyOperator(
-                    task_id='stage{}.{}'.format(i, j), priority_weight=weight)
+                    task_id=f'stage{i}.{j}', priority_weight=weight)
                     for j in range(0, width)] for i in range(0, depth)
             ]
             for i, stage in enumerate(pipeline):
@@ -416,7 +416,7 @@ class TestDag(unittest.TestCase):
                  default_args={'owner': 'owner1'}) as dag:
             pipeline = [
                 [DummyOperator(
-                    task_id='stage{}.{}'.format(i, j), priority_weight=weight,
+                    task_id=f'stage{i}.{j}', priority_weight=weight,
                     weight_rule=WeightRule.UPSTREAM)
                     for j in range(0, width)] for i in range(0, depth)
             ]
@@ -445,7 +445,7 @@ class TestDag(unittest.TestCase):
                  default_args={'owner': 'owner1'}) as dag:
             pipeline = [
                 [DummyOperator(
-                    task_id='stage{}.{}'.format(i, j), priority_weight=weight,
+                    task_id=f'stage{i}.{j}', priority_weight=weight,
                     weight_rule=WeightRule.ABSOLUTE)
                     for j in range(0, width)] for i in range(0, depth)
             ]
@@ -1113,7 +1113,7 @@ class TestDag(unittest.TestCase):
         self.assertEqual(
             TEST_DATE,
             dag_run.execution_date,
-            msg='dag_run.execution_date did not match expectation: {0}'
+            msg='dag_run.execution_date did not match expectation: {}'
             .format(dag_run.execution_date)
         )
         self.assertEqual(State.RUNNING, dag_run.state)
@@ -1639,12 +1639,12 @@ class TestDag(unittest.TestCase):
             """
             Create a subdag.
             """
-            dag_subdag = DAG(dag_id='%s.%s' % (parent_dag_name, child_dag_name),
+            dag_subdag = DAG(dag_id=f'{parent_dag_name}.{child_dag_name}',
                              schedule_interval="@daily",
                              default_args=args)
 
             for i in range(2):
-                DummyOperator(task_id='%s-task-%s' % (child_dag_name, i + 1), dag=dag_subdag)
+                DummyOperator(task_id='{}-task-{}'.format(child_dag_name, i + 1), dag=dag_subdag)
 
             return dag_subdag
 

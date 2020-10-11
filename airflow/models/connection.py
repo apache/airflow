@@ -242,9 +242,9 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
         if self.port:
             if host_block > '':
-                host_block += ':{}'.format(self.port)
+                host_block += f':{self.port}'
             else:
-                host_block += '@:{}'.format(self.port)
+                host_block += f'@:{self.port}'
 
         if self.schema:
             host_block += '/{}'.format(quote(self.schema, safe=''))
@@ -321,7 +321,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         """Return hook based on conn_type."""
         hook_class_name, conn_id_param = CONN_TYPE_TO_HOOK.get(self.conn_type, (None, None))
         if not hook_class_name:
-            raise AirflowException('Unknown hook type "{}"'.format(self.conn_type))
+            raise AirflowException(f'Unknown hook type "{self.conn_type}"')
         hook_class = import_string(hook_class_name)
         return hook_class(**{conn_id_param: self.conn_id})
 
@@ -395,4 +395,4 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             conn_list = secrets_backend.get_connections(conn_id=conn_id)
             if conn_list:
                 return list(conn_list)
-        raise AirflowNotFoundException("The conn_id `{0}` isn't defined".format(conn_id))
+        raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")

@@ -183,7 +183,7 @@ class TestCloudSpanner(unittest.TestCase):
                 task_id="id",
             )
         err = cm.exception
-        self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
+        self.assertIn(f"The required parameter '{exp_msg}' is empty", str(err))
         mock_hook.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
@@ -237,7 +237,7 @@ class TestCloudSpanner(unittest.TestCase):
         with self.assertRaises(AirflowException) as cm:
             SpannerDeleteInstanceOperator(project_id=project_id, instance_id=instance_id, task_id="id")
         err = cm.exception
-        self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
+        self.assertIn(f"The required parameter '{exp_msg}' is empty", str(err))
         mock_hook.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
@@ -297,7 +297,7 @@ class TestCloudSpanner(unittest.TestCase):
                 task_id="id",
             )
         err = cm.exception
-        self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
+        self.assertIn(f"The required parameter '{exp_msg}' is empty", str(err))
         mock_hook.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
@@ -418,7 +418,7 @@ class TestCloudSpanner(unittest.TestCase):
                 task_id="id",
             )
         err = cm.exception
-        self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
+        self.assertIn(f"The required parameter '{exp_msg}' is empty", str(err))
         mock_hook.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
@@ -485,7 +485,7 @@ class TestCloudSpanner(unittest.TestCase):
                 task_id="id",
             )
         err = cm.exception
-        self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
+        self.assertIn(f"The required parameter '{exp_msg}' is empty", str(err))
         mock_hook.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
@@ -575,5 +575,5 @@ class TestCloudSpanner(unittest.TestCase):
                 task_id="id",
             )
         err = cm.exception
-        self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
+        self.assertIn(f"The required parameter '{exp_msg}' is empty", str(err))
         mock_hook.assert_not_called()

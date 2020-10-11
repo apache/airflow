@@ -173,7 +173,7 @@ class SubDagOperator(BaseSensorOperator):
 
         if dag_run.state != State.SUCCESS:
             raise AirflowException(
-                "Expected state: SUCCESS. Actual state: {}".format(dag_run.state)
+                f"Expected state: SUCCESS. Actual state: {dag_run.state}"
             )
 
         if self.propagate_skipped_state and self._check_skipped_states(context):
@@ -187,7 +187,7 @@ class SubDagOperator(BaseSensorOperator):
         if self.propagate_skipped_state == SkippedStatePropagationOptions.ALL_LEAVES:
             return all(ti.state == State.SKIPPED for ti in leaves_tis)
         raise AirflowException(
-            'Unimplemented SkippedStatePropagationOptions {} used.'.format(self.propagate_skipped_state))
+            f'Unimplemented SkippedStatePropagationOptions {self.propagate_skipped_state} used.')
 
     def _get_leaves_tis(self, execution_date):
         leaves_tis = []

@@ -275,9 +275,7 @@ class GCSToBigQueryOperator(BaseOperator):
         else:
             schema_fields = self.schema_fields
 
-        source_uris = [
-            'gs://{}/{}'.format(self.bucket, source_object) for source_object in self.source_objects
-        ]
+        source_uris = [f'gs://{self.bucket}/{source_object}' for source_object in self.source_objects]
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
@@ -329,7 +327,7 @@ class GCSToBigQueryOperator(BaseOperator):
             escaped_table_name = f'`{self.destination_project_dataset_table}`'
 
         if self.max_id_key:
-            cursor.execute('SELECT MAX({}) FROM {}'.format(self.max_id_key, escaped_table_name))
+            cursor.execute(f'SELECT MAX({self.max_id_key}) FROM {escaped_table_name}')
             row = cursor.fetchone()
             max_id = row[0] if row[0] else 0
             self.log.info(

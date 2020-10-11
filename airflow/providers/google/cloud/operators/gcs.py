@@ -644,7 +644,7 @@ class GCSFileTransformOperator(BaseOperator):
 
             process.wait()
             if process.returncode:
-                raise AirflowException("Transform script failed: {0}".format(process.returncode))
+                raise AirflowException(f"Transform script failed: {process.returncode}")
 
             self.log.info("Transformation succeeded. Output temporarily located at %s", destination_file.name)
 

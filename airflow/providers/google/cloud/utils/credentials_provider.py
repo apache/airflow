@@ -64,12 +64,12 @@ def build_gcp_conn(
 
     query_params = {}
     if key_file_path:
-        query_params["{}__key_path".format(extras)] = key_file_path
+        query_params[f"{extras}__key_path"] = key_file_path
     if scopes:
         scopes_string = ",".join(scopes)
-        query_params["{}__scope".format(extras)] = scopes_string
+        query_params[f"{extras}__scope"] = scopes_string
     if project_id:
-        query_params["{}__projects".format(extras)] = project_id
+        query_params[f"{extras}__projects"] = project_id
 
     query = urlencode(query_params)
     return conn.format(query)

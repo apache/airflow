@@ -1454,7 +1454,7 @@ class TestBackfillJob(unittest.TestCase):
                   schedule_interval="@daily")
         tasks = []
         for i in range(len(states)):
-            task_id = "{}_task_{}".format(prefix, i)
+            task_id = f"{prefix}_task_{i}"
             task = DummyOperator(task_id=task_id, dag=dag)
             tasks.append(task)
 

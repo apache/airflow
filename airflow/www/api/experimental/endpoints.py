@@ -114,7 +114,7 @@ def trigger_dag(dag_id):
         dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
 
@@ -122,7 +122,7 @@ def trigger_dag(dag_id):
         log.info("User %s created %s", g.user, dr)
 
     response = jsonify(
-        message="Created {}".format(dr),
+        message=f"Created {dr}",
         execution_date=dr.execution_date.isoformat(),
         run_id=dr.run_id
     )
@@ -137,10 +137,10 @@ def delete_dag(dag_id):
         count = delete.delete_dag(dag_id)
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
-    return jsonify(message="Removed {} record(s)".format(count), count=count)
+    return jsonify(message=f"Removed {count} record(s)", count=count)
 
 
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['GET'])
@@ -159,7 +159,7 @@ def dag_runs(dag_id):
         dagruns = get_dag_runs(dag_id, state)
     except AirflowException as err:
         log.info(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = 400
         return response
 
@@ -188,7 +188,7 @@ def get_dag_code(dag_id):
         return get_code(dag_id)
     except AirflowException as err:
         log.info(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
 
@@ -201,7 +201,7 @@ def task_info(dag_id, task_id):
         t_info = get_task(dag_id, task_id)
     except AirflowException as err:
         log.info(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
 
@@ -264,7 +264,7 @@ def task_instance_info(dag_id, execution_date, task_id):
         ti_info = get_task_instance(dag_id, task_id, execution_date)
     except AirflowException as err:
         log.info(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
 
@@ -304,7 +304,7 @@ def dag_run_status(dag_id, execution_date):
         dr_info = get_dag_run_state(dag_id, execution_date)
     except AirflowException as err:
         log.info(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
 
@@ -339,7 +339,7 @@ def get_pool(name):
         pool = pool_api.get_pool(name=name)
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
     else:
@@ -354,7 +354,7 @@ def get_pools():
         pools = pool_api.get_pools()
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
     else:
@@ -370,7 +370,7 @@ def create_pool():
         pool = pool_api.create_pool(**params)
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
     else:
@@ -385,7 +385,7 @@ def delete_pool(name):
         pool = pool_api.delete_pool(name=name)
     except AirflowException as err:
         log.error(err)
-        response = jsonify(error="{}".format(err))
+        response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
     else:

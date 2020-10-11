@@ -48,7 +48,7 @@ def users_create(args):
     role = appbuilder.sm.find_role(args.role)
     if not role:
         valid_roles = appbuilder.sm.get_all_roles()
-        raise SystemExit('{} is not a valid role. Valid roles are: {}'.format(args.role, valid_roles))
+        raise SystemExit(f'{args.role} is not a valid role. Valid roles are: {valid_roles}')
 
     if args.use_random_password:
         password = ''.join(random.choice(string.printable) for _ in range(16))
@@ -61,12 +61,12 @@ def users_create(args):
             raise SystemExit('Passwords did not match!')
 
     if appbuilder.sm.find_user(args.username):
-        print('{} already exist in the db'.format(args.username))
+        print(f'{args.username} already exist in the db')
         return
     user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
                                   args.email, role, password)
     if user:
-        print('{} user {} created.'.format(args.role, args.username))
+        print(f'{args.role} user {args.username} created.')
     else:
         raise SystemExit('Failed to create user.')
 
@@ -80,10 +80,10 @@ def users_delete(args):
         user = next(u for u in appbuilder.sm.get_all_users()
                     if u.username == args.username)
     except StopIteration:
-        raise SystemExit('{} is not a valid user.'.format(args.username))
+        raise SystemExit(f'{args.username} is not a valid user.')
 
     if appbuilder.sm.del_register_user(user):
-        print('User {} deleted.'.format(args.username))
+        print(f'User {args.username} deleted.')
     else:
         raise SystemExit('Failed to delete user.')
 
@@ -108,7 +108,7 @@ def users_manage_role(args, remove=False):
     role = appbuilder.sm.find_role(args.role)
     if not role:
         valid_roles = appbuilder.sm.get_all_roles()
-        raise SystemExit('{} is not a valid role. Valid roles are: {}'.format(args.role, valid_roles))
+        raise SystemExit(f'{args.role} is not a valid role. Valid roles are: {valid_roles}')
 
     if remove:
         if role in user.roles:
@@ -167,10 +167,10 @@ def users_import(args):
 
     users_list = None  # pylint: disable=redefined-outer-name
     try:
-        with open(json_file, 'r') as file:
+        with open(json_file) as file:
             users_list = json.loads(file.read())
     except ValueError as e:
-        print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
+        print(f"File '{json_file}' is not valid JSON. Error: {e}")
         sys.exit(1)
 
     users_created, users_updated = _import_users(users_list)
@@ -194,7 +194,7 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
             role = appbuilder.sm.find_role(rolename)
             if not role:
                 valid_roles = appbuilder.sm.get_all_roles()
-                print("Error: '{}' is not a valid role. Valid roles are: {}".format(rolename, valid_roles))
+                print(f"Error: '{rolename}' is not a valid role. Valid roles are: {valid_roles}")
                 sys.exit(1)
             else:
                 roles.append(role)

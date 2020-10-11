@@ -473,7 +473,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
     ) -> None:
         # Check headers
         self.log.info("Checking if file contains headers")
-        with open(tmp_file_location, "r") as check_header_file:
+        with open(tmp_file_location) as check_header_file:
             has_header = csv.Sniffer().has_header(check_header_file.read(1024))
             if not has_header:
                 raise NameError(
@@ -483,7 +483,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
 
         # Transform
         self.log.info("Modifying column headers to be compatible for data upload")
-        with open(tmp_file_location, "r") as read_file:
+        with open(tmp_file_location) as read_file:
             reader = csv.reader(read_file)
             headers = next(reader)
             new_headers = []

@@ -351,7 +351,7 @@ class DAG(BaseDag, LoggingMixin):
         self._task_group = TaskGroup.create_root(self)
 
     def __repr__(self):
-        return "<DAG: {self.dag_id}>".format(self=self)
+        return f"<DAG: {self.dag_id}>"
 
     def __eq__(self, other):
         if (type(self) == type(other) and
@@ -1251,9 +1251,9 @@ class DAG(BaseDag, LoggingMixin):
                                 dag_bag = DagBag(read_dags_from_db=True)
                             external_dag = dag_bag.get_dag(tii.dag_id)
                             if not external_dag:
-                                raise AirflowException("Could not find dag {}".format(tii.dag_id))
+                                raise AirflowException(f"Could not find dag {tii.dag_id}")
                             downstream = external_dag.sub_dag(
-                                task_ids_or_regex=r"^{}$".format(tii.task_id),
+                                task_ids_or_regex=fr"^{tii.task_id}$",
                                 include_upstream=False,
                                 include_downstream=True
                             )
@@ -1505,7 +1505,7 @@ class DAG(BaseDag, LoggingMixin):
             for dag in self.subdags:
                 if task_id in dag.task_dict:
                     return dag.task_dict[task_id]
-        raise TaskNotFound("Task {task_id} not found".format(task_id=task_id))
+        raise TaskNotFound(f"Task {task_id} not found")
 
     def pickle_info(self):
         d = {}
@@ -1582,7 +1582,7 @@ class DAG(BaseDag, LoggingMixin):
         if ((task.task_id in self.task_dict and self.task_dict[task.task_id] is not task)
                 or task.task_id in self._task_group.used_group_ids):
             raise DuplicateTaskIdFound(
-                "Task id '{}' has already been added to the DAG".format(task.task_id))
+                f"Task id '{task.task_id}' has already been added to the DAG")
         else:
             self.task_dict[task.task_id] = task
             task.dag = self
@@ -2073,7 +2073,7 @@ class DagModel(Base):
             self.has_task_concurrency_limits = True
 
     def __repr__(self):
-        return "<DAG: {self.dag_id}>".format(self=self)
+        return f"<DAG: {self.dag_id}>"
 
     @property
     def timezone(self):

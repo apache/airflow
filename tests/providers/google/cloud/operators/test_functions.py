@@ -39,7 +39,7 @@ GCP_PROJECT_ID = 'test_project_id'
 GCP_LOCATION = 'test_region'
 GCF_SOURCE_ARCHIVE_URL = 'gs://folder/file.zip'
 GCF_ENTRYPOINT = 'helloWorld'
-FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(GCP_PROJECT_ID, GCP_LOCATION, GCF_ENTRYPOINT)
+FUNCTION_NAME = f'projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/functions/{GCF_ENTRYPOINT}'
 GCF_RUNTIME = 'nodejs6'
 VALID_RUNTIMES = ['nodejs6', 'nodejs8', 'python37']
 VALID_BODY = {
@@ -627,7 +627,7 @@ class TestGcfFunctionDelete(unittest.TestCase):
             op = CloudFunctionDeleteFunctionOperator(name="invalid_name", task_id="id")
             op.execute(None)
         err = cm.exception
-        self.assertEqual(str(err), 'Parameter name must match pattern: {}'.format(FUNCTION_NAME_PATTERN))
+        self.assertEqual(str(err), f'Parameter name must match pattern: {FUNCTION_NAME_PATTERN}')
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.functions.CloudFunctionsHook')

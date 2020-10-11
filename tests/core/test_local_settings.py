@@ -61,7 +61,7 @@ class SettingsContext:
     def __init__(self, content: str, module_name: str):
         self.content = content
         self.settings_root = tempfile.mkdtemp()
-        filename = "{}.py".format(module_name)
+        filename = f"{module_name}.py"
         self.settings_file = os.path.join(self.settings_root, filename)
 
     def __enter__(self):

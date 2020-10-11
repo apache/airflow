@@ -60,9 +60,7 @@ class AzureBatchHook(BaseHook):
             """Extract required parameter from extra JSON, raise exception if not found"""
             value = conn.extra_dejson.get(name)
             if not value:
-                raise AirflowException(
-                    'Extra connection option is missing required parameter: `{}`'.format(name)
-                )
+                raise AirflowException(f'Extra connection option is missing required parameter: `{name}`')
             return value
 
         batch_account_url = _get_required_param('account_url')
@@ -249,7 +247,7 @@ class AzureBatchHook(BaseHook):
             pool = self.connection.pool.get(pool_id)
             if pool.resize_errors is not None:
                 resize_errors = "\n".join([repr(e) for e in pool.resize_errors])
-                raise RuntimeError('resize error encountered for pool {}:\n{}'.format(pool.id, resize_errors))
+                raise RuntimeError(f'resize error encountered for pool {pool.id}:\n{resize_errors}')
             nodes = list(self.connection.compute_node.list(pool.id))
             if len(nodes) >= pool.target_dedicated_nodes and all(node.state in node_state for node in nodes):
                 return nodes

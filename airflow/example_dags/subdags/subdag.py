@@ -35,7 +35,7 @@ def subdag(parent_dag_name, child_dag_name, args):
     :rtype: airflow.models.DAG
     """
     dag_subdag = DAG(
-        dag_id='%s.%s' % (parent_dag_name, child_dag_name),
+        dag_id=f'{parent_dag_name}.{child_dag_name}',
         default_args=args,
         start_date=days_ago(2),
         schedule_interval="@daily",
@@ -43,7 +43,7 @@ def subdag(parent_dag_name, child_dag_name, args):
 
     for i in range(5):
         DummyOperator(
-            task_id='%s-task-%s' % (child_dag_name, i + 1),
+            task_id='{}-task-{}'.format(child_dag_name, i + 1),
             default_args=args,
             dag=dag_subdag,
         )

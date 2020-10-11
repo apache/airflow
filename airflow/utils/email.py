@@ -184,7 +184,7 @@ def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
         return list(addresses)
 
     received_type = type(addresses).__name__
-    raise TypeError("Unexpected argument type: Received '{}'.".format(received_type))
+    raise TypeError(f"Unexpected argument type: Received '{received_type}'.")
 
 
 def _get_email_list_from_str(addresses: str) -> List[str]:

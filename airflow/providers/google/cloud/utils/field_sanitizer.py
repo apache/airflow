@@ -141,7 +141,7 @@ class GcpBodyFieldSanitizer(LoggingMixin):
                     "The field %s is missing in %s at the path %s. ", field_name, dictionary, current_path
                 )
             elif isinstance(child, dict):
-                self._sanitize(child, remaining_path, "{}.{}".format(current_path, field_name))
+                self._sanitize(child, remaining_path, f"{current_path}.{field_name}")
             elif isinstance(child, list):
                 for index, elem in enumerate(child):
                     if not isinstance(elem, dict):
@@ -152,7 +152,7 @@ class GcpBodyFieldSanitizer(LoggingMixin):
                             index,
                             elem,
                         )
-                    self._sanitize(elem, remaining_path, "{}.{}[{}]".format(current_path, field_name, index))
+                    self._sanitize(elem, remaining_path, f"{current_path}.{field_name}[{index}]")
             else:
                 self.log.warning(
                     "The field %s is of wrong type. It should be dict or list and it is %s. Skipping it.",

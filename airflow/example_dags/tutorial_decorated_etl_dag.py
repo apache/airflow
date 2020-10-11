@@ -67,7 +67,7 @@ with DAG(
         A simple Extract task to get data ready for the rest of the data pipeline.
         In this case, getting data is simulated by reading from a hardcoded JSON string.
         """
-        data_string = u'{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
+        data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
 
         order_data_dict = json.loads(data_string)
         return order_data_dict

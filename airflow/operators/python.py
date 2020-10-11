@@ -121,7 +121,7 @@ class PythonOperator(BaseOperator):
             if name in context_keys:
                 # Raise an exception to let the user know that the keyword is reserved
                 raise ValueError(
-                    "The key {} in the op_args is part of the context, and therefore reserved".format(name)
+                    f"The key {name} in the op_args is part of the context, and therefore reserved"
                 )
 
         if any(str(param).startswith("**") for _, param in sig):

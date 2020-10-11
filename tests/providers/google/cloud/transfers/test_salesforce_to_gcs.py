@@ -18,7 +18,7 @@
 import unittest
 from collections import OrderedDict
 
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.transfers.salesforce_to_gcs import SalesforceToGcsOperator
@@ -29,7 +29,7 @@ QUERY = "SELECT id, company FROM Lead WHERE company = 'Hello World Inc'"
 SALESFORCE_CONNECTION_ID = "test-salesforce-connection"
 GCS_BUCKET = "test-bucket"
 GCS_OBJECT_PATH = "path/to/test-file-path"
-EXPECTED_GCS_URI = "gs://{}/{}".format(GCS_BUCKET, GCS_OBJECT_PATH)
+EXPECTED_GCS_URI = f"gs://{GCS_BUCKET}/{GCS_OBJECT_PATH}"
 GCP_CONNECTION_ID = "google_cloud_default"
 SALESFORCE_RESPONSE = {
     'records': [

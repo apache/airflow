@@ -182,7 +182,7 @@ def connections_add(args):
         missing_args.append('conn-uri or conn-type')
     if missing_args:
         msg = ('The following args are required to add a connection:' +
-               ' {missing!r}'.format(missing=missing_args))
+               f' {missing_args!r}')
         raise SystemExit(msg)
     if invalid_args:
         msg = ('The following args are not compatible with the ' +

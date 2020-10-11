@@ -143,7 +143,7 @@ def task_run(args, dag=None):
     """Runs a single task instance"""
     # Load custom airflow config
     if args.cfg_path:
-        with open(args.cfg_path, 'r') as conf_file:
+        with open(args.cfg_path) as conf_file:
             conf_dict = json.load(conf_file)
 
         if os.path.exists(args.cfg_path):
@@ -238,7 +238,7 @@ def task_failed_deps(args):
     if failed_deps:
         print("Task instance dependencies not met:")
         for dep in failed_deps:
-            print("{}: {}".format(dep.dep_name, dep.reason))
+            print(f"{dep.dep_name}: {dep.reason}")
     else:
         print("Task instance dependencies are all met.")
 

@@ -52,12 +52,12 @@ def _deep_string_coerce(content, json_path: str = 'json') -> Union[str, list, di
         # Databricks can tolerate either numeric or string types in the API backend.
         return str(content)
     elif isinstance(content, (list, tuple)):
-        return [coerce(e, '{0}[{1}]'.format(json_path, i)) for i, e in enumerate(content)]
+        return [coerce(e, f'{json_path}[{i}]') for i, e in enumerate(content)]
     elif isinstance(content, dict):
-        return {k: coerce(v, '{0}[{1}]'.format(json_path, k)) for k, v in list(content.items())}
+        return {k: coerce(v, f'{json_path}[{k}]') for k, v in list(content.items())}
     else:
         param_type = type(content)
-        msg = 'Type {0} used for parameter {1} is not a number or a string'.format(param_type, json_path)
+        msg = f'Type {param_type} used for parameter {json_path} is not a number or a string'
         raise AirflowException(msg)
 
 
@@ -84,7 +84,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                 log.info('View run status, Spark UI, and logs at %s', run_page_url)
                 return
             else:
-                error_message = '{t} failed with terminal state: {s}'.format(t=operator.task_id, s=run_state)
+                error_message = f'{operator.task_id} failed with terminal state: {run_state}'
                 raise AirflowException(error_message)
         else:
             log.info('%s in run state: %s', operator.task_id, run_state)

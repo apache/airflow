@@ -79,7 +79,7 @@ class TestLogView(unittest.TestCase):
         ] = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(':', '.') }}/{{ try_number }}.log"
         settings_file = os.path.join(self.settings_folder, "airflow_local_settings.py")
         with open(settings_file, "w") as handle:
-            new_logging_file = "LOGGING_CONFIG = {}".format(logging_config)
+            new_logging_file = f"LOGGING_CONFIG = {logging_config}"
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)
         with conf_vars({("logging", "logging_config_class"): "airflow_local_settings.LOGGING_CONFIG"}):

@@ -52,7 +52,7 @@ class Variable(Base, LoggingMixin):
 
     def __repr__(self):
         # Hiding the value
-        return '{} : {}'.format(self.key, self._val)
+        return f'{self.key} : {self._val}'
 
     def get_val(self):
         """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
@@ -126,7 +126,7 @@ class Variable(Base, LoggingMixin):
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
             else:
-                raise KeyError('Variable {} does not exist'.format(key))
+                raise KeyError(f'Variable {key} does not exist')
         else:
             if deserialize_json:
                 return json.loads(var_val)

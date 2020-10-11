@@ -95,7 +95,7 @@ class TestStandardTaskRunner(unittest.TestCase):
         runner.terminate()
 
         for process in processes:
-            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
+            self.assertFalse(psutil.pid_exists(process.pid), f"{process} is still alive")
 
         self.assertIsNotNone(runner.return_code())
 
@@ -121,7 +121,7 @@ class TestStandardTaskRunner(unittest.TestCase):
         runner.terminate()
 
         for process in processes:
-            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
+            self.assertFalse(psutil.pid_exists(process.pid), f"{process} is still alive")
 
         self.assertIsNotNone(runner.return_code())
 
@@ -175,11 +175,11 @@ class TestStandardTaskRunner(unittest.TestCase):
                 break
             time.sleep(2)
 
-        with open(path, "r") as f:
+        with open(path) as f:
             self.assertEqual("ON_KILL_TEST", f.readline())
 
         for process in processes:
-            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
+            self.assertFalse(psutil.pid_exists(process.pid), f"{process} is still alive")
 
     @staticmethod
     def _procs_in_pgroup(pgid):

@@ -129,10 +129,10 @@ class MetastoreBrowserView(BaseView):
         where_clause = ''
         if DB_ALLOW_LIST:
             dbs = ",".join(["'" + db + "'" for db in DB_ALLOW_LIST])
-            where_clause = "AND b.name IN ({})".format(dbs)
+            where_clause = f"AND b.name IN ({dbs})"
         if DB_DENY_LIST:
             dbs = ",".join(["'" + db + "'" for db in DB_DENY_LIST])
-            where_clause = "AND b.name NOT IN ({})".format(dbs)
+            where_clause = f"AND b.name NOT IN ({dbs})"
         sql = """
         SELECT CONCAT(b.NAME, '.', a.TBL_NAME), TBL_TYPE
         FROM TBLS a
@@ -156,7 +156,7 @@ class MetastoreBrowserView(BaseView):
     def data(self):
         """Retrieve data from table"""
         table = request.args.get("table")
-        sql = "SELECT * FROM {table} LIMIT 1000;".format(table=table)
+        sql = f"SELECT * FROM {table} LIMIT 1000;"
         hook = PrestoHook(PRESTO_CONN_ID)
         df = hook.get_pandas_df(sql)
         return df.to_html(
@@ -168,7 +168,7 @@ class MetastoreBrowserView(BaseView):
     def ddl(self):
         """Retrieve table ddl"""
         table = request.args.get("table")
-        sql = "SHOW CREATE TABLE {table};".format(table=table)
+        sql = f"SHOW CREATE TABLE {table};"
         hook = HiveCliHook(HIVE_CLI_CONN_ID)
         return hook.run_cli(sql)
 

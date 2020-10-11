@@ -66,9 +66,9 @@ class DataprocJobSensor(BaseSensorOperator):
         state = job.status.state
 
         if state == JobStatus.ERROR:
-            raise AirflowException('Job failed:\n{}'.format(job))
+            raise AirflowException(f'Job failed:\n{job}')
         elif state in {JobStatus.CANCELLED, JobStatus.CANCEL_PENDING, JobStatus.CANCEL_STARTED}:
-            raise AirflowException('Job was cancelled:\n{}'.format(job))
+            raise AirflowException(f'Job was cancelled:\n{job}')
         elif JobStatus.DONE == state:
             self.log.debug("Job %s completed successfully.", self.dataproc_job_id)
             return True

@@ -72,7 +72,7 @@ class DingdingHook(HttpHook):
             raise AirflowException(
                 'Dingding token is requests but get nothing, ' 'check you conn_id configuration.'
             )
-        return 'robot/send?access_token={}'.format(token)
+        return f'robot/send?access_token={token}'
 
     def _build_message(self) -> str:
         """

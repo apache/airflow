@@ -35,11 +35,11 @@ from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_
 
 API_RESPONSE = {}  # type: Dict[Any, Any]
 ORGANIZATION_ID = "test-org"
-ORGANIZATION_PATH = "organizations/{}".format(ORGANIZATION_ID)
+ORGANIZATION_PATH = f"organizations/{ORGANIZATION_ID}"
 PROJECT_ID = "test-project"
-PROJECT_PATH = "projects/{}".format(PROJECT_ID)
+PROJECT_PATH = f"projects/{PROJECT_ID}"
 DLP_JOB_ID = "job123"
-DLP_JOB_PATH = "projects/{}/dlpJobs/{}".format(PROJECT_ID, DLP_JOB_ID)
+DLP_JOB_PATH = f"projects/{PROJECT_ID}/dlpJobs/{DLP_JOB_ID}"
 TEMPLATE_ID = "template123"
 STORED_INFO_TYPE_ID = "type123"
 TRIGGER_ID = "trigger123"
@@ -52,10 +52,10 @@ INSPECT_TEMPLATE_ORGANIZATION_PATH = "organizations/{}/inspectTemplates/{}".form
 STORED_INFO_TYPE_ORGANIZATION_PATH = "organizations/{}/storedInfoTypes/{}".format(
     ORGANIZATION_ID, STORED_INFO_TYPE_ID
 )
-DEIDENTIFY_TEMPLATE_PROJECT_PATH = "projects/{}/deidentifyTemplates/{}".format(PROJECT_ID, TEMPLATE_ID)
-INSPECT_TEMPLATE_PROJECT_PATH = "projects/{}/inspectTemplates/{}".format(PROJECT_ID, TEMPLATE_ID)
-STORED_INFO_TYPE_PROJECT_PATH = "projects/{}/storedInfoTypes/{}".format(PROJECT_ID, STORED_INFO_TYPE_ID)
-JOB_TRIGGER_PATH = "projects/{}/jobTriggers/{}".format(PROJECT_ID, TRIGGER_ID)
+DEIDENTIFY_TEMPLATE_PROJECT_PATH = f"projects/{PROJECT_ID}/deidentifyTemplates/{TEMPLATE_ID}"
+INSPECT_TEMPLATE_PROJECT_PATH = f"projects/{PROJECT_ID}/inspectTemplates/{TEMPLATE_ID}"
+STORED_INFO_TYPE_PROJECT_PATH = f"projects/{PROJECT_ID}/storedInfoTypes/{STORED_INFO_TYPE_ID}"
+JOB_TRIGGER_PATH = f"projects/{PROJECT_ID}/jobTriggers/{TRIGGER_ID}"
 
 
 class TestCloudDLPHook(unittest.TestCase):

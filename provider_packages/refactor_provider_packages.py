@@ -76,7 +76,7 @@ def copy_helper_py_file(target_file_path: str) -> None:
 
     source_helper_file_path = os.path.join(get_source_airflow_folder(), "airflow", "utils", "helpers.py")
 
-    with open(source_helper_file_path, "rt") as in_file:
+    with open(source_helper_file_path) as in_file:
         with open(target_file_path, "wt") as out_file:
             for line in in_file:
                 out_file.write(line.replace('airflow.models.baseoperator', 'airflow.utils.helpers'))

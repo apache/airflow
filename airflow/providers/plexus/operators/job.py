@@ -77,7 +77,7 @@ class PlexusJobOperator(BaseOperator):
             )
         logger.info("creating job w/ following params: %s", params)
         jobs_endpoint = hook.host + "jobs/"
-        headers = {"Authorization": "Bearer {}".format(hook.token)}
+        headers = {"Authorization": f"Bearer {hook.token}"}
         create_job = requests.post(jobs_endpoint, headers=headers, data=params, timeout=5)
         if create_job.ok:
             job = create_job.json()
@@ -85,16 +85,16 @@ class PlexusJobOperator(BaseOperator):
             state = job["last_state"]
             while state != end_state:
                 time.sleep(3)
-                jid_endpoint = jobs_endpoint + "{}/".format(jid)
+                jid_endpoint = jobs_endpoint + f"{jid}/"
                 get_job = requests.get(jid_endpoint, headers=headers, timeout=5)
                 if not get_job.ok:
                     raise AirflowException(
-                        "Could not retrieve job status. Status Code: [{0}]. "
-                        "Reason: {1} - {2}".format(get_job.status_code, get_job.reason, get_job.text)
+                        "Could not retrieve job status. Status Code: [{}]. "
+                        "Reason: {} - {}".format(get_job.status_code, get_job.reason, get_job.text)
                     )
                 new_state = get_job.json()["last_state"]
                 if new_state in ("Cancelled", "Failed"):
-                    raise AirflowException("Job {}".format(new_state))
+                    raise AirflowException(f"Job {new_state}")
                 elif new_state != state:
                     logger.info("job is %s", new_state)
                 state = new_state
@@ -113,7 +113,7 @@ class PlexusJobOperator(BaseOperator):
             endpoint = hook.host + lookup[0].format(hook.user_id)
         else:
             endpoint = hook.host + lookup[0]
-        headers = {"Authorization": "Bearer {}".format(hook.token)}
+        headers = {"Authorization": f"Bearer {hook.token}"}
         response = requests.get(endpoint, headers=headers, timeout=5)
         results = response.json()["results"]
 
@@ -127,9 +127,7 @@ class PlexusJobOperator(BaseOperator):
                 if param == 'app':
                     self.is_service = dct['is_service']
         if v is None:
-            raise AirflowException(
-                "Could not locate value for param:{} at endpoint: {}".format(key, endpoint)
-            )
+            raise AirflowException(f"Could not locate value for param:{key} at endpoint: {endpoint}")
 
         return v
 

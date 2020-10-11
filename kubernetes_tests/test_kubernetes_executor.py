@@ -40,8 +40,8 @@ class TestKubernetesExecutor(unittest.TestCase):
     @staticmethod
     def _describe_resources(namespace: str):
         print("=" * 80)
-        print("Describe resources for namespace {}".format(namespace))
-        print("Datetime: {}".format(datetime.utcnow()))
+        print(f"Describe resources for namespace {namespace}")
+        print(f"Datetime: {datetime.utcnow()}")
         print("=" * 80)
         print("Describing pods")
         print("-" * 80)
@@ -80,7 +80,7 @@ class TestKubernetesExecutor(unittest.TestCase):
 
     def _ensure_airflow_webserver_is_healthy(self):
         response = self.session.get(
-            "http://{host}/health".format(host=KUBERNETES_HOST_PORT),
+            f"http://{KUBERNETES_HOST_PORT}/health",
             timeout=1,
         )
 
@@ -116,7 +116,7 @@ class TestKubernetesExecutor(unittest.TestCase):
                 result_json = result.json()
                 print(f"Received [monitor_task]#2: {result_json}")
                 state = result_json['state']
-                print("Attempt {}: Current state of operator is {}".format(tries, state))
+                print(f"Attempt {tries}: Current state of operator is {state}")
 
                 if state == expected_final_state:
                     break
@@ -124,9 +124,9 @@ class TestKubernetesExecutor(unittest.TestCase):
                 self._describe_resources(namespace="default")
                 tries += 1
             except requests.exceptions.ConnectionError as e:
-                check_call(["echo", "api call failed. trying again. error {}".format(e)])
+                check_call(["echo", f"api call failed. trying again. error {e}"])
         if state != expected_final_state:
-            print("The expected state is wrong {} != {} (expected)!".format(state, expected_final_state))
+            print(f"The expected state is wrong {state} != {expected_final_state} (expected)!")
         self.assertEqual(state, expected_final_state)
 
     def ensure_dag_expected_state(self, host, execution_date, dag_id,
@@ -149,8 +149,8 @@ class TestKubernetesExecutor(unittest.TestCase):
             print(f"Received: {result}")
             state = result_json['state']
             check_call(
-                ["echo", "Attempt {}: Current state of dag is {}".format(tries, state)])
-            print("Attempt {}: Current state of dag is {}".format(tries, state))
+                ["echo", f"Attempt {tries}: Current state of dag is {state}"])
+            print(f"Attempt {tries}: Current state of dag is {state}")
 
             if state == expected_final_state:
                 break

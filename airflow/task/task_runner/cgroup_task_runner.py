@@ -137,8 +137,8 @@ class CgroupTaskRunner(BaseTaskRunner):
                                              strftime("%Y-%m-%d"),
                                              str(uuid.uuid4()))
 
-        self.mem_cgroup_name = "memory/{}".format(cgroup_name)
-        self.cpu_cgroup_name = "cpu/{}".format(cgroup_name)
+        self.mem_cgroup_name = f"memory/{cgroup_name}"
+        self.cpu_cgroup_name = f"cpu/{cgroup_name}"
 
         # Get the resource requirements from the task
         task = self._task_instance.task
@@ -173,7 +173,7 @@ class CgroupTaskRunner(BaseTaskRunner):
             cgroup_name
         )
         self.process = self.run_command(
-            ['cgexec', '-g', 'cpu,memory:{}'.format(cgroup_name)]
+            ['cgexec', '-g', f'cpu,memory:{cgroup_name}']
         )
 
     def return_code(self):

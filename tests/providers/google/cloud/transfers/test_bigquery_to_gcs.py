@@ -31,7 +31,7 @@ PROJECT_ID = 'test-project-id'
 class TestBigQueryToCloudStorageOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook')
     def test_execute(self, mock_hook):
-        source_project_dataset_table = '{}.{}'.format(TEST_DATASET, TEST_TABLE_ID)
+        source_project_dataset_table = f'{TEST_DATASET}.{TEST_TABLE_ID}'
         destination_cloud_storage_uris = ['gs://some-bucket/some-file.txt']
         compression = 'NONE'
         export_format = 'CSV'

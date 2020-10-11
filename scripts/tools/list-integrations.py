@@ -61,7 +61,7 @@ def _find_clazzes(directory, base_class):
         ]
 
         for found_clazz in integration_clazzes:
-            found_classes.add("{}.{}".format(found_clazz.__module__, found_clazz.__name__))
+            found_classes.add(f"{found_clazz.__module__}.{found_clazz.__name__}")
 
     return found_classes
 

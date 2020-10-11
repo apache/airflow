@@ -357,7 +357,7 @@ class TestLoadConnection(unittest.TestCase):
 class TestLocalFileBackend(unittest.TestCase):
     def test_should_read_variable(self):
         with NamedTemporaryFile(suffix="var.env") as tmp_file:
-            tmp_file.write("KEY_A=VAL_A".encode())
+            tmp_file.write(b"KEY_A=VAL_A")
             tmp_file.flush()
             backend = LocalFilesystemBackend(variables_file_path=tmp_file.name)
             self.assertEqual("VAL_A", backend.get_variable("KEY_A"))
@@ -365,7 +365,7 @@ class TestLocalFileBackend(unittest.TestCase):
 
     def test_should_read_connection(self):
         with NamedTemporaryFile(suffix=".env") as tmp_file:
-            tmp_file.write("CONN_A=mysql://host_a".encode())
+            tmp_file.write(b"CONN_A=mysql://host_a")
             tmp_file.flush()
             backend = LocalFilesystemBackend(connections_file_path=tmp_file.name)
             self.assertEqual(

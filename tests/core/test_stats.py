@@ -255,7 +255,7 @@ class TestDogStatsWithAllowList(unittest.TestCase):
 
 
 def always_invalid(stat_name):
-    raise InvalidStatsNameException("Invalid name: {}".format(stat_name))
+    raise InvalidStatsNameException(f"Invalid name: {stat_name}")
 
 
 def always_valid(stat_name):

@@ -129,7 +129,7 @@ class ImportFinder(NodeVisitor):
         import_names: List[str] = []
         for alias in node.names:
             name = alias.name
-            fullname = '%s.%s' % (node.module, name) if node.module else name
+            fullname = f'{node.module}.{name}' if node.module else name
             import_names.append(fullname)
         return import_names
 
@@ -151,7 +151,7 @@ def get_imports_from_file(file_name: str) -> List[str]:
     :return: list of import names
     """
     try:
-        with open(file_name, "rt", encoding="utf-8") as f:
+        with open(file_name, encoding="utf-8") as f:
             root = parse(f.read(), file_name)
     except Exception:
         print(f"Error when opening file {file_name}", file=sys.stderr)
@@ -244,7 +244,7 @@ if __name__ == '__main__':
         print(f"Written provider dependencies to the file {provider_dependencies_file_name}")
         print()
     if documentation_file_name:
-        with open(documentation_file_name, "r", encoding="utf-8") as documentation_file:
+        with open(documentation_file_name, encoding="utf-8") as documentation_file:
             text = documentation_file.readlines()
         replacing = False
         result: List[str] = []

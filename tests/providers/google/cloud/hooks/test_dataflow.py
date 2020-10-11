@@ -40,7 +40,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 TASK_ID = 'test-dataflow-operator'
 JOB_NAME = 'test-dataflow-pipeline'
 MOCK_UUID = '12345678'
-UNIQUE_JOB_NAME = 'test-dataflow-pipeline-{}'.format(MOCK_UUID)
+UNIQUE_JOB_NAME = f'test-dataflow-pipeline-{MOCK_UUID}'
 TEST_TEMPLATE = 'gs://dataflow-templates/wordcount/template_file'
 PARAMETERS = {
     'inputFile': 'gs://dataflow-samples/shakespeare/kinglear.txt',
@@ -195,7 +195,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID),
+            f'--job_name={JOB_NAME}-{MOCK_UUID}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -229,7 +229,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID),
+            f'--job_name={JOB_NAME}-{MOCK_UUID}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -262,7 +262,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID),
+            f'--job_name={JOB_NAME}-{MOCK_UUID}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -299,7 +299,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID),
+            f'--job_name={JOB_NAME}-{MOCK_UUID}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -347,7 +347,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID),
+            f'--job_name={JOB_NAME}-{MOCK_UUID}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -397,7 +397,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--labels=foo=bar',
             '--staging_location=gs://test/staging',
-            '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID),
+            f'--job_name={JOB_NAME}-{MOCK_UUID}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -446,7 +446,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--stagingLocation=gs://test/staging',
             '--labels={"foo":"bar"}',
-            '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID),
+            f'--jobName={JOB_NAME}-{MOCK_UUID}',
         ]
         self.assertListEqual(
             sorted(expected_cmd),
@@ -483,7 +483,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--stagingLocation=gs://test/staging',
             '--labels={"foo":"bar"}',
-            '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID),
+            f'--jobName={JOB_NAME}-{MOCK_UUID}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -516,7 +516,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--stagingLocation=gs://test/staging',
             '--labels={"foo":"bar"}',
-            '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID),
+            f'--jobName={JOB_NAME}-{MOCK_UUID}',
         ]
         self.assertListEqual(
             sorted(expected_cmd),
@@ -552,7 +552,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--stagingLocation=gs://test/staging',
             '--labels={"foo":"bar"}',
-            '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID),
+            f'--jobName={JOB_NAME}-{MOCK_UUID}',
         ]
         self.assertListEqual(
             sorted(expected_cmd),
@@ -583,7 +583,7 @@ class TestDataflowHook(unittest.TestCase):
             '--project=test',
             '--stagingLocation=gs://test/staging',
             '--labels={"foo":"bar"}',
-            '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID),
+            f'--jobName={JOB_NAME}-{MOCK_UUID}',
         ]
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
 
@@ -771,7 +771,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             dataflow=mock_conn.return_value,
             job_id=TEST_JOB_ID,
             location=DEFAULT_DATAFLOW_LOCATION,
-            name='test-dataflow-pipeline-{}'.format(MOCK_UUID),
+            name=f'test-dataflow-pipeline-{MOCK_UUID}',
             num_retries=5,
             poll_sleep=10,
             project_number=TEST_PROJECT,
@@ -818,7 +818,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             dataflow=mock_conn.return_value,
             job_id=TEST_JOB_ID,
             location=DEFAULT_DATAFLOW_LOCATION,
-            name='test-dataflow-pipeline-{}'.format(MOCK_UUID),
+            name=f'test-dataflow-pipeline-{MOCK_UUID}',
             num_retries=5,
             poll_sleep=10,
             project_number=TEST_PROJECT,

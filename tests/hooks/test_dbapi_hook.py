@@ -94,7 +94,7 @@ class TestDbApiHook(unittest.TestCase):
         commit_count = 2  # The first and last commit
         self.assertEqual(commit_count, self.conn.commit.call_count)
 
-        sql = "INSERT INTO {}  VALUES (%s)".format(table)
+        sql = f"INSERT INTO {table}  VALUES (%s)"
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
 
@@ -111,7 +111,7 @@ class TestDbApiHook(unittest.TestCase):
         commit_count = 2  # The first and last commit
         self.assertEqual(commit_count, self.conn.commit.call_count)
 
-        sql = "REPLACE INTO {}  VALUES (%s)".format(table)
+        sql = f"REPLACE INTO {table}  VALUES (%s)"
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
 
@@ -147,7 +147,7 @@ class TestDbApiHook(unittest.TestCase):
         commit_count = 2 + divmod(len(rows), commit_every)[0]
         self.assertEqual(commit_count, self.conn.commit.call_count)
 
-        sql = "INSERT INTO {}  VALUES (%s)".format(table)
+        sql = f"INSERT INTO {table}  VALUES (%s)"
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
 

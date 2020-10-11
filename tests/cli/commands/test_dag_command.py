@@ -96,7 +96,7 @@ class TestCliDags(unittest.TestCase):
                 '--start-date', DEFAULT_DATE.isoformat()]), dag=dag)
 
         output = stdout.getvalue()
-        self.assertIn("Dry run of DAG example_bash_operator on {}\n".format(DEFAULT_DATE.isoformat()), output)
+        self.assertIn(f"Dry run of DAG example_bash_operator on {DEFAULT_DATE.isoformat()}\n", output)
         self.assertIn("Task runme_0\n", output)
 
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill

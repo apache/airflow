@@ -271,7 +271,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         if self.awslogs_group and self.awslogs_stream_prefix:
             self.log.info('ECS Task logs output:')
             task_id = self.arn.split("/")[-1]
-            stream_name = "{}/{}".format(self.awslogs_stream_prefix, task_id)
+            stream_name = f"{self.awslogs_stream_prefix}/{task_id}"
             for event in self.get_logs_hook().get_log_events(self.awslogs_group, stream_name):
                 event_dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
                 self.log.info("[%s] %s", event_dt.isoformat(), event['message'])
@@ -293,9 +293,9 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             containers = task['containers']
             for container in containers:
                 if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
-                    raise AirflowException('This task is not in success state {}'.format(task))
+                    raise AirflowException(f'This task is not in success state {task}')
                 elif container.get('lastStatus') == 'PENDING':
-                    raise AirflowException('This task is still pending {}'.format(task))
+                    raise AirflowException(f'This task is still pending {task}')
                 elif 'error' in container.get('reason', '').lower():
                     raise AirflowException(
                         'This containers encounter an error during launching : {}'.format(

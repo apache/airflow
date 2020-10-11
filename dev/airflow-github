@@ -185,7 +185,7 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
             merged=cherrypicked,
             commit=commit_in_master if commit_in_master else ""))
 
-    print("Commits on branch: {0:d}, {1:d} ({2}) yet to be cherry-picked".format(
+    print("Commits on branch: {:d}, {:d} ({}) yet to be cherry-picked".format(
         num_cherrypicked, sum(num_uncherrypicked.values()), dict(num_uncherrypicked)))
 
 
@@ -197,7 +197,7 @@ def changelog(previous_version, target_version, github_token):
     repo = git.Repo(".", search_parent_directories=True)
     # Get a list of issues/PRs that have been committed on the current branch.
     log_args = [
-        '--format={}'.format(GIT_LOG_FORMAT), previous_version + ".." + target_version]
+        f'--format={GIT_LOG_FORMAT}', previous_version + ".." + target_version]
     log = repo.git.log(*log_args)
 
     log = log.strip('\n\x1e').split("\x1e")

@@ -80,7 +80,7 @@ class TestSendEmailSendGrid(unittest.TestCase):
                 attachments=[
                     {
                         'content': 'dGhpcyBpcyBzb21lIHRlc3QgZGF0YQ==',
-                        'content_id': '<{0}>'.format(filename),
+                        'content_id': f'<{filename}>',
                         'disposition': 'attachment',
                         'filename': filename,
                         'type': 'text/plain',

@@ -572,7 +572,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     def test_xcom_push(self):
         return_value = '{"foo": "bar"\n, "buzz": 2}'
-        args = ['echo \'{}\' > /airflow/xcom/return.json'.format(return_value)]
+        args = [f'echo \'{return_value}\' > /airflow/xcom/return.json']
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",

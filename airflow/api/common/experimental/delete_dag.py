@@ -42,7 +42,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     log.info("Deleting DAG: %s", dag_id)
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
     if dag is None:
-        raise DagNotFound("Dag id {} not found".format(dag_id))
+        raise DagNotFound(f"Dag id {dag_id} not found")
 
     # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
     # There may be a lag, so explicitly removes serialized DAG here.

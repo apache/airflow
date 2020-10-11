@@ -39,7 +39,7 @@ role = 'arn:aws:iam:role/test-role'
 path = 'local/data'
 bucket = 'test-bucket'
 key = 'test/data'
-data_url = 's3://{}/{}'.format(bucket, key)
+data_url = f's3://{bucket}/{key}'
 
 job_name = 'test-job'
 model_name = 'test-model'
@@ -48,7 +48,7 @@ endpoint_name = 'test-endpoint'
 
 image = 'test-image'
 test_arn_return = {'Arn': 'testarn'}
-output_url = 's3://{}/test/output'.format(bucket)
+output_url = f's3://{bucket}/test/output'
 
 create_training_params = {
     'AlgorithmSpecification': {'TrainingImage': image, 'TrainingInputMode': 'File'},

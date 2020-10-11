@@ -336,7 +336,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
         should_pass_filepath = not pickle_id and dag
         if should_pass_filepath and dag.full_filepath != dag.filepath:
-            path = "DAGS_FOLDER/{}".format(dag.filepath)
+            path = f"DAGS_FOLDER/{dag.filepath}"
         elif should_pass_filepath and dag.full_filepath:
             path = dag.full_filepath
         else:
@@ -1070,7 +1070,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
         context = {}  # type: Dict
         actual_start_date = timezone.utcnow()
-        Stats.incr('ti.start.{}.{}'.format(task.dag_id, task.task_id))
+        Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
             if not mark_success:
                 context = self.get_template_context()
@@ -1117,7 +1117,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self.handle_failure(e, test_mode, context)
             raise
         finally:
-            Stats.incr('ti.finish.{}.{}.{}'.format(task.dag_id, task.task_id, self.state))
+            Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
 
         self._run_success_callback(context, task)
 
@@ -1188,7 +1188,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             except OperationalError as e:
                 # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
                 self.log.info(
-                    "Skipping mini scheduling run due to exception: {}".format(e.statement),
+                    f"Skipping mini scheduling run due to exception: {e.statement}",
                     exc_info=True,
                 )
                 session.rollback()
@@ -1221,7 +1221,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         # Export context to make it available for operators to use.
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.info("Exporting the following env vars:\n%s",
-                      '\n'.join(["{}={}".format(k, v)
+                      '\n'.join([f"{k}={v}"
                                  for k, v in airflow_context_vars.items()]))
 
         os.environ.update(airflow_context_vars)
@@ -1258,7 +1258,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         Stats.timing('dag.{dag_id}.{task_id}.duration'.format(dag_id=task_copy.dag_id,
                                                               task_id=task_copy.task_id),
                      duration)
-        Stats.incr('operator_successes_{}'.format(self.task.task_type), 1, 1)
+        Stats.incr(f'operator_successes_{self.task.task_type}', 1, 1)
         Stats.incr('ti_successes')
 
     @provide_session
@@ -1391,7 +1391,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         task = self.task
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr('operator_failures_{}'.format(task.task_type), 1, 1)
+        Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))

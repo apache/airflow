@@ -109,6 +109,7 @@ pydocstyle
 pylint
 pylint-tests
 python-no-log-warn
+pyupgrade
 restrict-start_date
 rst-backticks
 setup-order

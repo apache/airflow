@@ -288,7 +288,7 @@ class TestCliWebServer(unittest.TestCase):
 
     def test_cli_webserver_foreground_with_pid(self):
         with tempfile.TemporaryDirectory(prefix='tmp-pid') as tmpdir:
-            pidfile = "{}/pidfile".format(tmpdir)
+            pidfile = f"{tmpdir}/pidfile"
             with mock.patch.dict(
                 "os.environ",
                 AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
@@ -313,11 +313,11 @@ class TestCliWebServer(unittest.TestCase):
                     AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
                     AIRFLOW__CORE__LOAD_EXAMPLES="False",
                     AIRFLOW__WEBSERVER__WORKERS="1"):
-            pidfile_webserver = "{}/pidflow-webserver.pid".format(tmpdir)
-            pidfile_monitor = "{}/pidflow-webserver-monitor.pid".format(tmpdir)
-            stdout = "{}/airflow-webserver.out".format(tmpdir)
-            stderr = "{}/airflow-webserver.err".format(tmpdir)
-            logfile = "{}/airflow-webserver.log".format(tmpdir)
+            pidfile_webserver = f"{tmpdir}/pidflow-webserver.pid"
+            pidfile_monitor = f"{tmpdir}/pidflow-webserver-monitor.pid"
+            stdout = f"{tmpdir}/airflow-webserver.out"
+            stderr = f"{tmpdir}/airflow-webserver.err"
+            logfile = f"{tmpdir}/airflow-webserver.log"
             try:
                 # Run webserver as daemon in background. Note that the wait method is not called.
                 proc = subprocess.Popen([
@@ -350,7 +350,7 @@ class TestCliWebServer(unittest.TestCase):
                 # List all logs
                 subprocess.Popen(["ls", "-lah", tmpdir]).wait()
                 # Dump all logs
-                subprocess.Popen(["bash", "-c", "ls {}/* | xargs -n 1 -t cat".format(tmpdir)]).wait()
+                subprocess.Popen(["bash", "-c", f"ls {tmpdir}/* | xargs -n 1 -t cat"]).wait()
                 raise
 
     # Patch for causing webserver timeout
@@ -372,6 +372,6 @@ class TestCliWebServer(unittest.TestCase):
         self.assertEqual(
             None,
             return_code,
-            "webserver terminated with return code {} in debug mode".format(return_code))
+            f"webserver terminated with return code {return_code} in debug mode")
         proc.terminate()
         self.assertEqual(-15, proc.wait(60))

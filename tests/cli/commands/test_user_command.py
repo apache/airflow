@@ -94,9 +94,9 @@ class TestCliUsers(unittest.TestCase):
     def test_cli_list_users(self):
         for i in range(0, 3):
             args = self.parser.parse_args([
-                'users', 'create', '--username', 'user{}'.format(i), '--lastname',
+                'users', 'create', '--username', f'user{i}', '--lastname',
                 'doe', '--firstname', 'jon',
-                '--email', 'jdoe+{}@gmail.com'.format(i), '--role', 'Viewer',
+                '--email', f'jdoe+{i}@gmail.com', '--role', 'Viewer',
                 '--use-random-password'
             ])
             user_command.users_create(args)
@@ -104,7 +104,7 @@ class TestCliUsers(unittest.TestCase):
             user_command.users_list(self.parser.parse_args(['users', 'list']))
             stdout = stdout.getvalue()
         for i in range(0, 3):
-            self.assertIn('user{}'.format(i), stdout)
+            self.assertIn(f'user{i}', stdout)
 
     def test_cli_list_users_with_args(self):
         user_command.users_list(self.parser.parse_args(['users', 'list', '--output', 'tsv']))
@@ -176,7 +176,7 @@ class TestCliUsers(unittest.TestCase):
         def find_by_username(username):
             matches = [u for u in retrieved_users if u['username'] == username]
             if not matches:
-                self.fail("Couldn't find user with username {}".format(username))
+                self.fail(f"Couldn't find user with username {username}")
             matches[0].pop('id')  # this key not required for import
             return matches[0]
 

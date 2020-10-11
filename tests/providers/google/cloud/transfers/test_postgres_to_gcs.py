@@ -52,8 +52,8 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         with postgres.get_conn() as conn:
             with conn.cursor() as cur:
                 for table in TABLES:
-                    cur.execute("DROP TABLE IF EXISTS {} CASCADE;".format(table))
-                    cur.execute("CREATE TABLE {}(some_str varchar, some_num integer);".format(table))
+                    cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
+                    cur.execute(f"CREATE TABLE {table}(some_str varchar, some_num integer);")
 
                 cur.execute(
                     "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s);", ('mock_row_content_1', 42)
@@ -71,7 +71,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         with postgres.get_conn() as conn:
             with conn.cursor() as cur:
                 for table in TABLES:
-                    cur.execute("DROP TABLE IF EXISTS {} CASCADE;".format(table))
+                    cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
 
     def test_init(self):
         """Test PostgresToGoogleCloudStorageOperator instance is properly initialized."""

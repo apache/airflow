@@ -282,8 +282,8 @@ class TestBaseOperatorMethods(unittest.TestCase):
     def test_cross_downstream(self):
         """Test if all dependencies between tasks are all set correctly."""
         dag = DAG(dag_id="test_dag", start_date=datetime.now())
-        start_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(1, 4)]
-        end_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(4, 7)]
+        start_tasks = [DummyOperator(task_id=f"t{i}", dag=dag) for i in range(1, 4)]
+        end_tasks = [DummyOperator(task_id=f"t{i}", dag=dag) for i in range(4, 7)]
         cross_downstream(from_tasks=start_tasks, to_tasks=end_tasks)
 
         for start_task in start_tasks:
@@ -292,7 +292,7 @@ class TestBaseOperatorMethods(unittest.TestCase):
     def test_chain(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
         [op1, op2, op3, op4, op5, op6] = [
-            DummyOperator(task_id='t{i}'.format(i=i), dag=dag)
+            DummyOperator(task_id=f't{i}', dag=dag)
             for i in range(1, 7)
         ]
         chain(op1, [op2, op3], [op4, op5], op6)
@@ -304,13 +304,13 @@ class TestBaseOperatorMethods(unittest.TestCase):
 
     def test_chain_not_support_type(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
-        [op1, op2] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 3)]
+        [op1, op2] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 3)]
         with self.assertRaises(TypeError):
             chain([op1, op2], 1)  # noqa
 
     def test_chain_different_length_iterable(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
-        [op1, op2, op3, op4, op5] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 6)]
+        [op1, op2, op3, op4, op5] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 6)]
         with self.assertRaises(AirflowException):
             chain([op1, op2], [op3, op4, op5])
 

@@ -85,7 +85,7 @@ class DbApiHook(BaseHook):
             login = '{conn.login}:{conn.password}@'.format(conn=conn)
         host = conn.host
         if conn.port is not None:
-            host += ':{port}'.format(port=conn.port)
+            host += f':{conn.port}'
         uri = '{conn.conn_type}://{login}{host}/'.format(
             conn=conn, login=login, host=host)
         if conn.schema:
@@ -242,7 +242,7 @@ class DbApiHook(BaseHook):
 
         if target_fields:
             target_fields = ", ".join(target_fields)
-            target_fields = "({})".format(target_fields)
+            target_fields = f"({target_fields})"
         else:
             target_fields = ''
 
@@ -250,7 +250,7 @@ class DbApiHook(BaseHook):
             sql = "INSERT INTO "
         else:
             sql = "REPLACE INTO "
-        sql += "{0} {1} VALUES ({2})".format(
+        sql += "{} {} VALUES ({})".format(
             table,
             target_fields,
             ",".join(placeholders))

@@ -245,7 +245,7 @@ def post_clear_task_instances(dag_id: str, session=None):
 
     dag = current_app.dag_bag.get_dag(dag_id)
     if not dag:
-        error_message = "Dag id {} not found".format(dag_id)
+        error_message = f"Dag id {dag_id} not found"
         raise NotFound(error_message)
     reset_dag_runs = data.pop('reset_dag_runs')
     task_instances = dag.clear(get_tis=True, **data)
@@ -287,7 +287,7 @@ def post_set_task_instances_state(dag_id, session):
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    error_message = "Dag ID {} not found".format(dag_id)
+    error_message = f"Dag ID {dag_id} not found"
     try:
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
@@ -300,7 +300,7 @@ def post_set_task_instances_state(dag_id, session):
     task = dag.task_dict.get(task_id)
 
     if not task:
-        error_message = "Task ID {} not found".format(task_id)
+        error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
 
     tis = set_state(

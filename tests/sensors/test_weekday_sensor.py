@@ -90,7 +90,7 @@ class TestDayOfWeekSensor(unittest.TestCase):
     def test_invalid_weekday_number(self):
         invalid_week_day = 'Thsday'
         with self.assertRaisesRegex(AttributeError,
-                                    'Invalid Week Day passed: "{}"'.format(invalid_week_day)):
+                                    f'Invalid Week Day passed: "{invalid_week_day}"'):
             DayOfWeekSensor(
                 task_id='weekday_sensor_invalid_weekday_num',
                 week_day=invalid_week_day,

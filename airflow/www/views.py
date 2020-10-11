@@ -781,7 +781,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         except Exception as e:  # pylint: disable=broad-except
             all_errors += (
                 "Exception encountered during " +
-                "dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{}\n".format(e)
+                f"dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{e}\n"
             )
             html_code = Markup('<p>Failed to load file.</p><p>Details: {}</p>').format(  # noqa
                 escape(all_errors))
@@ -1243,7 +1243,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
         if failed_deps:
             failed_deps_str = ", ".join(
-                ["{}: {}".format(dep.dep_name, dep.reason) for dep in failed_deps])
+                [f"{dep.dep_name}: {dep.reason}" for dep in failed_deps])
             flash("Could not queue task instance for execution, dependencies not met: "
                   "{}".format(failed_deps_str),
                   "error")
@@ -1279,7 +1279,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         try:
             delete_dag.delete_dag(dag_id)
         except DagNotFound:
-            flash("DAG with id {} not found. Cannot delete".format(dag_id), 'error')
+            flash(f"DAG with id {dag_id} not found. Cannot delete", 'error')
             return redirect(request.referrer)
         except DagFileExists:
             flash("Dag id {} is still in DagBag. "
@@ -1328,7 +1328,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
         if not dag_orm:
-            flash("Cannot find dag {}".format(dag_id))
+            flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
 
         execution_date = timezone.utcnow()
@@ -1377,7 +1377,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 only_failed=only_failed,
             )
 
-            flash("{0} task instances have been cleared".format(count))
+            flash(f"{count} task instances have been cleared")
             return redirect(origin)
 
         try:
@@ -1433,7 +1433,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         only_failed = request.form.get('only_failed') == "true"
 
         dag = dag.sub_dag(
-            task_ids_or_regex=r"^{0}$".format(task_id),
+            task_ids_or_regex=fr"^{task_id}$",
             include_downstream=downstream,
             include_upstream=upstream)
 
@@ -1522,7 +1522,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
-            flash('Cannot find DAG: {}'.format(dag_id), 'error')
+            flash(f'Cannot find DAG: {dag_id}', 'error')
             return redirect(origin)
 
         new_dag_state = set_dag_run_state_to_failed(dag, execution_date, commit=confirmed)
@@ -1550,7 +1550,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
-            flash('Cannot find DAG: {}'.format(dag_id), 'error')
+            flash(f'Cannot find DAG: {dag_id}', 'error')
             return redirect(origin)
 
         new_dag_state = set_dag_run_state_to_success(dag, execution_date,
@@ -1635,7 +1635,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         response = self.render_template(
             "airflow/confirm.html",
-            message=("Here's the list of task instances you are about to mark as {}:".format(state)),
+            message=(f"Here's the list of task instances you are about to mark as {state}:"),
             details=details)
 
         return response
@@ -1700,7 +1700,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
-            flash('DAG "{0}" seems to be missing from DagBag.'.format(dag_id), "error")
+            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
@@ -1870,7 +1870,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            flash(f'DAG "{dag_id}" seems to be missing.', "error")
             return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
@@ -1966,7 +1966,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         num_runs = int(num_runs) if num_runs else default_dag_run
 
         if dag is None:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            flash(f'DAG "{dag_id}" seems to be missing.', "error")
             return redirect(url_for('Airflow.index'))
 
         if base_date:
@@ -2026,10 +2026,10 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         cum_y_unit = infer_time_unit([d for t in cumulative_y.values() for d in t])
         # update the y Axis on both charts to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False,
-                            label='Duration ({})'.format(y_unit))
+                            label=f'Duration ({y_unit})')
         chart.axislist['yAxis']['axisLabelDistance'] = '-15'
         cum_chart.create_y_axis('yAxis', format='.02f', custom_format=False,
-                                label='Duration ({})'.format(cum_y_unit))
+                                label=f'Duration ({cum_y_unit})')
         cum_chart.axislist['yAxis']['axisLabelDistance'] = '-15'
 
         for task in dag.tasks:
@@ -2189,7 +2189,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         y_unit = infer_time_unit([d for t in y_points.values() for d in t])
         # update the y Axis to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False,
-                            label='Landing Time ({})'.format(y_unit))
+                            label=f'Landing Time ({y_unit})')
         chart.axislist['yAxis']['axisLabelDistance'] = '-15'
         for task in dag.tasks:
             if x_points[task.task_id]:
@@ -2250,7 +2250,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # sync dag permission
         current_app.appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
 
-        flash("DAG [{}] is now fresh as a daisy".format(dag_id))
+        flash(f"DAG [{dag_id}] is now fresh as a daisy")
         return redirect(request.referrer)
 
     @expose('/refresh_all', methods=['POST'])
@@ -2419,7 +2419,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return response
         else:
             response = jsonify(
-                {'url': None, 'error': 'No URL found for {dest}'.format(dest=link_name)})
+                {'url': None, 'error': f'No URL found for {link_name}'})
             response.status_code = 404
             return response
 
@@ -2466,7 +2466,7 @@ class ConfigurationView(AirflowBaseView):
         subtitle = AIRFLOW_CONFIG
         # Don't show config when expose_config variable is False in airflow config
         if conf.getboolean("webserver", "expose_config"):
-            with open(AIRFLOW_CONFIG, 'r') as file:
+            with open(AIRFLOW_CONFIG) as file:
                 config = file.read()
             table = [(section, key, value, source)
                      for section, parameters in conf.as_dict(True, True).items()
@@ -2958,9 +2958,9 @@ class VariableModelView(AirflowModelView):
                     fail_count += 1
                 else:
                     suc_count += 1
-            flash("{} variable(s) successfully updated.".format(suc_count))
+            flash(f"{suc_count} variable(s) successfully updated.")
             if fail_count:
-                flash("{} variable(s) failed to be updated.".format(fail_count), 'error')
+                flash(f"{fail_count} variable(s) failed to be updated.", 'error')
             self.update_redirect()
             return redirect(self.get_redirect())
 
@@ -3067,7 +3067,7 @@ class DagRunModelView(AirflowModelView):
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
             session.commit()
-            flash("{count} dag runs were set to running".format(count=count))
+            flash(f"{count} dag runs were set to running")
         except Exception as ex:  # pylint: disable=broad-except
             flash(str(ex), 'error')
             flash('Failed to set state', 'error')
@@ -3312,7 +3312,7 @@ class TaskInstanceModelView(AirflowModelView):
                 models.clear_task_instances(task_instances_list, session, dag=dag)
 
             session.commit()
-            flash("{0} task instances have been cleared".format(len(task_instances)))
+            flash("{} task instances have been cleared".format(len(task_instances)))
             self.update_redirect()
             return redirect(self.get_redirect())
         except Exception:  # noqa pylint: disable=broad-except

@@ -65,7 +65,7 @@ class TestAirflowInfo(unittest.TestCase):
     def test_should_be_string(self):
         text = str(info_command.AirflowInfo(info_command.NullAnonymizer()))
 
-        self.assertIn("Apache Airflow [{}]".format(airflow_version), text)
+        self.assertIn(f"Apache Airflow [{airflow_version}]", text)
 
 
 class TestSystemInfo(unittest.TestCase):
@@ -135,7 +135,7 @@ class TestShowInfo(unittest.TestCase):
             info_command.show_info(self.parser.parse_args(["info"]))
 
         output = stdout.getvalue()
-        self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
+        self.assertIn(f"Apache Airflow [{airflow_version}]", output)
         self.assertIn("postgresql+psycopg2://postgres:airflow@postgres/airflow", output)
 
     @conf_vars(
@@ -148,7 +148,7 @@ class TestShowInfo(unittest.TestCase):
             info_command.show_info(self.parser.parse_args(["info", "--anonymize"]))
 
         output = stdout.getvalue()
-        self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
+        self.assertIn(f"Apache Airflow [{airflow_version}]", output)
         self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", output)
 
     @conf_vars(

@@ -231,7 +231,7 @@ class BaseXCom(Base, LoggingMixin):
         for xcom in xcoms:
             if not isinstance(xcom, XCom):
                 raise TypeError(
-                    'Expected XCom; received {}'.format(xcom.__class__.__name__)
+                    f'Expected XCom; received {xcom.__class__.__name__}'
                 )
             session.delete(xcom)
         session.commit()

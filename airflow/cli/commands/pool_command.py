@@ -85,7 +85,7 @@ def pool_import_helper(filepath):
     """Helps import pools from the json file"""
     api_client = get_current_api_client()
 
-    with open(filepath, 'r') as poolfile:
+    with open(filepath) as poolfile:
         data = poolfile.read()
     try:  # pylint: disable=too-many-nested-blocks
         pools_json = json.loads(data)

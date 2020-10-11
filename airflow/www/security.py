@@ -186,7 +186,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             session.delete(role)
             session.commit()
         else:
-            raise AirflowException("Role named '{}' does not exist".format(role_name))
+            raise AirflowException(f"Role named '{role_name}' does not exist")
 
     @staticmethod
     def get_user_roles(user=None):

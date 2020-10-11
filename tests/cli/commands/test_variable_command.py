@@ -149,7 +149,7 @@ class TestCliVariables(unittest.TestCase):
         variable_command.variables_export(self.parser.parse_args([
             'variables', 'export', tmp1.name]))
 
-        first_exp = open(tmp1.name, 'r')
+        first_exp = open(tmp1.name)
 
         variable_command.variables_set(self.parser.parse_args([
             'variables', 'set', 'bar', 'updated']))
@@ -167,7 +167,7 @@ class TestCliVariables(unittest.TestCase):
         variable_command.variables_export(self.parser.parse_args([
             'variables', 'export', tmp2.name]))
 
-        second_exp = open(tmp2.name, 'r')
+        second_exp = open(tmp2.name)
         self.assertEqual(first_exp.read(), second_exp.read())
 
         # Clean up files

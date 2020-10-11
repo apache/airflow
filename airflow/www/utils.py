@@ -329,7 +329,7 @@ def wrapped_markdown(s, css_class=None):
         return None
 
     return Markup(
-        '<div class="rich_doc {css_class}" >'.format(css_class=css_class) + markdown.markdown(s) + "</div>"
+        f'<div class="rich_doc {css_class}" >' + markdown.markdown(s) + "</div>"
     )
 
 

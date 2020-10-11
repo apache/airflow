@@ -165,9 +165,9 @@ class TestExternalTaskSensor(unittest.TestCase):
         instance.render_templates()
 
         self.assertEqual(sensor.external_dag_id,
-                         "dag_{}".format(DEFAULT_DATE.date()))
+                         f"dag_{DEFAULT_DATE.date()}")
         self.assertEqual(sensor.external_task_id,
-                         "task_{}".format(DEFAULT_DATE.date()))
+                         f"task_{DEFAULT_DATE.date()}")
 
     def test_external_task_sensor_fn_multiple_execution_dates(self):
         bash_command_code = """
@@ -512,7 +512,7 @@ def clear_tasks(dag_bag, dag, task, start_date=DEFAULT_DATE, end_date=DEFAULT_DA
     """
     Clear the task and its downstream tasks recursively for the dag in the given dagbag.
     """
-    subdag = dag.sub_dag(task_ids_or_regex="^{}$".format(task.task_id), include_downstream=True)
+    subdag = dag.sub_dag(task_ids_or_regex=f"^{task.task_id}$", include_downstream=True)
     subdag.clear(start_date=start_date, end_date=end_date, dag_bag=dag_bag)
 
 

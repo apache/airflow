@@ -153,7 +153,7 @@ class GunicornMonitor(LoggingMixin):
         while not fn():
             if 0 < timeout <= time.time() - start_time:
                 raise AirflowWebServerTimeout(
-                    "No response from gunicorn master within {0} seconds".format(timeout)
+                    f"No response from gunicorn master within {timeout} seconds"
                 )
             sleep(0.1)
 
@@ -328,7 +328,7 @@ def webserver(args):
 
     if args.debug:
         print(
-            "Starting the web server on port {0} and host {1}.".format(
+            "Starting the web server on port {} and host {}.".format(
                 args.port, args.hostname))
         app = create_app(testing=conf.getboolean('core', 'unit_test_mode'))
         app.run(debug=True, use_reloader=not app.config['TESTING'],

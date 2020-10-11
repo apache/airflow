@@ -77,7 +77,7 @@ def check_sub_dependent_group(setup_context: str) -> None:
 
     for group_name in dependent_group_names:
         pattern_sub_dependent = re.compile(
-            '{group_name} = \\[(.*?)\\]'.format(group_name=group_name), re.DOTALL)
+            f'{group_name} = \\[(.*?)\\]', re.DOTALL)
         sub_dependent = pattern_sub_dependent.findall(setup_context)[0]
         pattern_dependent = re.compile('\'(.*?)\'')
         dependent = pattern_dependent.findall(sub_dependent)

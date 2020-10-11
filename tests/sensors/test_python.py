@@ -97,7 +97,7 @@ class TestPythonSensor(TestPythonBase):
             recorded_calls[0],
             Call(4,
                  date(2019, 1, 1),
-                 "dag {} ran on {}.".format(self.dag.dag_id, ds_templated),
+                 f"dag {self.dag.dag_id} ran on {ds_templated}.",
                  Named(ds_templated, 'unchanged'))
         )
 

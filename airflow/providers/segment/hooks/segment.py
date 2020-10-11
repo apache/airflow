@@ -81,4 +81,4 @@ class SegmentHook(BaseHook):
     def on_error(self, error: str, items: str) -> None:
         """Handles error callbacks when using Segment with segment_debug_mode set to True"""
         self.log.error('Encountered Segment error: %s with ' 'items: %s', error, items)
-        raise AirflowException('Segment error: {}'.format(error))
+        raise AirflowException(f'Segment error: {error}')

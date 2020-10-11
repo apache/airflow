@@ -116,7 +116,7 @@ def _build_metrics(func_name, namespace):
                     full_command[idx] = f'{sensitive_field}={"*" * 8}'
 
     metrics = {'sub_command': func_name, 'start_datetime': datetime.utcnow(),
-               'full_command': '{}'.format(full_command), 'user': getpass.getuser()}
+               'full_command': f'{full_command}', 'user': getpass.getuser()}
 
     if not isinstance(namespace, Namespace):
         raise ValueError("namespace argument should be argparse.Namespace instance,"
@@ -129,7 +129,7 @@ def _build_metrics(func_name, namespace):
 
     extra = json.dumps({k: metrics[k] for k in ('host_name', 'full_command')})
     log = Log(
-        event='cli_{}'.format(func_name),
+        event=f'cli_{func_name}',
         task_instance=None,
         owner=metrics['user'],
         extra=extra,
@@ -198,13 +198,13 @@ def get_dag_by_pickle(pickle_id, session=None):
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
     """Creates logging paths"""
     if not stderr:
-        stderr = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.err'.format(process))
+        stderr = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.err')
     if not stdout:
-        stdout = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.out'.format(process))
+        stdout = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.out')
     if not log:
-        log = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.log'.format(process))
+        log = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.log')
     if not pid:
-        pid = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.pid'.format(process))
+        pid = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.pid')
 
     return pid, stdout, stderr, log
 
@@ -234,7 +234,7 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
     Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
     e.g. kill -s QUIT <PID> or CTRL+\
     """
-    print("Dumping stack traces for all threads in PID {}".format(os.getpid()))
+    print(f"Dumping stack traces for all threads in PID {os.getpid()}")
     id_to_name = {th.ident: th.name for th in threading.enumerate()}
     code = []
     for thread_id, stack in sys._current_frames().items():  # pylint: disable=protected-access
@@ -244,7 +244,7 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
             code.append('File: "{}", line {}, in {}'
                         .format(filename, line_number, name))
             if line:
-                code.append("  {}".format(line.strip()))
+                code.append(f"  {line.strip()}")
     print("\n".join(code))
 
 

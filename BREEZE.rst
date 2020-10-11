@@ -2005,8 +2005,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  helm-lint incorrect-use-of-LoggingMixin insert-license isort language-matters
                  lint-dockerfile lint-openapi mermaid mixed-line-ending mypy mypy-helm
                  no-relative-imports pre-commit-descriptions provide-create-sessions pydevd
-                 pydocstyle pylint pylint-tests python-no-log-warn restrict-start_date rst-backticks
-                 setup-order setup-installation shellcheck sort-in-the-wild stylelint
+                 pydocstyle pylint pylint-tests python-no-log-warn pyupgrade restrict-start_date
+                 rst-backticks setup-order setup-installation shellcheck sort-in-the-wild stylelint
                  trailing-whitespace update-breeze-file update-extras update-local-yml-file
                  update-setup-cfg-file yamllint
 

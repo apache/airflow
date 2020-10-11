@@ -384,8 +384,8 @@ key3 = value3
 
     def test_get_section_should_respect_cmd_env_variable(self):
         with tempfile.NamedTemporaryFile(delete=False) as cmd_file:
-            cmd_file.write("#!/usr/bin/env bash\n".encode())
-            cmd_file.write("echo -n difficult_unpredictable_cat_password\n".encode())
+            cmd_file.write(b"#!/usr/bin/env bash\n")
+            cmd_file.write(b"echo -n difficult_unpredictable_cat_password\n")
             cmd_file.flush()
             os.chmod(cmd_file.name, 0o0555)
             cmd_file.close()
@@ -539,7 +539,7 @@ AIRFLOW_HOME = /root/airflow
     def test_deprecated_funcs(self):
         for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
                      'remove_option', 'as_dict', 'set']:
-            with mock.patch('airflow.configuration.conf.{}'.format(func)) as mock_method:
+            with mock.patch(f'airflow.configuration.conf.{func}') as mock_method:
                 with self.assertWarns(DeprecationWarning):
                     getattr(configuration, func)()
                 mock_method.assert_called_once()
@@ -630,9 +630,9 @@ notacommand = OK
     def test_run_command(self):
         write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
 
-        cmd = 'import sys; {0}; sys.stdout.flush()'.format(write)
+        cmd = f'import sys; {write}; sys.stdout.flush()'
 
-        self.assertEqual(run_command("python -c '{0}'".format(cmd)), '\u1000foo')
+        self.assertEqual(run_command(f"python -c '{cmd}'"), '\u1000foo')
 
         self.assertEqual(run_command('echo "foo bar"'), 'foo bar\n')
         self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')

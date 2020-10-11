@@ -79,7 +79,7 @@ def init_app(app):
 
     service = 'airflow'
 
-    _KERBEROS_SERVICE.service_name = "{}@{}".format(service, hostname)
+    _KERBEROS_SERVICE.service_name = f"{service}@{hostname}"
 
     if 'KRB5_KTNAME' not in os.environ:
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')

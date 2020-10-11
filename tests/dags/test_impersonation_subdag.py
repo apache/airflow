@@ -35,7 +35,7 @@ dag = DAG(dag_id='impersonation_subdag', default_args=default_args)
 
 
 def print_today():
-    print('Today is {}'.format(datetime.utcnow()))
+    print(f'Today is {datetime.utcnow()}')
 
 
 subdag = DAG('impersonation_subdag.test_subdag_operation',

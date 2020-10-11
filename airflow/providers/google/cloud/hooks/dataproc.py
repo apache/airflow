@@ -212,9 +212,7 @@ class DataprocHook(GoogleBaseHook):
 
     def get_cluster_client(self, location: Optional[str] = None) -> ClusterControllerClient:
         """Returns ClusterControllerClient."""
-        client_options = (
-            {'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)} if location else None
-        )
+        client_options = {'api_endpoint': f'{location}-dataproc.googleapis.com:443'} if location else None
 
         return ClusterControllerClient(
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
@@ -229,9 +227,7 @@ class DataprocHook(GoogleBaseHook):
 
     def get_job_client(self, location: Optional[str] = None) -> JobControllerClient:
         """Returns JobControllerClient."""
-        client_options = (
-            {'api_endpoint': '{}-dataproc.googleapis.com:443'.format(location)} if location else None
-        )
+        client_options = {'api_endpoint': f'{location}-dataproc.googleapis.com:443'} if location else None
 
         return JobControllerClient(
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
@@ -735,9 +731,9 @@ class DataprocHook(GoogleBaseHook):
                 self.log.info("Retrying. Dataproc API returned server error when waiting for job: %s", err)
 
         if state == JobStatus.ERROR:
-            raise AirflowException('Job failed:\n{}'.format(job))
+            raise AirflowException(f'Job failed:\n{job}')
         if state == JobStatus.CANCELLED:
-            raise AirflowException('Job was cancelled:\n{}'.format(job))
+            raise AirflowException(f'Job was cancelled:\n{job}')
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_job(

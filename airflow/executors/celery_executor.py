@@ -161,7 +161,7 @@ def send_task_to_executor(task_tuple: TaskInstanceInCelery) \
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=[command], queue=queue)
     except Exception as e:  # pylint: disable=broad-except
-        exception_traceback = "Celery Task ID: {}\n{}".format(key, traceback.format_exc())
+        exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
 
     return key, command, result

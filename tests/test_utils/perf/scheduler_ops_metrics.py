@@ -94,7 +94,7 @@ class SchedulerMetricsJob(SchedulerJob):
         print('Performance Results')
         print('###################')
         for dag_id in DAG_IDS:
-            print('DAG {}'.format(dag_id))
+            print(f'DAG {dag_id}')
             print(ti_perf_df[ti_perf_df['dag_id'] == dag_id])
         print('###################')
         if len(tis) > len(successful_tis):

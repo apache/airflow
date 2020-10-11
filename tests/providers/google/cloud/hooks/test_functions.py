@@ -75,7 +75,7 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook.get_conn')
     def test_upload_function_zip_overridden_project_id(self, get_conn, requests_put):
         mck, open_module = get_open_mock()
-        with mock.patch('{}.open'.format(open_module), mck):
+        with mock.patch(f'{open_module}.open', mck):
             # fmt: off
             generate_upload_url_method = get_conn.return_value.projects.return_value.locations. \
                 return_value.functions.return_value.generateUploadUrl
@@ -220,7 +220,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook.get_conn')
     def test_upload_function_zip(self, get_conn, requests_put, mock_project_id):
         mck, open_module = get_open_mock()
-        with mock.patch('{}.open'.format(open_module), mck):
+        with mock.patch(f'{open_module}.open', mck):
             # fmt: off
             generate_upload_url_method = get_conn.return_value.projects.return_value.locations. \
                 return_value.functions.return_value.generateUploadUrl
@@ -248,7 +248,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook.get_conn')
     def test_upload_function_zip_overridden_project_id(self, get_conn, requests_put):
         mck, open_module = get_open_mock()
-        with mock.patch('{}.open'.format(open_module), mck):
+        with mock.patch(f'{open_module}.open', mck):
             # fmt: off
             generate_upload_url_method = get_conn.return_value.projects.return_value.locations. \
                 return_value.functions.return_value.generateUploadUrl

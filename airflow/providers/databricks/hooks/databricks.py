@@ -41,7 +41,7 @@ RUN_NOW_ENDPOINT = ('POST', 'api/2.0/jobs/run-now')
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
-USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
+USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 
 
 class RunState:
@@ -199,7 +199,7 @@ class DatabricksHook(BaseHook):  # noqa
                     # In this case, the user probably made a mistake.
                     # Don't retry.
                     raise AirflowException(
-                        'Response: {0}, Status Code: {1}'.format(e.response.content, e.response.status_code)
+                        f'Response: {e.response.content}, Status Code: {e.response.status_code}'
                     )
 
                 self._log_request_error(attempt_num, e)

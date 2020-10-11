@@ -110,7 +110,7 @@ class BaseSerialization:
     def validate_schema(cls, serialized_obj: Union[str, dict]) -> None:
         """Validate serialized_obj satisfies JSON schema."""
         if cls._json_schema is None:
-            raise AirflowException('JSON schema of {:s} is not set.'.format(cls.__name__))
+            raise AirflowException(f'JSON schema of {cls.__name__:s} is not set.')
 
         if isinstance(serialized_obj, dict):
             cls._json_schema.validate(serialized_obj)
@@ -274,7 +274,7 @@ class BaseSerialization:
         elif type_ == DAT.TUPLE:
             return tuple([cls._deserialize(v) for v in var])
         else:
-            raise TypeError('Invalid type {!s} in deserialization.'.format(type_))
+            raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
     _deserialize_datetime = pendulum.from_timestamp
     _deserialize_timezone = pendulum.tz.timezone
@@ -662,7 +662,7 @@ class SerializedDAG(DAG, BaseSerialization):
         """Deserializes a python dict in to the DAG and operators it contains."""
         ver = serialized_obj.get('__version', '<not present>')
         if ver != cls.SERIALIZER_VERSION:
-            raise ValueError("Unsure how to deserialize version {!r}".format(ver))
+            raise ValueError(f"Unsure how to deserialize version {ver!r}")
         return cls.deserialize_dag(serialized_obj['dag'])
 
 

@@ -102,7 +102,7 @@ def find_path_from_directory(
 
         ignore_file_path = os.path.join(root, ignore_file_name)
         if os.path.isfile(ignore_file_path):
-            with open(ignore_file_path, 'r') as file:
+            with open(ignore_file_path) as file:
                 lines_no_comments = [re.sub(r"\s*#.*", "", line) for line in file.read().split("\n")]
                 patterns += [re.compile(line) for line in lines_no_comments if line]
                 patterns = list(set(patterns))

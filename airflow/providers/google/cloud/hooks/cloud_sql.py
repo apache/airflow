@@ -358,7 +358,7 @@ class CloudSQLHook(GoogleBaseHook):
             operation_name = response["name"]
             self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
         except HttpError as ex:
-            raise AirflowException('Importing instance {} failed: {}'.format(instance, ex.content))
+            raise AirflowException(f'Importing instance {instance} failed: {ex.content}')
 
     def _wait_for_operation_to_complete(self, project_id: str, operation_name: str) -> None:
         """
@@ -544,7 +544,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         """
         self._download_sql_proxy_if_needed()
         if self.sql_proxy_process:
-            raise AirflowException("The sql proxy is already running: {}".format(self.sql_proxy_process))
+            raise AirflowException(f"The sql proxy is already running: {self.sql_proxy_process}")
         else:
             command_to_run = [self.sql_proxy_path]
             command_to_run.extend(self.command_line_parameters)
@@ -564,13 +564,13 @@ class CloudSqlProxyRunner(LoggingMixin):
                 if line == '' and return_code is not None:
                     self.sql_proxy_process = None
                     raise AirflowException(
-                        "The cloud_sql_proxy finished early with return code {}!".format(return_code)
+                        f"The cloud_sql_proxy finished early with return code {return_code}!"
                     )
                 if line != '':
                     self.log.info(line)
                 if "googleapi: Error" in line or "invalid instance name:" in line:
                     self.stop_proxy()
-                    raise AirflowException("Error when starting the cloud_sql_proxy {}!".format(line))
+                    raise AirflowException(f"Error when starting the cloud_sql_proxy {line}!")
                 if "Ready for new connections" in line:
                     return
 
@@ -758,11 +758,9 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
     @staticmethod
     def _check_ssl_file(file_to_check, name) -> None:
         if not file_to_check:
-            raise AirflowException("SSL connections requires {name} to be set".format(name=name))
+            raise AirflowException(f"SSL connections requires {name} to be set")
         if not os.path.isfile(file_to_check):
-            raise AirflowException(
-                "The {file_to_check} must be a readable file".format(file_to_check=file_to_check)
-            )
+            raise AirflowException(f"The {file_to_check} must be a readable file")
 
     def _validate_inputs(self) -> None:
         if self.project_id == '':

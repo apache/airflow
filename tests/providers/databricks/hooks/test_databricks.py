@@ -43,7 +43,7 @@ HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
 PASSWORD = 'password'
 TOKEN = 'token'
-USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
+USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 RUN_PAGE_URL = 'https://XX.cloud.databricks.com/#jobs/1/runs/1'
 LIFE_CYCLE_STATE = 'PENDING'
 STATE_MESSAGE = 'Waiting for cluster'
@@ -61,49 +61,49 @@ def run_now_endpoint(host):
     """
     Utility function to generate the run now endpoint given the host.
     """
-    return 'https://{}/api/2.0/jobs/run-now'.format(host)
+    return f'https://{host}/api/2.0/jobs/run-now'
 
 
 def submit_run_endpoint(host):
     """
     Utility function to generate the submit run endpoint given the host.
     """
-    return 'https://{}/api/2.0/jobs/runs/submit'.format(host)
+    return f'https://{host}/api/2.0/jobs/runs/submit'
 
 
 def get_run_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return 'https://{}/api/2.0/jobs/runs/get'.format(host)
+    return f'https://{host}/api/2.0/jobs/runs/get'
 
 
 def cancel_run_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return 'https://{}/api/2.0/jobs/runs/cancel'.format(host)
+    return f'https://{host}/api/2.0/jobs/runs/cancel'
 
 
 def start_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return 'https://{}/api/2.0/clusters/start'.format(host)
+    return f'https://{host}/api/2.0/clusters/start'
 
 
 def restart_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return 'https://{}/api/2.0/clusters/restart'.format(host)
+    return f'https://{host}/api/2.0/clusters/restart'
 
 
 def terminate_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return 'https://{}/api/2.0/clusters/delete'.format(host)
+    return f'https://{host}/api/2.0/clusters/delete'
 
 
 def create_valid_response_mock(content):

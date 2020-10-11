@@ -76,7 +76,7 @@ class ValidJson:
             try:
                 json.loads(field.data)
             except JSONDecodeError as ex:
-                message = self.message or 'JSON Validation Error: {}'.format(ex)
+                message = self.message or f'JSON Validation Error: {ex}'
                 raise ValidationError(
                     message=field.gettext(message.format(field.data))
                 )

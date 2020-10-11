@@ -130,11 +130,11 @@ class TestPodLauncher(unittest.TestCase):
         self.mock_kube_client.list_namespaced_event.assert_has_calls([
             mock.call(
                 namespace=mock.sentinel.metadata.namespace,
-                field_selector="involvedObject.name={}".format(mock.sentinel.metadata.name)
+                field_selector=f"involvedObject.name={mock.sentinel.metadata.name}"
             ),
             mock.call(
                 namespace=mock.sentinel.metadata.namespace,
-                field_selector="involvedObject.name={}".format(mock.sentinel.metadata.name)
+                field_selector=f"involvedObject.name={mock.sentinel.metadata.name}"
             )
         ])
 

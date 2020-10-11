@@ -566,13 +566,13 @@ class BackfillJob(BaseJob):
                             .filter(models.Pool.pool == task.pool) \
                             .first()
                         if not pool:
-                            raise PoolNotFound('Unknown pool: {}'.format(task.pool))
+                            raise PoolNotFound(f'Unknown pool: {task.pool}')
 
                         open_slots = pool.open_slots(session=session)
                         if open_slots <= 0:
                             raise NoAvailablePoolSlot(
                                 "Not scheduling since there are "
-                                "{0} open slots in pool {1}".format(
+                                "{} open slots in pool {}".format(
                                     open_slots, task.pool))
 
                         num_running_task_instances_in_dag = DAG.get_num_task_instances(

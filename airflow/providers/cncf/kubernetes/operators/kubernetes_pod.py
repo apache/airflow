@@ -297,10 +297,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             if final_state != State.SUCCESS:
                 status = self.client.read_namespaced_pod(self.name, self.namespace)
                 raise AirflowException(
-                    'Pod returned a failure: {state}'.format(state=status))
+                    f'Pod returned a failure: {status}')
             return result
         except AirflowException as ex:
-            raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
+            raise AirflowException(f'Pod Launching failed: {ex}')
 
     def handle_pod_overlap(
         self, labels: dict, try_numbers_match: bool, launcher: Any, pod: k8s.V1Pod
@@ -319,9 +319,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :param pod_list: list of pods found
         """
         if try_numbers_match:
-            log_line = "found a running pod with labels {} and the same try_number.".format(labels)
+            log_line = f"found a running pod with labels {labels} and the same try_number."
         else:
-            log_line = "found a running pod with labels {} but a different try_number.".format(labels)
+            log_line = f"found a running pod with labels {labels} but a different try_number."
 
         # In case of failed pods, should reattach the first time, but only once
         # as the task will have already failed.
@@ -331,7 +331,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             self.pod = pod
             final_state, result = self.monitor_launched_pod(launcher, pod)
         else:
-            log_line += "creating pod with labels {} and launcher {}".format(labels, launcher)
+            log_line += f"creating pod with labels {labels} and launcher {launcher}"
             self.log.info(log_line)
             final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
         return final_state, result
@@ -476,7 +476,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
             self.patch_already_checked(self.pod)
             raise AirflowException(
-                'Pod returned a failure: {state}'.format(state=final_state)
+                f'Pod returned a failure: {final_state}'
             )
         return final_state, result
 

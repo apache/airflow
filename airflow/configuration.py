@@ -268,7 +268,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
 
     @staticmethod
     def _env_var_name(section, key):
-        return 'AIRFLOW__{S}__{K}'.format(S=section.upper(), K=key.upper())
+        return f'AIRFLOW__{section.upper()}__{key.upper()}'
 
     def _get_env_var_option(self, section, key):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
@@ -506,7 +506,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         if section in self._sections:  # type: ignore
             _section.update(copy.deepcopy(self._sections[section]))  # type: ignore
 
-        section_prefix = 'AIRFLOW__{S}__'.format(S=section.upper())
+        section_prefix = f'AIRFLOW__{section.upper()}__'
         for env_var in sorted(os.environ.keys()):
             if env_var.startswith(section_prefix):
                 key = env_var.replace(section_prefix, '')

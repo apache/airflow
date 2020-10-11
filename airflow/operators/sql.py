@@ -192,7 +192,7 @@ class SQLValueCheckOperator(BaseOperator):
                 numeric_records = self._to_float(records)
             except (ValueError, TypeError):
                 raise AirflowException(
-                    "Converting a result to float failed.\n{}".format(error_msg)
+                    f"Converting a result to float failed.\n{error_msg}"
                 )
             tests = self._get_numeric_matches(numeric_records, pass_value_conv)
         else:
@@ -314,9 +314,9 @@ class SQLIntervalCheckOperator(BaseOperator):
         row1 = hook.get_first(self.sql1)
 
         if not row2:
-            raise AirflowException("The query {} returned None".format(self.sql2))
+            raise AirflowException(f"The query {self.sql2} returned None")
         if not row1:
-            raise AirflowException("The query {} returned None".format(self.sql1))
+            raise AirflowException(f"The query {self.sql1} returned None")
 
         current = dict(zip(self.metrics_sorted, row1))
         reference = dict(zip(self.metrics_sorted, row2))
@@ -368,7 +368,7 @@ class SQLIntervalCheckOperator(BaseOperator):
                     self.metrics_thresholds[k],
                 )
             raise AirflowException(
-                "The following tests have failed:\n {0}".format(
+                "The following tests have failed:\n {}".format(
                     ", ".join(sorted(failed_tests))
                 )
             )

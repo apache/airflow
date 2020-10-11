@@ -178,7 +178,7 @@ if __name__ == '__main__':
         print("Provide XML JUNIT FILE as first argument")
         sys.exit(1)
 
-    with open(sys.argv[1], "r") as f:
+    with open(sys.argv[1]) as f:
         text = f.read()
     y = BeautifulSoup(text, "html.parser")
     res = y.testsuites.testsuite.findAll("testcase")
@@ -233,7 +233,7 @@ if __name__ == '__main__':
     print()
     print(table)
     print()
-    with open(join(dirname(realpath(__file__)), "quarantine_issue_header.md"), "r") as f:
+    with open(join(dirname(realpath(__file__)), "quarantine_issue_header.md")) as f:
         header = jinja2.Template(f.read(), autoescape=True, undefined=StrictUndefined).\
             render(DATE_UTC_NOW=datetime.utcnow())
     quarantined_issue.edit(title=None,

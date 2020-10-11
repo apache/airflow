@@ -81,7 +81,7 @@ class TestBashOperator(unittest.TestCase):
                 task.run(DEFAULT_DATE, DEFAULT_DATE,
                          ignore_first_depends_on_past=True, ignore_ti_state=True)
 
-            with open(tmp_file.name, 'r') as file:
+            with open(tmp_file.name) as file:
                 output = ''.join(file.readlines())
                 self.assertIn('MY_PATH_TO_AIRFLOW_HOME', output)
                 # exported in run-tests as part of PYTHONPATH

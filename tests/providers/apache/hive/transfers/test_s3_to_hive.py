@@ -228,7 +228,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
             # against expected file output
             mock_hiveclihook().load_file.side_effect = lambda *args, **kwargs: self.assertTrue(
                 self._check_file_equality(args[0], op_fn, ext),
-                msg='{0} output file not as expected'.format(ext),
+                msg=f'{ext} output file not as expected',
             )
             # Execute S3ToHiveTransfer
             s32hive = S3ToHiveOperator(**self.kwargs)
@@ -256,7 +256,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
             self.kwargs['headers'] = has_header
             self.kwargs['input_compressed'] = input_compressed
             self.kwargs['select_expression'] = select_expression
-            self.kwargs['s3_key'] = 's3://{0}/{1}'.format(bucket, key)
+            self.kwargs['s3_key'] = f's3://{bucket}/{key}'
 
             ip_fn = self._get_fn(ext, has_header)
 

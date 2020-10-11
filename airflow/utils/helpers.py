@@ -37,7 +37,7 @@ def validate_key(k, max_length=250):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
         raise AirflowException(
-            "The key has to be less than {0} characters".format(max_length))
+            f"The key has to be less than {max_length} characters")
     elif not KEY_REGEX.match(k):
         raise AirflowException(
             "The key ({k}) has to be made of alphanumeric characters, dashes, "

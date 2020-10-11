@@ -159,7 +159,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         del parent_channel
 
         set_context(log, file_path)
-        setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
+        setproctitle(f"airflow scheduler - DagFileProcessor {file_path}")
 
         try:
             # redirect stdout/stderr to log
@@ -212,10 +212,10 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
                 self.file_path,
                 self._pickle_dags,
                 self._dag_ids,
-                "DagFileProcessor{}".format(self._instance_id),
+                f"DagFileProcessor{self._instance_id}",
                 self._callback_requests
             ),
-            name="DagFileProcessor{}-Process".format(self._instance_id)
+            name=f"DagFileProcessor{self._instance_id}-Process"
         )
         self._process = process
         self._start_time = timezone.utcnow()

@@ -157,7 +157,7 @@ class LivyOperator(BaseOperator):
             state = hook.get_batch_state(batch_id)
         self.log.info("Batch with id %s terminated with state: %s", batch_id, state.value)
         if state != BatchState.SUCCESS:
-            raise AirflowException("Batch {} did not succeed".format(batch_id))
+            raise AirflowException(f"Batch {batch_id} did not succeed")
 
     def on_kill(self) -> None:
         self.kill()

@@ -65,7 +65,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'test-bigquery-operators'
 TEST_TABLE_RESOURCES = {"tableReference": {"tableId": TEST_TABLE_ID}, "expirationTime": 1234567}
 VIEW_DEFINITION = {
-    "query": "SELECT * FROM `{}.{}`".format(TEST_DATASET, TEST_TABLE_ID),
+    "query": f"SELECT * FROM `{TEST_DATASET}.{TEST_TABLE_ID}`",
     "useLegacySql": False,
 }
 
@@ -158,7 +158,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
     def test_execute(self, mock_hook):
         operator = BigQueryCreateExternalTableOperator(
             task_id=TASK_ID,
-            destination_project_dataset_table='{}.{}'.format(TEST_DATASET, TEST_TABLE_ID),
+            destination_project_dataset_table=f'{TEST_DATASET}.{TEST_TABLE_ID}',
             schema_fields=[],
             bucket=TEST_GCS_BUCKET,
             source_objects=TEST_GCS_DATA,
@@ -167,11 +167,9 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.create_external_table.assert_called_once_with(
-            external_project_dataset_table='{}.{}'.format(TEST_DATASET, TEST_TABLE_ID),
+            external_project_dataset_table=f'{TEST_DATASET}.{TEST_TABLE_ID}',
             schema_fields=[],
-            source_uris=[
-                'gs://{}/{}'.format(TEST_GCS_BUCKET, source_object) for source_object in TEST_GCS_DATA
-            ],
+            source_uris=[f'gs://{TEST_GCS_BUCKET}/{source_object}' for source_object in TEST_GCS_DATA],
             source_format=TEST_SOURCE_FORMAT,
             compression='NONE',
             skip_leading_rows=0,
@@ -597,7 +595,7 @@ class TestBigQueryOperator(unittest.TestCase):
         ti.xcom_push(key='job_id', value=job_id)
 
         self.assertEqual(
-            'https://console.cloud.google.com/bigquery?j={job_id}'.format(job_id=job_id),
+            f'https://console.cloud.google.com/bigquery?j={job_id}',
             bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name),
         )
 

@@ -30,7 +30,7 @@ TEST_TABLE_ID = 'test-table-id'
 class TestBigQueryToBigQueryOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.transfers.bigquery_to_bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
-        source_project_dataset_tables = '{}.{}'.format(TEST_DATASET, TEST_TABLE_ID)
+        source_project_dataset_tables = f'{TEST_DATASET}.{TEST_TABLE_ID}'
         destination_project_dataset_table = '{}.{}'.format(TEST_DATASET + '_new', TEST_TABLE_ID)
         write_disposition = 'WRITE_EMPTY'
         create_disposition = 'CREATE_IF_NEEDED'

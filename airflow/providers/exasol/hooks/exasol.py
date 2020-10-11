@@ -48,7 +48,7 @@ class ExasolHook(DbApiHook):
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.get_connection(conn_id)
         conn_args = dict(
-            dsn='%s:%s' % (conn.host, conn.port),
+            dsn=f'{conn.host}:{conn.port}',
             user=conn.login,
             password=conn.password,
             schema=self.schema or conn.schema,
