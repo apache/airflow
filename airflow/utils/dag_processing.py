@@ -393,7 +393,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         if self._process and not self._process.is_alive():
             self._process.join(timeout=0)
             if not self.done:
-                self.log.debug(
+                self.log.warning(
                     "DagFileProcessorManager (PID=%d) exited with exit code %d - re-launching",
                     self._process.pid,
                     self._process.exitcode,
