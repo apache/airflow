@@ -1555,7 +1555,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         """
         for dag_model in dag_models:
             dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
-            dag_hash = self.dagbag.dags_hash.get(dag.dag_id, None)
+            dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
             dag.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 execution_date=dag_model.next_dagrun,

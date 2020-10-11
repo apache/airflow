@@ -410,9 +410,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 return default
 
         arg_current_page = request.args.get('page', '0')
-        arg_search_query = request.args.get('search', None)
-        arg_tags_filter = request.args.getlist('tags', None)
-        arg_status_filter = request.args.get('status', None)
+        arg_search_query = request.args.get('search')
+        arg_tags_filter = request.args.getlist('tags')
+        arg_status_filter = request.args.get('status')
 
         if request.args.get('reset_tags') is not None:
             flask_session[FILTER_TAGS_COOKIE] = None
@@ -1282,7 +1282,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             state=State.RUNNING,
             conf=run_conf,
             external_trigger=True,
-            dag_hash=current_app.dag_bag.dags_hash.get(dag_id, None),
+            dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
         )
 
         flash(

@@ -81,7 +81,7 @@ def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> 
         def decorated(*args, **kwargs):
 
             check_authentication()
-            check_authorization(permissions, kwargs.get('dag_id', None))
+            check_authorization(permissions, kwargs.get('dag_id'))
 
             return func(*args, **kwargs)
 

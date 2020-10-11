@@ -480,6 +480,6 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
             location=self.location,
             project_id=self.project_id,
         )
-        self.log.info('Function called successfully. Execution id %s', result.get('executionId', None))
-        self.xcom_push(context=context, key='execution_id', value=result.get('executionId', None))
+        self.log.info('Function called successfully. Execution id %s', result.get('executionId'))
+        self.xcom_push(context=context, key='execution_id', value=result.get('executionId'))
         return result

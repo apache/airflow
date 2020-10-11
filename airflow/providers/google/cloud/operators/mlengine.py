@@ -283,7 +283,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         # Helper method to check if the existing job's prediction input is the
         # same as the request we get here.
         def check_existing_job(existing_job):
-            return existing_job.get('predictionInput', None) == prediction_request['predictionInput']
+            return existing_job.get('predictionInput') == prediction_request['predictionInput']
 
         finished_prediction_job = hook.create_job(
             project_id=self._project_id, job=prediction_request, use_existing_job_fn=check_existing_job
@@ -1264,12 +1264,12 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         # Helper method to check if the existing job's training input is the
         # same as the request we get here.
         def check_existing_job(existing_job):
-            existing_training_input = existing_job.get('trainingInput', None)
+            existing_training_input = existing_job.get('trainingInput')
             requested_training_input = training_request['trainingInput']
             if 'scaleTier' not in existing_training_input:
                 existing_training_input['scaleTier'] = None
 
-            existing_training_input['args'] = existing_training_input.get('args', None)
+            existing_training_input['args'] = existing_training_input.get('args')
             requested_training_input["args"] = (
                 requested_training_input['args'] if requested_training_input["args"] else None
             )

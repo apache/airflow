@@ -42,7 +42,7 @@ def common_error_handler(exception):
     """
     if isinstance(exception, ProblemException):
 
-        link = EXCEPTIONS_LINK_MAP.get(exception.status, None)
+        link = EXCEPTIONS_LINK_MAP.get(exception.status)
         if link:
             response = problem(
                 status=exception.status,

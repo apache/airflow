@@ -209,9 +209,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson
-            conn_data['queue'] = extra.get('queue', None)
-            conn_data['deploy_mode'] = extra.get('deploy-mode', None)
-            conn_data['spark_home'] = extra.get('spark-home', None)
+            conn_data['queue'] = extra.get('queue')
+            conn_data['deploy_mode'] = extra.get('deploy-mode')
+            conn_data['spark_home'] = extra.get('spark-home')
             conn_data['spark_binary'] = self._spark_binary or extra.get('spark-binary', "spark-submit")
             conn_data['namespace'] = extra.get('namespace')
         except AirflowException:
