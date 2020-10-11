@@ -340,7 +340,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
     def result(self) -> Optional[Tuple[int, int]]:
         """
         :return: result of running SchedulerJob.process_file()
-        :rtype: int or None
+        :rtype: tuple[int, int] or None
         """
         if not self.done:
             raise AirflowException("Tried to get the result before it's done!")
