@@ -93,7 +93,7 @@ _UNSET = object()
 
 
 class Arg:
-    """Class to keep information about command line argument"""
+    """Class to keep information about command line arguments"""
 
     # pylint: disable=redefined-builtin,unused-argument
     def __init__(self, flags=_UNSET, help=_UNSET, action=_UNSET, default=_UNSET, nargs=_UNSET, type=_UNSET,
