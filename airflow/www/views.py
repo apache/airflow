@@ -2215,13 +2215,13 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             end_date = failed_task_instance.end_date or timezone.utcnow()
             start_date = failed_task_instance.start_date or end_date
             if tf_count != 0 and failed_task_instance.task_id == prev_task_id:
-                try_count = try_count + 1
+                try_count += 1
             else:
                 try_count = 1
             prev_task_id = failed_task_instance.task_id
             gantt_bar_items.append((failed_task_instance.task_id, start_date, end_date, State.FAILED,
                                     try_count))
-            tf_count = tf_count + 1
+            tf_count += 1
             task = dag.get_task(failed_task_instance.task_id)
             task_dict = alchemy_to_dict(failed_task_instance)
             task_dict['state'] = State.FAILED
