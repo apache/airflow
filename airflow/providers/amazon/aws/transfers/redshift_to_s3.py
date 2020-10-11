@@ -18,7 +18,7 @@
 """
 Transfers data from AWS Redshift into a S3 Bucket.
 """
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -104,7 +104,7 @@ class RedshiftToS3Operator(BaseOperator):
                 'HEADER',
             ]
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, Any]) -> None:
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
