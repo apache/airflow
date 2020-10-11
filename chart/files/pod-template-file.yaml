@@ -78,7 +78,7 @@ spec:
     persistentVolumeClaim:
       claimName: {{ template "airflow_dags_volume_claim" . }}
   {{- else if .Values.dags.gitSync.enabled }}
-  - name: dags
+  - name: airflow-dags
     emptyDir: {}
   {{- end }}
   {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
