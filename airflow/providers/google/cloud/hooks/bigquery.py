@@ -2823,9 +2823,8 @@ def _split_tablename(
 
     if table_input.count('.') + table_input.count(':') > 3:
         raise Exception(
-            ('{var}Use either : or . to specify project ' 'got {input}').format(
-                var=var_print(var_name), input=table_input
-            )
+            '{var}Use either : or . to specify project '
+            'got {input}'.format(var=var_print(var_name), input=table_input)
         )
     cmpt = table_input.rsplit(':', 1)
     project_id = None
@@ -2839,9 +2838,8 @@ def _split_tablename(
             rest = cmpt[1]
     else:
         raise Exception(
-            ('{var}Expect format of (<project:)<dataset>.<table>, ' 'got {input}').format(
-                var=var_print(var_name), input=table_input
-            )
+            '{var}Expect format of (<project:)<dataset>.<table>, '
+            'got {input}'.format(var=var_print(var_name), input=table_input)
         )
 
     cmpt = rest.split('.')
@@ -2857,9 +2855,8 @@ def _split_tablename(
         table_id = cmpt[1]
     else:
         raise Exception(
-            ('{var}Expect format of (<project.|<project:)<dataset>.<table>, ' 'got {input}').format(
-                var=var_print(var_name), input=table_input
-            )
+            '{var}Expect format of (<project.|<project:)<dataset>.<table>, '
+            'got {input}'.format(var=var_print(var_name), input=table_input)
         )
 
     if project_id is None:

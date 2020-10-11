@@ -186,7 +186,7 @@ def rows_to_csv(rows: List[dict], name: Optional[str] = None) -> pd.DataFrame:
 
 def main() -> None:
     """
-    Run the tests aand write stats to a csv file.
+    Run the tests and write stats to a csv file.
     """
     reset_db()
     rows = []

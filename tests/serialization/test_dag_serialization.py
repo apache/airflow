@@ -353,7 +353,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         if dag.default_args:
             for k, v in dag.default_args.items():
                 if callable(v):
-                    # Check we stored _someting_.
+                    # Check we stored _something_.
                     assert k in serialized_dag.default_args
                 else:
                     assert v == serialized_dag.default_args[k], \
@@ -378,7 +378,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             # Checked separately
             '_task_type', 'subdag',
 
-            # Type is exluded, so don't check it
+            # Type is excluded, so don't check it
             '_log',
 
             # List vs tuple. Check separately

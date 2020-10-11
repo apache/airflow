@@ -357,6 +357,14 @@ function initialization::initialize_image_build_variables() {
     export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
     # additional tag for the image
     export IMAGE_TAG=${IMAGE_TAG:=""}
+
+    # whether installation should be performed from the local wheel packages in "docker-context-files" folder
+    export AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS:="false"}"
+    # reference to CONSTRAINTS. they can be overwritten manually or replaced with AIRFLOW_CONSTRAINTS_LOCATION
+    export AIRFLOW_CONSTRAINTS_REFERENCE="${AIRFLOW_CONSTRAINTS_REFERENCE:=""}"
+    # direct constraints Location - can be URL or path to local file. If empty, it will be calculated
+    # based on which Airflow version is installed and from where
+    export AIRFLOW_CONSTRAINTS_LOCATION="${AIRFLOW_CONSTRAINTS_LOCATION:=""}"
 }
 
 # Determine version suffixes used to build backport packages
@@ -671,6 +679,10 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
+    readonly AIRFLOW_LOCAL_PIP_WHEELS
+    readonly AIRFLOW_CONSTRAINTS_REFERENCE
+    readonly AIRFLOW_CONSTRAINTS_LOCATION
+
     # AIRFLOW_EXTRAS are made readonly by the time the image is built (either PROD or CI)
     readonly ADDITIONAL_AIRFLOW_EXTRAS
     readonly ADDITIONAL_PYTHON_DEPS

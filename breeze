@@ -913,13 +913,6 @@ function breeze::parse_arguments() {
             # if not set here, docker cached is determined later, depending on type of image to be build
             shift
             ;;
-        -B | --disable-pip-cache)
-            echo "Disable PIP cache during build"
-            echo
-            export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
-            shift
-            ;;
-
         -P | --force-pull-images)
             echo "Force pulling images before build. Uses pulled images as cache."
             echo
@@ -1005,6 +998,23 @@ function breeze::parse_arguments() {
         --disable-mysql-client-installation)
             export INSTALL_MYSQL_CLIENT="false"
             echo "Install MySQL client: ${INSTALL_MYSQL_CLIENT}"
+            shift
+            ;;
+        --constraints-location)
+            export AIRFLOW_CONSTRAINTS_LOCATION="${2}"
+            echo "Constraints location: ${AIRFLOW_CONSTRAINTS_LOCATION}"
+            shift 2
+            ;;
+        --disable-pip-cache)
+            echo "Disable PIP cache during build"
+            echo
+            export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+            shift
+            ;;
+        --install-local-pip-wheels)
+            export AIRFLOW_LOCAL_PIP_WHEELS="true"
+            export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+            echo "Install from local wheels and disable pip cache"
             shift
             ;;
         --image-tag)
@@ -2291,9 +2301,6 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 --image-tag TAG
         Additional tag in the image.
 
---disable-pip-cache
-        Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
-
 --additional-extras ADDITIONAL_EXTRAS
         Additional extras to pass to build images The default is no additional extras.
 
@@ -2338,6 +2345,19 @@ Build options:
 --disable-mysql-client-installation
         Disables installation of the mysql client which might be problematic if you are building
         image in controlled environment. Only valid for production image.
+
+--constraints-location
+        Url to the constraints file. In case of the production image it can also be a path to the
+        constraint file placed in 'docker-context-files' folder, in which case it has to be
+        in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
+
+--disable-pip-cache
+        Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
+--install-local-pip-wheels
+        This flag is only used in production image building. If it is used then instead of
+        installing Airflow from PyPI, the packages are installed from the .whl packages placed
+        in the 'docker-context-files' folder. It implies '--disable-pip-cache'
 
 -C, --force-clean-images
         Force build images with cache disabled. This will remove the pulled or build images

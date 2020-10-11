@@ -26,6 +26,16 @@ function build_images::add_build_args_for_remote_install() {
         "--build-arg" "AIRFLOW_SOURCES_FROM=empty"
         "--build-arg" "AIRFLOW_SOURCES_TO=/empty"
     )
+    if [[ ${AIRFLOW_CONSTRAINTS_REFERENCE} != "" ]]; then
+        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+            "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        )
+    fi
+    if [[ "${AIRFLOW_CONSTRAINTS_LOCATION}" != "" ]]; then
+        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+            "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"
+        )
+    fi
     if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]([0-9]*) ]]; then
         # All types of references/versions match this regexp for 1.10 series
         # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} matches last
@@ -531,6 +541,12 @@ function build_images::build_ci_image() {
         "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
     )
 
+    if [[ "${AIRFLOW_CONSTRAINTS_LOCATION}" != "" ]]; then
+        EXTRA_DOCKER_CI_BUILD_FLAGS+=(
+            "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"
+        )
+    fi
+
     if [[ -n ${SPIN_PID=} ]]; then
         kill -HUP "${SPIN_PID}" || true
         wait "${SPIN_PID}" || true
@@ -723,13 +739,14 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
-        --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         "${additional_dev_args[@]}" \
         --build-arg ADDITIONAL_DEV_APT_COMMAND="${ADDITIONAL_DEV_APT_COMMAND}" \
         --build-arg ADDITIONAL_DEV_APT_DEPS="${ADDITIONAL_DEV_APT_DEPS}" \
         --build-arg ADDITIONAL_DEV_APT_ENV="${ADDITIONAL_DEV_APT_ENV}" \
+        --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
+        --build-arg AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
@@ -756,10 +773,11 @@ function build_images::build_prod_images() {
         --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="${ADDITIONAL_RUNTIME_APT_COMMAND}" \
         --build-arg ADDITIONAL_RUNTIME_APT_DEPS="${ADDITIONAL_RUNTIME_APT_DEPS}" \
         --build-arg ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV}" \
+        --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
+        --build-arg AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
-        --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${additional_dev_args[@]}" \
