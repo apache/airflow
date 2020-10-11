@@ -65,7 +65,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           sourceRunId: ${{ github.event.workflow_run.id }}
       - name: "Cancel duplicated 'CI Build' runs"
-        uses: potiuk/cancel-workflow-runs@ca4b70a6910d33990e16d95e0c116914cdc0dfd0 # v3_2
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: duplicates
@@ -84,7 +84,7 @@ jobs:
         # in GitHub Actions, we have to use Job names to match Event/Repo/Branch from the
         # build-info step there to find the duplicates ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@ca4b70a6910d33990e16d95e0c116914cdc0dfd0 # v3_2
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -105,7 +105,7 @@ jobs:
         # can cancel all the matching "Build Images" workflow runs in the two following steps.
         # Yeah. Adding to the complexity ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@ca4b70a6910d33990e16d95e0c116914cdc0dfd0 # v3_2
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
         id: cancel-failed
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -140,7 +140,7 @@ jobs:
         # it to cancel any jobs that have matching names containing Source Run Id:
         # followed by one of the run ids. Yes I know it's super complex ¯\_(ツ)_/¯.
         if: env.BUILD_IMAGES == 'true' && steps.source-run-info-failed.outputs.cancelledRuns != '[]'
-        uses: potiuk/cancel-workflow-runs@ca4b70a6910d33990e16d95e0c116914cdc0dfd0 # v3_2
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -362,7 +362,7 @@ jobs:
     needs: [build-images]
     steps:
       - name: "Canceling the 'CI Build' source workflow in case of failure!"
-        uses: potiuk/cancel-workflow-runs@ca4b70a6910d33990e16d95e0c116914cdc0dfd0 # v3_2
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: self
