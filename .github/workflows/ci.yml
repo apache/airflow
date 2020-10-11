@@ -660,7 +660,7 @@ jobs:
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Setup Kind Cluster ${{ env.KIND_VERSION }}"
-        uses: engineerd/setup-kind@v0.4.0
+        uses: potiuk/setup-kind@7345a7e015d9844bab5f4a8a8cfb4eb3cf7f91ef
         with:
           version: "${{ env.KIND_VERSION }}"
           name: airflow-python-${{matrix.python-version}}-${{matrix.kubernetes-version}}
