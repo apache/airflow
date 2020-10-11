@@ -223,6 +223,10 @@
 {{ .Release.Name }}-pgbouncer-config
 {{- end }}
 
+{{ define "pgbouncer_certificates_secret" -}}
+{{ .Release.Name }}-pgbouncer-certificates
+{{- end }}
+
 {{ define "pgbouncer_stats_secret" -}}
 {{ .Release.Name }}-pgbouncer-stats
 {{- end }}
@@ -262,6 +266,20 @@ max_client_conn = {{ .Values.pgbouncer.maxClientConn }}
 verbose = {{ .Values.pgbouncer.verbose }}
 log_disconnections = {{ .Values.pgbouncer.logDisconnections }}
 log_connections = {{ .Values.pgbouncer.logConnections }}
+
+server_tls_sslmode = {{ .Values.pgbouncer.sslmode }}
+server_tls_ciphers = {{ .Values.pgbouncer.ciphers }}
+
+{{- if .Values.pgbouncer.ssl.ca }}
+server_tls_ca_file = /etc/pgbouncer/root.crt
+{{- end }}
+{{- if .Values.pgbouncer.ssl.cert }}
+server_tls_cert_file = /etc/pgbouncer/server.crt
+{{- end }}
+{{- if .Values.pgbouncer.ssl.key }}
+server_tls_key_file = /etc/pgbouncer/server.key
+{{- end }}
+
 {{- end }}
 
 {{ define "pgbouncer_users" }}

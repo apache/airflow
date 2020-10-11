@@ -764,6 +764,33 @@
                 "logConnections": {
                     "description": "Log successful logins.",
                     "type": "integer"
+                },
+                "sslmode": {
+                    "description": "SSL mode for pgbouncer.",
+                    "type": "string",
+                    "enum": ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"]
+                },
+                "ciphers": {
+                    "description": "The allowed ciphers, might be 'fast', 'normal' or list ciphers separated with ':'.",
+                    "type": "string"
+                },
+                "ssl": {
+                    "description": "SSL certificates for pgbouncer connection.",
+                    "type": "object",
+                    "properties": {
+                        "ca": {
+                            "description": "Certificate Authority for server side",
+                            "type": ["string", "null"]
+                        },
+                        "cert": {
+                            "description": "Server Certificate for server side",
+                            "type": ["string", "null"]
+                        },
+                        "key": {
+                            "description": "Private key used to authenticate with the server",
+                            "type": ["string", "null"]
+                        }
+                    }
                 }
             }
         },
