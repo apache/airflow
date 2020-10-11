@@ -796,6 +796,15 @@
                         }
                     }
                 },
+                "kerberosSidecar": {
+                    "description": "Run a side car in each worker pod to refresh kerberos ccache with `airflow kerberos` according to the airflow secuirty configuration",
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable kerberos side car on worker pods."
+                        }
+                    }
+                },
                 "resources": {
                     "type": "object"
                 },
@@ -1066,6 +1075,44 @@
                     }
                 }
             }
+        },
+        "kerberos": {
+            "description": "Kerberos configurations for airflow",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Enable kerberos.",
+                    "type": "boolean"
+                },
+                "ccacheMountPath": {
+                    "description": "Path to mount shared volume for kerberos credentials cache.",
+                    "type": "string"
+                },
+                "ccacheFileName": {
+                    "description": "Name for kerberos credentials cache file.",
+                    "type": "string"
+                },
+                "configPath":{
+                    "description": "Path to mount krb5.conf kerberos configuration file.",
+                    "type": "string"
+                },
+                "keytabPath":{
+                    "description": "Path to mount the keytab for refreshing credentials in the kerberos sidecar.",
+                    "type": "string"
+                },
+                "principal":{
+                    "description": "Principal to use when refreshing kerberos credentials.",
+                    "type": "string"
+                },
+                "reinitFrequency": {
+                    "description": "How often (in seconds) airflow kerberos will reinitialize the credentials cache.",
+                    "type": "integer"
+                },
+                "config": {
+                    "description": "Contents of krb5.conf.",
+                    "type": "string"
+                }
+              }
         }
     }
 }
