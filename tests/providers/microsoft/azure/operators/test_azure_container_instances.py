@@ -264,18 +264,17 @@ class TestACIOperator(unittest.TestCase):
         aci_mock.return_value.get_state.return_value = expected_cg
         aci_mock.return_value.exists.return_value = False
 
-        aci = AzureContainerInstancesOperator(
-            ci_conn_id=None,
-            registry_conn_id=None,
-            resource_group='resource-group',
-            name='container-name',
-            image='container-image',
-            region='region',
-            task_id='task',
-            os_type='MacOs',
-        )
         with self.assertRaises(AirflowException) as e:
-            aci.execute(None)
+            AzureContainerInstancesOperator(
+                ci_conn_id=None,
+                registry_conn_id=None,
+                resource_group='resource-group',
+                name='container-name',
+                image='container-image',
+                region='region',
+                task_id='task',
+                os_type='MacOs',
+            )
 
         self.assertEqual(
             str(e.exception),
@@ -294,18 +293,17 @@ class TestACIOperator(unittest.TestCase):
         aci_mock.return_value.get_state.return_value = expected_cg
         aci_mock.return_value.exists.return_value = False
 
-        aci = AzureContainerInstancesOperator(
-            ci_conn_id=None,
-            registry_conn_id=None,
-            resource_group='resource-group',
-            name='container-name',
-            image='container-image',
-            region='region',
-            task_id='task',
-            restart_policy='Everyday',
-        )
         with self.assertRaises(AirflowException) as e:
-            aci.execute(None)
+            AzureContainerInstancesOperator(
+                ci_conn_id=None,
+                registry_conn_id=None,
+                resource_group='resource-group',
+                name='container-name',
+                image='container-image',
+                region='region',
+                task_id='task',
+                restart_policy='Everyday',
+            )
 
         self.assertEqual(
             str(e.exception),

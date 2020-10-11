@@ -96,7 +96,7 @@ class AzureContainerInstancesOperator(BaseOperator):
     :type container_timeout: datetime.timedelta
     :param tags: azure tags as dict of str:str
     :type tags: Optional[dict[str, str]]
-    :param os_type: he operating system type required by the containers
+    :param os_type: The operating system type required by the containers
         in the container group. Possible values include: 'Windows', 'Linux'
     :type os_type: str
     :param restart_policy: Restart policy for all containers within the container group.
@@ -181,26 +181,25 @@ class AzureContainerInstancesOperator(BaseOperator):
         self._ci_hook: Any = None
         self.tags = tags
         self.os_type = os_type
-        self.restart_policy = restart_policy
-        self.ip_address = ip_address
-        self.ports = ports
-
-    def execute(self, context: dict) -> int:
-        # Check name again in case it was templated.
-        self._check_name(self.name)
-
         if self.os_type not in ['Linux', 'Windows']:
             raise AirflowException(
                 "Invalid value for the os_type argument. "
                 "Please set 'Linux' or 'Windows' as the os_type. "
                 f"Found `{self.os_type}`."
             )
+        self.restart_policy = restart_policy
         if self.restart_policy not in ['Always', 'OnFailure', 'Never']:
             raise AirflowException(
                 "Invalid value for the restart_policy argument. "
                 "Please set one of 'Always', 'OnFailure','Never' as the restart_policy. "
                 f"Found `{self.restart_policy}`"
             )
+        self.ip_address = ip_address
+        self.ports = ports
+
+    def execute(self, context: dict) -> int:
+        # Check name again in case it was templated.
+        self._check_name(self.name)
 
         self._ci_hook = AzureContainerInstanceHook(self.ci_conn_id)
 
