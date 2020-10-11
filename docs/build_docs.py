@@ -635,6 +635,7 @@ def check_spelling() -> None:
         "sphinxcontrib.spelling",
         "exampleinclude",
         "sphinx.ext.autodoc",
+        "sphinx_autodoc_typehints",
         "sphinx.ext.coverage",
         "sphinx.ext.viewcode",
         "sphinx.ext.graphviz",
