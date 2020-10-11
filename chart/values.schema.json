@@ -797,11 +797,12 @@
                     }
                 },
                 "kerberosSidecar": {
-                    "description": "Run a side car in each worker pod to refresh kerberos ccache with `airflow kerberos` according to the airflow secuirty configuration",
+                    "description": "Run a side car in each worker pod to refresh Kerberos ccache with `airflow kerberos` according to the airflow security configuration",
                     "type": "object",
                     "properties": {
                         "enabled": {
-                            "description": "Enable kerberos side car on worker pods."
+                            "description": "Enable Kerberos side car on worker pods.",
+                            "type": "boolean"
                         }
                     }
                 },
