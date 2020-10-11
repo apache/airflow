@@ -172,7 +172,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -421,7 +421,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> str:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -566,7 +566,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -699,7 +699,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -820,7 +820,7 @@ class PubSubPublishMessageOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -919,7 +919,7 @@ class PubSubPullOperator(BaseOperator):
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> list:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -950,7 +950,7 @@ class PubSubPullOperator(BaseOperator):
         self,
         pulled_messages: List[ReceivedMessage],
         context: Dict[str, Any],  # pylint: disable=unused-argument
-    ):
+    ) -> list:
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
         This default implementation converts `ReceivedMessage` objects into JSON-serializable dicts.
