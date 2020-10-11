@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Client for kubernetes communication"""
+"""Client for kubernetes communications"""
 from typing import Optional
 
 from airflow.configuration import conf
