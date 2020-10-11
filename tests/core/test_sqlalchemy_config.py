@@ -76,7 +76,8 @@ class TestSqlAlchemySettings(unittest.TestCase):
                                       mock_scoped_session,
                                       mock_setup_event_handlers):
         config = {
-            ('core', 'sql_alchemy_connect_args'): 'tests.test_sqlalchemy_config.SQL_ALCHEMY_CONNECT_ARGS',
+            ('core', 'sql_alchemy_connect_args'):
+                'tests.core.test_sqlalchemy_config.SQL_ALCHEMY_CONNECT_ARGS',
             ('core', 'sql_alchemy_pool_enabled'): 'False'
         }
         with conf_vars(config):

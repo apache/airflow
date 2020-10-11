@@ -63,6 +63,20 @@ function push_pull_remove_images::pull_image_if_not_present_or_forced() {
         echo
         docker pull "${IMAGE_TO_PULL}"
         EXIT_VALUE="$?"
+        if [[ ${EXIT_VALUE} != "0" && ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR} == "true" ]]; then
+            >&2 echo
+            >&2 echo "ERROR! Exiting on docker pull error"
+            >&2 echo
+            >&2 echo "If you have authorisation problems, you might want to run:"
+            >&2 echo
+            >&2 echo "docker login ${IMAGE_TO_PULL%%\/*}"
+            >&2 echo
+            >&2 echo "You need to use generate token as the password, not your personal password."
+            >&2 echo "You can generete one at https://github.com/settings/tokens"
+            >&2 echo "Make sure to choose 'read:packages' scope".
+            >&2 echo
+            exit ${EXIT_VALUE}
+        fi
         echo
         return ${EXIT_VALUE}
     fi

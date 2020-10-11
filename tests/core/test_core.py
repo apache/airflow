@@ -83,8 +83,8 @@ else:
 
 NUM_EXAMPLE_DAGS = 24
 DEV_NULL = '/dev/null'
-TEST_DAG_FOLDER = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), 'dags')
+TEST_DAG_FOLDER = os.path.abspath(os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags'))
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]

@@ -43,7 +43,7 @@ from tests.test_utils.mock_executor import MockExecutor
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-class LocalTaskJobTest(unittest.TestCase):
+class TestLocalTaskJob(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
         patcher = patch('airflow.jobs.base_job.sleep')
@@ -165,7 +165,7 @@ class LocalTaskJobTest(unittest.TestCase):
                 delta = (time2 - time1).total_seconds()
                 self.assertAlmostEqual(delta, job.heartrate, delta=0.05)
 
-    @pytest.mark.xfail(condition=True, reason="This test might be flaky in postgres/mysql")
+    @pytest.mark.quarantined
     def test_mark_success_no_kill(self):
         """
         Test that ensures that mark_success in the UI doesn't cause
