@@ -112,7 +112,7 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
         """
         A list of simple dags found, and the number of import errors
 
-        :return: result of running SchedulerJob.process_file() if availlablle. Otherwise, none
+        :return: result of running SchedulerJob.process_file() if available. Otherwise, none
         :rtype: Optional[Tuple[int, int]]
         """
         raise NotImplementedError()
