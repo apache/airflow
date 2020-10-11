@@ -34,6 +34,12 @@ function initialization::create_directories() {
     export FILES_DIR="${AIRFLOW_SOURCES}/files"
     readonly FILES_DIR
 
+    # Create an empty .pypirc file that you can customise. It is .gitignored so it will never
+    # land in the repository - it is only added to the "build image" of production image
+    # So you can keep your credentials safe as long as you do not push the build image.
+    # The final image does not contain it.
+    touch "${AIRFLOW_SOURCES}/.pypirc"
+
     # Directory where all the build cache is stored - we keep there status of all the docker images
     # As well as hashes of the important files, but also we generate build scripts there that are
     # Used to execute the commands for breeze
@@ -95,7 +101,7 @@ function initialization::initialize_base_variables() {
     CURRENT_POSTGRES_VERSIONS+=("9.6" "10")
     export CURRENT_POSTGRES_VERSIONS
 
-   # Currently supported versions of MySQL
+    # Currently supported versions of MySQL
     CURRENT_MYSQL_VERSIONS+=("5.6" "5.7")
     export CURRENT_MYSQL_VERSIONS
 
@@ -111,8 +117,10 @@ function initialization::initialize_base_variables() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW=${START_AIRFLOW:="false"}
 
+    # If set to true, the sample dags will be used
     export LOAD_EXAMPLES=${LOAD_EXAMPLES:="false"}
 
+    # If set to true, the test connections will be created
     export LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS:="false"}
 
     # If set to true, RBAC UI will not be used for 1.10 version
@@ -125,9 +133,6 @@ function initialization::initialize_base_variables() {
     # If set the specified file will be used to initialized Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
     export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
-
-    # If set to true, RBAC mode is enabled
-    export RBAC_UI=${RBAC_UI:="false"}
 
     # Read airflow version from the version.py
     AIRFLOW_VERSION=$(grep version "${AIRFLOW_SOURCES}/airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
@@ -170,7 +175,6 @@ function initialization::initialize_available_integrations() {
     export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
 }
 
-
 # Needs to be declared outside of function for MacOS
 FILES_FOR_REBUILD_CHECK=()
 
@@ -187,7 +191,6 @@ function initialization::initialize_files_for_rebuild_check() {
         "airflow/www/webpack.config.js"
     )
 }
-
 
 # Needs to be declared outside of function for MacOS
 
@@ -257,6 +260,8 @@ function initialization::initialize_force_variables() {
     # Can be set to true to skip if the image is newer in registry
     export SKIP_CHECK_REMOTE_IMAGE=${SKIP_CHECK_REMOTE_IMAGE:="false"}
 
+    # Should be set to true if you expect image frm GitHub to be present and downloaded
+    export FAIL_ON_GITHUB_DOCKER_PULL_ERROR=${FAIL_ON_GITHUB_DOCKER_PULL_ERROR:="false"}
 }
 
 # Determine information about the host
@@ -425,11 +430,9 @@ function initialization::initialize_git_variables() {
 
 function initialization::initialize_github_variables() {
     # Defaults for interacting with GitHub
-    export GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
-    GITHUB_REPOSITORY_LOWERCASE="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
-    export GITHUB_REPOSITORY_LOWERCASE
-    export GITHUB_REGISTRY=${GITHUB_REGISTRY:="docker.pkg.github.com"}
     export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
+
+    export GITHUB_REGISTRY=${GITHUB_REGISTRY:="docker.pkg.github.com"}
     export GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"}
     export GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG:="latest"}
     export GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG:="latest"}
@@ -439,8 +442,10 @@ function initialization::initialize_github_variables() {
     # Used only in CI environment
     export GITHUB_TOKEN="${GITHUB_TOKEN=""}"
     export GITHUB_USERNAME="${GITHUB_USERNAME=""}"
+}
 
-
+function initialization::initialize_test_variables() {
+    export TEST_TYPE=${TEST_TYPE:="All"}
 }
 
 # Common environment that is initialized by both Breeze and CI scripts
@@ -459,6 +464,7 @@ function initialization::initialize_common_environment() {
     initialization::initialize_kubernetes_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables
+    initialization::initialize_test_variables
 }
 
 function initialization::set_default_python_version_if_empty() {
@@ -480,7 +486,6 @@ Basic variables:
     PYTHON_MAJOR_MINOR_VERSION: ${PYTHON_MAJOR_MINOR_VERSION}
     DB_RESET: ${DB_RESET}
     START_AIRFLOW: ${START_AIRFLOW}
-    RBAC_UI: ${RBAC_UI}
 
 DockerHub variables:
 
@@ -498,6 +503,7 @@ Force variables:
     FORCE_BUILD_IMAGES: ${FORCE_BUILD_IMAGES}
     FORCE_ANSWER_TO_QUESTIONS: ${FORCE_ANSWER_TO_QUESTIONS}
     SKIP_CHECK_REMOTE_IMAGE: ${SKIP_CHECK_REMOTE_IMAGE}
+    FAIL_ON_GITHUB_DOCKER_PULL_ERROR: ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR}
 
 Host variables:
 
@@ -561,6 +567,10 @@ Initialization variables:
     LOAD_EXAMPLES: ${LOAD_EXAMPLES}
     INSTALL_WHEELS: ${INSTALL_WHEELS}
     DISABLE_RBAC: ${DISABLE_RBAC}
+
+Test variables:
+
+    TEST_TYPE: ${TEST_TYPE}
 
 EOF
 
@@ -633,7 +643,6 @@ function initialization::make_constants_read_only() {
     readonly POSTGRES_HOST_PORT
     readonly MYSQL_HOST_PORT
 
-
     readonly HOST_USER_ID
     readonly HOST_GROUP_ID
     readonly HOST_AIRFLOW_SOURCES
@@ -660,7 +669,6 @@ function initialization::make_constants_read_only() {
     readonly VERBOSE
 
     readonly START_AIRFLOW
-    readonly RBAC_UI
 
     readonly PRODUCTION_IMAGE
 
@@ -716,7 +724,6 @@ function initialization::make_constants_read_only() {
     readonly GITHUB_TOKEN
     readonly GITHUB_USERNAME
 
-
     readonly FORWARD_CREDENTIALS
     readonly USE_GITHUB_REGISTRY
 
@@ -740,20 +747,17 @@ function initialization::make_constants_read_only() {
 
 }
 
-
 # converts parameters to json array
 function initialization::parameters_to_json() {
     echo -n "["
     local separator=""
     local var
-    for var in "${@}"
-    do
+    for var in "${@}"; do
         echo -n "${separator}\"${var}\""
         separator=","
     done
     echo "]"
 }
-
 
 # output parameter name and value - both to stdout and to be set by GitHub Actions
 function initialization::ga_output() {

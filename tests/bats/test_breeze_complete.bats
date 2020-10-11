@@ -254,3 +254,11 @@
 
   assert_equal "${_breeze_default_postgres_version}" "${POSTGRES_VERSION}"
 }
+
+@test "Test default test type same as TEST_TYPE" {
+  load bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "${_breeze_default_test_type}" "${TEST_TYPE}"
+}

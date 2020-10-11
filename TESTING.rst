@@ -131,23 +131,70 @@ Running Tests for a Specified Target Using Breeze from the Host
 ---------------------------------------------------------------
 
 If you wish to only run tests and not to drop into shell, apply the
-``tests`` command. You can add extra targets and pytest flags after the ``tests`` command.
+``tests`` command. You can add extra targets and pytest flags after the ``--`` command. Note that
+often you want to run the tests with a clean/reset db, so usually you want to add ``--db-reset`` flag
+to breeze.
 
 .. code-block:: bash
 
-     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --logging-level=DEBUG
+     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --db-reset -- --logging-level=DEBUG
 
-You can run the whole test suite with a 'tests' test target:
+You can run the whole test suite without adding the test target:
 
 .. code-block:: bash
 
-    ./breeze tests tests
+    ./breeze tests --db-reset
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze tests tests/test_core.py::TestCore
+    ./breeze tests --db-reset tests/test_core.py::TestCore
+
+
+Running Tests of a specified type from the Host
+-----------------------------------------------
+
+You can also run tests for a specific test type. For the stability and performance point of view
+we separated tests to different test types so that they can be run separately.
+
+You can select the test type by adding ``--test-type TEST_TYPE`` before the test command. There are two
+kinds of test types:
+
+* Per-directories types are added to select subset of the tests based on sub-directories in ``tests`` folder.
+  Example test types there - Core, Providers, CLI. The only action that happens when you choose the right
+  test folders are pre-selected. For those types of tests it is only useful to choose the test type
+  when you do not specify test to run.
+
+Runs all core tests:
+
+.. code-block:: bash
+
+     ./breeze --test-type Core  --db-reset tests
+
+Runs all provider tests:
+
+.. code-block:: bash
+
+     ./breeze --test-type Providers --db-reset tests
+
+* Special kinds of tests - Integration, Heisentests, Quarantined, Postgres, MySQL which are marked with pytest
+  marks and for those you need to select the type using test-type switch. If you want to run such tests
+  using breeze, you need to pass appropriate ``--test-type`` otherwise the test will be skipped.
+  Similarly to the per-directory tests if you do not specify the test or tests to run,
+  all tests of a given type are run
+
+Run quarantined test_task_command.py test:
+
+.. code-block:: bash
+
+     ./breeze --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
+
+Run all Quarantined tests:
+
+.. code-block:: bash
+
+     ./breeze --test-type Quarantined tests --db-reset
 
 
 Airflow Integration Tests
