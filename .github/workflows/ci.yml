@@ -43,7 +43,6 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
-  TEST_TYPES: '["Core", "Providers", "API", "CLI", "Integration", "Other", "WWW", "Heisentests"]'
 
   # You can switch between building the image in "Build Images" workflow or building them in CI workflow
   # Separately for each job.
@@ -70,25 +69,27 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
-      pythonVersions: ${{ steps.versions.outputs.python-versions }}
-      defaultPythonVersion: ${{ steps.versions.outputs.default-python-version }}
-      kubernetesVersions: ${{ steps.versions.outputs.kubernetes-versions }}
-      defaultKubernetesVersion: ${{ steps.versions.outputs.default-kubernetes-version }}
-      kubernetesModes: ${{ steps.versions.outputs.kubernetes-modes }}
-      defaultKubernetesMode: ${{ steps.versions.outputs.default-kubernetes-mode }}
-      postgresVersions: ${{ steps.versions.outputs.postgres-versions }}
-      defaultPostgresVersion: ${{ steps.versions.outputs.default-postgres-version }}
-      mysqlVersions: ${{ steps.versions.outputs.mysql-versions }}
-      defaultMySQLVersion: ${{ steps.versions.outputs.default-mysql-version }}
-      helmVersions: ${{ steps.versions.outputs.helm-versions }}
-      defaultHelmVersion: ${{ steps.versions.outputs.default-helm-version }}
-      kindVersions: ${{ steps.versions.outputs.kind-versions }}
-      defaultKindVersion: ${{ steps.versions.outputs.default-kind-version }}
-      testTypes: ${{ steps.versions.outputs.test-types }}
-      postgresExclude: ${{ steps.versions.outputs.postgres-exclude }}
-      mysqlExclude: ${{ steps.versions.outputs.mysql-exclude }}
-      sqliteExclude: ${{ steps.versions.outputs.sqlite-exclude }}
-      kubernetesExclude: ${{ steps.versions.outputs.kubernetes-exclude }}
+      pythonVersions: ${{ steps.selective-tests.outputs.python-versions }}
+      defaultPythonVersion: ${{ steps.selective-tests.outputs.default-python-version }}
+      kubernetesVersions: ${{ steps.selective-tests.outputs.kubernetes-versions }}
+      defaultKubernetesVersion: ${{ steps.selective-tests.outputs.default-kubernetes-version }}
+      kubernetesModes: ${{ steps.selective-tests.outputs.kubernetes-modes }}
+      defaultKubernetesMode: ${{ steps.selective-tests.outputs.default-kubernetes-mode }}
+      postgresVersions: ${{ steps.selective-tests.outputs.postgres-versions }}
+      defaultPostgresVersion: ${{ steps.selective-tests.outputs.default-postgres-version }}
+      mysqlVersions: ${{ steps.selective-tests.outputs.mysql-versions }}
+      defaultMySQLVersion: ${{ steps.selective-tests.outputs.default-mysql-version }}
+      helmVersions: ${{ steps.selective-tests.outputs.helm-versions }}
+      defaultHelmVersion: ${{ steps.selective-tests.outputs.default-helm-version }}
+      kindVersions: ${{ steps.selective-tests.outputs.kind-versions }}
+      defaultKindVersion: ${{ steps.selective-tests.outputs.default-kind-version }}
+      testTypes: ${{ steps.selective-tests.outputs.test-types }}
+      postgresExclude: ${{ steps.selective-tests.outputs.postgres-exclude }}
+      mysqlExclude: ${{ steps.selective-tests.outputs.mysql-exclude }}
+      sqliteExclude: ${{ steps.selective-tests.outputs.sqlite-exclude }}
+      kubernetesExclude: ${{ steps.selective-tests.outputs.kubernetes-exclude }}
+      run-tests: ${{ steps.selective-tests.outputs.run-tests }}
+      run-kubernetes-tests: ${{ steps.selective-tests.outputs.run-kubernetes-tests }}
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -109,62 +110,9 @@ jobs:
           else
               echo "::set-output name=wait-for-image::false"
           fi
-      - name: Set versions
-        id: versions
-        run: |
-          . ./scripts/ci/libraries/_script_init.sh
-
-          initialization::ga_output python-versions \
-              "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
-          initialization::ga_output default-python-version "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
-
-          initialization::ga_output kubernetes-versions \
-              "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_VERSIONS[@]}")"
-          initialization::ga_output default-kubernetes-version "${KUBERNETES_VERSION}"
-
-          initialization::ga_output kubernetes-modes \
-              "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_MODES[@]}")"
-          initialization::ga_output default-kubernetes-mode "${KUBERNETES_MODE}"
-
-          initialization::ga_output postgres-versions \
-              "$(initialization::parameters_to_json "${CURRENT_POSTGRES_VERSIONS[@]}")"
-          initialization::ga_output default-postgres-version "${POSTGRES_VERSION}"
-
-          initialization::ga_output mysql-versions \
-              "$(initialization::parameters_to_json "${CURRENT_MYSQL_VERSIONS[@]}")"
-          initialization::ga_output default-mysql-version "${MYSQL_VERSION}"
-
-          initialization::ga_output kind-versions \
-              "$(initialization::parameters_to_json "${CURRENT_KIND_VERSIONS[@]}")"
-          initialization::ga_output default-kind-version "${KIND_VERSION}"
-
-          initialization::ga_output helm-versions \
-              "$(initialization::parameters_to_json "${CURRENT_HELM_VERSIONS[@]}")"
-          initialization::ga_output default-helm-version "${HELM_VERSION}"
-
-          initialization::ga_output test-types "${TEST_TYPES}"
-
-          initialization::ga_output postgres-exclude '[{ "python-version": "3.6" }]'
-
-          initialization::ga_output mysql-exclude '[{ "python-version": "3.7" }]'
-
-          initialization::ga_output sqlite-exclude '[{ "python-version": "3.8" }]'
-
-          initialization::ga_output kubernetes-exclude '[]'
-
-  trigger-tests:
-    timeout-minutes: 5
-    name: "Trigger tests"
-    runs-on: ubuntu-latest
-    outputs:
-      run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
-    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
-    steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
-      - name: "Check if tests should be run"
-        run: ./scripts/ci/tools/ci_check_if_tests_should_be_run.sh
-        id: trigger-tests
+      - name: Selective tests
+        id: selective-tests
+        run: ./scripts/ci/selective_tests.sh
 
   helm-tests:
     timeout-minutes: 5
@@ -362,7 +310,7 @@ jobs:
     timeout-minutes: 60
     name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [build-info, trigger-tests, ci-images]
+    needs: [build-info, ci-images]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
@@ -383,7 +331,7 @@ jobs:
       RUN_TESTS: true
       TEST_TYPE: ${{ matrix.test-type }}
     if: >
-        (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
+        needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -415,7 +363,7 @@ jobs:
     timeout-minutes: 60
     name: "${{matrix.test-type}}:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [build-info, trigger-tests, ci-images]
+    needs: [build-info, ci-images]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
@@ -436,7 +384,7 @@ jobs:
       RUN_TESTS: true
       TEST_TYPE: ${{ matrix.test-type }}
     if: >
-        (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
+        needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -467,7 +415,7 @@ jobs:
     timeout-minutes: 60
     name: "${{matrix.test-type}}:Sqlite Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [build-info, trigger-tests, ci-images]
+    needs: [build-info, ci-images]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
@@ -479,7 +427,8 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       RUN_TESTS: true
       TEST_TYPE: ${{ matrix.test-type }}
-    if: (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
+    if: >
+        needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -511,7 +460,7 @@ jobs:
     name: "Quarantined tests"
     runs-on: ubuntu-latest
     continue-on-error: true
-    needs: [build-info, trigger-tests, ci-images]
+    needs: [build-info, ci-images]
     strategy:
       matrix:
         include:
@@ -528,7 +477,7 @@ jobs:
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: >
-      (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
+      needs.build-info.outputs.run-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -628,7 +577,7 @@ jobs:
     timeout-minutes: 50
     name: "K8s: ${{matrix.python-version}} ${{matrix.kubernetes-version}} ${{matrix.kubernetes-mode}}"
     runs-on: ubuntu-latest
-    needs: [build-info, trigger-tests, prod-images]
+    needs: [build-info, prod-images]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
@@ -648,7 +597,7 @@ jobs:
       KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
       HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
     if: >
-      (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
+      needs.build-info.outputs.run-kubernetes-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
