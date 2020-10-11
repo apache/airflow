@@ -35,8 +35,8 @@ from airflow.utils.db import create_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from tests.compat import patch
-from tests.test_core import TEST_DAG_FOLDER
 from airflow.utils.timeout import timeout
+from tests.core.test_core import TEST_DAG_FOLDER
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_executor import MockExecutor
 
