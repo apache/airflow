@@ -715,16 +715,16 @@ A simple example of a system test is available in:
 It runs two DAGs defined in ``airflow.providers.google.cloud.example_dags.example_compute.py`` and
 ``airflow.providers.google.cloud.example_dags.example_compute_igm.py``.
 
-Preparing backport packages for System Tests for Airflow 1.10.* series
+Preparing provider packages for System Tests for Airflow 1.10.* series
 ----------------------------------------------------------------------
 
-To run system tests with old Airflow version you need to prepare backport packages. This
-can be done by running ``./breeze prepare-backport-packages -- <PACKAGES TO BUILD>``. For
+To run system tests with old Airflow version you need to prepare provider packages. This
+can be done by running ``./breeze prepare-provider-packages -- <PACKAGES TO BUILD>``. For
 example the below command will build google postgres and mysql packages:
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google postgres mysql
+  ./breeze prepare-provider-packages -- google postgres mysql
 
 Those packages will be prepared in ./dist folder. This folder is mapped to /dist folder
 when you enter Breeze, so it is easy to automate installing those packages for testing.
@@ -747,11 +747,11 @@ Airflow is removed and the released version of Airflow from ``Pypi`` is installe
 are not removed and they can be used to run tests (unit tests and system tests) against the
 freshly installed version.
 
-You should automate installing of the backport packages in your own
+You should automate installing of the provider packages in your own
 ``./files/airflow-breeze-config/variables.env`` file. You should make it depend on
 ``RUN_AIRFLOW_1_10`` variable value equals to "true" so that
-the installation of backport packages is only performed when you install airflow 1.10.*.
-The backport packages are available in ``/dist`` directory if they were prepared as described
+the installation of provider packages is only performed when you install airflow 1.10.*.
+The provider packages are available in ``/dist`` directory if they were prepared as described
 in the previous chapter.
 
 Typically the command in you variables.env file will be similar to:
@@ -782,11 +782,11 @@ The typical system test session
 
 Here is the typical session that you need to do to run system tests:
 
-1. Prepare backport packages
+1. Prepare provider packages
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google postgres mysql
+  ./breeze prepare-provider-packages -- google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
    backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
@@ -846,7 +846,7 @@ Breeze session. They are usually expensive to run.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Important !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Note that in case you have to update your backported operators or system tests (they are part of
-the backport packageS) you need to rebuild the packages outside of breeze and
+the provider packageS) you need to rebuild the packages outside of breeze and
 ``pip remove/pip install`` those packages to get them installed. This is not needed
 if you run system tests with ``current`` airflow version, so it is better to iterate with the
 system tests with the ``current`` version and fix all problems there and only afterwards run
@@ -854,11 +854,11 @@ the tests with Airflow 1.10.*
 
 The typical session then looks as follows:
 
-1. Prepare backport packages
+1. Prepare provider packages
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google postgres mysql
+  ./breeze prepare-provider-packages -- google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
    backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
@@ -880,7 +880,7 @@ The typical session then looks as follows:
    pytest -o faulthandler_timeout=2400 \
       --system=google tests/providers/google/cloud/operators/test_compute_system.py
 
-5. In case you are running backport packages tests you need to rebuild and reinstall a package
+5. In case you are running provider packages tests you need to rebuild and reinstall a package
    every time you change the operators/hooks or example_dags. The example below shows reinstallation
    of the google package:
 
@@ -888,7 +888,7 @@ In the host:
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google
+  ./breeze prepare-provider-packages -- google
 
 In the container:
 

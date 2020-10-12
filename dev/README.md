@@ -718,7 +718,7 @@ Update "Announcements" page at the [Official Airflow website](https://airflow.ap
 # Backport Provider Packages
 
 You can read more about the command line tools used to generate backport packages in
-[Backport Providers README](../backport_packages/README.md).
+[Backport Providers README](../provider_packages/README.md).
 
 ## Decide when to release
 
@@ -738,14 +738,14 @@ Prepare release notes for all the packages you plan to release. Where YYYY.MM.DD
 date for the packages.
 
 ```
-./breeze prepare-backport-readme YYYY.MM.DD [packages]
+./breeze prepare-provider-readme YYYY.MM.DD [packages]
 ```
 
 If you iterate with merges and release candidates you can update the release date without providing
 the date (to update the existing release notes)
 
 ```
-./breeze prepare-backport-readme google
+./breeze prepare-provider-readme google
 ```
 
 Generated readme files should be eventually committed to the repository.
@@ -773,7 +773,7 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 * Build the source package:
 
 ```
-./backport_packages/build_source_package.sh
+./provider_packages/build_source_package.sh
 
 ```
 
@@ -784,13 +784,13 @@ It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
   you intended to build.
 
 ```shell script
-./breeze prepare-backport-packages --version-suffix-for-svn rc1
+./breeze prepare-provider-packages --version-suffix-for-svn rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-backport-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
+./breeze prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
 ```
 
 * Move the source tarball to dist folder
@@ -853,13 +853,13 @@ though they should be generated from the same sources.
 this will clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-./breeze prepare-backport-packages --version-suffix-for-pypi rc1
+./breeze prepare-provider-packages --version-suffix-for-pypi rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-backport-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
+./breeze prepare-provider-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -1265,11 +1265,11 @@ ls *<provider>*
 svn rm *<provider>*
 
 # Check which old packages will be removed (you need python 3.6+)
-python ${AIRFLOW_REPO_ROOT}/backport_packages/remove_old_releases.py \
+python ${AIRFLOW_REPO_ROOT}/provider_packages/remove_old_releases.py \
     --directory .
 
 # Remove those packages
-python ${AIRFLOW_REPO_ROOT}/backport_packages/remove_old_releases.py \
+python ${AIRFLOW_REPO_ROOT}/provider_packages/remove_old_releases.py \
     --directory . --execute
 
 
@@ -1300,13 +1300,13 @@ In order to publish to PyPI you just need to build and release packages.
 * Generate the packages.
 
 ```shell script
-./breeze prepare-backport-packages
+./breeze prepare-provider-packages
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-backport-packages
+./breeze prepare-provider-packages
 ```
 
 In case you decided to remove some of the packages. Remove them from dist folder now:

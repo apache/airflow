@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Removes older releases of backport packages from the folder using svn rm.
+Removes older releases of provider packages from the folder using svn rm.
 
 It iterates over the folder specified as first parameter and removes all but latest releases of
 packages found in that directory.

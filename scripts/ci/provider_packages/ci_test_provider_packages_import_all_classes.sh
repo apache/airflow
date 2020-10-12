@@ -18,8 +18,21 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+function run_test_package_import_all_classes() {
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        -v "${AIRFLOW_SOURCES}/dist:/dist:cached" \
+        -v "${AIRFLOW_SOURCES}/setup.py:/airflow_sources/setup.py:cached" \
+        -v "${AIRFLOW_SOURCES}/setup.cfg:/airflow_sources/setup.cfg:cached" \
+        -v "${AIRFLOW_SOURCES}/airflow/__init__.py:/airflow_sources/airflow/__init__.py:cached" \
+        -v "${AIRFLOW_SOURCES}/airflow/version.py:/airflow_sources/airflow/version.py:cached" \
+        -v "${AIRFLOW_SOURCES}/provider_packages/import_all_provider_classes.py:/import_all_provider_classes.py:cached" \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/in_container/run_test_package_import_all_classes.sh"
+}
+
 build_images::prepare_ci_build
 
 build_images::rebuild_ci_image_if_needed
 
-runs::run_prepare_backport_packages "$@"
+run_test_package_import_all_classes

@@ -23,8 +23,8 @@
 # or it needs to be available in your keychain
 set -euo pipefail
 
-BACKPORT_PACKAGES_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "${BACKPORT_PACKAGES_DIR}"/..
+PROVIDER_ID_PACKAGES_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "${PROVIDER_ID_PACKAGES_DIR}"/..
 
 function check_version() {
     : "${VERSION:?"Please export VERSION variable with the version of source package to prepare"}"
@@ -49,7 +49,7 @@ function prepare_combined_changelog() {
   echo
   echo "Preparing the changelog"
   echo
-  CHANGELOG_FILE="backport_packages/CHANGELOG.txt"
+  CHANGELOG_FILE="provider-packages/CHANGELOG.txt"
   PATTERN="airflow\/providers\/(.*)\/PROVIDERS_CHANGES_.*.md"
   echo > "${CHANGELOG_FILE}"
   CHANGES_FILES=$(find "airflow/providers/" -name 'PROVIDERS_CHANGES_*.md' | sort -r)
@@ -105,7 +105,7 @@ function replace_install_changelog(){
   echo
   tar -f "apache-airflow-backport-providers-${VERSION}-source.tar.gz" -xz -C "${DIR}"
 
-  cp "backport_packages/INSTALL" "backport_packages/CHANGELOG.txt" \
+  cp "provider_packages/INSTALL" "provider_packages/CHANGELOG.txt" \
       "${DIR}/apache-airflow-backport-providers-${VERSION%rc?}/"
 
   tar -f "apache-airflow-backport-providers-${VERSION}-source.tar.gz" -cz -C "${DIR}" \

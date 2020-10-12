@@ -367,7 +367,7 @@ function initialization::initialize_image_build_variables() {
     export AIRFLOW_CONSTRAINTS_LOCATION="${AIRFLOW_CONSTRAINTS_LOCATION:=""}"
 }
 
-# Determine version suffixes used to build backport packages
+# Determine version suffixes used to build provider packages
 function initialization::initialize_version_suffixes_for_package_building() {
     # Version suffix for PyPI packaging
     export VERSION_SUFFIX_FOR_PYPI=""

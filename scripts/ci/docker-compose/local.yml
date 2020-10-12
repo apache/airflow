@@ -40,7 +40,7 @@ services:
       - ../../../MANIFEST.in:/opt/airflow/MANIFEST.in:cached
       - ../../../NOTICE:/opt/airflow/NOTICE:cached
       - ../../../airflow:/opt/airflow/airflow:cached
-      - ../../../backport_packages:/opt/airflow/backport_packages:cached
+      - ../../../provider_packages:/opt/airflow/provider_packages:cached
       - ../../../dags:/opt/airflow/dags:cached
       - ../../../dev:/opt/airflow/dev:cached
       - ../../../docs:/opt/airflow/docs:cached

@@ -34,16 +34,16 @@ pip install -e ".[all]" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
 
 echo > "${OUT_FILE_PRINTED_ON_ERROR}"
 
-cd "${AIRFLOW_SOURCES}/backport_packages" || exit 1
+cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
 
-python3 setup_backport_packages.py update-package-release-notes "$@"
+python3 setup_provider_packages.py update-package-release-notes "$@"
 
-AIRFLOW_BACKPORT_README_TGZ_FILE="/files/airflow-backport-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
+AIRFLOW_PROVIDER_README_TGZ_FILE="/files/airflow-backport-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
 find airflow/providers \( -name 'README.md' -o -name 'PROVIDERS_CHANGES*' \) -print0 | \
-    tar --null --no-recursion -cvzf "${AIRFLOW_BACKPORT_README_TGZ_FILE}" -T -
+    tar --null --no-recursion -cvzf "${AIRFLOW_PROVIDER_README_TGZ_FILE}" -T -
 echo
-echo "Airflow readme for backport packages are tar-gzipped in ${AIRFLOW_BACKPORT_README_TGZ_FILE}"
+echo "Airflow readme for provider packages are tar-gzipped in ${AIRFLOW_PROVIDER_README_TGZ_FILE}"
 echo

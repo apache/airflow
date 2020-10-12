@@ -92,5 +92,5 @@ if __name__ == '__main__':
     print()
     import_all_provider_classes(print_imports=True, source_path=install_source_path)
     print()
-    print("SUCCESS: All backport packages are importable!")
+    print("SUCCESS: All provider packages are importable!")
     print()

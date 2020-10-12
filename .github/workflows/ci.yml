@@ -271,7 +271,7 @@ jobs:
       - name: "Spell check docs"
         run: ./scripts/ci/docs/ci_docs.sh --spellcheck-only
 
-  prepare-backport-packages:
+  prepare-provider-packages:
     timeout-minutes: 30
     name: "Backport packages"
     runs-on: ubuntu-latest
@@ -291,9 +291,9 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare & test backport packages"
-        run: ./scripts/ci/backport_packages/ci_prepare_and_test_backport_packages.sh
-      - name: "Upload backport package artifacts"
+      - name: "Prepare & test provider packages"
+        run: ./scripts/ci/provider_packages/ci_prepare_and_test_provider_packages.sh
+      - name: "Upload provider package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
         with:
@@ -656,7 +656,7 @@ jobs:
       - tests-postgres
       - tests-mysql
       - tests-kubernetes
-      - prepare-backport-packages
+      - prepare-provider-packages
       - prod-images
       - docs
       - docs-spell-check
@@ -695,7 +695,7 @@ jobs:
       - tests-postgres
       - tests-mysql
       - tests-kubernetes
-      - prepare-backport-packages
+      - prepare-provider-packages
       - ci-images
       - docs
       - docs-spell-check
@@ -811,7 +811,7 @@ jobs:
       - tests-mysql
       - tests-kubernetes
       - constraints-push
-      - prepare-backport-packages
+      - prepare-provider-packages
     if: github.event_name == 'schedule' &&  github.repository == 'apache/airflow'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"

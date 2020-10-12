@@ -589,11 +589,11 @@ jobs for each python version.
 Backport providers packages
 ---------------------------
 
-**NOTE:** In case of problems with installation / development of backport packages
-check `troubleshooting installing backport packages <https://github
+**NOTE:** In case of problems with installation / development of provider packages
+check `troubleshooting installing provider packages <https://github
 .com/apache/airflow#troubleshooting-installing-backport-packages>`_.
 
-Since we are developing new operators in the master branch, we prepared backport packages ready to be
+Since we are developing new operators in the master branch, we prepared provider packages ready to be
 installed for Airflow 1.10.* series. Those backport operators (the tested ones) are going to be released
 in PyPi and we are going to maintain the list at
 `Backported providers package page <https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series>`_
