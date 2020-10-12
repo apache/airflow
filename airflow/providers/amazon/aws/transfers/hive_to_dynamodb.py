@@ -68,7 +68,7 @@ class HiveToDynamoDBOperator(BaseOperator):
         sql: str,
         table_name: str,
         table_keys: list,
-        pre_process: Optional[Callable[[Any, Optional[list], Optional[list]], Iterable]] = None,
+        pre_process: Optional[Callable] = None,
         pre_process_args: Optional[list] = None,
         pre_process_kwargs: Optional[list] = None,
         region_name: Optional[str] = None,
