@@ -1842,16 +1842,17 @@ class DAG(BaseDag, LoggingMixin):
         :type expiration_date: datetime
         :return: None
         """
-        for dag in session.query(
-                DagModel).filter(DagModel.last_scheduler_run < expiration_date,
-                                 DagModel.is_active).all():
+        query = session.query(DagModel).filter(DagModel.last_scheduler_run < expiration_date,
+                             DagModel.is_active)
+
+        for dag in with_row_locks(query, of=DagModel, **skip_locked(session=session)).all():
             log.info(
                 "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
                 dag.dag_id, dag.last_scheduler_run.isoformat()
             )
             dag.is_active = False
             session.merge(dag)
-            session.commit()
+        session.flush()
 
     @staticmethod
     @provide_session

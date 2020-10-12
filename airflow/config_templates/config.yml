@@ -1709,6 +1709,13 @@
       type: string
       example: ~
       default: "False"
+    - name: stale_dag_cleanup_timeout
+      description: |
+        Timeout in seconds before Schduler marks a removed DAG as inactive in DB.
+      version_added: ~
+      type: string
+      example: ~
+      default: 600
 - name: ldap
   description: ~
   options:

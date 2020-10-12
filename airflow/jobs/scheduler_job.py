@@ -1311,22 +1311,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # Start after resetting orphaned tasks to avoid stressing out DB.
             self.processor_agent.start()
 
-            execute_start_time = timezone.utcnow()
-
             self._run_scheduler_loop()
 
             # Stop any processors
             self.processor_agent.terminate()
-
-            # Verify that all files were processed, and if so, deactivate DAGs that
-            # haven't been touched by the scheduler as they likely have been
-            # deleted.
-            if self.processor_agent.all_files_processed:
-                self.log.info(
-                    "Deactivating DAGs that haven't been touched since %s",
-                    execute_start_time.isoformat()
-                )
-                models.DAG.deactivate_stale_dags(execute_start_time)
 
             self.executor.end()
 
@@ -1364,6 +1352,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             #. Heartbeat executor
                 #. Execute queued tasks in executor asynchronously
                 #. Sync on the states of running tasks
+            #. Deactivate stale/deleted dags
 
         Following is a graphic representation of these steps.
 
@@ -1374,6 +1363,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
         is_unit_test: bool = conf.getboolean('core', 'unit_test_mode')
+        stale_dag_cleanup_timeout: int = conf.getint('scheduler', 'stale_dag_cleanup_timeout', 600)
 
         for loop_count in itertools.count(start=1):
             loop_start_time = time.time()
@@ -1408,6 +1398,15 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
                 # usage when "idle"
                 time.sleep(self._processor_poll_interval)
+
+            # Verify that all files were processed, and if so, deactivate DAGs that
+            # haven't been touched by the scheduler as they likely have been deleted.
+            if self.processor_agent.all_files_processed:
+                self.log.info(
+                    "Deactivating DAGs that haven't been touched in %s seconds",
+                    stale_dag_cleanup_timeout
+                )
+                models.DAG.deactivate_stale_dags(timezone.utcnow() - timedelta(seconds=stale_dag_cleanup_timeout))
 
             if loop_count >= self.num_runs > 0:
                 self.log.info(

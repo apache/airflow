@@ -3488,6 +3488,10 @@ class TestSchedulerJob(unittest.TestCase):
                 full_filepath=dag.fileloc, dag_id=dag_id
             )
 
+    def test_deactivate_stale_dags(self):
+        """"Test if Scheduler deactivates the deleted DAGs"""
+        pass #TODO
+
 
 @pytest.mark.xfail(reason="Work out where this goes")
 def test_task_with_upstream_skip_process_task_instances():
