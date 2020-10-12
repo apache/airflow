@@ -17,14 +17,18 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import json
 import os
+import sys
 import unittest
 from argparse import Namespace
 from contextlib import contextmanager
 from datetime import datetime
 
+from parameterized import parameterized
+
 from airflow.utils import cli, cli_action_loggers
+from tests.compat import mock
 
 
 class CliUtilTest(unittest.TestCase):
@@ -70,6 +74,48 @@ class CliUtilTest(unittest.TestCase):
         """
         with fail_action_logger_callback():
             success_func(Namespace())
+
+    @parameterized.expand(
+        [
+            (
+                "airflow create_user -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password test",
+                "airflow create_user -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password ********"
+            ),
+            (
+                "airflow create_user -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p test",
+                "airflow create_user -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p ********"
+            ),
+            (
+                "airflow create_user -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password=test",
+                "airflow create_user -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password=********"
+            ),
+            (
+                "airflow create_user -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p=test",
+                "airflow create_user -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p=********"
+            ),
+            (
+                "airflow connections --add dsfs --conn-login asd --conn-password test --conn-type google",
+                "airflow connections --add dsfs --conn-login asd --conn-password ******** --conn-type google",
+            )
+        ]
+    )
+    def test_cli_create_user_supplied_password_is_masked(self, given_command, expected_masked_command):
+        args = given_command.split()
+
+        expected_command = expected_masked_command.split()
+
+        exec_date = datetime.utcnow()
+        namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
+        with mock.patch.object(sys, "argv", args):
+            metrics = cli._build_metrics(args[1], namespace)
+
+        self.assertTrue(metrics.get('start_datetime') <= datetime.utcnow())
+
+        log = metrics.get('log')
+        command = json.loads(log.extra).get('full_command')  # type: str
+        # Replace single quotes to double quotes to avoid json decode error
+        command = json.loads(command.replace("'", '"'))
+        self.assertEqual(command, expected_command)
 
 
 @contextmanager
