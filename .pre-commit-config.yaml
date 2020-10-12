@@ -587,6 +587,7 @@ repos:
         name: Run flake8
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
+        exclude: ^astronomer-certified-setup.py$
         files: \.py$
         pass_filenames: true
       - id: bats-in-container-tests
