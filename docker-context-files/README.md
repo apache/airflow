@@ -21,7 +21,7 @@ This folder is par of the Docker context.
 
 Most of other folders in Airflow are not part of the context in order to make the context smaller.
 
-The Production [Dockerfile](../Dockerfile) copies th [docker-context-files](.) folder to the "build"
+The Production [Dockerfile](../Dockerfile) copies the [docker-context-files](.) folder to the "build"
 stage of the production image (it is not used in the CI image) and content of the folder is available
 in the `/docker-context-file` folder inside the build image. You can store constraint files and wheel
 packages there that you want to install as PYPI packages and refer to those packages using
