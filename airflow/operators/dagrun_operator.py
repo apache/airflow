@@ -50,7 +50,8 @@ class TriggerDagRunOperator(BaseOperator):
     :type conf: dict
     :param execution_date: Execution date for the dag (templated)
     :type execution_date: str or datetime.datetime
-    :param reset_dag_run: whether or not clear existing dag run if already exists
+    :param reset_dag_run: whether or not clear existing dag run if already exists which is especially useful to backfill
+    or rerun an existing dag run.
     :type reset_dag_run: bool
     """
 
@@ -109,13 +110,13 @@ class TriggerDagRunOperator(BaseOperator):
 
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
-                self.log.info(f"Clearing {self.trigger_dag_id} on {self.execution_date}")
+                self.log.info("Clearing %s on %s", self.trigger_dag_id, self.execution_date)
 
                 # Get target dag object and call clear()
 
                 dag_model = DagModel.get_current(self.trigger_dag_id)
                 if dag_model is None:
-                    raise DagNotFound("Dag id {} not found in DagModel".format(self.trigger_dag_id))
+                    raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
                 def read_store_serialized_dags():
                     from airflow.configuration import conf
