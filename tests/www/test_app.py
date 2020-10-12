@@ -16,10 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import pytest
 import unittest
 from unittest import mock
 
+import pytest
 from werkzeug.routing import Rule
 from werkzeug.test import create_environ
 from werkzeug.wrappers import Response
