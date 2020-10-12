@@ -75,6 +75,7 @@ def _enable_tcp_keepalive() -> None:
     Please ping @michalmisiewicz or @dimberman in the PR if you want to modify this function.
     """
     import socket
+
     from urllib3.connection import HTTPConnection, HTTPSConnection
 
     tcp_keep_idle = conf.get('kubernetes', 'tcp_keep_idle', fallback=120)

@@ -472,6 +472,7 @@ backreference
 backtick
 backticks
 balancer
+balancers
 baseOperator
 basedn
 basestring
@@ -538,6 +539,7 @@ cmdline
 cmds
 cname
 cnf
+cnt
 codebase
 codecov
 colour
@@ -829,6 +831,7 @@ integrations
 interdependencies
 internalIpOnly
 ints
+intvl
 io
 ip
 isfile
@@ -1103,6 +1106,7 @@ resetdb
 resourceVersion
 resumable
 resultset
+retransmits
 rfc
 ricard
 rideable
@@ -1236,6 +1240,7 @@ tagValue
 tao
 taskinstance
 tblproperties
+tcp
 templatable
 templateable
 templated
