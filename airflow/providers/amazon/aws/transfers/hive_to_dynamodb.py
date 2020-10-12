@@ -21,7 +21,7 @@ This module contains operator to move data from Hive to DynamoDB.
 """
 
 import json
-from typing import Optional, Callable, Iterable, Any
+from typing import Optional, Callable
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook

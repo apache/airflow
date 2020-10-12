@@ -18,7 +18,7 @@
 
 import os
 from tempfile import NamedTemporaryFile
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -113,7 +113,7 @@ class MySQLToS3Operator(BaseOperator):
                     # set to dtype that retains integers and supports NaNs
                     df[col] = np.where(df[col].isnull(), None, df[col]).astype(pd.Int64Dtype)
 
-    def execute(self, context: Dict[str, Any]) -> None:
+    def execute(self, context) -> None:
         mysql_hook = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = mysql_hook.get_pandas_df(self.query)

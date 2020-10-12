@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
-from typing import Optional, Dict, Any, Iterable, Union, cast
+from typing import Optional, Any, Iterable, Union, cast
 
 from bson import json_util
 
@@ -71,7 +71,7 @@ class MongoToS3Operator(BaseOperator):
         self.s3_key = s3_key
         self.replace = replace
 
-    def execute(self, context: Dict[str, Any]) -> bool:
+    def execute(self, context) -> bool:
         """
         Executed by task_instance at runtime
         """
@@ -87,7 +87,9 @@ class MongoToS3Operator(BaseOperator):
 
         else:
             results = MongoHook(self.mongo_conn_id).find(
-                mongo_collection=self.mongo_collection, query=cast(dict, self.mongo_query), mongo_db=self.mongo_db
+                mongo_collection=self.mongo_collection,
+                query=cast(dict, self.mongo_query),
+                mongo_db=self.mongo_db,
             )
 
         # Performs transform then stringifies the docs results into json format
@@ -101,7 +103,7 @@ class MongoToS3Operator(BaseOperator):
         return True
 
     @staticmethod
-    def _stringify(iterable: Iterable, joinable: str ='\n') -> str:
+    def _stringify(iterable: Iterable, joinable: str = '\n') -> str:
         """
         Takes an iterable (pymongo Cursor or Array) containing dictionaries and
         returns a stringified version using python join

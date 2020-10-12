@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import List, Optional, Union, Dict, Any
+from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -88,7 +88,7 @@ class S3ToRedshiftOperator(BaseOperator):
         self.copy_options = copy_options or []
         self.autocommit = autocommit
 
-    def execute(self, context: Dict[str, Any]) -> None:
+    def execute(self, context) -> None:
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         credentials = s3_hook.get_credentials()

@@ -18,8 +18,6 @@
 """
 This module allows you to transfer mail attachments from a mail server into s3 bucket.
 """
-from typing import Dict, Any
-
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.imap.hooks.imap import ImapHook
@@ -79,7 +77,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         self.imap_conn_id = imap_conn_id
         self.s3_conn_id = s3_conn_id
 
-    def execute(self, context: Dict[str, Any]) -> None:
+    def execute(self, context) -> None:
         """
         This function executes the transfer from the email server (via imap) into s3.
 

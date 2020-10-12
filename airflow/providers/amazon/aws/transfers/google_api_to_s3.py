@@ -21,10 +21,10 @@ This module allows you to transfer data from any Google API endpoint into a S3 B
 """
 import json
 import sys
-from typing import Optional, Sequence, Union, Dict, Any
+from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator, TaskInstance
-from airflow.models.xcom import MAX_XCOM_SIZE
+from airflow.models.xcom import MAX_XCOM_SIZE, XCOM_RETURN_KEY
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryApiHook
 from airflow.utils.decorators import apply_defaults
@@ -132,7 +132,7 @@ class GoogleApiToS3Operator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.google_impersonation_chain = google_impersonation_chain
 
-    def execute(self, context: Dict[str, Any]) -> None:
+    def execute(self, context) -> None:
         """
         Transfers Google APIs json data to S3.
 
@@ -149,7 +149,7 @@ class GoogleApiToS3Operator(BaseOperator):
         self._load_data_to_s3(data)
 
         if self.google_api_response_via_xcom:
-            self._expose_google_api_response_via_xcom(context['task_instance'], self.google_api_response_via_xcom, data)
+            self._expose_google_api_response_via_xcom(context['task_instance'], data)
 
     def _retrieve_data_from_google_api(self) -> dict:
         google_discovery_api_hook = GoogleDiscoveryApiHook(
@@ -180,8 +180,8 @@ class GoogleApiToS3Operator(BaseOperator):
         )
         self.google_api_endpoint_params.update(google_api_endpoint_params)
 
-    def _expose_google_api_response_via_xcom(self, task_instance: TaskInstance, key: str, data: dict) -> None:
+    def _expose_google_api_response_via_xcom(self, task_instance: TaskInstance, data: dict) -> None:
         if sys.getsizeof(data) < MAX_XCOM_SIZE:
-            task_instance.xcom_push(key=key, value=data)
+            task_instance.xcom_push(key=self.google_api_response_via_xcom or XCOM_RETURN_KEY, value=data)
         else:
             raise RuntimeError('The size of the downloaded data is too large to push to XCom!')

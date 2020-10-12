@@ -17,7 +17,6 @@
 # under the License.
 
 from tempfile import NamedTemporaryFile
-from typing import Dict, Any
 from urllib.parse import urlparse
 
 from airflow.models import BaseOperator
@@ -58,7 +57,7 @@ class S3ToSFTPOperator(BaseOperator):
         sftp_path: str,
         sftp_conn_id: str = 'ssh_default',
         s3_conn_id: str = 'aws_default',
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.sftp_conn_id = sftp_conn_id
@@ -73,7 +72,7 @@ class S3ToSFTPOperator(BaseOperator):
         parsed_s3_key = urlparse(s3_key)
         return parsed_s3_key.path.lstrip('/')
 
-    def execute(self, context: Dict[str, Any]) -> None:
+    def execute(self, context) -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
         s3_hook = S3Hook(self.s3_conn_id)

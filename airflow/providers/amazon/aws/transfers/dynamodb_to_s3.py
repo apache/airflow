@@ -111,7 +111,7 @@ class DynamoDBToS3Operator(BaseOperator):
         self.s3_bucket_name = s3_bucket_name
         self.s3_key_prefix = s3_key_prefix
 
-    def execute(self, context: Dict[str, Any]) -> None:
+    def execute(self, context) -> None:
         table = AwsDynamoDBHook().get_conn().Table(self.dynamodb_table_name)
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
