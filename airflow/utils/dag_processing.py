@@ -401,7 +401,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         if isinstance(message, DagParsingStat):
             self._sync_metadata(message)
         else:
-            raise RuntimeError(f"Unexpected message recieved of type {type(message).__name__}")
+            raise RuntimeError(f"Unexpected message received of type {type(message).__name__}")
 
     def _heartbeat_manager(self):
         """

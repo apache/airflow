@@ -40,9 +40,9 @@ def send_email(to: Union[List[str], Iterable[str]], subject: str, html_content: 
     """
     backend = conf.getimport('email', 'EMAIL_BACKEND')
     to_list = get_email_address_list(to)
-    to_comma_seperated = ", ".join(to_list)
+    to_comma_separated = ", ".join(to_list)
 
-    return backend(to_comma_seperated, subject, html_content, files=files,
+    return backend(to_comma_separated, subject, html_content, files=files,
                    dryrun=dryrun, cc=cc, bcc=bcc,
                    mime_subtype=mime_subtype, mime_charset=mime_charset, **kwargs)
 
