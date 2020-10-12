@@ -1078,8 +1078,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
     docker-compose                <ARG>      Executes specified docker-compose command
     kind-cluster                  <ARG>      Manages KinD cluster on the host
-    prepare-backport-readme       <ARG>      Prepares backport packages readme files
-    prepare-backport-packages     <ARG>      Prepares backport packages
+    prepare-provider-readme       <ARG>      Prepares provider packages readme files
+    prepare-provider-packages     <ARG>      Prepares provider packages
     static-check                  <ARG>      Performs selected static check for changed files
     tests                         <ARG>      Runs selected tests in the container
 
@@ -1239,9 +1239,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
-  --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
-
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
 
@@ -1286,6 +1283,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --disable-mysql-client-installation
           Disables installation of the mysql client which might be problematic if you are building
           image in controlled environment. Only valid for production image.
+
+  --constraints-location
+          Url to the constraints file. In case of the production image it can also be a path to the
+          constraint file placed in 'docker-context-files' folder, in which case it has to be
+          in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
+
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
+  --install-local-pip-wheels
+          This flag is only used in production image building. If it is used then instead of
+          installing Airflow from PyPI, the packages are installed from the .whl packages placed
+          in the 'docker-context-files' folder. It implies '--disable-pip-cache'
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
@@ -1742,9 +1752,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
-  --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
-
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
 
@@ -1790,6 +1797,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Disables installation of the mysql client which might be problematic if you are building
           image in controlled environment. Only valid for production image.
 
+  --constraints-location
+          Url to the constraints file. In case of the production image it can also be a path to the
+          constraint file placed in 'docker-context-files' folder, in which case it has to be
+          in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
+
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
+  --install-local-pip-wheels
+          This flag is only used in production image building. If it is used then instead of
+          installing Airflow from PyPI, the packages are installed from the .whl packages placed
+          in the 'docker-context-files' folder. It implies '--disable-pip-cache'
+
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
@@ -1828,10 +1848,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ####################################################################################################
 
 
-  Detailed usage for command: prepare-backport-readme
+  Detailed usage for command: prepare-provider-readme
 
 
-  breeze prepare-backport-packages [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
+  breeze prepare-provider-packages [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
 
         Prepares README.md files for backport packages. You can provide (after --) optional version
         in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
@@ -1841,13 +1861,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Examples:
 
-        'breeze prepare-backport-readme' or
-        'breeze prepare-backport-readme 2020.05.10' or
-        'breeze prepare-backport-readme 2020.05.10 https google amazon'
+        'breeze prepare-provider-readme' or
+        'breeze prepare-provider-readme 2020.05.10' or
+        'breeze prepare-provider-readme 2020.05.10 https google amazon'
 
         General form:
 
-        'breeze prepare-backport-readme YYYY.MM.DD <PACKAGE_ID> ...'
+        'breeze prepare-provider-readme YYYY.MM.DD <PACKAGE_ID> ...'
 
         * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
           cannot be earlier than the already released version (the script will fail if it
@@ -1871,10 +1891,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ####################################################################################################
 
 
-  Detailed usage for command: prepare-backport-packages
+  Detailed usage for command: prepare-provider-packages
 
 
-  breeze prepare-backport-packages [FLAGS] [PACKAGE_ID ...]
+  breeze prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
 
         Prepares backport packages. You can provide (after --) optional list of packages to prepare.
         If no packages are specified, readme for all packages are generated. You can specify optional
@@ -1883,14 +1903,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Examples:
 
-        'breeze prepare-backport-packages' or
-        'breeze prepare-backport-packages google' or
-        'breeze prepare-backport-packages --version-suffix-for-svn rc1 http google amazon' or
-        'breeze prepare-backport-packages --version-suffix-for-pypi rc1 http google amazon'
+        'breeze prepare-provider-packages' or
+        'breeze prepare-provider-packages google' or
+        'breeze prepare-provider-packages --version-suffix-for-svn rc1 http google amazon' or
+        'breeze prepare-provider-packages --version-suffix-for-pypi rc1 http google amazon'
 
         General form:
 
-        'breeze prepare-backport-packages \
+        'breeze prepare-provider-packages \
               [--version-suffix-for-svn|--version-suffix-for-pypi] <PACKAGE_ID> ...'
 
         * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
@@ -1970,7 +1990,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  Run 'breeze flags' to see all applicable flags.
+  --test-type TEST_TYPE
+          Type of the test to run. One of:
+
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL
+
+          Default: All
 
 
   ####################################################################################################
@@ -2195,9 +2220,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
-  --disable-pip-cache
-          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
-
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
 
@@ -2242,6 +2264,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --disable-mysql-client-installation
           Disables installation of the mysql client which might be problematic if you are building
           image in controlled environment. Only valid for production image.
+
+  --constraints-location
+          Url to the constraints file. In case of the production image it can also be a path to the
+          constraint file placed in 'docker-context-files' folder, in which case it has to be
+          in the form of '/docker-context-files/<NAME_OF_THE_FILE>'
+
+  --disable-pip-cache
+          Disables GitHub PIP cache during the build. Useful if github is not reachable during build.
+
+  --install-local-pip-wheels
+          This flag is only used in production image building. If it is used then instead of
+          installing Airflow from PyPI, the packages are installed from the .whl packages placed
+          in the 'docker-context-files' folder. It implies '--disable-pip-cache'
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
@@ -2307,6 +2342,16 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If you use this flag, automatically --github-registry is enabled.
 
           Default: latest.
+
+  ****************************************************************************************************
+   Flags for running tests
+
+  --test-type TEST_TYPE
+          Type of the test to run. One of:
+
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL
+
+          Default: All
 
   ****************************************************************************************************
    Flags for generation of the backport packages

@@ -25,6 +25,7 @@ from datetime import datetime, timedelta, timezone
 from glob import glob
 from unittest import mock
 
+import pytest
 from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 from parameterized import parameterized
@@ -294,6 +295,7 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         assert sorted_serialized_dag(ground_truth_dag) == sorted_serialized_dag(json_dag)
 
+    @pytest.mark.quarantined
     def test_deserialization_across_process(self):
         """A serialized DAG can be deserialized in another process."""
 
@@ -353,7 +355,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         if dag.default_args:
             for k, v in dag.default_args.items():
                 if callable(v):
-                    # Check we stored _someting_.
+                    # Check we stored _something_.
                     assert k in serialized_dag.default_args
                 else:
                     assert v == serialized_dag.default_args[k], \
@@ -378,7 +380,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             # Checked separately
             '_task_type', 'subdag',
 
-            # Type is exluded, so don't check it
+            # Type is excluded, so don't check it
             '_log',
 
             # List vs tuple. Check separately

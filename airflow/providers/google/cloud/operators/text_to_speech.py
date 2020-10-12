@@ -119,7 +119,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         for parameter in [
             "input_data",
             "voice",
@@ -130,7 +130,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
             if getattr(self, parameter) == "":
                 raise AirflowException("The required parameter '{}' is empty".format(parameter))
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = CloudTextToSpeechHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

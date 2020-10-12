@@ -39,9 +39,7 @@ services:
       - ENABLE_KIND_CLUSTER
       - ENABLED_INTEGRATIONS
       - RUN_INTEGRATION_TESTS
-      - ONLY_RUN_LONG_RUNNING_TESTS
-      - ONLY_RUN_QUARANTINED_TESTS
-      - ONLY_RUN_HEISEN_TESTS
+      - TEST_TYPE
       - GITHUB_TOKEN
       - GITHUB_REPOSITORY
       - ISSUE_ID
@@ -64,6 +62,9 @@ services:
       - HOST_OS
       - PYTHONDONTWRITEBYTECODE
       - INIT_SCRIPT_FILE
+      - GITHUB_REGISTRY_PULL_IMAGE_TAG
+      - POSTGRES_VERSION
+      - MYSQL_VERSION
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock

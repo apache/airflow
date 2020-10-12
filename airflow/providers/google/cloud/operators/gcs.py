@@ -151,7 +151,7 @@ class GCSCreateBucketOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -258,7 +258,7 @@ class GCSListObjectsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> list:
 
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
@@ -445,7 +445,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -544,7 +544,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -624,7 +624,7 @@ class GCSFileTransformOperator(BaseOperator):
         self.output_encoding = sys.getdefaultencoding()
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
@@ -707,7 +707,7 @@ class GCSDeleteBucketOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         hook.delete_bucket(bucket_name=self.bucket_name, force=self.force)
 
@@ -805,7 +805,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

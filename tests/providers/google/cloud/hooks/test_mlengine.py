@@ -714,7 +714,7 @@ class TestMLEngineHook(unittest.TestCase):
 
         # fmt: on
         def check_input(existing_job):
-            return existing_job.get('someInput', None) == my_job['someInput']
+            return existing_job.get('someInput') == my_job['someInput']
 
         with self.assertRaises(HttpError):
             self.hook.create_job(project_id=project_id, job=my_job, use_existing_job_fn=check_input)
@@ -748,7 +748,7 @@ class TestMLEngineHook(unittest.TestCase):
 
         # fmt: on
         def check_input(existing_job):
-            return existing_job.get('someInput', None) == my_job['someInput']
+            return existing_job.get('someInput') == my_job['someInput']
 
         create_job_response = self.hook.create_job(
             project_id=project_id, job=my_job, use_existing_job_fn=check_input

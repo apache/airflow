@@ -57,11 +57,11 @@ class OracleHook(DbApiHook):
             self.oracle_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
         )
         conn_config = {'user': conn.login, 'password': conn.password}
-        dsn = conn.extra_dejson.get('dsn', None)
-        sid = conn.extra_dejson.get('sid', None)
-        mod = conn.extra_dejson.get('module', None)
+        dsn = conn.extra_dejson.get('dsn')
+        sid = conn.extra_dejson.get('sid')
+        mod = conn.extra_dejson.get('module')
 
-        service_name = conn.extra_dejson.get('service_name', None)
+        service_name = conn.extra_dejson.get('service_name')
         port = conn.port if conn.port else 1521
         if dsn and sid and not service_name:
             conn_config['dsn'] = cx_Oracle.makedsn(dsn, port, sid)

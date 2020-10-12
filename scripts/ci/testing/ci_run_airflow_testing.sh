@@ -27,13 +27,6 @@ ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
 if [[ ${TEST_TYPE:=} == "Integration" ]]; then
     export ENABLED_INTEGRATIONS="${AVAILABLE_INTEGRATIONS}"
     export RUN_INTEGRATION_TESTS="${AVAILABLE_INTEGRATIONS}"
-elif [[ ${TEST_TYPE:=} == "Long" ]]; then
-    export ONLY_RUN_LONG_RUNNING_TESTS="true"
-elif [[ ${TEST_TYPE:=} == "Heisentests" ]]; then
-    export ONLY_RUN_HEISEN_TESTS="true"
-elif [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
-    export ONLY_RUN_QUARANTINED_TESTS="true"
-    # Do not fail in quarantined tests
 fi
 
 for _INT in ${ENABLED_INTEGRATIONS}
@@ -83,7 +76,7 @@ function run_airflow_testing_in_docker() {
             break
         fi
     done
-    if [[ ${ONLY_RUN_QUARANTINED_TESTS:=} == "true" ]]; then
+    if [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
         if [[ ${exit_code} == "1" ]]; then
             echo
             echo "Some Quarantined tests failed. but we recorded it in an issue"

@@ -227,14 +227,14 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         dataflow_options.update(self.options)
         is_running = False
         if self.check_if_running != CheckJobRunning.IgnoreJob:
-            is_running = self.hook.is_job_dataflow_running(
+            is_running = self.hook.is_job_dataflow_running(  # type: ignore[attr-defined]
                 name=self.job_name,
                 variables=dataflow_options,
                 project_id=self.project_id,
                 location=self.location,
             )
             while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-                is_running = self.hook.is_job_dataflow_running(
+                is_running = self.hook.is_job_dataflow_running(  # type: ignore[attr-defined]
                     name=self.job_name,
                     variables=dataflow_options,
                     project_id=self.project_id,
@@ -253,7 +253,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                 def set_current_job_id(job_id):
                     self.job_id = job_id
 
-                self.hook.start_java_dataflow(
+                self.hook.start_java_dataflow(  # type: ignore[attr-defined]
                     job_name=self.job_name,
                     variables=dataflow_options,
                     jar=self.jar,
@@ -419,7 +419,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.environment = environment
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -585,7 +585,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             def set_current_job_id(job_id):
                 self.job_id = job_id
 
-            self.hook.start_python_dataflow(
+            self.hook.start_python_dataflow(  # type: ignore[attr-defined]
                 job_name=self.job_name,
                 variables=formatted_options,
                 dataflow=self.py_file,

@@ -148,7 +148,7 @@ class ExasolHook(DbApiHook):
         """
         if not self.supports_autocommit and autocommit:
             self.log.warning(
-                "%s connection doesn't support " "autocommit but autocommit activated.",
+                "%s connection doesn't support autocommit but autocommit activated.",
                 getattr(self, self.conn_name_attr),
             )
         conn.set_autocommit(autocommit)

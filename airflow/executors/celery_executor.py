@@ -72,7 +72,8 @@ else:
 
 app = Celery(
     conf.get('celery', 'CELERY_APP_NAME'),
-    config_source=celery_configuration)
+    config_source=celery_configuration
+)
 
 
 @app.task
@@ -82,7 +83,7 @@ def execute_command(command_to_exec: CommandType) -> None:
     log.info("Executing command in Celery: %s", command_to_exec)
 
     if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
-        _execute_in_subprocees(command_to_exec)
+        _execute_in_subprocess(command_to_exec)
     else:
         _execute_in_fork(command_to_exec)
 
@@ -118,7 +119,7 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
         os._exit(ret)  # pylint: disable=protected-access
 
 
-def _execute_in_subprocees(command_to_exec: CommandType) -> None:
+def _execute_in_subprocess(command_to_exec: CommandType) -> None:
     env = os.environ.copy()
     try:
         # pylint: disable=unexpected-keyword-arg

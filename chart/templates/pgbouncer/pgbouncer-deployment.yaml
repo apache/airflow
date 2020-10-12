@@ -54,6 +54,7 @@ spec:
 {{- end }}
       annotations:
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
+        checksum/pgbouncer-certificates-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-certificates-secret.yaml") . | sha256sum }}
     spec:
       nodeSelector:
 {{ toYaml .Values.nodeSelector | indent 8 }}
@@ -91,6 +92,24 @@ spec:
               subPath: users.txt
               mountPath: /etc/pgbouncer/users.txt
               readOnly: true
+{{- if .Values.pgbouncer.ssl.ca }}
+            - name: pgbouncer-certificates
+              subPath: root.crt
+              mountPath: /etc/pgbouncer/root.crt
+              readOnly: true
+{{- end }}
+{{- if .Values.pgbouncer.ssl.cert }}
+            - name: pgbouncer-certificates
+              subPath: server.crt
+              mountPath: /etc/pgbouncer/server.crt
+              readOnly: true
+{{- end }}
+{{- if .Values.pgbouncer.ssl.key }}
+            - name: pgbouncer-certificates
+              subPath: server.key
+              mountPath: /etc/pgbouncer/server.key
+              readOnly: true
+{{- end }}
           lifecycle:
             preStop:
               exec:
@@ -125,4 +144,7 @@ spec:
         - name: pgbouncer-config
           secret:
             secretName: {{ template "pgbouncer_config_secret" . }}
+        - name: pgbouncer-certificates
+          secret:
+            secretName: {{ template "pgbouncer_certificates_secret" . }}
 {{- end }}

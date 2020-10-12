@@ -72,7 +72,7 @@ class DataProcJobBuilder:
         if properties is not None:
             self.job["job"][job_type]["properties"] = properties
 
-    def add_labels(self, labels):
+    def add_labels(self, labels: dict) -> None:
         """
         Set labels for Dataproc job.
 
@@ -714,7 +714,7 @@ class DataprocHook(GoogleBaseHook):
         return operation
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def wait_for_job(self, job_id: str, location: str, project_id: str, wait_time: int = 10):
+    def wait_for_job(self, job_id: str, location: str, project_id: str, wait_time: int = 10) -> None:
         """
         Helper method which polls a job to check if it finishes.
 
@@ -780,7 +780,7 @@ class DataprocHook(GoogleBaseHook):
     def submit_job(
         self,
         location: str,
-        job: Union[Dict, Job],
+        job: Union[dict, Job],
         project_id: str,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -824,7 +824,7 @@ class DataprocHook(GoogleBaseHook):
     def submit(
         self,
         project_id: str,
-        job: Dict,
+        job: dict,
         region: str = 'global',
         job_error_states: Optional[Iterable[str]] = None,  # pylint: disable=unused-argument
     ) -> None:

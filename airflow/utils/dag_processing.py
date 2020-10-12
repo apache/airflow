@@ -112,7 +112,7 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
         """
         A list of simple dags found, and the number of import errors
 
-        :return: result of running SchedulerJob.process_file() if availlablle. Otherwise, none
+        :return: result of running SchedulerJob.process_file() if available. Otherwise, none
         :rtype: Optional[Tuple[int, int]]
         """
         raise NotImplementedError()
@@ -401,7 +401,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         if isinstance(message, DagParsingStat):
             self._sync_metadata(message)
         else:
-            raise RuntimeError(f"Unexpected message recieved of type {type(message).__name__}")
+            raise RuntimeError(f"Unexpected message received of type {type(message).__name__}")
 
     def _heartbeat_manager(self):
         """

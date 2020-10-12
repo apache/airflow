@@ -153,7 +153,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -259,7 +259,7 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -335,7 +335,7 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -423,7 +423,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _compare_column_families(self, hook, instance):
+    def _compare_column_families(self, hook, instance) -> bool:
         table_column_families = hook.get_column_families_for_table(instance, self.table_id)
         if set(table_column_families.keys()) != set(self.column_families.keys()):
             self.log.error("Table '%s' has different set of Column Families", self.table_id)
@@ -444,7 +444,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
                 return False
         return True
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -533,7 +533,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -619,7 +619,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = BigtableHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

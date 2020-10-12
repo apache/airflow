@@ -27,6 +27,7 @@ from google.ads.google_ads.errors import GoogleAdsException
 from google.ads.google_ads.v2.types import GoogleAdsRow
 from google.api_core.page_iterator import GRPCIterator
 from google.auth.exceptions import GoogleAuthError
+from googleapiclient.discovery import Resource
 
 from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -86,7 +87,7 @@ class GoogleAdsHook(BaseHook):
         self.google_ads_config: Dict[str, Any] = {}
 
     @cached_property
-    def _get_service(self):
+    def _get_service(self) -> Resource:
         """
         Connects and authenticates with the Google Ads API using a service account
         """
@@ -101,7 +102,7 @@ class GoogleAdsHook(BaseHook):
                 raise
 
     @cached_property
-    def _get_customer_service(self):
+    def _get_customer_service(self) -> Resource:
         """
         Connects and authenticates with the Google Ads API using a service account
         """

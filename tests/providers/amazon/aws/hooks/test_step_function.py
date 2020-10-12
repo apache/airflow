@@ -41,7 +41,7 @@ class TestStepFunctionHook(unittest.TestCase):
             name='pseudo-state-machine', definition='{}', roleArn='arn:aws:iam::000000000000:role/Role'
         )
 
-        state_machine_arn = state_machine.get('stateMachineArn', None)
+        state_machine_arn = state_machine.get('stateMachineArn')
 
         execution_arn = hook.start_execution(
             state_machine_arn=state_machine_arn, name=None, state_machine_input={}
@@ -56,7 +56,7 @@ class TestStepFunctionHook(unittest.TestCase):
             name='pseudo-state-machine', definition='{}', roleArn='arn:aws:iam::000000000000:role/Role'
         )
 
-        state_machine_arn = state_machine.get('stateMachineArn', None)
+        state_machine_arn = state_machine.get('stateMachineArn')
 
         execution_arn = hook.start_execution(
             state_machine_arn=state_machine_arn, name=None, state_machine_input={}

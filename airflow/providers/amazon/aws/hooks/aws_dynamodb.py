@@ -15,53 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.dynamodb`."""
 
+import warnings
 
-"""
-This module contains the AWS DynamoDB hook
-"""
-from typing import Iterable, List, Optional
+# pylint: disable=unused-import
+from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook  # noqa
 
-from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-
-
-class AwsDynamoDBHook(AwsBaseHook):
-    """
-    Interact with AWS DynamoDB.
-
-    Additional arguments (such as ``aws_conn_id``) may be specified and
-    are passed down to the underlying AwsBaseHook.
-
-    .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-
-    :param table_keys: partition key and sort key
-    :type table_keys: list
-    :param table_name: target DynamoDB table
-    :type table_name: str
-    """
-
-    def __init__(
-        self, *args, table_keys: Optional[List] = None, table_name: Optional[str] = None, **kwargs
-    ) -> None:
-        self.table_keys = table_keys
-        self.table_name = table_name
-        kwargs["resource_type"] = "dynamodb"
-        super().__init__(*args, **kwargs)
-
-    def write_batch_data(self, items: Iterable) -> bool:
-        """
-        Write batch items to DynamoDB table with provisioned throughout capacity.
-        """
-        try:
-            table = self.get_conn().Table(self.table_name)
-
-            with table.batch_writer(overwrite_by_pkeys=self.table_keys) as batch:
-                for item in items:
-                    batch.put_item(Item=item)
-            return True
-        except Exception as general_error:
-            raise AirflowException(
-                "Failed to insert items in dynamodb, error: {error}".format(error=str(general_error))
-            )
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.dynamodb`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

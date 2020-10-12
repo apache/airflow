@@ -55,7 +55,7 @@ class TestSalesforceHook(unittest.TestCase):
             password=mock_get_connection.return_value.password,
             security_token=mock_get_connection.return_value.extra_dejson["security_token"],
             instance_url=mock_get_connection.return_value.host,
-            domain=mock_get_connection.return_value.extra_dejson.get("domain", None),
+            domain=mock_get_connection.return_value.extra_dejson.get("domain"),
         )
 
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")

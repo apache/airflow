@@ -89,7 +89,7 @@ def send_email(
             personalization.add_bcc(Email(bcc_address))
 
     # Add custom_args to personalization if present
-    pers_custom_args = kwargs.get('personalization_custom_args', None)
+    pers_custom_args = kwargs.get('personalization_custom_args')
     if isinstance(pers_custom_args, dict):
         for key in pers_custom_args.keys():
             personalization.add_custom_arg(CustomArg(key, pers_custom_args[key]))

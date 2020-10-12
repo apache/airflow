@@ -102,7 +102,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if self.audio == "":
             raise AirflowException("The required parameter 'audio' is empty")
         if self.config == "":

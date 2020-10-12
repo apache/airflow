@@ -240,7 +240,7 @@ def prohibit_commit(session):
     .. code:: python
 
         with prohibit_commit(session) as guard:
-            # ... do something with sesison
+            # ... do something with session
             guard.commit()
 
             # This would throw an error

@@ -79,7 +79,7 @@ class TestAwsS3Hook:
         hook.create_bucket(bucket_name='new_bucket', region_name='us-east-1')
         bucket = hook.get_bucket('new_bucket')
         assert bucket is not None
-        region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint', None)
+        region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint')
         # https://github.com/spulec/moto/pull/1961
         # If location is "us-east-1", LocationConstraint should be None
         assert region is None
@@ -90,7 +90,7 @@ class TestAwsS3Hook:
         hook.create_bucket(bucket_name='new_bucket', region_name='us-east-2')
         bucket = hook.get_bucket('new_bucket')
         assert bucket is not None
-        region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint', None)
+        region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get('LocationConstraint')
         assert region == 'us-east-2'
 
     def test_check_for_prefix(self, s3_bucket):

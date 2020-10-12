@@ -3559,6 +3559,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             (95, 10, 10),  # noqa
         ]
     )
+    @pytest.mark.quarantined
     def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
         with mock.patch.dict("os.environ", {
             "PERF_DAGS_COUNT": str(dag_count),
@@ -3638,6 +3639,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             # pylint: enable=bad-whitespace
         ]
     )
+    @pytest.mark.quarantined
     def test_process_dags_queries_count(
         self, expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape
     ):
