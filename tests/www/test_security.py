@@ -112,7 +112,7 @@ class TestSecurity(unittest.TestCase):
     def _has_dag_perm(self, perm, dag_id):
         return self.security_manager.has_access(
             perm,
-            dag_id,
+            self.security_manager.prefixed_dag_id(dag_id),
             self.user)
 
     def tearDown(self):
