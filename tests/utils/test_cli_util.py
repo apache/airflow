@@ -89,20 +89,20 @@ class TestCliUtil(unittest.TestCase):
         with self.assertRaises(AirflowException):
             cli.get_dags(None, "foobar", True)
 
-    @parameterized.expand(["--password", "-p"])
-    def test_cli_create_user_supplied_password_is_masked(self, password_variant):
-
-        args = [
-            'airflow', 'users', 'create', '--username', 'test2', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', 'jdoe@apache.org', '--role', 'Viewer', password_variant, 'test'
+    @parameterized.expand(
+        [
+            ("--password test", "--password ********"),
+            ("-p test", "-p ********"),
+            ("--password=test", "--password=********"),
+            ("-p=test", "-p=********")
         ]
+    )
+    def test_cli_create_user_supplied_password_is_masked(self, password_variant, expected_masked_pass):
+        create_command_w_password = 'airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin'
+        create_command = f'{create_command_w_password} {password_variant}'
+        args = create_command.split()
 
-        expected_command = [
-            'airflow', 'users', 'create', '--username', 'test2', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', 'jdoe@apache.org', '--role', 'Viewer', password_variant, '********'
-        ]
+        expected_command = f'{create_command_w_password} {expected_masked_pass}'.split()
 
         exec_date = datetime.utcnow()
         namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
