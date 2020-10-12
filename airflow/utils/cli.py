@@ -105,7 +105,7 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
-    sensitive_fields = {'-p', '--password'}
+    sensitive_fields = {'-p', '--password', '--conn-password'}
     full_command = list(sys.argv)
     for idx, command in enumerate(full_command):  # pylint: disable=too-many-nested-blocks
         if command in sensitive_fields:

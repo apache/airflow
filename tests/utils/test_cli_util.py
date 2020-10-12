@@ -91,18 +91,32 @@ class TestCliUtil(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("--password test", "--password ********"),
-            ("-p test", "-p ********"),
-            ("--password=test", "--password=********"),
-            ("-p=test", "-p=********")
+            (
+                "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password test",
+                "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password ********"
+            ),
+            (
+                "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p test",
+                "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p ********"
+            ),
+            (
+                "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password=test",
+                "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password=********"
+            ),
+            (
+                "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p=test",
+                "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p=********"
+            ),
+            (
+                "airflow connections add dsfs --conn-login asd --conn-password test --conn-type google",
+                "airflow connections add dsfs --conn-login asd --conn-password ******** --conn-type google",
+            )
         ]
     )
-    def test_cli_create_user_supplied_password_is_masked(self, password_variant, expected_masked_pass):
-        create_command_w_password = 'airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin'
-        create_command = f'{create_command_w_password} {password_variant}'
-        args = create_command.split()
+    def test_cli_create_user_supplied_password_is_masked(self, given_command, expected_masked_command):
+        args = given_command.split()
 
-        expected_command = f'{create_command_w_password} {expected_masked_pass}'.split()
+        expected_command = expected_masked_command.split()
 
         exec_date = datetime.utcnow()
         namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
