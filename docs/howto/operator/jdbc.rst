@@ -50,7 +50,7 @@ To use this operator you need:
       pip install jaydebeapy
 
   * Install a JVM.
-  * Have the JDBC driver for your databse installed.
+  * Have the JDBC driver for your database installed.
 
 Templating
 ----------
