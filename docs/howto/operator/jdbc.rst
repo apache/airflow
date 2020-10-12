@@ -15,8 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-
-
 .. _howto/operator:JdbcOperator:
 
 JdbcOperator
@@ -47,7 +45,7 @@ To use this operator you need:
   * Install the python module jaydebeapi:
     .. code-block:: bash
 
-      pip install jaydebeapy
+      pip install jaydebeapi
 
   * Install a JVM.
   * Have the JDBC driver for your database installed.
