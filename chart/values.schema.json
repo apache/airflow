@@ -479,7 +479,7 @@
             "type": "object",
             "properties": {
                 "replicas": {
-                  "description": "How many Schedulers to run in parallel",
+                  "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
                   "type": "integer"
                 },
                 "podDisruptionBudget": {
