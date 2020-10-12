@@ -186,7 +186,7 @@ def prepare_engine_args(disable_connection_pool=False):
     pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED')
     if disable_connection_pool or not pool_connections:
         engine_args['poolclass'] = NullPool
-        log.debug("settings.configure_orm(): Using NullPool")
+        log.debug("settings.prepare_engine_args(): Using NullPool")
     elif 'sqlite' not in SQL_ALCHEMY_CONN:
         # Pool size engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.
@@ -218,7 +218,7 @@ def prepare_engine_args(disable_connection_pool=False):
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
-        log.debug("settings.configure_orm(): Using pool settings. pool_size=%d, max_overflow=%d, "
+        log.debug("settings.prepare_engine_args(): Using pool settings. pool_size=%d, max_overflow=%d, "
                   "pool_recycle=%d, pid=%d", pool_size, max_overflow, pool_recycle, os.getpid())
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
