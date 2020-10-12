@@ -25,7 +25,7 @@ JdbcOperator
 Use the :class:`~airflow.providers.jdbc.operators.jdbc` to execute
 commands against a database (or data storage) accessible via a JDBC driver.
 
-The :ref:`JDBC Connection <jdbc-connection>` must be passed as
+The :ref:`JDBC Connection </howto/connection/jdbc>` must be passed as
 ``jdbc_conn_id``.
 
 .. exampleinclude:: /../airflow/example_dags/example_jdbc_operator.py
