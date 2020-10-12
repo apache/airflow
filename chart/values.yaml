@@ -286,6 +286,9 @@ workers:
   safeToEvict: true
   # Annotations to add to worker kubernetes service account.
   serviceAccountAnnotations: {}
+  # Mount additional volumes into worker.
+  extraVolumes: []
+  extraVolumeMounts: []
 
 # Airflow scheduler settings
 scheduler:
@@ -315,6 +318,10 @@ scheduler:
 
   # Annotations to add to scheduler kubernetes service account.
   serviceAccountAnnotations: {}
+
+  # Mount additional volumes into scheduler.
+  extraVolumes: []
+  extraVolumeMounts: []
 
 # Airflow webserver settings
 webserver:

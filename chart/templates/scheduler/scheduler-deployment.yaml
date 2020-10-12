@@ -156,6 +156,9 @@ spec:
               mountPath: {{ template "airflow_dags_mount_path" . }}
         {{- include "git_sync_container" . | indent 8 }}
 {{- end }}
+{{- if .Values.scheduler.extraVolumeMounts }}
+{{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
+{{- end }}
         # Always start the garbage collector sidecar.
         - name: scheduler-gc
           image: {{ template "airflow_image" . }}
@@ -199,6 +202,9 @@ spec:
         {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
         {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
+{{- if .Values.scheduler.extraVolumes }}
+{{ toYaml .Values.scheduler.extraVolumes | indent 8 }}
+{{- end }}
 {{- if not $stateful }}
         - name: logs
           emptyDir: {}
