@@ -191,6 +191,9 @@ spec:
             - name: kerberos-ccache
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
               readOnly: false
+{{- if .Values.webserver.extraVolumeMounts }}
+{{ toYaml .Values.worker.extraVolumeMounts | indent 12 }}
+{{- end }}
           env:
             - name: KRB5_CONFIG
               value:  {{ .Values.kerberos.configPath | quote }}
@@ -221,6 +224,9 @@ spec:
         {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
+{{- if .Values.workers.extraVolumes }}
+{{ toYaml .Values.workers.extraVolumes | indent 8 }}
+{{- end }}
 {{- if not $persistence }}
         - name: logs
           emptyDir: {}
