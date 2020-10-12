@@ -650,6 +650,14 @@ class RefactorBackportPackages:
             rename("airflow.providers.odbc.utils.helpers")
         )
 
+    def refactor_kubernetes_pod_operator(self):
+        (
+            self.qry.
+            select_class("airflow.kubernetes.pod_generator.PodGenerator").
+            select_method("add_xcom_sidecar").
+            rename("add_sidecar")
+        )
+
     def do_refactor(self, in_process: bool = False) -> None:  # noqa
         self.rename_deprecated_modules()
         self.refactor_amazon_package()
