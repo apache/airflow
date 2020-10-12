@@ -466,7 +466,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     name: "Build docs"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
-    if: needs.build-info.outputs.docs-build == 'true'
+    if: needs.build-info.outputs.docs-build == 'true' && github.repository == 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
