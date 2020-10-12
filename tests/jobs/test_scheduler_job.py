@@ -3639,6 +3639,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             # pylint: enable=bad-whitespace
         ]
     )
+    @pytest.mark.quarantined
     def test_process_dags_queries_count(
         self, expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape
     ):

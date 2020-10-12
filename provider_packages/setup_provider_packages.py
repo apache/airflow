@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Setup.py for the Backport packages of Airflow project."""
+"""Setup.py for the Provider packages of Airflow project."""
 import collections
 import importlib
 import json
@@ -47,7 +47,7 @@ sys.path.insert(0, SOURCE_DIR_PATH)
 # sources are importable without having to add the airflow sources to the PYTHONPATH before
 # running the script
 import tests.deprecated_classes  # noqa # isort:skip
-from backport_packages.import_all_provider_classes import import_all_provider_classes  # noqa # isort:skip
+from provider_packages.import_all_provider_classes import import_all_provider_classes  # noqa # isort:skip
 from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
 
 # Note - we do not test protocols as they are not really part of the official API of
@@ -142,7 +142,7 @@ def get_source_providers_folder() -> str:
 
 def get_target_providers_folder() -> str:
     """
-    Returns target directory for providers (in the backport_packages folder)
+    Returns target directory for providers (in the provider_packages folder)
 
     :return: the folder path
     """
@@ -1161,7 +1161,7 @@ def get_all_backportable_providers() -> List[str]:
     For now remove cncf.kubernetes as it has no chances to work with current core of Airflow 2.0
     And Papermill as it is deeply linked with Lineage in Airflow core and it won't work with lineage
     for Airflow 1.10 anyway.
-    :return: list of providers that are considered for backport packages
+    :return: list of providers that are considered for provider packages
     """
     excluded_providers = ["papermill"]
     return [prov for prov in PROVIDERS_REQUIREMENTS.keys() if prov not in excluded_providers]

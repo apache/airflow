@@ -1204,14 +1204,14 @@ function breeze::parse_arguments() {
             export UPGRADE_TO_LATEST_CONSTRAINTS="true"
             shift
             ;;
-        prepare-backport-packages)
+        prepare-provider-packages)
             last_subcommand="${1}"
-            command_to_run="perform_prepare_backport_packages"
+            command_to_run="perform_prepare_provider_packages"
             shift
             ;;
-        prepare-backport-readme)
+        prepare-provider-readme)
             last_subcommand="${1}"
-            command_to_run="perform_prepare_backport_readme"
+            command_to_run="perform_prepare_provider_readme"
             shift
             ;;
         push-image)
@@ -1480,10 +1480,10 @@ function breeze::prepare_usage() {
     readonly USAGE_GENERATE_CONSTRAINTS
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
     readonly USAGE_INITIALIZE_LOCAL_VIRTUALENV
-    export USAGE_PREPARE_BACKPORT_README="Prepares backport packages readme files"
-    readonly USAGE_PREPARE_BACKPORT_README
-    export USAGE_PREPARE_BACKPORT_PACKAGES="Prepares backport packages"
-    readonly USAGE_PREPARE_BACKPORT_PACKAGES
+    export USAGE_PREPARE_PROVIDER_README="Prepares provider packages readme files"
+    readonly USAGE_PREPARE_PROVIDER_README
+    export USAGE_PREPARE_PROVIDER_PACKAGES="Prepares provider packages"
+    readonly USAGE_PREPARE_PROVIDER_PACKAGES
     export USAGE_PUSH_IMAGE="Pushes images to registry"
     readonly USAGE_PUSH_IMAGE
     export USAGE_KIND_CLUSTER="Manages KinD cluster on the host"
@@ -1629,8 +1629,8 @@ $(breeze::flag_verbosity)
       Explains in detail all the flags that can be used with breeze.
 "
     readonly DETAILED_USAGE_FLAGS
-    export DETAILED_USAGE_PREPARE_BACKPORT_README="
-${CMDNAME} prepare-backport-packages [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
+    export DETAILED_USAGE_PREPARE_PROVIDER_README="
+${CMDNAME} prepare-provider-packages [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
 
       Prepares README.md files for backport packages. You can provide (after --) optional version
       in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
@@ -1640,13 +1640,13 @@ ${CMDNAME} prepare-backport-packages [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
 
       Examples:
 
-      '${CMDNAME} prepare-backport-readme' or
-      '${CMDNAME} prepare-backport-readme 2020.05.10' or
-      '${CMDNAME} prepare-backport-readme 2020.05.10 https google amazon'
+      '${CMDNAME} prepare-provider-readme' or
+      '${CMDNAME} prepare-provider-readme 2020.05.10' or
+      '${CMDNAME} prepare-provider-readme 2020.05.10 https google amazon'
 
       General form:
 
-      '${CMDNAME} prepare-backport-readme YYYY.MM.DD <PACKAGE_ID> ...'
+      '${CMDNAME} prepare-provider-readme YYYY.MM.DD <PACKAGE_ID> ...'
 
       * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
         cannot be earlier than the already released version (the script will fail if it
@@ -1659,7 +1659,7 @@ ${CMDNAME} prepare-backport-packages [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
 Flags:
 $(breeze::flag_verbosity)
 "
-    readonly DETAILED_USAGE_PREPARE_BACKPORT_README
+    readonly DETAILED_USAGE_PREPARE_PROVIDER_README
     export DETAILED_USAGE_GENERATE_CONSTRAINTS="
 ${CMDNAME} generate-constraints [FLAGS]
 
@@ -1689,8 +1689,8 @@ Flags:
 $(breeze::flag_airflow_variants)
 "
     readonly DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV
-    export DETAILED_USAGE_PREPARE_BACKPORT_PACKAGES="
-${CMDNAME} prepare-backport-packages [FLAGS] [PACKAGE_ID ...]
+    export DETAILED_USAGE_PREPARE_PROVIDER_PACKAGES="
+${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
 
       Prepares backport packages. You can provide (after --) optional list of packages to prepare.
       If no packages are specified, readme for all packages are generated. You can specify optional
@@ -1699,14 +1699,14 @@ ${CMDNAME} prepare-backport-packages [FLAGS] [PACKAGE_ID ...]
 
       Examples:
 
-      '${CMDNAME} prepare-backport-packages' or
-      '${CMDNAME} prepare-backport-packages google' or
-      '${CMDNAME} prepare-backport-packages --version-suffix-for-svn rc1 http google amazon' or
-      '${CMDNAME} prepare-backport-packages --version-suffix-for-pypi rc1 http google amazon'
+      '${CMDNAME} prepare-provider-packages' or
+      '${CMDNAME} prepare-provider-packages google' or
+      '${CMDNAME} prepare-provider-packages --version-suffix-for-svn rc1 http google amazon' or
+      '${CMDNAME} prepare-provider-packages --version-suffix-for-pypi rc1 http google amazon'
 
       General form:
 
-      '${CMDNAME} prepare-backport-packages \\
+      '${CMDNAME} prepare-provider-packages \\
             [--version-suffix-for-svn|--version-suffix-for-pypi] <PACKAGE_ID> ...'
 
       * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
@@ -1717,7 +1717,7 @@ Flags:
 $(breeze::flag_version_suffix)
 $(breeze::flag_verbosity)
 "
-    readonly DETAILED_USAGE_PREPARE_BACKPORT_PACKAGES
+    readonly DETAILED_USAGE_PREPARE_PROVIDER_PACKAGES
     export DETAILED_USAGE_PUSH_IMAGE="
 ${CMDNAME} push_image [FLAGS]
 
@@ -2945,7 +2945,7 @@ function breeze::run_build_command() {
             build_images::rebuild_ci_image_if_needed
         fi
         ;;
-    build_docs | perform_static_checks | perform_generate_constraints | perform_prepare_backport_readme | perform_prepare_backport_packages)
+    build_docs | perform_static_checks | perform_generate_constraints | perform_prepare_provider_readme | perform_prepare_provider_packages)
         build_images::prepare_ci_build
         build_images::rebuild_ci_image_if_needed
         ;;
@@ -3099,11 +3099,11 @@ function breeze::run_breeze_command() {
     perform_generate_constraints)
         runs::run_generate_constraints
         ;;
-    perform_prepare_backport_packages)
-        runs::run_prepare_backport_packages "${@}"
+    perform_prepare_provider_packages)
+        runs::run_prepare_provider_packages "${@}"
         ;;
-    perform_prepare_backport_readme)
-        runs::run_prepare_backport_readme "${@}"
+    perform_prepare_provider_readme)
+        runs::run_prepare_provider_readme "${@}"
         ;;
     perform_push_image)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then

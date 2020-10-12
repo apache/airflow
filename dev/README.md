@@ -718,7 +718,7 @@ Update "Announcements" page at the [Official Airflow website](https://airflow.ap
 # Backport Provider Packages
 
 You can read more about the command line tools used to generate backport packages in
-[Backport Providers README](../backport_packages/README.md).
+[Backport Providers README](../provider_packages/README.md).
 
 ## Decide when to release
 
@@ -738,14 +738,14 @@ Prepare release notes for all the packages you plan to release. Where YYYY.MM.DD
 date for the packages.
 
 ```
-./breeze prepare-backport-readme YYYY.MM.DD [packages]
+./breeze prepare-provider-readme YYYY.MM.DD [packages]
 ```
 
 If you iterate with merges and release candidates you can update the release date without providing
 the date (to update the existing release notes)
 
 ```
-./breeze prepare-backport-readme google
+./breeze prepare-provider-readme google
 ```
 
 Generated readme files should be eventually committed to the repository.
@@ -773,7 +773,7 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 * Build the source package:
 
 ```
-./backport_packages/build_source_package.sh
+./provider_packages/build_source_package.sh
 
 ```
 
@@ -784,13 +784,13 @@ It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
   you intended to build.
 
 ```shell script
-./breeze prepare-backport-packages --version-suffix-for-svn rc1
+./breeze prepare-provider-packages --version-suffix-for-svn rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-backport-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
+./breeze prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
 ```
 
 * Move the source tarball to dist folder
@@ -853,13 +853,13 @@ though they should be generated from the same sources.
 this will clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-./breeze prepare-backport-packages --version-suffix-for-pypi rc1
+./breeze prepare-provider-packages --version-suffix-for-pypi rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-backport-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
+./breeze prepare-provider-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -1099,22 +1099,20 @@ is available on PyPI apart from SVN packages, so everyone should be able to inst
 the release candidate version of Airflow via simply (<VERSION> is 1.10.12 for example, and <X> is
 release candidate number 1,2,3,....).
 
-You have to make sure you have ariflow 1.10.* (the version you want to install providers with).
+You can use any of the installation methods you prefer (you can even install it via the binary wheels
+downloaded from the SVN).
+
+
+#### Installing in your local virtualenv
+
+You have to make sure you have Airilow 1.10.* installed in your PIP virtualenv
+(the version you want to install providers with).
 
 ```shell script
 pip install apache-airflow-backport-providers-<provider>==<VERSION>rc<X>
 ```
-Optionally it can be followed with constraints
 
-```shell script
-pip install apache-airflow-backport-providers-<provider>==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.6.txt"`
-```
-
-Note that the constraints contain python version that you are installing it with.
-
-You can use any of the installation methods you prefer (you can even install it via the binary wheels
-downloaded from the SVN).
+#### Installing with Breeze
 
 There is also an easy way of installation with Breeze if you have the latest sources of Apache Airflow.
 Here is a typical scenario.
@@ -1133,9 +1131,49 @@ For 1.10 releases you can also use `--no-rbac-ui` flag disable RBAC UI of Airflo
     --python 3.7 --backend postgres --install-wheels --no-rbac-ui
 ```
 
-Once you install and run Airflow, you should perform any verification you see as necessary to check
-that the Airflow works as you expected.
+#### Building your own docker image
 
+If you prefer to build your own image, you can also use the official image and PyPI packages to test
+backport packages. This is especially helpful when you want to test integrations, but you need to install
+additional tools. Below is an example Dockerfile, which installs backport providers for Google and
+an additional third-party tools:
+
+```
+FROM apache/airflow:1.10.12
+
+RUN pip install --user apache-airflow-backport-providers-google==2020.10.5.rc1
+
+RUN curl https://sdk.cloud.google.com | bash \
+    && echo "source /home/airflow/google-cloud-sdk/path.bash.inc" >> /home/airflow/.bashrc \
+    && echo "source /home/airflow/google-cloud-sdk/completion.bash.inc" >> /home/airflow/.bashrc
+
+USER 0
+RUN KUBECTL_VERSION="$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)" \
+    && KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+    && curl -L "${KUBECTL_URL}" --output /usr/local/bin/kubectl \
+    && chmod +x /usr/local/bin/kubectl
+
+USER ${AIRFLOW_UID}
+```
+
+To build an image build and run a shell, run:
+
+```
+docker build . -t my-airflow
+docker run  -ti \
+    --rm \
+    -v "$PWD/data:/opt/airflow/" \
+    -v "$PWD/keys/:/keys/" \
+    -p 8080:8080 \
+    -e GOOGLE_APPLICATION_CREDENTIALS=/keys/sa.json \
+    -e AIRFLOW__CORE__LOAD_EXAMPLES=True \
+    my-airflow bash
+```
+
+#### Verification
+
+Once you install and run Airflow, you can perform any verification you see as necessary to check
+that the Airflow works as you expected.
 
 ## Publish the final releases of backport packages
 
@@ -1227,11 +1265,11 @@ ls *<provider>*
 svn rm *<provider>*
 
 # Check which old packages will be removed (you need python 3.6+)
-python ${AIRFLOW_REPO_ROOT}/backport_packages/remove_old_releases.py \
+python ${AIRFLOW_REPO_ROOT}/provider_packages/remove_old_releases.py \
     --directory .
 
 # Remove those packages
-python ${AIRFLOW_REPO_ROOT}/backport_packages/remove_old_releases.py \
+python ${AIRFLOW_REPO_ROOT}/provider_packages/remove_old_releases.py \
     --directory . --execute
 
 
@@ -1262,13 +1300,13 @@ In order to publish to PyPI you just need to build and release packages.
 * Generate the packages.
 
 ```shell script
-./breeze prepare-backport-packages
+./breeze prepare-provider-packages
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-backport-packages
+./breeze prepare-provider-packages
 ```
 
 In case you decided to remove some of the packages. Remove them from dist folder now:

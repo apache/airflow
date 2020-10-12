@@ -2027,6 +2027,39 @@
       type: string
       example: '{"grace_period_seconds": 10}'
       default: ""
+    - name: enable_tcp_keepalive
+      description: |
+        Enables TCP keepalive mechanism. This prevents Kubernetes API requests to hang indefinitely
+        when idle connection is time-outed on services like cloud load balancers or firewalls.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
+    - name: tcp_keep_idle
+      description: |
+        When the `enable_tcp_keepalive` option is enabled, TCP probes a connection that has
+        been idle for `tcp_keep_idle` seconds.
+      version_added: ~
+      type: int
+      example: ~
+      default: "120"
+    - name: tcp_keep_intvl
+      description: |
+        When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
+        to a keepalive probe, TCP retransmits the probe after `tcp_keep_intvl` seconds.
+      version_added: ~
+      type: int
+      example: ~
+      default: "30"
+    - name: tcp_keep_cnt
+      description: |
+        When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
+        to a keepalive probe, TCP retransmits the probe `tcp_keep_cnt number` of times before
+        a connection is considered to be broken.
+      version_added: ~
+      type: int
+      example: ~
+      default: "6"
 - name: smart_sensor
   description: ~
   options:

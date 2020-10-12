@@ -124,7 +124,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -240,7 +240,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -362,7 +362,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -489,7 +489,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -609,7 +609,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -718,7 +718,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -810,7 +810,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -909,7 +909,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1007,7 +1007,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1107,7 +1107,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1203,7 +1203,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> dict:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1299,7 +1299,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> dict:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1387,7 +1387,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> dict:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1487,7 +1487,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> list:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1578,7 +1578,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> dict:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1676,7 +1676,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1796,7 +1796,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> list:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1906,7 +1906,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -2020,7 +2020,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -2132,7 +2132,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -2254,7 +2254,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )

@@ -22,4 +22,4 @@ build_images::prepare_ci_build
 
 build_images::rebuild_ci_image_if_needed
 
-runs::run_prepare_backport_readme "$@"
+runs::run_prepare_provider_readme "$@"

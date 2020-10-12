@@ -67,7 +67,7 @@ The script does not modify the README and CHANGES files if there is no change in
 When you want to prepare release notes for a package, you need to run:
 
 ```
-./breeze prepare-backport-readme [YYYY.MM.DD] <PACKAGE_ID> ...
+./breeze prepare-provider-readme [YYYY.MM.DD] <PACKAGE_ID> ...
 ```
 
 
@@ -86,14 +86,14 @@ merged in the master recently, they will be automatically taken into account.
 Typically, the first time you run release before release, you run it with target release.date:
 
 ```
-./breeze prepare-backport-readme 2020.05.20 google
+./breeze prepare-provider-readme 2020.05.20 google
 ```
 
 Then while you iterate with merges and release candidates you update the release date without providing
 the date (to update the existing release notes)
 
 ```
-./breeze prepare-backport-readme google
+./breeze prepare-provider-readme google
 ```
 
 
@@ -118,7 +118,7 @@ the folders (for example Apache Hive's PACKAGE_ID is `apache.hive` ). You can se
 providers by running:
 
 ```bash
-./breeze prepare-backport-packages -- --help
+./breeze prepare-provider-packages -- --help
 ```
 
 The examples below show how you can build selected packages, but you can also build all packages by
@@ -127,37 +127,37 @@ omitting the package ids altogether.
 * To build the release candidate packages for SVN Apache upload run the following command:
 
 ```bash
-./breeze prepare-backport-packages --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
+./breeze prepare-provider-packages --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-backport-packages --version-suffix-for-svn=rc1 http ...
+./breeze prepare-provider-packages --version-suffix-for-svn=rc1 http ...
 ```
 
 * To build the release candidate packages for PyPI upload run the following command:
 
 ```bash
-./breeze prepare-backport-packages --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
+./breeze prepare-provider-packages --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-backport-packages --version-suffix-for-pypi=rc1 http ...
+./breeze prepare-provider-packages --version-suffix-for-pypi=rc1 http ...
 ```
 
 
 * To build the final release packages run the following command:
 
 ```bash
-./breeze prepare-backport-packages [PACKAGE_ID] ...
+./breeze prepare-provider-packages [PACKAGE_ID] ...
 ```
 for example:
 
 ```bash
-./breeze prepare-backport-packages http ...
+./breeze prepare-provider-packages http ...
 ```
 
 * For each package, this creates a wheel package and source distribution package in your `dist` folder with

@@ -18,14 +18,8 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-"${SCRIPTS_CI_DIR}/backport_packages/ci_prepare_backport_readme.sh"
-"${SCRIPTS_CI_DIR}/backport_packages/ci_prepare_backport_packages.sh"
-"${SCRIPTS_CI_DIR}/backport_packages/ci_test_backport_packages_install_separately.sh"
-"${SCRIPTS_CI_DIR}/backport_packages/ci_test_backport_packages_import_all_classes.sh"
+build_images::prepare_ci_build
 
-dump_file="/tmp/airflow_provider_packages_$(date +"%Y%m%d-%H%M%S").tar.gz"
+build_images::rebuild_ci_image_if_needed
 
-cd "${AIRFLOW_SOURCES}/dist" || exit 1
-tar -cvzf "${dump_file}" .
-
-echo "Packages are in dist and also tar-gzipped in ${dump_file}"
+runs::run_prepare_provider_packages "$@"

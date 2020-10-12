@@ -180,8 +180,8 @@ toggle-suppress-asciiart"
 _breeze_extra_arg_commands="
 docker-compose
 kind-cluster
-prepare-backport-readme
-prepare-backport-packages
+prepare-provider-readme
+prepare-provider-packages
 static-check
 tests
 "

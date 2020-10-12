@@ -88,7 +88,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -165,7 +165,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -248,7 +248,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -358,7 +358,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -437,7 +437,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -527,7 +527,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -624,7 +624,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -722,7 +722,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -830,7 +830,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -932,7 +932,7 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

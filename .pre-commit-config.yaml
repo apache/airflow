@@ -142,7 +142,7 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$|^dev/BACKPORT_PACKAGES.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$|^dev/PROVIDER_PACKAGES.md$
         args:
           - "--maxlevel"
           - "2"
@@ -317,7 +317,7 @@ repos:
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
-          ^backport_packages/.*$
+          ^provider_packages/.*$
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
@@ -392,14 +392,14 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^dev|^backport_packages
+        exclude: ^dev|^provider_packages
         require_serial: true
       - id: pylint
         name: Run pylint
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: \.py$
-        exclude: ^scripts/.*\.py$|^dev|^backport_packages
+        exclude: ^scripts/.*\.py$|^dev|^provider_packages
         pass_filenames: true
         require_serial: true
       - id: flake8

@@ -71,7 +71,6 @@ jobs:
           cancelMode: duplicates
           sourceRunId: ${{ github.event.workflow_run.id }}
           notifyPRCancel: true
-          skipEventTypes: '["schedule", "push"]'
       - name: "Output BUILD_IMAGES"
         id: build-images
         run: |

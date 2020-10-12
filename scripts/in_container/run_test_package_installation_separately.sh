@@ -20,7 +20,7 @@
 OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
 echo
-echo "Testing if all backport packages can be installed separately on Airflow 1.10 and cause no side effects"
+echo "Testing if all provider packages can be installed separately on Airflow 1.10 and cause no side effects"
 echo
 
 if [[ ! ${INSTALL_AIRFLOW_VERSION:=""} =~ 1.10* ]]; then
