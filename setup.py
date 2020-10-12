@@ -704,7 +704,7 @@ INSTALL_REQUIREMENTS = [
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
     'flask>=1.1.0, <2.0',
-    'flask-appbuilder>2.3.4,~=3.0',
+    'flask-appbuilder~=3.1.0',
     'flask-caching>=1.3.3, <2.0.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
