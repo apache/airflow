@@ -35,9 +35,7 @@ def _gethash(string: str):
 
 
 def _user_cache_dir(appname=None):
-    """
-    Return full path to the user-specific cache dir for this application
-    """
+    """Return full path to the user-specific cache dir for this application."""
     if sys.platform == "win32":
         # Windows has a complex procedure to download the App Dir directory because this directory can be
         # changed in window registry, so i use temporary directory for cache
@@ -51,7 +49,7 @@ def _user_cache_dir(appname=None):
 
 
 def fetch_and_cache(script_url: str, output_filename: str):
-    """Fetch URL to local cache and returns path."""
+    """Fetch URL to local cache and return path."""
     cache_key = _gethash(script_url)
     cache_dir = _user_cache_dir("redoc-doc")
     cache_metadata_filepath = os.path.join(cache_dir, "cache-metadata.json")
@@ -108,6 +106,6 @@ def build_finished(app, exception):
 
 
 def setup(app):
-    """Setup plugin"""
+    """Setup plugin."""
     app.add_config_value("redoc_script_url", None, "env")
     app.connect("build-finished", build_finished)

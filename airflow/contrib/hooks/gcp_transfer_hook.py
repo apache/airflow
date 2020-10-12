@@ -18,7 +18,8 @@
 """
 This module is deprecated.
 
-Please use `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`."""
+Please use `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`.
+"""
 
 import warnings
 
@@ -33,7 +34,9 @@ warnings.warn(
 
 class GCPTransferServiceHook(CloudDataTransferServiceHook):
     """
-    This class is deprecated. Please use
+    This class is deprecated.
+
+    Please use
     `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook`.
     """
 

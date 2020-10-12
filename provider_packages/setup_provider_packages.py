@@ -59,6 +59,8 @@ PY3 = sys.version_info[0] == 3
 
 
 class EntityType(Enum):
+    """Define the EntityType class."""
+
     Operators = "Operators"
     Transfers = "Transfers"
     Sensors = "Sensors"
@@ -67,6 +69,8 @@ class EntityType(Enum):
 
 
 class EntityTypeSummary(NamedTuple):
+    """Define the EntityTypeSummary class."""
+
     entities: Set[str]
     new_entities: List[str]
     moved_entities: Dict[str, str]
@@ -76,6 +80,8 @@ class EntityTypeSummary(NamedTuple):
 
 
 class VerifiedEntities(NamedTuple):
+    """Define the VerifiedEntities class."""
+
     all_entities: Set[str]
     wrong_entities: List[Tuple[type, str]]
 
@@ -124,7 +130,7 @@ EXPECTED_SUFFIXES: Dict[EntityType, str] = {
 
 def get_source_airflow_folder() -> str:
     """
-    Returns source directory for whole airflow (from the main airflow project).
+    Return source directory for whole airflow (from the main airflow project).
 
     :return: the folder path
     """
@@ -133,7 +139,7 @@ def get_source_airflow_folder() -> str:
 
 def get_source_providers_folder() -> str:
     """
-    Returns source directory for providers (from the main airflow project).
+    Return source directory for providers (from the main airflow project).
 
     :return: the folder path
     """
@@ -142,7 +148,7 @@ def get_source_providers_folder() -> str:
 
 def get_target_providers_folder() -> str:
     """
-    Returns target directory for providers (in the provider_packages folder)
+    Return target directory for providers (in the provider_packages folder).
 
     :return: the folder path
     """
@@ -151,7 +157,7 @@ def get_target_providers_folder() -> str:
 
 def get_target_providers_package_folder(provider_package_id: str) -> str:
     """
-    Returns target package folder based on package_id
+    Return target package folder based on package_id.
 
     :return: the folder path
     """
@@ -161,6 +167,7 @@ def get_target_providers_package_folder(provider_package_id: str) -> str:
 class CleanCommand(Command):
     """
     Command to tidy up the project root.
+
     Registered as cmd class in setup() so it can be called with ``python setup.py extra_clean``.
     """
 
@@ -197,7 +204,7 @@ MOVED_ENTITIES: Dict[EntityType, Dict[str, str]] = {
 
 def get_pip_package_name(provider_package_id: str) -> str:
     """
-    Returns PIP package name for the package id.
+    Return PIP package name for the package id.
 
     :param provider_package_id: id of the package
     :return: the name of pip package
@@ -207,7 +214,7 @@ def get_pip_package_name(provider_package_id: str) -> str:
 
 def get_long_description(provider_package_id: str) -> str:
     """
-    Gets long description of the package.
+    Get long description of the package.
 
     :param provider_package_id: package id
     :return: content of the description (README file)
@@ -233,7 +240,7 @@ def get_long_description(provider_package_id: str) -> str:
 
 def get_package_release_version(provider_package_id: str, version_suffix: str = "") -> str:
     """
-    Returns release version including optional suffix.
+    Return release version including optional suffix.
 
     :param provider_package_id: package id
     :param version_suffix: optional suffix (rc1, rc2 etc).
@@ -305,10 +312,7 @@ def do_setup_package_providers(provider_package_id: str,
 
 
 def find_package_extras(package: str) -> Dict[str, List[str]]:
-    """
-    Finds extras for the package specified.
-
-    """
+    """Find extras for the package specified."""
     if package == 'providers':
         return {}
     with open(DEPENDENCIES_JSON_FILE, "rt") as dependencies_file:
@@ -320,18 +324,12 @@ def find_package_extras(package: str) -> Dict[str, List[str]]:
 
 
 def get_provider_packages():
-    """
-    Returns all provider packages.
-
-    """
+    """Return the list of all provider packages."""
     return list(PROVIDERS_REQUIREMENTS)
 
 
 def usage() -> None:
-    """
-    Prints usage for the package.
-
-    """
+    """Print usage for the package."""
     print()
     print("You should provide PACKAGE as first of the setup.py arguments")
     packages = get_provider_packages()
@@ -355,7 +353,7 @@ def usage() -> None:
 
 def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
     """
-    Is the class imported from another module?
+    Test if the class is imported from another module.
 
     :param the_class: the class object itself
     :param imported_name: name of the imported class
@@ -366,7 +364,7 @@ def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
 
 def is_example_dag(imported_name: str) -> bool:
     """
-    Is the class an example_dag class?
+    Test if the class is an example_dag class.
 
     :param imported_name: name where the class is imported from
     :return: true if it is an example_dags class
@@ -376,7 +374,8 @@ def is_example_dag(imported_name: str) -> bool:
 
 def is_from_the_expected_base_package(the_class: Type, expected_package: str) -> bool:
     """
-    Returns true if the class is from the package expected.
+    Return true if the class is from the package expected.
+
     :param the_class: the class object
     :param expected_package: package expected for the class
     :return:
@@ -386,7 +385,8 @@ def is_from_the_expected_base_package(the_class: Type, expected_package: str) ->
 
 def inherits_from(the_class: Type, expected_ancestor: Type) -> bool:
     """
-    Returns true if the class inherits (directly or indirectly) from the class specified.
+    Return true if the class inherits (directly or indirectly) from the class specified.
+
     :param the_class: The class to check
     :param expected_ancestor: expected class to inherit from
     :return: true is the class inherits from the class expected
@@ -400,7 +400,8 @@ def inherits_from(the_class: Type, expected_ancestor: Type) -> bool:
 
 def is_class(the_class: Type) -> bool:
     """
-    Returns true if the object passed is a class
+    Return true if the object passed is a class.
+
     :param the_class: the class to pass
     :return: true if it is a class
     """
@@ -411,7 +412,7 @@ def is_class(the_class: Type) -> bool:
 def package_name_matches(the_class: Type, expected_pattern: Optional[str]) -> bool:
     """
     In case expected_pattern is set, it checks if the package name matches the pattern.
-    .
+
     :param the_class: imported class
     :param expected_pattern: the pattern that should match the package
     :return: true if the expected_pattern is None or the pattern matches the package
@@ -429,7 +430,7 @@ def find_all_entities(
         exclude_class_type: Type = None,
         false_positive_class_names: Optional[Set[str]] = None) -> VerifiedEntities:
     """
-    Returns set of entities containing all subclasses in package specified.
+    Return the set of entities containing all subclasses in package specified.
 
     :param imported_classes: entities imported from providers
     :param base_package: base package name where to start looking for the entities
@@ -476,7 +477,7 @@ def convert_new_classes_to_table(entity_type: EntityType,
                                  new_entities: List[str],
                                  full_package_name: str) -> str:
     """
-    Converts new entities tp a markdown table.
+    Convert new entities to a markdown table.
 
     :param entity_type: list of entities to convert to markup
     :param new_entities: list of new entities
@@ -494,7 +495,8 @@ def convert_moved_classes_to_table(entity_type: EntityType,
                                    moved_entities: Dict[str, str],
                                    full_package_name: str) -> str:
     """
-    Converts moved entities to a markdown table
+    Convert moved entities to a markdown table.
+
     :param entity_type: type of entities -> operators, sensors etc.
     :param moved_entities: dictionary of moved entities `to -> from`
     :param full_package_name: name of the provider package
@@ -517,8 +519,10 @@ def get_details_about_classes(
         wrong_entities: List[Tuple[type, str]],
         full_package_name: str) -> EntityTypeSummary:
     """
-    Splits the set of entities into new and moved, depending on their presence in the dict of objects
-    retrieved from the test_contrib_to_core. Updates all_entities with the split class.
+    Split the set of entities into new and moved.
+
+    The split is depending on their presence in the dict of objects retrieved from the test_contrib_to_core.
+    Updates all_entities with the split class.
 
     :param entity_type: type of entity (Operators, Hooks etc.)
     :param entities: set of entities found
@@ -557,9 +561,7 @@ def get_details_about_classes(
 
 
 def strip_package_from_class(base_package: str, class_name: str) -> str:
-    """
-    Strips base package name from the class (if it starts with the package name).
-    """
+    """Strip base package name from the class (if it starts with the package name)."""
     if class_name.startswith(base_package):
         return class_name[len(base_package) + 1:]
     else:
@@ -568,7 +570,7 @@ def strip_package_from_class(base_package: str, class_name: str) -> str:
 
 def convert_class_name_to_url(base_url: str, class_name) -> str:
     """
-    Converts the class name to URL that the class can be reached
+    Convert the class name to URL that the class can be reached.
 
     :param base_url: base URL to use
     :param class_name: name of the class
@@ -579,7 +581,7 @@ def convert_class_name_to_url(base_url: str, class_name) -> str:
 
 def get_class_code_link(base_package: str, class_name: str, git_tag: str) -> str:
     """
-    Provides markdown link for the class passed as parameter.
+    Provide markdown link for the class passed as parameter.
 
     :param base_package: base package to strip from most names
     :param class_name: name of the class
@@ -593,7 +595,8 @@ def get_class_code_link(base_package: str, class_name: str, git_tag: str) -> str
 
 def print_wrong_naming(entity_type: EntityType, wrong_classes: List[Tuple[type, str]]):
     """
-    Prints wrong entities of a given entity type if there are any
+    Print wrong entities of a given entity type if there are any.
+
     :param entity_type: type of the class to print
     :param wrong_classes: list of wrong entities
     """
@@ -606,7 +609,8 @@ def print_wrong_naming(entity_type: EntityType, wrong_classes: List[Tuple[type, 
 def get_package_class_summary(full_package_name: str, imported_classes: List[str]) \
         -> Dict[EntityType, EntityTypeSummary]:
     """
-    Gets summary of the package in the form of dictionary containing all types of entities
+    Get summary of the package in the form of dictionary containing all types of entities.
+
     :param full_package_name: full package name
     :param imported_classes: entities imported_from providers
     :return: dictionary of objects usable as context for JINJA2 templates - or None if there are some errors
@@ -678,7 +682,8 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
 
 def render_template(template_name: str, context: Dict[str, Any]) -> str:
     """
-    Renders template based on it's name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
+    Render template based on it's name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
+
     :param template_name: name of the template to use
     :param context: Jinja2 context
     :return: rendered template
@@ -697,7 +702,7 @@ def render_template(template_name: str, context: Dict[str, Any]) -> str:
 
 def convert_git_changes_to_table(changes: str, base_url: str) -> str:
     """
-    Converts list of changes from it's string form to markdown table.
+    Convert list of changes from it's string form to markdown table.
 
     The changes are in the form of multiple lines where each line consists of:
     FULL_COMMIT_HASH SHORT_COMMIT_HASH COMMIT_DATE COMMIT_SUBJECT
@@ -722,7 +727,8 @@ def convert_git_changes_to_table(changes: str, base_url: str) -> str:
 
 def convert_pip_requirements_to_table(requirements: Iterable[str]) -> str:
     """
-    Converts PIP requirement list to a markdown table.
+    Convert PIP requirement list to a markdown table.
+
     :param requirements: requirements list
     :return: markdown-formatted table
     """
@@ -743,7 +749,8 @@ def convert_pip_requirements_to_table(requirements: Iterable[str]) -> str:
 def convert_cross_package_dependencies_to_table(
         cross_package_dependencies: List[str], base_url: str) -> str:
     """
-    Converts cross-package dependencies to a markdown table
+    Convert cross-package dependencies to a markdown table.
+
     :param cross_package_dependencies: list of cross-package dependencies
     :param base_url: base url to use for links
     :return: markdown-formatted table
@@ -789,13 +796,16 @@ ReleaseInfo = collections.namedtuple(
 
 
 def strip_leading_zeros(release_version: str) -> str:
+    """Strip leading zeros from the provided version string."""
     return release_version.replace(".0", ".")
 
 
 def get_all_releases(provider_package_path: str) -> List[ReleaseInfo]:
     """
-    Returns information about past releases (retrieved from PROVIDERS_CHANGES_ files stored in the
-    package folder.
+    Return information about past releases.
+
+    This information is (retrieved from PROVIDERS_CHANGES_ files stored in the package folder.
+
     :param provider_package_path: path of the package
     :return: list of releases made so far.
     """
@@ -823,7 +833,7 @@ def get_all_releases(provider_package_path: str) -> List[ReleaseInfo]:
 
 def get_latest_release(provider_package_path: str) -> ReleaseInfo:
     """
-    Gets information about the latest release.
+    Get information about the latest release.
 
     :param provider_package_path: path of package
     :return: latest release information
@@ -843,8 +853,11 @@ def get_previous_release_info(previous_release_version: str,
                               past_releases: List[ReleaseInfo],
                               current_release_version: str) -> Optional[str]:
     """
-    Find previous release. In case we are re-running current release we assume that last release was
-    the previous one. This is needed so that we can generate list of changes since the previous release.
+    Find previous release.
+
+    In case we are re-running current release we assume that last release was the previous one. This is needed
+    so that we can generate list of changes since the previous release.
+
     :param previous_release_version: known last release version
     :param past_releases: list of past releases
     :param current_release_version: release that we are working on currently
@@ -864,7 +877,8 @@ def check_if_release_version_ok(
         past_releases: List[ReleaseInfo],
         current_release_version: str) -> Tuple[str, Optional[str]]:
     """
-    Check if the release version passed is not later than the last release version
+    Check if the release version passed is not later than the last release version.
+
     :param past_releases: all past releases (if there are any)
     :param current_release_version: release version to check
     :return: Tuple of current/previous_release (previous might be None if there are no releases)
@@ -884,7 +898,8 @@ def check_if_release_version_ok(
 
 def get_cross_provider_dependent_packages(provider_package_id: str) -> List[str]:
     """
-    Returns cross-provider dependencies for the package.
+    Return cross-provider dependencies for the package.
+
     :param provider_package_id: package id
     :return: list of cross-provider dependencies
     """
@@ -895,10 +910,11 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> List[str]
 
 def make_sure_remote_apache_exists_and_fetch():
     """
-    Make sure that apache remote exist in git. We need to take a log from the master of apache
-    repository - not locally - because when we commit this change and run it, our log will include the
-    current commit - which is going to have different commit id once we merge. So it is a bit
-    catch-22.
+    Make sure that apache remote exist in git.
+
+    We need to take a log from the master of apache repository - not locally - because when we commit this
+    change and run it, our log will include the current commit - which is going to have different commit id
+    once we merge. So it is a bit catch-22.
 
     :return:
     """
@@ -919,6 +935,7 @@ def make_sure_remote_apache_exists_and_fetch():
 def get_git_command(base_commit: Optional[str]) -> List[str]:
     """
     Get git command to run for the current repo from the current folder (which is the package folder).
+
     :param base_commit: if present - base commit from which to start the log from
     :return: git command to run
     """
@@ -933,7 +950,7 @@ def get_git_command(base_commit: Optional[str]) -> List[str]:
 def store_current_changes(provider_package_path: str,
                           current_release_version: str, current_changes: str) -> None:
     """
-    Stores current changes in the PROVIDERS_CHANGES_YYYY.MM.DD.md file.
+    Store current changes in the PROVIDERS_CHANGES_YYYY.MM.DD.md file.
 
     :param provider_package_path: path for the package
     :param current_release_version: release version to build
@@ -948,7 +965,8 @@ def store_current_changes(provider_package_path: str,
 
 def get_package_path(provider_package_id: str) -> str:
     """
-    Retrieves package path from package id.
+    Retrieve package path from package id.
+
     :param provider_package_id: id of the package
     :return: path of the providers folder
     """
@@ -958,7 +976,7 @@ def get_package_path(provider_package_id: str) -> str:
 
 def get_additional_package_info(provider_package_path: str) -> str:
     """
-    Returns additional info for the package.
+    Return additional info for the package.
 
     :param provider_package_path: path for the package
     :return: additional information for the path (empty string if missing)
@@ -983,7 +1001,8 @@ def get_additional_package_info(provider_package_path: str) -> str:
 
 def is_camel_case_with_acronyms(s: str):
     """
-    Checks if the string passed is Camel Case (with capitalised acronyms allowed).
+    Check if the string passed is Camel Case (with capitalised acronyms allowed).
+
     :param s: string to check
     :return: true if the name looks cool as Class name.
     """
@@ -993,8 +1012,9 @@ def is_camel_case_with_acronyms(s: str):
 def check_if_classes_are_properly_named(
         entity_summary: Dict[EntityType, EntityTypeSummary]) -> Tuple[int, int]:
     """
-    Check if all entities in the dictionary are named properly. It prints names at the output
-    and returns the status of class names.
+    Check if all entities in the dictionary are named properly.
+
+    It prints names at the output and returns the status of class names.
 
     :param entity_summary: dictionary of class names to check, grouped by types.
     :return: Tuple of 2 ints = total number of entities and number of badly named entities
@@ -1022,8 +1042,9 @@ def check_if_classes_are_properly_named(
 def update_release_notes_for_package(provider_package_id: str, current_release_version: str,
                                      imported_classes: List[str]) -> Tuple[int, int]:
     """
-    Updates release notes (README.md) for the package. returns Tuple of total number of entities
-    and badly named entities.
+    Update release notes (README.md) for the package.
+
+    Returns Tuple of total number of entities and badly named entities.
 
     :param provider_package_id: id of the package
     :param current_release_version: release version
@@ -1109,7 +1130,8 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
 
 def update_release_notes_for_packages(provider_ids: List[str], release_version: str):
     """
-    Updates release notes for the list of packages specified.
+    Update release notes for the list of packages specified.
+
     :param provider_ids: list of provider ids
     :param release_version: version to release
     :return:
@@ -1157,7 +1179,8 @@ def update_release_notes_for_packages(provider_ids: List[str], release_version: 
 
 def get_all_backportable_providers() -> List[str]:
     """
-    Returns all providers that should be taken into account when preparing backports.
+    Return all providers that should be taken into account when preparing backports.
+
     For now remove cncf.kubernetes as it has no chances to work with current core of Airflow 2.0
     And Papermill as it is deeply linked with Lineage in Airflow core and it won't work with lineage
     for Airflow 1.10 anyway.

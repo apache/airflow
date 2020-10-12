@@ -35,13 +35,9 @@ CLASS_TYPES = ["hooks", "operators", "sensors", "secrets", "protocols"]
 
 
 def copy_provider_sources() -> None:
-    """
-    Copies provider sources to directory where they will be refactored.
-    """
+    """Copy provider sources to directory where they will be refactored."""
     def rm_build_dir() -> None:
-        """
-        Removes build directory.
-        """
+        """Remove build directory."""
         build_dir = os.path.join(dirname(__file__), "build")
         if os.path.isdir(build_dir):
             rmtree(build_dir)
@@ -75,7 +71,7 @@ def copy_provider_sources() -> None:
 
 def copy_helper_py_file(target_file_path: str) -> None:
     """
-    Copies. airflow/utils/helper.py to a new location within provider package
+    Copy airflow/utils/helper.py to a new location within provider package.
 
     The helper has two methods (chain, cross_downstream) that are moved from the original helper to
     'airflow.models.baseoperator'. so in 1.10 they should reimport the original 'airflow.utils.helper'
@@ -84,7 +80,6 @@ def copy_helper_py_file(target_file_path: str) -> None:
 
     :param target_file_path: target path name for the helpers.py
     """
-
     source_helper_file_path = os.path.join(get_source_airflow_folder(), "airflow", "utils", "helpers.py")
 
     with open(source_helper_file_path, "rt") as in_file:
@@ -94,18 +89,16 @@ def copy_helper_py_file(target_file_path: str) -> None:
 
 
 class RefactorBackportPackages:
-    """
-    Refactors the code of providers, so that it works in 1.10.
-
-    """
+    """Refactor the code of providers, so that it works in 1.10."""
 
     def __init__(self):
         self.qry = Query()
 
     def remove_class(self, class_name) -> None:
         """
-        Removes class altogether. Example diff generated:
+        Remove class altogether.
 
+        Example diff generated:
 
         .. code-block:: diff
 
@@ -126,7 +119,9 @@ class RefactorBackportPackages:
 
     def rename_deprecated_modules(self) -> None:
         """
-        Renames back to deprecated modules imported. Example diff generated:
+        Rename back to deprecated modules imported.
+
+        Example diff generated:
 
         .. code-block:: diff
 
@@ -156,8 +151,8 @@ class RefactorBackportPackages:
 
     def add_provide_context_to_python_operators(self) -> None:
         """
+        Add provide context to usages of Python/BranchPython Operators - mostly in example_dags.
 
-        Adds provide context to usages of Python/BranchPython Operators - mostly in example_dags.
         Note that those changes  apply to example DAGs not to the operators/hooks erc.
         We package the example DAGs together with the provider classes and they should serve as
         examples independently on the version of Airflow it will be installed in.
@@ -218,7 +213,7 @@ class RefactorBackportPackages:
 
     def remove_super_init_call(self):
         r"""
-        Removes super().__init__() call from Hooks.
+        Remove super().__init__() call from Hooks.
 
         In airflow 1.10 almost none of the Hooks call super().init(). It was always broken in Airflow 1.10 -
         the BaseHook() has it's own __init__() which is wrongly implemented and requires source
@@ -281,12 +276,12 @@ class RefactorBackportPackages:
 
     def remove_tags(self):
         """
-        Removes tags from execution of the operators (in example_dags). Note that those changes
-        apply to example DAGs not to the operators/hooks erc. We package the example DAGs together
-        with the provider classes and they should serve as examples independently on the version
-        of Airflow it will be installed in. The tags are feature added in 1.10.10 and occasionally
-        we will want to run example DAGs as system tests in pre-1.10.10 version so we want to
-        remove the tags here.
+        Remove tags from execution of the operators (in example_dags).
+
+        Note that those changes apply to example DAGs not to the operators/hooks erc. We package the example
+        DAGs together with the provider classes and they should serve as examples independently on the version
+        of Airflow it will be installed in. The tags are feature added in 1.10.10 and occasionally we will
+        want to run example DAGs as system tests in pre-1.10.10 version so we want to remove the tags here.
 
 
         Example diff generated:
@@ -318,7 +313,7 @@ class RefactorBackportPackages:
 
     def remove_poke_mode_only_decorator(self):
         r"""
-        Removes @poke_mode_only decorator. The decorator is only available in Airflow 2.0.
+        Remove @poke_mode_only decorator. The decorator is only available in Airflow 2.0.
 
         Example diff generated:
 
@@ -379,7 +374,7 @@ class RefactorBackportPackages:
 
     def refactor_amazon_package(self):
         """
-        Fixes to "amazon" providers package.
+        Apply fixes to "amazon" providers package.
 
         Copies some of the classes used from core Airflow to "common.utils" package of
         the provider and renames imports to use them from there.
@@ -437,7 +432,7 @@ class RefactorBackportPackages:
 
     def refactor_google_package(self):
         r"""
-        Fixes to "google" providers package.
+        Apply Fixes to "google" providers package.
 
         Copies some of the classes used from core Airflow to "common.utils" package of the
         the provider and renames imports to use them from there. Note that in this case we also rename
@@ -537,7 +532,7 @@ class RefactorBackportPackages:
             return filename.startswith("./airflow/providers/google/")
 
         def pure_airflow_models_filter(node: LN, capture: Capture, filename: Filename) -> bool:
-            """Check if select is exactly [airflow, . , models]"""
+            """Check if select is exactly [airflow, . , models]."""
             return len(list(node.children[1].leaves())) == 3
 
         os.makedirs(os.path.join(get_target_providers_package_folder("google"), "common", "utils"),
@@ -610,7 +605,7 @@ class RefactorBackportPackages:
 
     def refactor_odbc_package(self):
         """
-        Fixes to "odbc" providers package.
+        Apply fixes to "odbc" providers package.
 
         Copies some of the classes used from core Airflow to "common.utils" package of the
         the provider and renames imports to use them from there.

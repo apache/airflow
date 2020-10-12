@@ -20,7 +20,6 @@ Removes older releases of provider packages from the folder using svn rm.
 
 It iterates over the folder specified as first parameter and removes all but latest releases of
 packages found in that directory.
-
 """
 import argparse
 import glob
@@ -32,6 +31,8 @@ from typing import Dict, List, NamedTuple
 
 
 class VersionedFile(NamedTuple):
+    """Define the VersionedFile class."""
+
     base: str
     version: str
     suffix: str
@@ -40,6 +41,7 @@ class VersionedFile(NamedTuple):
 
 
 def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
+    """Return a VersionedFile for the given filename."""
     no_suffix_file = file_name[:-len(suffix)]
     no_version_file, version = no_suffix_file.rsplit("-", 1)
     return VersionedFile(base=no_version_file + "-",
@@ -50,6 +52,7 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
 
 
 def process_all_files(directory: str, suffix: str, execute: bool):
+    """Process all files."""
     package_types_dicts: Dict[str, List[VersionedFile]] = defaultdict(list)
     os.chdir(directory)
 
@@ -75,6 +78,7 @@ def process_all_files(directory: str, suffix: str, execute: bool):
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse the args with argparse."""
     parser = argparse.ArgumentParser(description='Removes old releases.')
     parser.add_argument('--directory', dest='directory', action='store', required=True,
                         help='Directory to remove old releases in')
