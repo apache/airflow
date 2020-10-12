@@ -486,6 +486,10 @@
             "description": "Airflow scheduler settings.",
             "type": "object",
             "properties": {
+                "replicas": {
+                  "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
+                  "type": "integer"
+                },
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
                     "type": "object",

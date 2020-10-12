@@ -292,6 +292,9 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
+  # Airflow 2.0 allows users to run multiple schedulers,
+  # However this feature is only recommended for MySQL 8+ and Postgres
+  replicas: 1
   # Scheduler pod disruption budget
   podDisruptionBudget:
     enabled: false
