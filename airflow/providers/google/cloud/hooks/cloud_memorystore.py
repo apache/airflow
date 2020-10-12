@@ -586,7 +586,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Will update current set of Parameters to the set of specified nodes of the Memcached Instance.
@@ -614,7 +614,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-
+        metadata = metadata or ()
         name = CloudMemcacheClient.instance_path(project_id, location, instance_id)
 
         self.log.info("Applying update to instance: %s", instance_id)
@@ -633,7 +633,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Creates a Memcached instance based on the specified tier and memory size.
@@ -670,6 +670,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
         parent = path_template.expand(
             "projects/{project}/locations/{location}", project=project_id, location=location
         )
@@ -710,7 +711,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Deletes a specific Memcached instance.  Instance stops serving and data is deleted.
@@ -732,6 +733,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
         name = CloudMemcacheClient.instance_path(project_id, location, instance)
         self.log.info("Fetching Instance: %s", name)
         instance = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata)
@@ -774,6 +776,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
         name = CloudMemcacheClient.instance_path(project_id, location, instance)
         result = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata or ())
         self.log.info("Fetched Instance: %s", name)
@@ -786,7 +789,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Lists all Memcached instances owned by a project in either the specified location (region) or all
@@ -810,6 +813,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
         parent = path_template.expand(
             "projects/{project}/locations/{location}", project=project_id, location=location
         )
@@ -827,7 +831,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Updates the metadata and configuration of a specific Memcached instance.
@@ -863,6 +867,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
 
         if isinstance(instance, dict):
             instance = ParseDict(instance, cloud_memcache.Instance())
@@ -890,7 +895,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Updates the defined Memcached Parameters for an existing Instance. This method only stages the
@@ -923,6 +928,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
 
         if isinstance(parameters, dict):
             parameters = ParseDict(parameters, cloud_memcache.MemcacheParameters())
