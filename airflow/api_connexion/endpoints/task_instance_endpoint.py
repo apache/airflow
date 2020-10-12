@@ -16,10 +16,11 @@
 # under the License.
 from typing import Any, List, Optional, Tuple
 
-from flask import request
+from flask import request, current_app
 from marshmallow import ValidationError
 from sqlalchemy import and_, func
 
+from airflow.api.common.experimental.mark_tasks import set_state
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound, BadRequest
 from airflow.api_connexion.parameters import format_datetime, format_parameters
@@ -31,12 +32,10 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_batch_form,
     task_instance_reference_collection_schema,
     TaskInstanceReferenceCollection,
+    set_task_instance_state_form,
 )
-from airflow.configuration import conf
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import clear_task_instances, TaskInstance as TI
-from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagBag
 from airflow.models import SlaMiss
 from airflow.utils.state import State
 from airflow.utils.session import provide_session
@@ -236,17 +235,9 @@ def post_clear_task_instances(dag_id: str, session=None):
         data = clear_task_instance_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    dag_model = DagModel.get_current(dag_id)
-    if dag_model is None:
-        raise NotFound(f"DAG id {dag_id} not found in DagModel")
 
-    dagbag = DagBag(
-        dag_folder=dag_model.fileloc,
-        read_dags_from_db=conf.getboolean("core", "store_serialized_dags"),
-    )
-
-    dag = dagbag.get_dag(dag_id)  # prefetch dag if it is stored serialized
-    if dag_id not in dagbag.dags:
+    dag = current_app.dag_bag.get_dag(dag_id)
+    if not dag:
         error_message = "Dag id {} not found".format(dag_id)
         raise NotFound(error_message)
     reset_dag_runs = data.pop('reset_dag_runs')
@@ -270,4 +261,48 @@ def post_clear_task_instances(dag_id: str, session=None):
     ).add_column(DR.run_id)
     return task_instance_reference_collection_schema.dump(
         TaskInstanceReferenceCollection(task_instances=task_instances.all())
+    )
+
+
+@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_edit", "Task")])
+@provide_session
+def post_set_task_instances_state(dag_id, session):
+    """Set a state of task instances."""
+    body = request.get_json()
+    try:
+        data = set_task_instance_state_form.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+
+    dag = current_app.dag_bag.get_dag(dag_id)
+    if not dag:
+        error_message = "Dag ID {} not found".format(dag_id)
+        raise NotFound(error_message)
+
+    task_id = data['task_id']
+    task = dag.task_dict.get(task_id)
+
+    if not task:
+        error_message = "Task ID {} not found".format(task_id)
+        raise NotFound(error_message)
+
+    tis = set_state(
+        tasks=[task],
+        execution_date=data["execution_date"],
+        upstream=data["include_upstream"],
+        downstream=data["include_downstream"],
+        future=data["include_future"],
+        past=data["include_past"],
+        state=data["new_state"],
+        commit=not data["dry_run"],
+    )
+    execution_dates = {ti.execution_date for ti in tis}
+    execution_date_to_run_id_map = dict(
+        session.query(DR.execution_date, DR.run_id).filter(
+            DR.dag_id == dag_id, DR.execution_date.in_(execution_dates)
+        )
+    )
+    tis_with_run_id = [(ti, execution_date_to_run_id_map.get(ti.execution_date)) for ti in tis]
+    return task_instance_reference_collection_schema.dump(
+        TaskInstanceReferenceCollection(task_instances=tis_with_run_id)
     )

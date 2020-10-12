@@ -16,6 +16,7 @@
 # under the License.
 import unittest
 import datetime as dt
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -744,6 +745,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             single_dag_run=False,
         )
+        self.app.dag_bag.sync_to_db()  # pylint: disable=no-member
         response = self.client.post(
             f"/api/v1/dags/{request_dag}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -862,3 +864,118 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 403
+
+
+class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
+    @provide_session
+    @mock.patch('airflow.api_connexion.endpoints.task_instance_endpoint.set_state')
+    def test_should_assert_call_mocked_api(self, mock_set_state, session):
+        self.create_task_instances(session)
+        mock_set_state.return_value = (
+            session.query(TaskInstance).filter(TaskInstance.task_id == "print_the_context").all()
+        )
+        response = self.client.post(
+            "/api/v1/dags/example_python_operator/updateTaskInstancesState",
+            environ_overrides={'REMOTE_USER': "test"},
+            json={
+                "dry_run": True,
+                "task_id": "print_the_context",
+                "execution_date": DEFAULT_DATETIME_1,
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            'task_instances': [
+                {
+                    'dag_id': 'example_python_operator',
+                    'dag_run_id': 'TEST_DAG_RUN_ID',
+                    'execution_date': '2020-01-01T00:00:00+00:00',
+                    'task_id': 'print_the_context',
+                }
+            ]
+        }
+
+        dag = self.app.dag_bag.dags['example_python_operator']  # pylint: disable=no-member
+        task = dag.task_dict['print_the_context']
+        mock_set_state.assert_called_once_with(
+            commit=False,
+            downstream=True,
+            execution_date=DEFAULT_DATETIME_1,
+            future=True,
+            past=True,
+            state='failed',
+            tasks=[task],
+            upstream=True,
+        )
+
+    def test_should_raises_401_unauthenticated(self):
+        response = self.client.post(
+            "/api/v1/dags/example_python_operator/updateTaskInstancesState",
+            json={
+                "dry_run": True,
+                "task_id": "print_the_context",
+                "execution_date": DEFAULT_DATETIME_1,
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.post(
+            "/api/v1/dags/example_python_operator/updateTaskInstancesState",
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+            json={
+                "dry_run": True,
+                "task_id": "print_the_context",
+                "execution_date": DEFAULT_DATETIME_1,
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 403
+
+    def test_should_raise_404_not_found_dag(self):
+        response = self.client.post(
+            "/api/v1/dags/INVALID_DAG/updateTaskInstancesState",
+            environ_overrides={'REMOTE_USER': "test"},
+            json={
+                "dry_run": True,
+                "task_id": "print_the_context",
+                "execution_date": DEFAULT_DATETIME_1,
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 404
+
+    def test_should_raise_404_not_found_task(self):
+        response = self.client.post(
+            "/api/v1/dags/example_python_operator/updateTaskInstancesState",
+            environ_overrides={'REMOTE_USER': "test"},
+            json={
+                "dry_run": True,
+                "task_id": "INVALID_TASK",
+                "execution_date": DEFAULT_DATETIME_1,
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 404

@@ -24,6 +24,7 @@ from parameterized import parameterized
 from airflow.api_connexion.schemas.task_instance_schema import (
     clear_task_instance_form,
     task_instance_schema,
+    set_task_instance_state_form,
 )
 from airflow.models import DAG, SlaMiss, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
@@ -63,7 +64,7 @@ class TestTaskInstanceSchema(unittest.TestCase):
             setattr(ti, key, value)
         session.add(ti)
         session.commit()
-        serialized_ti = task_instance_schema.dump(ti)
+        serialized_ti = task_instance_schema.dump((ti, None))
         expected_json = {
             "dag_id": "TEST_DAG_ID",
             "duration": 10000.0,
@@ -101,7 +102,7 @@ class TestTaskInstanceSchema(unittest.TestCase):
         session.add(ti)
         session.add(sla_miss)
         session.commit()
-        serialized_ti = task_instance_schema.dump(ti)
+        serialized_ti = task_instance_schema.dump((ti, sla_miss))
         expected_json = {
             "dag_id": "TEST_DAG_ID",
             "duration": 10000.0,
@@ -163,3 +164,46 @@ class TestClearTaskInstanceFormSchema(unittest.TestCase):
     def test_validation_error(self, payload):
         with self.assertRaises(ValidationError):
             clear_task_instance_form.load(payload)
+
+
+class TestSetTaskInstanceStateFormSchema(unittest.TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.current_input = {
+            "dry_run": True,
+            "task_id": "print_the_context",
+            "execution_date": "2020-01-01T00:00:00+00:00",
+            "include_upstream": True,
+            "include_downstream": True,
+            "include_future": True,
+            "include_past": True,
+            "new_state": "failed",
+        }
+
+    def test_success(self):
+        result = set_task_instance_state_form.load(self.current_input)
+        expected_result = {
+            'dry_run': True,
+            'execution_date': dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), '+0000')),
+            'include_downstream': True,
+            'include_future': True,
+            'include_past': True,
+            'include_upstream': True,
+            'new_state': 'failed',
+            'task_id': 'print_the_context',
+        }
+        self.assertEqual(expected_result, result)
+
+    @parameterized.expand(
+        [
+            ({"task_id": None},),
+            ({"include_future": "True"},),
+            ({"execution_date": "NOW"},),
+            ({"new_state": "INVALID_STATE"},),
+        ]
+    )
+    def test_validation_error(self, override_data):
+        self.current_input.update(override_data)
+
+        with self.assertRaises(ValidationError):
+            clear_task_instance_form.load(self.current_input)

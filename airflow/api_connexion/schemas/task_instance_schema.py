@@ -17,12 +17,13 @@
 
 from typing import List, NamedTuple, Tuple, Optional
 
-from marshmallow import Schema, fields, ValidationError, validates_schema
+from marshmallow import Schema, fields, ValidationError, validates_schema, validate
 from marshmallow.utils import get_value
 
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.models import TaskInstance, SlaMiss
+from airflow.utils.state import State
 
 
 class TaskInstanceSchema(Schema):
@@ -114,6 +115,19 @@ class ClearTaskInstanceFormSchema(Schema):
                 raise ValidationError("end_date is sooner than start_date")
 
 
+class SetTaskInstanceStateFormSchema(Schema):
+    """Schema for handling the request of setting state of task instance of a DAG"""
+
+    dry_run = fields.Boolean(default=True)
+    task_id = fields.Str(required=True)
+    execution_date = fields.DateTime(required=True)
+    include_upstream = fields.Boolean(required=True)
+    include_downstream = fields.Boolean(required=True)
+    include_future = fields.Boolean(required=True)
+    include_past = fields.Boolean(required=True)
+    new_state = TaskInstanceStateField(required=True, validate=validate.OneOf([State.SUCCESS, State.FAILED]))
+
+
 class TaskInstanceReferenceSchema(Schema):
     """Schema for the task instance reference schema"""
 
@@ -147,5 +161,6 @@ task_instance_schema = TaskInstanceSchema()
 task_instance_collection_schema = TaskInstanceCollectionSchema()
 task_instance_batch_form = TaskInstanceBatchFormSchema()
 clear_task_instance_form = ClearTaskInstanceFormSchema()
+set_task_instance_state_form = SetTaskInstanceStateFormSchema()
 task_instance_reference_schema = TaskInstanceReferenceSchema()
 task_instance_reference_collection_schema = TaskInstanceReferenceCollectionSchema()
