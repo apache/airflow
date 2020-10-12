@@ -16,12 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import json
 import os
+import sys
 import unittest
 from argparse import Namespace
 from contextlib import contextmanager
 from datetime import datetime
+from unittest import mock
+
+from parameterized import parameterized
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -84,6 +88,34 @@ class TestCliUtil(unittest.TestCase):
 
         with self.assertRaises(AirflowException):
             cli.get_dags(None, "foobar", True)
+
+    @parameterized.expand(["--password", "-p"])
+    def test_cli_create_user_supplied_password_is_masked(self, password_variant):
+
+        args = [
+            'airflow', 'users', 'create', '--username', 'test2', '--lastname', 'doe',
+            '--firstname', 'jon',
+            '--email', 'jdoe@apache.org', '--role', 'Viewer', password_variant, 'test'
+        ]
+
+        expected_command = [
+            'airflow', 'users', 'create', '--username', 'test2', '--lastname', 'doe',
+            '--firstname', 'jon',
+            '--email', 'jdoe@apache.org', '--role', 'Viewer', password_variant, '********'
+        ]
+
+        exec_date = datetime.utcnow()
+        namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
+        with mock.patch.object(sys, "argv", args):
+            metrics = cli._build_metrics(args[1], namespace)
+
+        self.assertTrue(metrics.get('start_datetime') <= datetime.utcnow())
+
+        log = metrics.get('log')
+        command = json.loads(log.extra).get('full_command')  # type: str
+        # Replace single quotes to double quotes to avoid json decode error
+        command = json.loads(command.replace("'", '"'))
+        self.assertEqual(command, expected_command)
 
 
 @contextmanager
