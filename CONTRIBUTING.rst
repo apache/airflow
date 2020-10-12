@@ -371,6 +371,13 @@ usually these are developers with the release manager permissions.
 Once the branch is stable, the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
 The ``v1-10-stable`` branch is used to release ``1.10.x`` releases.
 
+The general approach is that cherry-picking a commit that has already had a PR and unit tests run
+against main is done to ``v1-10-test`` branch, but PRs from contributors towards 1.10 should target
+``v1-10-stable`` branch.
+
+The ``v1-10-test`` branch and ``v1-10-stable`` ones are merged just before the release and that's the
+time when they converge.
+
 Development Environments
 ========================
 
