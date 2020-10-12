@@ -1276,7 +1276,7 @@ Arguments for dataproc_properties dataproc_jars
 
 #### `airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceCreateJobOperator`
 
-To obtain pylint compatibility the `filter ` argument in `CloudDataTransferServiceCreateJobOperator`
+To obtain pylint compatibility the `filter` argument in `CloudDataTransferServiceCreateJobOperator`
 has been renamed to `request_filter`.
 
 #### `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook`

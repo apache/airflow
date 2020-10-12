@@ -520,3 +520,11 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh"
         files: ^tests/bats/in_container/.*.bats$|^scripts/in_container/.*sh
         pass_filenames: false
+      - id: markdownlint
+        name: Run markdownlint
+        description: "Checks the style of Markdown files."
+        entry: markdownlint
+        language: node
+        types: [markdown]
+        files: \.(md|mdown|markdown)$
+        additional_dependencies: ['markdownlint-cli']

@@ -1435,7 +1435,7 @@ EOF
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
 
-----------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------
 
 ## Prepare the Regular Provider Packages Alpha
 

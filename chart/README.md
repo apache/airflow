@@ -229,7 +229,7 @@ helm install --name my-release \
   --set enablePodLaunching=false .
 ```
 
-##  Autoscaling with KEDA
+## Autoscaling with KEDA
 
 KEDA stands for Kubernetes Event Driven Autoscaling. [KEDA](https://github.com/kedacore/keda) is a custom controller that allows users to create custom bindings
 to the Kubernetes [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/).

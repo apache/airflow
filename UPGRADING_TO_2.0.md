@@ -38,6 +38,8 @@ assists users migrating to a new version.
   - [Drop legacy UI in favor of FAB RBAC UI](#drop-legacy-ui-in-favor-of-fab-rbac-ui)
   - [Breaking Change in OAuth](#breaking-change-in-oauth)
 - [Step 5: Upgrade KubernetesExecutor settings](#step-5-upgrade-kubernetesexecutor-settings)
+  - [The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations](#the-kubernetesexecutor-will-no-longer-read-from-the-airflowcfg-for-base-pod-configurations)
+  - [The `executor_config` Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks](#the-executor_config-will-now-expect-a-kubernetesclientmodelsv1pod-class-when-launching-tasks)
 - [Appendix](#appendix)
   - [Changed Parameters for the KubernetesPodOperator](#changed-parameters-for-the-kubernetespodoperator)
   - [Migration Guide from Experimental API to Stable API v1](#migration-guide-from-experimental-api-to-stable-api-v1)
@@ -316,7 +318,7 @@ For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/se
 
 ## Step 5: Upgrade KubernetesExecutor settings
 
-#### The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations
+### The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations
 
 In Airflow 2.0, the KubernetesExecutor will require a base pod template written in yaml. This file can exist
 anywhere on the host machine and will be linked using the `pod_template_file` configuration in the airflow.cfg.
@@ -371,7 +373,7 @@ fs_group
 [kubernetes_labels]
 ```
 
-#### The `executor_config` Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks
+### The `executor_config` Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks
 
 In Airflow 1.10.x, users could modify task pods at runtime by passing a dictionary to the `executor_config` variable.
 Users will now have full access the Kubernetes API via the `kubernetes.client.models.V1Pod`.
