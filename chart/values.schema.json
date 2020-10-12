@@ -472,7 +472,15 @@
                   "description": "Annotations to add to the worker kubernetes service account.",
                   "type": "object"
                 }
-            }
+              },
+          "extraVolumes": {
+            "description": "Mount additional volumes into workers.",
+            "type": "array"
+          },
+          "extraVolumeMounts": {
+            "description": "Mount additional volumes into workers.",
+            "type": "array"
+          }
         },
         "scheduler": {
             "description": "Airflow scheduler settings.",
@@ -516,7 +524,15 @@
                   "description": "Annotations to add to the scheduler kubernetes service account.",
                   "type": "object"
                 }
-            }
+            },
+          "extraVolumes": {
+            "description": "Mount additional volumes into scheduler.",
+            "type": "array"
+          },
+          "extraVolumeMounts": {
+            "description": "Mount additional volumes into scheduler.",
+            "type": "array"
+          }
         },
         "webserver": {
             "description": "Airflow webserver settings.",

@@ -118,6 +118,9 @@ spec:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
           volumeMounts:
+{{- if .Values.workers.extraVolumeMounts }}
+{{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
+{{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
             - name: config
@@ -200,6 +203,9 @@ spec:
           {{- include "standard_airflow_environment" . | indent 10 }}
         {{- end }}
       volumes:
+{{- if .Values.workers.extraVolumes }}
+{{ toYaml .Values.workers.extraVolumes | indent 8 }}
+{{- end }}
         - name: kerberos-keytab
           secret:
             secretName: {{ include "kerberos_keytab_secret" . | quote }}
