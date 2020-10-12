@@ -348,6 +348,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             return dag_id
         return f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}"
 
+    def is_dag_resource(self, resource_name):
+        """Determines if a permission belongs to a DAG or all DAGs."""
+        if resource_name == permissions.RESOURCE_ALL_DAGS:
+            return True
+        return resource_name.startswith(permissions.RESOURCE_DAG_PREFIX)
+
     def has_access(self, permission, resource, user=None) -> bool:
         """
         Verify whether a given user could perform certain permission
@@ -370,10 +376,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         has_access = self._has_view_access(user, permission, resource)
 
-        if permission == permissions.ACTION_CAN_READ:
-            has_access |= self.can_read_dag(resource, user)
-        elif permission == permissions.ACTION_CAN_EDIT:
-            has_access |= self.can_edit_dag(resource, user)
+        if self.is_dag_resource(resource):
+            if permission == permissions.ACTION_CAN_READ:
+                has_access |= self.can_read_dag(resource, user)
+            elif permission == permissions.ACTION_CAN_EDIT:
+                has_access |= self.can_edit_dag(resource, user)
 
         return has_access
 

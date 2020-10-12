@@ -72,21 +72,20 @@ count_queries = CountQueries  # pylint: disable=invalid-name
 
 
 @contextmanager
-def assert_queries_count(expected_count, message_fmt=None, margin_of_error=0):
+def assert_queries_count(expected_count, message_fmt=None):
     with count_queries() as result:
         yield None
 
     count = sum(result.values())
-    if count < (expected_count - margin_of_error) or count > (expected_count + margin_of_error):
+    if count != expected_count:
         message_fmt = (
             message_fmt
             or "The expected number of db queries is {expected_count}. "
             "The current number is {current_count}.\n\n"
-            "The accepted margin of error is {margin_of_error}.\n\n"
             "Recorded query locations:"
         )
         message = message_fmt.format(
-            current_count=count, expected_count=expected_count, margin_of_error=margin_of_error
+            current_count=count, expected_count=expected_count
         )
 
         for location, count in result.items():
