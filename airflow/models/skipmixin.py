@@ -59,7 +59,11 @@ class SkipMixin(LoggingMixin):
             if execution_date is None:
                 raise ValueError("Execution date is None and no dag run")
 
-            self.log.debug("No DAG run present. This should not happen.")
+            self.log.warning(
+                "No DAG run present for execution date %s. This should not happen. "
+                "Setting tasks to SKIPPED state",
+                execution_date,
+            )
             # this is defensive against dag runs that are not complete
             for task in tasks:
                 ti = TaskInstance(task, execution_date=execution_date)
