@@ -265,6 +265,7 @@ Parallelize
 Parameterizing
 Paramiko
 Params
+Paxos
 Pem
 Pinot
 Popen
@@ -356,6 +357,7 @@ ToC
 Tomasz
 Tooltip
 Tsai
+Tuneables
 UA
 Uellendall
 Umask
@@ -677,6 +679,7 @@ emr
 enableAutoScale
 encryptor
 enqueue
+enqueued
 entrypoint
 enum
 env
@@ -1133,6 +1136,7 @@ savedModel
 scalability
 scalable
 sched
+schedulable
 schedulername
 schemas
 sdk
