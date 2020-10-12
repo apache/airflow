@@ -478,6 +478,10 @@
             "description": "Airflow scheduler settings.",
             "type": "object",
             "properties": {
+                "replicas": {
+                  "description": "How many Schedulers to run in parallel",
+                  "type": "integer"
+                },
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
                     "type": "object",
