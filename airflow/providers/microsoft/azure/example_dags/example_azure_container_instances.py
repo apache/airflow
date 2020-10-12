@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This is an example dag for using the AzureContainerInstancesOperator.
-"""
+"""This is an example dag for using the AzureContainerInstancesOperator."""
 from datetime import datetime, timedelta
 
 from airflow import DAG

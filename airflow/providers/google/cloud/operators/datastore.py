@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Datastore operators.
-"""
+"""This module contains Google Datastore operators."""
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException

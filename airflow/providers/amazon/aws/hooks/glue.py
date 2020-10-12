@@ -77,16 +77,12 @@ class AwsGlueJobHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     def list_jobs(self) -> List:
-        """
-        :return: Lists of Jobs
-        """
+        """:return: Lists of Jobs"""
         conn = self.get_conn()
         return conn.get_jobs()
 
     def get_iam_execution_role(self) -> Dict:
-        """
-        :return: iam role for job execution
-        """
+        """:return: iam role for job execution"""
         iam_client = self.get_client_type('iam', self.region_name)
 
         try:

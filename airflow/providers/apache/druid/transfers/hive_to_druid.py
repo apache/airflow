@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains operator to move data from Hive to Druid.
-"""
+"""This module contains operator to move data from Hive to Druid."""
 
 from typing import Any, Dict, List, Optional
 

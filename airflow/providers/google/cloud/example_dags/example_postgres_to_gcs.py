@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example DAG using PostgresToGoogleCloudStorageOperator.
-"""
+"""Example DAG using PostgresToGoogleCloudStorageOperator."""
 from airflow import models
 from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToGCSOperator
 from airflow.utils.dates import days_ago

@@ -24,9 +24,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class GoogleAnalyticsHook(GoogleBaseHook):
-    """
-    Hook for Google Analytics 360.
-    """
+    """Hook for Google Analytics 360."""
 
     def __init__(self, api_version: str = "v3", *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -49,9 +47,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         return result
 
     def get_conn(self) -> Resource:
-        """
-        Retrieves connection to Google Analytics 360.
-        """
+        """Retrieves connection to Google Analytics 360."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
@@ -63,9 +59,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         return self._conn
 
     def list_accounts(self) -> List[Dict[str, Any]]:
-        """
-        Lists accounts list from Google Analytics 360.
-        """
+        """Lists accounts list from Google Analytics 360."""
         self.log.info("Retrieving accounts list...")
         conn = self.get_conn()
         accounts = conn.management().accounts()  # pylint: disable=no-member

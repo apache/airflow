@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG that interacts with Google Data Catalog service
-"""
+"""Example Airflow DAG that interacts with Google Data Catalog service"""
 from google.cloud.datacatalog_v1beta1.proto.tags_pb2 import FieldType, TagField, TagTemplateField
 
 from airflow import models

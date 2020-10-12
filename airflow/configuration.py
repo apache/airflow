@@ -68,9 +68,7 @@ def expand_env_var(env_var):
 
 
 def run_command(command):
-    """
-    Runs command and returns stdout
-    """
+    """Runs command and returns stdout"""
     process = subprocess.Popen(
         shlex.split(command),
         stdout=subprocess.PIPE,

@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG that shows the complex DAG structure.
-"""
+"""Example Airflow DAG that shows the complex DAG structure."""
 
 from airflow import models
 from airflow.models.baseoperator import chain

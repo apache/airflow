@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Create, get, update, execute and delete an AWS DataSync Task.
-"""
+"""Create, get, update, execute and delete an AWS DataSync Task."""
 
 import logging
 import random

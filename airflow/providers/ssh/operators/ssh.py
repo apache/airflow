@@ -175,8 +175,6 @@ class SSHOperator(BaseOperator):
         return True
 
     def tunnel(self) -> None:
-        """
-        Get ssh tunnel
-        """
+        """Get ssh tunnel"""
         ssh_client = self.ssh_hook.get_conn()  # type: ignore[union-attr]
         ssh_client.get_transport()

@@ -147,9 +147,7 @@ class GunicornMonitor(LoggingMixin):
         return len(workers)
 
     def _wait_until_true(self, fn, timeout: int = 0) -> None:
-        """
-        Sleeps until fn is true
-        """
+        """Sleeps until fn is true"""
         start_time = time.time()
         while not fn():
             if 0 < timeout <= time.time() - start_time:
@@ -203,9 +201,7 @@ class GunicornMonitor(LoggingMixin):
         )
 
     def start(self) -> NoReturn:
-        """
-        Starts monitoring the webserver.
-        """
+        """Starts monitoring the webserver."""
         try:  # pylint: disable=too-many-nested-blocks
             self._wait_until_true(
                 lambda: self.num_workers_expected == self._get_num_workers_running(),

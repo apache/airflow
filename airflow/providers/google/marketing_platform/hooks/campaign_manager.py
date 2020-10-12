@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Campaign Manager hook.
-"""
+"""This module contains Google Campaign Manager hook."""
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient import http
@@ -28,9 +26,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class GoogleCampaignManagerHook(GoogleBaseHook):
-    """
-    Hook for Google Campaign Manager.
-    """
+    """Hook for Google Campaign Manager."""
 
     _conn = None  # type: Optional[Resource]
 
@@ -49,9 +45,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
-        """
-        Retrieves connection to Campaign Manager.
-        """
+        """Retrieves connection to Campaign Manager."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(

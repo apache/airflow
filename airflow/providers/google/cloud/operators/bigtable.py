@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud Bigtable operators.
-"""
+"""This module contains Google Cloud Bigtable operators."""
 import enum
 from typing import Dict, Iterable, List, Optional, Sequence, Union
 
@@ -32,9 +30,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 class BigtableValidationMixin:
-    """
-    Common class for Cloud Bigtable operators for validating required fields.
-    """
+    """Common class for Cloud Bigtable operators for validating required fields."""
 
     REQUIRED_ATTRIBUTES = []  # type: Iterable[str]
 

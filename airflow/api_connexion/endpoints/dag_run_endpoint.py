@@ -35,9 +35,7 @@ from airflow.utils.types import DagRunType
 @security.requires_access([("can_read", "Dag"), ("can_delete", "DagRun")])
 @provide_session
 def delete_dag_run(dag_id, dag_run_id, session):
-    """
-    Delete a DAG Run
-    """
+    """Delete a DAG Run"""
     if session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).delete() == 0:
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
     return NoContent, 204
@@ -46,9 +44,7 @@ def delete_dag_run(dag_id, dag_run_id, session):
 @security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
 @provide_session
 def get_dag_run(dag_id, dag_run_id, session):
-    """
-    Get a DAG Run.
-    """
+    """Get a DAG Run."""
     dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     if dag_run is None:
         raise NotFound(
@@ -83,9 +79,7 @@ def get_dag_runs(
     offset=None,
     limit=None,
 ):
-    """
-    Get all DAG Runs.
-    """
+    """Get all DAG Runs."""
     query = session.query(DagRun)
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
@@ -160,9 +154,7 @@ def _apply_date_filters_to_query(
 @security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
 @provide_session
 def get_dag_runs_batch(session):
-    """
-    Get list of DAG Runs
-    """
+    """Get list of DAG Runs"""
     body = request.get_json()
     try:
         data = dagruns_batch_form_schema.load(body)
@@ -196,9 +188,7 @@ def get_dag_runs_batch(session):
 @security.requires_access([("can_read", "Dag"), ("can_create", "DagRun")])
 @provide_session
 def post_dag_run(dag_id, session):
-    """
-    Trigger a DAG.
-    """
+    """Trigger a DAG."""
     if not session.query(DagModel).filter(DagModel.dag_id == dag_id).first():
         raise NotFound(title="DAG not found", detail=f"DAG with dag_id: '{dag_id}' not found")
 

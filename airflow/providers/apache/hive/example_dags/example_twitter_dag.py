@@ -25,9 +25,7 @@
 # --------------------------------------------------------------------------------
 # Load The Dependencies
 # --------------------------------------------------------------------------------
-"""
-This is an example dag for managing twitter data.
-"""
+"""This is an example dag for managing twitter data."""
 from datetime import date, timedelta
 
 from airflow import DAG
@@ -43,27 +41,19 @@ from airflow.utils.dates import days_ago
 
 
 def fetchtweets():
-    """
-    This is a placeholder for fetchtweets.
-    """
+    """This is a placeholder for fetchtweets."""
 
 
 def cleantweets():
-    """
-    This is a placeholder for cleantweets.
-    """
+    """This is a placeholder for cleantweets."""
 
 
 def analyzetweets():
-    """
-    This is a placeholder for analyzetweets.
-    """
+    """This is a placeholder for analyzetweets."""
 
 
 def transfertodb():
-    """
-    This is a placeholder for transfertodb.
-    """
+    """This is a placeholder for transfertodb."""
 
 
 # --------------------------------------------------------------------------------

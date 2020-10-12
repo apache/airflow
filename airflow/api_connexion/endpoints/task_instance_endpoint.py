@@ -22,17 +22,13 @@ from airflow.api_connexion import security
 
 @security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task")])
 def get_task_instance():
-    """
-    Get a task instance
-    """
+    """Get a task instance"""
     raise NotImplementedError("Not implemented yet.")
 
 
 @security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task")])
 def get_task_instances():
-    """
-    Get list of task instances of DAG.
-    """
+    """Get list of task instances of DAG."""
     raise NotImplementedError("Not implemented yet.")
 
 
@@ -45,15 +41,11 @@ def get_task_instances():
     ]
 )
 def get_task_instances_batch():
-    """
-    Get list of task instances.
-    """
+    """Get list of task instances."""
     raise NotImplementedError("Not implemented yet.")
 
 
 @security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_edit", "Task")])
 def post_clear_task_instances():
-    """
-    Clear task instances.
-    """
+    """Clear task instances."""
     raise NotImplementedError("Not implemented yet.")

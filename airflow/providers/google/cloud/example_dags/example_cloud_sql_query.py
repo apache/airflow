@@ -88,9 +88,7 @@ HOME_DIR = expanduser("~")
 
 
 def get_absolute_path(path):
-    """
-    Returns absolute path.
-    """
+    """Returns absolute path."""
     if path.startswith("/"):
         return path
     else:

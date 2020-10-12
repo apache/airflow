@@ -54,9 +54,7 @@ with DAG(
 
 
 def check_notebook(inlets, execution_date):
-    """
-    Verify the message in the notebook
-    """
+    """Verify the message in the notebook"""
     notebook = sb.read_notebook(inlets[0].url)
     message = notebook.scraps['message']
     print(f"Message in notebook {message} for {execution_date}")

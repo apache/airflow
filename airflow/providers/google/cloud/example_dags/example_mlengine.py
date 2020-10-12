@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG for Google ML Engine service.
-"""
+"""Example Airflow DAG for Google ML Engine service."""
 import os
 from typing import Dict
 
@@ -202,9 +200,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_get_metric]
     def get_metric_fn_and_keys():
-        """
-        Gets metric function and keys used to generate summary
-        """
+        """Gets metric function and keys used to generate summary"""
 
         def normalize_value(inst: Dict):
             val = float(inst['dense_4'][0])
@@ -216,9 +212,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_validate_error]
     def validate_err_and_count(summary: Dict) -> Dict:
-        """
-        Validate summary result
-        """
+        """Validate summary result"""
         if summary['val'] > 1:
             raise ValueError('Too high val>1; summary={}'.format(summary))
         if summary['val'] < 0:

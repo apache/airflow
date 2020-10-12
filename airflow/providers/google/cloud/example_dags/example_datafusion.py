@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG that shows how to use DataFusion.
-"""
+"""Example Airflow DAG that shows how to use DataFusion."""
 
 from airflow import models
 from airflow.operators.bash import BashOperator

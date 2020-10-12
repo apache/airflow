@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG for Google BigQuery service.
-"""
+"""Example Airflow DAG for Google BigQuery service."""
 import os
 import time
 from urllib.parse import urlparse

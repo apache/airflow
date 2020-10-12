@@ -70,9 +70,7 @@ class MsSqlHook(DbApiHook):
     def get_conn(
         self,
     ) -> pymssql.connect:  # pylint: disable=protected-access  # pylint: disable=c-extension-no-member
-        """
-        Returns a mssql connection object
-        """
+        """Returns a mssql connection object"""
         conn = self.get_connection(
             self.mssql_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
         )

@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG for Google Cloud Dataflow service
-"""
+"""Example Airflow DAG for Google Cloud Dataflow service"""
 import os
 from urllib.parse import urlparse
 

@@ -50,9 +50,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        """
-        Returns AwsLogsHook.
-        """
+        """Returns AwsLogsHook."""
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -79,9 +77,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         )
 
     def close(self):
-        """
-        Close the handler responsible for the upload of the local log file to Cloudwatch.
-        """
+        """Close the handler responsible for the upload of the local log file to Cloudwatch."""
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple

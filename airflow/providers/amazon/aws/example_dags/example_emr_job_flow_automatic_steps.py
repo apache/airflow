@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This is an example dag for a AWS EMR Pipeline with auto steps.
-"""
+"""This is an example dag for a AWS EMR Pipeline with auto steps."""
 from datetime import timedelta
 
 from airflow import DAG

@@ -67,9 +67,7 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
             logging.error(str(e))
 
     def refresh_api_key(self, client_configuration):
-        """
-        Refresh API key if expired
-        """
+        """Refresh API key if expired"""
         if self.api_key_expire_ts and time.time() >= self.api_key_expire_ts:
             self.load_and_set(client_configuration)
 

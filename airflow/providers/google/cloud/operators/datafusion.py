@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains Google DataFusion operators.
-"""
+"""This module contains Google DataFusion operators."""
 from time import sleep
 from typing import Any, Dict, List, Optional, Sequence, Union
 

@@ -76,9 +76,7 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         self.hook = None
 
     def poke(self, context):
-        """
-        Checks for existence of the partition in the AWS Glue Catalog table
-        """
+        """Checks for existence of the partition in the AWS Glue Catalog table"""
         if '.' in self.table_name:
             self.database_name, self.table_name = self.table_name.split('.')
         self.log.info(
@@ -88,9 +86,7 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         return self.get_hook().check_for_partition(self.database_name, self.table_name, self.expression)
 
     def get_hook(self):
-        """
-        Gets the AwsGlueCatalogHook
-        """
+        """Gets the AwsGlueCatalogHook"""
         if not self.hook:
             self.hook = AwsGlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         return self.hook

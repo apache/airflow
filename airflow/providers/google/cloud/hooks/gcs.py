@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains a Google Cloud Storage hook.
-"""
+"""This module contains a Google Cloud Storage hook."""
 import functools
 import gzip as gz
 import os
@@ -140,9 +138,7 @@ class GCSHook(GoogleBaseHook):
         )
 
     def get_conn(self) -> storage.Client:
-        """
-        Returns a Google Cloud Storage service object.
-        """
+        """Returns a Google Cloud Storage service object."""
         if not self._conn:
             self._conn = storage.Client(
                 credentials=self._get_credentials(), client_info=self.client_info, project=self.project_id

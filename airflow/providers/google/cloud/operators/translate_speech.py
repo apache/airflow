@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Translate Speech operator.
-"""
+"""This module contains a Google Cloud Translate Speech operator."""
 from typing import Optional, Sequence, Union
 
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig

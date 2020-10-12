@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example Airflow DAG for Google Kubernetes Engine.
-"""
+"""Example Airflow DAG for Google Kubernetes Engine."""
 
 import os
 

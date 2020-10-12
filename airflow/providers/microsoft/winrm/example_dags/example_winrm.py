@@ -25,9 +25,7 @@
 # --------------------------------------------------------------------------------
 # Load The Dependencies
 # --------------------------------------------------------------------------------
-"""
-This is an example dag for using the WinRMOperator.
-"""
+"""This is an example dag for using the WinRMOperator."""
 from datetime import timedelta
 
 from airflow import DAG

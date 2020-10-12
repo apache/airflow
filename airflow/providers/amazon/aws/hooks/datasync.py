@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Interact with AWS DataSync, using the AWS ``boto3`` library.
-"""
+"""Interact with AWS DataSync, using the AWS ``boto3`` library."""
 
 import time
 from typing import List, Optional

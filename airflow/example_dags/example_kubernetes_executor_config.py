@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This is an example dag for using a Kubernetes Executor Configuration.
-"""
+"""This is an example dag for using a Kubernetes Executor Configuration."""
 import os
 
 from kubernetes.client import models as k8s
@@ -40,9 +38,7 @@ with DAG(
 ) as dag:
 
     def test_sharedvolume_mount():
-        """
-        Tests whether the volume has been mounted.
-        """
+        """Tests whether the volume has been mounted."""
         for i in range(5):
             try:
                 return_code = os.system("cat /shared/test.txt")
@@ -53,9 +49,7 @@ with DAG(
                     raise e
 
     def test_volume_mount():
-        """
-        Tests whether the volume has been mounted.
-        """
+        """Tests whether the volume has been mounted."""
         with open('/foo/volume_mount_test.txt', 'w') as foo:
             foo.write('Hello')
 

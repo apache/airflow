@@ -305,9 +305,7 @@ class _CredentialProvider(LoggingMixin):
 
 
 def get_credentials_and_project_id(*args, **kwargs) -> Tuple[google.auth.credentials.Credentials, str]:
-    """
-    Returns the Credentials object for Google API and the associated project_id.
-    """
+    """Returns the Credentials object for Google API and the associated project_id."""
     return _CredentialProvider(*args, **kwargs).get_credentials_and_project()
 
 

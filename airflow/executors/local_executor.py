@@ -126,9 +126,7 @@ class LocalWorkerBase(Process, LoggingMixin):
 
     @abstractmethod
     def do_work(self):
-        """
-        Called in the subprocess and should then execute tasks
-        """
+        """Called in the subprocess and should then execute tasks"""
         raise NotImplementedError()
 
 
@@ -239,9 +237,7 @@ class LocalExecutor(BaseExecutor):
 
         # pylint: enable=unused-argument # pragma: no cover
         def sync(self) -> None:
-            """
-            Sync will get called periodically by the heartbeat method.
-            """
+            """Sync will get called periodically by the heartbeat method."""
             if not self.executor.result_queue:
                 raise AirflowException("Executor should be started first")
             while not self.executor.result_queue.empty():
@@ -307,9 +303,7 @@ class LocalExecutor(BaseExecutor):
             self.queue.put((key, command))
 
         def sync(self):
-            """
-            Sync will get called periodically by the heartbeat method.
-            """
+            """Sync will get called periodically by the heartbeat method."""
             while True:
                 try:
                     results = self.executor.result_queue.get_nowait()
@@ -354,9 +348,7 @@ class LocalExecutor(BaseExecutor):
         self.impl.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
 
     def sync(self) -> None:
-        """
-        Sync will get called periodically by the heartbeat method.
-        """
+        """Sync will get called periodically by the heartbeat method."""
         if not self.impl:
             raise AirflowException(NOT_STARTED_MESSAGE)
         self.impl.sync()

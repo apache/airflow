@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This is an example dag for using `S3ToRedshiftOperator` to copy a S3 key into a Redshift table.
-"""
+"""This is an example dag for using `S3ToRedshiftOperator` to copy a S3 key into a Redshift table."""
 
 from os import getenv
 

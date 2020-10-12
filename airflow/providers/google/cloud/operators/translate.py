@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Translate operators.
-"""
+"""This module contains Google Translate operators."""
 from typing import List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException

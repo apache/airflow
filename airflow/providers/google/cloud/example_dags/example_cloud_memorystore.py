@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example Airflow DAG for Google Cloud Memorystore service.
-"""
+"""Example Airflow DAG for Google Cloud Memorystore service."""
 import os
 from urllib.parse import urlparse
 

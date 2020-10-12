@@ -14,9 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example Airflow DAG that shows how to use Google Dataprep.
-"""
+"""Example Airflow DAG that shows how to use Google Dataprep."""
 import os
 
 from airflow import models

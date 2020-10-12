@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG for Google BigQuery Sensors.
-"""
+"""Example Airflow DAG for Google BigQuery Sensors."""
 import os
 from datetime import datetime
 

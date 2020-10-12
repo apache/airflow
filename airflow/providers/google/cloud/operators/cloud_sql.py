@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Cloud SQL operators.
-"""
+"""This module contains Google Cloud SQL operators."""
 from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 from googleapiclient.errors import HttpError

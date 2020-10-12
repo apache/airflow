@@ -241,9 +241,7 @@ class SparkJDBCHook(SparkSubmitHook):
         return arguments
 
     def submit_jdbc_job(self) -> None:
-        """
-        Submit Spark JDBC job
-        """
+        """Submit Spark JDBC job"""
         self._application_args = self._build_jdbc_application_arguments(self._jdbc_connection)
         self.submit(application=os.path.dirname(os.path.abspath(__file__)) + "/spark_jdbc_script.py")
 

@@ -73,9 +73,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
     @cached_property
     def client(self) -> SecretClient:
-        """
-        Create a Azure Key Vault client.
-        """
+        """Create a Azure Key Vault client."""
         credential = DefaultAzureCredential()
         client = SecretClient(vault_url=self.vault_url, credential=credential, **self.kwargs)
         return client

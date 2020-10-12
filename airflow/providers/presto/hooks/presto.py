@@ -26,9 +26,7 @@ from airflow.models import Connection
 
 
 class PrestoException(Exception):
-    """
-    Presto exception
-    """
+    """Presto exception"""
 
 
 class PrestoHook(DbApiHook):
@@ -76,9 +74,7 @@ class PrestoHook(DbApiHook):
         return sql.strip().rstrip(';')
 
     def get_records(self, hql, parameters: Optional[dict] = None):
-        """
-        Get a set of records from Presto
-        """
+        """Get a set of records from Presto"""
         try:
             return super().get_records(self._strip_sql(hql), parameters)
         except DatabaseError as e:
@@ -95,9 +91,7 @@ class PrestoHook(DbApiHook):
             raise PrestoException(e)
 
     def get_pandas_df(self, hql, parameters=None, **kwargs):
-        """
-        Get a pandas dataframe from a sql query.
-        """
+        """Get a pandas dataframe from a sql query."""
         import pandas
 
         cursor = self.get_cursor()
@@ -120,9 +114,7 @@ class PrestoHook(DbApiHook):
         autocommit: bool = False,
         parameters: Optional[dict] = None,
     ) -> None:
-        """
-        Execute the statement against Presto. Can be used to create views.
-        """
+        """Execute the statement against Presto. Can be used to create views."""
         return super().run(sql=self._strip_sql(hql), parameters=parameters)
 
     def insert_rows(

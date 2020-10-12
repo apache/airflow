@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module allows you to transfer mail attachments from a mail server into s3 bucket.
-"""
+"""This module allows you to transfer mail attachments from a mail server into s3 bucket."""
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.imap.hooks.imap import ImapHook

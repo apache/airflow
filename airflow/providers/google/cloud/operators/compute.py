@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Compute Engine operators.
-"""
+"""This module contains Google Compute Engine operators."""
 
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Sequence, Union
@@ -34,9 +32,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 class ComputeEngineBaseOperator(BaseOperator):
-    """
-    Abstract base operator for Google Compute Engine operators to inherit from.
-    """
+    """Abstract base operator for Google Compute Engine operators to inherit from."""
 
     @apply_defaults
     def __init__(

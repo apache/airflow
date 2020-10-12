@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Text to Speech operator.
-"""
+"""This module contains a Google Text to Speech operator."""
 
 from tempfile import NamedTemporaryFile
 from typing import Dict, Optional, Sequence, Union

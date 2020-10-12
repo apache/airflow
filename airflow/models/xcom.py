@@ -43,9 +43,7 @@ XCOM_RETURN_KEY = 'return_value'
 
 
 class BaseXCom(Base, LoggingMixin):
-    """
-    Base class for XCom objects.
-    """
+    """Base class for XCom objects."""
 
     __tablename__ = "xcom"
 

@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-The module which provides a way to nest your DAGs and so your levels of complexity.
-"""
+"""The module which provides a way to nest your DAGs and so your levels of complexity."""
 from enum import Enum
 from typing import Dict, Optional
 
@@ -37,9 +35,7 @@ from airflow.utils.types import DagRunType
 
 
 class SkippedStatePropagationOptions(Enum):
-    """
-    Available options for skipped state propagation of subdag's tasks to parent dag tasks.
-    """
+    """Available options for skipped state propagation of subdag's tasks to parent dag tasks."""
 
     ALL_LEAVES = 'all_leaves'
     ANY_LEAF = 'any_leaf'

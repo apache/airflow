@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG for Google Cloud Stackdriver service.
-"""
+"""Example Airflow DAG for Google Cloud Stackdriver service."""
 
 import json
 

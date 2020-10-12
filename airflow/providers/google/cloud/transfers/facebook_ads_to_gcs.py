@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Facebook Ad Reporting to GCS operators.
-"""
+"""This module contains Facebook Ad Reporting to GCS operators."""
 import csv
 import tempfile
 from typing import Any, Dict, List, Optional, Sequence, Union

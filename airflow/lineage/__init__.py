@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Provides lineage support functions
-"""
+"""Provides lineage support functions"""
 import json
 import logging
 from functools import wraps
@@ -41,9 +39,7 @@ log = logging.getLogger(__name__)
 
 @attr.s(auto_attribs=True)
 class Metadata:
-    """
-    Class for serialized entities.
-    """
+    """Class for serialized entities."""
 
     type_name: str = attr.ib()
     source: str = attr.ib()
@@ -51,26 +47,20 @@ class Metadata:
 
 
 def _get_instance(meta: Metadata):
-    """
-    Instantiate an object from Metadata
-    """
+    """Instantiate an object from Metadata"""
     cls = import_string(meta.type_name)
     return structure(meta.data, cls)
 
 
 def _render_object(obj: Any, context) -> Any:
-    """
-    Renders a attr annotated object. Will set non serializable attributes to none
-    """
+    """Renders a attr annotated object. Will set non serializable attributes to none"""
     return structure(json.loads(ENV.from_string(
         json.dumps(unstructure(obj), default=lambda o: None)
     ).render(**context).encode('utf-8')), type(obj))
 
 
 def _to_dataset(obj: Any, source: str) -> Optional[Metadata]:
-    """
-    Create Metadata from attr annotated object
-    """
+    """Create Metadata from attr annotated object"""
     if not attr.has(obj):
         return None
 

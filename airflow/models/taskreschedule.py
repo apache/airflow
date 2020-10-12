@@ -24,9 +24,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class TaskReschedule(Base):
-    """
-    TaskReschedule tracks rescheduled task instances.
-    """
+    """TaskReschedule tracks rescheduled task instances."""
 
     __tablename__ = "task_reschedule"
 

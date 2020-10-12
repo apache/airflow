@@ -103,9 +103,7 @@ class SnowflakeHook(DbApiHook):
         return conn_config
 
     def get_uri(self) -> str:
-        """
-        Override DbApiHook get_uri method for get_sqlalchemy_engine()
-        """
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
         conn_config = self._get_conn_params()
         uri = (
             'snowflake://{user}:{password}@{account}/{database}/{schema}'
@@ -114,9 +112,7 @@ class SnowflakeHook(DbApiHook):
         return uri.format(**conn_config)
 
     def get_conn(self) -> SnowflakeConnection:
-        """
-        Returns a snowflake.connection object
-        """
+        """Returns a snowflake.connection object"""
         conn_config = self._get_conn_params()
         conn = connector.connect(**conn_config)
         return conn

@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG that uses Google AutoML services.
-"""
+"""Example Airflow DAG that uses Google AutoML services."""
 import os
 from copy import deepcopy
 from typing import Dict, List
@@ -72,9 +70,7 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 
 
 def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
-    """
-    Using column name returns spec of the column.
-    """
+    """Using column name returns spec of the column."""
     for column in columns_specs:
         if column["displayName"] == column_name:
             return extract_object_id(column)

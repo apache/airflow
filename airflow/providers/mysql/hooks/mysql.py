@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module allows to connect to a MySQL database.
-"""
+"""This module allows to connect to a MySQL database."""
 import json
 from typing import Dict, Optional, Tuple
 
@@ -51,9 +49,7 @@ class MySqlHook(DbApiHook):
         self.connection = kwargs.pop("connection", None)
 
     def set_autocommit(self, conn: Connection, autocommit: bool) -> None:  # noqa: D403
-        """
-        MySql connection sets autocommit in a different way.
-        """
+        """MySql connection sets autocommit in a different way."""
         conn.autocommit(autocommit)
 
     def get_autocommit(self, conn: Connection) -> bool:  # noqa: D403
@@ -162,9 +158,7 @@ class MySqlHook(DbApiHook):
         return uri
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
-        """
-        Loads a tab-delimited file into a database table
-        """
+        """Loads a tab-delimited file into a database table"""
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
@@ -178,9 +172,7 @@ class MySqlHook(DbApiHook):
         conn.commit()
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
-        """
-        Dumps a database table into a tab-delimited file
-        """
+        """Dumps a database table into a tab-delimited file"""
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(

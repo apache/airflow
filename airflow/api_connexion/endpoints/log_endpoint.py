@@ -30,9 +30,7 @@ from airflow.utils.session import provide_session
 @security.requires_access([('can_read', 'Dag'), ('can_read', 'DagRun'), ('can_read', 'Task')])
 @provide_session
 def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=False, token=None):
-    """
-    Get logs for specific task instance
-    """
+    """Get logs for specific task instance"""
     key = current_app.config["SECRET_KEY"]
     if not token:
         metadata = {}

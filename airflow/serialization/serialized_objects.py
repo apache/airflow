@@ -79,14 +79,12 @@ class BaseSerialization:
 
     @classmethod
     def to_json(cls, var: Union[DAG, BaseOperator, dict, list, set, tuple]) -> str:
-        """Stringifies DAGs and operators contained by var and returns a JSON string of var.
-        """
+        """Stringifies DAGs and operators contained by var and returns a JSON string of var."""
         return json.dumps(cls.to_dict(var), ensure_ascii=True)
 
     @classmethod
     def to_dict(cls, var: Union[DAG, BaseOperator, dict, list, set, tuple]) -> dict:
-        """Stringifies DAGs and operators contained by var and returns a dict of var.
-        """
+        """Stringifies DAGs and operators contained by var and returns a dict of var."""
         # Don't call on this class directly - only SerializedDAG or
         # SerializedBaseOperator should be used as the "entrypoint"
         raise NotImplementedError()
@@ -346,8 +344,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def serialize_operator(cls, op: BaseOperator) -> dict:
-        """Serializes operator into a JSON object.
-        """
+        """Serializes operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         serialize_op['_task_type'] = op.__class__.__name__
         serialize_op['_task_module'] = op.__class__.__module__
@@ -367,8 +364,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> BaseOperator:
-        """Deserializes an operator from a JSON object.
-        """
+        """Deserializes an operator from a JSON object."""
         from airflow import plugins_manager
         plugins_manager.initialize_extra_operators_links_plugins()
 
@@ -572,8 +568,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def serialize_dag(cls, dag: DAG) -> dict:
-        """Serializes a DAG into a JSON object.
-        """
+        """Serializes a DAG into a JSON object."""
         serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
         serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
@@ -582,8 +577,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def deserialize_dag(cls, encoded_dag: Dict[str, Any]) -> 'SerializedDAG':
-        """Deserializes a DAG from a JSON object.
-        """
+        """Deserializes a DAG from a JSON object."""
         dag = SerializedDAG(dag_id=encoded_dag['_dag_id'])
 
         for k, v in encoded_dag.items():
@@ -647,8 +641,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def to_dict(cls, var: Any) -> dict:
-        """Stringifies DAGs and operators contained by var and returns a dict of var.
-        """
+        """Stringifies DAGs and operators contained by var and returns a dict of var."""
         json_dict = {
             "__version": cls.SERIALIZER_VERSION,
             "dag": cls.serialize_dag(var)
@@ -668,15 +661,11 @@ class SerializedDAG(DAG, BaseSerialization):
 
 
 class SerializedTaskGroup(TaskGroup, BaseSerialization):
-    """
-    A JSON serializable representation of TaskGroup.
-    """
+    """A JSON serializable representation of TaskGroup."""
 
     @classmethod
     def serialize_task_group(cls, task_group: TaskGroup) -> Optional[Union[Dict[str, Any]]]:
-        """
-        Serializes TaskGroup into a JSON object.
-        """
+        """Serializes TaskGroup into a JSON object."""
         if not task_group:
             return None
 
@@ -708,9 +697,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         parent_group: Optional[TaskGroup],
         task_dict: Dict[str, BaseOperator]
     ) -> Optional[TaskGroup]:
-        """
-        Deserializes a TaskGroup from a JSON object.
-        """
+        """Deserializes a TaskGroup from a JSON object."""
         if not encoded_group:
             return None
 

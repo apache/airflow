@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Dataprep hook.
-"""
+"""This module contains Google Dataprep hook."""
 import json
 import os
 from typing import Any, Dict

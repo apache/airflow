@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example Airflow DAG that shows how to use DisplayVideo.
-"""
+"""Example Airflow DAG that shows how to use DisplayVideo."""
 import os
 from typing import Dict
 

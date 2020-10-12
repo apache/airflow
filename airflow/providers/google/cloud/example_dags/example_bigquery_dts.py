@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG that creates and deletes Bigquery data transfer configurations.
-"""
+"""Example Airflow DAG that creates and deletes Bigquery data transfer configurations."""
 import os
 import time
 

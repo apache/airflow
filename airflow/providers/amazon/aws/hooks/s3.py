@@ -17,9 +17,7 @@
 # under the License.
 
 # pylint: disable=invalid-name
-"""
-Interact with AWS S3, using the boto3 library.
-"""
+"""Interact with AWS S3, using the boto3 library."""
 import fnmatch
 import gzip as gz
 import io

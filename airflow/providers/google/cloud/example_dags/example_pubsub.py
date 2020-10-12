@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG that uses Google PubSub services.
-"""
+"""Example Airflow DAG that uses Google PubSub services."""
 import os
 
 from airflow import models

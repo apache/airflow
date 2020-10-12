@@ -40,9 +40,7 @@ log = logging.getLogger(__name__)
 
 @provide_session
 def merge_conn(conn, session=None):
-    """
-    Add new Connection.
-    """
+    """Add new Connection."""
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
         session.commit()
@@ -50,9 +48,7 @@ def merge_conn(conn, session=None):
 
 @provide_session
 def add_default_pool_if_not_exists(session=None):
-    """
-    Add default pool if it does not exist.
-    """
+    """Add default pool if it does not exist."""
     if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
@@ -66,9 +62,7 @@ def add_default_pool_if_not_exists(session=None):
 
 @provide_session
 def create_default_connections(session=None):
-    """
-    Create default Airflow connections.
-    """
+    """Create default Airflow connections."""
     merge_conn(
         Connection(
             conn_id="airflow_db",
@@ -548,9 +542,7 @@ def create_default_connections(session=None):
 
 
 def initdb():
-    """
-    Initialize Airflow database.
-    """
+    """Initialize Airflow database."""
     upgradedb()
 
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
@@ -607,9 +599,7 @@ def check_migrations(timeout):
 
 
 def upgradedb():
-    """
-    Upgrade the database.
-    """
+    """Upgrade the database."""
     # alembic adds significant import time, so we import it lazily
     from alembic import command
 
@@ -622,9 +612,7 @@ def upgradedb():
 
 
 def resetdb():
-    """
-    Clear out the database
-    """
+    """Clear out the database"""
     log.info("Dropping tables that exist")
 
     connection = settings.engine.connect()

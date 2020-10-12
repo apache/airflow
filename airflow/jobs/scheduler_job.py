@@ -200,9 +200,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
             result_channel.close()
 
     def start(self) -> None:
-        """
-        Launch the process and start processing the DAG.
-        """
+        """Launch the process and start processing the DAG."""
         start_method = self._get_multiprocessing_start_method()
         context = multiprocessing.get_context(start_method)
 
@@ -234,9 +232,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         self._parent_channel = _parent_channel
 
     def kill(self) -> None:
-        """
-        Kill the process launched to process the file, and ensure consistent state.
-        """
+        """Kill the process launched to process the file, and ensure consistent state."""
         if self._process is None:
             raise AirflowException("Tried to kill before starting!")
         self._kill_process()
@@ -789,16 +785,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.dagbag = DagBag(read_dags_from_db=True)
 
     def register_exit_signals(self) -> None:
-        """
-        Register signals that stop child processes
-        """
+        """Register signals that stop child processes"""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
     def _exit_gracefully(self, signum, frame) -> None:  # pylint: disable=unused-argument
-        """
-        Helper method to clean up processor_agent to avoid leaving orphan processes.
-        """
+        """Helper method to clean up processor_agent to avoid leaving orphan processes."""
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
         if self.processor_agent:
             self.processor_agent.end()
@@ -1218,9 +1210,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
     @provide_session
     def _process_executor_events(self, session: Session = None) -> int:
-        """
-        Respond to executor events.
-        """
+        """Respond to executor events."""
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
         ti_primary_key_to_try_number_map: Dict[Tuple[str, str, datetime.datetime], int] = {}
@@ -1344,9 +1334,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         dag_ids: Optional[List[str]],
         pickle_dags: bool
     ) -> DagFileProcessorProcess:
-        """
-        Creates DagFileProcessorProcess instance.
-        """
+        """Creates DagFileProcessorProcess instance."""
         return DagFileProcessorProcess(
             file_path=file_path,
             pickle_dags=pickle_dags,

@@ -15,9 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Objects relating to sourcing connections from Google Cloud Secrets Manager
-"""
+"""Objects relating to sourcing connections from Google Cloud Secrets Manager"""
 from typing import Optional
 
 from cached_property import cached_property

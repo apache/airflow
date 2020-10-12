@@ -50,9 +50,7 @@ class DebugExecutor(BaseExecutor):
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
     def execute_async(self, *args, **kwargs) -> None:   # pylint: disable=signature-differs
-        """
-        The method is replaced by custom trigger_task implementation.
-        """
+        """The method is replaced by custom trigger_task implementation."""
 
     def sync(self) -> None:
         task_succeeded = True
@@ -101,9 +99,7 @@ class DebugExecutor(BaseExecutor):
         pool: Optional[str] = None,
         cfg_path: Optional[str] = None,
     ) -> None:
-        """
-        Queues task instance with empty command because we do not need it.
-        """
+        """Queues task instance with empty command because we do not need it."""
         self.queue_command(
             task_instance,
             [str(task_instance)],  # Just for better logging, it's not used anywhere

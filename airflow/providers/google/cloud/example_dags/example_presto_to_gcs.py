@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example DAG using PrestoToGCSOperator.
-"""
+"""Example DAG using PrestoToGCSOperator."""
 import os
 import re
 
@@ -40,9 +38,7 @@ SOURCE_CUSTOMER_TABLE = "tpch.sf1.customer"
 
 
 def safe_name(s: str) -> str:
-    """
-    Remove invalid characters for filename
-    """
+    """Remove invalid characters for filename"""
     return re.sub("[^0-9a-zA-Z_]+", "_", s)
 
 
