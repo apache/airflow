@@ -112,7 +112,7 @@ rbacEnabled: true
 # Options: SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor
 executor: "KubernetesExecutor"
 
-# If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheudler's
+# If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheduler's
 # service account will have access to communicate with the api-server and launch pods.
 # If this is true and using the CeleryExecutor, the workers will be able to launch pods.
 allowPodLaunching: true
@@ -576,7 +576,7 @@ postgresql:
 #
 # Please note that these values are passed through the `tpl` function, so are
 # all subject to being rendered as go templates. If you need to include a
-# litera `{{` in a value, it must be expessed like this:
+# literal `{{` in a value, it must be expressed like this:
 #
 #    a: '{{ "{{ not a template }}" }}'
 #
