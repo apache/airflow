@@ -59,7 +59,7 @@ class ComputeEngineBaseOperator(BaseOperator):
         self._validate_inputs()
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is missing")
         if not self.zone:
@@ -139,7 +139,7 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
             **kwargs,
         )
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -216,7 +216,7 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
             **kwargs,
         )
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -312,11 +312,11 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
             **kwargs,
         )
 
-    def _validate_all_body_fields(self):
+    def _validate_all_body_fields(self) -> None:
         if self._field_validator:
             self._field_validator.validate(self.body)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -482,11 +482,11 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             **kwargs,
         )
 
-    def _validate_all_body_fields(self):
+    def _validate_all_body_fields(self) -> None:
         if self._field_validator:
             self._field_validator.validate(self.body_patch)
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -623,12 +623,12 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             **kwargs,
         )
 
-    def _possibly_replace_template(self, dictionary: Dict) -> None:
+    def _possibly_replace_template(self, dictionary: dict) -> None:
         if dictionary.get('instanceTemplate') == self.source_template:
             dictionary['instanceTemplate'] = self.destination_template
             self._change_performed = True
 
-    def execute(self, context):
+    def execute(self, context) -> Optional[bool]:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

@@ -262,6 +262,14 @@ You can combine both - customizing & extending the image. You can build the imag
 ``customize`` method (either with docker command or with ``breeze`` and then you can ``extend``
 the resulting image using ``FROM`` any dependencies you want.
 
+Customizing PYPI installation
+.............................
+
+You can customize PYPI sources used during image build by modifying .pypirc file that should be
+placed in the root of Airflow Directory. This .pypirc will never be committed to the repository
+and will not be present in the final production image. It is added and used only in the build
+segment of the image so it is never copied to the final image.
+
 External sources for dependencies
 ---------------------------------
 
@@ -622,3 +630,8 @@ Keytab secret and both containers in the same Pod share the volume, where tempor
 the side-care container and read by the worker container.
 
 This concept is implemented in the development version of the Helm Chart that is part of Airflow source code.
+
+
+.. spelling::
+
+   pypirc

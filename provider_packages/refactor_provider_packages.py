@@ -26,7 +26,7 @@ from bowler import LN, TOKEN, Capture, Filename, Query
 from fissix.fixer_util import Comma, KeywordArg, Name
 from fissix.pytree import Leaf
 
-from backport_packages.setup_backport_packages import (
+from provider_packages.setup_provider_packages import (
     get_source_airflow_folder, get_source_providers_folder, get_target_providers_folder,
     get_target_providers_package_folder,
 )
@@ -162,7 +162,7 @@ class RefactorBackportPackages:
         We package the example DAGs together with the provider classes and they should serve as
         examples independently on the version of Airflow it will be installed in.
         Provide_context feature in Python operators was feature added 2.0.0 and we are still
-        using the "Core" operators from the Airflow version that the backport packages are installed
+        using the "Core" operators from the Airflow version that the provider packages are installed
         in - the "Core" operators do not have (for now) their own provider package.
 
         The core operators are:

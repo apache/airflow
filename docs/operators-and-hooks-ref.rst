@@ -477,7 +477,7 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.providers.amazon.aws.hooks.aws_dynamodb`
+     - :mod:`airflow.providers.amazon.aws.hooks.dynamodb`
      -
      -
 

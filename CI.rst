@@ -261,7 +261,7 @@ Running CI Builds locally
 The following variables are automatically determined based on CI environment variables.
 You can locally by setting ``CI="true"`` and run the ci scripts from the ``scripts/ci`` folder:
 
-* ``backport_packages`` - scripts to build and test backport packages
+* ``provider_packages`` - scripts to build and test provider packages
 * ``constraints`` - scripts to build and publish latest set of valid constraints
 * ``docs`` - scripts to build documentation
 * ``images`` - scripts to build and push CI and PROD images

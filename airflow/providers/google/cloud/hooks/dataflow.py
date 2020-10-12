@@ -30,7 +30,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from tempfile import TemporaryDirectory
-from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar, Union, cast
+from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union, cast
 
 from googleapiclient.discovery import build
 
@@ -156,7 +156,7 @@ class _DataflowJobsController(LoggingMixin):
         self._job_id = job_id
         self._num_retries = num_retries
         self._poll_sleep = poll_sleep
-        self._jobs = None  # type: Optional[List[Dict]]
+        self._jobs: Optional[List[dict]] = None
 
     def is_job_running(self) -> bool:
         """
@@ -175,7 +175,7 @@ class _DataflowJobsController(LoggingMixin):
         return False
 
     # pylint: disable=too-many-nested-blocks
-    def _get_current_jobs(self) -> List[Dict]:
+    def _get_current_jobs(self) -> List[dict]:
         """
         Helper method to get list of jobs that start with job name or id
 
@@ -192,7 +192,7 @@ class _DataflowJobsController(LoggingMixin):
         else:
             raise Exception('Missing both dataflow job ID and name.')
 
-    def _fetch_job_by_id(self, job_id: str) -> Dict:
+    def _fetch_job_by_id(self, job_id: str) -> dict:
         return (
             self._dataflow.projects()
             .locations()
@@ -201,14 +201,14 @@ class _DataflowJobsController(LoggingMixin):
             .execute(num_retries=self._num_retries)
         )
 
-    def _fetch_all_jobs(self) -> List[Dict]:
+    def _fetch_all_jobs(self) -> List[dict]:
         request = (
             self._dataflow.projects()
             .locations()
             .jobs()
             .list(projectId=self._project_number, location=self._job_location)
         )
-        jobs = []  # type: List[Dict]
+        jobs: List[dict] = []
         while request is not None:
             response = request.execute(num_retries=self._num_retries)
             jobs.extend(response["jobs"])
@@ -221,7 +221,7 @@ class _DataflowJobsController(LoggingMixin):
             )
         return jobs
 
-    def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> List[Dict]:
+    def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> List[dict]:
         jobs = self._fetch_all_jobs()
         jobs = [job for job in jobs if job['name'].startswith(prefix_name)]
         return jobs
@@ -282,7 +282,7 @@ class _DataflowJobsController(LoggingMixin):
             time.sleep(self._poll_sleep)
             self._refresh_jobs()
 
-    def get_jobs(self) -> List[Dict]:
+    def get_jobs(self) -> List[dict]:
         """
         Returns Dataflow jobs.
 
@@ -427,7 +427,7 @@ class DataflowHook(GoogleBaseHook):
             impersonation_chain=impersonation_chain,
         )
 
-    def get_conn(self):
+    def get_conn(self) -> build:
         """
         Returns a Google Cloud Dataflow service object.
         """
@@ -437,10 +437,10 @@ class DataflowHook(GoogleBaseHook):
     @GoogleBaseHook.provide_gcp_credential_file
     def _start_dataflow(
         self,
-        variables: Dict,
+        variables: dict,
         name: str,
         command_prefix: List[str],
-        label_formatter: Callable[[Dict], List[str]],
+        label_formatter: Callable[[dict], List[str]],
         project_id: str,
         multiple_jobs: bool = False,
         on_new_job_id_callback: Optional[Callable[[str], None]] = None,
@@ -467,7 +467,7 @@ class DataflowHook(GoogleBaseHook):
     def start_java_dataflow(
         self,
         job_name: str,
-        variables: Dict,
+        variables: dict,
         jar: str,
         project_id: str,
         job_class: Optional[str] = None,
@@ -523,15 +523,15 @@ class DataflowHook(GoogleBaseHook):
     def start_template_dataflow(
         self,
         job_name: str,
-        variables: Dict,
-        parameters: Dict,
+        variables: dict,
+        parameters: dict,
         dataflow_template: str,
         project_id: str,
         append_job_name: bool = True,
         on_new_job_id_callback: Optional[Callable[[str], None]] = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        environment: Optional[Dict] = None,
-    ) -> Dict:
+        environment: Optional[dict] = None,
+    ) -> dict:
         """
         Starts Dataflow template job.
 
@@ -637,7 +637,7 @@ class DataflowHook(GoogleBaseHook):
     def start_python_dataflow(  # pylint: disable=too-many-arguments
         self,
         job_name: str,
-        variables: Dict,
+        variables: dict,
         dataflow: str,
         py_options: List[str],
         project_id: str,
@@ -755,7 +755,7 @@ class DataflowHook(GoogleBaseHook):
         return safe_job_name
 
     @staticmethod
-    def _build_cmd(variables: Dict, label_formatter: Callable, project_id: str) -> List[str]:
+    def _build_cmd(variables: dict, label_formatter: Callable, project_id: str) -> List[str]:
         command = [
             "--runner=DataflowRunner",
             "--project={}".format(project_id),
@@ -787,7 +787,7 @@ class DataflowHook(GoogleBaseHook):
         name: str,
         project_id: str,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        variables: Optional[Dict] = None,
+        variables: Optional[dict] = None,
     ) -> bool:
         """
         Helper method to check if jos is still running in dataflow

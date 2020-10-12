@@ -15,42 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-CHANGED_FILES_PATTERNS=(
-    "^airflow"
-    "^.github/workflows/"
-    "^Dockerfile"
-    "^scripts"
-    "^chart"
-    "^setup.py"
-    "^tests"
-    "^kubernetes_tests"
-)
-readonly CHANGED_FILES_PATTERNS
+function run_test_package_import_all_classes() {
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        -v "${AIRFLOW_SOURCES}/dist:/dist:cached" \
+        -v "${AIRFLOW_SOURCES}/setup.py:/airflow_sources/setup.py:cached" \
+        -v "${AIRFLOW_SOURCES}/setup.cfg:/airflow_sources/setup.cfg:cached" \
+        -v "${AIRFLOW_SOURCES}/airflow/__init__.py:/airflow_sources/airflow/__init__.py:cached" \
+        -v "${AIRFLOW_SOURCES}/airflow/version.py:/airflow_sources/airflow/version.py:cached" \
+        -v "${AIRFLOW_SOURCES}/provider_packages/import_all_provider_classes.py:/import_all_provider_classes.py:cached" \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/in_container/run_test_package_import_all_classes.sh"
+}
 
-changed_files_regexp=""
+build_images::prepare_ci_build
 
-separator=""
-for PATTERN in "${CHANGED_FILES_PATTERNS[@]}"
-do
-    changed_files_regexp="${changed_files_regexp}${separator}${PATTERN}"
-    separator="|"
-done
+build_images::rebuild_ci_image_if_needed
 
-echo
-echo "GitHub SHA: ${COMMIT_SHA}"
-echo
-
-set +e
-"${SCRIPTS_CI_DIR}/tools/ci_count_changed_files.sh" "${changed_files_regexp}"
-count_changed_files=$?
-set -e
-
-if [[ ${count_changed_files} == "0" ]]; then
-    echo "::set-output name=run-tests::false"
-else
-    echo "::set-output name=run-tests::true"
-fi
+run_test_package_import_all_classes

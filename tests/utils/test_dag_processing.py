@@ -41,7 +41,7 @@ from airflow.utils.dag_processing import (
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from tests.test_logging_config import SETTINGS_FILE_VALID, settings_context
+from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -247,7 +247,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 session.add(local_job)
                 session.commit()
 
-                # TODO: If there was an actual Relationshop between TI and Job
+                # TODO: If there was an actual Relationship between TI and Job
                 # we wouldn't need this extra commit
                 session.add(ti)
                 ti.job_id = local_job.id

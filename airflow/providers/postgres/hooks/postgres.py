@@ -223,7 +223,7 @@ class PostgresHook(DbApiHook):
         placeholders = [
             "%s",
         ] * len(values)
-        replace_index = kwargs.get("replace_index", None)
+        replace_index = kwargs.get("replace_index")
 
         if target_fields:
             target_fields_fragment = ", ".join(target_fields)

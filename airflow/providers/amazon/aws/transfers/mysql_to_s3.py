@@ -35,11 +35,11 @@ class MySQLToS3Operator(BaseOperator):
     Saves data from an specific MySQL query into a file in S3.
 
     :param query: the sql query to be executed. If you want to execute a file, place the absolute path of it,
-        ending with .sql extension.
+        ending with .sql extension. (templated)
     :type query: str
-    :param s3_bucket: bucket where the data will be stored
+    :param s3_bucket: bucket where the data will be stored. (templated)
     :type s3_bucket: str
-    :param s3_key: desired key for the file. It includes the name of the file
+    :param s3_key: desired key for the file. It includes the name of the file. (templated)
     :type s3_key: str
     :param mysql_conn_id: reference to a specific mysql database
     :type mysql_conn_id: str
@@ -64,6 +64,7 @@ class MySQLToS3Operator(BaseOperator):
     """
 
     template_fields = (
+        's3_bucket',
         's3_key',
         'query',
     )

@@ -43,7 +43,7 @@ from google.cloud.bigquery import (
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, Table, TableReference
 from google.cloud.exceptions import NotFound
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build, Resource
 from pandas import DataFrame
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import (
@@ -115,7 +115,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             hook=self,
         )
 
-    def get_service(self) -> Any:
+    def get_service(self) -> Resource:
         """
         Returns a BigQuery service object.
         """
@@ -175,7 +175,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         commit_every: Any = 1000,
         replace: Any = False,
         **kwargs,
-    ) -> NoReturn:
+    ) -> None:
         """
         Insertion is currently unsupported. Theoretically, you could use
         BigQuery's streaming API to insert rows into a table, but this hasn't
@@ -1323,7 +1323,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return list(result)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_schema(self, dataset_id: str, table_id: str, project_id: Optional[str] = None) -> Dict:
+    def get_schema(self, dataset_id: str, table_id: str, project_id: Optional[str] = None) -> dict:
         """
         Get the schema for a given dataset and table.
         see https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
@@ -1512,7 +1512,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job.result()
         return job
 
-    def run_with_configuration(self, configuration: Dict) -> str:
+    def run_with_configuration(self, configuration: dict) -> str:
         """
         Executes a BigQuery SQL query. See here:
 
@@ -2396,7 +2396,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.get_dataset_tables_list(*args, **kwargs)
 
-    def get_datasets_list(self, *args, **kwargs) -> List:
+    def get_datasets_list(self, *args, **kwargs) -> list:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list`
@@ -2409,7 +2409,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.get_datasets_list(*args, **kwargs)
 
-    def get_dataset(self, *args, **kwargs) -> Dict:
+    def get_dataset(self, *args, **kwargs) -> dict:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset`
@@ -2422,7 +2422,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.get_dataset(*args, **kwargs)
 
-    def run_grant_dataset_view_access(self, *args, **kwargs) -> Dict:
+    def run_grant_dataset_view_access(self, *args, **kwargs) -> dict:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access`
@@ -2436,7 +2436,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.run_grant_dataset_view_access(*args, **kwargs)
 
-    def run_table_upsert(self, *args, **kwargs) -> Dict:
+    def run_table_upsert(self, *args, **kwargs) -> dict:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert`
@@ -2462,7 +2462,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.run_table_delete(*args, **kwargs)
 
-    def get_tabledata(self, *args, **kwargs) -> List[Dict]:
+    def get_tabledata(self, *args, **kwargs) -> List[dict]:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata`
@@ -2475,7 +2475,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.get_tabledata(*args, **kwargs)
 
-    def get_schema(self, *args, **kwargs) -> Dict:
+    def get_schema(self, *args, **kwargs) -> dict:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema`
@@ -2613,7 +2613,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         self.all_pages_loaded = False  # type: bool
 
     @property
-    def description(self) -> NoReturn:
+    def description(self) -> None:
         """The schema description method is not currently implemented"""
         raise NotImplementedError
 
@@ -2625,7 +2625,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         """By default, return -1 to indicate that this is not supported"""
         return -1
 
-    def execute(self, operation: str, parameters: Optional[Dict] = None) -> None:
+    def execute(self, operation: str, parameters: Optional[dict] = None) -> None:
         """
         Executes a BigQuery query, and returns the job ID.
 
@@ -2638,7 +2638,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         self.flush_results()
         self.job_id = self.hook.run_query(sql)
 
-    def executemany(self, operation: str, seq_of_parameters: List) -> None:
+    def executemany(self, operation: str, seq_of_parameters: list) -> None:
         """
         Execute a BigQuery query multiple times with different parameters.
 
@@ -2707,7 +2707,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 
         return self.buffer.pop(0)
 
-    def fetchmany(self, size: Optional[int] = None) -> List:
+    def fetchmany(self, size: Optional[int] = None) -> list:
         """
         Fetch the next set of rows of a query result, returning a sequence of sequences
         (e.g. a list of tuples). An empty sequence is returned when no more rows are
@@ -2729,7 +2729,7 @@ class BigQueryCursor(BigQueryBaseCursor):
             result.append(one)
         return result
 
-    def fetchall(self) -> List[List]:
+    def fetchall(self) -> List[list]:
         """
         Fetch all (remaining) rows of a query result, returning them as a sequence of
         sequences (e.g. a list of tuples).
@@ -2759,7 +2759,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         """Does nothing by default"""
 
 
-def _bind_parameters(operation: str, parameters: Dict) -> str:
+def _bind_parameters(operation: str, parameters: dict) -> str:
     """Helper method that binds parameters to a SQL query"""
     # inspired by MySQL Python Connector (conversion.py)
     string_parameters = {}  # type Dict[str, str]
@@ -2893,7 +2893,7 @@ def _validate_value(key: Any, value: Any, expected_type: Type) -> None:
 
 
 def _api_resource_configs_duplication_check(
-    key: Any, value: Any, config_dict: Dict, config_dict_name='api_resource_configs'
+    key: Any, value: Any, config_dict: dict, config_dict_name='api_resource_configs'
 ) -> None:
     if key in config_dict and value != config_dict[key]:
         raise ValueError(
@@ -2908,7 +2908,7 @@ def _api_resource_configs_duplication_check(
 
 def _validate_src_fmt_configs(
     source_format: str,
-    src_fmt_configs: Dict,
+    src_fmt_configs: dict,
     valid_configs: List[str],
     backward_compatibility_configs: Optional[Dict] = None,
 ) -> Dict:

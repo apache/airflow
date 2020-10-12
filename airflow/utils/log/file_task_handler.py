@@ -125,7 +125,7 @@ class FileTaskHandler(logging.Handler):
                 kube_client = get_kube_client()
 
                 if len(ti.hostname) >= 63:
-                    # Kubernetes takes the pod name and truncates it for the hostname. This trucated hostname
+                    # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
                     # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
                     # on any label of a FQDN.
                     pod_list = kube_client.list_namespaced_pod(conf.get('kubernetes', 'namespace'))

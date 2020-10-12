@@ -28,6 +28,8 @@ from azure.mgmt.containerinstance.models import (
     ResourceRequests,
     ResourceRequirements,
     VolumeMount,
+    IpAddress,
+    ContainerPort,
 )
 from msrestazure.azure_exceptions import CloudError
 
@@ -88,37 +90,44 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param gpu: GPU Resource for the container.
     :type gpu: azure.mgmt.containerinstance.models.GpuResource
     :param command: the command to run inside the container
-    :type command: Optional[str]
+    :type command: Optional[List[str]]
     :param container_timeout: max time allowed for the execution of
         the container instance.
     :type container_timeout: datetime.timedelta
     :param tags: azure tags as dict of str:str
     :type tags: Optional[dict[str, str]]
+    :param os_type: The operating system type required by the containers
+        in the container group. Possible values include: 'Windows', 'Linux'
+    :type os_type: str
+    :param restart_policy: Restart policy for all containers within the container group.
+        Possible values include: 'Always', 'OnFailure', 'Never'
+    :type restart_policy: str
+    :param ip_address: The IP address type of the container group.
+    :type ip_address: IpAddress
 
     **Example**::
 
                 AzureContainerInstancesOperator(
-                    "azure_service_principal",
-                    "azure_registry_user",
-                    "my-resource-group",
-                    "my-container-name-{{ ds }}",
-                    "myprivateregistry.azurecr.io/my_container:latest",
-                    "westeurope",
-                    {"MODEL_PATH":  "my_value",
+                    ci_conn_id = "azure_service_principal",
+                    registry_conn_id = "azure_registry_user",
+                    resource_group = "my-resource-group",
+                    name = "my-container-name-{{ ds }}",
+                    image = "myprivateregistry.azurecr.io/my_container:latest",
+                    region = "westeurope",
+                    environment_variables = {"MODEL_PATH":  "my_value",
                      "POSTGRES_LOGIN": "{{ macros.connection('postgres_default').login }}",
                      "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
                      "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}" },
-                    ['POSTGRES_PASSWORD'],
-                    [("azure_wasb_conn_id",
-                    "my_storage_container",
-                    "my_fileshare",
-                    "/input-data",
-                    True),],
+                    secured_variables = ['POSTGRES_PASSWORD'],
+                    volumes = [("azure_wasb_conn_id",
+                            "my_storage_container",
+                            "my_fileshare",
+                            "/input-data",
+                        True),],
                     memory_in_gb=14.0,
                     cpu=4.0,
                     gpu=GpuResource(count=1, sku='K80'),
                     command=["/bin/echo", "world"],
-                    container_timeout=timedelta(hours=2),
                     task_id="start_container"
                 )
     """
@@ -142,10 +151,14 @@ class AzureContainerInstancesOperator(BaseOperator):
         memory_in_gb: Optional[Any] = None,
         cpu: Optional[Any] = None,
         gpu: Optional[Any] = None,
-        command: Optional[str] = None,
+        command: Optional[List[str]] = None,
         remove_on_error: bool = True,
         fail_if_exists: bool = True,
         tags: Optional[Dict[str, str]] = None,
+        os_type: str = 'Linux',
+        restart_policy: str = 'Never',
+        ip_address: Optional[IpAddress] = None,
+        ports: Optional[List[ContainerPort]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -167,6 +180,22 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.fail_if_exists = fail_if_exists
         self._ci_hook: Any = None
         self.tags = tags
+        self.os_type = os_type
+        if self.os_type not in ['Linux', 'Windows']:
+            raise AirflowException(
+                "Invalid value for the os_type argument. "
+                "Please set 'Linux' or 'Windows' as the os_type. "
+                f"Found `{self.os_type}`."
+            )
+        self.restart_policy = restart_policy
+        if self.restart_policy not in ['Always', 'OnFailure', 'Never']:
+            raise AirflowException(
+                "Invalid value for the restart_policy argument. "
+                "Please set one of 'Always', 'OnFailure','Never' as the restart_policy. "
+                f"Found `{self.restart_policy}`"
+            )
+        self.ip_address = ip_address
+        self.ports = ports
 
     def execute(self, context: dict) -> int:
         # Check name again in case it was templated.
@@ -214,6 +243,10 @@ class AzureContainerInstancesOperator(BaseOperator):
                 requests=ResourceRequests(memory_in_gb=self.memory_in_gb, cpu=self.cpu, gpu=self.gpu)
             )
 
+            if self.ip_address and not self.ports:
+                self.ports = [ContainerPort(port=80)]
+                self.log.info("Default port set. Container will listen on port 80")
+
             container = Container(
                 name=self.name,
                 image=self.image,
@@ -221,6 +254,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 command=self.command,
                 environment_variables=environment_variables,
                 volume_mounts=volume_mounts,
+                ports=self.ports,
             )
 
             container_group = ContainerGroup(
@@ -230,9 +264,10 @@ class AzureContainerInstancesOperator(BaseOperator):
                 ],
                 image_registry_credentials=image_registry_credentials,
                 volumes=volumes,
-                restart_policy='Never',
-                os_type='Linux',
+                restart_policy=self.restart_policy,
+                os_type=self.os_type,
                 tags=self.tags,
+                ip_address=self.ip_address,
             )
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)

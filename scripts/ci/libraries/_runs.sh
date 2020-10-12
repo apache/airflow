@@ -33,22 +33,22 @@ function runs::run_generate_constraints() {
         "--" "/opt/airflow/scripts/in_container/run_generate_constraints.sh"
 }
 
-# Docker command to prepare backport packages
-function runs::run_prepare_backport_packages() {
+# Docker command to prepare provider packages
+function runs::run_prepare_provider_packages() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/in_container/run_prepare_backport_packages.sh" "${@}"
+        "--" "/opt/airflow/scripts/in_container/run_prepare_provider_packages.sh" "${@}"
 }
 
-# Docker command to generate release notes for backport packages
-function runs::run_prepare_backport_readme() {
+# Docker command to generate release notes for provider packages
+function runs::run_prepare_provider_readme() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/in_container/run_prepare_backport_readme.sh" "${@}"
+        "--" "/opt/airflow/scripts/in_container/run_prepare_provider_readme.sh" "${@}"
 }

@@ -56,7 +56,7 @@ class RedisHook(BaseHook):
         self.host = conn.host
         self.port = conn.port
         self.password = None if str(conn.password).lower() in ['none', 'false', ''] else conn.password
-        self.db = conn.extra_dejson.get('db', None)
+        self.db = conn.extra_dejson.get('db')
 
         # check for ssl parameters in conn.extra
         ssl_arg_names = [
