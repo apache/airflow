@@ -107,17 +107,15 @@ def _build_metrics(func_name, namespace):
     """
     sensitive_fields = {'-p', '--password'}
     full_command = list(sys.argv)
-    for sensitive_field in sensitive_fields:  # pylint: disable=too-many-nested-blocks
-        if sensitive_field in full_command:
+    for idx, command in enumerate(full_command):  # pylint: disable=too-many-nested-blocks
+        if command in sensitive_fields:
             # For cases when password is passed as "--password xyz" (with space between key and value)
-            # Mask value passed to Password arg
-            full_command[full_command.index(sensitive_field) + 1] = "*" * 8
-        elif any(x.startswith(f'{sensitive_field}=') for x in full_command):
+            full_command[idx + 1] = "*" * 8
+        else:
             # For cases when password is passed as "--password=xyz" (with '=' between key and value)
-            for idx, command in enumerate(full_command):
+            for sensitive_field in sensitive_fields:
                 if command.startswith(f'{sensitive_field}='):
                     full_command[idx] = f'{sensitive_field}={"*" * 8}'
-                    break
 
     metrics = {'sub_command': func_name, 'start_datetime': datetime.utcnow(),
                'full_command': '{}'.format(full_command), 'user': getpass.getuser()}
