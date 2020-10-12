@@ -59,7 +59,6 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from airflow.version import version
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
@@ -1831,7 +1830,7 @@ class TestTaskInstance(unittest.TestCase):
                 },
                 'labels': {
                     'airflow-worker': 'worker-config',
-                    'airflow_version': version,
+                    'airflow_version': mock.ANY,
                     'dag_id': 'test_get_rendered_k8s_spec',
                     'execution_date': '2016-01-01T00_00_00_plus_00_00',
                     'kubernetes_executor': 'True',

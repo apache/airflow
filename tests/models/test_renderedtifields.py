@@ -33,7 +33,6 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.bash import BashOperator
 from airflow.utils.session import create_session
 from airflow.utils.timezone import datetime
-from airflow.version import version
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_rendered_ti_fields
 
@@ -259,7 +258,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
                 },
                 'labels': {
                     'airflow-worker': 'worker-config',
-                    'airflow_version': version,
+                    'airflow_version': mock.ANY,
                     'dag_id': 'test_get_k8s_pod_yaml',
                     'execution_date': '2019-01-01T00_00_00_plus_00_00',
                     'kubernetes_executor': 'True',

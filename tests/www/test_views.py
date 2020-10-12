@@ -1169,10 +1169,7 @@ class TestRedocView(TestBase):
 
         self.assertEqual(len(templates), 1)
         self.assertEqual(templates[0].name, 'airflow/redoc.html')
-        self.assertEqual(
-            templates[0].local_context,
-            {'openapi_spec_url': '/api/v1/openapi.yaml'},
-        )
+        self.assertEqual(templates[0].local_context.get('openapi_spec_url'), '/api/v1/openapi.yaml')
 
 
 class TestLogView(TestBase):
