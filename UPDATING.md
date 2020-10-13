@@ -25,6 +25,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow Master](#airflow-master)
 - [Airflow 2.0.0a1](#airflow-200a1)
 - [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
@@ -46,6 +47,72 @@ assists users migrating to a new version.
 - [Airflow 1.7.1.2](#airflow-1712)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Airflow Master
+
+If you are using Airflow Plugins and were passing `admin_views` & `menu_links` which were used in the
+non-RBAC UI (`flask-admin` based UI), upto it to use `flask_appbuilder_views` and `flask_appbuilder_menu_links`.
+
+
+**Old**:
+
+```python
+from airflow.plugins_manager import AirflowPlugin
+
+from flask_admin import BaseView, expose
+from flask_admin.base import MenuLink
+
+
+class TestView(BaseView):
+    @expose('/')
+    def test(self):
+        # in this example, put your test_plugin/test.html template at airflow/plugins/templates/test_plugin/test.html
+        return self.render("test_plugin/test.html", content="Hello galaxy!")
+v = TestView(category="Test Plugin", name="Test View")
+
+ml = MenuLink(
+    category='Test Plugin',
+    name='Test Menu Link',
+    url='https://airflow.apache.org/')
+
+
+class AirflowTestPlugin(AirflowPlugin):
+    admin_views = [v]
+    menu_links = [ml]
+```
+
+**Change it to**:
+
+```python
+from airflow.plugins_manager import AirflowPlugin
+from flask_appbuilder import expose, BaseView as AppBuilderBaseView
+
+
+class TestAppBuilderBaseView(AppBuilderBaseView):
+    default_view = "test"
+
+    @expose("/")
+    def test(self):
+        return self.render("test_plugin/test.html", content="Hello galaxy!")
+
+v_appbuilder_view = TestAppBuilderBaseView()
+v_appbuilder_package = {"name": "Test View",
+                        "category": "Test Plugin",
+                        "view": v_appbuilder_view}
+
+# Creating a flask appbuilder Menu Item
+appbuilder_mitem = {"name": "Google",
+                    "category": "Search",
+                    "category_icon": "fa-th",
+                    "href": "https://www.google.com"}
+
+
+# Defining the plugin class
+class AirflowTestPlugin(AirflowPlugin):
+    name = "test_plugin"
+    appbuilder_views = [v_appbuilder_package]
+    appbuilder_menu_items = [appbuilder_mitem]
+```
 
 ## Airflow 2.0.0a1
 

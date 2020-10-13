@@ -45,9 +45,7 @@ macros_modules: Optional[List[Any]] = None
 executors_modules: Optional[List[Any]] = None
 
 # Plugin components to integrate directly
-admin_views: Optional[List[Any]] = None
 flask_blueprints: Optional[List[Any]] = None
-menu_links: Optional[List[Any]] = None
 flask_appbuilder_views: Optional[List[Any]] = None
 flask_appbuilder_menu_links: Optional[List[Any]] = None
 global_operator_extra_links: Optional[List[Any]] = None
@@ -73,9 +71,7 @@ class AirflowPlugin:
     hooks: List[Any] = []
     executors: List[Any] = []
     macros: List[Any] = []
-    admin_views: List[Any] = []
     flask_blueprints: List[Any] = []
-    menu_links: List[Any] = []
     appbuilder_views: List[Any] = []
     appbuilder_menu_items: List[Any] = []
 
@@ -235,16 +231,12 @@ def initialize_web_ui_plugins():
     # pylint: disable=global-statement
     global plugins
 
-    global admin_views
     global flask_blueprints
-    global menu_links
     global flask_appbuilder_views
     global flask_appbuilder_menu_links
     # pylint: enable=global-statement
 
-    if admin_views is not None and \
-            flask_blueprints is not None and \
-            menu_links is not None and \
+    if flask_blueprints is not None and \
             flask_appbuilder_views is not None and \
             flask_appbuilder_menu_links is not None:
         return
@@ -256,28 +248,17 @@ def initialize_web_ui_plugins():
 
     log.debug("Initialize Web UI plugin")
 
-    admin_views = []
     flask_blueprints = []
-    menu_links = []
     flask_appbuilder_views = []
     flask_appbuilder_menu_links = []
 
     for plugin in plugins:
-        admin_views.extend(plugin.admin_views)
-        menu_links.extend(plugin.menu_links)
         flask_appbuilder_views.extend(plugin.appbuilder_views)
         flask_appbuilder_menu_links.extend(plugin.appbuilder_menu_items)
         flask_blueprints.extend([{
             'name': plugin.name,
             'blueprint': bp
         } for bp in plugin.flask_blueprints])
-
-        if (admin_views and not flask_appbuilder_views) or (menu_links and not flask_appbuilder_menu_links):
-            log.warning(
-                "Plugin \'%s\' may not be compatible with the current Airflow version. "
-                "Please contact the author of the plugin.",
-                plugin.name
-            )
 
 
 def initialize_extra_operators_links_plugins():
