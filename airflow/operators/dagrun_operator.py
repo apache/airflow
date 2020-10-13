@@ -21,12 +21,12 @@ from typing import Dict, Optional, Union
 from urllib.parse import quote
 
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import BaseOperator, BaseOperatorLink, DagRun
+from airflow.exceptions import DagNotFound, DagRunAlreadyExists
+from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.types import DagRunType
-from airflow.exceptions import DagRunAlreadyExists, DagNotFound
-from airflow.models import DagBag, DagModel
+
 
 class TriggerDagRunLink(BaseOperatorLink):
     """
@@ -50,8 +50,10 @@ class TriggerDagRunOperator(BaseOperator):
     :type conf: dict
     :param execution_date: Execution date for the dag (templated)
     :type execution_date: str or datetime.datetime
-    :param reset_dag_run: whether or not clear existing dag run if already exists which is especially useful to backfill
-    or rerun an existing dag run.
+    :param reset_dag_run: Whether or not clear existing dag run if already exists.
+        This is useful when backfill or rerun an existing dag run.
+        When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
+        When reset_dag_run=True and dag run exists, existing dag run will be cleared to rerun.
     :type reset_dag_run: bool
     """
 
@@ -99,7 +101,6 @@ class TriggerDagRunOperator(BaseOperator):
 
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
         try:
-            # Ignore MyPy type for self.execution_date because it doesn't pick up the timezone.parse() for strings
             trigger_dag(
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
@@ -132,5 +133,3 @@ class TriggerDagRunOperator(BaseOperator):
                 dag.clear(start_date=self.execution_date, end_date=self.execution_date)
             else:
                 raise e
-
-
