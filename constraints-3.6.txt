@@ -1,7 +1,7 @@
 # Editable install with no version control (apache-airflow==2.0.0.dev0)
 Authlib==0.14.3
 Babel==2.8.0
-Flask-AppBuilder==3.0.1
+Flask-AppBuilder==3.1.0
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.9.0
@@ -119,7 +119,7 @@ docker-pycreds==0.4.0
 docker==3.7.3
 docopt==0.6.2
 docutils==0.16
-ecdsa==0.14.1
+ecdsa==0.15
 elasticsearch-dbapi==0.1.0
 elasticsearch-dsl==7.2.1
 elasticsearch==7.5.1
