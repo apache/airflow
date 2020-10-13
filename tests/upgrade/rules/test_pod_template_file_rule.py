@@ -15,32 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
+import unittest
 
-from airflow.executors import Executors
-from airflow.upgrade.rules.base_rule import BaseRule
-from airflow.configuration import conf
+from airflow.upgrade.rules.pod_template_file_rule import PodTemplateFileRule
+from tests.test_utils.config import conf_vars
 
 
-class PodTemplateFileRule(BaseRule):
-
-    title = "Users must set a kubernetes.pod_template_file value"
-
-    description = """\
-In Airflow 2.0, KubernetesExecutor Users need to set a pod_template_file as a base
-value for all pods launched by the KubernetesExecutor
-"""
-
-    def check(self):
-        executor = conf.get('core', 'EXECUTOR')
-        if executor != Executors.KubernetesExecutor:
-            return
-
-        pod_template_file = conf.get("kubernetes", "pod_template_file", fallback=None)
-        if pod_template_file:
-            return
-
-        return (
+class TestPodTemplateFileRule(unittest.TestCase):
+    @conf_vars({
+        ("core", "executor"): "KubernetesExecutor",
+        ("kubernetes", "pod_template_file"): None,
+    })
+    def test_should_return_error(self):
+        rule = PodTemplateFileRule()
+        result = rule.check()
+        self.assertEqual(
+            result,
             "Please create a pod_template_file by running `airflow generate_pod_template`.\n"
             "This will generate a pod using your aiflow.cfg settings"
         )
