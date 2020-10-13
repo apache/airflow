@@ -45,7 +45,7 @@ from airflow.utils.session import provide_session
     [
         ("can_read", "Dag"),
         ("can_read", "DagRun"),
-        ('can_read', 'Task'),
+        ("can_read", "Task"),
     ]
 )
 @provide_session
@@ -57,14 +57,13 @@ def get_task_instance(dag_id: str, dag_run_id: str, task_id: str, session=None):
         .join(DR, and_(TI.dag_id == DR.dag_id, TI.execution_date == DR.execution_date))
         .filter(DR.run_id == dag_run_id)
         .filter(TI.task_id == task_id)
-        .join(
+        .outerjoin(
             SlaMiss,
             and_(
                 SlaMiss.dag_id == TI.dag_id,
                 SlaMiss.execution_date == TI.execution_date,
                 SlaMiss.task_id == TI.task_id,
             ),
-            isouter=True,
         )
         .add_entity(SlaMiss)
     )
@@ -104,7 +103,7 @@ def _apply_range_filter(query, key, value_range: Tuple[Any, Any]):
     [
         ("can_read", "Dag"),
         ("can_read", "DagRun"),
-        ('can_read', 'Task'),
+        ("can_read", "Task"),
     ]
 )
 @provide_session
