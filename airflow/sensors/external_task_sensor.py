@@ -24,12 +24,13 @@ from urllib.parse import quote
 from sqlalchemy import func
 
 from airflow.exceptions import AirflowException
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance, BaseOperatorLink
+from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+
 
 class ExternalTaskSensorLink(BaseOperatorLink):
     """
