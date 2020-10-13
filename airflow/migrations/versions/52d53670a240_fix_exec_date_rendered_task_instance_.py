@@ -23,7 +23,7 @@ Revises: 98271e7606e2
 Create Date: 2020-10-13 15:13:24.911486
 
 """
-from sqlalchemy import Column
+import sqlalchemy as sa
 from sqlalchemy.dialects import mssql
 from alembic import op
 
@@ -43,20 +43,47 @@ def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         with op.batch_alter_table(TABLE_NAME) as rendered_task_instance_fields:
-            rendered_task_instance_fields.drop_constraint('rendered_task_instance_fields_pkey', type_='primary')
-            rendered_task_instance_fields.drop_column("execution_date")
-            rendered_task_instance_fields.add_column(Column('execution_date', mssql.DATETIME2, nullable=False))
-            rendered_task_instance_fields.create_primary_key("rendered_task_instance_fields_pkey",
-                                                             ["dag_id", "task_id", "execution_date"])
+            json_type = sa.JSON
+            conn = op.get_bind()  # pylint: disable=no-member
+
+            # Mysql 5.7+/MariaDB 10.2.3 has JSON support. Rather than checking for
+            # versions, check for the function existing.
+            try:
+                conn.execute("SELECT JSON_VALID(1)").fetchone()
+            except (sa.exc.OperationalError, sa.exc.ProgrammingError):
+                json_type = sa.Text
+
+            op.drop_table(TABLE_NAME)  # pylint: disable=no-member
+
+            op.create_table(
+                TABLE_NAME,  # pylint: disable=no-member
+                sa.Column('dag_id', sa.String(length=250), nullable=False),
+                sa.Column('task_id', sa.String(length=250), nullable=False),
+                sa.Column('execution_date', mssql.DATETIME2, nullable=False),
+                sa.Column('rendered_fields', json_type(), nullable=False),
+                sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date')
+            )
 
 
 def downgrade():
     """Drop RenderedTaskInstanceFields table"""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
-        with op.batch_alter_table(TABLE_NAME) as rendered_task_instance_fields:
-            rendered_task_instance_fields.drop_constraint('rendered_task_instance_fields_pkey', type_='primary')
-            rendered_task_instance_fields.drop_column('execution_date')
-            rendered_task_instance_fields.add_column(Column('execution_date', mssql.TIMESTAMP, nullable=False))
-            rendered_task_instance_fields.create_primary_key("rendered_task_instance_fields_pkey",
-                                                             ["dag_id", "task_id", "execution_date"])
+
+        # Mysql 5.7+/MariaDB 10.2.3 has JSON support. Rather than checking for
+        # versions, check for the function existing.
+        try:
+            conn.execute("SELECT JSON_VALID(1)").fetchone()
+        except (sa.exc.OperationalError, sa.exc.ProgrammingError):
+            json_type = sa.Text
+
+        op.drop_table(TABLE_NAME)  # pylint: disable=no-member
+
+        op.create_table(
+                TABLE_NAME,  # pylint: disable=no-member
+                sa.Column('dag_id', sa.String(length=250), nullable=False),
+                sa.Column('task_id', sa.String(length=250), nullable=False),
+                sa.Column('execution_date', mssql.TIMESTAMP, nullable=False),
+                sa.Column('rendered_fields', json_type(), nullable=False),
+                sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date')
+            )
