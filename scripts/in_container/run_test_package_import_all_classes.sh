@@ -26,7 +26,7 @@ echo
 
 OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
-if [[ ${INSTALL_AIRFLOW_VERSION:=""} =~ 2.*  ]]; then
+if [[ ${INSTALL_AIRFLOW_VERSION:=""} =~ ^2\..*  ]]; then
     echo
     echo "Installing regular packages for Airflow 2.0 but first installing prepared Airflow from master"
     echo
@@ -34,7 +34,7 @@ if [[ ${INSTALL_AIRFLOW_VERSION:=""} =~ 2.*  ]]; then
     # Need to add excluded apache beam
     pip install apache-beam[gcp]
     echo
-elif [[ ! ${INSTALL_AIRFLOW_VERSION:=""} =~ 1.10* ]]; then
+elif [[ ! ${INSTALL_AIRFLOW_VERSION:=""} =~ ^1\.10\..* ]]; then
     echo
     echo "ERROR! You can only install providers package in 1.10. airflow series."
     echo "You have: ${INSTALL_AIRFLOW_VERSION}"

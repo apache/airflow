@@ -25,7 +25,7 @@ echo
 echo "Testing if all provider packages can be installed separately on Airflow and cause no side effects"
 echo
 
-if [[ ${INSTALL_AIRFLOW_VERSION:=""} =~ 2.* ]]; then
+if [[ ${INSTALL_AIRFLOW_VERSION:=""} =~ ^2\..* ]]; then
     echo
     echo "Installing regular packages for Airflow 2.0 but first installing prepared Airflow from master"
     echo
@@ -33,7 +33,7 @@ if [[ ${INSTALL_AIRFLOW_VERSION:=""} =~ 2.* ]]; then
     # Need to add excluded apache beam
     pip install apache-beam[gcp]
     echo
-elif [[ ! ${INSTALL_AIRFLOW_VERSION} =~ 1.10* ]]; then
+elif [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^1\.10\..* ]]; then
     echo
     echo "ERROR! You should install providers package in 1.10. Airflow series."
     echo "You have: ${INSTALL_AIRFLOW_VERSION}"
