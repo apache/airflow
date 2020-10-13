@@ -21,11 +21,11 @@ import tempfile
 from datetime import datetime
 from unittest import TestCase
 
+from airflow.exceptions import DagRunAlreadyExists
 from airflow.models import DAG, DagModel, DagRun, Log, TaskInstance
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.exceptions import DagRunAlreadyExists
 
 DEFAULT_DATE = datetime(2019, 1, 1, tzinfo=timezone.utc)
 TEST_DAG_ID = "testdag"
@@ -142,7 +142,7 @@ class TestDagRunOperator(TestCase):
             self.assertEqual(len(dagruns), 1)
             self.assertTrue(dagruns[0].conf, {"foo": TEST_DAG_ID})
 
-    def test_trigger_dagrun_with_reset_dag_run_False(self):
+    def test_trigger_dagrun_with_reset_dag_run_false(self):
         """Test TriggerDagRunOperator with reset_dag_run."""
         execution_date = DEFAULT_DATE
         task = TriggerDagRunOperator(task_id="test_task",
@@ -155,7 +155,7 @@ class TestDagRunOperator(TestCase):
         with self.assertRaises(DagRunAlreadyExists):
             task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
 
-    def test_trigger_dagrun_with_reset_dag_run_True(self):
+    def test_trigger_dagrun_with_reset_dag_run_true(self):
         """Test TriggerDagRunOperator with reset_dag_run."""
         execution_date = DEFAULT_DATE
         task = TriggerDagRunOperator(task_id="test_task",
