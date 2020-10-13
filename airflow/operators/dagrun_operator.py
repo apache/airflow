@@ -101,7 +101,8 @@ class TriggerDagRunOperator(BaseOperator):
 
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
         try:
-            # Ignore MyPy type for self.execution_date because it doesn't pick up the timezone.parse() for strings
+            # Ignore MyPy type for self.execution_date
+            # because it doesn't pick up the timezone.parse() for strings
             trigger_dag(
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
