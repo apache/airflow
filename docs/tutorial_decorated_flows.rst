@@ -150,3 +150,7 @@ What's Next?
 You have seen how simple it is to write DAGs using the Decorated Flows paradigm within Airflow 2.0. Please do
 read the :ref:`Concepts page<concepts>` for detailed explanation of Airflow concepts such as DAGs, Tasks,
 Operators, etc, and the :ref:`concepts:task_decorator` in particular.
+
+More details about Decorated Flows, can be found as part of the Airflow Improvement Proposal
+`AIP-31: "Decorated Flows" for clearer/simpler DAG definition <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=148638736>`__
+and specifically within the Concepts guide at :ref:`Concepts - Decorated Flows<concepts:decorated_flows>`.
