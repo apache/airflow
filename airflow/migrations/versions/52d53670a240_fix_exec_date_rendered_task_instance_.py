@@ -42,14 +42,6 @@ def upgrade():
     """
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
-        result = conn.execute(
-            """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-            like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-            like '9%' THEN '2005' ELSE '2005Plus' END AS MajorVersion""").fetchone()
-        mssql_version = result[0]
-        if mssql_version in ("2000", "2005"):
-            return
-
         with op.batch_alter_table(TABLE_NAME) as rendered_task_instance_fields:
             rendered_task_instance_fields.drop_constraint('rendered_task_instance_fields_pkey', type_='primary')
             rendered_task_instance_fields.drop_column("execution_date")
@@ -62,14 +54,6 @@ def downgrade():
     """Drop RenderedTaskInstanceFields table"""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
-        result = conn.execute(
-            """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-            like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-            like '9%' THEN '2005' ELSE '2005Plus' END AS MajorVersion""").fetchone()
-        mssql_version = result[0]
-        if mssql_version in ("2000", "2005"):
-            return
-
         with op.batch_alter_table(TABLE_NAME) as rendered_task_instance_fields:
             rendered_task_instance_fields.drop_constraint('rendered_task_instance_fields_pkey', type_='primary')
             rendered_task_instance_fields.drop_column('execution_date')
