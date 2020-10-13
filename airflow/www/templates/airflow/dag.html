@@ -55,11 +55,11 @@
         <span class="text-muted">ROOT:</span> {{ root }}
       {% endif %}
     </h3>
-    <h4 class="pull-right">
+    <h4 class="pull-right" style="user-select: none;-moz-user-select: auto;">
       {% if state_token is defined and state_token %}
         {{ state_token }}
       {% endif %}
-      <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}" style="user-select: none;-moz-user-select: auto;">
+      <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
         schedule: {{ dag.schedule_interval }}
       </a>
     </h4>
