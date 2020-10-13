@@ -2107,7 +2107,7 @@ components:
         dry_run:
           description: |
             If set, don't actually run this operation. The response will contain a list of task instances
-            planned to be affect, but not modified in any way.
+            planned to be affected, but won't be modified in any way.
           type: boolean
           default: true
 
