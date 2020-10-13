@@ -43,16 +43,8 @@ def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         with op.batch_alter_table(TABLE_NAME) as rendered_task_instance_fields:
-            json_type = sa.JSON
-            conn = op.get_bind()  # pylint: disable=no-member
 
-            # Mysql 5.7+/MariaDB 10.2.3 has JSON support. Rather than checking for
-            # versions, check for the function existing.
-            try:
-                conn.execute("SELECT JSON_VALID(1)").fetchone()
-            except (sa.exc.OperationalError, sa.exc.ProgrammingError):
-                json_type = sa.Text
-
+            json_type = sa.Text
             op.drop_table(TABLE_NAME)  # pylint: disable=no-member
 
             op.create_table(
@@ -70,13 +62,7 @@ def downgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
 
-        # Mysql 5.7+/MariaDB 10.2.3 has JSON support. Rather than checking for
-        # versions, check for the function existing.
-        try:
-            conn.execute("SELECT JSON_VALID(1)").fetchone()
-        except (sa.exc.OperationalError, sa.exc.ProgrammingError):
-            json_type = sa.Text
-
+        json_type = sa.Text
         op.drop_table(TABLE_NAME)  # pylint: disable=no-member
 
         op.create_table(
