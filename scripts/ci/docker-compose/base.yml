@@ -49,6 +49,7 @@ services:
       - DB_RESET
       - START_AIRFLOW
       - LOAD_EXAMPLES
+      - BACKPORT_PACKAGES
       - LOAD_DEFAULT_CONNECTIONS
       - INSTALL_WHEELS
       - DISABLE_RBAC

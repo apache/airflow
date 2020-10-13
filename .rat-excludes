@@ -78,6 +78,7 @@ rat-results.txt
 apache-airflow-.*\+source.tar.gz.*
 apache-airflow-.*\+bin.tar.gz.*
 PULL_REQUEST_TEMPLATE.md
+BACKPORT_PROVIDERS_CHANGES*.md
 PROVIDERS_CHANGES*.md
 
 # Temporary list of files to make compatible with Pylint

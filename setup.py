@@ -472,6 +472,7 @@ devel = [
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
+    'semver',
     'setuptools',
     'testfixtures',
     'wheel',
@@ -749,6 +750,10 @@ INSTALL_REQUIREMENTS = [
 def do_setup():
     """Perform the Airflow package setup."""
     write_version()
+    # Note! Exclude does not work when combined with 'airflow' include so we need to remove
+    # providers manually
+    all_packages = [package for package in find_packages(include=['airflow', 'airflow.*'])
+                    if not package.startswith('airflow.providers')]
     setup(
         name='apache-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
@@ -756,7 +761,7 @@ def do_setup():
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(include=['airflow', 'airflow.*']),
+        packages=all_packages,
         package_data={
             'airflow': ['py.typed'],
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",

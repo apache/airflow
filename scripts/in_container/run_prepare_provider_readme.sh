@@ -18,6 +18,8 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
+setup_backport_packages
+
 OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
 add_trap "in_container_fix_ownership" EXIT HUP INT TERM
@@ -38,12 +40,16 @@ cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
 
 python3 setup_provider_packages.py update-package-release-notes "$@"
 
-AIRFLOW_PROVIDER_README_TGZ_FILE="/files/airflow-backport-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
+if [[ ${BACKPORT_PACKAGES} == "true" ]]; then
+    AIRFLOW_PROVIDER_README_TGZ_FILE="/files/airflow-backport-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
+else
+    AIRFLOW_PROVIDER_README_TGZ_FILE="/files/airflow-providers-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
+fi
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
-find airflow/providers \( -name 'README.md' -o -name 'PROVIDERS_CHANGES*' \) -print0 | \
+find airflow/providers \( -name 'README.md' -o -name "${PACKAGE_PREFIX_UPPERCASE}PROVIDERS_CHANGES*" \) -print0 | \
     tar --null --no-recursion -cvzf "${AIRFLOW_PROVIDER_README_TGZ_FILE}" -T -
 echo
-echo "Airflow readme for provider packages are tar-gzipped in ${AIRFLOW_PROVIDER_README_TGZ_FILE}"
+echo "Airflow readme for ${PACKAGE_TYPE} provider packages are tar-gzipped in ${AIRFLOW_PROVIDER_README_TGZ_FILE}"
 echo

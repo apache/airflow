@@ -50,9 +50,9 @@ function prepare_combined_changelog() {
   echo "Preparing the changelog"
   echo
   CHANGELOG_FILE="provider-packages/CHANGELOG.txt"
-  PATTERN="airflow\/providers\/(.*)\/PROVIDERS_CHANGES_.*.md"
+  PATTERN="airflow\/providers\/(.*)\/BACKPORT_PROVIDERS_CHANGES_.*.md"
   echo > "${CHANGELOG_FILE}"
-  CHANGES_FILES=$(find "airflow/providers/" -name 'PROVIDERS_CHANGES_*.md' | sort -r)
+  CHANGES_FILES=$(find "airflow/providers/" -name 'BACKPORT_PROVIDERS_CHANGES_*.md' | sort -r)
   LAST_PROVIDER_ID=""
   for FILE in ${CHANGES_FILES}
   do

@@ -271,13 +271,49 @@ jobs:
       - name: "Spell check docs"
         run: ./scripts/ci/docs/ci_docs.sh --spellcheck-only
 
-  prepare-provider-packages:
+  prepare-backport-provider-packages:
     timeout-minutes: 30
     name: "Backport packages"
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     env:
       INSTALL_AIRFLOW_VERSION: "1.10.12"
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      BACKPORT_PACKAGES: "true"
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Prepare & test provider packages"
+        run: ./scripts/ci/provider_packages/ci_prepare_and_test_provider_packages.sh
+      - name: "Upload provider package artifacts"
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: airflow-backport-packages
+          path: "./files/airflow-packages-*"
+      - name: "Upload readme artifacts"
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: airflow-backport-readmes
+          path: "./files/airflow-backport-readme*"
+
+  prepare-provider-packages:
+    timeout-minutes: 30
+    name: "Provider packages"
+    runs-on: ubuntu-latest
+    needs: [build-info, ci-images]
+    env:
+      INSTALL_AIRFLOW_VERSION: "2.0.0-dev"   # Note that this causes local installation
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
@@ -305,6 +341,7 @@ jobs:
         with:
           name: airflow-backport-readmes
           path: "./files/airflow-backport-readme*"
+
 
   tests-postgres:
     timeout-minutes: 60
@@ -656,7 +693,7 @@ jobs:
       - tests-postgres
       - tests-mysql
       - tests-kubernetes
-      - prepare-provider-packages
+      - prepare-backport-provider-packages
       - prod-images
       - docs
       - docs-spell-check
@@ -695,7 +732,7 @@ jobs:
       - tests-postgres
       - tests-mysql
       - tests-kubernetes
-      - prepare-provider-packages
+      - prepare-backport-provider-packages
       - ci-images
       - docs
       - docs-spell-check

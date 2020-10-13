@@ -18,6 +18,8 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
+setup_backport_packages
+
 LIST_OF_DIRS_FILE=$(mktemp)
 
 add_trap "in_container_fix_ownership" EXIT HUP INT TERM
@@ -76,9 +78,15 @@ else
     PROVIDER_PACKAGES="$*"
 fi
 
-echo "==================================================================================="
-echo " Copying sources and doing refactor for provider packages"
-echo "==================================================================================="
+if [[ ${BACKPORT_PACKAGES} == "true" ]]; then
+    echo "==================================================================================="
+    echo " Copying sources and refactoring code for backport provider packages"
+    echo "==================================================================================="
+else
+    echo "==================================================================================="
+    echo " Copying sources for provider packages"
+    echo "==================================================================================="
+fi
 python3 refactor_provider_packages.py
 
 VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
@@ -87,12 +95,11 @@ VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
 echo "Version suffix for PyPI= ${VERSION_SUFFIX_FOR_PYPI}"
 echo "Version suffix for SVN = ${VERSION_SUFFIX_FOR_SVN}"
 
-
 for PROVIDER_PACKAGE in ${PROVIDER_PACKAGES}
 do
     LOG_FILE=$(mktemp)
     echo "==================================================================================="
-    echo " Preparing backport package ${PROVIDER_PACKAGE}"
+    echo " Preparing ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE}"
     echo "-----------------------------------------------------------------------------------"
     set +e
     python3 setup_provider_packages.py "${PROVIDER_PACKAGE}" clean --all >"${LOG_FILE}" 2>&1
@@ -105,11 +112,12 @@ do
 
     PACKAGE_DIR=${PROVIDER_PACKAGE//./\/}
 
-    PATTERN="airflow\/providers\/(.*)\/PROVIDERS_CHANGES_.*.md"
+    PATTERN="airflow\/providers\/(.*)\/${PACKAGE_PREFIX_UPPERCASE}PROVIDERS_CHANGES_.*.md"
     CHANGELOG_FILE="CHANGELOG.txt"
 
     echo > "${CHANGELOG_FILE}"
-    CHANGES_FILES=$(find "airflow/providers/${PACKAGE_DIR}" -name 'PROVIDERS_CHANGES_*.md' | sort -r)
+    CHANGES_FILES=$(find "airflow/providers/${PACKAGE_DIR}" \
+        -name "${PACKAGE_PREFIX_UPPERCASE}PROVIDERS_CHANGES_*.md" | sort -r)
     LAST_PROVIDER_ID=""
     for FILE in ${CHANGES_FILES}
     do
@@ -145,7 +153,7 @@ do
         exit "${RES}"
     fi
     set -e
-    echo " Prepared backport package ${PROVIDER_PACKAGE}"
+    echo " Prepared ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE}"
     echo "==================================================================================="
 done
 
