@@ -345,28 +345,21 @@ jobs:
 
   tests-postgres:
     timeout-minutes: 60
-    name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
+    name: "Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
         postgres-version: ${{ fromJson(needs.build-info.outputs.postgresVersions) }}
-        test-type: ${{ fromJson(needs.build-info.outputs.testTypes) }}
         exclude: ${{ fromJson(needs.build-info.outputs.postgresExclude) }}
-        # Additionally include all postgres-only tests but only for default versions
-        # in case the regular tests are excluded in the future
-        include:
-          - python_version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-            postgres-version: ${{ needs.build-info.outputs.defaultPostgresVersion }}
-            test-type: "Postgres"
       fail-fast: false
     env:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: true
-      TEST_TYPE: ${{ matrix.test-type }}
+      TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -398,14 +391,13 @@ jobs:
 
   tests-mysql:
     timeout-minutes: 60
-    name: "${{matrix.test-type}}:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
+    name: "MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
         mysql-version: ${{ fromJson(needs.build-info.outputs.mysqlVersions) }}
-        test-type: ${{ fromJson(needs.build-info.outputs.testTypes) }}
         exclude: ${{ fromJson(needs.build-info.outputs.mysqlExclude) }}
         # Additionally include all mysql-only tests but only for default versions
         # in case the regular tests are excluded in the future
@@ -419,7 +411,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       RUN_TESTS: true
-      TEST_TYPE: ${{ matrix.test-type }}
+      TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -450,7 +442,7 @@ jobs:
 
   tests-sqlite:
     timeout-minutes: 60
-    name: "${{matrix.test-type}}:Sqlite Py${{matrix.python-version}}"
+    name: "Sqlite Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     strategy:
@@ -463,7 +455,7 @@ jobs:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       RUN_TESTS: true
-      TEST_TYPE: ${{ matrix.test-type }}
+      TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -510,7 +502,7 @@ jobs:
       MYSQL_VERSION: ${{needs.build-info.outputs.defaultMySQLVersion}}
       POSTGRES_VERSION: ${{needs.build-info.outputs.defaultPostgresVersion}}
       RUN_TESTS: true
-      TEST_TYPE: Quarantined
+      TEST_TYPES: "Quarantined"
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: >
@@ -661,7 +653,7 @@ jobs:
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
         env:
-          cache-name: cache-kubernetes-tests-virtualenv-v4
+          cache-name: cache-kubernetes-tests-virtualenv-v6
         with:
           path: .build/.kubernetes_venv
           key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}"
