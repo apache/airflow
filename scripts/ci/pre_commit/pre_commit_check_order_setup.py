@@ -19,7 +19,6 @@
 """
 Test for an order of dependencies in setup.py
 """
-
 import os
 import re
 import sys
@@ -27,6 +26,10 @@ from os.path import abspath, dirname
 from typing import List
 
 errors = []
+
+MY_DIR_PATH = os.path.dirname(__file__)
+SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir, os.pardir, os.pardir))
+sys.path.insert(0, SOURCE_DIR_PATH)
 
 
 def _check_list_sorted(the_list: List[str], message: str) -> None:
@@ -122,9 +125,7 @@ def check_extras_require(setup_context: str) -> None:
     Test for an order of dependencies in function do_setup section
     extras_require in setup.py
     """
-    pattern_extras_requires = re.compile(
-        r'EXTRAS_REQUIREMENTS: Dict\[str, Iterable\[str\]] = {(.*?)}', re.DOTALL
-    )
+    pattern_extras_requires = re.compile(r'EXTRAS_REQUIREMENTS: Dict\[str, List\[str\]] = {(.*?)}', re.DOTALL)
     extras_requires = pattern_extras_requires.findall(setup_context)[0]
 
     pattern_dependent = re.compile('\'(.*?)\'')
@@ -137,14 +138,48 @@ def check_provider_requirements(setup_context: str) -> None:
     Test for an order of dependencies in function do_setup section
     providers_require in setup.py
     """
-    pattern_extras_requires = re.compile(
+    pattern_extras_providers_packages = re.compile(
         r'PROVIDERS_REQUIREMENTS: Dict\[str, Iterable\[str\]\] = {(.*?)}', re.DOTALL
     )
-    extras_requires = pattern_extras_requires.findall(setup_context)[0]
+    extras_requires = pattern_extras_providers_packages.findall(setup_context)[0]
 
     pattern_dependent = re.compile('"(.*?)"')
     src = pattern_dependent.findall(extras_requires)
     _check_list_sorted(src, "Order of dependencies in: providers_require")
+
+
+def check_extras_provider_packages(setup_context: str) -> None:
+    """
+    Test for an order of dependencies in function do_setup section
+    providers_require in setup.py
+    """
+    pattern_extras_requires = re.compile(
+        r'EXTRAS_PROVIDERS_PACKAGES: Dict\[str, Iterable\[str\]\] = {(.*?)}', re.DOTALL
+    )
+    extras_requires = pattern_extras_requires.findall(setup_context)[0]
+
+    pattern_dependent = re.compile('"(.*?)":')
+    src = pattern_dependent.findall(extras_requires)
+    _check_list_sorted(src, "Order of dependencies in: extras_provider_packages")
+
+
+def checks_extra_with_providers_exist() -> None:
+
+    from setup import EXTRAS_REQUIREMENTS, EXTRAS_PROVIDERS_PACKAGES  # noqa # isort:skip
+
+    message = 'Check if all extras have providers defined in: EXTRAS_PROVIDERS_PACKAGES'
+    local_error = False
+    for key in EXTRAS_REQUIREMENTS.keys():  # noqa
+        if key not in EXTRAS_PROVIDERS_PACKAGES.keys():  # noqa
+            if not local_error:
+                local_error = True
+                print(f"Extra {key} NOK")
+            errors.append(
+                f"ERROR in {message}. The {key} extras is missing there."
+                " If you do not want to install any providers with this extra set it to []"
+            )
+    if not local_error:
+        print(f"{message} is ok")
 
 
 if __name__ == '__main__':
@@ -155,6 +190,8 @@ if __name__ == '__main__':
     check_install_and_setup_requires(setup_context_main)
     check_extras_require(setup_context_main)
     check_provider_requirements(setup_context_main)
+    check_extras_provider_packages(setup_context_main)
+    checks_extra_with_providers_exist()
 
     print()
     print()

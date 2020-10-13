@@ -352,7 +352,7 @@ postgres = [
     'psycopg2-binary>=2.7.4',
 ]
 presto = ['presto-python-client>=0.7.0,<0.8']
-qds = [
+qubole = [
     'qds-sdk>=1.10.4',
 ]
 rabbitmq = [
@@ -540,11 +540,12 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "plexus": plexus,
     "postgres": postgres,
     "presto": presto,
-    "qubole": qds,
+    "qubole": qubole,
     "redis": redis,
     "salesforce": salesforce,
     "samba": samba,
     "segment": segment,
+    "sendgrid": sendgrid,
     "sftp": ssh,
     "singularity": singularity,
     "slack": slack,
@@ -556,7 +557,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "zendesk": zendesk,
 }
 
-EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
+EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'all_dbs': all_dbs,
     'amazon': amazon,
     'apache.atlas': atlas,
@@ -619,7 +620,8 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'plexus': plexus,
     'postgres': postgres,
     'presto': presto,
-    'qds': qds,
+    'qds': qubole,  # TODO: remove this in Airflow 2.1
+    'qubole': qubole,
     'rabbitmq': rabbitmq,
     'redis': redis,
     'salesforce': salesforce,
@@ -640,6 +642,111 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'winrm': winrm,  # TODO: remove this in Airflow 2.1
     'yandexcloud': yandexcloud,
 }
+
+EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
+    'all': list(PROVIDERS_REQUIREMENTS.keys()),
+    # this is not 100% accurate with devel_ci definition, but we really want to have all providers
+    # when devel_ci extra is installed!
+    'devel_ci': list(PROVIDERS_REQUIREMENTS.keys()),
+    'all_dbs': [
+        "apache.cassandra",
+        "apache.druid",
+        "apache.hdfs",
+        "apache.hive",
+        "apache.pinot",
+        "cloudant",
+        "exasol",
+        "mongo",
+        "microsoft.mssql",
+        "mysql",
+        "postgres",
+        "presto",
+        "vertica",
+    ],
+    'amazon': ["amazon"],
+    'apache.atlas': [],
+    'apache.beam': [],
+    "apache.cassandra": ["apache.cassandra"],
+    "apache.druid": ["apache.druid"],
+    "apache.hdfs": ["apache.hdfs"],
+    "apache.hive": ["apache.hive"],
+    "apache.kylin": ["apache.kylin"],
+    "apache.pinot": ["apache.pinot"],
+    "apache.presto": ["apache.presto"],
+    "apache.spark": ["apache.spark"],
+    "apache.webhdfs": ["apache.hdfs"],
+    'async': [],
+    'atlas': [],  # TODO: remove this in Airflow 2.1
+    'aws': ["amazon"],  # TODO: remove this in Airflow 2.1
+    'azure': ["microsoft.azure"],  # TODO: remove this in Airflow 2.1
+    'cassandra': ["apache.cassandra"],  # TODO: remove this in Airflow 2.1
+    'celery': ["celery"],
+    'cgroups': [],
+    'cloudant': ["cloudant"],
+    'cncf.kubernetes': ["cncf.kubernetes"],
+    'dask': ["dask"],
+    'databricks': ["databricks"],
+    'datadog': ["datadog"],
+    'devel': ["cncf.kubernetes", "mysql"],
+    'devel_hadoop': ["apache.hdfs", "apache.hive", "presto"],
+    'doc': [],
+    'docker': ["docker"],
+    'druid': ["apache.druid"],  # TODO: remove this in Airflow 2.1
+    'elasticsearch': ["elasticsearch"],
+    'exasol': ["exasol"],
+    'facebook': ["facebook"],
+    'gcp': ["google"],  # TODO: remove this in Airflow 2.1
+    'gcp_api': ["google"],  # TODO: remove this in Airflow 2.1
+    'github_enterprise': [],
+    'google': ["google"],
+    'google_auth': [],
+    'grpc': ["grpc"],
+    'hashicorp': ["hashicorp"],
+    'hdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 2.1
+    'hive': ["apache.hive"],  # TODO: remove this in Airflow 2.1
+    'jdbc': ["jdbc"],
+    'jira': ["jira"],
+    'kerberos': [],
+    'kubernetes': ["cncf.kubernetes"],  # TODO: remove this in Airflow 2.1
+    'ldap': [],
+    "microsoft.azure": ["microsoft.azure"],
+    "microsoft.mssql": ["microsoft.mssql"],
+    "microsoft.winrm": ["microsoft.winrm"],
+    'mongo': ["mongo"],
+    'mssql': ["microsoft.mssql"],  # TODO: remove this in Airflow 2.1
+    'mysql': ["microsoft.mssql"],
+    'odbc': ["odbc"],
+    'oracle': ["oracle"],
+    'pagerduty': ["pagerduty"],
+    'papermill': ["papermill"],
+    'password': [],
+    'pinot': ["apache.pinot"],  # TODO: remove this in Airflow 2.1
+    'plexus': ["plexus"],
+    'postgres': ["postgres"],
+    'presto': ["presto"],
+    'qds': ["qubole"],  # TODO: remove this in Airflow 2.1
+    'qubole': ["qubole"],
+    'rabbitmq': ["rabbitmq"],
+    'redis': ["redis"],
+    'salesforce': ["salesforce"],
+    'samba': ["samba"],
+    'segment': ["segment"],
+    'sendgrid': ["sendgrid"],
+    'sentry': ["sentry"],
+    'singularity': ["singularity"],
+    'slack': ["slack"],
+    'snowflake': ["snowflake"],
+    'spark': ["spark"],
+    'ssh': ["ssh"],
+    'statsd': ["statsd"],
+    'tableau': ["tableau"],
+    'vertica': ["vertica"],
+    'virtualenv': ["virtualenv"],
+    'webhdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 2.1
+    'winrm': ["microsoft.winrm"],  # TODO: remove this in Airflow 2.1
+    'yandexcloud': ["yandexcloud"],
+}
+
 
 # Make devel_all contain all providers + extras + unique
 devel_all = list(
@@ -756,6 +863,17 @@ INSTALL_REQUIREMENTS = [
     'unicodecsv>=0.14.1',
     'werkzeug~=1.0, >=1.0.1',
 ]
+
+
+def get_provider_package_from_package_id(package_id: str):
+    """
+    Builds the name of provider package out of the package id provided/
+
+    :param package_id: id of the package (like amazon or microsoft.azure)
+    :return: full name of package in PyPI
+    """
+    package_suffix = package_id.replace(".", "-")
+    return f"apache-airflow-providers-{package_suffix}"
 
 
 def do_setup():

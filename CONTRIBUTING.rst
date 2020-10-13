@@ -546,9 +546,9 @@ aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes, dask, databri
 devel_hadoop, doc, docker, druid, elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise,
 google, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap,
 microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty,
-papermill, password, pinot, plexus, postgres, presto, qds, rabbitmq, redis, salesforce, samba,
-segment, sendgrid, sentry, singularity, slack, snowflake, spark, ssh, statsd, tableau, vertica,
-virtualenv, webhdfs, winrm, yandexcloud, all, devel_ci
+papermill, password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, salesforce,
+samba, segment, sendgrid, sentry, singularity, slack, snowflake, spark, ssh, statsd, tableau,
+vertica, virtualenv, webhdfs, winrm, yandexcloud, all, devel_ci
 
   .. END EXTRAS HERE
 

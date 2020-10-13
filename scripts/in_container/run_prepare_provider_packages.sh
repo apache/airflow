@@ -24,7 +24,7 @@ LIST_OF_DIRS_FILE=$(mktemp)
 
 cd "${AIRFLOW_SOURCES}/airflow/providers" || exit 1
 
-find . -type d | sed 's/.\///; s/\//\./g' | grep -E 'hooks|operators|sensors|secrets' \
+find . -type d | sed 's/.\///; s/\//\./g' | grep -E 'hooks|operators|sensors|secrets|utils' \
     > "${LIST_OF_DIRS_FILE}"
 
 cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
