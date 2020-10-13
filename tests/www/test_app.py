@@ -209,9 +209,9 @@ class TestApp(unittest.TestCase):
     def test_should_set_sqlalchemy_engine_options(self):
         app = application.cached_app(testing=True)
         engine_params = {
-            'pool_size':  3,
-            'pool_recycle':  120,
-            'pool_pre_ping':  True,
+            'pool_size': 3,
+            'pool_recycle': 120,
+            'pool_pre_ping': True,
             'max_overflow': 5
         }
         self.assertEqual(app.config['SQLALCHEMY_ENGINE_OPTIONS'], engine_params)
