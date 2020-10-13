@@ -20,6 +20,7 @@ import datetime
 from typing import Dict, Optional, Union
 from urllib.parse import quote
 
+from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
@@ -121,13 +122,9 @@ class TriggerDagRunOperator(BaseOperator):
                 if dag_model is None:
                     raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
-                def read_store_serialized_dags():
-                    from airflow.configuration import conf
-                    return conf.getboolean('core', 'store_serialized_dags')
-
                 dag_bag = DagBag(
                     dag_folder=dag_model.fileloc,
-                    store_serialized_dags=read_store_serialized_dags()
+                    store_serialized_dags=settings.STORE_SERIALIZED_DAGS
                 )
 
                 dag = dag_bag.get_dag(self.trigger_dag_id)
