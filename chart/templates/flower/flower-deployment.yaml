@@ -18,7 +18,7 @@
 ################################
 ## Airflow Flower Deployment
 #################################
-{{- if eq .Values.executor "CeleryExecutor" }}
+{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:

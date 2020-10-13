@@ -746,8 +746,55 @@ class TestDataflowTemplateHook(unittest.TestCase):
             parameters=PARAMETERS,
             dataflow_template=TEST_TEMPLATE,
             project_id=TEST_PROJECT,
+            environment={"numWorkers": 17},
         )
         body = {"jobName": mock.ANY, "parameters": PARAMETERS, "environment": RUNTIME_ENV}
+        method.assert_called_once_with(
+            projectId=TEST_PROJECT,
+            location=DEFAULT_DATAFLOW_LOCATION,
+            gcsPath=TEST_TEMPLATE,
+            body=body,
+        )
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            job_id=TEST_JOB_ID,
+            location=DEFAULT_DATAFLOW_LOCATION,
+            name='test-dataflow-pipeline-{}'.format(MOCK_UUID),
+            num_retries=5,
+            poll_sleep=10,
+            project_number=TEST_PROJECT,
+        )
+        mock_uuid.assert_called_once_with()
+
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'), return_value=MOCK_UUID)
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_start_template_dataflow_update_runtime_env(self, mock_conn, mock_dataflowjob, mock_uuid):
+        options_with_runtime_env = copy.deepcopy(RUNTIME_ENV)
+        del options_with_runtime_env["numWorkers"]
+        runtime_env = {"numWorkers": 17}
+        expected_runtime_env = copy.deepcopy(RUNTIME_ENV)
+        expected_runtime_env.update(runtime_env)
+
+        dataflowjob_instance = mock_dataflowjob.return_value
+        dataflowjob_instance.wait_for_done.return_value = None
+        # fmt: off
+        method = (mock_conn.return_value
+                  .projects.return_value
+                  .locations.return_value
+                  .templates.return_value
+                  .launch)
+        # fmt: on
+        method.return_value.execute.return_value = {'job': {'id': TEST_JOB_ID}}
+        self.dataflow_hook.start_template_dataflow(  # pylint: disable=no-value-for-parameter
+            job_name=JOB_NAME,
+            variables=options_with_runtime_env,
+            parameters=PARAMETERS,
+            dataflow_template=TEST_TEMPLATE,
+            project_id=TEST_PROJECT,
+            environment=runtime_env,
+        )
+        body = {"jobName": mock.ANY, "parameters": PARAMETERS, "environment": expected_runtime_env}
         method.assert_called_once_with(
             projectId=TEST_PROJECT,
             location=DEFAULT_DATAFLOW_LOCATION,

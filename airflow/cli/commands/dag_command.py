@@ -385,7 +385,7 @@ def generate_pod_yaml(args):
     """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor"""
     from kubernetes.client.api_client import ApiClient
 
-    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig
+    from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
     from airflow.kubernetes import pod_generator
     from airflow.kubernetes.pod_generator import PodGenerator
     from airflow.settings import pod_mutation_hook
@@ -399,14 +399,14 @@ def generate_pod_yaml(args):
         pod = PodGenerator.construct_pod(
             dag_id=args.dag_id,
             task_id=ti.task_id,
-            pod_id=AirflowKubernetesScheduler._create_pod_id(  # pylint: disable=W0212
+            pod_id=create_pod_id(
                 args.dag_id, ti.task_id),
             try_number=ti.try_number,
             kube_image=kube_config.kube_image,
             date=ti.execution_date,
             command=ti.command_as_list(),
             pod_override_object=PodGenerator.from_obj(ti.executor_config),
-            worker_uuid="worker-config",
+            scheduler_job_id="worker-config",
             namespace=kube_config.executor_namespace,
             base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file)
         )

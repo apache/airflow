@@ -261,6 +261,7 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             dataflow_default_options={"EXTRA_OPTION": "TEST_A"},
             poll_sleep=POLL_SLEEP,
             location=TEST_LOCATION,
+            environment={"maxWorkers": 2},
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
@@ -287,4 +288,5 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             on_new_job_id_callback=mock.ANY,
             project_id=None,
             location=TEST_LOCATION,
+            environment={'maxWorkers': 2},
         )

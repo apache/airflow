@@ -357,6 +357,12 @@ class TestMySql(unittest.TestCase):
             ("mysql-connector-python",),
         ]
     )
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_AIRFLOW_DB': 'mysql://root@mysql/airflow?charset=utf8mb4&local_infile=1',
+        },
+    )
     def test_mysql_hook_test_bulk_load(self, client):
         with MySqlContext(client):
             records = ("foo", "bar", "baz")
@@ -395,6 +401,8 @@ class TestMySql(unittest.TestCase):
             if priv and priv[0]:
                 # Confirm that no error occurs
                 hook.bulk_dump("INFORMATION_SCHEMA.TABLES", os.path.join(priv[0], "TABLES_{}".format(client)))
+            elif priv == ("",):
+                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", "TABLES_{}".format(client))
             else:
                 self.skipTest("Skip test_mysql_hook_test_bulk_load " "since file output is not permitted")
 

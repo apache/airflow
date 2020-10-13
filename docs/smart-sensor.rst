@@ -21,6 +21,12 @@
 Smart Sensor
 ============
 
+.. warning::
+
+  This is an **early-access** feature and might change in incompatible ways in future Airflow versions.
+  However this feature can be considered bug-free, and AirB'n'B has been using this feature in Production
+  since early 2020 and has significantly reduced their costs for heavy use of sensors.
+
 The smart sensor is a service (run by a builtin DAG) which greatly reduces airflow’s infrastructure
 cost by consolidating some of the airflow long running light weight tasks.
 

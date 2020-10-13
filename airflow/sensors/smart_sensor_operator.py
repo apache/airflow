@@ -499,18 +499,18 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 sensor_work.log.exception(e, exc_info=True)
 
         def handle_failure(sensor_work, ti):
-            if sensor_work.execution_context.get('retries', None) and \
+            if sensor_work.execution_context.get('retries') and \
                     ti.try_number <= ti.max_tries:
                 # retry
                 ti.state = State.UP_FOR_RETRY
-                if sensor_work.execution_context.get('email_on_retry', None) and \
-                        sensor_work.execution_context.get('email', None):
+                if sensor_work.execution_context.get('email_on_retry') and \
+                        sensor_work.execution_context.get('email'):
                     sensor_work.log.info("%s sending email alert for retry", sensor_work.ti_key)
                     email_alert(ti, error)
             else:
                 ti.state = State.FAILED
-                if sensor_work.execution_context.get('email_on_failure', None) and \
-                        sensor_work.execution_context.get('email', None):
+                if sensor_work.execution_context.get('email_on_failure') and \
+                        sensor_work.execution_context.get('email'):
                     sensor_work.log.info("%s sending email alert for failure", sensor_work.ti_key)
                     email_alert(ti, error)
 
@@ -566,7 +566,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         :param sensor_work: SensorWork
         """
         task_timeout = sensor_work.execution_context.get('timeout', self.timeout)
-        task_execution_timeout = sensor_work.execution_context.get('execution_timeout', None)
+        task_execution_timeout = sensor_work.execution_context.get('execution_timeout')
         if task_execution_timeout:
             task_timeout = min(task_timeout, task_execution_timeout)
 

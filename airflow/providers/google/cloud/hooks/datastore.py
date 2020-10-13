@@ -22,9 +22,9 @@ This module contains Google Datastore hook.
 
 import time
 import warnings
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build, Resource
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
@@ -64,7 +64,7 @@ class DatastoreHook(GoogleBaseHook):
         self.connection = None
         self.api_version = api_version
 
-    def get_conn(self) -> Any:
+    def get_conn(self) -> Resource:
         """
         Establishes a connection to the Google API.
 
@@ -80,7 +80,7 @@ class DatastoreHook(GoogleBaseHook):
         return self.connection
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def allocate_ids(self, partial_keys: List, project_id: str) -> List:
+    def allocate_ids(self, partial_keys: list, project_id: str) -> list:
         """
         Allocate IDs for incomplete keys.
 
@@ -130,7 +130,7 @@ class DatastoreHook(GoogleBaseHook):
         return resp['transaction']
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def commit(self, body: Dict, project_id: str) -> Dict:
+    def commit(self, body: dict, project_id: str) -> dict:
         """
         Commit a transaction, optionally creating, deleting or modifying some entities.
 
@@ -157,11 +157,11 @@ class DatastoreHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def lookup(
         self,
-        keys: List,
+        keys: list,
         project_id: str,
         read_consistency: Optional[str] = None,
         transaction: Optional[str] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Lookup some entities by key.
 
@@ -196,7 +196,7 @@ class DatastoreHook(GoogleBaseHook):
         return resp
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def rollback(self, transaction: str, project_id: str) -> Any:
+    def rollback(self, transaction: str, project_id: str) -> None:
         """
         Roll back a transaction.
 
@@ -208,14 +208,14 @@ class DatastoreHook(GoogleBaseHook):
         :param project_id: Google Cloud project ID against which to make the request.
         :type project_id: str
         """
-        conn = self.get_conn()  # type: Any
+        conn: Any = self.get_conn()
 
         conn.projects().rollback(  # pylint: disable=no-member
             projectId=project_id, body={'transaction': transaction}
         ).execute(num_retries=self.num_retries)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def run_query(self, body: Dict, project_id: str) -> Dict:
+    def run_query(self, body: dict, project_id: str) -> dict:
         """
         Run a query for entities.
 
@@ -239,7 +239,7 @@ class DatastoreHook(GoogleBaseHook):
 
         return resp['batch']
 
-    def get_operation(self, name: str) -> Dict:
+    def get_operation(self, name: str) -> dict:
         """
         Gets the latest state of a long-running operation.
 
@@ -251,7 +251,7 @@ class DatastoreHook(GoogleBaseHook):
         :return: a resource operation instance.
         :rtype: dict
         """
-        conn = self.get_conn()  # type: Any
+        conn: Any = self.get_conn()
 
         resp = (
             conn.projects()  # pylint: disable=no-member
@@ -262,7 +262,7 @@ class DatastoreHook(GoogleBaseHook):
 
         return resp
 
-    def delete_operation(self, name: str) -> Dict:
+    def delete_operation(self, name: str) -> dict:
         """
         Deletes the long-running operation.
 
@@ -314,9 +314,9 @@ class DatastoreHook(GoogleBaseHook):
         bucket: str,
         project_id: str,
         namespace: Optional[str] = None,
-        entity_filter: Optional[Dict] = None,
+        entity_filter: Optional[dict] = None,
         labels: Optional[Dict[str, str]] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Export entities from Cloud Datastore to Cloud Storage for backup.
 
@@ -366,9 +366,9 @@ class DatastoreHook(GoogleBaseHook):
         file: str,
         project_id: str,
         namespace: Optional[str] = None,
-        entity_filter: Optional[Dict] = None,
-        labels: Optional[Union[Dict, str]] = None,
-    ) -> Dict:
+        entity_filter: Optional[dict] = None,
+        labels: Optional[Union[dict, str]] = None,
+    ) -> dict:
         """
         Import a backup from Cloud Storage to Cloud Datastore.
 

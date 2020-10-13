@@ -261,7 +261,7 @@ Running CI Builds locally
 The following variables are automatically determined based on CI environment variables.
 You can locally by setting ``CI="true"`` and run the ci scripts from the ``scripts/ci`` folder:
 
-* ``backport_packages`` - scripts to build and test backport packages
+* ``provider_packages`` - scripts to build and test provider packages
 * ``constraints`` - scripts to build and publish latest set of valid constraints
 * ``docs`` - scripts to build documentation
 * ``images`` - scripts to build and push CI and PROD images
@@ -688,7 +688,7 @@ you need to reproduce a MySQL environment with kerberos integration enabled for 
 
 .. code-block:: bash
 
-  ./breeze --github-image-id:210056909 --python 3.8 --integration kerberos
+  ./breeze --github-image-id 210056909 --python 3.8 --integration kerberos
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in

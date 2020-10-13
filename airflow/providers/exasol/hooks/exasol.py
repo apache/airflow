@@ -20,7 +20,6 @@ from contextlib import closing
 from typing import Union, Optional, List, Tuple, Any
 
 import pyexasol
-from past.builtins import basestring
 from pyexasol import ExaConnection
 
 from airflow.hooks.dbapi_hook import DbApiHook
@@ -122,7 +121,7 @@ class ExasolHook(DbApiHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
         """
-        if isinstance(sql, basestring):
+        if isinstance(sql, str):
             sql = [sql]
 
         with closing(self.get_conn()) as conn:
@@ -149,7 +148,7 @@ class ExasolHook(DbApiHook):
         """
         if not self.supports_autocommit and autocommit:
             self.log.warning(
-                "%s connection doesn't support " "autocommit but autocommit activated.",
+                "%s connection doesn't support autocommit but autocommit activated.",
                 getattr(self, self.conn_name_attr),
             )
         conn.set_autocommit(autocommit)

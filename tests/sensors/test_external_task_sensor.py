@@ -572,7 +572,7 @@ def test_external_task_marker_exception(dag_bag_ext):
 @pytest.fixture
 def dag_bag_cyclic():
     """
-    Create a DagBag with DAGs having cyclic dependenceis set up by ExternalTaskMarker and
+    Create a DagBag with DAGs having cyclic dependencies set up by ExternalTaskMarker and
     ExternalTaskSensor.
 
     dag_0:   task_a_0 >> task_b_0

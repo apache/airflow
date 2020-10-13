@@ -23,11 +23,12 @@ import mock
 from parameterized import parameterized
 
 from airflow import models, settings
-from airflow.models import DAG, DagBag, TaskInstance as TI, clear_task_instances
+from airflow.models import DAG, DagBag, DagModel, TaskInstance as TI, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.utils import timezone
+from airflow.utils.callback_requests import DagCallbackRequest
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
@@ -327,8 +328,10 @@ class TestDagRun(unittest.TestCase):
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
-        dag_run.update_state()
+        _, callback = dag_run.update_state()
         self.assertEqual(State.SUCCESS, dag_run.state)
+        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        self.assertIsNone(callback)
 
     def test_dagrun_failure_callback(self):
         def on_failure_callable(context):
@@ -358,8 +361,88 @@ class TestDagRun(unittest.TestCase):
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
-        dag_run.update_state()
+        _, callback = dag_run.update_state()
         self.assertEqual(State.FAILED, dag_run.state)
+        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+        self.assertIsNone(callback)
+
+    def test_dagrun_update_state_with_handle_callback_success(self):
+        def on_success_callable(context):
+            self.assertEqual(
+                context['dag_run'].dag_id,
+                'test_dagrun_update_state_with_handle_callback_success'
+            )
+
+        dag = DAG(
+            dag_id='test_dagrun_update_state_with_handle_callback_success',
+            start_date=datetime.datetime(2017, 1, 1),
+            on_success_callback=on_success_callable,
+        )
+        dag_task1 = DummyOperator(
+            task_id='test_state_succeeded1',
+            dag=dag)
+        dag_task2 = DummyOperator(
+            task_id='test_state_succeeded2',
+            dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            'test_state_succeeded1': State.SUCCESS,
+            'test_state_succeeded2': State.SUCCESS,
+        }
+
+        dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
+
+        _, callback = dag_run.update_state(execute_callbacks=False)
+        self.assertEqual(State.SUCCESS, dag_run.state)
+        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+
+        assert callback == DagCallbackRequest(
+            full_filepath=dag_run.dag.fileloc,
+            dag_id="test_dagrun_update_state_with_handle_callback_success",
+            execution_date=dag_run.execution_date,
+            is_failure_callback=False,
+            msg="success"
+        )
+
+    def test_dagrun_update_state_with_handle_callback_failure(self):
+        def on_failure_callable(context):
+            self.assertEqual(
+                context['dag_run'].dag_id,
+                'test_dagrun_update_state_with_handle_callback_failure'
+            )
+
+        dag = DAG(
+            dag_id='test_dagrun_update_state_with_handle_callback_failure',
+            start_date=datetime.datetime(2017, 1, 1),
+            on_failure_callback=on_failure_callable,
+        )
+        dag_task1 = DummyOperator(
+            task_id='test_state_succeeded1',
+            dag=dag)
+        dag_task2 = DummyOperator(
+            task_id='test_state_failed2',
+            dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            'test_state_succeeded1': State.SUCCESS,
+            'test_state_failed2': State.FAILED,
+        }
+
+        dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
+
+        _, callback = dag_run.update_state(execute_callbacks=False)
+        self.assertEqual(State.FAILED, dag_run.state)
+        # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
+
+        assert callback == DagCallbackRequest(
+            full_filepath=dag_run.dag.fileloc,
+            dag_id="test_dagrun_update_state_with_handle_callback_failure",
+            execution_date=dag_run.execution_date,
+            is_failure_callback=True,
+            msg="task_failure"
+        )
 
     def test_dagrun_set_state_end_date(self):
         session = settings.Session()
@@ -662,3 +745,45 @@ class TestDagRun(unittest.TestCase):
         ti.set_state(State.QUEUED)
         ti.run()
         self.assertEqual(ti.state == State.SUCCESS, is_ti_success)
+
+    def test_next_dagruns_to_examine_only_unpaused(self):
+        """
+        Check that "next_dagruns_to_examine" ignores runs from paused/inactive DAGs
+        """
+
+        dag = DAG(
+            dag_id='test_dags',
+            start_date=DEFAULT_DATE)
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            has_task_concurrency_limits=False,
+            next_dagrun=dag.start_date,
+            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
+            is_active=True,
+        )
+        session.add(orm_dag)
+        session.flush()
+        dr = dag.create_dagrun(run_type=DagRunType.SCHEDULED,
+                               state=State.RUNNING,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE,
+                               session=session)
+
+        runs = DagRun.next_dagruns_to_examine(session).all()
+
+        assert runs == [dr]
+
+        orm_dag.is_paused = True
+        session.flush()
+
+        runs = DagRun.next_dagruns_to_examine(session).all()
+        assert runs == []
+
+        session.rollback()
+        session.close()

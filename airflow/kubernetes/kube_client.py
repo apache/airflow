@@ -65,6 +65,33 @@ except ImportError as e:
     _import_err = e
 
 
+def _enable_tcp_keepalive() -> None:
+    """
+    This function enables TCP keepalive mechanism. This prevents urllib3 connection
+    to hang indefinitely when idle connection is time-outed on services like cloud
+    load balancers or firewalls.
+
+    See https://github.com/apache/airflow/pull/11406 for detailed explanation.
+    Please ping @michalmisiewicz or @dimberman in the PR if you want to modify this function.
+    """
+    import socket
+
+    from urllib3.connection import HTTPConnection, HTTPSConnection
+
+    tcp_keep_idle = conf.get('kubernetes', 'tcp_keep_idle', fallback=120)
+    tcp_keep_intvl = conf.get('kubernetes', 'tcp_keep_intvl', fallback=30)
+    tcp_keep_cnt = conf.get('kubernetes', 'tcp_keep_cnt', fallback=6)
+
+    socket_options = [
+        (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
+        (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle),
+        (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl),
+        (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt),
+    ]
+    HTTPSConnection.default_socket_options = HTTPSConnection.default_socket_options + socket_options
+    HTTPConnection.default_socket_options = HTTPConnection.default_socket_options + socket_options
+
+
 def get_kube_client(in_cluster: bool = conf.getboolean('kubernetes', 'in_cluster'),
                     cluster_context: Optional[str] = None,
                     config_file: Optional[str] = None) -> client.CoreV1Api:
@@ -88,6 +115,9 @@ def get_kube_client(in_cluster: bool = conf.getboolean('kubernetes', 'in_cluster
             cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
         if config_file is None:
             config_file = conf.get('kubernetes', 'config_file', fallback=None)
+
+    if conf.getboolean('kubernetes', 'enable_tcp_keepalive', fallback=False):
+        _enable_tcp_keepalive()
 
     client_conf = _get_kube_config(in_cluster, cluster_context, config_file)
     return _get_client_with_patched_configuration(client_conf)

@@ -21,10 +21,9 @@ import os
 import psutil
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 
+from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.process_utils import reap_process_group
-
-CAN_FORK = hasattr(os, "fork")
 
 
 class StandardTaskRunner(BaseTaskRunner):
@@ -109,7 +108,10 @@ class StandardTaskRunner(BaseTaskRunner):
         if self.process is None:
             return
 
-        if self.process.is_running():
+        # Reap the child process - it may already be finished
+        _ = self.return_code(timeout=0)
+
+        if self.process and self.process.is_running():
             rcs = reap_process_group(self.process.pid, self.log)
             self._rc = rcs.get(self.process.pid)
 

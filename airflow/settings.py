@@ -365,3 +365,25 @@ STORE_DAG_CODE = conf.getboolean("core", "store_dag_code", fallback=STORE_SERIAL
 # to get all the logs from the print & log statements in the DAG files before a task is run
 # The handlers are restored after the task completes execution.
 DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
+
+CAN_FORK = hasattr(os, "fork")
+
+EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
+    'core',
+    'execute_tasks_new_python_interpreter',
+    fallback=False,
+)
+
+ALLOW_FUTURE_EXEC_DATES = conf.getboolean('scheduler', 'allow_trigger_in_future', fallback=False)
+
+# Whether or not to check each dagrun against defined SLAs
+CHECK_SLAS = conf.getboolean('core', 'check_slas', fallback=True)
+
+# Number of times, the code should be retried in case of DB Operational Errors
+# Retries are done using tenacity. Not all transactions should be retried as it can cause
+# undesired state.
+# Currently used in the following places:
+# `DagFileProcessor.process_file` to retry `dagbag.sync_to_db`
+MAX_DB_RETRIES = conf.getint('core', 'max_db_retries', fallback=3)
+
+USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=True)

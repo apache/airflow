@@ -34,6 +34,12 @@ function initialization::create_directories() {
     export FILES_DIR="${AIRFLOW_SOURCES}/files"
     readonly FILES_DIR
 
+    # Create an empty .pypirc file that you can customise. It is .gitignored so it will never
+    # land in the repository - it is only added to the "build image" of production image
+    # So you can keep your credentials safe as long as you do not push the build image.
+    # The final image does not contain it.
+    touch "${AIRFLOW_SOURCES}/.pypirc"
+
     # Directory where all the build cache is stored - we keep there status of all the docker images
     # As well as hashes of the important files, but also we generate build scripts there that are
     # Used to execute the commands for breeze
@@ -95,8 +101,8 @@ function initialization::initialize_base_variables() {
     CURRENT_POSTGRES_VERSIONS+=("9.6" "10")
     export CURRENT_POSTGRES_VERSIONS
 
-   # Currently supported versions of MySQL
-    CURRENT_MYSQL_VERSIONS+=("5.7")
+    # Currently supported versions of MySQL
+    CURRENT_MYSQL_VERSIONS+=("5.7" "8")
     export CURRENT_MYSQL_VERSIONS
 
     # Default Postgres versions
@@ -111,9 +117,19 @@ function initialization::initialize_base_variables() {
     # If set to true, the database will be initialized, a user created and webserver and scheduler started
     export START_AIRFLOW=${START_AIRFLOW:="false"}
 
+    # If set to true, the sample dags will be used
     export LOAD_EXAMPLES=${LOAD_EXAMPLES:="false"}
 
+    # If set to true, the test connections will be created
     export LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS:="false"}
+
+    # If set to true, RBAC UI will not be used for 1.10 version
+    export DISABLE_RBAC=${DISABLE_RBAC:="false"}
+
+    # if set to true, the ci image will look for wheel packages in dist folder and will install them
+    # during entering the container
+    export INSTALL_WHEELS=${INSTALL_WHEELS:="false"}
+
     # If set the specified file will be used to initialized Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
     export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
@@ -159,7 +175,6 @@ function initialization::initialize_available_integrations() {
     export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
 }
 
-
 # Needs to be declared outside of function for MacOS
 FILES_FOR_REBUILD_CHECK=()
 
@@ -176,7 +191,6 @@ function initialization::initialize_files_for_rebuild_check() {
         "airflow/www/webpack.config.js"
     )
 }
-
 
 # Needs to be declared outside of function for MacOS
 
@@ -246,6 +260,8 @@ function initialization::initialize_force_variables() {
     # Can be set to true to skip if the image is newer in registry
     export SKIP_CHECK_REMOTE_IMAGE=${SKIP_CHECK_REMOTE_IMAGE:="false"}
 
+    # Should be set to true if you expect image frm GitHub to be present and downloaded
+    export FAIL_ON_GITHUB_DOCKER_PULL_ERROR=${FAIL_ON_GITHUB_DOCKER_PULL_ERROR:="false"}
 }
 
 # Determine information about the host
@@ -341,9 +357,17 @@ function initialization::initialize_image_build_variables() {
     export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
     # additional tag for the image
     export IMAGE_TAG=${IMAGE_TAG:=""}
+
+    # whether installation should be performed from the local wheel packages in "docker-context-files" folder
+    export AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS:="false"}"
+    # reference to CONSTRAINTS. they can be overwritten manually or replaced with AIRFLOW_CONSTRAINTS_LOCATION
+    export AIRFLOW_CONSTRAINTS_REFERENCE="${AIRFLOW_CONSTRAINTS_REFERENCE:=""}"
+    # direct constraints Location - can be URL or path to local file. If empty, it will be calculated
+    # based on which Airflow version is installed and from where
+    export AIRFLOW_CONSTRAINTS_LOCATION="${AIRFLOW_CONSTRAINTS_LOCATION:=""}"
 }
 
-# Determine version suffixes used to build backport packages
+# Determine version suffixes used to build provider packages
 function initialization::initialize_version_suffixes_for_package_building() {
     # Version suffix for PyPI packaging
     export VERSION_SUFFIX_FOR_PYPI=""
@@ -418,8 +442,10 @@ function initialization::initialize_github_variables() {
     # Used only in CI environment
     export GITHUB_TOKEN="${GITHUB_TOKEN=""}"
     export GITHUB_USERNAME="${GITHUB_USERNAME=""}"
+}
 
-
+function initialization::initialize_test_variables() {
+    export TEST_TYPE=${TEST_TYPE:="All"}
 }
 
 # Common environment that is initialized by both Breeze and CI scripts
@@ -438,6 +464,7 @@ function initialization::initialize_common_environment() {
     initialization::initialize_kubernetes_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables
+    initialization::initialize_test_variables
 }
 
 function initialization::set_default_python_version_if_empty() {
@@ -476,6 +503,7 @@ Force variables:
     FORCE_BUILD_IMAGES: ${FORCE_BUILD_IMAGES}
     FORCE_ANSWER_TO_QUESTIONS: ${FORCE_ANSWER_TO_QUESTIONS}
     SKIP_CHECK_REMOTE_IMAGE: ${SKIP_CHECK_REMOTE_IMAGE}
+    FAIL_ON_GITHUB_DOCKER_PULL_ERROR: ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR}
 
 Host variables:
 
@@ -537,6 +565,12 @@ Initialization variables:
     INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE}
     LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
     LOAD_EXAMPLES: ${LOAD_EXAMPLES}
+    INSTALL_WHEELS: ${INSTALL_WHEELS}
+    DISABLE_RBAC: ${DISABLE_RBAC}
+
+Test variables:
+
+    TEST_TYPE: ${TEST_TYPE}
 
 EOF
 
@@ -609,7 +643,6 @@ function initialization::make_constants_read_only() {
     readonly POSTGRES_HOST_PORT
     readonly MYSQL_HOST_PORT
 
-
     readonly HOST_USER_ID
     readonly HOST_GROUP_ID
     readonly HOST_AIRFLOW_SOURCES
@@ -653,6 +686,10 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
+    readonly AIRFLOW_LOCAL_PIP_WHEELS
+    readonly AIRFLOW_CONSTRAINTS_REFERENCE
+    readonly AIRFLOW_CONSTRAINTS_LOCATION
+
     # AIRFLOW_EXTRAS are made readonly by the time the image is built (either PROD or CI)
     readonly ADDITIONAL_AIRFLOW_EXTRAS
     readonly ADDITIONAL_PYTHON_DEPS
@@ -687,7 +724,6 @@ function initialization::make_constants_read_only() {
     readonly GITHUB_TOKEN
     readonly GITHUB_USERNAME
 
-
     readonly FORWARD_CREDENTIALS
     readonly USE_GITHUB_REGISTRY
 
@@ -711,20 +747,17 @@ function initialization::make_constants_read_only() {
 
 }
 
-
 # converts parameters to json array
 function initialization::parameters_to_json() {
     echo -n "["
     local separator=""
     local var
-    for var in "${@}"
-    do
+    for var in "${@}"; do
         echo -n "${separator}\"${var}\""
         separator=","
     done
     echo "]"
 }
-
 
 # output parameter name and value - both to stdout and to be set by GitHub Actions
 function initialization::ga_output() {

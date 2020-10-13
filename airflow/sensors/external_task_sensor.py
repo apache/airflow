@@ -19,16 +19,29 @@
 import datetime
 import os
 from typing import FrozenSet, Optional, Union
+from urllib.parse import quote
 
 from sqlalchemy import func
 
 from airflow.exceptions import AirflowException
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+
+
+class ExternalTaskSensorLink(BaseOperatorLink):
+    """
+    Operator link for ExternalTaskSensor. It allows users to access
+    DAG waited with ExternalTaskSensor.
+    """
+
+    name = 'External DAG'
+
+    def get_link(self, operator, dttm):
+        return f"/graph?dag_id={operator.external_dag_id}&root=&execution_date={quote(dttm.isoformat())}"
 
 
 class ExternalTaskSensor(BaseSensorOperator):
@@ -65,6 +78,13 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     template_fields = ['external_dag_id', 'external_task_id']
     ui_color = '#19647e'
+
+    @property
+    def operator_extra_links(self):
+        """
+        Return operator extra links
+        """
+        return [ExternalTaskSensorLink()]
 
     @apply_defaults
     def __init__(self, *,

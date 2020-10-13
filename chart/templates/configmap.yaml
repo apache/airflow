@@ -47,15 +47,15 @@ data:
     {{- .Values.webserver.webserverConfig | nindent 4 }}
 {{- end }}
 
-{{- if .Values.scheduler.airflowLocalSettings }}
   airflow_local_settings.py: |
+{{- if .Values.scheduler.airflowLocalSettings }}
     {{ .Values.scheduler.airflowLocalSettings | nindent 4 }}
 {{- end }}
 {{- if and .Values.dags.gitSync.enabled  .Values.dags.gitSync.knownHosts }}
   known_hosts: |
     {{ .Values.dags.gitSync.knownHosts | nindent 4 }}
 {{- end }}
-{{- if eq .Values.executor "KubernetesExecutor" }}
+{{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
   pod_template_file.yaml: |-
 {{- if .Values.podTemplate }}
     {{ .Values.podTemplate | nindent 4 }}

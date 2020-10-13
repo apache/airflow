@@ -165,6 +165,7 @@
     - name: dag_concurrency
       description: |
         The number of task instances allowed to run concurrently by the scheduler
+        in one DAG. Can be overridden by ``concurrency`` on DAG level.
       version_added: ~
       type: string
       example: ~
@@ -208,6 +209,16 @@
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/plugins"
+    - name: execute_tasks_new_python_interpreter
+      description: |
+        Should tasks be executed via forking of the parent process ("False",
+        the speedier option) or by spawning a new python process ("True" slow,
+        but means plugin changes picked up by tasks straight away)
+      default: "False"
+      example: ~
+      version_added: "2.0.0"
+      see_also: ":ref:`plugins:loading`"
+      type: boolean
     - name: fernet_key
       description: |
         Secret key to save connection passwords in the db
@@ -229,6 +240,21 @@
       type: string
       example: ~
       default: "30"
+    - name: dagbag_import_error_tracebacks
+      description: |
+        Should a traceback be shown in the UI for dagbag import errors,
+        instead of just the exception message
+      version_added: 2.0.0
+      type: boolean
+      example: ~
+      default: "True"
+    - name: dagbag_import_error_traceback_depth
+      description: |
+        If tracebacks are shown, how many entries from the traceback should be shown
+      version_added: 2.0.0
+      type: integer
+      example: ~
+      default: "2"
     - name: dag_file_processor_timeout
       description: |
         How long before timing out a DagFileProcessor, which processes a dag file
@@ -322,7 +348,7 @@
       version_added: 1.10.7
       type: string
       example: ~
-      default: "False"
+      default: "True"
     - name: min_serialized_dag_update_interval
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
@@ -534,6 +560,15 @@
       type: string
       example: "connexion,sqlalchemy"
       default: ""
+    - name: max_db_retries
+      description: |
+        Number of times the code should be retried in case of DB Operational Errors.
+        Not all transactions will be retried as it can cause undesired state.
+        Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
+      version_added: ~
+      type: int
+      example: ~
+      default: "3"
 - name: secrets
   description: ~
   options:
@@ -956,7 +991,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "#007A87"
+      default: "#fff"
     - name: default_dag_run_display_number
       description: |
         Default dagrun to show in UI
@@ -1547,6 +1582,41 @@
       type: string
       example: ~
       default: "512"
+    - name: use_row_level_locking
+      description: |
+        Should the scheduler issue `SELECT ... FOR UPDATE` in relevant queries.
+        If this is set to False then you should not run more than a single
+        scheduler at once
+      version_added: 2.0.0
+      type: boolean
+      example: ~
+      default: "True"
+    - name: max_dagruns_to_create_per_loop
+      description: |
+        This changes the number of dags that are locked by each scheduler when
+        creating dag runs. One possible reason for setting this lower is if you
+        have huge dags and are running multiple schedules, you won't want one
+        scheduler to do all the work.
+
+        Default: 10
+      example: ~
+      version_added: 2.0.0
+      type: string
+      default: ~
+    - name: max_dagruns_per_loop_to_schedule
+      description: |
+        How many DagRuns should a scheduler examine (and lock) when scheduling
+        and queuing tasks. Increasing this limit will allow more throughput for
+        smaller DAGs but will likely slow down throughput for larger (>500
+        tasks for example) DAGs. Setting this too high when using multiple
+        schedulers could also lead to one scheduler taking all the dag runs
+        leaving no work for the others.
+
+        Default: 20
+      example: ~
+      version_added: 2.0.0
+      type: string
+      default: ~
     - name: statsd_on
       description: |
         Statsd (https://github.com/etsy/statsd) integration settings
@@ -1957,6 +2027,39 @@
       type: string
       example: '{"grace_period_seconds": 10}'
       default: ""
+    - name: enable_tcp_keepalive
+      description: |
+        Enables TCP keepalive mechanism. This prevents Kubernetes API requests to hang indefinitely
+        when idle connection is time-outed on services like cloud load balancers or firewalls.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
+    - name: tcp_keep_idle
+      description: |
+        When the `enable_tcp_keepalive` option is enabled, TCP probes a connection that has
+        been idle for `tcp_keep_idle` seconds.
+      version_added: ~
+      type: int
+      example: ~
+      default: "120"
+    - name: tcp_keep_intvl
+      description: |
+        When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
+        to a keepalive probe, TCP retransmits the probe after `tcp_keep_intvl` seconds.
+      version_added: ~
+      type: int
+      example: ~
+      default: "30"
+    - name: tcp_keep_cnt
+      description: |
+        When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
+        to a keepalive probe, TCP retransmits the probe `tcp_keep_cnt number` of times before
+        a connection is considered to be broken.
+      version_added: ~
+      type: int
+      example: ~
+      default: "6"
 - name: smart_sensor
   description: ~
   options:

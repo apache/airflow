@@ -18,7 +18,7 @@
 import csv
 from operator import attrgetter
 from tempfile import NamedTemporaryFile
-from typing import Dict, List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
@@ -106,7 +106,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         service = GoogleAdsHook(gcp_conn_id=self.gcp_conn_id, google_ads_conn_id=self.google_ads_conn_id)
         rows = service.search(client_ids=self.client_ids, query=self.query, page_size=self.page_size)
 

@@ -97,7 +97,7 @@ def patch_connection(connection_id, session, update_mask=None):
             "Connection not found",
             detail=f"The Connection with connection_id: `{connection_id}` was not found",
         )
-    if data.get('conn_id', None) and connection.conn_id != data['conn_id']:
+    if data.get('conn_id') and connection.conn_id != data['conn_id']:
         raise BadRequest(detail="The connection_id cannot be updated.")
     if update_mask:
         update_mask = [i.strip() for i in update_mask]

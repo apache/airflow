@@ -69,7 +69,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         """
         return 'projects/{}/locations/{}'.format(project_id, location)
 
-    def get_conn(self):
+    def get_conn(self) -> build:
         """
         Retrieves the connection to Cloud Functions.
 
@@ -83,7 +83,7 @@ class CloudFunctionsHook(GoogleBaseHook):
             )
         return self._conn
 
-    def get_function(self, name: str) -> Dict:
+    def get_function(self, name: str) -> dict:
         """
         Returns the Cloud Function with the given name.
 
@@ -98,7 +98,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         # fmt: on
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_new_function(self, location: str, body: Dict, project_id: str) -> None:
+    def create_new_function(self, location: str, body: dict, project_id: str) -> None:
         """
         Creates a new function in Cloud Function in the location specified in the body.
 
@@ -120,7 +120,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    def update_function(self, name: str, body: Dict, update_mask: List[str]) -> None:
+    def update_function(self, name: str, body: dict, update_mask: List[str]) -> None:
         """
         Updates Cloud Functions according to the specified update mask.
 
@@ -202,7 +202,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         input_data: Dict,
         location: str,
         project_id: str,
-    ) -> Dict:
+    ) -> dict:
         """
         Synchronously invokes a deployed Cloud Function. To be used for testing
         purposes as very limited traffic is allowed.
@@ -231,7 +231,7 @@ class CloudFunctionsHook(GoogleBaseHook):
             raise AirflowException(response['error'])
         return response
 
-    def _wait_for_operation_to_complete(self, operation_name: str) -> Dict:
+    def _wait_for_operation_to_complete(self, operation_name: str) -> dict:
         """
         Waits for the named operation to complete - checks status of the
         asynchronous call.

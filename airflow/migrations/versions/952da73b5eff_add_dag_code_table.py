@@ -59,7 +59,7 @@ def upgrade():
                     sa.Column('last_updated', sa.TIMESTAMP(timezone=True), nullable=False))
 
     conn = op.get_bind()
-    if conn.dialect.name not in ('sqlite'):
+    if conn.dialect.name != 'sqlite':
         if conn.dialect.name == "mssql":
             op.drop_index('idx_fileloc_hash', 'serialized_dag')
 

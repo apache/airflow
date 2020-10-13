@@ -23,6 +23,10 @@
             "description": "Default airflow tag to deploy.",
             "type": "string"
         },
+        "multi_namespaceMode": {
+          "description": "Whether the KubernetesExecutor can launch workers in multiple namespaces",
+          "type": "boolean"
+        },
         "nodeSelector": {
             "description": "Select certain nodes for airflow pods.",
             "type": "object",
@@ -463,13 +467,29 @@
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
                     "type": "boolean"
+                },
+                "serviceAccountAnnotations": {
+                  "description": "Annotations to add to the worker kubernetes service account.",
+                  "type": "object"
                 }
-            }
+              },
+          "extraVolumes": {
+            "description": "Mount additional volumes into workers.",
+            "type": "array"
+          },
+          "extraVolumeMounts": {
+            "description": "Mount additional volumes into workers.",
+            "type": "array"
+          }
         },
         "scheduler": {
             "description": "Airflow scheduler settings.",
             "type": "object",
             "properties": {
+                "replicas": {
+                  "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
+                  "type": "integer"
+                },
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
                     "type": "object",
@@ -503,8 +523,20 @@
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
                     "type": "boolean"
+                },
+                "serviceAccountAnnotations": {
+                  "description": "Annotations to add to the scheduler kubernetes service account.",
+                  "type": "object"
                 }
-            }
+            },
+          "extraVolumes": {
+            "description": "Mount additional volumes into scheduler.",
+            "type": "array"
+          },
+          "extraVolumeMounts": {
+            "description": "Mount additional volumes into scheduler.",
+            "type": "array"
+          }
         },
         "webserver": {
             "description": "Airflow webserver settings.",
@@ -627,6 +659,10 @@
                             "type": "object"
                         }
                     }
+                },
+                "serviceAccountAnnotations": {
+                  "description": "Annotations to add to the webserver kubernetes service account.",
+                  "type": "object"
                 }
             }
         },
@@ -748,6 +784,33 @@
                 "logConnections": {
                     "description": "Log successful logins.",
                     "type": "integer"
+                },
+                "sslmode": {
+                    "description": "SSL mode for pgbouncer.",
+                    "type": "string",
+                    "enum": ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"]
+                },
+                "ciphers": {
+                    "description": "The allowed ciphers, might be 'fast', 'normal' or list ciphers separated with ':'.",
+                    "type": "string"
+                },
+                "ssl": {
+                    "description": "SSL certificates for pgbouncer connection.",
+                    "type": "object",
+                    "properties": {
+                        "ca": {
+                            "description": "Certificate Authority for server side",
+                            "type": ["string", "null"]
+                        },
+                        "cert": {
+                            "description": "Server Certificate for server side",
+                            "type": ["string", "null"]
+                        },
+                        "key": {
+                            "description": "Private key used to authenticate with the server",
+                            "type": ["string", "null"]
+                        }
+                    }
                 }
             }
         },
@@ -777,6 +840,16 @@
                                 "string",
                                 "null"
                             ]
+                        }
+                    }
+                },
+                "kerberosSidecar": {
+                    "description": "Run a side car in each worker pod to refresh Kerberos ccache with `airflow kerberos` according to the airflow security configuration",
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable Kerberos side car on worker pods.",
+                            "type": "boolean"
                         }
                     }
                 },
@@ -1050,6 +1123,44 @@
                     }
                 }
             }
+        },
+        "kerberos": {
+            "description": "Kerberos configurations for airflow",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Enable kerberos.",
+                    "type": "boolean"
+                },
+                "ccacheMountPath": {
+                    "description": "Path to mount shared volume for kerberos credentials cache.",
+                    "type": "string"
+                },
+                "ccacheFileName": {
+                    "description": "Name for kerberos credentials cache file.",
+                    "type": "string"
+                },
+                "configPath":{
+                    "description": "Path to mount krb5.conf kerberos configuration file.",
+                    "type": "string"
+                },
+                "keytabPath":{
+                    "description": "Path to mount the keytab for refreshing credentials in the kerberos sidecar.",
+                    "type": "string"
+                },
+                "principal":{
+                    "description": "Principal to use when refreshing kerberos credentials.",
+                    "type": "string"
+                },
+                "reinitFrequency": {
+                    "description": "How often (in seconds) airflow kerberos will reinitialize the credentials cache.",
+                    "type": "integer"
+                },
+                "config": {
+                    "description": "Contents of krb5.conf.",
+                    "type": "string"
+                }
+              }
         }
     }
 }

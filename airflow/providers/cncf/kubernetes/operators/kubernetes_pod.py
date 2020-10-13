@@ -50,7 +50,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param namespace: the namespace to run within kubernetes.
     :type namespace: str
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
-        but fully qualified URLS will point to custom repositories.
+        but fully qualified URLS will point to custom repositories. (templated)
     :type image: str
     :param name: name of the pod in which the task will run, will be used (plus a random
         suffix) to generate a pod id (DNS-1123 subdomain, containing only [a-z0-9.-]).
@@ -79,7 +79,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type cluster_context: str
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
     :type reattach_on_restart: bool
-    :param labels: labels to apply to the Pod.
+    :param labels: labels to apply to the Pod. (templated)
     :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :type startup_timeout_seconds: int
@@ -133,7 +133,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :type do_xcom_push: bool
-    :param pod_template_file: path to pod template file
+    :param pod_template_file: path to pod template file (templated)
     :type pod_template_file: str
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
@@ -143,7 +143,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     """
 
     template_fields: Iterable[str] = (
-        'image', 'cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
+        'image', 'cmds', 'arguments', 'env_vars', 'labels', 'config_file', 'pod_template_file')
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
@@ -289,19 +289,21 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
             if len(pod_list.items) == 1:
                 try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
-                final_state, result = self.handle_pod_overlap(labels, try_numbers_match, launcher, pod_list)
+                final_state, result = self.handle_pod_overlap(labels, try_numbers_match, launcher,
+                                                              pod_list.items[0])
             else:
                 self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
             if final_state != State.SUCCESS:
+                status = self.client.read_namespaced_pod(self.name, self.namespace)
                 raise AirflowException(
-                    'Pod returned a failure: {state}'.format(state=final_state))
+                    'Pod returned a failure: {state}'.format(state=status))
             return result
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
     def handle_pod_overlap(
-        self, labels: dict, try_numbers_match: bool, launcher: Any, pod_list: Any
+        self, labels: dict, try_numbers_match: bool, launcher: Any, pod: k8s.V1Pod
     ) -> Tuple[State, Optional[str]]:
         """
 
@@ -321,10 +323,13 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         else:
             log_line = "found a running pod with labels {} but a different try_number.".format(labels)
 
-        if self.reattach_on_restart:
+        # In case of failed pods, should reattach the first time, but only once
+        # as the task will have already failed.
+        if self.reattach_on_restart and not pod.metadata.labels.get("already_checked"):
             log_line += " Will attach to this pod and monitor instead of starting new one"
             self.log.info(log_line)
-            final_state, result = self.monitor_launched_pod(launcher, pod_list.items[0])
+            self.pod = pod
+            final_state, result = self.monitor_launched_pod(launcher, pod)
         else:
             log_line += "creating pod with labels {} and launcher {}".format(labels, launcher)
             self.log.info(log_line)
@@ -440,6 +445,14 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 launcher.delete_pod(self.pod)
         return final_state, self.pod, result
 
+    def patch_already_checked(self, pod: k8s.V1Pod):
+        """
+        Add an "already tried annotation to ensure we only retry once
+        """
+        pod.metadata.labels["already_checked"] = "True"
+        body = PodGenerator.serialize_pod(pod)
+        self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
+
     def monitor_launched_pod(self, launcher, pod) -> Tuple[State, Optional[str]]:
         """
         Monitors a pod to completion that was created by a previous KubernetesPodOperator
@@ -457,6 +470,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             if self.log_events_on_failure:
                 for event in launcher.read_pod_events(pod).items:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
+            self.patch_already_checked(self.pod)
             raise AirflowException(
                 'Pod returned a failure: {state}'.format(state=final_state)
             )

@@ -23,7 +23,7 @@ import random
 import time
 from typing import Callable, Dict, List, Optional
 
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build, Resource
 from googleapiclient.errors import HttpError
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -64,7 +64,7 @@ class MLEngineHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    def get_conn(self):
+    def get_conn(self) -> Resource:
         """
         Retrieves the connection to MLEngine.
 
@@ -74,7 +74,7 @@ class MLEngineHook(GoogleBaseHook):
         return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_job(self, job: Dict, project_id: str, use_existing_job_fn: Optional[Callable] = None) -> Dict:
+    def create_job(self, job: dict, project_id: str, use_existing_job_fn: Optional[Callable] = None) -> dict:
         """
         Launches a MLEngine job and wait for it to reach a terminal state.
 
@@ -140,7 +140,7 @@ class MLEngineHook(GoogleBaseHook):
         self,
         job_id: str,
         project_id: str,
-    ) -> Dict:
+    ) -> dict:
         """
         Cancels a MLEngine job.
 
@@ -172,7 +172,7 @@ class MLEngineHook(GoogleBaseHook):
                 self.log.error('Failed to cancel MLEngine job: %s', e)
                 raise
 
-    def _get_job(self, project_id: str, job_id: str) -> Dict:
+    def _get_job(self, project_id: str, job_id: str) -> dict:
         """
         Gets a MLEngine job based on the job id.
 
@@ -231,7 +231,7 @@ class MLEngineHook(GoogleBaseHook):
         model_name: str,
         version_spec: Dict,
         project_id: str,
-    ) -> Dict:
+    ) -> dict:
         """
         Creates the Version on Google Cloud ML Engine.
 
@@ -271,7 +271,7 @@ class MLEngineHook(GoogleBaseHook):
         model_name: str,
         version_name: str,
         project_id: str,
-    ) -> Dict:
+    ) -> dict:
         """
         Sets a version to be the default. Blocks until finished.
 
@@ -306,7 +306,7 @@ class MLEngineHook(GoogleBaseHook):
         self,
         model_name: str,
         project_id: str,
-    ) -> List[Dict]:
+    ) -> List[dict]:
         """
         Lists all available versions of a model. Blocks until finished.
 
@@ -345,7 +345,7 @@ class MLEngineHook(GoogleBaseHook):
         model_name: str,
         version_name: str,
         project_id: str,
-    ) -> Dict:
+    ) -> dict:
         """
         Deletes the given version of a model. Blocks until finished.
 
@@ -377,9 +377,9 @@ class MLEngineHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_model(
         self,
-        model: Dict,
+        model: dict,
         project_id: str,
-    ) -> Dict:
+    ) -> dict:
         """
         Create a Model. Blocks until finished.
 
@@ -431,7 +431,7 @@ class MLEngineHook(GoogleBaseHook):
         self,
         model_name: str,
         project_id: str,
-    ) -> Optional[Dict]:
+    ) -> Optional[dict]:
         """
         Gets a Model. Blocks until finished.
 
@@ -507,6 +507,6 @@ class MLEngineHook(GoogleBaseHook):
             _, _, version_name = version['name'].rpartition('/')
             self.delete_version(project_id=project_id, model_name=model_name, version_name=version_name)
 
-    def _append_label(self, model: Dict) -> None:
+    def _append_label(self, model: dict) -> None:
         model['labels'] = model.get('labels', {})
         model['labels']['airflow-version'] = _AIRFLOW_VERSION

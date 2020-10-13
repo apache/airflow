@@ -25,7 +25,7 @@ from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.latest_only_operator import LatestOnlyOperator
+from airflow.operators.latest_only import LatestOnlyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State

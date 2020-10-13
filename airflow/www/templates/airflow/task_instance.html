@@ -21,50 +21,48 @@
 
 {% block content %}
   {{ super() }}
+  <hr>
+  <br>
   <h4>
-<form method="get" id="daform" action="#">
-    <input type="hidden" name="dag_id" value="{{ dag.dag_id }}" >
-
-    <div class="form-inline">
-            <span class="text-muted">Task Instance: </span>
-            <span>
-              {{ task_id }}
-              <input type="hidden" value="{{ task_id }}" name="task_id">
-            </span>
-        {{ form.execution_date(class_="form-control") }}
-
-    </div>
-</form>
+    <form method="get" id="daform" action="#">
+      <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+      <input type="hidden" value="{{ task_id }}" name="task_id">
+      <div class="form-inline">
+        <span class="text-muted">Task Instance:</span> <span>{{ task_id }}</span>
+        <span class="text-muted">at</span> {{ form.execution_date(class_="form-control") }}
+      </div>
+    </form>
   </h4>
   <ul class="nav nav-pills">
     <li><a href="{{ url_for("Airflow.task", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+        <span class="material-icons" aria-hidden="true">details</span>
       Task Instance Details</a></li>
     <li><a href="{{ url_for("Airflow.rendered", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+        <span class="material-icons" aria-hidden="true">code</span>
       Rendered Template</a></li>
     <li><a href="{{ url_for("Airflow.log", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+        <span class="material-icons" aria-hidden="true">reorder</span>
       Log</a></li>
     <li><a href="{{ url_for("Airflow.xcom", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+        <span class="material-icons" aria-hidden="true">sync_alt</span>
       XCom</a></li>
   </ul>
-  <hr>
+  <br>
 {% endblock %}
 {% block tail %}
   {{ super() }}
   <script>
-    $( document ).ready(function() {
+    $(document).ready(function () {
       function date_change(e) {
           // We don't want to navigate away if the datetimepicker is still visible
-          if ($(".datetimepicker bootstrap-datetimepicker-widget :visible").length > 0)
-            return
+          if ($('.datetimepicker bootstrap-datetimepicker-widget :visible').length > 0) {
+            return;
+          }
 
-          $("input#execution_date").parents("form").submit();
+          $('input#execution_date').parents('form').submit();
       }
-      $("input#execution_date").parents(".datetimepicker").on("dp.change", date_change);
-      $("input#execution_date").parents(".datetimepicker").on("dp.hide", date_change);
+      $('input#execution_date').parents('.datetimepicker').on('dp.change', date_change);
+      $('input#execution_date').parents('.datetimepicker').on('dp.hide', date_change);
     });
   </script>
 {% endblock %}

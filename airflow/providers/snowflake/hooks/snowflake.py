@@ -80,7 +80,7 @@ class SnowflakeHook(DbApiHook):
         # passphrase for the private key. If your private key file is not encrypted (not recommended), then
         # leave the password empty.
 
-        private_key_file = conn.extra_dejson.get('private_key_file', None)
+        private_key_file = conn.extra_dejson.get('private_key_file')
         if private_key_file:
             with open(private_key_file, "rb") as key:
                 passphrase = None

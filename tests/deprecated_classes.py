@@ -405,7 +405,7 @@ HOOKS = [
         'airflow.contrib.hooks.aws_hook.AwsHook',
     ),
     (
-        'airflow.providers.amazon.aws.hooks.aws_dynamodb.AwsDynamoDBHook',
+        'airflow.providers.amazon.aws.hooks.dynamodb.AwsDynamoDBHook',
         'airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook',
     ),
     (
@@ -1338,6 +1338,10 @@ OPERATORS = [
     (
         "airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator",
         "airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator",
+    ),
+    (
+        "airflow.operators.latest_only.LatestOnlyOperator",
+        "airflow.operators.latest_only_operator.LatestOnlyOperator",
     ),
 ]
 

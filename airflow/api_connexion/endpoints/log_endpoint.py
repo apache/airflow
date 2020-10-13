@@ -42,7 +42,7 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=
         except BadSignature:
             raise BadRequest("Bad Signature. Please use only the tokens provided by the API.")
 
-    if metadata.get('download_logs', None) and metadata['download_logs']:
+    if metadata.get('download_logs') and metadata['download_logs']:
         full_content = True
 
     if full_content:

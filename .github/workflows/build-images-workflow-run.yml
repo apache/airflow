@@ -47,22 +47,30 @@ jobs:
     name: "Cancel workflow runs"
     runs-on: ubuntu-latest
     outputs:
-      sourceHeadRepo: ${{ steps.cancel.outputs.sourceHeadRepo }}
-      sourceHeadBranch: ${{ steps.cancel.outputs.sourceHeadBranch }}
-      sourceHeadSha: ${{ steps.cancel.outputs.sourceHeadSha }}
-      sourceEvent: ${{ steps.cancel.outputs.sourceEvent }}
+      sourceHeadRepo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
+      sourceHeadBranch: ${{ steps.source-run-info.outputs.sourceHeadBranch }}
+      sourceHeadSha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
+      mergeCommitSha: ${{ steps.source-run-info.outputs.mergeCommitSha }}
+      targetCommitSha: ${{ steps.source-run-info.outputs.targetCommitSha }}
+      sourceEvent: ${{ steps.source-run-info.outputs.sourceEvent }}
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
       buildImages: ${{ steps.build-images.outputs.buildImages }}
-      upgradeToLatestConstraints: ${{ steps.upgrade-constraints.upgradeToLatestConstraints }}
+      upgradeToLatestConstraints: ${{ steps.upgrade-constraints.outputs.upgradeToLatestConstraints }}
     if: github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule'
     steps:
+      - name: "Get information about the origin 'CI Build' run"
+        uses: potiuk/get-workflow-origin@c657bb36aef4a7402bbe9b2e09a820320f8ff447 # v1
+        id: source-run-info
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          sourceRunId: ${{ github.event.workflow_run.id }}
       - name: "Cancel duplicated 'CI Build' runs"
-        uses: potiuk/cancel-workflow-runs@v2
-        id: cancel
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: duplicates
           sourceRunId: ${{ github.event.workflow_run.id }}
+          notifyPRCancel: true
       - name: "Output BUILD_IMAGES"
         id: build-images
         run: |
@@ -75,15 +83,19 @@ jobs:
         # in GitHub Actions, we have to use Job names to match Event/Repo/Branch from the
         # build-info step there to find the duplicates ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@v2
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
+          notifyPRCancel: true
+          skipEventTypes: '["schedule", "push"]'
           jobNameRegexps: >
-            [".*Event: ${{ steps.cancel.outputs.sourceEvent }}
-            Repo: ${{ steps.cancel.outputs.sourceHeadRepo }}
-            Branch: ${{ steps.cancel.outputs.sourceHeadBranch }}.*"]
-        if: env.BUILD_IMAGES == 'true'
+            [".*Event: ${{ steps.source-run-info.outputs.sourceEvent }}
+            Repo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
+            Branch: ${{ steps.source-run-info.outputs.sourceHeadBranch }}.*"]
+        if: >
+          env.BUILD_IMAGES == 'true' && steps.source-run-info.outputs.sourceEvent != 'schedule'
+          && steps.source-run-info.outputs.sourceEvent != 'push'
       - name: "Cancel all 'CI Build' runs where some jobs failed"
 
         # We find any of the "CI Build" workflow runs, where any of the important jobs
@@ -92,12 +104,14 @@ jobs:
         # can cancel all the matching "Build Images" workflow runs in the two following steps.
         # Yeah. Adding to the complexity ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@v2
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
         id: cancel-failed
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: failedJobs
           sourceRunId: ${{ github.event.workflow_run.id }}
+          notifyPRCancel: true
+          skipEventTypes: '["schedule", "push"]'
           jobNameRegexps: >
             ["^Pylint$", "^Static checks$", "^Build docs$", "^Spell check docs$", "^Backport packages$",
              "^Checks: Helm tests$", "^Test OpenAPI*"]
@@ -108,7 +122,6 @@ jobs:
         # above - we want to cancel also the corresponding "Build Images" runs. Again we have
         # to match the jobs using job name rather than use proper API because that feature
         # is currently missing in GitHub Actions ¯\_(ツ)_/¯.
-
         id: extract-cancelled-failed-runs
         if: steps.cancel-failed.outputs.cancelledRuns != '[]'
         run: |
@@ -121,22 +134,21 @@ jobs:
             done
             echo "::set-output name=matching-regexp::[\"${REGEXP}\"]"
       - name: "Cancel triggered 'Build Images' runs for the cancelled failed runs"
-
         # In case we do have some cancelled jobs in the "cancel-failed" step above
         # We take the extracted regexp array prepared in the previous step and we use
         # it to cancel any jobs that have matching names containing Source Run Id:
         # followed by one of the run ids. Yes I know it's super complex ¯\_(ツ)_/¯.
-
-        if: env.BUILD_IMAGES == 'true' && steps.cancel-failed.outputs.cancelledRuns != '[]'
-        uses: potiuk/cancel-workflow-runs@v2
+        if: env.BUILD_IMAGES == 'true' && steps.source-run-info-failed.outputs.cancelledRuns != '[]'
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
+          notifyPRCancel: true
           jobNameRegexps: ${{ steps.extract-cancelled-failed-runs.outputs.matching-regexp }}
       - name: "Set Docker Cache Directive"
         id: cache-directive
         run: |
-          if [[ ${{ steps.cancel.outputs.sourceEvent }} == 'schedule' ]]; then
+          if [[ ${{ steps.source-run-info.outputs.sourceEvent }} == 'schedule' ]]; then
               echo "::set-output name=docker-cache::disabled"
           else
               echo "::set-output name=docker-cache::pulled"
@@ -144,8 +156,8 @@ jobs:
       - name: "Set upgrade to latest constraints"
         id: upgrade-constraints
         run: |
-          if [[ ${{ needs.cancel-workflow-runs.outputs.sourceEvent == 'push' ||
-              needs.cancel-workflow-runs.outputs.sourceEvent == 'scheduled' }} == 'true' ]]; then
+          if [[ ${{ steps.cancel.outputs.sourceEvent == 'push' ||
+              steps.cancel.outputs.sourceEvent == 'scheduled' }} == 'true' ]]; then
               echo "::set-output name=upgradeToLatestConstraints::${{ github.sha }}"
           else
               echo "::set-output name=upgradeToLatestConstraints::false"
@@ -165,6 +177,8 @@ jobs:
       Source Run id: ${{ github.event.workflow_run.id }}
       Sha: ${{ github.sha }}
       Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+      Merge commit Sha: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
+      Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
     runs-on: ubuntu-latest
     needs: [cancel-workflow-runs]
     env:
@@ -187,6 +201,8 @@ jobs:
           Source Run id: ${{ github.event.workflow_run.id }}
           Sha: ${{ github.sha }}
           Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          Merge commit Sha: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
+          Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
         run: |
           printenv
       - name: Set versions
@@ -232,9 +248,11 @@ jobs:
           Source Run id: ${{ github.event.workflow_run.id }}
           Sha: ${{ github.sha }}
           Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          Merge commit Sha: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
+          Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
         uses: actions/checkout@v2
         with:
-          ref: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          ref: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
@@ -244,11 +262,11 @@ jobs:
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "::set-env name=DEFAULT_BRANCH::${DEFAULT_BRANCH}"
+          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
           DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "::set-env name=DEFAULT_CONSTRAINTS_BRANCH::${DEFAULT_CONSTRAINTS_BRANCH}"
+          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
           if [[ \
             ${DEFAULT_BRANCH} != "master" || \
             ( ${PYTHON_MAJOR_MINOR_VERSION} != "2.7" && ${PYTHON_MAJOR_MINOR_VERSION} != "3.5" ) \
@@ -257,6 +275,21 @@ jobs:
           else
               echo "::set-output name=proceed::false"
           fi
+      - name: Initiate Github Checks for Building image
+        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798 #v1.1.0
+        id: build-image-check
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: "Status of image build ${{ matrix.image-type }}: ${{ matrix.python-version }}"
+          status: "in_progress"
+          sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          output: >
+            {"summary":
+            "Building the image: ${{ matrix.image-type }}: ${{ matrix.python-version }}. See the
+            [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            for details" }
+        if: steps.defaults.outputs.proceed == 'true'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} ) to 'main-airflow' to use main scripts"
         uses: actions/checkout@v2
         with:
@@ -290,10 +323,49 @@ jobs:
       - name: "Push PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
         if: matrix.image-type == 'PROD' && steps.defaults.outputs.proceed == 'true'
-      - name: "Canceling the CI Build source workflow in case of failure!"
-        if: cancelled() || failure()
-        uses: potiuk/cancel-workflow-runs@v2
+      - name: Update Github Checks for Building image with status
+        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798 #v1.1.0
+        if: always() && steps.defaults.outputs.proceed == 'true'
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check_id: ${{ steps.build-image-check.outputs.check_id }}
+          status: "completed"
+          sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          conclusion: ${{ job.status }}
+          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          output: >
+            {"summary":
+            "Building the image: ${{ matrix.image-type }}: ${{ matrix.python-version }}. See the
+            [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            for details" }
+
+  cancel-on-build-cancel:
+    name: "Cancel 'CI Build' jobs on build image cancelling."
+    runs-on: ubuntu-latest
+    if: cancelled()
+    needs: [build-images]
+    steps:
+      - name: "Canceling the 'CI Build' source workflow in case of failure!"
+        uses: potiuk/cancel-workflow-runs@cancel_message #v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: self
+          notifyPRCancel: true
+          notifyPRCancelMessage: "Building image for the PR has been cancelled"
+          sourceRunId: ${{ github.event.workflow_run.id }}
+
+  cancel-on-build-failure:
+    name: "Cancel 'CI Build' jobs on build image failing."
+    runs-on: ubuntu-latest
+    if: failure()
+    needs: [build-images]
+    steps:
+      - name: "Canceling the 'CI Build' source workflow in case of failure!"
+        uses: potiuk/cancel-workflow-runs@f696c622a83e4a63fff74848d3b149074658607d # v3_2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          cancelMode: self
+          notifyPRCancel: true
+          notifyPRCancelMessage: |
+            Building images for the PR has failed. Follow the the workflow link to check the reason.
           sourceRunId: ${{ github.event.workflow_run.id }}

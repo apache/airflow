@@ -82,7 +82,7 @@ class FileProcessorHandler(logging.Handler):
         # all DAGs in airflow source code are not located in the DAG dir as other DAGs.
         # That will create a log filepath which is not under control since it could be outside
         # of the log dir. The change here is to make sure the log path for DAGs in airflow code
-        # is alwasy inside the log dir as other DAGs. To be differentiate with regular DAGs,
+        # is always inside the log dir as other DAGs. To be differentiate with regular DAGs,
         # their logs will be in the `log_dir/native_dags`.
         import airflow
         airflow_directory = airflow.__path__[0]

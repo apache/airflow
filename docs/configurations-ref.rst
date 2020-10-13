@@ -53,6 +53,10 @@ can set in ``airflow.cfg`` file or using environment variables.
     {{ option["description"] }}
     {% endif %}
 
+    {% if option.get("see_also") %}
+    .. seealso:: {{ option["see_also"] }}
+    {% endif %}
+
     :Type: {{ option["type"] }}
     :Default: ``{{ "''" if option["default"] == "" else option["default"] }}``
     :Environment Variable: ``AIRFLOW__{{ section["name"] | upper }}__{{ option["name"] | upper }}``

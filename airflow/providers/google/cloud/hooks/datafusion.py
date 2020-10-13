@@ -102,7 +102,7 @@ class DataFusionHook(GoogleBaseHook):
         success_states: Optional[List[str]] = None,
         failure_states: Optional[List[str]] = None,
         timeout: int = 5 * 60,
-    ):
+    ) -> None:
         """
         Polls pipeline state and raises an exception if the state is one of
         `failure_states` or the operation timed_out.
@@ -382,7 +382,7 @@ class DataFusionHook(GoogleBaseHook):
         artifact_name: Optional[str] = None,
         artifact_version: Optional[str] = None,
         namespace: str = "default",
-    ) -> Dict[Any, Any]:
+    ) -> dict:
         """
         Lists Cloud Data Fusion pipelines.
 

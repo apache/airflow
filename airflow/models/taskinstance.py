@@ -34,7 +34,7 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
-from sqlalchemy.orm import reconstructor
+from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 
@@ -235,6 +235,14 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         Index('ti_state_lkp', dag_id, task_id, execution_date, state),
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
+    )
+
+    dag_model = relationship(
+        "DagModel",
+        primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
+        foreign_keys=dag_id,
+        uselist=False,
+        innerjoin=True,
     )
 
     def __init__(self, task, execution_date: datetime, state: Optional[str] = None):
@@ -611,10 +619,13 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         :param session: SQLAlchemy ORM Session
         :type session: Session
         """
+        current_time = timezone.utcnow()
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
-        self.start_date = timezone.utcnow()
-        self.end_date = timezone.utcnow()
+        self.start_date = current_time
+        if self.state in State.finished():
+            self.end_date = current_time
+            self.duration = 0
         session.merge(self)
 
     @property
@@ -1205,7 +1216,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         Stats.timing('dag.{dag_id}.{task_id}.duration'.format(dag_id=task_copy.dag_id,
                                                               task_id=task_copy.task_id),
                      duration)
-        Stats.incr('operator_successes_{}'.format(self.task.__class__.__name__), 1, 1)
+        Stats.incr('operator_successes_{}'.format(self.task.task_type), 1, 1)
         Stats.incr('ti_successes')
 
     @provide_session
@@ -1338,7 +1349,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         task = self.task
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
+        Stats.incr('operator_failures_{}'.format(task.task_type), 1, 1)
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))
@@ -1730,12 +1741,15 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             dag_id=self.dag_id,
             execution_date=execution_date or self.execution_date)
 
+    @provide_session
     def xcom_pull(      # pylint: disable=inconsistent-return-statements
-            self,
-            task_ids: Optional[Union[str, Iterable[str]]] = None,
-            dag_id: Optional[str] = None,
-            key: str = XCOM_RETURN_KEY,
-            include_prior_dates: bool = False) -> Any:
+        self,
+        task_ids: Optional[Union[str, Iterable[str]]] = None,
+        dag_id: Optional[str] = None,
+        key: str = XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
+        session: Session = None
+    ) -> Any:
         """
         Pull XComs that optionally meet certain criteria.
 
@@ -1764,6 +1778,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             execution_date are returned. If True, XComs from previous dates
             are returned as well.
         :type include_prior_dates: bool
+        :param session: Sqlalchemy ORM Session
+        :type session: Session
         """
         if dag_id is None:
             dag_id = self.dag_id
@@ -1773,7 +1789,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             key=key,
             dag_ids=dag_id,
             task_ids=task_ids,
-            include_prior_dates=include_prior_dates
+            include_prior_dates=include_prior_dates,
+            session=session
         ).with_entities(XCom.value)
 
         # Since we're only fetching the values field, and not the

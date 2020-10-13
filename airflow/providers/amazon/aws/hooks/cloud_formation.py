@@ -19,7 +19,10 @@
 """
 This module contains AWS CloudFormation Hook
 """
+from typing import Optional, Union
+
 from botocore.exceptions import ClientError
+from boto3 import client, resource
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -38,7 +41,7 @@ class AWSCloudFormationHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         super().__init__(client_type='cloudformation', *args, **kwargs)
 
-    def get_stack_status(self, stack_name):
+    def get_stack_status(self, stack_name: Union[client, resource]) -> Optional[dict]:
         """
         Get stack status from CloudFormation.
         """
@@ -53,7 +56,7 @@ class AWSCloudFormationHook(AwsBaseHook):
             else:
                 raise e
 
-    def create_stack(self, stack_name, params):
+    def create_stack(self, stack_name: str, params: dict) -> None:
         """
         Create stack in CloudFormation.
 
@@ -66,7 +69,7 @@ class AWSCloudFormationHook(AwsBaseHook):
             params['StackName'] = stack_name
         self.get_conn().create_stack(**params)
 
-    def delete_stack(self, stack_name, params=None):
+    def delete_stack(self, stack_name: str, params: Optional[dict] = None) -> None:
         """
         Delete stack in CloudFormation.
 

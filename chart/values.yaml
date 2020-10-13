@@ -233,7 +233,6 @@ kerberos:
       admin_server = admin_server.foo.com
     }
 
-
 # Airflow Worker Config
 workers:
   # Number of airflow celery workers in StatefulSet
@@ -285,9 +284,17 @@ workers:
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
+  # Annotations to add to worker kubernetes service account.
+  serviceAccountAnnotations: {}
+  # Mount additional volumes into worker.
+  extraVolumes: []
+  extraVolumeMounts: []
 
 # Airflow scheduler settings
 scheduler:
+  # Airflow 2.0 allows users to run multiple schedulers,
+  # However this feature is only recommended for MySQL 8+ and Postgres
+  replicas: 1
   # Scheduler pod disruption budget
   podDisruptionBudget:
     enabled: false
@@ -311,6 +318,13 @@ scheduler:
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
+
+  # Annotations to add to scheduler kubernetes service account.
+  serviceAccountAnnotations: {}
+
+  # Mount additional volumes into scheduler.
+  extraVolumes: []
+  extraVolumeMounts: []
 
 # Airflow webserver settings
 webserver:
@@ -371,6 +385,9 @@ webserver:
     type: ClusterIP
     ## service annotations
     annotations: {}
+
+  # Annotations to add to webserver kubernetes service account.
+  serviceAccountAnnotations: {}
 
 # Flower settings
 flower:
@@ -440,6 +457,14 @@ pgbouncer:
   verbose: 0
   logDisconnections: 0
   logConnections: 0
+
+  sslmode: "prefer"
+  ciphers: "normal"
+
+  ssl:
+    ca: ~
+    cert: ~
+    key: ~
 
 redis:
   terminationGracePeriodSeconds: 600
@@ -608,7 +633,10 @@ config:
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     delete_worker_pods: 'True'
+    multi_namespace_mode: '{{ .Values.multiNamespaceMode }}'
 # yamllint enable rule:line-length
+
+multiNamespaceMode: 'False'
 
 podTemplate: ~
 
