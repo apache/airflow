@@ -18,23 +18,23 @@
 
 
 
-Tutorial on Functional DAGs
+Tutorial on Decorated Flows
 ===========================
 
 This tutorial builds on the regular Airflow Tutorial and focuses specifically
-on writing data pipelines using the Functional DAG paradigm which is introduced as
+on writing data pipelines using the Decorated Flow paradigm which is introduced as
 part of Airflow 2.0 and contrasts this with DAGs written using the traditional paradigm.
 
 The data pipeline chosen here is a simple ETL pattern with
 three separate tasks for Extract, Transform, and Load.
 
-Example "Functional" ETL Pipeline
----------------------------------
+Example "Decorated Flow" ETL Pipeline
+-------------------------------------
 
-Here is very simple ETL pipeline using the Functional DAG paradigm. A more detailed
+Here is very simple ETL pipeline using the Decorated Flows paradigm. A more detailed
 explanation is given below.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_functional_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
@@ -55,7 +55,7 @@ We are creating a DAG which is the collection of our tasks with dependencies bet
 the tasks. This is a very simple definition, since we just want the DAG to be run
 when we set this up with Airflow, without any retries or complex scheduling.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_functional_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
     :language: python
     :start-after: [START instantiate_dag]
     :end-before: [END instantiate_dag]
@@ -65,7 +65,7 @@ Tasks
 In this data pipeline, tasks are created based on Python functions using the decorator
 as shown below. The function name acts as a unique identifier for the task.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_functional_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
     :language: python
     :start-after: [START extract]
     :end-before: [END extract]
@@ -79,7 +79,7 @@ Main flow of the DAG
 Now that we have the Extract, Transform, and Load tasks defined based on the Python functions,
 we can move to the main part of the DAG.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_functional_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
     :language: python
     :start-after: [START main_flow]
     :end-before: [END main_flow]
@@ -115,9 +115,9 @@ As we see here, the data being processed in the Transform function is passed to 
 variables. In turn, the summarized data from the Transform function is also placed
 into another Xcom variable which will then be used by the Load task.
 
-Contrasting that with Functional DAGs in Airflow 2.0 as shown below.
+Contrasting that with Decorated Flows in Airflow 2.0 as shown below.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_functional_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
     :language: python
     :start-after: [START transform]
     :end-before: [END transform]
@@ -126,7 +126,7 @@ All of the Xcom usage for data passing between these tasks is abstracted away fr
 in Airflow 2.0. However, Xcom variables are used behind the scenes and can be viewed using
 the Airflow UI as necessary for debugging or DAG monitoring.
 
-Similarly, task dependencies are automatically generated within Functional DAGs based on the
+Similarly, task dependencies are automatically generated within Decorated Flows based on the
 functional invocation of tasks. In Airflow 1.x, tasks had to be explicitly created and
 dependencies specified as shown below.
 
@@ -135,17 +135,18 @@ dependencies specified as shown below.
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
-In contrast, with Functional DAGs in Airflow 2.0, the invocation itself automatically generates
+In contrast, with Decorated Flows in Airflow 2.0, the invocation itself automatically generates
 the dependencies as shown below.
 
-.. exampleinclude:: /../airflow/example_dags/tutorial_functional_etl_dag.py
+.. exampleinclude:: /../airflow/example_dags/tutorial_decorated_etl_dag.py
     :language: python
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
 
 What's Next?
--------------
-You have seen how simple it is to write DAGs using the Functional DAG paradigm within
-Airflow 2.0. Please do read the :ref:`Concepts page<concepts>` for detailed explanation
-of Airflow concepts such as DAGs, Tasks, Operators, etc.
+------------
+
+You have seen how simple it is to write DAGs using the Decorated Flows paradigm within Airflow 2.0. Please do
+read the :ref:`Concepts page<concepts>` for detailed explanation of Airflow concepts such as DAGs, Tasks,
+Operators, etc, and the :ref:`concepts:task_decorator` in particular.
