@@ -667,6 +667,7 @@ class RefactorBackportPackages:
         self.remove_super_init_call()
         self.add_provide_context_to_python_operators()
         self.remove_poke_mode_only_decorator()
+        self.refactor_kubernetes_pod_operator()
         # In order to debug Bowler - set in_process to True
         self.qry.execute(write=True, silent=False, interactive=False, in_process=in_process)
 
