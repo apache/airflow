@@ -651,10 +651,14 @@ class RefactorBackportPackages:
         )
 
     def refactor_kubernetes_pod_operator(self):
+        def kubernetes_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
+            return filename.startswith("./airflow/providers/cncf/kubernetes")
+
         (
             self.qry.
             select_class("airflow.kubernetes.pod_generator.PodGenerator").
             select_method("add_xcom_sidecar").
+            filter(kubernetes_package_filter).
             rename("add_sidecar")
         )
 
