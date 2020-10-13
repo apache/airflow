@@ -25,6 +25,7 @@ Create Date: 2020-10-13 15:13:24.911486
 """
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import mssql
 from alembic import op
 
 
@@ -40,7 +41,7 @@ TABLE_NAME = 'rendered_task_instance_fields'
 
 def upgrade():
     """
-        Change datetime to datetime2(6) when using MSSQL as backend
+        Change timestamp to datetime2(6) when using MSSQL as backend
     """
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
