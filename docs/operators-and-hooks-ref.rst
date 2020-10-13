@@ -75,6 +75,8 @@ Fundamentals
 
    * - :mod:`airflow.operators.latest_only`
      -
+   * - :mod:`airflow.providers.jdbc.operators.jdbc`
+     - :doc:`How to use <howto/operator/jdbc>`
 
    * - :mod:`airflow.operators.python`
      - :doc:`How to use <howto/operator/python>`
