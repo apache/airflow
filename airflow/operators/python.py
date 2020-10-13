@@ -151,7 +151,7 @@ class PythonOperator(BaseOperator):
         return self.python_callable(*self.op_args, **self.op_kwargs)
 
 
-class _PythonFunctionalOperator(BaseOperator):
+class _PythonDecoratedOperator(BaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
 
@@ -279,16 +279,16 @@ def task(
     """
     def wrapper(f: T):
         """
-        Python wrapper to generate PythonFunctionalOperator out of simple python functions.
-        Used for Airflow functional interface
+        Python wrapper to generate PythonDecoratedOperator out of simple python functions.
+        Used for Airflow Decorated interface
         """
-        _PythonFunctionalOperator.validate_python_callable(f)
+        _PythonDecoratedOperator.validate_python_callable(f)
         kwargs.setdefault('task_id', f.__name__)
 
         @functools.wraps(f)
         def factory(*args, **f_kwargs):
-            op = _PythonFunctionalOperator(python_callable=f, op_args=args, op_kwargs=f_kwargs,
-                                           multiple_outputs=multiple_outputs, **kwargs)
+            op = _PythonDecoratedOperator(python_callable=f, op_args=args, op_kwargs=f_kwargs,
+                                          multiple_outputs=multiple_outputs, **kwargs)
             return XComArg(op)
         return cast(T, factory)
     if callable(python_callable):
