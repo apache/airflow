@@ -665,7 +665,6 @@ class RefactorBackportPackages:
 
 if __name__ == '__main__':
     BACKPORT_PACKAGES = (os.getenv('BACKPORT_PACKAGES') == "true")
-    print(f"BACKPORT_PACKAGES={BACKPORT_PACKAGES}")
     in_process = False
     if len(sys.argv) > 1:
         if sys.argv[1] in ['--help', '-h']:

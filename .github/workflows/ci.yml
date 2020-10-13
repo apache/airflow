@@ -305,7 +305,7 @@ jobs:
         if: always()
         with:
           name: airflow-backport-readmes
-          path: "./files/airflow-backport-readme*"
+          path: "./files/airflow-readme-*"
 
   prepare-provider-packages:
     timeout-minutes: 30
@@ -333,14 +333,14 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: airflow-backport-packages
+          name: airflow-provider-packages
           path: "./files/airflow-packages-*"
       - name: "Upload readme artifacts"
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: airflow-backport-readmes
-          path: "./files/airflow-backport-readme*"
+          name: airflow-provider-readmes
+          path: "./files/airflow-readme-*"
 
 
   tests-postgres:
@@ -694,6 +694,7 @@ jobs:
       - tests-mysql
       - tests-kubernetes
       - prepare-backport-provider-packages
+      - prepare-provider-packages
       - prod-images
       - docs
       - docs-spell-check

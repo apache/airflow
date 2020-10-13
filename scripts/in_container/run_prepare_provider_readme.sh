@@ -40,11 +40,7 @@ cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
 
 python3 setup_provider_packages.py update-package-release-notes "$@"
 
-if [[ ${BACKPORT_PACKAGES} == "true" ]]; then
-    AIRFLOW_PROVIDER_README_TGZ_FILE="/files/airflow-backport-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
-else
-    AIRFLOW_PROVIDER_README_TGZ_FILE="/files/airflow-providers-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
-fi
+AIRFLOW_PROVIDER_README_TGZ_FILE="/files/airflow-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 

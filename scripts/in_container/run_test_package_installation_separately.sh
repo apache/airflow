@@ -25,7 +25,7 @@ echo
 echo "Testing if all provider packages can be installed separately on Airflow and cause no side effects"
 echo
 
-if [[ ${INSTALL_AIRFLOW_VERSION:=""} == "2.0.0-dev" ]]; then
+if [[ ${INSTALL_AIRFLOW_VERSION:=""} =~ 2.* ]]; then
     echo
     echo "Installing regular packages for Airflow 2.0 but first installing prepared Airflow from master"
     echo
@@ -55,9 +55,9 @@ fi
 
 
 # Install all packages separately one-by-one
-for PACKAGE_FILE in /dist/apache_airflow*providers_*.whl
+for PACKAGE_FILE in "/dist/apache_airflow_${PACKAGE_PREFIX_LOWERCASE}providers_"*.whl
 do
-    if [[ ! ${PACKAGE_FILE} =~ /dist/(apache_airflow.*_providers_[^-]*)-.* ]]; then
+    if [[ ! ${PACKAGE_FILE} =~ /dist/(apache_airflow_${PACKAGE_PREFIX_LOWERCASE}providers_[^-]*)-.* ]]; then
         echo
         echo "ERROR: ${PACKAGE_FILE} does not match providers package regexp"
         echo

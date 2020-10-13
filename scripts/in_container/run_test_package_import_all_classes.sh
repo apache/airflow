@@ -26,7 +26,7 @@ echo
 
 OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
-if [[ ${INSTALL_AIRFLOW_VERSION:=""} == "2.0.0-dev"  ]]; then
+if [[ ${INSTALL_AIRFLOW_VERSION:=""} =~ 2.*  ]]; then
     echo
     echo "Installing regular packages for Airflow 2.0 but first installing prepared Airflow from master"
     echo

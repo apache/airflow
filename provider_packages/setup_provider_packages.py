@@ -808,14 +808,17 @@ ReleaseInfo = collections.namedtuple(
     "release_version release_version_no_leading_zeros last_commit_hash content file_name")
 
 
-def strip_leading_zeros(release_version: str, backport_packages: bool) -> str:
+def strip_leading_zeros_in_calver(calver_version: str) -> str:
     """
-    Strips leading zeros from version number for backport packages. For regular packages does nothing.
-    :param release_version: version number
-    :param backport_packages: whether to prepare regular (False) or backport (True) packages
-    :return:
+    Strips leading zeros from calver version number.
+
+    This converts 1974.04.03 to 1974.4.3 as the format with leading month and day zeros is not accepted
+    by PIP versioning.
+
+    :param calver_version: version number in calver format (potentially with leading 0s in date and month)
+    :return: string with leading 0s after dot replaced.
     """
-    return release_version.replace(".0", ".") if backport_packages else release_version
+    return calver_version.replace(".0", ".")
 
 
 def get_provider_changes_prefix(backport_packages: bool) -> str:
@@ -850,11 +853,11 @@ def get_all_releases(provider_package_path: str, backport_packages: bool) -> Lis
             else:
                 last_commit_hash = found.group(1)
                 release_version = file_name[len(changes_file_prefix):][:-3]
+                release_version_no_leading_zeros = strip_leading_zeros_in_calver(release_version) \
+                    if backport_packages else release_version
                 past_releases.append(
                     ReleaseInfo(release_version=release_version,
-                                release_version_no_leading_zeros=strip_leading_zeros(
-                                    release_version,
-                                    backport_packages=backport_packages),
+                                release_version_no_leading_zeros=release_version_no_leading_zeros,
                                 last_commit_hash=last_commit_hash,
                                 content=content,
                                 file_name=file_name))
@@ -1119,14 +1122,15 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
         convert_cross_package_dependencies_to_table(
             cross_providers_dependencies,
             base_url="https://github.com/apache/airflow/tree/master/airflow/providers/")
+    release_version_no_leading_zeros = strip_leading_zeros_in_calver(current_release_version) \
+        if backport_packages else current_release_version
     context: Dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
         "PROVIDER_PACKAGE_ID": provider_package_id,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_package_id, backport_packages),
         "FULL_PACKAGE_NAME": full_package_name,
         "RELEASE": current_release_version,
-        "RELEASE_NO_LEADING_ZEROS": strip_leading_zeros(current_release_version,
-                                                        backport_packages=backport_packages),
+        "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
         "CURRENT_CHANGES_TABLE": changes_table,
         "ADDITIONAL_INFO": get_additional_package_info(provider_package_path=provider_package_path),
         "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
