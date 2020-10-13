@@ -61,13 +61,13 @@ function output_all_basic_variables() {
 function set_outputs_run_all_tests() {
     initialization::ga_output run-tests "true"
     initialization::ga_output run-kubernetes-tests "true"
-    initialization::ga_output test-types '["Core"]'
+    initialization::ga_output test-types "Core Integration Heisentests"
 }
 
 function set_output_skip_all_tests() {
     initialization::ga_output run-tests "false"
     initialization::ga_output run-kubernetes-tests "false"
-    initialization::ga_output test-types '[]'
+    initialization::ga_output test-types ""
 }
 
 function initialize_git_repo() {
@@ -238,7 +238,7 @@ function calculate_test_types_to_run() {
             initialization::ga_output run-kubernetes-tests "false"
         fi
         initialization::ga_output run-tests "true"
-        initialization::ga_output test-types "Integration Heisentests Core"
+        initialization::ga_output test-types "Core Integration Heisentests"
     fi
 }
 
