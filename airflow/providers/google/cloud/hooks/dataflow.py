@@ -30,20 +30,18 @@ import uuid
 import warnings
 from copy import deepcopy
 from tempfile import TemporaryDirectory
-from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union, Set, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar, Union, cast
 
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.timeout import timeout
 from airflow.utils.python_virtualenv import prepare_virtualenv
 
 # This is the default location
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 DEFAULT_DATAFLOW_LOCATION = 'us-central1'
-DEFAULT_CANCEL_JOB_TIMEOUT = 5 * 60
 
 
 JOB_ID_PATTERN = re.compile(
@@ -311,31 +309,6 @@ class _DataflowJobsController(LoggingMixin):
 
         return self._jobs
 
-    def _wait_for_states(self, expected_states: Set[str]):
-        """
-        Waiting for the jobs to reach a certain state.
-        """
-        if not self._jobs:
-            raise ValueError("The _jobs should be set")
-        while True:
-            self._refresh_jobs()
-            job_states = {job['currentState'] for job in self._jobs}
-            if not job_states.difference(expected_states):
-                return
-            unexpected_failed_end_states = expected_states - DataflowJobStatus.FAILED_END_STATES
-            if unexpected_failed_end_states.intersection(job_states):
-                unexpected_failed_jobs = {
-                    job for job in self._jobs if job['currentState'] in unexpected_failed_end_states
-                }
-                raise AirflowException(
-                    "Jobs failed: "
-                    + ", ".join(
-                        f"ID: {job['id']} name: {job['name']} state: {job['currentState']}"
-                        for job in unexpected_failed_jobs
-                    )
-                )
-            time.sleep(self._poll_sleep)
-
     def cancel(self) -> None:
         """
         Cancels current job
@@ -358,9 +331,6 @@ class _DataflowJobsController(LoggingMixin):
                     )
                 )
             batch.execute()
-            timeout_error_message = "Canceling jobs failed due to timeout: {}".format(", ".join(job_ids))
-            with timeout(seconds=DEFAULT_CANCEL_JOB_TIMEOUT, error_message=timeout_error_message):
-                self._wait_for_states({DataflowJobStatus.JOB_STATE_CANCELLED})
         else:
             self.log.info("No jobs to cancel")
 
