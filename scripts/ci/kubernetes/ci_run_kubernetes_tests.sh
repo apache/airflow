@@ -83,9 +83,10 @@ fi
 
 . "${virtualenv_path}/bin/activate"
 
+pip install --upgrade pip==20.2.3
+
 pip install pytest freezegun pytest-cov \
   --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-
 
 pip install -e ".[kubernetes]" \
   --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
