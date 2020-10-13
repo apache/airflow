@@ -24,17 +24,14 @@ Create Date: 2020-10-13 15:13:24.911486
 
 """
 
-import sqlalchemy as sa
 from sqlalchemy.dialects import mssql
 from alembic import op
-
 
 # revision identifiers, used by Alembic.
 revision = '52d53670a240'
 down_revision = '98271e7606e2'
 branch_labels = None
 depends_on = None
-
 
 TABLE_NAME = 'rendered_task_instance_fields'
 
@@ -57,29 +54,25 @@ def upgrade():
             rendered_task_instance_fields.drop_constraint('rendered_task_instance_fields_pkey', type_='primary')
             rendered_task_instance_fields.alter_column(column_name="execution_date",
                                                        type_=mssql.DATETIME2(precision=6), nullable=False, )
+            rendered_task_instance_fields.create_primary_key("rendered_task_instance_fields_pkey",
+                                                             ["dag_id", "task_id", "execution_date"])
 
 
 def downgrade():
     """Drop RenderedTaskInstanceFields table"""
-    op.drop_table(TABLE_NAME)  # pylint: disable=no-member
+    conn = op.get_bind()
+    if conn.dialect.name == "mssql":
+        result = conn.execute(
+            """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
+            like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
+            like '9%' THEN '2005' ELSE '2005Plus' END AS MajorVersion""").fetchone()
+        mssql_version = result[0]
+        if mssql_version in ("2000", "2005"):
+            return
 
-
-def drop_constraint(operator, constraint_dict):
-    """
-    Drop a primary key or unique constraint
-    :param operator: batch_alter_table for the table
-    :param constraint_dict: a dictionary of ((constraint name, constraint type), column name) of table
-    """
-    for constraint, columns in constraint_dict.items():
-        if 'execution_date' in columns:
-            if constraint[1].lower().startswith("primary"):
-                operator.drop_constraint(
-                    constraint[0],
-                    type_='primary'
-                )
-            elif constraint[1].lower().startswith("unique"):
-                operator.drop_constraint(
-                    constraint[0],
-                    type_='unique'
-                )
-
+        with op.batch_alter_table(TABLE_NAME) as rendered_task_instance_fields:
+            rendered_task_instance_fields.drop_constraint('rendered_task_instance_fields_pkey', type_='primary')
+            rendered_task_instance_fields.alter_column(column_name="execution_date",
+                                                       type_=mssql.TIMESTAMP(), nullable=False, )
+            rendered_task_instance_fields.create_primary_key("rendered_task_instance_fields_pkey",
+                                                             ["dag_id", "task_id", "execution_date"])
