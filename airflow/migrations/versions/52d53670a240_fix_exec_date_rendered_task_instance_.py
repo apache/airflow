@@ -45,7 +45,7 @@ def upgrade():
         with op.batch_alter_table(TABLE_NAME) as rendered_task_instance_fields:
             rendered_task_instance_fields.drop_constraint('rendered_task_instance_fields_pkey', type_='primary')
             rendered_task_instance_fields.drop_column("execution_date")
-            rendered_task_instance_fields.add_column(Column('execution_date', mssql.DATETIME2))
+            rendered_task_instance_fields.add_column(Column('execution_date', mssql.DATETIME2, nullable=False))
             rendered_task_instance_fields.create_primary_key("rendered_task_instance_fields_pkey",
                                                              ["dag_id", "task_id", "execution_date"])
 
@@ -57,6 +57,6 @@ def downgrade():
         with op.batch_alter_table(TABLE_NAME) as rendered_task_instance_fields:
             rendered_task_instance_fields.drop_constraint('rendered_task_instance_fields_pkey', type_='primary')
             rendered_task_instance_fields.drop_column('execution_date')
-            rendered_task_instance_fields.add_column(Column('execution_date', mssql.TIMESTAMP, primary_key=True))
+            rendered_task_instance_fields.add_column(Column('execution_date', mssql.TIMESTAMP, nullable=False))
             rendered_task_instance_fields.create_primary_key("rendered_task_instance_fields_pkey",
                                                              ["dag_id", "task_id", "execution_date"])
