@@ -17,30 +17,20 @@ class ClsResultMQ(ClsEntity):
                     ClsResultMQ._instance = object.__new__(cls)
         return ClsResultMQ._instance
 
-    def __init__(self, host=None, port=None, exchange=None, username='guest', password='guest'):
+    def __init__(self, **kwargs):
         super(ClsResultMQ, self).__init__()
-        if not self.is_config_changed(host, port, exchange):
+        if not self.is_config_changed(**kwargs):
             return
         self._disconnect()
-        self._host = host
-        self._port = port
-        self._exchange = exchange
-        self._username = username
-        self._password = password
+        self._kwargs = kwargs
 
-    def is_config_changed(self, host=None, port=None, exchange=None, username='guest',
-                          password='guest'):
+    def is_config_changed(self, **kwargs):
         try:
-            if self._host != host:
-                return True
-            if self._port != port:
-                return True
-            if self._exchange != exchange:
-                return True
-            if self._username != username:
-                return True
-            if self._password != password:
-                return True
+            if not self._kwargs:
+                return False
+            for key in kwargs.keys():
+                if self._kwargs.get(key, None) != kwargs.get(key):
+                    return True
             return False
         except Exception as e:
             return True
@@ -48,10 +38,20 @@ class ClsResultMQ(ClsEntity):
     def _connect(self):
         if self._connection:
             return
-        credentials = pika.PlainCredentials(self._username, self._password)
-        _logger.info('{}:{}, {},{}'.format(self._host, self._port, self._username, self._password))
+        username = self._kwargs.get('username', 'guest')
+        password = self._kwargs.get('password', 'guest')
+        host = self._kwargs.get('host', None)
+        port = self._kwargs.get('port', None)
+        credentials = pika.PlainCredentials(username, password)
+        _logger.info('{}:{}, {},{}'.format(host, port, username, password))
+        connection_config = {
+            'host': host,
+            'port': port,
+            'credentials': credentials,
+            'virtual_host': self._kwargs.get('vhost')
+        }
         self._connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=self._host, port=self._port, credentials=credentials)
+            pika.ConnectionParameters(**connection_config)
         )
 
     def get_channel(self, queue, **kwargs) -> pika.adapters.blocking_connection.BlockingChannel:
@@ -72,4 +72,5 @@ class ClsResultMQ(ClsEntity):
         if queue is None:
             raise Exception('mq queue 未指定')
         channel = self.get_channel(queue, **kwargs)
-        channel.basic_publish(exchange=self._exchange, routing_key=queue, body=body)
+        exchange = self._kwargs.get('exchange', None)
+        channel.basic_publish(exchange=exchange, routing_key=queue, body=body)
