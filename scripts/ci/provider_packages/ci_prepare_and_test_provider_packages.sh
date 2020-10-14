@@ -18,8 +18,16 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+
 "${SCRIPTS_CI_DIR}/provider_packages/ci_prepare_provider_readme.sh"
 "${SCRIPTS_CI_DIR}/provider_packages/ci_prepare_provider_packages.sh"
+
+if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
+    # Prepare airflow's wheel
+    python setup.py compile_assets sdist bdist_wheel
+    rm -rf -- *egg-info*
+fi
+
 "${SCRIPTS_CI_DIR}/provider_packages/ci_test_provider_packages_install_separately.sh"
 "${SCRIPTS_CI_DIR}/provider_packages/ci_test_provider_packages_import_all_classes.sh"
 

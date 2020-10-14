@@ -472,12 +472,24 @@
                   "description": "Annotations to add to the worker kubernetes service account.",
                   "type": "object"
                 }
-            }
+              },
+          "extraVolumes": {
+            "description": "Mount additional volumes into workers.",
+            "type": "array"
+          },
+          "extraVolumeMounts": {
+            "description": "Mount additional volumes into workers.",
+            "type": "array"
+          }
         },
         "scheduler": {
             "description": "Airflow scheduler settings.",
             "type": "object",
             "properties": {
+                "replicas": {
+                  "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
+                  "type": "integer"
+                },
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
                     "type": "object",
@@ -516,7 +528,15 @@
                   "description": "Annotations to add to the scheduler kubernetes service account.",
                   "type": "object"
                 }
-            }
+            },
+          "extraVolumes": {
+            "description": "Mount additional volumes into scheduler.",
+            "type": "array"
+          },
+          "extraVolumeMounts": {
+            "description": "Mount additional volumes into scheduler.",
+            "type": "array"
+          }
         },
         "webserver": {
             "description": "Airflow webserver settings.",

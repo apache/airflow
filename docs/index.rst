@@ -79,6 +79,7 @@ Content
     start
     installation
     tutorial
+    tutorial_decorated_flows
     howto/index
     ui
     concepts

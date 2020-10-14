@@ -26,6 +26,8 @@ class TestExampleDagsSystem(SystemTest):
     @parameterized.expand([
         "example_bash_operator",
         "example_branch_operator"
+        "tutorial_etl_dag"
+        "tutorial_functional_etl_dag"
     ])
     def test_dag_example(self, dag_id):
         self.run_dag(dag_id=dag_id)

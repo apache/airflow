@@ -348,7 +348,7 @@
       version_added: 1.10.7
       type: string
       example: ~
-      default: "False"
+      default: "True"
     - name: min_serialized_dag_update_interval
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.

@@ -39,7 +39,6 @@ spec.loader.exec_module(mod)  # type: ignore
 version = mod.version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
-PY38 = PY3 and sys.version_info[1] >= 8
 
 my_dir = dirname(__file__)
 
@@ -328,7 +327,7 @@ mongo = [
     'pymongo>=3.6.0',
 ]
 mssql = [
-    'pymssql~=2.1.1',
+    'pymssql~=2.1,>=2.1.5',
 ]
 mysql = [
     'mysql-connector-python>=8.0.11, <=8.0.18',
@@ -472,6 +471,7 @@ devel = [
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
+    'semver',
     'setuptools',
     'testfixtures',
     'wheel',
@@ -648,11 +648,6 @@ if PY3:
         'snakebite',
     ])
 
-if PY38:
-    PACKAGES_EXCLUDED_FOR_ALL.extend([
-        'pymssql',
-    ])
-
 # Those packages are excluded because they break tests (downgrading mock) and they are
 # not needed to run our test suite.
 PACKAGES_EXCLUDED_FOR_CI = [
@@ -704,7 +699,7 @@ INSTALL_REQUIREMENTS = [
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
     'flask>=1.1.0, <2.0',
-    'flask-appbuilder>2.3.4,~=3.0',
+    'flask-appbuilder~=3.1.0',
     'flask-caching>=1.3.3, <2.0.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
@@ -756,7 +751,9 @@ def do_setup():
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(include=['airflow', 'airflow.*']),
+        packages=find_packages(
+            include=['airflow*'],
+            exclude=['airflow.providers', 'airflow.providers.*']),
         package_data={
             'airflow': ['py.typed'],
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",

@@ -61,14 +61,13 @@ function output_all_basic_variables() {
 function set_outputs_run_all_tests() {
     initialization::ga_output run-tests "true"
     initialization::ga_output run-kubernetes-tests "true"
-    initialization::ga_output test-types \
-        '["Core", "Other", "API", "CLI", "Providers", "WWW", "Integration", "Heisentests"]'
+    initialization::ga_output test-types "Core Other API CLI Providers WWW Integration Heisentests"
 }
 
 function set_output_skip_all_tests() {
     initialization::ga_output run-tests "false"
     initialization::ga_output run-kubernetes-tests "false"
-    initialization::ga_output test-types '[]'
+    initialization::ga_output test-types ""
 }
 
 function initialize_git_repo() {
@@ -312,27 +311,27 @@ function calculate_test_types_to_run() {
             echo
             echo "Adding API to selected files as ${COUNT_API_CHANGED_FILES} API files changed"
             echo
-            SELECTED_TESTS="${SELECTED_TESTS}, \"API\""
+            SELECTED_TESTS="${SELECTED_TESTS} API"
         fi
         if [[ ${COUNT_CLI_CHANGED_FILES} != "0" ]]; then
             echo
             echo "Adding CLI to selected files as ${COUNT_CLI_CHANGED_FILES} CLI files changed"
             echo
-            SELECTED_TESTS="${SELECTED_TESTS}, \"CLI\""
+            SELECTED_TESTS="${SELECTED_TESTS} CLI"
         fi
         if [[ ${COUNT_PROVIDERS_CHANGED_FILES} != "0" ]]; then
             echo
             echo "Adding Providers to selected files as ${COUNT_PROVIDERS_CHANGED_FILES} Provider files changed"
             echo
-            SELECTED_TESTS="${SELECTED_TESTS}, \"Providers\""
+            SELECTED_TESTS="${SELECTED_TESTS} Providers"
         fi
         if [[ ${COUNT_WWW_CHANGED_FILES} != "0" ]]; then
             echo
             echo "Adding WWW to selected files as ${COUNT_WWW_CHANGED_FILES} WWW files changed"
             echo
-            SELECTED_TESTS="${SELECTED_TESTS}, \"WWW\""
+            SELECTED_TESTS="${SELECTED_TESTS} WWW"
         fi
-        initialization::ga_output test-types "[ \"Integration\", \"Heisentests\" ${SELECTED_TESTS} ]"
+        initialization::ga_output test-types "Integration Heisentests ${SELECTED_TESTS}"
     fi
 }
 

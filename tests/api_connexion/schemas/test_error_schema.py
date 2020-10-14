@@ -58,10 +58,6 @@ class TestErrorSchema(TestErrorSchemaBase):
             serialized_data,
         )
 
-    @unittest.skip("Not Implemented Yet")
-    def test_deserialized(self, session):
-        pass
-
 
 class TestErrorCollectionSchema(TestErrorSchemaBase):
     @provide_session

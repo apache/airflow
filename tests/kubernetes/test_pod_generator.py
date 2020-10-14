@@ -22,6 +22,7 @@ from unittest import mock
 from dateutil import parser
 from kubernetes.client import ApiClient, models as k8s
 
+from airflow import __version__
 from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.pod_generator import (
     PodDefaults, PodGenerator, datetime_to_label_safe_datestring, extend_object_field, merge_objects,
@@ -75,7 +76,7 @@ class TestPodGenerator(unittest.TestCase):
             'execution_date': self.execution_date_label,
             'task_id': self.task_id,
             'try_number': str(self.try_number),
-            'airflow_version': '2.0.0.dev0',
+            'airflow_version': __version__.replace('+', '-'),
             'kubernetes_executor': 'True'
         }
         self.annotations = {

@@ -34,7 +34,7 @@ class XComArg(TaskMixin):
         op >> xcomarg   (by BaseOperator code)
         op << xcomarg   (by BaseOperator code)
 
-    **Example**: The moment you get a result from any operator (functional or regular) you can ::
+    **Example**: The moment you get a result from any operator (decorated or regular) you can ::
 
         any_op = AnyOperator()
         xcomarg = XComArg(any_op)
