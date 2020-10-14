@@ -234,17 +234,12 @@ def initialize_web_ui_plugins():
     """Collect extension points for WEB UI"""
     # pylint: disable=global-statement
     global plugins
-
-    global admin_views
     global flask_blueprints
-    global menu_links
     global flask_appbuilder_views
     global flask_appbuilder_menu_links
     # pylint: enable=global-statement
 
-    if admin_views is not None and \
-            flask_blueprints is not None and \
-            menu_links is not None and \
+    if flask_blueprints is not None and \
             flask_appbuilder_views is not None and \
             flask_appbuilder_menu_links is not None:
         return
@@ -256,15 +251,11 @@ def initialize_web_ui_plugins():
 
     log.debug("Initialize Web UI plugin")
 
-    admin_views = []
     flask_blueprints = []
-    menu_links = []
     flask_appbuilder_views = []
     flask_appbuilder_menu_links = []
 
     for plugin in plugins:
-        admin_views.extend(plugin.admin_views)
-        menu_links.extend(plugin.menu_links)
         flask_appbuilder_views.extend(plugin.appbuilder_views)
         flask_appbuilder_menu_links.extend(plugin.appbuilder_menu_items)
         flask_blueprints.extend([{
@@ -272,7 +263,8 @@ def initialize_web_ui_plugins():
             'blueprint': bp
         } for bp in plugin.flask_blueprints])
 
-        if (admin_views and not flask_appbuilder_views) or (menu_links and not flask_appbuilder_menu_links):
+        if (plugin.admin_views and not plugin.appbuilder_views) or (
+                plugin.menu_links and not plugin.appbuilder_menu_items):
             log.warning(
                 "Plugin \'%s\' may not be compatible with the current Airflow version. "
                 "Please contact the author of the plugin.",
