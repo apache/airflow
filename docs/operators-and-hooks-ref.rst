@@ -180,6 +180,12 @@ Foundation.
        :mod:`airflow.providers.apache.hive.sensors.hive_partition`,
        :mod:`airflow.providers.apache.hive.sensors.metastore_partition`
 
+   * - `Apache Kafka <https://kafka.apache.org/>`__
+     -
+     - :mod:`airflow.providers.apache.kafka.hooks.kylin`
+     - :mod:`airflow.providers.apache.kafka.operators.kylin_cube`
+     -
+
    * - `Apache Kylin <https://kylin.apache.org/>`__
      -
      - :mod:`airflow.providers.apache.kylin.hooks.kylin`
