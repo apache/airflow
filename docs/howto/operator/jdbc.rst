@@ -20,6 +20,53 @@
 JdbcOperator
 ============
 
+Java Database Connectivity (JDBC) is an application programming interface
+(API) for the programming language Java, which defines how a client may
+access a database.
+
+.. contents::
+  :depth: 1
+  :local:
+
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+To use this operator you need:
+
+  * Install the python module jaydebeapi:
+    .. code-block:: bash
+
+      pip install jaydebeapi
+
+  * Install a `JVM <https://adoptopenjdk.net/installation.html>`_ and
+    add a ``JAVA_HOME`` env variable.
+  * Have the JDBC driver for your database installed.
+
+Once these prerequisites are satisfied you should be able to run
+this Python snippet (replacing the variables values with the ones
+related to your driver).
+
+Other error messages will inform you in case the ``jaydebeapi`` module
+is missing or the driver is not available. A ``Connection Refused``
+error means that the connection string is pointing to host where no
+database is listening for new connections.
+
+  .. code-block:: python
+
+    import jaydebeapi
+
+    driver_class = "com.exasol.jdbc.EXADriver"
+    driver_path = "/opt/airflow/drivers/exasol/EXASolution_JDBC-7.0.2/exajdbc.jar"
+    connection_url =  "jdbc:exa:localhost"
+    credentials = ["", ""]
+
+    conn = jaydebeapi.connect(driver_class,
+                              connection_url,
+                              credentials,
+                              driver_path,)
+
+Usage
+^^^^^
 Use the :class:`~airflow.providers.jdbc.operators.jdbc` to execute
 commands against a database (or data storage) accessible via a JDBC driver.
 
@@ -37,18 +84,6 @@ Template reference are recognized by ending in '.sql'.
 
 The parameter ``autocommit`` if set to ``True`` will execute a commit after
 each command (default is ``False``)
-
-Prerequisite Tasks
-------------------
-To use this operator you need:
-
-  * Install the python module jaydebeapi:
-    .. code-block:: bash
-
-      pip install jaydebeapi
-
-  * Install a JVM.
-  * Have the JDBC driver for your database installed.
 
 Templating
 ----------
