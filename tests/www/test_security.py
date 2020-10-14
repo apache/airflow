@@ -243,6 +243,15 @@ class TestSecurity(unittest.TestCase):
                 })
         self.assertIn("role does not exist", str(context.exception))
 
+    def test_all_dag_access_doesnt_give_non_dag_access(self):
+        with self.assertRaises(AirflowException) as context:
+            self.security_manager.sync_perm_for_dag(
+                dag_id='access-control-test',
+                access_control={
+                    'this-role-does-not-exist': ['can_edit', 'can_read']
+                })
+        self.assertIn("role does not exist", str(context.exception))
+
     def test_access_control_with_invalid_permission(self):
         invalid_permissions = [
             'can_varimport',  # a real permission, but not a member of DAG_PERMS
