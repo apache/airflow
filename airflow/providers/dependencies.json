@@ -22,6 +22,9 @@
   "apache.livy": [
     "http"
   ],
+  "apache.kafka": [
+    "kafka"
+  ],
   "dingding": [
     "http"
   ],
