@@ -46,7 +46,7 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ('can_read', 'Dag'),
+                ('can_read', 'AllDags'),
                 ('can_read', 'DagRun'),
                 ('can_read', 'Task'),
                 ('can_edit', 'Task'),

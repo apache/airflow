@@ -39,7 +39,7 @@ def can_access_any_dags(action: str, dag_id: Optional[int] = None) -> bool:
     """Checks if user has read or write access to some dags."""
     appbuilder = current_app.appbuilder
     if dag_id and dag_id != '~':
-        return appbuilder.sm.has_access(action, dag_id)
+        return appbuilder.sm.has_access(action, appbuilder.sm.prefixed_dag_id(dag_id))
 
     user = g.user
     if action == 'can_read':
@@ -80,7 +80,6 @@ def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> 
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-
             check_authentication()
             check_authorization(permissions, kwargs.get('dag_id'))
 

@@ -357,15 +357,15 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def has_access(self, permission, resource, user=None) -> bool:
         """
         Verify whether a given user could perform certain permission
-        (e.g can_read, can_write) on the given dag_id.
+        (e.g can_read, can_write) on the given resource.
 
-        :param permission: permission on dag_id(e.g can_read, can_edit).
+        :param permission: permission on resource (e.g can_read, can_edit).
         :type permission: str
         :param resource: name of view-menu or resource.
         :type resource: str
         :param user: user name
         :type user: str
-        :return: a bool whether user could perform certain permission on the dag_id.
+        :return: a bool whether user could perform certain permission on the resource.
         :rtype bool
         """
         if not user:
@@ -375,6 +375,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             return self.is_item_public(permission, resource)
 
         has_access = self._has_view_access(user, permission, resource)
+        # FAB built-in view access method. Won't work for AllDag access.
 
         if self.is_dag_resource(resource):
             if permission == permissions.ACTION_CAN_READ:
