@@ -20,17 +20,41 @@ from __future__ import absolute_import
 from airflow.configuration import conf
 from airflow.upgrade.rules.base_rule import BaseRule
 
+DESCRIPTION = """\
+Previously we were using two versions of UI, which were hard to maintain as we
+need to implement/update the same feature in both versions. With this release
+we've removed the older UI in favor of Flask App Builder RBAC UI. No need to
+set the RBAC UI explicitly in the configuration now as this is the only default
+UI. We did it to avoid the huge maintenance burden of two independent user
+interfaces.\
+
+Before upgrading to this release, we recommend activating the new FAB RBAC UI.
+For that, you should set the ``rbac`` options in ``[webserver]`` in
+the airflow.cfg file to true
+
+```ini
+[webserver]
+rbac = true
+```
+In order to login to the interface, you need to create an administrator account.
+
+```bash
+airflow create_user \\
+    --role Admin \\
+    --username admin \\
+    --firstname FIRST_NAME \\
+    --lastname LAST_NAME \\
+    --email EMAIL@example.org
+```
+"""
+
 
 class LegacyUIDeprecated(BaseRule):
-    title = "Legacy UI is deprecated by default"
+    title = "Non-RBAC UI is removed in newer version"
 
-    description = "Legacy UI is deprecated. FAB RBAC is enabled by default in order to increase security."
+    description = DESCRIPTION
 
     def check(self):
-        if conf.has_option("webserver", "rbac"):
-            rbac = conf.get("webserver", "rbac")
-            if rbac == "false":
-                return (
-                    "rbac in airflow.cfg must be explicitly set empty as"
-                    " RBAC mechanism is enabled by default."
-                )
+        rbac = conf.getboolean("webserver", "rbac", fallback=False)
+        if not rbac:
+            return "The RBAC interface is required for upgrade."

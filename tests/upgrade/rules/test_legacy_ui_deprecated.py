@@ -28,14 +28,11 @@ class TestLegacyUIDeprecated(TestCase):
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
 
-        msg = (
-            "rbac in airflow.cfg must be explicitly set empty as"
-            " RBAC mechanism is enabled by default."
-        )
+        msg = "The RBAC interface is required for upgrade."
         response = rule.check()
-        assert response == msg
+        self.assertEqual(response, msg)
 
-    @conf_vars({("webserver", "rbac"): ""})
+    @conf_vars({("webserver", "rbac"): "true"})
     def test_valid_check(self):
         rule = LegacyUIDeprecated()
 
