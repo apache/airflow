@@ -47,7 +47,7 @@ The script generates all the necessary information:
 
 The script generates two types of files:
 
-* PROVIDERS_CHANGES_YYYY.MM.DD.md which keeps information about changes (commits) in a particular
+* BACKPORT_PROVIDERS_CHANGES_YYYY.MM.DD.md which keeps information about changes (commits) in a particular
   version of the provider package. The file for latest release gets updated when you iterate with
   the same new date/version, but it never changes automatically for already released packages.
   This way - just before the final release, you can manually correct the changes file if you

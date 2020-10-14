@@ -297,6 +297,26 @@ function install_released_airflow_version() {
     pip install --upgrade "${INSTALLS[@]}"
 }
 
+function setup_backport_packages() {
+    if [[ ${BACKPORT_PACKAGES:=} == "true" ]]; then
+        export PACKAGE_TYPE="backport"
+        export PACKAGE_PREFIX_UPPERCASE="BACKPORT_"
+        export PACKAGE_PREFIX_LOWERCASE="backport_"
+        export PACKAGE_PREFIX_HYPHEN="backport-"
+    else
+        export PACKAGE_TYPE="regular"
+        export PACKAGE_PREFIX_UPPERCASE=""
+        export PACKAGE_PREFIX_LOWERCASE=""
+        export PACKAGE_PREFIX_HYPHEN=""
+    fi
+    readonly PACKAGE_TYPE
+    readonly PACKAGE_PREFIX_UPPERCASE
+    readonly PACKAGE_PREFIX_LOWERCASE
+    readonly PACKAGE_PREFIX_HYPHEN
+
+    readonly BACKPORT_PACKAGES
+    export BACKPORT_PACKAGES
+}
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}

@@ -271,7 +271,7 @@ jobs:
       - name: "Spell check docs"
         run: ./scripts/ci/docs/ci_docs.sh --spellcheck-only
 
-  prepare-provider-packages:
+  prepare-backport-provider-packages:
     timeout-minutes: 30
     name: "Backport packages"
     runs-on: ubuntu-latest
@@ -279,6 +279,7 @@ jobs:
     env:
       INSTALL_AIRFLOW_VERSION: "1.10.12"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      BACKPORT_PACKAGES: "true"
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -304,32 +305,61 @@ jobs:
         if: always()
         with:
           name: airflow-backport-readmes
-          path: "./files/airflow-backport-readme*"
+          path: "./files/airflow-readme-*"
+
+  prepare-provider-packages:
+    timeout-minutes: 30
+    name: "Provider packages"
+    runs-on: ubuntu-latest
+    needs: [build-info, ci-images]
+    env:
+      INSTALL_AIRFLOW_VERSION: "2.0.0-dev"   # Note that this causes local installation
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Prepare & test provider packages"
+        run: ./scripts/ci/provider_packages/ci_prepare_and_test_provider_packages.sh
+      - name: "Upload provider package artifacts"
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: airflow-provider-packages
+          path: "./files/airflow-packages-*"
+      - name: "Upload readme artifacts"
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: airflow-provider-readmes
+          path: "./files/airflow-readme-*"
+
 
   tests-postgres:
     timeout-minutes: 60
-    name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
+    name: "Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
         postgres-version: ${{ fromJson(needs.build-info.outputs.postgresVersions) }}
-        test-type: ${{ fromJson(needs.build-info.outputs.testTypes) }}
         exclude: ${{ fromJson(needs.build-info.outputs.postgresExclude) }}
-        # Additionally include all postgres-only tests but only for default versions
-        # in case the regular tests are excluded in the future
-        include:
-          - python_version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-            postgres-version: ${{ needs.build-info.outputs.defaultPostgresVersion }}
-            test-type: "Postgres"
       fail-fast: false
     env:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: true
-      TEST_TYPE: ${{ matrix.test-type }}
+      TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -361,14 +391,13 @@ jobs:
 
   tests-mysql:
     timeout-minutes: 60
-    name: "${{matrix.test-type}}:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
+    name: "MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
         mysql-version: ${{ fromJson(needs.build-info.outputs.mysqlVersions) }}
-        test-type: ${{ fromJson(needs.build-info.outputs.testTypes) }}
         exclude: ${{ fromJson(needs.build-info.outputs.mysqlExclude) }}
         # Additionally include all mysql-only tests but only for default versions
         # in case the regular tests are excluded in the future
@@ -382,7 +411,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       RUN_TESTS: true
-      TEST_TYPE: ${{ matrix.test-type }}
+      TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -413,7 +442,7 @@ jobs:
 
   tests-sqlite:
     timeout-minutes: 60
-    name: "${{matrix.test-type}}:Sqlite Py${{matrix.python-version}}"
+    name: "Sqlite Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
     strategy:
@@ -426,7 +455,7 @@ jobs:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       RUN_TESTS: true
-      TEST_TYPE: ${{ matrix.test-type }}
+      TEST_TYPES: ${{needs.build-info.outputs.testTypes}}
     if: >
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -473,7 +502,7 @@ jobs:
       MYSQL_VERSION: ${{needs.build-info.outputs.defaultMySQLVersion}}
       POSTGRES_VERSION: ${{needs.build-info.outputs.defaultPostgresVersion}}
       RUN_TESTS: true
-      TEST_TYPE: Quarantined
+      TEST_TYPES: "Quarantined"
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: >
@@ -624,7 +653,7 @@ jobs:
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
         env:
-          cache-name: cache-kubernetes-tests-virtualenv-v4
+          cache-name: cache-kubernetes-tests-virtualenv-v6
         with:
           path: .build/.kubernetes_venv
           key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}"
@@ -656,6 +685,7 @@ jobs:
       - tests-postgres
       - tests-mysql
       - tests-kubernetes
+      - prepare-backport-provider-packages
       - prepare-provider-packages
       - prod-images
       - docs
@@ -695,7 +725,7 @@ jobs:
       - tests-postgres
       - tests-mysql
       - tests-kubernetes
-      - prepare-provider-packages
+      - prepare-backport-provider-packages
       - ci-images
       - docs
       - docs-spell-check

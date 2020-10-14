@@ -368,11 +368,14 @@ function initialization::initialize_image_build_variables() {
 }
 
 # Determine version suffixes used to build provider packages
-function initialization::initialize_version_suffixes_for_package_building() {
+function initialization::initialize_provider_package_building() {
     # Version suffix for PyPI packaging
     export VERSION_SUFFIX_FOR_PYPI=""
     # Artifact name suffix for SVN packaging
     export VERSION_SUFFIX_FOR_SVN=""
+    # If set to true, the backport provider packages will be built (false will build regular provider packages)
+    export BACKPORT_PACKAGES=${BACKPORT_PACKAGES:="false"}
+
 }
 
 # Determine versions of kubernetes cluster and tools used
@@ -460,7 +463,7 @@ function initialization::initialize_common_environment() {
     initialization::initialize_force_variables
     initialization::initialize_host_variables
     initialization::initialize_image_build_variables
-    initialization::initialize_version_suffixes_for_package_building
+    initialization::initialize_provider_package_building
     initialization::initialize_kubernetes_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables

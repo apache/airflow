@@ -31,11 +31,12 @@
   - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Vote and verify the Apache Airflow release candidate](#vote-and-verify-the-apache-airflow-release-candidate)
   - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
-- [Backport Provider Packages](#backport-provider-packages)
+- [Provider Packages](#provider-packages)
   - [Decide when to release](#decide-when-to-release)
   - [Prepare the Backport Provider Packages RC](#prepare-the-backport-provider-packages-rc)
   - [Vote and verify the Backport Providers release candidate](#vote-and-verify-the-backport-providers-release-candidate)
   - [Publish the final releases of backport packages](#publish-the-final-releases-of-backport-packages)
+  - [Prepare the Regular Provider Packages Alpha](#prepare-the-regular-provider-packages-alpha)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -715,20 +716,35 @@ Update "Announcements" page at the [Official Airflow website](https://airflow.ap
 -----------------------------------------------------------------------------------------------------------
 
 
-# Backport Provider Packages
+# Provider Packages
 
-You can read more about the command line tools used to generate backport packages in
-[Backport Providers README](../provider_packages/README.md).
+You can read more about the command line tools used to generate the packages and the two types of
+packages we have (Backport and Regular Provider Packages) in [Provider packages](PROVIDER_PACKAGES.md).
 
 ## Decide when to release
 
-You can release backport packages separately on an ad-hoc basis, whenever we find that a given provider needs
-to be released - due to new features or due to bug fixes. You can release each backport package
-separately.
+You can release provider packages separately from the main Airflow on an ad-hoc basis, whenever we find that
+a given provider needs to be released - due to new features or due to bug fixes.
+You can release each provider package separately, but due to voting and release overhead we try to group
+releases of provider packages together.
+
+### Backport provider packages versioning
 
 We are using the [CALVER](https://calver.org/) versioning scheme for the backport packages. We also have an
 automated way to prepare and build the packages, so it should be very easy to release the packages often and
-separately.
+separately. Backport packages will be maintained for three months after 2.0.0 version of Airflow, and it is
+really a bridge, allowing people to migrate to Airflow 2.0 in stages, so the overhead of maintaining
+semver versioning does not apply there - subsequent releases might be backward-incompatible, and it is
+not indicated by the version of the packages.
+
+### Regular provider packages versioning
+
+We are using the [SEMVER](https://semver.org/) versioning scheme for the regular packages. This is in order
+to give the users confidence about maintaining backwards compatibility in the new releases of those
+packages.
+
+Details about maintaining the SEMVER version are going to be discussed and implemented in
+[the related issue](https://github.com/apache/airflow/issues/11425)
 
 ## Prepare the Backport Provider Packages RC
 
@@ -738,14 +754,14 @@ Prepare release notes for all the packages you plan to release. Where YYYY.MM.DD
 date for the packages.
 
 ```
-./breeze prepare-provider-readme YYYY.MM.DD [packages]
+./breeze --backports prepare-provider-readme YYYY.MM.DD [packages]
 ```
 
 If you iterate with merges and release candidates you can update the release date without providing
 the date (to update the existing release notes)
 
 ```
-./breeze prepare-provider-readme google
+./breeze --backports prepare-provider-readme google
 ```
 
 Generated readme files should be eventually committed to the repository.
@@ -1384,3 +1400,138 @@ EOF
 ### Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
+
+----------------------------------------------------------------------------------------------------------------------
+
+## Prepare the Regular Provider Packages Alpha
+
+### Generate release notes
+
+Prepare release notes for all the packages you plan to release. Note that for now version number is
+hard-coded to 0.0.1 for all packages. Later on we are going to update the versions according
+to SEMVER versioning.
+
+Details about maintaining the SEMVER version are going to be discussed and implemented in
+[the related issue](https://github.com/apache/airflow/issues/11425)
+
+
+```
+./breeze prepare-provider-readme [packages]
+```
+
+You can iterate and re-generate the same readme content as many times as you want.
+Generated readme files should be eventually committed to the repository.
+
+### Build an Alpha release for SVN apache upload
+
+The Alpha artifacts we vote upon should be the exact ones in the future we vote against, without any
+modification than renaming i.e. the contents of the files must be the same between voted
+release candidate and final release. Because of this the version in the built artifacts
+that will become the official Apache releases must not include the rcN suffix. They also need
+to be signed and have checksum files. You can generate the checksum/signature files by running
+the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing). The script
+generates corresponding .asc and .sha512 files for each file to sign.
+
+#### Build and sign the source and convenience packages
+
+Currently, we are releasing alpha provider packages together with the main sources of Airflow. In the future
+we are going to add procedure to release the sources of released provider packages separately.
+Details are in [the related issue](https://github.com/apache/airflow/issues/11425)
+
+* Generate the packages - since we are preparing packages for SVN repo, we should use the right switch. Note
+  that this will clean up dist folder before generating the packages, so it will only contain the packages
+  you intended to build.
+
+```shell script
+export VERSION=0.0.1alpha1
+
+./breeze prepare-provider-packages --version-suffix-for-svn alpha1
+```
+
+if you ony build few packages, run:
+
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-svn alpha1 PACKAGE PACKAGE ....
+```
+
+* Sign all your packages
+
+```shell script
+pushd dist
+../dev/sign.sh *
+popd
+```
+
+#### Commit the source packages to Apache SVN repo
+
+* Push the artifacts to ASF dev dist repo
+
+```shell script
+# First clone the repo if you do not have it
+svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+
+# update the repo in case you have it already
+cd airflow-dev
+svn update
+
+# Create a new folder for the release.
+cd airflow-dev/providers
+svn mkdir ${VERSION}
+
+# Move the artifacts to svn folder
+mv ${AIRFLOW_REPO_ROOT}/dist/* ${VERSION}/
+
+# Add and commit
+svn add ${VERSION}/*
+svn commit -m "Add artifacts for Airflow Providers ${VERSION}"
+
+cd ${AIRFLOW_REPO_ROOT}
+```
+
+Verify that the files are available at
+[backport-providers](https://dist.apache.org/repos/dist/dev/airflow/backport-providers/)
+
+### Publish the Alpha convenience package to PyPI
+
+In order to publish to PyPI you just need to build and release packages. The packages should however
+contain the rcN suffix in the version name as well, so you need to use `--version-suffix-for-pypi` switch
+to prepare those packages. Note that these are different packages than the ones used for SVN upload
+though they should be generated from the same sources.
+
+* Generate the packages with the right RC version (specify the version suffix with PyPI switch). Note that
+this will clean up dist folder before generating the packages, so you will only have the right packages there.
+
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-pypi alpha1
+```
+
+if you ony build few packages, run:
+
+```shell script
+./breeze prepare-provider-packages --version-suffix-for-pypi alpha1 PACKAGE PACKAGE ....
+```
+
+* Verify the artifacts that would be uploaded:
+
+```shell script
+twine check dist/*
+```
+
+* Upload the package to PyPi's test environment:
+
+```shell script
+twine upload -r pypitest dist/*
+```
+
+* Verify that the test packages look good by downloading it and installing them into a virtual environment.
+Twine prints the package links as output - separately for each package.
+
+* Upload the package to PyPi's production environment:
+
+```shell script
+twine upload -r pypi dist/*
+```
+
+* Copy the list of links to the uploaded packages - they will be useful in preparing VOTE email.
+
+* Again, confirm that the packages are available under the links printed.

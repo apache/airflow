@@ -34,6 +34,7 @@ from os.path import dirname
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
+import semver
 from setuptools import Command, find_packages, setup as setuptools_setup
 
 MY_DIR_PATH = os.path.dirname(__file__)
@@ -195,28 +196,32 @@ MOVED_ENTITIES: Dict[EntityType, Dict[str, str]] = {
 }
 
 
-def get_pip_package_name(provider_package_id: str) -> str:
+def get_pip_package_name(provider_package_id: str, backport_packages: bool) -> str:
     """
     Returns PIP package name for the package id.
 
     :param provider_package_id: id of the package
+    :param backport_packages: whether to prepare regular (False) or backport (True) packages
     :return: the name of pip package
     """
-    return "apache-airflow-backport-providers-" + provider_package_id.replace(".", "-")
+    return ("apache-airflow-backport-providers-" if backport_packages else "apache-airflow-providers-") \
+        + provider_package_id.replace(".", "-")
 
 
-def get_long_description(provider_package_id: str) -> str:
+def get_long_description(provider_package_id: str, backport_packages: bool) -> str:
     """
     Gets long description of the package.
 
     :param provider_package_id: package id
-    :return: content of the description (README file)
+    :param backport_packages: whether to prepare regular (False) or backport (True) packages
+    :return: content of the description (BACKPORT_README/README file)
     """
     package_folder = get_target_providers_package_folder(provider_package_id)
-    readme_file = os.path.join(package_folder, "README.md")
+    readme_file = os.path.join(package_folder, "BACKPORT_README.md" if backport_packages else "README.md")
     if not os.path.exists(readme_file):
         return ""
-    with open(os.path.join(package_folder, "README.md"), encoding='utf-8', mode="r") as file:
+    with open(os.path.join(package_folder, "BACKPORT_README.md" if backport_packages else "README.md"),
+              encoding='utf-8', mode="r") as file:
         readme_contents = file.read()
     copying = True
     long_description = ""
@@ -224,29 +229,35 @@ def get_long_description(provider_package_id: str) -> str:
         if line.startswith("**Table of contents**"):
             copying = False
             continue
-        if line.startswith("## Backport package"):
+        header_line = "## Backport package" if backport_packages else "## Provider package"
+        if line.startswith(header_line):
             copying = True
         if copying:
             long_description += line
     return long_description
 
 
-def get_package_release_version(provider_package_id: str, version_suffix: str = "") -> str:
+def get_package_release_version(provider_package_id: str,
+                                backport_packages: bool,
+                                version_suffix: str = "") -> str:
     """
     Returns release version including optional suffix.
 
     :param provider_package_id: package id
+    :param backport_packages: whether to prepare regular (False) or backport (True) packages
     :param version_suffix: optional suffix (rc1, rc2 etc).
     :return:
     """
     return get_latest_release(
-        get_package_path(provider_package_id=provider_package_id)).release_version + version_suffix
+        get_package_path(provider_package_id=provider_package_id),
+        backport_packages=backport_packages).release_version + version_suffix
 
 
 def do_setup_package_providers(provider_package_id: str,
                                version_suffix: str,
                                package_dependencies: Iterable[str],
-                               extras: Dict[str, List[str]]) -> None:
+                               extras: Dict[str, List[str]],
+                               backport_packages: bool) -> None:
     """
     The main setup method for package.
 
@@ -254,30 +265,37 @@ def do_setup_package_providers(provider_package_id: str,
     :param version_suffix: version suffix to be added to the release version (for example rc1)
     :param package_dependencies: dependencies of the package
     :param extras: extras of the package
+    :param backport_packages: whether to prepare regular (False) or backport (True) packages
 
     """
     setup.write_version()
-    provider_package_name = get_pip_package_name(provider_package_id)
+    provider_package_name = get_pip_package_name(provider_package_id, backport_packages=backport_packages)
     package_name = f'{provider_package_name}'
     package_prefix = f'airflow.providers.{provider_package_id}'
     found_packages = find_packages()
     found_packages = [package for package in found_packages if package.startswith(package_prefix)]
 
-    airflow_dependency = 'apache-airflow~=1.10' if provider_package_id != 'cncf.kubernetes' \
-        else 'apache-airflow>=1.10.12, <2.0.0'
+    if backport_packages:
+        airflow_dependency = 'apache-airflow~=1.10' if provider_package_id != 'cncf.kubernetes' \
+            else 'apache-airflow>=1.10.12, <2.0.0'
+    else:
+        airflow_dependency = 'apache-airflow>=2.0.0'
 
     install_requires = [
         airflow_dependency
     ]
     install_requires.extend(package_dependencies)
+    description_prefix = 'Back-ported' if backport_packages else 'Regular'
+    description_suffix = 'for Airflow 1.10.*' if backport_packages else 'for Airflow 2+'
     setuptools_setup(
         name=package_name,
-        description=f'Back-ported {package_prefix}.* package for Airflow 1.10.*',
-        long_description=get_long_description(provider_package_id),
+        description=f'{description_prefix} {package_prefix}.* package {description_suffix}',
+        long_description=get_long_description(provider_package_id, backport_packages=backport_packages),
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=get_package_release_version(
             provider_package_id=provider_package_id,
+            backport_packages=backport_packages,
             version_suffix=version_suffix),
         packages=found_packages,
         zip_safe=False,
@@ -291,6 +309,7 @@ def do_setup_package_providers(provider_package_id: str,
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
             'Topic :: System :: Monitoring',
         ],
         setup_requires=[
@@ -304,16 +323,19 @@ def do_setup_package_providers(provider_package_id: str,
     )
 
 
-def find_package_extras(package: str) -> Dict[str, List[str]]:
+def find_package_extras(package: str, backport_packages: bool) -> Dict[str, List[str]]:
     """
     Finds extras for the package specified.
+
+    :param package: id of the package
+    :param backport_packages: whether to prepare regular (False) or backport (True) packages
 
     """
     if package == 'providers':
         return {}
     with open(DEPENDENCIES_JSON_FILE, "rt") as dependencies_file:
         cross_provider_dependencies: Dict[str, List[str]] = json.load(dependencies_file)
-    extras_dict = {module: [get_pip_package_name(module)]
+    extras_dict = {module: [get_pip_package_name(module, backport_packages=backport_packages)]
                    for module in cross_provider_dependencies[package]} \
         if cross_provider_dependencies.get(package) else {}
     return extras_dict
@@ -778,8 +800,6 @@ LICENCE = """<!--
  -->
 """
 
-PROVIDERS_CHANGES_PREFIX = "PROVIDERS_CHANGES_"
-
 """
 Keeps information about historical releases.
 """
@@ -788,21 +808,42 @@ ReleaseInfo = collections.namedtuple(
     "release_version release_version_no_leading_zeros last_commit_hash content file_name")
 
 
-def strip_leading_zeros(release_version: str) -> str:
-    return release_version.replace(".0", ".")
-
-
-def get_all_releases(provider_package_path: str) -> List[ReleaseInfo]:
+def strip_leading_zeros_in_calver(calver_version: str) -> str:
     """
-    Returns information about past releases (retrieved from PROVIDERS_CHANGES_ files stored in the
+    Strips leading zeros from calver version number.
+
+    This converts 1974.04.03 to 1974.4.3 as the format with leading month and day zeros is not accepted
+    by PIP versioning.
+
+    :param calver_version: version number in calver format (potentially with leading 0s in date and month)
+    :return: string with leading 0s after dot replaced.
+    """
+    return calver_version.replace(".0", ".")
+
+
+def get_provider_changes_prefix(backport_packages: bool) -> str:
+    """
+    Returns prefix for provider CHANGES files.
+    """
+    if backport_packages:
+        return "BACKPORT_PROVIDERS_CHANGES_"
+    else:
+        return "PROVIDERS_CHANGES_"
+
+
+def get_all_releases(provider_package_path: str, backport_packages: bool) -> List[ReleaseInfo]:
+    """
+    Returns information about past releases (retrieved from BACKPORT_PROVIDERS_CHANGES_ files stored in the
     package folder.
     :param provider_package_path: path of the package
+    :param backport_packages: whether to prepare regular (False) or backport (True) packages
     :return: list of releases made so far.
     """
+    changes_file_prefix = get_provider_changes_prefix(backport_packages=backport_packages)
     past_releases: List[ReleaseInfo] = []
     changes_file_names = listdir(provider_package_path)
     for file_name in sorted(changes_file_names, reverse=True):
-        if file_name.startswith(PROVIDERS_CHANGES_PREFIX) and file_name.endswith(".md"):
+        if file_name.startswith(changes_file_prefix) and file_name.endswith(".md"):
             changes_file_path = os.path.join(provider_package_path, file_name)
             with open(changes_file_path, "rt") as changes_file:
                 content = changes_file.read()
@@ -811,24 +852,28 @@ def get_all_releases(provider_package_path: str) -> List[ReleaseInfo]:
                 print("No commit found. This seems to be first time you run it", file=sys.stderr)
             else:
                 last_commit_hash = found.group(1)
-                release_version = file_name[len(PROVIDERS_CHANGES_PREFIX):][:-3]
+                release_version = file_name[len(changes_file_prefix):][:-3]
+                release_version_no_leading_zeros = strip_leading_zeros_in_calver(release_version) \
+                    if backport_packages else release_version
                 past_releases.append(
                     ReleaseInfo(release_version=release_version,
-                                release_version_no_leading_zeros=strip_leading_zeros(release_version),
+                                release_version_no_leading_zeros=release_version_no_leading_zeros,
                                 last_commit_hash=last_commit_hash,
                                 content=content,
                                 file_name=file_name))
     return past_releases
 
 
-def get_latest_release(provider_package_path: str) -> ReleaseInfo:
+def get_latest_release(provider_package_path: str, backport_packages: bool) -> ReleaseInfo:
     """
     Gets information about the latest release.
 
     :param provider_package_path: path of package
+    :param backport_packages: whether to prepare regular (False) or backport (True) packages
     :return: latest release information
     """
-    releases = get_all_releases(provider_package_path=provider_package_path)
+    releases = get_all_releases(provider_package_path=provider_package_path,
+                                backport_packages=backport_packages)
     if len(releases) == 0:
         return ReleaseInfo(release_version="0.0.0",
                            release_version_no_leading_zeros="0.0.0",
@@ -862,11 +907,13 @@ def get_previous_release_info(previous_release_version: str,
 
 def check_if_release_version_ok(
         past_releases: List[ReleaseInfo],
-        current_release_version: str) -> Tuple[str, Optional[str]]:
+        current_release_version: str,
+        backport_packages: bool) -> Tuple[str, Optional[str]]:
     """
     Check if the release version passed is not later than the last release version
     :param past_releases: all past releases (if there are any)
     :param current_release_version: release version to check
+    :param backport_packages: whether to prepare regular (False) or backport (True) packages
     :return: Tuple of current/previous_release (previous might be None if there are no releases)
     """
     previous_release_version = past_releases[0].release_version if past_releases else None
@@ -874,11 +921,21 @@ def check_if_release_version_ok(
         if previous_release_version:
             current_release_version = previous_release_version
         else:
-            current_release_version = (datetime.today() + timedelta(days=5)).strftime('%Y.%m.%d')
-    if previous_release_version and previous_release_version > current_release_version:
-        print(f"The release {current_release_version} must be not less than "
-              f"{previous_release_version} - last release for the package", file=sys.stderr)
-        sys.exit(2)
+            if backport_packages:
+                current_release_version = (datetime.today() + timedelta(days=5)).strftime('%Y.%m.%d')
+            else:
+                current_release_version = "0.0.1"  # TODO: replace with maintained version
+    if previous_release_version:
+        if backport_packages:
+            if previous_release_version > current_release_version:
+                print(f"The release {current_release_version} must be not less than "
+                      f"{previous_release_version} - last release for the package", file=sys.stderr)
+                sys.exit(2)
+        else:
+            if semver.compare(previous_release_version, current_release_version) > 0:
+                print(f"The release {current_release_version} must be not less than "
+                      f"{previous_release_version} - last release for the package", file=sys.stderr)
+                sys.exit(2)
     return current_release_version, previous_release_version
 
 
@@ -903,16 +960,16 @@ def make_sure_remote_apache_exists_and_fetch():
     :return:
     """
     try:
-        subprocess.check_call(["git", "remote", "add", "apache-https-for-backports",
+        subprocess.check_call(["git", "remote", "add", "apache-https-for-providers",
                                "https://github.com/apache/airflow.git"],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError as e:
         if e.returncode == 128:
-            print("The remote `apache-https-for-backports` already exists. If you have trouble running "
+            print("The remote `apache-https-for-providers` already exists. If you have trouble running "
                   "git log delete the remote", file=sys.stderr)
         else:
             raise
-    subprocess.check_call(["git", "fetch", "apache-https-for-backports"],
+    subprocess.check_call(["git", "fetch", "apache-https-for-providers"],
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -922,7 +979,7 @@ def get_git_command(base_commit: Optional[str]) -> List[str]:
     :param base_commit: if present - base commit from which to start the log from
     :return: git command to run
     """
-    git_cmd = ["git", "log", "apache-https-for-backports/master",
+    git_cmd = ["git", "log", "apache-https-for-providers/master",
                "--pretty=format:%H %h %cd %s", "--date=short"]
     if base_commit:
         git_cmd.append(f"{base_commit}...HEAD")
@@ -931,16 +988,20 @@ def get_git_command(base_commit: Optional[str]) -> List[str]:
 
 
 def store_current_changes(provider_package_path: str,
-                          current_release_version: str, current_changes: str) -> None:
+                          current_release_version: str,
+                          current_changes: str,
+                          backport_packages: bool) -> None:
     """
-    Stores current changes in the PROVIDERS_CHANGES_YYYY.MM.DD.md file.
+    Stores current changes in the BACKPORT_PROVIDERS_CHANGES_YYYY.MM.DD.md file.
 
     :param provider_package_path: path for the package
     :param current_release_version: release version to build
     :param current_changes: list of changes formatted in markdown format
+    :param backport_packages: whether to prepare regular (False) or backport (True) packages
     """
-    current_changes_file_path = os.path.join(provider_package_path,
-                                             PROVIDERS_CHANGES_PREFIX + current_release_version + ".md")
+    current_changes_file_path = os.path.join(
+        provider_package_path,
+        get_provider_changes_prefix(backport_packages=backport_packages) + current_release_version + ".md")
     with open(current_changes_file_path, "wt") as current_changes_file:
         current_changes_file.write(current_changes)
         current_changes_file.write("\n")
@@ -1019,24 +1080,33 @@ def check_if_classes_are_properly_named(
     return total_class_number, badly_named_class_number
 
 
+def get_package_pip_name(provider_package_id: str, backport_packages: bool):
+    if backport_packages:
+        return f"apache-airflow-backport-providers-{provider_package_id.replace('.', '-')}"
+    else:
+        return f"apache-airflow-providers-{provider_package_id.replace('.', '-')}"
+
+
 def update_release_notes_for_package(provider_package_id: str, current_release_version: str,
-                                     imported_classes: List[str]) -> Tuple[int, int]:
+                                     imported_classes: List[str], backport_packages: bool) -> Tuple[int, int]:
     """
-    Updates release notes (README.md) for the package. returns Tuple of total number of entities
-    and badly named entities.
+    Updates release notes (BACKPORT_README.md/README.md) for the package. returns Tuple of total number
+    of entities and badly named entities.
 
     :param provider_package_id: id of the package
     :param current_release_version: release version
     :param imported_classes - entities that have been imported from providers
+    :param backport_packages: whether to prepare regular (False) or backport (True) packages
 
     :return: Tuple of total/bad number of entities
     """
     full_package_name = f"airflow.providers.{provider_package_id}"
     provider_package_path = get_package_path(provider_package_id)
     entity_summaries = get_package_class_summary(full_package_name, imported_classes)
-    past_releases = get_all_releases(provider_package_path=provider_package_path)
+    past_releases = get_all_releases(provider_package_path=provider_package_path,
+                                     backport_packages=backport_packages)
     current_release_version, previous_release = check_if_release_version_ok(
-        past_releases, current_release_version)
+        past_releases, current_release_version, backport_packages)
     cross_providers_dependencies = \
         get_cross_provider_dependent_packages(provider_package_id=provider_package_id)
     previous_release = get_previous_release_info(previous_release_version=previous_release,
@@ -1052,13 +1122,15 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
         convert_cross_package_dependencies_to_table(
             cross_providers_dependencies,
             base_url="https://github.com/apache/airflow/tree/master/airflow/providers/")
+    release_version_no_leading_zeros = strip_leading_zeros_in_calver(current_release_version) \
+        if backport_packages else current_release_version
     context: Dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
         "PROVIDER_PACKAGE_ID": provider_package_id,
-        "PACKAGE_PIP_NAME": f"apache-airflow-backport-providers-{provider_package_id.replace('.', '-')}",
+        "PACKAGE_PIP_NAME": get_pip_package_name(provider_package_id, backport_packages),
         "FULL_PACKAGE_NAME": full_package_name,
         "RELEASE": current_release_version,
-        "RELEASE_NO_LEADING_ZEROS": strip_leading_zeros(current_release_version),
+        "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
         "CURRENT_CHANGES_TABLE": changes_table,
         "ADDITIONAL_INFO": get_additional_package_info(provider_package_path=provider_package_path),
         "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
@@ -1066,20 +1138,24 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
         "PIP_REQUIREMENTS": PROVIDERS_REQUIREMENTS[provider_package_id],
         "PIP_REQUIREMENTS_TABLE": pip_requirements_table
     }
-    current_changes = render_template(template_name="PROVIDERS_CHANGES", context=context)
+    changes_template_name = "BACKPORT_PROVIDERS_CHANGES" if backport_packages else "PROVIDERS_CHANGES"
+    current_changes = render_template(template_name=changes_template_name, context=context)
     store_current_changes(provider_package_path=provider_package_path,
                           current_release_version=current_release_version,
-                          current_changes=current_changes)
+                          current_changes=current_changes, backport_packages=backport_packages)
     context['ENTITIES'] = entity_summaries
     context['ENTITY_NAMES'] = ENTITY_NAMES
-    all_releases = get_all_releases(provider_package_path)
+    all_releases = get_all_releases(provider_package_path, backport_packages=backport_packages)
     context["RELEASES"] = all_releases
     readme = LICENCE
-    readme += render_template(template_name="PROVIDERS_README", context=context)
-    readme += render_template(template_name="PROVIDERS_CLASSES", context=context)
+    readme_template_name = "BACKPORT_PROVIDERS_README" if backport_packages else "PROVIDERS_README"
+    readme += render_template(template_name=readme_template_name, context=context)
+    classes_template_name = "BACKPORT_PROVIDERS_CLASSES" if backport_packages else "PROVIDERS_CLASSES"
+    readme += render_template(template_name=classes_template_name, context=context)
     for a_release in all_releases:
         readme += a_release.content
-    readme_file_path = os.path.join(provider_package_path, "README.md")
+    readme_file_path = os.path.join(provider_package_path,
+                                    "BACKPORT_README.md" if backport_packages else "README.md")
     old_text = ""
     if os.path.isfile(readme_file_path):
         with open(readme_file_path, "rt") as readme_file_read:
@@ -1107,18 +1183,24 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
     return total, bad
 
 
-def update_release_notes_for_packages(provider_ids: List[str], release_version: str):
+def update_release_notes_for_packages(provider_ids: List[str],
+                                      release_version: str,
+                                      backport_packages: bool):
     """
     Updates release notes for the list of packages specified.
     :param provider_ids: list of provider ids
     :param release_version: version to release
+    :param backport_packages: whether to prepare regular (False) or backport (True) packages
     :return:
     """
     imported_classes = import_all_provider_classes(
         source_path=SOURCE_DIR_PATH, provider_ids=provider_ids, print_imports=False)
     make_sure_remote_apache_exists_and_fetch()
     if len(provider_ids) == 0:
-        provider_ids = get_all_backportable_providers()
+        if backport_packages:
+            provider_ids = get_all_backportable_providers()
+        else:
+            provider_ids = get_all_providers()
     total = 0
     bad = 0
     print()
@@ -1129,7 +1211,11 @@ def update_release_notes_for_packages(provider_ids: List[str], release_version: 
         print(provider_id)
     print()
     for package in provider_ids:
-        inc_total, inc_bad = update_release_notes_for_package(package, release_version, imported_classes)
+        inc_total, inc_bad = update_release_notes_for_package(
+            package,
+            release_version,
+            imported_classes,
+            backport_packages)
         total += inc_total
         bad += inc_bad
     if bad == 0:
@@ -1158,19 +1244,28 @@ def update_release_notes_for_packages(provider_ids: List[str], release_version: 
 def get_all_backportable_providers() -> List[str]:
     """
     Returns all providers that should be taken into account when preparing backports.
-    For now remove cncf.kubernetes as it has no chances to work with current core of Airflow 2.0
-    And Papermill as it is deeply linked with Lineage in Airflow core and it won't work with lineage
-    for Airflow 1.10 anyway.
-    :return: list of providers that are considered for provider packages
+    For now we remove Papermill as it is deeply linked with Lineage in Airflow core and it won't work
+    with lineage for Airflow 1.10 anyway.
+    :return: list of providers that are considered for backport provider packages
     """
     excluded_providers = ["papermill"]
     return [prov for prov in PROVIDERS_REQUIREMENTS.keys() if prov not in excluded_providers]
+
+
+def get_all_providers() -> List[str]:
+    """
+    Returns all providers for regular packages.
+    :return: list of providers that are considered for provider packages
+    """
+    return [prov for prov in PROVIDERS_REQUIREMENTS.keys()]
 
 
 if __name__ == "__main__":
     LIST_PROVIDERS_PACKAGES = "list-providers-packages"
     LIST_BACKPORTABLE_PACKAGES = "list-backportable-packages"
     UPDATE_PACKAGE_RELEASE_NOTES = "update-package-release-notes"
+
+    BACKPORT_PACKAGES = (os.getenv('BACKPORT_PACKAGES') == "true")
     suffix = ""
 
     possible_first_params = get_provider_packages()
@@ -1228,7 +1323,9 @@ ERROR! Wrong first param: {sys.argv[1]}
             print("Updating latest release version.")
             package_list = sys.argv[2:]
         print()
-        update_release_notes_for_packages(package_list, release_version=release_ver)
+        update_release_notes_for_packages(package_list,
+                                          release_version=release_ver,
+                                          backport_packages=BACKPORT_PACKAGES)
         sys.exit(0)
 
     provider_package = sys.argv[1]
@@ -1240,5 +1337,8 @@ ERROR! Wrong first param: {sys.argv[1]}
     dependencies = PROVIDERS_REQUIREMENTS[provider_package]
     do_setup_package_providers(provider_package_id=provider_package,
                                package_dependencies=dependencies,
-                               extras=find_package_extras(provider_package),
-                               version_suffix=suffix)
+                               extras=find_package_extras(
+                                   provider_package,
+                                   backport_packages=BACKPORT_PACKAGES),
+                               version_suffix=suffix,
+                               backport_packages=BACKPORT_PACKAGES)

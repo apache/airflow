@@ -150,7 +150,7 @@ force-build-images force-pull-images production-image extras: force-clean-images
 build-cache-local build-cache-pulled build-cache-disabled disable-pip-cache
 dockerhub-user: dockerhub-repo: github-registry github-repository: github-image-id:
 postgres-version: mysql-version:
-version-suffix-for-pypi: version-suffix-for-svn:
+version-suffix-for-pypi: version-suffix-for-svn: backports
 additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps: image-tag:
 disable-mysql-client-installation constraints-location: disable-pip-cache install-local-pip-wheels
 additional-extras: additional-python-deps:

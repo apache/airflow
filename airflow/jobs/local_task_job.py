@@ -97,11 +97,22 @@ class LocalTaskJob(BaseJob):
         try:
             self.task_runner.start()
 
-            heartbeat_time_limit = conf.getint('scheduler',
-                                               'scheduler_zombie_task_threshold')
+            heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
+
             while True:
-                # Monitor the task to see if it's done
-                return_code = self.task_runner.return_code()
+                # Monitor the task to see if it's done. Wait in a syscall
+                # (`os.wait`) for as long as possible so we notice the
+                # subprocess finishing as quick as we can
+                max_wait_time = max(
+                    0,  # Make sure this value is never negative,
+                    min(
+                        (heartbeat_time_limit -
+                            (timezone.utcnow() - self.latest_heartbeat).total_seconds() * 0.75),
+                        self.heartrate,
+                    )
+                )
+
+                return_code = self.task_runner.return_code(timeout=max_wait_time)
                 if return_code is not None:
                     self.log.info("Task exited with return code %s", return_code)
                     return

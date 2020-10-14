@@ -664,6 +664,7 @@ class RefactorBackportPackages:
 
 
 if __name__ == '__main__':
+    BACKPORT_PACKAGES = (os.getenv('BACKPORT_PACKAGES') == "true")
     in_process = False
     if len(sys.argv) > 1:
         if sys.argv[1] in ['--help', '-h']:
@@ -682,4 +683,5 @@ if __name__ == '__main__':
         if sys.argv[1] == '--debug':
             in_process = True
     copy_provider_sources()
-    RefactorBackportPackages().do_refactor(in_process=in_process)
+    if BACKPORT_PACKAGES:
+        RefactorBackportPackages().do_refactor(in_process=in_process)

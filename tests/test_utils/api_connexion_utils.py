@@ -64,7 +64,7 @@ def delete_user(app, username):
 
 
 def assert_401(response):
-    assert response.status_code == 401
+    assert response.status_code == 401, f"Current code: {response.status_code}"
     assert response.json == {
         'detail': None,
         'status': 401,
