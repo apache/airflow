@@ -21,6 +21,7 @@
   display: inline-block;
   margin: 0;
   cursor: pointer;
+  font-weight: normal;
 }
 
 .switch-input {

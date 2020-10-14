@@ -42,6 +42,7 @@ const config = {
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
     graph: `${STATIC_DIR}/css/graph.css`,
     ie: `${STATIC_DIR}/js/ie.js`,
+    loadingDots: `${STATIC_DIR}/css/loading-dots.css`,
     main: `${STATIC_DIR}/css/main.css`,
     materialIcons: `${STATIC_DIR}/css/material-icons.css`,
     moment: 'moment-timezone',
