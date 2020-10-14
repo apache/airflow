@@ -156,9 +156,9 @@ You can add and copy the tokens here:
 * [Prod PyPI](https://pypi.org/manage/account/token/)
 
 
-Create a ~/.pypirc file:
+Create a `~/.pypirc` file:
 
-```shell script
+```ini
 [distutils]
 index-servers =
   pypi
@@ -172,7 +172,6 @@ password=<API Upload Token>
 repository=https://test.pypi.org/legacy/
 username=__token__
 password=<API Upload Token>
-
 ```
 
 Set proper permissions for the pypirc file:
@@ -193,7 +192,7 @@ pip install twine
 - Set proper permissions for the pypirc file:
 `$ chmod 600 ~/.pypirc`
 
-- Confirm that airflow/version.py is set properly.
+- Confirm that `airflow/version.py` is set properly.
 
 
 ## Hardware used to prepare and verify the packages
@@ -213,52 +212,67 @@ prepared using such hardware. More information can be found in this
 The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification than renaming – i.e. the contents of the files must be the same between voted release canidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
 
 - Set environment variables
-```
-# Set Version
-export VERSION=1.10.2rc3
+
+    ```shell script
+    # Set Version
+    export VERSION=1.10.2rc3
 
 
-# Set AIRFLOW_REPO_ROOT to the path of your git repo
-export AIRFLOW_REPO_ROOT=$(pwd)
+    # Set AIRFLOW_REPO_ROOT to the path of your git repo
+    export AIRFLOW_REPO_ROOT=$(pwd)
 
 
-# Example after cloning
-git clone https://github.com/apache/airflow.git airflow
-cd airflow
-export AIRFLOW_REPO_ROOT=$(pwd)
-```
+    # Example after cloning
+    git clone https://github.com/apache/airflow.git airflow
+    cd airflow
+    export AIRFLOW_REPO_ROOT=$(pwd)
+    ```
 
-- set your version to 1.10.2 in airflow/version.py (without the RC tag)
+- Set your version to 1.10.2 in `airflow/version.py` (without the RC tag)
 - Commit the version change.
 
 - Tag your release
 
-`git tag ${VERSION}`
+    ```shell script
+    git tag ${VERSION}
+    ```
 
 - Clean the checkout: the sdist step below will
-`git clean -fxd`
+
+    ```shell script
+    git clean -fxd
+    ```
 
 - Tarball the repo
-`git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz`
+
+    ```shell script
+    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz`
+    ```
+
 
 - Generate sdist
 
-NOTE: Make sure your checkout is clean at this stage - any untracked or changed files will otherwise be included in the file produced.
+    NOTE: Make sure your checkout is clean at this stage - any untracked or changed files will otherwise be included
+     in the file produced.
 
-`python setup.py compile_assets sdist bdist_wheel`
+    ```shell script
+    python setup.py compile_assets sdist bdist_wheel
+    ```
 
 - Rename the sdist
-```
-mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
-mv dist/apache_airflow-${VERSION%rc?}-py2.py3-none-any.whl apache_airflow-${VERSION}-py2.py3-none-any.whl
-```
+
+    ```shell script
+    mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
+    mv dist/apache_airflow-${VERSION%rc?}-py2.py3-none-any.whl apache_airflow-${VERSION}-py2.py3-none-any.whl
+    ```
 
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
-```
-${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
-${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-bin.tar.gz
-${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py2.py3-none-any.whl
-```
+
+    ```shell script
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-bin.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py2.py3-none-any.whl
+    ```
 
 - Push Tags
 `git push --tags`
@@ -284,16 +298,25 @@ svn commit -m "Add artifacts for Airflow ${VERSION}"
 At this point we have the artefact that we vote on, but as a convenience to developers we also want to
 publish "snapshots" of the RC builds to pypi for installing via pip. To do this we need to
 
-- Edit the airflow/version.py to include the RC suffix.
+- Edit the `airflow/version.py` to include the RC suffix.
 
 - Build the package:
-`python setup.py compile_assets sdist bdist_wheel`
+
+    ```shell script
+    python setup.py compile_assets sdist bdist_wheel
+    ```
 
 - Verify the artifacts that would be uploaded:
-`twine check dist/*`
+
+    ```shell script
+    twine check dist/*
+    ```
 
 - Upload the package to PyPi's test environment:
-`twine upload -r pypitest dist/*`
+
+    ```shell script
+    twine upload -r pypitest dist/*
+    ```
 
 - Verify that the test package looks good by downloading it and installing it into a virtual environment. The package download link is available at:
 https://test.pypi.org/project/apache-airflow/#files
@@ -549,13 +572,13 @@ downloaded from the SVN).
 There is also an easy way of installation with Breeze if you have the latest sources of Apache Airflow.
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
-```
+```shell script
 ./breeze start-airflow --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
 ```
 
 For 1.10 releases you can also use `--no-rbac-ui` flag disable RBAC UI of Airflow:
 
-```
+```shell script
 ./breeze start-airflow --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres --no-rbac-ui
 ```
 
@@ -642,27 +665,41 @@ Verify that the packages appear in [airflow](https://dist.apache.org/repos/dist/
 At this point we release an official package:
 
 - Build the package:
-`python setup.py compile_assets sdist bdist_wheel`
+
+    ```shell script
+    python setup.py compile_assets sdist bdist_wheel`
+    ```
 
 - Verify the artifacts that would be uploaded:
-`twine check dist/*`
+
+    ```shell script
+    twine check dist/*`
+    ```
 
 - Upload the package to PyPi's test environment:
-`twine upload -r pypitest dist/*`
+
+    ```shell script
+    twine upload -r pypitest dist/*
+    ```
 
 - Verify that the test package looks good by downloading it and installing it into a virtual environment.
-The package download link is available at: https://test.pypi.org/project/apache-airflow/#files
+    The package download link is available at: https://test.pypi.org/project/apache-airflow/#files
 
 - Upload the package to PyPi's production environment:
-`twine upload -r pypi dist/*`
 
-- Again, confirm that the package is available here:
-https://pypi.python.org/pypi/apache-airflow
+    ```shell script
+    twine upload -r pypi dist/*
+    ```
+
+- Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow
 
 ### Update CHANGELOG.md
 
 - Get a diff between the last version and the current version:
-`$ git log 1.8.0..1.9.0 --pretty=oneline`
+
+    ```shell script
+    $ git log 1.8.0..1.9.0 --pretty=oneline
+    ```
 - Update CHANGELOG.md with the details, and commit it.
 
 ### Notify developers of release
@@ -753,14 +790,14 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 Prepare release notes for all the packages you plan to release. Where YYYY.MM.DD is the CALVER
 date for the packages.
 
-```
+```shell script
 ./breeze --backports prepare-provider-readme YYYY.MM.DD [packages]
 ```
 
 If you iterate with merges and release candidates you can update the release date without providing
 the date (to update the existing release notes)
 
-```
+```shell script
 ./breeze --backports prepare-provider-readme google
 ```
 
@@ -788,9 +825,8 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 
 * Build the source package:
 
-```
+```shell script
 ./provider_packages/build_source_package.sh
-
 ```
 
 It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
@@ -1154,7 +1190,7 @@ backport packages. This is especially helpful when you want to test integrations
 additional tools. Below is an example Dockerfile, which installs backport providers for Google and
 an additional third-party tools:
 
-```
+```dockerfile
 FROM apache/airflow:1.10.12
 
 RUN pip install --user apache-airflow-backport-providers-google==2020.10.5.rc1
@@ -1174,7 +1210,7 @@ USER ${AIRFLOW_UID}
 
 To build an image build and run a shell, run:
 
-```
+```shell script
 docker build . -t my-airflow
 docker run  -ti \
     --rm \
@@ -1415,7 +1451,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
 
-```
+```shell script
 ./breeze prepare-provider-readme [packages]
 ```
 
