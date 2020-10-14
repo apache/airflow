@@ -182,9 +182,10 @@ Foundation.
 
    * - `Apache Kafka <https://kafka.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.kafka.hooks.kylin`
-     - :mod:`airflow.providers.apache.kafka.operators.kylin_cube`
+     - :mod:`airflow.providers.apache.kafka.hooks.kafka_consumer_hook`
+       :mod:`airflow.providers.apache.kafka.hooks.kafka_producer_hook`
      -
+     - :mod:`airflow.providers.apache.kafka.sensors.kafka_sensor`
 
    * - `Apache Kylin <https://kylin.apache.org/>`__
      -
