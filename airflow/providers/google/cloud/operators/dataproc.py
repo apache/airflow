@@ -89,6 +89,9 @@ class ClusterGenerator:
         config files (e.g. spark-defaults.conf), see
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#SoftwareConfig
     :type properties: dict
+    :param component_gateway: If true, component gateway enabled. For more info see
+        https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways
+    :type component_gateway: bool
     :param optional_components: List of optional cluster components, for more info see
         https://cloud.google.com/dataproc/docs/reference/rest/v1/ClusterConfig#Component
     :type optional_components: list[str]
@@ -172,6 +175,7 @@ class ClusterGenerator:
         image_version: Optional[str] = None,
         autoscaling_policy: Optional[str] = None,
         properties: Optional[Dict] = None,
+        component_gateway: Optional[bool] = None,
         optional_components: Optional[List[str]] = None,
         num_masters: int = 1,
         master_machine_type: str = 'n1-standard-4',
@@ -202,6 +206,7 @@ class ClusterGenerator:
         self.custom_image_project_id = custom_image_project_id
         self.image_version = image_version
         self.properties = properties or {}
+        self.component_gateway = component_gateway
         self.optional_components = optional_components
         self.master_machine_type = master_machine_type
         self.master_disk_type = master_disk_type
@@ -376,6 +381,9 @@ class ClusterGenerator:
             cluster_data['encryption_config'] = {'gce_pd_kms_key_name': self.customer_managed_key}
         if self.autoscaling_policy:
             cluster_data['autoscaling_config'] = {'policy_uri': self.autoscaling_policy}
+
+        if self.component_gateway:
+            cluster_data['endpointConfig'] = {'enableHttpPortAccess': True}
 
         return cluster_data
 
