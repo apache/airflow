@@ -42,5 +42,5 @@ value for all pods launched by the KubernetesExecutor
 
         return (
             "Please create a pod_template_file by running `airflow generate_pod_template`.\n"
-            "This will generate a pod using your aiflow.cfg settings"
+            "This will generate a pod using your airflow.cfg settings"
         )
