@@ -380,13 +380,13 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
+          name: airflow-logs-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/airflow_logs*"
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: >
-            coverage-postgres-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
+            coverage-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/coverage.xml"
 
   tests-mysql:
@@ -399,12 +399,6 @@ jobs:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
         mysql-version: ${{ fromJson(needs.build-info.outputs.mysqlVersions) }}
         exclude: ${{ fromJson(needs.build-info.outputs.mysqlExclude) }}
-        # Additionally include all mysql-only tests but only for default versions
-        # in case the regular tests are excluded in the future
-        include:
-          - python_version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-            postgres-version: ${{ needs.build-info.outputs.defaultMySQLVersion }}
-            test-type: "MySQL"
       fail-fast: false
     env:
       BACKEND: mysql
@@ -432,12 +426,12 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
+          name: airflow-logs-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/airflow_logs*"
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
-          name: coverage-mysql-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
+          name: coverage-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/coverage.xml"
 
   tests-sqlite:
@@ -448,7 +442,6 @@ jobs:
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
-        test-type: ${{ fromJson(needs.build-info.outputs.testTypes) }}
         exclude: ${{ fromJson(needs.build-info.outputs.sqliteExclude) }}
       fail-fast: false
     env:
@@ -476,12 +469,12 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}
+          name: airflow-logs-${{matrix.python-version}}
           path: './files/airflow_logs*'
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
-          name: coverage-sqlite-${{matrix.test-type}}-${{matrix.python-version}}
+          name: coverage-sqlite-${{matrix.python-version}}
           path: ./files/coverage.xml
 
   tests-quarantined:
@@ -548,7 +541,7 @@ jobs:
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
-          name: coverage-quarantined-${{matrix.test-type}}-${{matrix.python-version}}
+          name: coverage-quarantined-${{matrix.python-version}}
           path: "./files/coverage.xml"
 
   upload-coverage:
@@ -616,7 +609,6 @@ jobs:
       fail-fast: false
     env:
       BACKEND: postgres
-      TEST_TYPE: ${{ matrix.test-type }}
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
       ENABLE_KIND_CLUSTER: "true"
