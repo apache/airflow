@@ -358,6 +358,10 @@ function initialization::initialize_image_build_variables() {
     # additional tag for the image
     export IMAGE_TAG=${IMAGE_TAG:=""}
 
+    # whether installation of Airflow should be done via PIP. You can set it to false if you have
+    # all the binary packages (including airflow) in the docker-context-files folder and use
+    # AIRFLOW_LOCAL_PIP_WHEELS="true" to install it from there.
+    export INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP:="true"}"
     # whether installation should be performed from the local wheel packages in "docker-context-files" folder
     export AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS:="false"}"
     # reference to CONSTRAINTS. they can be overwritten manually or replaced with AIRFLOW_CONSTRAINTS_LOCATION
@@ -689,6 +693,7 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
+    readonly INSTALL_AIRFLOW_VIA_PIP
     readonly AIRFLOW_LOCAL_PIP_WHEELS
     readonly AIRFLOW_CONSTRAINTS_REFERENCE
     readonly AIRFLOW_CONSTRAINTS_LOCATION
