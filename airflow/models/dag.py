@@ -51,6 +51,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -86,6 +87,23 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
         query = query.filter(DR.external_trigger == False)  # noqa pylint: disable=singleton-comparison
     query = query.order_by(DR.execution_date.desc())
     return query.first()
+
+
+def replace_outdated_dag_actions(access_control):
+    """
+    Looks for outdated dag level permissions (can_dag_read and can_dag_edit) in DAG
+    access_controls (for example, {'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}})
+    and replaces them with updated permissions (can_read and can_edit).
+    """
+    new_perm_mapping = {
+        permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
+        permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,
+    }
+    updated_access_control = {}
+    for role, perms in access_control.items():
+        updated_access_control[role] = {new_perm_mapping.get(perm, perm) for perm in perms}
+
+    return updated_access_control
 
 
 @functools.total_ordering
@@ -332,7 +350,7 @@ class DAG(BaseDag, LoggingMixin):
         self.on_failure_callback = on_failure_callback
         self.doc_md = doc_md
 
-        self._access_control = access_control
+        self._access_control = replace_outdated_dag_actions(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
@@ -651,7 +669,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @access_control.setter
     def access_control(self, value):
-        self._access_control = value
+        self._access_control = replace_outdated_dag_actions(value)
 
     @property
     def description(self) -> Optional[str]:

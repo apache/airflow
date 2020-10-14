@@ -1653,6 +1653,14 @@ class TestDag(unittest.TestCase):
         next_subdag_date = subdag.next_dagrun_after_date(None)
         assert next_subdag_date is None, "SubDags should never have DagRuns created by the scheduler"
 
+    def test_replace_outdated_access_control_actions(self):
+        outdated_permissions = {'role1': {'can_read', 'can_edit'}, 'role2': {'can_dag_read', 'can_dag_edit'}}
+        updated_permissions = {'role1': {'can_read', 'can_edit'}, 'role2': {'can_read', 'can_edit'}}
+        dag = DAG(dag_id='dag_with_outdated_perms', access_control=outdated_permissions)
+        self.assertEqual(dag.access_control, updated_permissions)
+        dag.access_control = outdated_permissions
+        self.assertEqual(dag.access_control, updated_permissions)
+
 
 class TestDagModel:
 
