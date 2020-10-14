@@ -767,3 +767,7 @@ function initialization::ga_output() {
     echo "::set-output name=${1}::${2}"
     echo "${1}=${2}"
 }
+
+function initialization::ga_env() {
+    echo "${1}=${2}" >> "${GITHUB_ENV}"
+}
