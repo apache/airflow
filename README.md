@@ -151,6 +151,7 @@ All those artifacts are not official releases, but they are prepared using offic
 Some of those artifacts are "development" or "pre-release" ones, and they are clearly marked as such
 following the ASF Policy.
 
+
 ## Project Focus
 
 Airflow works best with workflows that are mostly static and slowly changing. When the structure is similar from one run to the next, it allows for clarity around unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](http://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
