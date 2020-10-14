@@ -314,7 +314,7 @@ COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
 
 # We can copy everything here. The Context is filtered by dockerignore. This makes sure we are not
-# copying over stuff that is accidentally generated or that we do not need (such as .egginfo)
+# copying over stuff that is accidentally generated or that we do not need (such as egg-info)
 # if you want to add something that is missing and you expect to see it in the image you can
 # add it with ! in .dockerignore next to the airflow, test etc. directories there
 COPY . ${AIRFLOW_SOURCES}/

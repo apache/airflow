@@ -20,23 +20,6 @@
 
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-INTEGRATIONS=()
-
-ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
-
-if [[ ${TEST_TYPE:=} == "Integration" ]]; then
-    export ENABLED_INTEGRATIONS="${AVAILABLE_INTEGRATIONS}"
-    export RUN_INTEGRATION_TESTS="${AVAILABLE_INTEGRATIONS}"
-fi
-
-for _INT in ${ENABLED_INTEGRATIONS}
-do
-    INTEGRATIONS+=("-f")
-    INTEGRATIONS+=("${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml")
-done
-
-readonly INTEGRATIONS
-
 if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     echo
     echo "Skipping running tests !!!!!"
@@ -50,6 +33,23 @@ function run_airflow_testing_in_docker() {
     local exit_code
     for try_num in {1..3}
     do
+        echo
+        echo "Making sure docker-compose is down"
+        echo
+        docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+            down --remove-orphans --timeout 10
+        echo
+        echo "System-prune docker"
+        echo
+        docker system prune --force
+        echo
+        echo "Check available space"
+        echo
+        df --human
+        echo
+        echo "Check available memory"
+        echo
+        free --human
         echo
         echo "Starting try number ${try_num}"
         echo
@@ -125,8 +125,58 @@ echo
 echo "Using docker image: ${AIRFLOW_CI_IMAGE} for docker compose runs"
 echo
 
-RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
-readonly RUN_INTEGRATION_TESTS
+
+if [[ ${TEST_TYPE=} != "" ]]; then
+    # Handle case where test type is passed from outside
+    export TEST_TYPES="${TEST_TYPE}"
+fi
+
+if [[ ${TEST_TYPES=} == "" ]]; then
+    TEST_TYPES="Core Providers API CLI Integration Other WWW Heisentests"
+    echo
+    echo "Test types not specified. Running all: ${TEST_TYPES}"
+    echo
+fi
+
+if [[ ${TEST_TYPE=} != "" ]]; then
+    # Add Postgres/MySQL special test types in case we are running several test types
+    if [[ ${BACKEND} == "postgres" ]]; then
+        TEST_TYPES="${TEST_TYPES} Postgres"
+    fi
+    if [[ ${BACKEND} == "mysql" ]]; then
+        TEST_TYPES="${TEST_TYPES} MySQL"
+    fi
+fi
+readonly TEST_TYPES
+
+export RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
+export ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
+
+echo "Running TEST_TYPES: ${TEST_TYPES}"
+
+for TEST_TYPE in ${TEST_TYPES}
+do
+    INTEGRATIONS=()
+    export INTEGRATIONS
+
+    if [[ ${TEST_TYPE:=} == "Integration" ]]; then
+        export ENABLED_INTEGRATIONS="${AVAILABLE_INTEGRATIONS}"
+        export RUN_INTEGRATION_TESTS="${AVAILABLE_INTEGRATIONS}"
+    fi
+
+    for _INT in ${ENABLED_INTEGRATIONS}
+    do
+        INTEGRATIONS+=("-f")
+        INTEGRATIONS+=("${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml")
+    done
 
 
-run_airflow_testing_in_docker "${@}"
+    export TEST_TYPE
+    echo "**********************************************************************************************"
+    echo
+    echo "                            TEST_TYPE: ${TEST_TYPE}"
+    echo
+    echo "**********************************************************************************************"
+
+    run_airflow_testing_in_docker "${@}"
+done

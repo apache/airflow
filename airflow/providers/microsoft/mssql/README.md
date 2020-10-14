@@ -18,13 +18,13 @@
  -->
 
 
-# Package apache-airflow-backport-providers-microsoft-mssql
+# Package apache-airflow-providers-microsoft-mssql
 
-Release: 2020.10.5
+Release: 0.0.1
 
 **Table of contents**
 
-- [Backport package](#backport-package)
+- [Provider package](#provider-package)
 - [Installation](#installation)
 - [PIP requirements](#pip-requirements)
 - [Cross provider package dependencies](#cross-provider-package-dependencies)
@@ -34,25 +34,19 @@ Release: 2020.10.5
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 2020.10.5](#release-2020105)
-    - [Release 2020.6.24](#release-2020624)
+    - [Release 0.0.1](#release-001)
 
-## Backport package
+## Provider package
 
-This is a backport providers package for `microsoft.mssql` provider. All classes for this provider package
+This is a provider package for `microsoft.mssql` provider. All classes for this provider package
 are in `airflow.providers.microsoft.mssql` python package.
-
-**Only Python 3.6+ is supported for this backport package.**
-
-While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
-want to use this backport package.
 
 
 
 ## Installation
 
-You can install this package on top of an existing airflow 1.10.* installation via
-`pip install apache-airflow-backport-providers-microsoft-mssql`
+You can install this package on top of an existing airflow 2.* installation via
+`pip install apache-airflow-providers-microsoft-mssql`
 
 ## PIP requirements
 
@@ -68,7 +62,7 @@ You need to install the specified backport providers package in order to use the
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
 ```bash
-pip install apache-airflow-backport-providers-microsoft-mssql[odbc]
+pip install apache-airflow-providers-microsoft-mssql[odbc]
 ```
 
 | Dependent package                                                                                              | Extra   |
@@ -107,28 +101,25 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020.10.5
-
-| Commit                                                                                         | Committed   | Subject                                                              |
-|:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------|
-| [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)                 |
-| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                         |
-| [fdd9b6f65](https://github.com/apache/airflow/commit/fdd9b6f65b608c516b8a062b058972d9a45ec9e3) | 2020-08-25  | Enable Black on Providers Packages (#10543)                          |
-| [3696c34c2](https://github.com/apache/airflow/commit/3696c34c28c6bc7b442deab999d9ecba24ed0e34) | 2020-08-24  | Fix typo in the word &#34;release&#34; (#10528)                              |
-| [ee7ca128a](https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94) | 2020-08-22  | Fix broken Markdown refernces in Providers README (#10483)           |
-| [cdec30125](https://github.com/apache/airflow/commit/cdec3012542b45d23a05f62d69110944ba542e2a) | 2020-08-07  | Add correct signature to all operators and sensors (#10205)          |
-| [aeea71274](https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f) | 2020-08-02  | Remove `args` parameter from provider operator constructors (#10097) |
-| [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                       |
-
-
-### Release 2020.6.24
+### Release 0.0.1
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [1845cd11b](https://github.com/apache/airflow/commit/1845cd11b77f302777ab854e84bef9c212c604a0) | 2020-10-11  | Strict type check for google ads and cloud hooks (#11390)                                                                                                          |
+| [d2754ef76](https://github.com/apache/airflow/commit/d2754ef76958f8df4dcb6974e2cd2c1edb17935e) | 2020-10-09  | Strict type check for Microsoft  (#11359)                                                                                                                          |
+| [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)                                                                                                         |
+| [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)                                                                                                               |
+| [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                                                                                                                       |
+| [fdd9b6f65](https://github.com/apache/airflow/commit/fdd9b6f65b608c516b8a062b058972d9a45ec9e3) | 2020-08-25  | Enable Black on Providers Packages (#10543)                                                                                                                        |
+| [3696c34c2](https://github.com/apache/airflow/commit/3696c34c28c6bc7b442deab999d9ecba24ed0e34) | 2020-08-24  | Fix typo in the word &#34;release&#34; (#10528)                                                                                                                            |
+| [ee7ca128a](https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94) | 2020-08-22  | Fix broken Markdown refernces in Providers README (#10483)                                                                                                         |
+| [cdec30125](https://github.com/apache/airflow/commit/cdec3012542b45d23a05f62d69110944ba542e2a) | 2020-08-07  | Add correct signature to all operators and sensors (#10205)                                                                                                        |
+| [aeea71274](https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f) | 2020-08-02  | Remove `args` parameter from provider operator constructors (#10097)                                                                                               |
+| [d0e7db402](https://github.com/apache/airflow/commit/d0e7db4024806af35e3c9a2cae460fdeedd4d2ec) | 2020-06-19  | Fixed release number for fresh release (#9408)                                                                                                                     |
 | [12af6a080](https://github.com/apache/airflow/commit/12af6a08009b8776e00d8a0aab92363eb8c4e8b1) | 2020-06-19  | Final cleanup for 2020.6.23rc1 release preparation (#9404)                                                                                                         |
 | [c7e5bce57](https://github.com/apache/airflow/commit/c7e5bce57fe7f51cefce4f8a41ce408ac5675d13) | 2020-06-19  | Prepare backport release candidate for 2020.6.23rc1 (#9370)                                                                                                        |
 | [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                                                                                             |
-| [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 release of backports (#9026)                                                                                                                      |
+| [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                                                                                                                      |
 | [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)                                                                                                        |
 | [1d36b0303](https://github.com/apache/airflow/commit/1d36b0303b8632fce6de78ca4e782ae26ee06fea) | 2020-05-23  | Fix references in docs (#8984)                                                                                                                                     |
 | [375d1ca22](https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f) | 2020-05-19  | Release candidate 2 for backport packages 2020.05.20 (#8898)                                                                                                       |

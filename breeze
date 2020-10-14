@@ -123,6 +123,9 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, the sample dags will be used
     export LOAD_EXAMPLES="false"
 
+    # If set to true, Backport packages are prepared not the Regular ones
+    export BACKPORT_PACKAGES="false"
+
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC="false"
 
@@ -1104,6 +1107,12 @@ function breeze::parse_arguments() {
             echo "Version suffix for SVN ${VERSION_SUFFIX_FOR_SVN}"
             echo
             shift 2
+            ;;
+        --backports)
+            export BACKPORT_PACKAGES="true"
+            echo "Work on backport packages not the regular ones"
+            echo
+            shift
             ;;
         --load-example-dags)
             export LOAD_EXAMPLES="true"

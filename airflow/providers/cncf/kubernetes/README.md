@@ -18,13 +18,13 @@
  -->
 
 
-# Package apache-airflow-backport-providers-cncf-kubernetes
+# Package apache-airflow-providers-cncf-kubernetes
 
-Release: 2020.10.5
+Release: 0.0.1
 
 **Table of contents**
 
-- [Backport package](#backport-package)
+- [Provider package](#provider-package)
 - [Installation](#installation)
 - [PIP requirements](#pip-requirements)
 - [Provider class summary](#provider-classes-summary)
@@ -36,17 +36,12 @@ Release: 2020.10.5
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
-    - [Release 2020.10.5](#release-2020105)
+    - [Release 0.0.1](#release-001)
 
-## Backport package
+## Provider package
 
-This is a backport providers package for `cncf.kubernetes` provider. All classes for this provider package
+This is a provider package for `cncf.kubernetes` provider. All classes for this provider package
 are in `airflow.providers.cncf.kubernetes` python package.
-
-**Only Python 3.6+ is supported for this backport package.**
-
-While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
-want to use this backport package.
 
 
 ## Additional limitations
@@ -58,8 +53,8 @@ set so you should not be able to install it with Apache Airflow &lt; 1.10.12.
 
 ## Installation
 
-You can install this package on top of an existing airflow 1.10.* installation via
-`pip install apache-airflow-backport-providers-cncf-kubernetes`
+You can install this package on top of an existing airflow 2.* installation via
+`pip install apache-airflow-providers-cncf-kubernetes`
 
 ## PIP requirements
 
@@ -117,10 +112,15 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020.10.5
+### Release 0.0.1
 
 | Commit                                                                                         | Committed   | Subject                                                                                      |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------------------------|
+| [8640fb6c1](https://github.com/apache/airflow/commit/8640fb6c100a2c6aa231798559ba194331576975) | 2020-10-09  | fix tests (#11368)                                                                           |
+| [298052fce](https://github.com/apache/airflow/commit/298052fcee9d30b1f60b8dc1c9006398cd16645e) | 2020-10-10  | [airflow/providers/cncf/kubernetes] correct hook methods name (#11008)                       |
+| [49aad025b](https://github.com/apache/airflow/commit/49aad025b53211a5815b10aa35f7d7b489cb5316) | 2020-10-09  | Users can specify sub-secrets and paths k8spodop (#11369)                                    |
+| [b93b6c5be](https://github.com/apache/airflow/commit/b93b6c5be3ab60960f650d0d4ee6c91271ac7909) | 2020-10-05  | Allow labels in KubernetesPodOperator to be templated (#10796)                               |
+| [0a0e1af80](https://github.com/apache/airflow/commit/0a0e1af80038ef89974c3c8444461fe867945daa) | 2020-10-03  | Fix Broken Markdown links in Providers README TOC (#11249)                                   |
 | [ca4238eb4](https://github.com/apache/airflow/commit/ca4238eb4d9a2aef70eb641343f59ee706d27d13) | 2020-10-02  | Fixed month in backport packages to October (#11242)                                         |
 | [5220e4c38](https://github.com/apache/airflow/commit/5220e4c3848a2d2c81c266ef939709df9ce581c5) | 2020-10-02  | Prepare Backport release 2020.09.07 (#11238)                                                 |
 | [a888198c2](https://github.com/apache/airflow/commit/a888198c27bcdbc4538c02360c308ffcaca182fa) | 2020-09-27  | Allow overrides for pod_template_file (#11162)                                               |

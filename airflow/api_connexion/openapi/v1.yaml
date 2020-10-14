@@ -442,6 +442,39 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/updateTaskInstancesState:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+
+    post:
+      summary: Set a state of task instances
+      description: >
+        Updates the state for multiple task instances simultaneously.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: post_set_task_instances_state
+      tags: [DAG]
+      requestBody:
+        description: Parameters of action
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskInstancesState'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceReferenceCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /dags/{dag_id}/dagRuns:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -1669,6 +1702,7 @@ components:
           format: datetime
         description:
           type: string
+          nullable: true
         notification_sent:
           type: boolean
 
@@ -1712,12 +1746,14 @@ components:
           type: string
         queued_when:
           type: string
+          nullable: True
         pid:
           type: integer
         executor_config:
           type: string
         sla_miss:
           $ref: '#/components/schemas/SLAMiss'
+          nullable: true
 
     TaskInstanceCollection:
       type: object
@@ -2022,7 +2058,7 @@ components:
           description: The git version (including git commit hash)
           nullable: true
 
-    # From
+    # Form
     ClearTaskInstance:
       type: object
       properties:
@@ -2045,13 +2081,13 @@ components:
 
         only_failed:
           description: Only clear failed tasks.
-          type: string
-          format: datetime
+          type: boolean
+          default: true
 
         only_running:
           description: Only clear running tasks.
-          type: string
-          format: datetime
+          type: boolean
+          default: false
 
         include_subdags:
           description: Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker.
@@ -2064,6 +2100,48 @@ components:
         reset_dag_runs:
           description: Set state of DAG runs to RUNNING.
           type: boolean
+
+    UpdateTaskInstancesState:
+      type: object
+      properties:
+        dry_run:
+          description: |
+            If set, don't actually run this operation. The response will contain a list of task instances
+            planned to be affected, but won't be modified in any way.
+          type: boolean
+          default: true
+
+        task_id:
+          description: The task ID.
+          type: string
+
+        execution_date:
+          description: The execution date.
+          type: string
+          format: datetime
+
+        include_upstream:
+          description: If set to true, upstream tasks are also affected.
+          type: boolean
+
+        include_downstream:
+          description: If set to true, downstream tasks are also affected.
+          type: boolean
+
+        include_future:
+          description: If set to True, also tasks from future DAG Runs are affected.
+          type: boolean
+
+        include_past:
+          description: If set to True, also tasks from past DAG Runs are affected.
+          type: boolean
+
+        new_state:
+          description: Expected new state.
+          type: string
+          enum:
+            - success
+            - failed
 
     ListDagRunsForm:
       type: object
@@ -2200,19 +2278,19 @@ components:
             Returns objects less than or equal to the specified values.
 
             This can be combined with duration_gte parameter to receive only the selected range.
-        State:
+        state:
           type: array
           items:
             type: string
           description:
             The value can be repeated to retrieve multiple matching values (OR condition).
-        Pool:
+        pool:
           type: array
           items:
             type: string
           description:
             The value can be repeated to retrieve multiple matching values (OR condition).
-        Queue:
+        queue:
           type: array
           items:
             type: string

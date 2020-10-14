@@ -68,7 +68,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | the container. We mount only selected,          |
 |                                         |             |             |            | important folders. We do not mount the whole    |
 |                                         |             |             |            | project folder in order to avoid accidental     |
-|                                         |             |             |            | use of artifacts (such ass ``.egginfo``         |
+|                                         |             |             |            | use of artifacts (such as ``egg-info``          |
 |                                         |             |             |            | directories) generated locally on the           |
 |                                         |             |             |            | host during development.                        |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+

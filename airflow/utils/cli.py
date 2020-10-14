@@ -105,8 +105,20 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
+    sensitive_fields = {'-p', '--password', '--conn-password'}
+    full_command = list(sys.argv)
+    for idx, command in enumerate(full_command):  # pylint: disable=too-many-nested-blocks
+        if command in sensitive_fields:
+            # For cases when password is passed as "--password xyz" (with space between key and value)
+            full_command[idx + 1] = "*" * 8
+        else:
+            # For cases when password is passed as "--password=xyz" (with '=' between key and value)
+            for sensitive_field in sensitive_fields:
+                if command.startswith(f'{sensitive_field}='):
+                    full_command[idx] = f'{sensitive_field}={"*" * 8}'
+
     metrics = {'sub_command': func_name, 'start_datetime': datetime.utcnow(),
-               'full_command': '{}'.format(list(sys.argv)), 'user': getpass.getuser()}
+               'full_command': '{}'.format(full_command), 'user': getpass.getuser()}
 
     if not isinstance(namespace, Namespace):
         raise ValueError("namespace argument should be argparse.Namespace instance,"
