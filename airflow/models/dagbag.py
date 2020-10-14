@@ -384,8 +384,13 @@ class DagBag(BaseDagBag, LoggingMixin):
         :return: True if the module comes from the platform (and ought to stay loaded) or might come from
         the actions of a DAG (in which case it's safer to unload it before reloading it)
         """
+
         if module_name in ["sys", "types", "__main__", "websocket", "airflow"]:
+            # these are the most obvious modules. These "magic five" are considered 'system' without looking at
+            # anything else
             return True
+        # wait, there's more. We'll evaluate other module characteristics, which may cause us to decide a module
+        # is considered "system".
         if module_name.startswith("_"):
             return True # internal Python stuff etc.
         if module_name.startswith("airflow."):
@@ -406,12 +411,18 @@ class DagBag(BaseDagBag, LoggingMixin):
             return True # very likely system
 
         if spec.origin.startswith(self.dag_folder+"/"):
+            # This is a specific case where we DON'T return True.
+            # if a module's origin is within the DAG Folder, then by definition it is not a system module,
+            # and it is therefore eligible for module unloading
             return False
 
         for path in _system_path:
             if spec.origin.startswith(path+"/"):
                 return True
 
+        # If we reach this far, then we've run out of reasons to consider an already loaded module as being a system
+        # module. We'll now consider it eligible for unloading, so that multiple DAG zips can provide conflicting
+        # versions of modules with the same name, and still each DAG finds what it should.
         return False
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
