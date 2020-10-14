@@ -49,7 +49,7 @@ class TestTaskEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ('can_read', permissions.RESOURCE_ALL_DAGS),
+                ('can_read', permissions.RESOURCE_DAGS),
                 ('can_read', 'DagRun'),
                 ('can_read', 'Task'),
             ],

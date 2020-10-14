@@ -53,10 +53,10 @@ class TestDagEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_create", permissions.RESOURCE_ALL_DAGS),
-                ("can_read", permissions.RESOURCE_ALL_DAGS),
-                ("can_edit", permissions.RESOURCE_ALL_DAGS),
-                ("can_delete", permissions.RESOURCE_ALL_DAGS),
+                ("can_create", permissions.RESOURCE_DAGS),
+                ("can_read", permissions.RESOURCE_DAGS),
+                ("can_edit", permissions.RESOURCE_DAGS),
+                ("can_delete", permissions.RESOURCE_DAGS),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore

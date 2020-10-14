@@ -249,13 +249,13 @@ class TestSecurity(unittest.TestCase):
                 username,
                 role_name,
                 permissions=[
-                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_ALL_DAGS),
-                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_ALL_DAGS),
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
                 ],
             )
             self.assertTrue(
                 self.security_manager.has_access(
-                    permissions.ACTION_CAN_READ, permissions.RESOURCE_ALL_DAGS, user
+                    permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS, user
                 )
             )
             self.assertFalse(self.security_manager.has_access(permissions.ACTION_CAN_READ, 'Task', user))

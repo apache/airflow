@@ -16,7 +16,7 @@
 # under the License.
 
 # Resource Constants
-RESOURCE_ALL_DAGS = 'AllDags'
+RESOURCE_DAGS = 'Dags'
 RESOURCE_DAG_PREFIX = 'DAG:'
 
 # Action Constants

@@ -154,7 +154,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     # [END security_op_perms]
 
     # global view-menu for dag-level access
-    DAG_VMS = {permissions.RESOURCE_ALL_DAGS}
+    DAG_VMS = {permissions.RESOURCE_DAGS}
 
     READ_DAG_PERMS = {permissions.ACTION_CAN_READ}
     DAG_PERMS = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
@@ -315,7 +315,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 else:
                     resources.add(resource)
 
-        if permissions.RESOURCE_ALL_DAGS in resources:
+        if permissions.RESOURCE_DAGS in resources:
             return session.query(DagModel)
 
         return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
@@ -326,7 +326,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             user = g.user
         prefixed_dag_id = self.prefixed_dag_id(dag_id)
         return self._has_view_access(
-            user, permissions.ACTION_CAN_READ, permissions.RESOURCE_ALL_DAGS
+            user, permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS
         ) or self._has_view_access(user, permissions.ACTION_CAN_READ, prefixed_dag_id)
 
     def can_edit_dag(self, dag_id, user=None) -> bool:
@@ -336,12 +336,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         prefixed_dag_id = self.prefixed_dag_id(dag_id)
 
         return self._has_view_access(
-            user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ALL_DAGS
+            user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS
         ) or self._has_view_access(user, permissions.ACTION_CAN_EDIT, prefixed_dag_id)
 
     def prefixed_dag_id(self, dag_id):
         """Returns the permission name for a DAG id."""
-        if dag_id == permissions.RESOURCE_ALL_DAGS:
+        if dag_id == permissions.RESOURCE_DAGS:
             return dag_id
 
         if dag_id.startswith(permissions.RESOURCE_DAG_PREFIX):
@@ -350,7 +350,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def is_dag_resource(self, resource_name):
         """Determines if a permission belongs to a DAG or all DAGs."""
-        if resource_name == permissions.RESOURCE_ALL_DAGS:
+        if resource_name == permissions.RESOURCE_DAGS:
             return True
         return resource_name.startswith(permissions.RESOURCE_DAG_PREFIX)
 
@@ -419,8 +419,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         return (
             self._has_role(['Admin', 'Viewer', 'Op', 'User'])
-            or self._has_perm(permissions.ACTION_CAN_READ, permissions.RESOURCE_ALL_DAGS)
-            or self._has_perm(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ALL_DAGS)
+            or self._has_perm(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS)
+            or self._has_perm(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAGS)
         )
 
     def clean_perms(self):
@@ -518,7 +518,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         update_perm_views = []
 
         # need to remove all_dag vm from all the existing view-menus
-        dag_vm = self.find_view_menu(permissions.RESOURCE_ALL_DAGS)
+        dag_vm = self.find_view_menu(permissions.RESOURCE_DAGS)
         ab_perm_view_role = sqla_models.assoc_permissionview_role
         perm_view = self.permissionview_model
         view_menu = self.viewmenu_model
@@ -563,7 +563,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        all_dag_view = self.find_view_menu(permissions.RESOURCE_ALL_DAGS)
+        all_dag_view = self.find_view_menu(permissions.RESOURCE_DAGS)
         dag_pvs = (
             self.get_session.query(sqla_models.ViewMenu)
             .filter(sqla_models.ViewMenu.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))

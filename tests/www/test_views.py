@@ -1739,10 +1739,10 @@ class TestDagACLView(TestBase):
 
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
         edit_perm_on_all_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_edit', permissions.RESOURCE_ALL_DAGS)
+            find_permission_view_menu('can_edit', permissions.RESOURCE_DAGS)
         self.appbuilder.sm.add_permission_role(all_dag_role, edit_perm_on_all_dag)
         read_perm_on_all_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_read', permissions.RESOURCE_ALL_DAGS)
+            find_permission_view_menu('can_read', permissions.RESOURCE_DAGS)
         self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_all_dag)
 
         role_user = self.appbuilder.sm.find_role('User')

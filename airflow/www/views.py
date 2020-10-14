@@ -462,7 +462,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             if arg_tags_filter:
                 dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
-            if permissions.RESOURCE_ALL_DAGS not in filter_dag_ids:
+            if permissions.RESOURCE_DAGS not in filter_dag_ids:
                 dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
                 # pylint: enable=no-member
 
@@ -546,7 +546,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dr = models.DagRun
 
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
-        if permissions.RESOURCE_ALL_DAGS in allowed_dag_ids:
+        if permissions.RESOURCE_DAGS in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state))\
@@ -595,7 +595,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if not allowed_dag_ids:
             return wwwutils.json_response({})
 
-        if permissions.RESOURCE_ALL_DAGS in allowed_dag_ids:
+        if permissions.RESOURCE_DAGS in allowed_dag_ids:
             allowed_dag_ids = {dag_id for dag_id, in session.query(models.DagModel.dag_id)}
 
         # Filter by post parameters
@@ -706,7 +706,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Last DAG runs"""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
-        if permissions.RESOURCE_ALL_DAGS in allowed_dag_ids:
+        if permissions.RESOURCE_DAGS in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         # Filter by post parameters
@@ -1390,7 +1390,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Mark Dag Blocked."""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
-        if permissions.RESOURCE_ALL_DAGS in allowed_dag_ids:
+        if permissions.RESOURCE_DAGS in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         # Filter by post parameters
@@ -3142,7 +3142,7 @@ class DagModelView(AirflowModelView):
 
         filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         # pylint: disable=no-member
-        if permissions.RESOURCE_ALL_DAGS not in filter_dag_ids:
+        if permissions.RESOURCE_DAGS not in filter_dag_ids:
             dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
             owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member
