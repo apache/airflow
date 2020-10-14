@@ -564,10 +564,18 @@ def get_current_context() -> Dict[str, Any]:
     Obtain the execution context for the currently executing operator without
     altering user method's signature.
     This is the simplest method of retrieving the execution context dictionary.
-    ** Old style:
+
+    **Old style:**
+
+    .. code:: python
+
         def my_task(**context):
             ti = context["ti"]
-    ** New style:
+
+    **New style:**
+
+    .. code:: python
+
         from airflow.task.context import get_current_context
         def my_task():
             context = get_current_context()
