@@ -18,6 +18,7 @@
 #
 
 import json
+from typing import Optional, Any
 
 import requests
 
@@ -40,10 +41,10 @@ class OpsgenieAlertHook(HttpHook):
 
     """
 
-    def __init__(self, opsgenie_conn_id='opsgenie_default', *args, **kwargs):
-        super().__init__(http_conn_id=opsgenie_conn_id, *args, **kwargs)
+    def __init__(self, opsgenie_conn_id: str = 'opsgenie_default', *args, **kwargs) -> None:
+        super().__init__(http_conn_id=opsgenie_conn_id, *args, **kwargs)  # type: ignore[misc]
 
-    def _get_api_key(self):
+    def _get_api_key(self) -> str:
         """
         Get Opsgenie api_key for creating alert
         """
@@ -55,7 +56,7 @@ class OpsgenieAlertHook(HttpHook):
             )
         return api_key
 
-    def get_conn(self, headers=None):
+    def get_conn(self, headers: Optional[dict] = None) -> requests.Session:
         """
         Overwrite HttpHook get_conn because this hook just needs base_url
         and headers, and does not need generic params
@@ -70,7 +71,7 @@ class OpsgenieAlertHook(HttpHook):
             session.headers.update(headers)
         return session
 
-    def execute(self, payload=None):
+    def execute(self, payload: Optional[dict] = None) -> Any:
         """
         Execute the Opsgenie Alert call
 

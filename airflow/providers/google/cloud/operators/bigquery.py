@@ -26,6 +26,7 @@ import json
 import re
 import uuid
 import warnings
+from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union
 
 import attr
@@ -81,7 +82,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
     def name(self) -> str:
         return f'BigQuery Console #{self.index + 1}'
 
-    def get_link(self, operator, dttm):
+    def get_link(self, operator: BaseOperator, dttm: datetime):
         ti = TaskInstance(task=operator, execution_date=dttm)
         job_ids = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
         if not job_ids:
@@ -466,7 +467,7 @@ class BigQueryGetDataOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> list:
         self.log.info(
             'Fetching Data from %s.%s max results: %s', self.dataset_id, self.table_id, self.max_results
         )
@@ -620,21 +621,21 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         *,
         sql: Union[str, Iterable],
         destination_dataset_table: Optional[str] = None,
-        write_disposition: Optional[str] = 'WRITE_EMPTY',
+        write_disposition: str = 'WRITE_EMPTY',
         allow_large_results: Optional[bool] = False,
         flatten_results: Optional[bool] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         udf_config: Optional[list] = None,
-        use_legacy_sql: Optional[bool] = True,
+        use_legacy_sql: bool = True,
         maximum_billing_tier: Optional[int] = None,
         maximum_bytes_billed: Optional[float] = None,
-        create_disposition: Optional[str] = 'CREATE_IF_NEEDED',
+        create_disposition: str = 'CREATE_IF_NEEDED',
         schema_update_options: Optional[Union[list, tuple, set]] = None,
         query_params: Optional[list] = None,
         labels: Optional[dict] = None,
-        priority: Optional[str] = 'INTERACTIVE',
+        priority: str = 'INTERACTIVE',
         time_partitioning: Optional[dict] = None,
         api_resource_configs: Optional[dict] = None,
         cluster_fields: Optional[List[str]] = None,
@@ -654,7 +655,8 @@ class BigQueryExecuteQueryOperator(BaseOperator):
             gcp_conn_id = bigquery_conn_id
 
         warnings.warn(
-            "This operator is deprecated. Please use `BigQueryInsertJobOperator`.", DeprecationWarning,
+            "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
+            DeprecationWarning,
         )
 
         self.sql = sql
@@ -740,7 +742,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
             )
         context['task_instance'].xcom_push(key='job_id', value=job_id)
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         super().on_kill()
         if self.hook is not None:
             self.log.info('Cancelling running query')
@@ -930,7 +932,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.table_resource = table_resource
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         bq_hook = BigQueryHook(
             gcp_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to,
@@ -945,7 +947,9 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_fields = json.loads(gcs_hook.download(gcs_bucket, gcs_object).decode("utf-8"))
+            schema_fields = json.loads(
+                gcs_hook.download(gcs_bucket, gcs_object).decode("utf-8")  # type: ignore[attr-defined]
+            )  # type: ignore[attr-defined]
         else:
             schema_fields = self.schema_fields
 
@@ -1171,7 +1175,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         bq_hook = BigQueryHook(
             gcp_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to,
@@ -1186,7 +1190,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 impersonation_chain=self.impersonation_chain,
             )
             schema_object = gcs_hook.download(self.bucket, self.schema_object)
-            schema_fields = json.loads(schema_object.decode("utf-8"))
+            schema_fields = json.loads(schema_object.decode("utf-8"))  # type: ignore[attr-defined]
         else:
             schema_fields = self.schema_fields
 
@@ -1308,7 +1312,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
 
         bq_hook = BigQueryHook(
@@ -1412,7 +1416,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -1552,7 +1556,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         dataset_id: str,
         project_id: Optional[str] = None,
         max_results: Optional[int] = None,
-        gcp_conn_id: Optional[str] = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1573,7 +1577,9 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         )
 
         return bq_hook.get_dataset_tables(
-            dataset_id=self.dataset_id, project_id=self.project_id, max_results=self.max_results,
+            dataset_id=self.dataset_id,
+            project_id=self.project_id,
+            max_results=self.max_results,
         )
 
 
@@ -1656,7 +1662,9 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         )
 
         return bq_hook.patch_dataset(
-            dataset_id=self.dataset_id, dataset_resource=self.dataset_resource, project_id=self.project_id,
+            dataset_id=self.dataset_id,
+            dataset_resource=self.dataset_resource,
+            project_id=self.project_id,
         )
 
 
@@ -1823,7 +1831,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info('Deleting: %s', self.deletion_dataset_table)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -1914,7 +1922,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info('Upserting Dataset: %s with table_resource: %s', self.dataset_id, self.table_resource)
         hook = BigQueryHook(
             bigquery_conn_id=self.gcp_conn_id,
@@ -1923,10 +1931,13 @@ class BigQueryUpsertTableOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         hook.run_table_upsert(
-            dataset_id=self.dataset_id, table_resource=self.table_resource, project_id=self.project_id,
+            dataset_id=self.dataset_id,
+            table_resource=self.table_resource,
+            project_id=self.project_id,
         )
 
 
+# pylint: disable=too-many-arguments
 class BigQueryInsertJobOperator(BaseOperator):
     """
     Executes a BigQuery job. Waits for the job to complete and returns job id.
@@ -1983,6 +1994,8 @@ class BigQueryInsertJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
+    :type cancel_on_kill: bool
     """
 
     template_fields = (
@@ -2004,6 +2017,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2016,6 +2030,8 @@ class BigQueryInsertJobOperator(BaseOperator):
         self.force_rerun = force_rerun
         self.reattach_states: Set[str] = reattach_states or set()
         self.impersonation_chain = impersonation_chain
+        self.cancel_on_kill = cancel_on_kill
+        self.hook: Optional[BigQueryHook] = None
 
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
@@ -2023,7 +2039,11 @@ class BigQueryInsertJobOperator(BaseOperator):
             with open(self.configuration, 'r') as file:
                 self.configuration = json.loads(file.read())
 
-    def _submit_job(self, hook: BigQueryHook, job_id: str,) -> BigQueryJob:
+    def _submit_job(
+        self,
+        hook: BigQueryHook,
+        job_id: str,
+    ) -> BigQueryJob:
         # Submit a new job
         job = hook.insert_job(
             configuration=self.configuration,
@@ -2051,8 +2071,9 @@ class BigQueryInsertJobOperator(BaseOperator):
         if self.job_id:
             return f"{self.job_id}_{uniqueness_suffix}"
 
-        exec_date = re.sub(r"\:|-|\+", "_", context['execution_date'].isoformat())
-        return f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
+        exec_date = context['execution_date'].isoformat()
+        job_id = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
+        return re.sub(r"\:|-|\+\.", "_", job_id)
 
     def execute(self, context: Any):
         hook = BigQueryHook(
@@ -2060,6 +2081,7 @@ class BigQueryInsertJobOperator(BaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
+        self.hook = hook
 
         job_id = self._job_id(context)
 
@@ -2068,7 +2090,11 @@ class BigQueryInsertJobOperator(BaseOperator):
             self._handle_job_error(job)
         except Conflict:
             # If the job already exists retrieve it
-            job = hook.get_job(project_id=self.project_id, location=self.location, job_id=job_id,)
+            job = hook.get_job(
+                project_id=self.project_id,
+                location=self.location,
+                job_id=job_id,
+            )
             if job.state in self.reattach_states:
                 # We are reattaching to a job
                 job.result()
@@ -2081,4 +2107,11 @@ class BigQueryInsertJobOperator(BaseOperator):
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
 
+        self.job_id = job.job_id
         return job.job_id
+
+    def on_kill(self) -> None:
+        if self.job_id and self.cancel_on_kill:
+            self.hook.cancel_job(  # type: ignore[union-attr]
+                job_id=self.job_id, project_id=self.project_id, location=self.location
+            )

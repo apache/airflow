@@ -152,7 +152,9 @@ class AwsBatchOperator(BaseOperator):
         :raises: AirflowException
         """
         self.log.info(
-            "Running AWS Batch job - job definition: %s - on queue %s", self.job_definition, self.job_queue,
+            "Running AWS Batch job - job definition: %s - on queue %s",
+            self.job_definition,
+            self.job_queue,
         )
         self.log.info("AWS Batch job - container overrides: %s", self.overrides)
 

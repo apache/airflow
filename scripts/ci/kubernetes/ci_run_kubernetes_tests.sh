@@ -18,17 +18,17 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-make_sure_kubernetes_tools_are_installed
-get_kind_cluster_name
+kind::make_sure_kubernetes_tools_are_installed
+kind::get_kind_cluster_name
 
-add_trap dump_kind_logs EXIT HUP INT TERM
+traps::add_trap kind::dump_kind_logs EXIT HUP INT TERM
 
-INTERACTIVE="false"
+interactive="false"
 
-declare -a TESTS
-declare -a PYTEST_ARGS
+declare -a tests_to_run
+declare -a pytest_args
 
-TESTS=()
+tests_to_run=()
 
 if [[ $# != 0 ]]; then
     if [[ $1 == "--help" || $1 == "-h" ]]; then
@@ -45,17 +45,17 @@ if [[ $# != 0 ]]; then
         echo
         echo "Entering interactive environment for kubernetes testing"
         echo
-        INTERACTIVE="true"
+        interactive="true"
     else
-        TESTS=("${@}")
+        tests_to_run=("${@}")
     fi
-    PYTEST_ARGS=(
+    pytest_args=(
         "--pythonwarnings=ignore::DeprecationWarning"
         "--pythonwarnings=ignore::PendingDeprecationWarning"
     )
 else
-    TESTS=("kubernetes_tests")
-    PYTEST_ARGS=(
+    tests_to_run=("kubernetes_tests")
+    pytest_args=(
         "--verbosity=1"
         "--strict-markers"
         "--durations=100"
@@ -72,25 +72,26 @@ fi
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
-VIRTUALENV_PATH="${BUILD_CACHE_DIR}/.kubernetes_venv"
+virtualenv_path="${BUILD_CACHE_DIR}/.kubernetes_venv"
 
-if [[ ! -d ${VIRTUALENV_PATH} ]]; then
+if [[ ! -d ${virtualenv_path} ]]; then
     echo
-    echo "Creating virtualenv at ${VIRTUALENV_PATH}"
+    echo "Creating virtualenv at ${virtualenv_path}"
     echo
-    python -m venv "${VIRTUALENV_PATH}"
+    python -m venv "${virtualenv_path}"
 fi
 
-. "${VIRTUALENV_PATH}/bin/activate"
+. "${virtualenv_path}/bin/activate"
+
+pip install --upgrade pip==20.2.3
 
 pip install pytest freezegun pytest-cov \
   --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 
-
 pip install -e ".[kubernetes]" \
   --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 
-if [[ ${INTERACTIVE} == "true" ]]; then
+if [[ ${interactive} == "true" ]]; then
     echo
     echo "Activating the virtual environment for kubernetes testing"
     echo
@@ -106,5 +107,5 @@ if [[ ${INTERACTIVE} == "true" ]]; then
     kubectl config set-context --current --namespace=airflow
     exec "${SHELL}"
 else
-    pytest "${PYTEST_ARGS[@]}" "${TESTS[@]}"
+    pytest "${pytest_args[@]}" "${tests_to_run[@]}"
 fi

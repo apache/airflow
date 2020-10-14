@@ -65,5 +65,7 @@ class EC2StopInstanceOperator(BaseOperator):
         instance = ec2_hook.get_instance(instance_id=self.instance_id)
         instance.stop()
         ec2_hook.wait_for_state(
-            instance_id=self.instance_id, target_state="stopped", check_interval=self.check_interval,
+            instance_id=self.instance_id,
+            target_state="stopped",
+            check_interval=self.check_interval,
         )

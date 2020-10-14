@@ -116,7 +116,7 @@ Committers are responsible for:
 
 * Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__
 * Reviewing & Merging Pull-Requests
-* Scanning and responding to Github issues
+* Scanning and responding to GitHub issues
 * Responding to questions on the dev mailing list (dev@airflow.apache.org)
 
 Becoming a Committer
@@ -132,7 +132,7 @@ The key aspects of a committer are:
   contributions towards a more strategic goal
 * Understanding of contributor/committer guidelines: `Contributors' Guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__
 * Quality of the commits
-* Visibility in community discussions (dev mailing list, Slack and Github)
+* Visibility in community discussions (dev mailing list, Slack and GitHub)
 * Testing Release Candidates
 
 
@@ -172,10 +172,10 @@ In general, your contribution includes the following stages:
 2. Create a `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
    initialize the `Breeze environment <BREEZE.rst>`__, and
    install `pre-commit framework <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__.
-   If you want to add more changes in the future, set up your fork and enable Github Actions.
+   If you want to add more changes in the future, set up your fork and enable GitHub Actions.
 
 3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
-   and set up a `Slack account <https://apache-airflow-slack.herokuapp.com>`__.
+   and set up a `Slack account <https://s.apache.org/airflow-slack>`__.
 
 4. Make the change and create a `Pull Request from your fork <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__.
 
@@ -218,7 +218,7 @@ You can use the default Breeze configuration as follows:
 
 .. code-block:: bash
 
-   ./breeze initialize-local-virtualenv
+   ./breeze initialize-local-virtualenv --python 3.6
 
 6. Open your IDE (for example, PyCharm) and select the virtualenv you created
    as the project's default virtualenv in your IDE.
@@ -279,7 +279,7 @@ Step 4: Prepare PR
 
    * Run the tests in `Breeze <TESTING.rst#running-unit-tests-inside-breeze>`__.
 
-   * Run and fix all the `static checks <STATIC_CODE_CHECKS>`__. If you have
+   * Run and fix all the `static checks <STATIC_CODE_CHECKS.rst>`__. If you have
      `pre-commits installed <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__,
      this step is automatically run while you are committing your code. If not, you can do it manually
      via ``git add`` and then ``pre-commit run``.
@@ -306,6 +306,11 @@ Step 5: Pass PR Review
 Note that committers will use **Squash and Merge** instead of **Rebase and Merge**
 when merging PRs and your commit will be squashed to single commit.
 
+You need to have review of at least one committer (if you are committer yourself, it has to be
+another committer). Ideally you should have 2 or more committers reviewing the code that touches
+the core of Airflow.
+
+
 Pull Request Guidelines
 =======================
 
@@ -315,7 +320,7 @@ these guidelines:
 -   Include tests, either as doctests, unit tests, or both, to your pull
     request.
 
-    The airflow repo uses `Github Actions <https://help.github.com/en/actions>`__ to
+    The airflow repo uses `GitHub Actions <https://help.github.com/en/actions>`__ to
     run the tests and `codecov <https://codecov.io/gh/apache/airflow>`__ to track
     coverage. You can set up both for free on your fork. It will help you make sure you do not
     break the build with your PR and that you help increase coverage.
@@ -365,6 +370,13 @@ usually these are developers with the release manager permissions.
 
 Once the branch is stable, the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
 The ``v1-10-stable`` branch is used to release ``1.10.x`` releases.
+
+The general approach is that cherry-picking a commit that has already had a PR and unit tests run
+against main is done to ``v1-10-test`` branch, but PRs from contributors towards 1.10 should target
+``v1-10-stable`` branch.
+
+The ``v1-10-test`` branch and ``v1-10-stable`` ones are merged just before the release and that's the
+time when they converge.
 
 Development Environments
 ========================
@@ -502,7 +514,7 @@ celery, cgroups, cloudant, cncf.kubernetes, dask, databricks, datadog, devel, de
 docker, druid, elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise, google,
 google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap, microsoft.azure,
 microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password,
-pinot, postgres, presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry,
+pinot, plexus, postgres, presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry,
 singularity, slack, snowflake, spark, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm,
 yandexcloud, all, devel_ci
 
@@ -584,11 +596,11 @@ jobs for each python version.
 Backport providers packages
 ---------------------------
 
-**NOTE:** In case of problems with installation / development of backport packages
-check `troubleshooting installing backport packages <https://github
+**NOTE:** In case of problems with installation / development of provider packages
+check `troubleshooting installing provider packages <https://github
 .com/apache/airflow#troubleshooting-installing-backport-packages>`_.
 
-Since we are developing new operators in the master branch, we prepared backport packages ready to be
+Since we are developing new operators in the master branch, we prepared provider packages ready to be
 installed for Airflow 1.10.* series. Those backport operators (the tested ones) are going to be released
 in PyPi and we are going to maintain the list at
 `Backported providers package page <https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series>`_
@@ -633,7 +645,7 @@ dingding                   http
 discord                    http
 google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,postgres,presto,sftp
 hashicorp                  google
-microsoft.azure            oracle
+microsoft.azure            google,oracle
 microsoft.mssql            odbc
 mysql                      amazon,presto,vertica
 opsgenie                   http
@@ -863,7 +875,7 @@ To install yarn on macOS:
 
 .. code-block:: bash
 
-    brew install node --without-npm
+    brew install node
     brew install yarn
     yarn config set prefix ~/.yarn
 
@@ -916,13 +928,13 @@ commands:
     yarn run dev
 
 
-Follow Javascript Style Guide
+Follow JavaScript Style Guide
 -----------------------------
 
 We try to enforce a more consistent style and follow the JS community
 guidelines.
 
-Once you add or modify any javascript code in the project, please make sure it
+Once you add or modify any JavaScript code in the project, please make sure it
 follows the guidelines defined in `Airbnb
 JavaScript Style Guide <https://github.com/airbnb/javascript>`__.
 
@@ -954,65 +966,94 @@ modified the master in your fork, you might loose those changes.
 How to rebase PR
 ================
 
-A lot of people are unfamiliar with rebase workflow in Git, but we think it is an excellent workflow,
-much better than merge workflow, so here is a short guide for those who would like to learn it. It's really
-worth to spend a few minutes learning it. As opposed to merge workflow, the rebase workflow allows to
-clearly separate your changes from changes of others, puts responsibility of proper rebase on the
-author of the change. It also produces a "single-line" series of commits in master branch which
-makes it much easier to understand what was going on and to find reasons for problems (it is especially
-useful for "bisecting" when looking for a commit that introduced some bugs.
+A lot of people are unfamiliar with the rebase workflow in Git, but we think it is an excellent workflow,
+providing a better alternative to the merge workflow. We've therefore written a short guide for those who would like to learn it.
 
-First of all - you can read about rebase workflow here:
-`Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_ - this is an
-excellent article that describes all ins/outs of rebase. I recommend reading it and keeping it as reference.
+As opposed to the merge workflow, the rebase workflow allows us to
+clearly separate your changes from the changes of others. It puts the responsibility of rebasing on the
+author of the change. It also produces a "single-line" series of commits on the master branch. This
+makes it easier to understand what was going on and to find reasons for problems (it is especially
+useful for "bisecting" when looking for a commit that introduced some bugs).
+
+First of all, we suggest you read about the rebase workflow here:
+`Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_. This is an
+excellent article that describes all the ins/outs of the rebase workflow. I recommend keeping it for future reference.
 
 The goal of rebasing your PR on top of ``apache/master`` is to "transplant" your change on top of
 the latest changes that are merged by others. It also allows you to fix all the conflicts
-that are result of other people changing the same files as you and merging the changes to ``apache/master``.
+that arise as a result of other people changing the same files as you and merging the changes to ``apache/master``.
 
 Here is how rebase looks in practice:
 
-1. You need to add Apache remote to your git repository. You can add it as "apache" remote so that
-   you can refer to it easily:
+1. You first need to add the Apache project remote to your git repository. In this example, we will be adding the remote
+as "apache" so you can refer to it easily:
 
-``git remote add apache git@github.com:apache/airflow.git`` if you use ssh or
-``git remote add apache https://github.com/apache/airflow.git`` if you use https.
+* If you use ssh: ``git remote add apache git@github.com:apache/airflow.git``
+* If you use https: ``git remote add apache https://github.com/apache/airflow.git``
 
-Later on
+2. You then need to make sure that you have the latest master fetched from the ``apache`` repository. You can do this
+   via:
 
-2. You need to make sure that you have the latest master fetched from ``apache`` repository. You can do it
-   by ``git fetch apache`` for apache remote or ``git fetch --all`` to fetch all remotes.
+   ``git fetch apache`` (to fetch apache remote)
 
-3. Assuming that your feature is in a branch in your repository called ``my-branch`` you can check easily
-   what is the base commit you should rebase from by: ``git merge-base my-branch apache/master``.
-   This will print the HASH of the base commit which you should use to rebase your feature from -
-   for example: ``5abce471e0690c6b8d06ca25685b0845c5fd270f``. You can also find this commit hash manually -
-   if you want better control. Run ``git log`` and find the first commit that you DO NOT want to "transplant".
-   ``git rebase HASH`` will "trasplant" all commits after the commit with the HASH.
+   ``git fetch --all``  (to fetch all remotes)
 
-4. Make sure you checked out your branch locally:
+3. Assuming that your feature is in a branch in your repository called ``my-branch`` you can easily check
+   what is the base commit you should rebase from by:
 
-``git checkout my-branch``
+   ``git merge-base my-branch apache/master``
+
+   This will print the HASH of the base commit which you should use to rebase your feature from.
+   For example: ``5abce471e0690c6b8d06ca25685b0845c5fd270f``. You can also find this commit hash manually if you want
+   better control.
+
+   Run:
+
+   ``git log``
+
+   And find the first commit that you DO NOT want to "transplant".
+
+   Performing:
+
+   ``git rebase HASH``
+
+   Will "transplant" all commits after the commit with the HASH.
+
+4. Check out your feature branch locally via:
+
+   ``git checkout my-branch``
 
 5. Rebase:
-   Run: ``git rebase HASH --onto apache/master``
-   for example: ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto apache/master``
+
+   ``git rebase HASH --onto apache/master``
+
+   For example:
+
+   ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto apache/master``
 
 6. If you have no conflicts - that's cool. You rebased. You can now run ``git push --force-with-lease`` to
    push your changes to your repository. That should trigger the build in our CI if you have a
-   Pull Request opened already.
+   Pull Request (PR) opened already.
 
 7. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
    about the conflicts. You need to solve the conflicts manually. This is sometimes the most difficult
-   part and requires deliberate correcting your code looking what has changed since you developed your
-   changes. There are various tools that can help you with that. You can use ``git mergetool`` (and you can
-   configure different merge tools with it). Also you can use IntelliJ/PyCharm excellent merge tool.
-   When you open project in PyCharm which has conflict you can go to VCS->Git->Resolve Conflicts and there
-   you have a very intuitive and helpful merge tool. You can see more information
-   about it in `Resolve conflicts <https://www.jetbrains.com/help/idea/resolving-conflicts.html.>`_
+   part and requires deliberately correcting your code and looking at what has changed since you developed your
+   changes.
 
-8. After you solved conflicts simply run ``git rebase --continue`` and go either to point 6. or 7.
-   above depending if you have more commits that cause conflicts in your PR (rebasing applies each
+   There are various tools that can help you with this. You can use:
+
+   ``git mergetool``
+
+   You can configure different merge tools with it. You can also use IntelliJ/PyCharm's excellent merge tool.
+   When you open a project in PyCharm which has conflicts, you can go to VCS > Git > Resolve Conflicts and there
+   you have a very intuitive and helpful merge tool. For more information, see
+   `Resolve conflicts <https://www.jetbrains.com/help/idea/resolving-conflicts.html.>`_.
+
+8. After you've solved your conflict run:
+
+   ``git rebase --continue``
+
+   And go either to point 6. or 7, depending on whether you have more commits that cause conflicts in your PR (rebasing applies each
    commit from your PR one-by-one).
 
 How to communicate
@@ -1041,17 +1082,17 @@ You can join the channels via links at the `Airflow Community page <https://airf
    * detailed discussions on big proposals (Airflow Improvement Proposals also name AIPs)
    * helpful, shared resources (for example Apache Airflow logos
    * information that can be re-used by others (for example instructions on preparing workshops)
-* Github `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
+* GitHub `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
    * discussing implementation details of PRs
    * not for architectural discussions (use the devlist for that)
 * The deprecated `JIRA issues <https://issues.apache.org/jira/projects/AIRFLOW/issues/AIRFLOW-4470?filter=allopenissues>`_ for:
-   * checking out old but still valuable issues that are not on Github yet
-   * mentioning the JIRA issue number in the title of the related PR you would like to open on Github
+   * checking out old but still valuable issues that are not on GitHub yet
+   * mentioning the JIRA issue number in the title of the related PR you would like to open on GitHub
 
 **IMPORTANT**
-We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable tickets inside of it. However, each new PR should be created on `Github issues <https://github.com/apache/airflow/issues>`_ as stated in `Contribution Workflow Example <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contribution-workflow-example>`_
+We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable tickets inside of it. However, each new PR should be created on `GitHub issues <https://github.com/apache/airflow/issues>`_ as stated in `Contribution Workflow Example <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contribution-workflow-example>`_
 
-* The `Apache Airflow Slack <https://apache-airflow-slack.herokuapp.com/>`_ for:
+* The `Apache Airflow Slack <https://s.apache.org/airflow-slack>`_ for:
    * ad-hoc questions related to development (#development channel)
    * asking for review (#development channel)
    * asking for help with PRs (#how-to-pr channel)
@@ -1123,6 +1164,33 @@ Here are a few rules that are important to keep in mind when you enter our commu
  * Discussions should concern subject matters - judge or criticise the merit but never criticise people
  * It’s OK to express your own emotions while communicating - it helps other people to understand you
  * Be considerate for feelings of others. Tell about how you feel not what you think of others
+
+Committer Responsibilities
+==========================
+
+Committers are more than contributors. While it's important for committers to maintain standing by
+committing code, their key role is to build and foster a healthy and active community.
+This means that committers should:
+
+* Review PRs in a timely and reliable fashion
+* They should also help to actively whittle down the PR backlog
+* Answer questions (i.e. on the dev list, in PRs, in Github Issues, slack, etc...)
+* Take on core changes/bugs/feature requests
+* Some changes are important enough that a committer needs to ensure it gets done. This is especially
+  the case if no one from the community is taking it on.
+* Improve processes and tooling
+* Refactoring code
+
+Commit Policy
+=============
+
+The following commit policy passed by a vote 8(binding FOR) to 0 against on May 27, 2016 on the dev list
+and slightly modified and consensus reached in October 2020:
+
+* Commits need a +1 vote from a committer who is not the author
+* Do not merge a PR that regresses linting or does not pass CI tests (unless we have
+  justification such as clearly transient error).
+* When we do AIP voting, both PMC and committer +1s are considered as binding vote.
 
 Resources & Links
 =================

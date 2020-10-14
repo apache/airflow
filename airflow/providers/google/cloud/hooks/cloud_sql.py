@@ -39,7 +39,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import quote_plus
 
 import requests
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build, Resource
 from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
 
@@ -88,12 +88,14 @@ class CloudSQLHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
         self._conn = None
 
-    def get_conn(self):
+    def get_conn(self) -> Resource:
         """
         Retrieves connection to Cloud SQL.
 
@@ -106,7 +108,7 @@ class CloudSQLHook(GoogleBaseHook):
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance(self, instance: str, project_id: str) -> Dict:
+    def get_instance(self, instance: str, project_id: str) -> dict:
         """
         Retrieves a resource containing information about a Cloud SQL instance.
 
@@ -150,7 +152,7 @@ class CloudSQLHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
-    def patch_instance(self, body: Dict, instance: str, project_id: str) -> None:
+    def patch_instance(self, body: dict, instance: str, project_id: str) -> None:
         """
         Updates settings of a Cloud SQL instance.
 
@@ -199,7 +201,7 @@ class CloudSQLHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_database(self, instance: str, database: str, project_id: str) -> Dict:
+    def get_database(self, instance: str, database: str, project_id: str) -> dict:
         """
         Retrieves a database resource from a Cloud SQL instance.
 
@@ -248,7 +250,13 @@ class CloudSQLHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
-    def patch_database(self, instance: str, database: str, body: Dict, project_id: str,) -> None:
+    def patch_database(
+        self,
+        instance: str,
+        database: str,
+        body: Dict,
+        project_id: str,
+    ) -> None:
         """
         Updates a database resource inside a Cloud SQL instance.
 

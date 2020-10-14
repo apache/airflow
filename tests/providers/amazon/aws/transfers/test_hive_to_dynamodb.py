@@ -26,7 +26,7 @@ import pandas as pd
 
 import airflow.providers.amazon.aws.transfers.hive_to_dynamodb
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.hooks.aws_dynamodb import AwsDynamoDBHook
+from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -66,7 +66,9 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
         # this table needs to be created in production
         self.hook.get_conn().create_table(
             TableName='test_airflow',
-            KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'},],
+            KeySchema=[
+                {'AttributeName': 'id', 'KeyType': 'HASH'},
+            ],
             AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
             ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
         )
@@ -95,7 +97,9 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
         # this table needs to be created in production
         self.hook.get_conn().create_table(
             TableName='test_airflow',
-            KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'},],
+            KeySchema=[
+                {'AttributeName': 'id', 'KeyType': 'HASH'},
+            ],
             AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
             ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
         )

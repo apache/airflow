@@ -117,7 +117,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -204,7 +204,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -298,7 +298,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -391,7 +391,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -476,7 +476,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -572,7 +572,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -661,7 +661,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -771,7 +771,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -863,7 +863,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -978,7 +978,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1085,7 +1085,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )

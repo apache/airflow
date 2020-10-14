@@ -18,8 +18,10 @@
 #
 
 import warnings
+from typing import Any
 
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
+from azure.mgmt.containerinstance.models import ContainerGroup
 
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 
@@ -39,11 +41,11 @@ class AzureContainerInstanceHook(AzureBaseHook):
     :type conn_id: str
     """
 
-    def __init__(self, conn_id='azure_default'):
+    def __init__(self, conn_id: str = 'azure_default') -> None:
         super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=conn_id)
         self.connection = self.get_conn()
 
-    def create_or_update(self, resource_group, name, container_group):
+    def create_or_update(self, resource_group: str, name: str, container_group: ContainerGroup) -> None:
         """
         Create a new container group
 
@@ -56,7 +58,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         """
         self.connection.container_groups.create_or_update(resource_group, name, container_group)
 
-    def get_state_exitcode_details(self, resource_group, name):
+    def get_state_exitcode_details(self, resource_group: str, name: str) -> tuple:
         """
         Get the state and exitcode of a container group
 
@@ -77,7 +79,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         c_state = cg_state.containers[0].instance_view.current_state
         return (c_state.state, c_state.exit_code, c_state.detail_status)
 
-    def get_messages(self, resource_group, name):
+    def get_messages(self, resource_group: str, name: str) -> list:
         """
         Get the messages of a container group
 
@@ -95,7 +97,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         instance_view = cg_state.containers[0].instance_view
         return [event.message for event in instance_view.events]
 
-    def get_state(self, resource_group, name):
+    def get_state(self, resource_group: str, name: str) -> Any:
         """
         Get the state of a container group
 
@@ -108,7 +110,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         """
         return self.connection.container_groups.get(resource_group, name, raw=False)
 
-    def get_logs(self, resource_group, name, tail=1000):
+    def get_logs(self, resource_group: str, name: str, tail: int = 1000) -> list:
         """
         Get the tail from logs of a container group
 
@@ -124,7 +126,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         logs = self.connection.container.list_logs(resource_group, name, name, tail=tail)
         return logs.content.splitlines(True)
 
-    def delete(self, resource_group, name):
+    def delete(self, resource_group: str, name: str) -> None:
         """
         Delete a container group
 
@@ -135,7 +137,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         """
         self.connection.container_groups.delete(resource_group, name)
 
-    def exists(self, resource_group, name):
+    def exists(self, resource_group: str, name: str) -> bool:
         """
         Test if a container group exists
 

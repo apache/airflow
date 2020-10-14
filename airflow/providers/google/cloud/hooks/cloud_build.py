@@ -18,7 +18,7 @@
 """Hook for Google Cloud Build service"""
 
 import time
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 from googleapiclient.discovery import build
 
@@ -65,12 +65,14 @@ class CloudBuildHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
 
         self.api_version = api_version
 
-    def get_conn(self):
+    def get_conn(self) -> build:
         """
         Retrieves the connection to Cloud Build.
 
@@ -82,7 +84,7 @@ class CloudBuildHook(GoogleBaseHook):
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_build(self, body: Dict, project_id: str) -> Dict:
+    def create_build(self, body: dict, project_id: str) -> dict:
         """
         Starts a build with the specified configuration.
 

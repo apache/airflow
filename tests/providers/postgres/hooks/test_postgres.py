@@ -223,7 +223,16 @@ class TestPostgresHook(unittest.TestCase):
     @pytest.mark.backend("postgres")
     def test_insert_rows_replace(self):
         table = "table"
-        rows = [(1, "hello",), (2, "world",)]
+        rows = [
+            (
+                1,
+                "hello",
+            ),
+            (
+                2,
+                "world",
+            ),
+        ]
         fields = ("id", "value")
 
         self.db_hook.insert_rows(table, rows, fields, replace=True, replace_index=fields[0])
@@ -245,7 +254,16 @@ class TestPostgresHook(unittest.TestCase):
     @pytest.mark.backend("postgres")
     def test_insert_rows_replace_missing_target_field_arg(self):
         table = "table"
-        rows = [(1, "hello",), (2, "world",)]
+        rows = [
+            (
+                1,
+                "hello",
+            ),
+            (
+                2,
+                "world",
+            ),
+        ]
         fields = ("id", "value")
         self.db_hook.insert_rows(table, rows, replace=True, replace_index=fields[0])
 
@@ -253,7 +271,16 @@ class TestPostgresHook(unittest.TestCase):
     @pytest.mark.backend("postgres")
     def test_insert_rows_replace_missing_replace_index_arg(self):
         table = "table"
-        rows = [(1, "hello",), (2, "world",)]
+        rows = [
+            (
+                1,
+                "hello",
+            ),
+            (
+                2,
+                "world",
+            ),
+        ]
         fields = ("id", "value")
         self.db_hook.insert_rows(table, rows, fields, replace=True)
 

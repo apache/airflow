@@ -26,20 +26,28 @@ from airflow.providers.amazon.aws.sensors.sagemaker_transform import SageMakerTr
 
 DESCRIBE_TRANSFORM_INPROGRESS_RESPONSE = {
     'TransformJobStatus': 'InProgress',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
 }
 DESCRIBE_TRANSFORM_COMPLETED_RESPONSE = {
     'TransformJobStatus': 'Completed',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
 }
 DESCRIBE_TRANSFORM_FAILED_RESPONSE = {
     'TransformJobStatus': 'Failed',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
     'FailureReason': 'Unknown',
 }
 DESCRIBE_TRANSFORM_STOPPING_RESPONSE = {
     'TransformJobStatus': 'Stopping',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
 }
 
 

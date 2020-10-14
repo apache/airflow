@@ -25,7 +25,8 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Airflow Master](#airflow-master)
+- [Airflow 2.0.0a1](#airflow-200a1)
+- [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
 - [Airflow 1.10.11](#airflow-11011)
 - [Airflow 1.10.10](#airflow-11010)
@@ -46,7 +47,7 @@ assists users migrating to a new version.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Airflow Master
+## Airflow 2.0.0a1
 
 The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
 and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
@@ -137,6 +138,19 @@ with third party services to the ``airflow.providers`` package.
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
 
+#### Change to undefined variable handling in templates
+
+Prior to Airflow 2.0 Jinja Templates would permit the use of undefined variables. They would render as an
+empty string, with no indication to the user an undefined variable was used. With this release, any template
+rendering involving undefined variables will fail the task, as well as displaying an error in the UI when
+rendering.
+
+The behavior can be reverted when instantiating a DAG.
+```python
+import jinja2
+
+dag = DAG('simple_dag', template_undefined=jinja2.Undefined)
+```
 
 ### Breaking Change in OAuth
 
@@ -152,6 +166,527 @@ The Old and New provider configuration keys that have changed are as follows
 | request_token_params| client_kwargs     |
 
 For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
+
+### Changes to the KubernetesExecutor
+
+#### The KubernetesExecutor Will No Longer Read from the airflow.cfg for Base Pod Configurations
+
+In Airflow 2.0, the KubernetesExecutor will require a base pod template written in yaml. This file can exist
+anywhere on the host machine and will be linked using the `pod_template_file` configuration in the airflow.cfg.
+
+The `airflow.cfg` will still accept values for the `worker_container_repository`, the `worker_container_tag`, and
+the default namespace.
+
+The following `airflow.cfg` values will be deprecated:
+
+```
+worker_container_image_pull_policy
+airflow_configmap
+airflow_local_settings_configmap
+dags_in_image
+dags_volume_subpath
+dags_volume_mount_point
+dags_volume_claim
+logs_volume_subpath
+logs_volume_claim
+dags_volume_host
+logs_volume_host
+env_from_configmap_ref
+env_from_secret_ref
+git_repo
+git_branch
+git_sync_depth
+git_subpath
+git_sync_rev
+git_user
+git_password
+git_sync_root
+git_sync_dest
+git_dags_folder_mount_point
+git_ssh_key_secret_name
+git_ssh_known_hosts_configmap_name
+git_sync_credentials_secret
+git_sync_container_repository
+git_sync_container_tag
+git_sync_init_container_name
+git_sync_run_as_user
+worker_service_account_name
+image_pull_secrets
+gcp_service_account_keys
+affinity
+tolerations
+run_as_user
+fs_group
+[kubernetes_node_selectors]
+[kubernetes_annotations]
+[kubernetes_environment_variables]
+[kubernetes_secrets]
+[kubernetes_labels]
+```
+
+#### The `executor_config` Will Now Expect a `kubernetes.client.models.V1Pod` Class When Launching Tasks
+
+In Airflow 1.10.x, users could modify task pods at runtime by passing a dictionary to the `executor_config` variable.
+Users will now have full access the Kubernetes API via the `kubernetes.client.models.V1Pod`.
+
+While in the deprecated version a user would mount a volume using the following dictionary:
+
+```python
+second_task = PythonOperator(
+    task_id="four_task",
+    python_callable=test_volume_mount,
+    executor_config={
+        "KubernetesExecutor": {
+            "volumes": [
+                {
+                    "name": "example-kubernetes-test-volume",
+                    "hostPath": {"path": "/tmp/"},
+                },
+            ],
+            "volume_mounts": [
+                {
+                    "mountPath": "/foo/",
+                    "name": "example-kubernetes-test-volume",
+                },
+            ]
+        }
+    }
+)
+```
+
+In the new model a user can accomplish the same thing using the following code under the ``pod_override`` key:
+
+```python
+from kubernetes.client import models as k8s
+
+second_task = PythonOperator(
+    task_id="four_task",
+    python_callable=test_volume_mount,
+    executor_config={"pod_override": k8s.V1Pod(
+        spec=k8s.V1PodSpec(
+            containers=[
+                k8s.V1Container(
+                    name="base",
+                    volume_mounts=[
+                        k8s.V1VolumeMount(
+                            mount_path="/foo/",
+                            name="example-kubernetes-test-volume"
+                        )
+                    ]
+                )
+            ],
+            volumes=[
+                k8s.V1Volume(
+                    name="example-kubernetes-test-volume",
+                    host_path=k8s.V1HostPathVolumeSource(
+                        path="/tmp/"
+                    )
+                )
+            ]
+        )
+    )
+    }
+)
+```
+For Airflow 2.0, the traditional `executor_config` will continue operation with a deprecation warning,
+but will be removed in a future version.
+
+### Changes to the KubernetesPodOperator
+
+Much like the `KubernetesExecutor`, the `KubernetesPodOperator` will no longer take Airflow custom classes and will
+instead expect either a pod_template yaml file, or `kubernetes.client.models` objects.
+
+The one notable exception is that we will continue to support the `airflow.kubernetes.secret.Secret` class.
+
+Whereas previously a user would import each individual class to build the pod as so:
+
+```python
+from airflow.kubernetes.pod import Port
+from airflow.kubernetes.volume import Volume
+from airflow.kubernetes.secret import Secret
+from airflow.kubernetes.volume_mount import VolumeMount
+
+
+volume_config = {
+    'persistentVolumeClaim': {
+        'claimName': 'test-volume'
+    }
+}
+volume = Volume(name='test-volume', configs=volume_config)
+volume_mount = VolumeMount('test-volume',
+                           mount_path='/root/mount_file',
+                           sub_path=None,
+                           read_only=True)
+
+port = Port('http', 80)
+secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
+secret_env = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo", "10"],
+    labels={"foo": "bar"},
+    secrets=[secret_file, secret_env],
+    ports=[port],
+    volumes=[volume],
+    volume_mounts=[volume_mount],
+    name="airflow-test-pod",
+    task_id="task",
+    affinity=affinity,
+    is_delete_operator_pod=True,
+    hostnetwork=False,
+    tolerations=tolerations,
+    configmaps=configmaps,
+    init_containers=[init_container],
+    priority_class_name="medium",
+)
+```
+Now the user can use the `kubernetes.client.models` class as a single point of entry for creating all k8s objects.
+
+```python
+from kubernetes.client import models as k8s
+from airflow.kubernetes.secret import Secret
+
+
+configmaps = ['test-configmap-1', 'test-configmap-2']
+
+volume = k8s.V1Volume(
+    name='test-volume',
+    persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name='test-volume'),
+)
+
+port = k8s.V1ContainerPort(name='http', container_port=80)
+secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
+secret_env = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
+secret_all_keys = Secret('env', None, 'airflow-secrets-2')
+volume_mount = k8s.V1VolumeMount(
+    name='test-volume', mount_path='/root/mount_file', sub_path=None, read_only=True
+)
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo", "10"],
+    labels={"foo": "bar"},
+    secrets=[secret_file, secret_env],
+    ports=[port],
+    volumes=[volume],
+    volume_mounts=[volume_mount],
+    name="airflow-test-pod",
+    task_id="task",
+    is_delete_operator_pod=True,
+    hostnetwork=False)
+```
+We decided to keep the Secret class as users seem to really like that simplifies the complexity of mounting
+Kubernetes secrets into workers.
+
+### Changed Parameters for the KubernetesPodOperator
+
+#### port has migrated from a List[Port] to a List[V1ContainerPort]
+Before:
+```python
+from airflow.kubernetes.pod import Port
+port = Port('http', 80)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    ports=[port],
+    task_id="task",
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+port = k8s.V1ContainerPort(name='http', container_port=80)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    ports=[port],
+    task_id="task",
+)
+```
+
+#### volume_mounts has migrated from a List[VolumeMount] to a List[V1VolumeMount]
+Before:
+```python
+from airflow.kubernetes.volume_mount import VolumeMount
+volume_mount = VolumeMount('test-volume',
+                           mount_path='/root/mount_file',
+                           sub_path=None,
+                           read_only=True)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    volume_mounts=[volume_mount],
+    task_id="task",
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+volume_mount = k8s.V1VolumeMount(
+    name='test-volume', mount_path='/root/mount_file', sub_path=None, read_only=True
+)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    volume_mounts=[volume_mount],
+    task_id="task",
+)
+```
+
+#### volumes has migrated from a List[Volume] to a List[V1Volume]
+Before:
+```python
+from airflow.kubernetes.volume import Volume
+
+volume_config = {
+    'persistentVolumeClaim': {
+        'claimName': 'test-volume'
+    }
+}
+volume = Volume(name='test-volume', configs=volume_config)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    volumes=[volume],
+    task_id="task",
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+volume = k8s.V1Volume(
+    name='test-volume',
+    persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name='test-volume'),
+)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    volumes=[volume],
+    task_id="task",
+)
+```
+#### env_vars has migrated from a Dict to a List[V1EnvVar]
+Before:
+```python
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    env_vars={"ENV1": "val1", "ENV2": "val2"},
+    task_id="task",
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+
+env_vars = [
+    k8s.V1EnvVar(
+        name="ENV1",
+        value="val1"
+    ),
+    k8s.V1EnvVar(
+        name="ENV2",
+        value="val2"
+    )]
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    env_vars=env_vars,
+    task_id="task",
+)
+```
+
+#### PodRuntimeInfoEnv has been removed
+
+PodRuntimeInfoEnv can now be added to the `env_vars` variable as a `V1EnvVarSource`
+
+Before:
+```python
+from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    pod_runtime_info_envs=[PodRuntimeInfoEnv("ENV3", "status.podIP")],
+    task_id="task",
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+
+env_vars = [
+    k8s.V1EnvVar(
+        name="ENV3",
+        value_from=k8s.V1EnvVarSource(
+            field_ref=k8s.V1ObjectFieldSelector(
+                field_path="status.podIP"
+            )
+        )
+    )
+]
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    env_vars=env_vars,
+    task_id="task",
+)
+```
+
+#### configmaps has been removed
+
+configmaps can now be added to the `env_from` variable as a `V1EnvVarSource`
+
+Before:
+```python
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    configmaps=['test-configmap'],
+    task_id="task"
+)
+```
+
+After:
+
+```python
+from kubernetes.client import models as k8s
+
+configmap ="test-configmap"
+env_from = [k8s.V1EnvFromSource(
+                config_map_ref=k8s.V1ConfigMapEnvSource(
+                    name=configmap
+                )
+            )]
+
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    env_from=env_from,
+    task_id="task"
+)
+```
+
+
+#### resources has migrated from a Dict to a V1ResourceRequirements
+
+Before:
+```python
+resources = {
+    'limit_cpu': 0.25,
+    'limit_memory': '64Mi',
+    'limit_ephemeral_storage': '2Gi',
+    'request_cpu': '250m',
+    'request_memory': '64Mi',
+    'request_ephemeral_storage': '1Gi',
+}
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    labels={"foo": "bar"},
+    name="test",
+    task_id="task" + self.get_current_task_name(),
+    in_cluster=False,
+    do_xcom_push=False,
+    resources=resources,
+)
+```
+
+After:
+```python
+from kubernetes.client import models as k8s
+
+resources=k8s.V1ResourceRequirements(
+    requests={
+        'memory': '64Mi',
+        'cpu': '250m',
+        'ephemeral-storage': '1Gi'
+    },
+    limits={
+        'memory': '64Mi',
+        'cpu': 0.25,
+        'nvidia.com/gpu': None,
+        'ephemeral-storage': '2Gi'
+    }
+)
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    labels={"foo": "bar"},
+    name="test-" + str(random.randint(0, 1000000)),
+    task_id="task" + self.get_current_task_name(),
+    in_cluster=False,
+    do_xcom_push=False,
+    resources=resources,
+)
+```
+#### image_pull_secrets has migrated from a String to a List[k8s.V1LocalObjectReference]
+
+Before:
+```python
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo 10"],
+    name="test",
+    task_id="task",
+    image_pull_secrets="fake-secret",
+    cluster_context='default')
+```
+
+After:
+```python
+quay_k8s = KubernetesPodOperator(
+    namespace='default',
+    image='quay.io/apache/bash',
+    image_pull_secrets=[k8s.V1LocalObjectReference('testquay')],
+    cmds=["bash", "-cx"],
+    name="airflow-private-image-pod",
+    task_id="task-two",
+)
+
+```
 
 ### Migration Guide from Experimental API to Stable API v1
 In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
@@ -222,35 +757,39 @@ For a complete list of updated CLI commands, see https://airflow.apache.org/cli.
 You can learn about the commands by running ``airflow --help``. For example to get help about the ``celery`` group command,
 you have to run the help command: ``airflow celery --help``.
 
-| Old command                 | New command                        |     Group          |
-|-----------------------------|------------------------------------|--------------------|
-| ``airflow worker``          | ``airflow celery worker``          |    ``celery``      |
-| ``airflow flower``          | ``airflow celery flower``          |    ``celery``      |
-| ``airflow trigger_dag``     | ``airflow dags trigger``           |    ``dags``        |
-| ``airflow delete_dag``      | ``airflow dags delete``            |    ``dags``        |
-| ``airflow show_dag``        | ``airflow dags show``              |    ``dags``        |
-| ``airflow list_dag``        | ``airflow dags list``              |    ``dags``        |
-| ``airflow dag_status``      | ``airflow dags status``            |    ``dags``        |
-| ``airflow backfill``        | ``airflow dags backfill``          |    ``dags``        |
-| ``airflow list_dag_runs``   | ``airflow dags list_runs``         |    ``dags``        |
-| ``airflow pause``           | ``airflow dags pause``             |    ``dags``        |
-| ``airflow unpause``         | ``airflow dags unpause``           |    ``dags``        |
-| ``airflow test``            | ``airflow tasks test``             |    ``tasks``       |
-| ``airflow clear``           | ``airflow tasks clear``            |    ``tasks``       |
-| ``airflow list_tasks``      | ``airflow tasks list``             |    ``tasks``       |
-| ``airflow task_failed_deps``| ``airflow tasks failed_deps``      |    ``tasks``       |
-| ``airflow task_state``      | ``airflow tasks state``            |    ``tasks``       |
-| ``airflow run``             | ``airflow tasks run``              |    ``tasks``       |
-| ``airflow render``          | ``airflow tasks render``           |    ``tasks``       |
-| ``airflow initdb``          | ``airflow db init``                |     ``db``         |
-| ``airflow resetdb``         | ``airflow db reset``               |     ``db``         |
-| ``airflow upgradedb``       | ``airflow db upgrade``             |     ``db``         |
-| ``airflow checkdb``         | ``airflow db check``               |     ``db``         |
-| ``airflow shell``           | ``airflow db shell``               |     ``db``         |
-| ``airflow pool``            | ``airflow pools``                  |     ``pools``      |
-| ``airflow create_user``     | ``airflow users create``           |     ``users``      |
-| ``airflow delete_user``     | ``airflow users delete``           |     ``users``      |
-| ``airflow list_users``      | ``airflow users list``             |     ``users``      |
+| Old command                   | New command                        |     Group          |
+|-------------------------------|------------------------------------|--------------------|
+| ``airflow worker``            | ``airflow celery worker``          |    ``celery``      |
+| ``airflow flower``            | ``airflow celery flower``          |    ``celery``      |
+| ``airflow trigger_dag``       | ``airflow dags trigger``           |    ``dags``        |
+| ``airflow delete_dag``        | ``airflow dags delete``            |    ``dags``        |
+| ``airflow show_dag``          | ``airflow dags show``              |    ``dags``        |
+| ``airflow list_dag``          | ``airflow dags list``              |    ``dags``        |
+| ``airflow dag_status``        | ``airflow dags status``            |    ``dags``        |
+| ``airflow backfill``          | ``airflow dags backfill``          |    ``dags``        |
+| ``airflow list_dag_runs``     | ``airflow dags list-runs``         |    ``dags``        |
+| ``airflow pause``             | ``airflow dags pause``             |    ``dags``        |
+| ``airflow unpause``           | ``airflow dags unpause``           |    ``dags``        |
+| ``airflow next_execution``    | ``airflow dags next-execution``    |    ``dags``        |
+| ``airflow test``              | ``airflow tasks test``             |    ``tasks``       |
+| ``airflow clear``             | ``airflow tasks clear``            |    ``tasks``       |
+| ``airflow list_tasks``        | ``airflow tasks list``             |    ``tasks``       |
+| ``airflow task_failed_deps``  | ``airflow tasks failed-deps``      |    ``tasks``       |
+| ``airflow task_state``        | ``airflow tasks state``            |    ``tasks``       |
+| ``airflow run``               | ``airflow tasks run``              |    ``tasks``       |
+| ``airflow render``            | ``airflow tasks render``           |    ``tasks``       |
+| ``airflow initdb``            | ``airflow db init``                |     ``db``         |
+| ``airflow resetdb``           | ``airflow db reset``               |     ``db``         |
+| ``airflow upgradedb``         | ``airflow db upgrade``             |     ``db``         |
+| ``airflow checkdb``           | ``airflow db check``               |     ``db``         |
+| ``airflow shell``             | ``airflow db shell``               |     ``db``         |
+| ``airflow pool``              | ``airflow pools``                  |     ``pools``      |
+| ``airflow create_user``       | ``airflow users create``           |     ``users``      |
+| ``airflow delete_user``       | ``airflow users delete``           |     ``users``      |
+| ``airflow list_users``        | ``airflow users list``             |     ``users``      |
+| ``airflow rotate_fernet_key`` | ``airflow rotate-fernet-key``      |                    |
+| ``airflow sync_perm``         | ``airflow sync-perm``              |                    |
+
 
 
 Example Usage for the ``users`` group:
@@ -518,6 +1057,20 @@ The following configurations have been moved from `[core]` to the new `[logging]
 * `dag_processor_manager_log_location`
 * `task_log_reader`
 
+#### Changes to Elasticsearch logging provider
+
+When JSON output to stdout is enabled, log lines will now contain the `log_id` & `offset` fields, this should make reading task logs from elasticsearch on the webserver work out of the box. Example configuration:
+```ini
+[logging]
+remote_logging = True
+[elasticsearch]
+host = http://es-host:9200
+write_stdout = True
+json_format = True
+```
+
+Note that the webserver expects the log line data itself to be present in the `message` field of the document.
+
 #### Remove gcp_service_account_keys option in airflow.cfg file
 
 This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new
@@ -632,7 +1185,7 @@ dag >> dummy
 This is no longer supported. Instead, we recommend using the DAG as context manager:
 
 ```python
-with DAG('my_dag'):
+with DAG('my_dag') as dag:
     dummy = DummyOperator(task_id='dummy')
 ```
 
@@ -673,7 +1226,7 @@ The `chain` method and `cross_downstream` method both use BaseOperator. If any o
 any classes or functions from helpers module, then it automatically has an
 implicit dependency to BaseOperator. That can often lead to cyclic dependencies.
 
-More information in [Airflow-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
+More information in [AIRFLOW-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
 
 In Airflow <2.0 you imported those two methods like this:
 
@@ -1478,7 +2031,7 @@ you should write `@GoogleBaseHook.provide_gcp_credential_file`
 It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
 https://cloud.google.com/compute/docs/disks/performance
 
-Hence, the default value for `master_disk_size` in DataprocCreateClusterOperator has been changes from 500GB to 1TB.
+Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
 
 #### `<airflow class="providers google c"></airflow>loud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 
@@ -1579,6 +2132,12 @@ of this provider.
 
 This section describes the changes that have been made, and what you need to do to update your if
 you use any code located in `airflow.providers` package.
+
+#### Changed return type of `list_prefixes` and `list_keys` methods in `S3Hook`
+
+Previously, the `list_prefixes` and `list_keys` methods returned `None` when there were no
+results. The behavior has been changed to return an empty list instead of `None` in this
+case.
 
 #### Removed Hipchat integration
 
@@ -1741,6 +2300,16 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 ...
 }
 ```
+
+## Airflow 1.10.13
+
+### Removed Kerberos support for HDFS hook
+
+The HDFS hook's Kerberos support has been removed due to removed python-krbV dependency from PyPI
+and generally lack of support for SSL in Python3 (Snakebite-py3 we use as dependency has no
+support for SSL connection to HDFS).
+
+SSL support still works for WebHDFS hook.
 
 ## Airflow 1.10.12
 

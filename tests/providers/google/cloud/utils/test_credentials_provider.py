@@ -60,7 +60,8 @@ class TestHelper(unittest.TestCase):
         value = ["test", "test2"]
         conn = build_gcp_conn(scopes=value)
         self.assertEqual(
-            "google-cloud-platform://?extra__google_cloud_platform__scope=test%2Ctest2", conn,
+            "google-cloud-platform://?extra__google_cloud_platform__scope=test%2Ctest2",
+            conn,
         )
 
     def test_build_gcp_conn_project(self):
@@ -110,7 +111,8 @@ class TestProvideGcpConnection(unittest.TestCase):
 
 class TestProvideGcpConnAndCredentials(unittest.TestCase):
     @mock.patch.dict(
-        os.environ, {AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: ENV_VALUE, CREDENTIALS: ENV_VALUE},
+        os.environ,
+        {AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: ENV_VALUE, CREDENTIALS: ENV_VALUE},
     )
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.build_gcp_conn")
     def test_provide_gcp_conn_and_credentials(self, mock_builder):
@@ -178,7 +180,9 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         mock_credentials = mock.MagicMock()
         mock_auth_default.return_value = (mock_credentials, self.test_project_id)
 
-        result = get_credentials_and_project_id(target_principal=ACCOUNT_3_ANOTHER_PROJECT,)
+        result = get_credentials_and_project_id(
+            target_principal=ACCOUNT_3_ANOTHER_PROJECT,
+        )
         mock_auth_default.assert_called_once_with(scopes=None)
         mock_impersonated_credentials.assert_called_once_with(
             source_credentials=mock_credentials,
@@ -199,7 +203,8 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         mock_auth_default.return_value = (mock_credentials, self.test_project_id)
 
         result = get_credentials_and_project_id(
-            scopes=['scope1', 'scope2'], target_principal=ACCOUNT_1_SAME_PROJECT,
+            scopes=['scope1', 'scope2'],
+            target_principal=ACCOUNT_1_SAME_PROJECT,
         )
         mock_auth_default.assert_called_once_with(scopes=['scope1', 'scope2'])
         mock_impersonated_credentials.assert_called_once_with(
@@ -233,7 +238,9 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         )
         self.assertEqual((mock_impersonated_credentials.return_value, ANOTHER_PROJECT_ID), result)
 
-    @mock.patch('google.oauth2.service_account.Credentials.from_service_account_file',)
+    @mock.patch(
+        'google.oauth2.service_account.Credentials.from_service_account_file',
+    )
     def test_get_credentials_and_project_id_with_service_account_file(self, mock_from_service_account_file):
         mock_from_service_account_file.return_value.project_id = self.test_project_id
         with self.assertLogs(level="DEBUG") as cm:
@@ -253,7 +260,9 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         with self.assertRaises(AirflowException):
             get_credentials_and_project_id(key_path=file)
 
-    @mock.patch('google.oauth2.service_account.Credentials.from_service_account_info',)
+    @mock.patch(
+        'google.oauth2.service_account.Credentials.from_service_account_info',
+    )
     def test_get_credentials_and_project_id_with_service_account_info(self, mock_from_service_account_info):
         mock_from_service_account_info.return_value.project_id = self.test_project_id
         service_account = {'private_key': "PRIVATE_KEY"}
@@ -269,15 +278,21 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             cm.output,
         )
 
-    def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self,):
+    def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(
+        self,
+    ):
         with self.assertRaisesRegex(
             AirflowException, re.escape('The `keyfile_dict` and `key_path` fields are mutually exclusive.')
         ):
             get_credentials_and_project_id(key_path='KEY.json', keyfile_dict={'private_key': 'PRIVATE_KEY'})
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
-    @mock.patch('google.oauth2.service_account.Credentials.from_service_account_info',)
-    @mock.patch('google.oauth2.service_account.Credentials.from_service_account_file',)
+    @mock.patch(
+        'google.oauth2.service_account.Credentials.from_service_account_info',
+    )
+    @mock.patch(
+        'google.oauth2.service_account.Credentials.from_service_account_file',
+    )
     def test_disable_logging(self, mock_default, mock_info, mock_file):
         # assert not logs
         with self.assertRaises(AssertionError), self.assertLogs(level="DEBUG"):
@@ -286,13 +301,15 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         # assert not logs
         with self.assertRaises(AssertionError), self.assertLogs(level="DEBUG"):
             get_credentials_and_project_id(
-                keyfile_dict={'private_key': 'PRIVATE_KEY'}, disable_logging=True,
+                keyfile_dict={'private_key': 'PRIVATE_KEY'},
+                disable_logging=True,
             )
 
         # assert not logs
         with self.assertRaises(AssertionError), self.assertLogs(level="DEBUG"):
             get_credentials_and_project_id(
-                key_path='KEY.json', disable_logging=True,
+                key_path='KEY.json',
+                disable_logging=True,
             )
 
 
@@ -301,7 +318,10 @@ class TestGetScopes(unittest.TestCase):
         self.assertEqual(_get_scopes(), _DEFAULT_SCOPES)
 
     @parameterized.expand(
-        [('single_scope', 'scope1', ['scope1']), ('multiple_scopes', 'scope1,scope2', ['scope1', 'scope2']),]
+        [
+            ('single_scope', 'scope1', ['scope1']),
+            ('multiple_scopes', 'scope1,scope2', ['scope1', 'scope2']),
+        ]
     )
     def test_get_scopes_with_input(self, _, scopes_str, scopes):
         self.assertEqual(_get_scopes(scopes_str), scopes)
@@ -332,9 +352,12 @@ class TestGetTargetPrincipalAndDelegates(unittest.TestCase):
 
 
 class TestGetProjectIdFromServiceAccountEmail(unittest.TestCase):
-    def test_get_project_id_from_service_account_email(self,):
+    def test_get_project_id_from_service_account_email(
+        self,
+    ):
         self.assertEqual(
-            _get_project_id_from_service_account_email(ACCOUNT_3_ANOTHER_PROJECT), ANOTHER_PROJECT_ID,
+            _get_project_id_from_service_account_email(ACCOUNT_3_ANOTHER_PROJECT),
+            ANOTHER_PROJECT_ID,
         )
 
     def test_get_project_id_from_service_account_email_wrong_input(self):

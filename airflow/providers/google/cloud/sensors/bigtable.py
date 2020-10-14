@@ -87,7 +87,10 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         super().__init__(**kwargs)
 
     def poke(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             self.log.info("Dependency: instance '%s' does not exist.", self.instance_id)

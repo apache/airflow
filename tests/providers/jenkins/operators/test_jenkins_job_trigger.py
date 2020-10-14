@@ -30,9 +30,18 @@ from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTr
 class TestJenkinsOperator(unittest.TestCase):
     @parameterized.expand(
         [
-            ("dict params", {'a_param': 'blip', 'another_param': '42'},),
-            ("string params", '{"second_param": "beep", "third_param": "153"}',),
-            ("list params", ['final_one', 'bop', 'real_final', 'eggs'],),
+            (
+                "dict params",
+                {'a_param': 'blip', 'another_param': '42'},
+            ),
+            (
+                "string params",
+                '{"second_param": "beep", "third_param": "153"}',
+            ),
+            (
+                "list params",
+                ['final_one', 'bop', 'real_final', 'eggs'],
+            ),
         ]
     )
     def test_execute(self, _, parameters):
@@ -71,9 +80,18 @@ class TestJenkinsOperator(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("dict params", {'a_param': 'blip', 'another_param': '42'},),
-            ("string params", '{"second_param": "beep", "third_param": "153"}',),
-            ("list params", ['final_one', 'bop', 'real_final', 'eggs'],),
+            (
+                "dict params",
+                {'a_param': 'blip', 'another_param': '42'},
+            ),
+            (
+                "string params",
+                '{"second_param": "beep", "third_param": "153"}',
+            ),
+            (
+                "list params",
+                ['final_one', 'bop', 'real_final', 'eggs'],
+            ),
         ]
     )
     def test_execute_job_polling_loop(self, _, parameters):
@@ -111,9 +129,18 @@ class TestJenkinsOperator(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("dict params", {'a_param': 'blip', 'another_param': '42'},),
-            ("string params", '{"second_param": "beep", "third_param": "153"}',),
-            ("list params", ['final_one', 'bop', 'real_final', 'eggs'],),
+            (
+                "dict params",
+                {'a_param': 'blip', 'another_param': '42'},
+            ),
+            (
+                "string params",
+                '{"second_param": "beep", "third_param": "153"}',
+            ),
+            (
+                "list params",
+                ['final_one', 'bop', 'real_final', 'eggs'],
+            ),
         ]
     )
     def test_execute_job_failure(self, _, parameters):

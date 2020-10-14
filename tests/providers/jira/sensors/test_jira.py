@@ -32,7 +32,10 @@ minimal_test_ticket = {
     "id": "911539",
     "self": "https://sandbox.localhost/jira/rest/api/2/issue/911539",
     "key": "TEST-1226",
-    "fields": {"labels": ["test-label-1", "test-label-2"], "description": "this is a test description",},
+    "fields": {
+        "labels": ["test-label-1", "test-label-2"],
+        "description": "this is a test description",
+    },
 }
 
 

@@ -17,8 +17,10 @@
 # under the License.
 
 import json
+from typing import Union, Optional, List
 
 import requests
+from requests import Session
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -49,20 +51,20 @@ class DingdingHook(HttpHook):
     def __init__(
         self,
         dingding_conn_id='dingding_default',
-        message_type='text',
-        message=None,
-        at_mobiles=None,
-        at_all=False,
+        message_type: str = 'text',
+        message: Optional[Union[str, dict]] = None,
+        at_mobiles: Optional[List[str]] = None,
+        at_all: bool = False,
         *args,
         **kwargs,
-    ):
-        super().__init__(http_conn_id=dingding_conn_id, *args, **kwargs)
+    ) -> None:
+        super().__init__(http_conn_id=dingding_conn_id, *args, **kwargs)  # type: ignore[misc]
         self.message_type = message_type
         self.message = message
         self.at_mobiles = at_mobiles
         self.at_all = at_all
 
-    def _get_endpoint(self):
+    def _get_endpoint(self) -> str:
         """
         Get Dingding endpoint for sending message.
         """
@@ -74,7 +76,7 @@ class DingdingHook(HttpHook):
             )
         return 'robot/send?access_token={}'.format(token)
 
-    def _build_message(self):
+    def _build_message(self) -> str:
         """
         Build different type of Dingding message
         As most commonly used type, text message just need post message content
@@ -90,7 +92,7 @@ class DingdingHook(HttpHook):
             data = {'msgtype': self.message_type, self.message_type: self.message}
         return json.dumps(data)
 
-    def get_conn(self, headers=None):
+    def get_conn(self, headers: Optional[dict] = None) -> Session:
         """
         Overwrite HttpHook get_conn because just need base_url and headers and
         not don't need generic params
@@ -105,7 +107,7 @@ class DingdingHook(HttpHook):
             session.headers.update(headers)
         return session
 
-    def send(self):
+    def send(self) -> None:
         """
         Send Dingding message
         """

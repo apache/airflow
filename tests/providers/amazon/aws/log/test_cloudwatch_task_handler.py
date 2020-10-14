@@ -127,7 +127,10 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         )
         self.assertEqual(
             self.cloudwatch_task_handler.read(self.ti),
-            ([expected.format(self.remote_log_group, self.remote_log_stream)], [{'end_of_log': True}]),
+            (
+                [[('', expected.format(self.remote_log_group, self.remote_log_stream))]],
+                [{'end_of_log': True}],
+            ),
         )
 
     def test_read_wrong_log_stream(self):
@@ -149,7 +152,7 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         self.assertEqual(
             self.cloudwatch_task_handler.read(self.ti),
             (
-                [msg_template.format(self.remote_log_group, self.remote_log_stream, error_msg)],
+                [[('', msg_template.format(self.remote_log_group, self.remote_log_stream, error_msg))]],
                 [{'end_of_log': True}],
             ),
         )
@@ -173,7 +176,7 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         self.assertEqual(
             self.cloudwatch_task_handler.read(self.ti),
             (
-                [msg_template.format(self.remote_log_group, self.remote_log_stream, error_msg)],
+                [[('', msg_template.format(self.remote_log_group, self.remote_log_stream, error_msg))]],
                 [{'end_of_log': True}],
             ),
         )

@@ -232,13 +232,13 @@ class CloudSQLBaseOperator(BaseOperator):
         self._validate_inputs()
         super().__init__(**kwargs)
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance:
             raise AirflowException("The required parameter 'instance' is empty or None")
 
-    def _check_if_instance_exists(self, instance, hook: CloudSQLHook):
+    def _check_if_instance_exists(self, instance, hook: CloudSQLHook) -> Union[dict, bool]:
         try:
             return hook.get_instance(project_id=self.project_id, instance=instance)
         except HttpError as e:
@@ -247,7 +247,7 @@ class CloudSQLBaseOperator(BaseOperator):
                 return False
             raise e
 
-    def _check_if_db_exists(self, db_name, hook: CloudSQLHook):
+    def _check_if_db_exists(self, db_name, hook: CloudSQLHook) -> Union[dict, bool]:
         try:
             return hook.get_database(project_id=self.project_id, instance=self.instance, database=db_name)
         except HttpError as e:
@@ -335,18 +335,18 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
             **kwargs,
         )
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
-    def _validate_body_fields(self):
+    def _validate_body_fields(self) -> None:
         if self.validate_body:
             GcpBodyFieldValidator(CLOUD_SQL_CREATE_VALIDATION, api_version=self.api_version).validate(
                 self.body
             )
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -435,7 +435,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
             **kwargs,
         )
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
@@ -513,7 +513,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
             **kwargs,
         )
 
-    def execute(self, context):
+    def execute(self, context) -> Optional[bool]:
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -594,18 +594,18 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
             **kwargs,
         )
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
-    def _validate_body_fields(self):
+    def _validate_body_fields(self) -> None:
         if self.validate_body:
             GcpBodyFieldValidator(
                 CLOUD_SQL_DATABASE_CREATE_VALIDATION, api_version=self.api_version
             ).validate(self.body)
 
-    def execute(self, context):
+    def execute(self, context) -> Optional[bool]:
         self._validate_body_fields()
         database = self.body.get("name")
         if not database:
@@ -705,20 +705,20 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
             **kwargs,
         )
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
         if not self.database:
             raise AirflowException("The required parameter 'database' is empty")
 
-    def _validate_body_fields(self):
+    def _validate_body_fields(self) -> None:
         if self.validate_body:
             GcpBodyFieldValidator(CLOUD_SQL_DATABASE_PATCH_VALIDATION, api_version=self.api_version).validate(
                 self.body
             )
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self._validate_body_fields()
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -802,12 +802,12 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
             **kwargs,
         )
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         super()._validate_inputs()
         if not self.database:
             raise AirflowException("The required parameter 'database' is empty")
 
-    def execute(self, context):
+    def execute(self, context) -> Optional[bool]:
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -897,18 +897,18 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
             **kwargs,
         )
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
-    def _validate_body_fields(self):
+    def _validate_body_fields(self) -> None:
         if self.validate_body:
             GcpBodyFieldValidator(CLOUD_SQL_EXPORT_VALIDATION, api_version=self.api_version).validate(
                 self.body
             )
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self._validate_body_fields()
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -1002,18 +1002,18 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
             **kwargs,
         )
 
-    def _validate_inputs(self):
+    def _validate_inputs(self) -> None:
         super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
-    def _validate_body_fields(self):
+    def _validate_body_fields(self) -> None:
         if self.validate_body:
             GcpBodyFieldValidator(CLOUD_SQL_IMPORT_VALIDATION, api_version=self.api_version).validate(
                 self.body
             )
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self._validate_body_fields()
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -1077,7 +1077,9 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         self.parameters = parameters
         self.gcp_connection = None
 
-    def _execute_query(self, hook: CloudSQLDatabaseHook, database_hook: Union[PostgresHook, MySqlHook]):
+    def _execute_query(
+        self, hook: CloudSQLDatabaseHook, database_hook: Union[PostgresHook, MySqlHook]
+    ) -> None:
         cloud_sql_proxy_runner = None
         try:
             if hook.use_proxy:

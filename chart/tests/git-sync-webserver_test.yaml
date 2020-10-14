@@ -60,7 +60,14 @@ tests:
           container_name: git-sync
         persistence:
           enabled: true
+  - it: should have service account defined
+    set:
+      dags:
+        gitSync:
+          enabled: true
+        persistence:
+          enabled: true
     asserts:
-      - notEqual:
-          path: spec.template.spec.containers[0].name
-          value: git-sync
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: RELEASE-NAME-webserver

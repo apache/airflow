@@ -26,23 +26,31 @@ from airflow.providers.amazon.aws.sensors.sagemaker_tuning import SageMakerTunin
 
 DESCRIBE_TUNING_INPROGRESS_RESPONSE = {
     'HyperParameterTuningJobStatus': 'InProgress',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
 }
 
 DESCRIBE_TUNING_COMPLETED_RESPONSE = {
     'HyperParameterTuningJobStatus': 'Completed',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
 }
 
 DESCRIBE_TUNING_FAILED_RESPONSE = {
     'HyperParameterTuningJobStatus': 'Failed',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
     'FailureReason': 'Unknown',
 }
 
 DESCRIBE_TUNING_STOPPING_RESPONSE = {
     'HyperParameterTuningJobStatus': 'Stopping',
-    'ResponseMetadata': {'HTTPStatusCode': 200,},
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    },
 }
 
 

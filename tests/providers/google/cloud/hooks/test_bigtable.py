@@ -184,7 +184,8 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
         res = self.bigtable_hook_default_project_id.get_instance(
-            instance_id=CBT_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            instance_id=CBT_INSTANCE,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         instance_method.assert_called_once_with('instance')
         instance_exists_method.assert_called_once_with()
@@ -215,7 +216,8 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = False
         res = self.bigtable_hook_default_project_id.get_instance(
-            instance_id=CBT_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            instance_id=CBT_INSTANCE,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         instance_method.assert_called_once_with('instance')
         instance_exists_method.assert_called_once_with()
@@ -234,7 +236,8 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         instance_exists_method.return_value = True
         delete_method = instance_method.return_value.delete
         res = self.bigtable_hook_default_project_id.delete_instance(
-            instance_id=CBT_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            instance_id=CBT_INSTANCE,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         instance_method.assert_called_once_with('instance')
         instance_exists_method.assert_called_once_with()
@@ -269,7 +272,8 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         instance_exists_method.return_value = False
         delete_method = instance_method.return_value.delete
         self.bigtable_hook_default_project_id.delete_instance(
-            instance_id=CBT_INSTANCE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            instance_id=CBT_INSTANCE,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         instance_method.assert_called_once_with('instance')
         instance_exists_method.assert_called_once_with()
@@ -422,7 +426,9 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         table_delete_method = instance_method.return_value.table.return_value.delete
         instance_exists_method.return_value = True
         self.bigtable_hook_default_project_id.delete_table(
-            instance_id=CBT_INSTANCE, table_id=CBT_TABLE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            instance_id=CBT_INSTANCE,
+            table_id=CBT_TABLE,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         get_client.assert_called_once_with(project_id='example-project')
         instance_exists_method.assert_called_once_with()

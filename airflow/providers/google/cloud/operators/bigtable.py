@@ -153,8 +153,11 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+    def execute(self, context) -> None:
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if instance:
             # Based on Instance.__eq__ instance with the same ID and client is
@@ -256,8 +259,11 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+    def execute(self, context) -> None:
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
@@ -329,8 +335,11 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+    def execute(self, context) -> None:
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         try:
             hook.delete_instance(project_id=self.project_id, instance_id=self.instance_id)
         except google.api_core.exceptions.NotFound:
@@ -414,7 +423,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def _compare_column_families(self, hook, instance):
+    def _compare_column_families(self, hook, instance) -> bool:
         table_column_families = hook.get_column_families_for_table(instance, self.table_id)
         if set(table_column_families.keys()) != set(self.column_families.keys()):
             self.log.error("Table '%s' has different set of Column Families", self.table_id)
@@ -435,8 +444,11 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
                 return False
         return True
 
-    def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+    def execute(self, context) -> None:
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             raise AirflowException(
@@ -521,15 +533,20 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+    def execute(self, context) -> None:
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             raise AirflowException("Dependency: instance '{}' does not exist.".format(self.instance_id))
 
         try:
             hook.delete_table(
-                project_id=self.project_id, instance_id=self.instance_id, table_id=self.table_id,
+                project_id=self.project_id,
+                instance_id=self.instance_id,
+                table_id=self.table_id,
             )
         except google.api_core.exceptions.NotFound:
             # It's OK if table doesn't exists.
@@ -602,8 +619,11 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
-    def execute(self, context):
-        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+    def execute(self, context) -> None:
+        hook = BigtableHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             raise AirflowException("Dependency: instance '{}' does not exist.".format(self.instance_id))

@@ -97,6 +97,29 @@ function resetdb_if_requested() {
     return $?
 }
 
+function startairflow_if_requested() {
+    if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+
+
+        export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
+        export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+
+        . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
+
+        # initialize db and create the admin user if it's a new run
+        if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
+            airflow initdb
+            airflow create_user -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email || true
+        else
+            airflow db init
+            airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
+        fi
+
+        . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
+
+    fi
+    return $?
+}
 
 echo "==============================================================================================="
 echo "             Checking integrations and backends"
@@ -124,6 +147,7 @@ if [[ ${EXIT_CODE} != 0 ]]; then
 fi
 
 resetdb_if_requested
+startairflow_if_requested
 
 if [[ -n ${DISABLED_INTEGRATIONS=} ]]; then
     echo

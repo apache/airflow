@@ -40,9 +40,9 @@ def send_email(to: Union[List[str], Iterable[str]], subject: str, html_content: 
     """
     backend = conf.getimport('email', 'EMAIL_BACKEND')
     to_list = get_email_address_list(to)
-    to_comma_seperated = ", ".join(to_list)
+    to_comma_separated = ", ".join(to_list)
 
-    return backend(to_comma_seperated, subject, html_content, files=files,
+    return backend(to_comma_separated, subject, html_content, files=files,
                    dryrun=dryrun, cc=cc, bcc=bcc,
                    mime_subtype=mime_subtype, mime_charset=mime_charset, **kwargs)
 
@@ -153,7 +153,6 @@ def send_mime_email(e_from: str, e_to: List[str], mime_msg: MIMEMultipart, dryru
     """
     Send MIME email.
     """
-
     smtp_host = conf.get('smtp', 'SMTP_HOST')
     smtp_port = conf.getint('smtp', 'SMTP_PORT')
     smtp_starttls = conf.getboolean('smtp', 'SMTP_STARTTLS')

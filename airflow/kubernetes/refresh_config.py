@@ -38,6 +38,7 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
     Patched KubeConfigLoader, this subclass takes expirationTimestamp into
     account and sets api key refresh callback hook in Configuration object
     """
+
     def __init__(self, *args, **kwargs):
         KubeConfigLoader.__init__(self, *args, **kwargs)
         self.api_key_expire_ts = None
@@ -82,6 +83,7 @@ class RefreshConfiguration(Configuration):
     Patched Configuration, this subclass taskes api key refresh callback hook
     into account
     """
+
     def __init__(self, *args, **kwargs):
         Configuration.__init__(self, *args, **kwargs)
         self.refresh_api_key = None

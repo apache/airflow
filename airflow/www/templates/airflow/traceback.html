@@ -23,10 +23,15 @@
   </head>
   <body>
     <div class="container">
-      <h1> Ooops. </h1>
+      <h1> Ooops! </h1>
       <div>
           <pre>
-{{ nukular }}Node: {{ hostname }}
+Something bad has happened.
+Please consider letting us know by creating a <b><a href="https://github.com/apache/airflow/issues/new/choose">bug report using Github</a></b>.
+
+Python version: {{ python_version }}
+Airflow version: {{ airflow_version }}
+Node: {{ hostname }}
 -------------------------------------------------------------------------------
 {{ info }}</pre>
       </div>

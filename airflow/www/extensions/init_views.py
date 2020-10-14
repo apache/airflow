@@ -22,6 +22,8 @@ import connexion
 from connexion import ProblemException
 from flask import Flask
 
+from airflow.api_connexion.exceptions import common_error_handler
+
 log = logging.getLogger(__name__)
 
 # airflow/www/extesions/init_views.py => airflow/
@@ -56,7 +58,6 @@ def init_appbuilder_views(app):
     appbuilder.add_view(views.PoolModelView, "Pools", category="Admin")
     appbuilder.add_view(views.VariableModelView, "Variables", category="Admin")
     appbuilder.add_view(views.XComModelView, "XComs", category="Admin")
-    appbuilder.add_view(views.VersionView, 'Version', category='About', category_icon='fa-th')
     # add_view_no_menu to change item position.
     # I added link in extensions.init_appbuilder_links.init_appbuilder_links
     appbuilder.add_view_no_menu(views.RedocView)
@@ -104,7 +105,7 @@ def init_api_connexion(app: Flask) -> None:
     api_bp = connexion_app.add_api(
         specification='v1.yaml', base_path='/api/v1', validate_responses=True, strict_validation=True
     ).blueprint
-    app.register_error_handler(ProblemException, connexion_app.common_error_handler)
+    app.register_error_handler(ProblemException, common_error_handler)
     app.extensions['csrf'].exempt(api_bp)
 
 

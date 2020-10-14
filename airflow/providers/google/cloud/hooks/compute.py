@@ -20,7 +20,7 @@ This module contains a Google Compute Engine Hook.
 """
 
 import time
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 from googleapiclient.discovery import build
 
@@ -59,7 +59,9 @@ class ComputeEngineHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
 
@@ -138,7 +140,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def set_machine_type(self, zone: str, resource_id: str, body: Dict, project_id: str) -> None:
+    def set_machine_type(self, zone: str, resource_id: str, body: dict, project_id: str) -> None:
         """
         Sets machine type of an instance defined by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -166,7 +168,7 @@ class ComputeEngineHook(GoogleBaseHook):
             )
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
-    def _execute_set_machine_type(self, zone: str, resource_id: str, body: Dict, project_id: str) -> Dict:
+    def _execute_set_machine_type(self, zone: str, resource_id: str, body: dict, project_id: str) -> dict:
         # noqa pylint: disable=no-member
         return (
             self.get_conn()
@@ -176,7 +178,7 @@ class ComputeEngineHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance_template(self, resource_id: str, project_id: str) -> Dict:
+    def get_instance_template(self, resource_id: str, project_id: str) -> dict:
         """
         Retrieves instance template by project_id and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -202,7 +204,10 @@ class ComputeEngineHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_instance_template(
-        self, body: Dict, project_id: str, request_id: Optional[str] = None,
+        self,
+        body: dict,
+        project_id: str,
+        request_id: Optional[str] = None,
     ) -> None:
         """
         Inserts instance template using body specified
@@ -238,7 +243,12 @@ class ComputeEngineHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance_group_manager(self, zone: str, resource_id: str, project_id: str,) -> Dict:
+    def get_instance_group_manager(
+        self,
+        zone: str,
+        resource_id: str,
+        project_id: str,
+    ) -> dict:
         """
         Retrieves Instance Group Manager by project_id, zone and resource_id.
         Must be called with keyword arguments rather than positional.
@@ -266,7 +276,12 @@ class ComputeEngineHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def patch_instance_group_manager(
-        self, zone: str, resource_id: str, body: Dict, project_id: str, request_id: Optional[str] = None,
+        self,
+        zone: str,
+        resource_id: str,
+        body: dict,
+        project_id: str,
+        request_id: Optional[str] = None,
     ) -> None:
         """
         Patches Instance Group Manager with the specified body.
@@ -351,7 +366,7 @@ class ComputeEngineHook(GoogleBaseHook):
     @staticmethod
     def _check_zone_operation_status(
         service: Any, operation_name: str, project_id: str, zone: str, num_retries: int
-    ) -> Dict:
+    ) -> dict:
         return (
             service.zoneOperations()
             .get(project=project_id, zone=zone, operation=operation_name)
@@ -361,7 +376,7 @@ class ComputeEngineHook(GoogleBaseHook):
     @staticmethod
     def _check_global_operation_status(
         service: Any, operation_name: str, project_id: str, num_retries: int
-    ) -> Dict:
+    ) -> dict:
         return (
             service.globalOperations()
             .get(project=project_id, operation=operation_name)

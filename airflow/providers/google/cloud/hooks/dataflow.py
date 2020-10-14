@@ -30,7 +30,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from tempfile import TemporaryDirectory
-from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar, Union, cast
+from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union, cast
 
 from googleapiclient.discovery import build
 
@@ -156,7 +156,7 @@ class _DataflowJobsController(LoggingMixin):
         self._job_id = job_id
         self._num_retries = num_retries
         self._poll_sleep = poll_sleep
-        self._jobs = None  # type: Optional[List[Dict]]
+        self._jobs: Optional[List[dict]] = None
 
     def is_job_running(self) -> bool:
         """
@@ -175,7 +175,7 @@ class _DataflowJobsController(LoggingMixin):
         return False
 
     # pylint: disable=too-many-nested-blocks
-    def _get_current_jobs(self) -> List[Dict]:
+    def _get_current_jobs(self) -> List[dict]:
         """
         Helper method to get list of jobs that start with job name or id
 
@@ -192,7 +192,7 @@ class _DataflowJobsController(LoggingMixin):
         else:
             raise Exception('Missing both dataflow job ID and name.')
 
-    def _fetch_job_by_id(self, job_id: str) -> Dict:
+    def _fetch_job_by_id(self, job_id: str) -> dict:
         return (
             self._dataflow.projects()
             .locations()
@@ -201,14 +201,14 @@ class _DataflowJobsController(LoggingMixin):
             .execute(num_retries=self._num_retries)
         )
 
-    def _fetch_all_jobs(self) -> List[Dict]:
+    def _fetch_all_jobs(self) -> List[dict]:
         request = (
             self._dataflow.projects()
             .locations()
             .jobs()
             .list(projectId=self._project_number, location=self._job_location)
         )
-        jobs = []  # type: List[Dict]
+        jobs: List[dict] = []
         while request is not None:
             response = request.execute(num_retries=self._num_retries)
             jobs.extend(response["jobs"])
@@ -221,7 +221,7 @@ class _DataflowJobsController(LoggingMixin):
             )
         return jobs
 
-    def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> List[Dict]:
+    def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> List[dict]:
         jobs = self._fetch_all_jobs()
         jobs = [job for job in jobs if job['name'].startswith(prefix_name)]
         return jobs
@@ -282,7 +282,7 @@ class _DataflowJobsController(LoggingMixin):
             time.sleep(self._poll_sleep)
             self._refresh_jobs()
 
-    def get_jobs(self) -> List[Dict]:
+    def get_jobs(self) -> List[dict]:
         """
         Returns Dataflow jobs.
 
@@ -422,10 +422,12 @@ class DataflowHook(GoogleBaseHook):
     ) -> None:
         self.poll_sleep = poll_sleep
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
 
-    def get_conn(self):
+    def get_conn(self) -> build:
         """
         Returns a Google Cloud Dataflow service object.
         """
@@ -435,10 +437,10 @@ class DataflowHook(GoogleBaseHook):
     @GoogleBaseHook.provide_gcp_credential_file
     def _start_dataflow(
         self,
-        variables: Dict,
+        variables: dict,
         name: str,
         command_prefix: List[str],
-        label_formatter: Callable[[Dict], List[str]],
+        label_formatter: Callable[[dict], List[str]],
         project_id: str,
         multiple_jobs: bool = False,
         on_new_job_id_callback: Optional[Callable[[str], None]] = None,
@@ -465,7 +467,7 @@ class DataflowHook(GoogleBaseHook):
     def start_java_dataflow(
         self,
         job_name: str,
-        variables: Dict,
+        variables: dict,
         jar: str,
         project_id: str,
         job_class: Optional[str] = None,
@@ -521,20 +523,22 @@ class DataflowHook(GoogleBaseHook):
     def start_template_dataflow(
         self,
         job_name: str,
-        variables: Dict,
-        parameters: Dict,
+        variables: dict,
+        parameters: dict,
         dataflow_template: str,
         project_id: str,
         append_job_name: bool = True,
         on_new_job_id_callback: Optional[Callable[[str], None]] = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-    ) -> Dict:
+        environment: Optional[dict] = None,
+    ) -> dict:
         """
         Starts Dataflow template job.
 
         :param job_name: The name of the job.
         :type job_name: str
         :param variables: Map of job runtime environment options.
+            It will update environment argument if passed.
 
             .. seealso::
                 For more information on possible configurations, look at the API documentation
@@ -554,8 +558,47 @@ class DataflowHook(GoogleBaseHook):
         :type on_new_job_id_callback: callable
         :param location: Job location.
         :type location: str
+        :type environment: Optional, Map of job runtime environment options.
+
+            .. seealso::
+                For more information on possible configurations, look at the API documentation
+                `https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+                <https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment>`__
+
+        :type environment: Optional[dict]
         """
         name = self._build_dataflow_job_name(job_name, append_job_name)
+
+        environment = environment or {}
+        # available keys for runtime environment are listed here:
+        # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
+        environment_keys = [
+            'numWorkers',
+            'maxWorkers',
+            'zone',
+            'serviceAccountEmail',
+            'tempLocation',
+            'bypassTempDirValidation',
+            'machineType',
+            'additionalExperiments',
+            'network',
+            'subnetwork',
+            'additionalUserLabels',
+            'kmsKeyName',
+            'ipConfiguration',
+            'workerRegion',
+            'workerZone',
+        ]
+
+        for key in variables:
+            if key in environment_keys:
+                if key in environment:
+                    self.log.warning(
+                        "'%s' parameter in 'variables' will override of "
+                        "the same one passed in 'environment'!",
+                        key,
+                    )
+                environment.update({key: variables[key]})
 
         service = self.get_conn()
         # pylint: disable=no-member
@@ -567,7 +610,7 @@ class DataflowHook(GoogleBaseHook):
                 projectId=project_id,
                 location=location,
                 gcsPath=dataflow_template,
-                body={"jobName": name, "parameters": parameters, "environment": variables},
+                body={"jobName": name, "parameters": parameters, "environment": environment},
             )
         )
         response = request.execute(num_retries=self.num_retries)
@@ -594,7 +637,7 @@ class DataflowHook(GoogleBaseHook):
     def start_python_dataflow(  # pylint: disable=too-many-arguments
         self,
         job_name: str,
-        variables: Dict,
+        variables: dict,
         dataflow: str,
         py_options: List[str],
         project_id: str,
@@ -712,7 +755,7 @@ class DataflowHook(GoogleBaseHook):
         return safe_job_name
 
     @staticmethod
-    def _build_cmd(variables: Dict, label_formatter: Callable, project_id: str) -> List[str]:
+    def _build_cmd(variables: dict, label_formatter: Callable, project_id: str) -> List[str]:
         command = [
             "--runner=DataflowRunner",
             "--project={}".format(project_id),
@@ -744,7 +787,7 @@ class DataflowHook(GoogleBaseHook):
         name: str,
         project_id: str,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        variables: Optional[Dict] = None,
+        variables: Optional[dict] = None,
     ) -> bool:
         """
         Helper method to check if jos is still running in dataflow

@@ -72,7 +72,7 @@ class GCSToGoogleSheetsOperator(BaseOperator):
         *,
         spreadsheet_id: str,
         bucket_name: str,
-        object_name: Optional[str] = None,
+        object_name: str,
         spreadsheet_range: str = "Sheet1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
@@ -103,11 +103,15 @@ class GCSToGoogleSheetsOperator(BaseOperator):
         with NamedTemporaryFile("w+") as temp_file:
             # Download data
             gcs_hook.download(
-                bucket_name=self.bucket_name, object_name=self.object_name, filename=temp_file.name,
+                bucket_name=self.bucket_name,
+                object_name=self.object_name,
+                filename=temp_file.name,
             )
 
             # Upload data
             values = list(csv.reader(temp_file))
             sheet_hook.update_values(
-                spreadsheet_id=self.spreadsheet_id, range_=self.spreadsheet_range, values=values,
+                spreadsheet_id=self.spreadsheet_id,
+                range_=self.spreadsheet_range,
+                values=values,
             )

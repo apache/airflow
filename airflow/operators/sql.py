@@ -273,7 +273,7 @@ class SQLIntervalCheckOperator(BaseOperator):
         date_filter_column: Optional[str] = "ds",
         days_back: SupportsAbs[int] = -7,
         ratio_formula: Optional[str] = "max_over_min",
-        ignore_zero: Optional[bool] = True,
+        ignore_zero: bool = True,
         conn_id: Optional[str] = None,
         **kwargs,
     ):
@@ -465,7 +465,6 @@ class SQLThresholdCheckOperator(BaseOperator):
         Optional: Send data check info and metadata to an external database.
         Default functionality will log metadata.
         """
-
         info = "\n".join([f"""{key}: {item}""" for key, item in meta_data.items()])
         self.log.info("Log from %s:\n%s", self.dag_id, info)
 

@@ -31,7 +31,11 @@ class TestExasolHookConn(unittest.TestCase):
         super(TestExasolHookConn, self).setUp()
 
         self.connection = models.Connection(
-            login='login', password='password', host='host', port=1234, schema='schema',
+            login='login',
+            password='password',
+            host='host',
+            port=1234,
+            schema='schema',
         )
 
         self.db_hook = ExasolHook()

@@ -18,16 +18,16 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
+if [[ -f "${BUILD_CACHE_DIR}/.skip_tests" ]]; then
     echo
     echo "Skip tests"
     echo
     exit
 fi
 
-prepare_ci_build
+build_images::prepare_ci_build
 
-rebuild_ci_image_if_needed
+build_images::rebuild_ci_image_if_needed
 
 python -m pip install pre-commit \
   --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
@@ -35,8 +35,8 @@ python -m pip install pre-commit \
 if [[ $# == "0" ]]; then
     pre-commit run --all-files --show-diff-on-failure --color always
 else
-    for PRE_COMMIT in "${@}"
+    for pre_commit_check in "${@}"
     do
-        pre-commit run "${PRE_COMMIT}" --all-files --show-diff-on-failure --color always
+        pre-commit run "${pre_commit_check}" --all-files --show-diff-on-failure --color always
     done
 fi

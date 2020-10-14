@@ -57,10 +57,12 @@ class TestGcpTextToSpeech(unittest.TestCase):
         ).execute(context={"task_instance": Mock()})
 
         mock_text_to_speech_hook.assert_called_once_with(
-            gcp_conn_id="gcp-conn-id", impersonation_chain=IMPERSONATION_CHAIN,
+            gcp_conn_id="gcp-conn-id",
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_gcp_hook.assert_called_once_with(
-            google_cloud_storage_conn_id="gcp-conn-id", impersonation_chain=IMPERSONATION_CHAIN,
+            google_cloud_storage_conn_id="gcp-conn-id",
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_text_to_speech_hook.return_value.synthesize_speech.assert_called_once_with(
             input_data=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=None, timeout=None

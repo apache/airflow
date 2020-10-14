@@ -18,7 +18,7 @@
 version: "2.2"
 services:
   kerberos:
-    image: godatadriven/krb5-kdc-server
+    image: apache/airflow:krb5-kdc-server-2020.08.28
     hostname: kerberos
     domainname: example.com
     volumes:

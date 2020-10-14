@@ -30,7 +30,9 @@ class TestCassandraTableSensor(unittest.TestCase):
     @patch("airflow.providers.apache.cassandra.sensors.table.CassandraHook")
     def test_poke(self, mock_hook):
         sensor = CassandraTableSensor(
-            task_id='test_task', cassandra_conn_id=TEST_CASSANDRA_CONN_ID, table=TEST_CASSANDRA_TABLE,
+            task_id='test_task',
+            cassandra_conn_id=TEST_CASSANDRA_CONN_ID,
+            table=TEST_CASSANDRA_TABLE,
         )
         exists = sensor.poke(dict())
 
@@ -44,7 +46,9 @@ class TestCassandraTableSensor(unittest.TestCase):
         mock_hook.return_value.table_exists.return_value = False
 
         sensor = CassandraTableSensor(
-            task_id='test_task', cassandra_conn_id=TEST_CASSANDRA_CONN_ID, table=TEST_CASSANDRA_TABLE,
+            task_id='test_task',
+            cassandra_conn_id=TEST_CASSANDRA_CONN_ID,
+            table=TEST_CASSANDRA_TABLE,
         )
         exists = sensor.poke(dict())
 

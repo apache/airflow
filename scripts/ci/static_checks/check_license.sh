@@ -34,7 +34,7 @@ function run_check_license() {
     if ! docker run -v "${AIRFLOW_SOURCES}:/opt/airflow" -t \
             --user "$(id -ur):$(id -gr)" \
             --rm --env-file "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env" \
-            ashb/apache-rat:0.13-1 \
+            apache/airflow:apache-rat-2020.07.10-0.13 \
             --exclude-file /opt/airflow/.rat-excludes \
             --d /opt/airflow | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
         echo >&2 "RAT exited abnormally"
@@ -42,12 +42,13 @@ function run_check_license() {
     fi
 
     set +e
-    ERRORS=$(grep -F "??" "${AIRFLOW_SOURCES}/logs/rat-results.txt")
+    local errors
+    errors=$(grep -F "??" "${AIRFLOW_SOURCES}/logs/rat-results.txt")
     set -e
-    if test ! -z "${ERRORS}"; then
+    if test ! -z "${errors}"; then
         echo >&2
         echo >&2 "Could not find Apache license headers in the following files:"
-        echo >&2 "${ERRORS}"
+        echo >&2 "${errors}"
         exit 1
         echo >&2
     else

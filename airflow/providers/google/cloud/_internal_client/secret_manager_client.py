@@ -42,8 +42,9 @@ class _SecretManagerClient(LoggingMixin):
     """
 
     def __init__(
-        self, credentials: google.auth.credentials.Credentials,
-    ):
+        self,
+        credentials: google.auth.credentials.Credentials,
+    ) -> None:
         super().__init__()
         self.credentials = credentials
 

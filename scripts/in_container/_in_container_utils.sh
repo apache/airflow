@@ -33,7 +33,7 @@ function add_trap() {
         local handlers
         handlers="$( trap -p "${signal}" | cut -f2 -d \' )"
         # shellcheck disable=SC2064
-        trap "${handlers}${handlers:+;}${trap}" "${signal}"
+        trap "${trap};${handlers}" "${signal}"
     done
 }
 
@@ -235,7 +235,7 @@ EOF
 }
 
 function stop_output_heartbeat() {
-    kill "${HEARTBEAT_PID}"
+    kill "${HEARTBEAT_PID}" || true
     wait "${HEARTBEAT_PID}" || true 2> /dev/null
 }
 
@@ -261,6 +261,9 @@ function setup_kerberos() {
     RES_3=$?
 
     if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
+        echo
+        echo "Error when setting up Kerberos: ${RES_1} ${RES_2} ${RES_3}}!"
+        echo
         exit 1
     else
         echo
@@ -294,6 +297,26 @@ function install_released_airflow_version() {
     pip install --upgrade "${INSTALLS[@]}"
 }
 
+function setup_backport_packages() {
+    if [[ ${BACKPORT_PACKAGES:=} == "true" ]]; then
+        export PACKAGE_TYPE="backport"
+        export PACKAGE_PREFIX_UPPERCASE="BACKPORT_"
+        export PACKAGE_PREFIX_LOWERCASE="backport_"
+        export PACKAGE_PREFIX_HYPHEN="backport-"
+    else
+        export PACKAGE_TYPE="regular"
+        export PACKAGE_PREFIX_UPPERCASE=""
+        export PACKAGE_PREFIX_LOWERCASE=""
+        export PACKAGE_PREFIX_HYPHEN=""
+    fi
+    readonly PACKAGE_TYPE
+    readonly PACKAGE_PREFIX_UPPERCASE
+    readonly PACKAGE_PREFIX_LOWERCASE
+    readonly PACKAGE_PREFIX_HYPHEN
+
+    readonly BACKPORT_PACKAGES
+    export BACKPORT_PACKAGES
+}
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}

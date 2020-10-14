@@ -81,7 +81,8 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__")
     def test_bigquery_bigquery_conn_id_deprecation_warning(
-        self, mock_base_hook_init,
+        self,
+        mock_base_hook_init,
     ):
         bigquery_conn_id = "bigquery conn id"
         warning_message = (
@@ -91,7 +92,9 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         with self.assertWarns(DeprecationWarning) as warn:
             BigQueryHook(bigquery_conn_id=bigquery_conn_id)
             mock_base_hook_init.assert_called_once_with(
-                delegate_to=None, gcp_conn_id='bigquery conn id', impersonation_chain=None,
+                delegate_to=None,
+                gcp_conn_id='bigquery conn id',
+                impersonation_chain=None,
             )
         self.assertEqual(warning_message, str(warn.warning))
 
@@ -210,7 +213,9 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_query_sql_dialect_default(
-        self, mock_insert, _,
+        self,
+        mock_insert,
+        _,
     ):
         self.hook.run_query('query')
         _, kwargs = mock_insert.call_args
@@ -269,7 +274,11 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_query_schema_update_options(
-        self, schema_update_options, write_disposition, mock_insert, mock_get_service,
+        self,
+        schema_update_options,
+        write_disposition,
+        mock_insert,
+        mock_get_service,
     ):
         self.hook.run_query(
             sql='query',
@@ -307,7 +316,11 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_run_query_schema_update_options_incorrect(
-        self, schema_update_options, write_disposition, expected_regex, mock_get_service,
+        self,
+        schema_update_options,
+        write_disposition,
+        expected_regex,
+        mock_get_service,
     ):
         with self.assertRaisesRegex(ValueError, expected_regex):
             self.hook.run_query(
@@ -321,7 +334,10 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_api_resource_configs(
-        self, bool_val, mock_insert, _,
+        self,
+        bool_val,
+        mock_insert,
+        _,
     ):
         self.hook.run_query('query', api_resource_configs={'query': {'useQueryCache': bool_val}})
         _, kwargs = mock_insert.call_args
@@ -404,7 +420,11 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         destination_cloud_storage_uris = ["gs://bucket/file.csv"]
         expected_configuration = {
             "extract": {
-                "sourceTable": {"projectId": PROJECT_ID, "datasetId": DATASET_ID, "tableId": TABLE_ID,},
+                "sourceTable": {
+                    "projectId": PROJECT_ID,
+                    "datasetId": DATASET_ID,
+                    "tableId": TABLE_ID,
+                },
                 "compression": "NONE",
                 "destinationUris": destination_cloud_storage_uris,
                 "destinationFormat": "CSV",
@@ -496,7 +516,9 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         mock_get.assert_called_once_with(project_id=PROJECT_ID, dataset_id=DATASET_ID)
         assert view_access in dataset.access_entries
         mock_update.assert_called_once_with(
-            fields=["access"], dataset_resource=dataset.to_api_repr(), project_id=PROJECT_ID,
+            fields=["access"],
+            dataset_resource=dataset.to_api_repr(),
+            project_id=PROJECT_ID,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset")
@@ -550,7 +572,9 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete")
     @mock.patch("logging.Logger.info")
     def test_cancel_query_jobs_to_cancel(
-        self, mock_logger_info, poll_job_complete,
+        self,
+        mock_logger_info,
+        poll_job_complete,
     ):
         poll_job_complete.return_value = True
 
@@ -564,7 +588,11 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("time.sleep")
     @mock.patch("logging.Logger.info")
     def test_cancel_query_cancel_timeout(
-        self, mock_logger_info, mock_sleep, poll_job_complete, mock_client,
+        self,
+        mock_logger_info,
+        mock_sleep,
+        poll_job_complete,
+        mock_client,
     ):
         poll_job_complete.side_effect = [False] * 13
 
@@ -585,7 +613,11 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("time.sleep")
     @mock.patch("logging.Logger.info")
     def test_cancel_query_cancel_completed(
-        self, mock_logger_info, mock_sleep, poll_job_complete, mock_client,
+        self,
+        mock_logger_info,
+        mock_sleep,
+        poll_job_complete,
+        mock_client,
     ):
         poll_job_complete.side_effect = [False] * 12 + [True]
 
@@ -669,15 +701,24 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.QueryJob")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_insert_job(self, mock_client, mock_query_job):
-        job_conf = {"query": {"query": "SELECT * FROM test", "useLegacySql": "False",}}
+        job_conf = {
+            "query": {
+                "query": "SELECT * FROM test",
+                "useLegacySql": "False",
+            }
+        }
         mock_query_job._JOB_TYPE = "query"
 
         self.hook.insert_job(
-            configuration=job_conf, job_id=JOB_ID, project_id=PROJECT_ID, location=LOCATION,
+            configuration=job_conf,
+            job_id=JOB_ID,
+            project_id=PROJECT_ID,
+            location=LOCATION,
         )
 
         mock_client.assert_called_once_with(
-            project_id=PROJECT_ID, location=LOCATION,
+            project_id=PROJECT_ID,
+            location=LOCATION,
         )
 
         mock_query_job.from_api_repr.assert_called_once_with(
@@ -758,7 +799,9 @@ class TestTableOperations(_BigQueryBaseTestClass):
         body = {'tableReference': TABLE_REFERENCE_REPR, 'view': view}
         mock_table.from_api_repr.assert_called_once_with(body)
         mock_bq_client.return_value.create_table.assert_called_once_with(
-            table=mock_table.from_api_repr.return_value, exists_ok=True, retry=DEFAULT_RETRY,
+            table=mock_table.from_api_repr.return_value,
+            exists_ok=True,
+            retry=DEFAULT_RETRY,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
@@ -818,7 +861,13 @@ class TestTableOperations(_BigQueryBaseTestClass):
     def test_create_empty_table_succeed(self, mock_bq_client, mock_table):
         self.hook.create_empty_table(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID)
 
-        body = {'tableReference': {'tableId': TABLE_ID, 'projectId': PROJECT_ID, 'datasetId': DATASET_ID,}}
+        body = {
+            'tableReference': {
+                'tableId': TABLE_ID,
+                'projectId': PROJECT_ID,
+                'datasetId': DATASET_ID,
+            }
+        }
         mock_table.from_api_repr.assert_called_once_with(body)
         mock_bq_client.return_value.create_table.assert_called_once_with(
             table=mock_table.from_api_repr.return_value, exists_ok=True, retry=DEFAULT_RETRY
@@ -845,7 +894,11 @@ class TestTableOperations(_BigQueryBaseTestClass):
         )
 
         body = {
-            'tableReference': {'tableId': TABLE_ID, 'projectId': PROJECT_ID, 'datasetId': DATASET_ID,},
+            'tableReference': {
+                'tableId': TABLE_ID,
+                'projectId': PROJECT_ID,
+                'datasetId': DATASET_ID,
+            },
             'schema': {'fields': schema_fields},
             'timePartitioning': time_partitioning,
             'clustering': {'fields': cluster_fields},
@@ -888,7 +941,9 @@ class TestTableOperations(_BigQueryBaseTestClass):
         result = self.hook.get_dataset_tables(dataset_id=DATASET_ID, project_id=PROJECT_ID)
 
         mock_client.return_value.list_tables.assert_called_once_with(
-            dataset=dataset_reference, max_results=None, retry=DEFAULT_RETRY,
+            dataset=dataset_reference,
+            max_results=None,
+            retry=DEFAULT_RETRY,
         )
         for res, exp in zip(result, table_list):
             assert res["tableId"] == exp["tableReference"]["tableId"]
@@ -1018,10 +1073,16 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         mock_get_query_results = mock_get_service.return_value.jobs.return_value.getQueryResults
         mock_execute = mock_get_query_results.return_value.execute
         mock_execute.return_value = {
-            "rows": [{"f": [{"v": "one"}, {"v": 1}]}, {"f": [{"v": "two"}, {"v": 2}]},],
+            "rows": [
+                {"f": [{"v": "one"}, {"v": 1}]},
+                {"f": [{"v": "two"}, {"v": 2}]},
+            ],
             "pageToken": None,
             "schema": {
-                "fields": [{"name": "field_1", "type": "STRING"}, {"name": "field_2", "type": "INTEGER"},]
+                "fields": [
+                    {"name": "field_1", "type": "STRING"},
+                    {"name": "field_2", "type": "INTEGER"},
+                ]
             },
         }
 
@@ -1244,7 +1305,9 @@ class TestDatasetsOperations(_BigQueryBaseTestClass):
 
         mock_dataset.from_api_repr.assert_called_once_with(dataset_resource)
         method.assert_called_once_with(
-            dataset=dataset, fields=["location"], retry=DEFAULT_RETRY,
+            dataset=dataset,
+            fields=["location"],
+            retry=DEFAULT_RETRY,
         )
         assert result == dataset
 
@@ -1253,7 +1316,9 @@ class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_load_default(self, mock_insert):
         self.hook.run_load(
-            destination_project_dataset_table='my_dataset.my_table', schema_fields=[], source_uris=[],
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
         )
 
         _, kwargs = mock_insert.call_args
@@ -1336,7 +1401,9 @@ class TestClusteringInRunJob(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_load_default(self, mock_insert):
         self.hook.run_load(
-            destination_project_dataset_table='my_dataset.my_table', schema_fields=[], source_uris=[],
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
         )
 
         _, kwargs = mock_insert.call_args
@@ -1444,7 +1511,9 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
         }
         mock_table.from_api_repr.assert_called_once_with(body)
         mock_bq_client.return_value.create_table.assert_called_once_with(
-            table=mock_table.from_api_repr.return_value, exists_ok=True, retry=DEFAULT_RETRY,
+            table=mock_table.from_api_repr.return_value,
+            exists_ok=True,
+            retry=DEFAULT_RETRY,
         )
 
     # pylint: disable=too-many-locals
@@ -1504,12 +1573,19 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
                     'encoding': encoding,
                 },
             },
-            'tableReference': {'projectId': PROJECT_ID, 'datasetId': DATASET_ID, 'tableId': TABLE_ID,},
+            'tableReference': {
+                'projectId': PROJECT_ID,
+                'datasetId': DATASET_ID,
+                'tableId': TABLE_ID,
+            },
             'labels': labels,
             "encryptionConfiguration": encryption_configuration,
         }
         mock_create.assert_called_once_with(
-            table_resource=body, project_id=PROJECT_ID, location=None, exists_ok=True,
+            table_resource=body,
+            project_id=PROJECT_ID,
+            location=None,
+            exists_ok=True,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")

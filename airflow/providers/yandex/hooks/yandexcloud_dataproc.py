@@ -27,9 +27,10 @@ class DataprocHook(YandexCloudBaseHook):
     :type connection_id: str
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.cluster_id = None
         self.client = self.sdk.wrappers.Dataproc(
-            default_folder_id=self.default_folder_id, default_public_ssh_key=self.default_public_ssh_key,
+            default_folder_id=self.default_folder_id,
+            default_public_ssh_key=self.default_public_ssh_key,
         )

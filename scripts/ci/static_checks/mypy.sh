@@ -19,20 +19,22 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 function run_mypy() {
-    FILES=("$@")
-    if [[ "${#FILES[@]}" == "0" ]]; then
-      FILES=(airflow tests docs)
+    local files=()
+    if [[ "${#@}" == "0" ]]; then
+      files=(airflow tests docs)
+    else
+      files=("$@")
     fi
 
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache" \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/in_container/run_mypy.sh" "${FILES[@]}"
+        "--" "/opt/airflow/scripts/in_container/run_mypy.sh" "${files[@]}"
 }
 
-prepare_ci_build
+build_images::prepare_ci_build
 
-rebuild_ci_image_if_needed
+build_images::rebuild_ci_image_if_needed
 
 run_mypy "$@"

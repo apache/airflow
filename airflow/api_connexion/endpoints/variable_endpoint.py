@@ -28,7 +28,7 @@ from airflow.models import Variable
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
+@security.requires_access([("can_delete", "Variable")])
 def delete_variable(variable_key: str) -> Response:
     """
     Delete variable
@@ -38,7 +38,7 @@ def delete_variable(variable_key: str) -> Response:
     return Response(status=204)
 
 
-@security.requires_authentication
+@security.requires_access([("can_read", "Variable")])
 def get_variable(variable_key: str) -> Response:
     """
     Get a variables by key
@@ -50,7 +50,7 @@ def get_variable(variable_key: str) -> Response:
     return variable_schema.dump({"key": variable_key, "val": var})
 
 
-@security.requires_authentication
+@security.requires_access([("can_read", "Variable")])
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -> Response:
@@ -64,10 +64,15 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
     if limit:
         query = query.limit(limit)
     variables = query.all()
-    return variable_collection_schema.dump({"variables": variables, "total_entries": total_entries,})
+    return variable_collection_schema.dump(
+        {
+            "variables": variables,
+            "total_entries": total_entries,
+        }
+    )
 
 
-@security.requires_authentication
+@security.requires_access([("can_edit", "Variable")])
 def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -> Response:
     """
     Update a variable by key
@@ -90,7 +95,7 @@ def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -
     return Response(status=204)
 
 
-@security.requires_authentication
+@security.requires_access([("can_create", "Variable")])
 def post_variables() -> Response:
     """
     Create a variable

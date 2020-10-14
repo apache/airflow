@@ -56,7 +56,11 @@ with models.DAG(
 
     # [START howto_operator_video_intelligence_detect_labels]
     detect_video_label = CloudVideoIntelligenceDetectVideoLabelsOperator(
-        input_uri=INPUT_URI, output_uri=None, video_context=None, timeout=5, task_id="detect_video_label",
+        input_uri=INPUT_URI,
+        output_uri=None,
+        video_context=None,
+        timeout=5,
+        task_id="detect_video_label",
     )
     # [END howto_operator_video_intelligence_detect_labels]
 

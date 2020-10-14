@@ -33,8 +33,9 @@ class EC2Hook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(resource_type="ec2", *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["resource_type"] = "ec2"
+        super().__init__(*args, **kwargs)
 
     def get_instance(self, instance_id: str):
         """

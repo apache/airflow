@@ -25,7 +25,7 @@ from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY, GcpAuthenticator
-from tests.utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import LoggingCommandExecutor
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCP_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", "gs://example-bucket/source-code.tar.gz")
@@ -52,13 +52,12 @@ class GCPCloudBuildTestHelper(LoggingCommandExecutor):
                 file.write('echo "Hello, world! The time is $(date)."\n')
                 file.flush()
 
-            os.chmod(quickstart_path, 555)
+            os.chmod(quickstart_path, 777)
 
             with open(os.path.join(tmp_dir, "Dockerfile"), "w") as file:
                 file.write("FROM alpine\n")
                 file.write("COPY quickstart.sh /\n")
                 file.write('CMD ["/quickstart.sh"]\n')
-                file.flush()
 
             # 2. Prepare bucket
             self.execute_cmd(["gsutil", "mb", "gs://{}".format(GCP_BUCKET_NAME)])
@@ -75,7 +74,8 @@ class GCPCloudBuildTestHelper(LoggingCommandExecutor):
                 ["git", "config", "credential.https://source.developers.google.com.helper", "gcloud.sh"],
                 cwd=tmp_dir,
             )
-            self.execute_cmd(["git", "add", "."], cwd=tmp_dir)
+            self.execute_cmd(["git", "add", "quickstart.sh"], cwd=tmp_dir)
+            self.execute_cmd(["git", "add", "Dockerfile"], cwd=tmp_dir)
             self.execute_cmd(["git", "commit", "-m", "Initial commit"], cwd=tmp_dir)
             repo_url = "https://source.developers.google.com/p/{}/r/{}".format(
                 GCP_PROJECT_ID, GCP_REPOSITORY_NAME

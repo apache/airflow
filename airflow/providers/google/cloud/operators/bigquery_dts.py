@@ -88,7 +88,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.transfer_config = transfer_config
         self.authorization_code = authorization_code
@@ -172,7 +172,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id
         self.transfer_config_id = transfer_config_id
@@ -182,7 +182,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -265,7 +265,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         gcp_conn_id="google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id
         self.transfer_config_id = transfer_config_id

@@ -22,6 +22,7 @@ import json
 import logging
 import math
 import socket
+import sys
 import traceback
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -33,8 +34,8 @@ import lazy_object_proxy
 import nvd3
 import sqlalchemy as sqla
 from flask import (
-    Markup, Response, current_app, escape, flash, jsonify, make_response, redirect, render_template, request,
-    session as flask_session, url_for,
+    Markup, Response, current_app, escape, flash, g, jsonify, make_response, redirect, render_template,
+    request, session as flask_session, url_for,
 )
 from flask_appbuilder import BaseView, ModelView, expose, has_access, permission_name
 from flask_appbuilder.actions import action
@@ -58,6 +59,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
@@ -67,9 +69,9 @@ from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log.log_reader import TaskLogReader
-from airflow.utils.platform import get_airflow_git_version
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.version import version
 from airflow.www import utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped, has_dag_access
 from airflow.www.forms import (
@@ -147,6 +149,162 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
+def task_group_to_dict(task_group):
+    """
+    Create a nested dict representation of this TaskGroup and its children used to construct
+    the Graph View.
+    """
+    if isinstance(task_group, BaseOperator):
+        return {
+            'id': task_group.task_id,
+            'value': {
+                'label': task_group.label,
+                'labelStyle': f"fill:{task_group.ui_fgcolor};",
+                'style': f"fill:{task_group.ui_color};",
+                'rx': 5,
+                'ry': 5,
+            }
+        }
+
+    children = [task_group_to_dict(child) for child in
+                sorted(task_group.children.values(), key=lambda t: t.label)]
+
+    if task_group.upstream_group_ids or task_group.upstream_task_ids:
+        children.append({
+            'id': task_group.upstream_join_id,
+            'value': {
+                'label': '',
+                'labelStyle': f"fill:{task_group.ui_fgcolor};",
+                'style': f"fill:{task_group.ui_color};",
+                'shape': 'circle',
+            }
+        })
+
+    if task_group.downstream_group_ids or task_group.downstream_task_ids:
+        # This is the join node used to reduce the number of edges between two TaskGroup.
+        children.append({
+            'id': task_group.downstream_join_id,
+            'value': {
+                'label': '',
+                'labelStyle': f"fill:{task_group.ui_fgcolor};",
+                'style': f"fill:{task_group.ui_color};",
+                'shape': 'circle',
+            }
+        })
+
+    return {
+        "id": task_group.group_id,
+        'value': {
+            'label': task_group.label,
+            'labelStyle': f"fill:{task_group.ui_fgcolor};",
+            'style': f"fill:{task_group.ui_color}",
+            'rx': 5,
+            'ry': 5,
+            'clusterLabelPos': 'top',
+        },
+        'tooltip': task_group.tooltip,
+        'children': children
+    }
+
+
+def dag_edges(dag):
+    """
+    Create the list of edges needed to construct the Graph View.
+
+    A special case is made if a TaskGroup is immediately upstream/downstream of another
+    TaskGroup or task. Two dummy nodes named upstream_join_id and downstream_join_id are
+    created for the TaskGroup. Instead of drawing an edge onto every task in the TaskGroup,
+    all edges are directed onto the dummy nodes. This is to cut down the number of edges on
+    the graph.
+
+    For example: A DAG with TaskGroups group1 and group2:
+        group1: task1, task2, task3
+        group2: task4, task5, task6
+
+    group2 is downstream of group1:
+        group1 >> group2
+
+    Edges to add (This avoids having to create edges between every task in group1 and group2):
+        task1 >> downstream_join_id
+        task2 >> downstream_join_id
+        task3 >> downstream_join_id
+        downstream_join_id >> upstream_join_id
+        upstream_join_id >> task4
+        upstream_join_id >> task5
+        upstream_join_id >> task6
+    """
+    # Edges to add between TaskGroup
+    edges_to_add = set()
+    # Edges to remove between individual tasks that are replaced by edges_to_add.
+    edges_to_skip = set()
+
+    task_group_map = dag.task_group.get_task_group_dict()
+
+    def collect_edges(task_group):
+        """
+        Update edges_to_add and edges_to_skip according to TaskGroups.
+        """
+        if isinstance(task_group, BaseOperator):
+            return
+
+        for target_id in task_group.downstream_group_ids:
+            # For every TaskGroup immediately downstream, add edges between downstream_join_id
+            # and upstream_join_id. Skip edges between individual tasks of the TaskGroups.
+            target_group = task_group_map[target_id]
+            edges_to_add.add((task_group.downstream_join_id, target_group.upstream_join_id))
+
+            for child in task_group.get_leaves():
+                edges_to_add.add((child.task_id, task_group.downstream_join_id))
+                for target in target_group.get_roots():
+                    edges_to_skip.add((child.task_id, target.task_id))
+                edges_to_skip.add((child.task_id, target_group.upstream_join_id))
+
+            for child in target_group.get_roots():
+                edges_to_add.add((target_group.upstream_join_id, child.task_id))
+                edges_to_skip.add((task_group.downstream_join_id, child.task_id))
+
+        # For every individual task immediately downstream, add edges between downstream_join_id and
+        # the downstream task. Skip edges between individual tasks of the TaskGroup and the
+        # downstream task.
+        for target_id in task_group.downstream_task_ids:
+            edges_to_add.add((task_group.downstream_join_id, target_id))
+
+            for child in task_group.get_leaves():
+                edges_to_add.add((child.task_id, task_group.downstream_join_id))
+                edges_to_skip.add((child.task_id, target_id))
+
+        # For every individual task immediately upstream, add edges between the upstream task
+        # and upstream_join_id. Skip edges between the upstream task and individual tasks
+        # of the TaskGroup.
+        for source_id in task_group.upstream_task_ids:
+            edges_to_add.add((source_id, task_group.upstream_join_id))
+            for child in task_group.get_roots():
+                edges_to_add.add((task_group.upstream_join_id, child.task_id))
+                edges_to_skip.add((source_id, child.task_id))
+
+        for child in task_group.children.values():
+            collect_edges(child)
+
+    collect_edges(dag.task_group)
+
+    # Collect all the edges between individual tasks
+    edges = set()
+
+    def get_downstream(task):
+        for child in task.downstream_list:
+            edge = (task.task_id, child.task_id)
+            if edge not in edges:
+                edges.add(edge)
+                get_downstream(child)
+
+    for root in dag.roots:
+        get_downstream(root)
+
+    return [{'source_id': source_id, 'target_id': target_id}
+            for source_id, target_id
+            in sorted(edges.union(edges_to_add) - edges_to_skip)]
+
+
 ######################################################################################
 #                                    Error handlers
 ######################################################################################
@@ -162,19 +320,19 @@ def circles(error):  # pylint: disable=unused-argument
 
 def show_traceback(error):  # pylint: disable=unused-argument
     """Show Traceback for a given error"""
-    from airflow.utils import asciiart as ascii_
-
     return render_template(
         'airflow/traceback.html',  # noqa
+        python_version=sys.version.split(" ")[0],
+        airflow_version=version,
         hostname=socket.getfqdn() if conf.getboolean(
             'webserver',
             'EXPOSE_HOSTNAME',
             fallback=True) else 'redact',
-        nukular=ascii_.nukular,
         info=traceback.format_exc() if conf.getboolean(
             'webserver',
             'EXPOSE_STACKTRACE',
-            fallback=True) else 'Error! Please contact server admin'), 500
+            fallback=True) else 'Error! Please contact server admin.'
+    ), 500
 
 ######################################################################################
 #                                    BaseViews
@@ -183,6 +341,7 @@ def show_traceback(error):  # pylint: disable=unused-argument
 
 class AirflowBaseView(BaseView):  # noqa: D101
     """Base View to set Airflow related properties"""
+
     from airflow import macros
     route_base = ''
 
@@ -204,13 +363,13 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     """
     Main Airflow application.
     """
+
     @expose('/health')
     def health(self):
         """
         An endpoint helping check the health status of the Airflow instance,
         including metadatabase and scheduler.
         """
-
         payload = {
             'metadatabase': {'status': 'unhealthy'}
         }
@@ -251,9 +410,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 return default
 
         arg_current_page = request.args.get('page', '0')
-        arg_search_query = request.args.get('search', None)
-        arg_tags_filter = request.args.getlist('tags', None)
-        arg_status_filter = request.args.get('status', None)
+        arg_search_query = request.args.get('search')
+        arg_tags_filter = request.args.getlist('tags')
+        arg_status_filter = request.args.get('status')
 
         if request.args.get('reset_tags') is not None:
             flask_session[FILTER_TAGS_COOKIE] = None
@@ -284,7 +443,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         end = start + dags_per_page
 
         # Get all the dag id the user could access
-        filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids()
+        filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
         with create_session() as session:
             # read orm_dags from the db
@@ -385,7 +544,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Dag statistics."""
         dr = models.DagRun
 
-        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids()
+        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         if 'all_dags' in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
@@ -430,7 +589,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @provide_session
     def task_stats(self, session=None):
         """Task Statistics"""
-        allowed_dag_ids = set(current_app.appbuilder.sm.get_accessible_dag_ids())
+        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
         if not allowed_dag_ids:
             return wwwutils.json_response({})
@@ -544,7 +703,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @provide_session
     def last_dagruns(self, session=None):
         """Last DAG runs"""
-        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids()
+        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
         if 'all_dags' in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
@@ -616,7 +775,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Get Dag details."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
-        title = "DAG details"
+        title = "DAG Details"
         root = request.args.get('root', '')
 
         states = (
@@ -632,9 +791,19 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             external_trigger=False
         )
 
+        tags = session.query(models.DagTag).filter(
+            models.DagTag.dag_id == dag_id).all()
+
         return self.render_template(
             'airflow/dag_details.html',
-            dag=dag, title=title, root=root, states=states, State=State, active_runs=active_runs)
+            dag=dag,
+            title=title,
+            root=root,
+            states=states,
+            State=State,
+            active_runs=active_runs,
+            tags=tags
+        )
 
     @expose('/rendered')
     @has_dag_access(can_dag_read=True)
@@ -659,16 +828,21 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         except AirflowException as e:  # pylint: disable=broad-except
             msg = "Error rendering template: " + escape(e)
             if e.__cause__:  # pylint: disable=using-constant-test
-                msg += Markup("<br/><br/>OriginalError: ") + escape(e.__cause__)
+                msg += Markup("<br><br>OriginalError: ") + escape(e.__cause__)
             flash(msg, "error")
         except Exception as e:  # pylint: disable=broad-except
             flash("Error rendering template: " + str(e), "error")
         title = "Rendered Template"
         html_dict = {}
+        renderers = wwwutils.get_attr_renderer()
+
         for template_field in task.template_fields:
             content = getattr(task, template_field)
-            if template_field in wwwutils.get_attr_renderer():
-                html_dict[template_field] = wwwutils.get_attr_renderer()[template_field](content)
+            renderer = task.template_fields_renderers.get(template_field, template_field)
+            if renderer in renderers:
+                if isinstance(content, (dict, list)):
+                    content = json.dumps(content, sort_keys=True, indent=4)
+                html_dict[template_field] = renderers[renderer](content)
             else:
                 html_dict[template_field] = \
                     Markup("<pre><code>{}</pre></code>").format(pformat(content))  # noqa
@@ -889,11 +1063,11 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             "Unknown",
             "All dependencies are met but the task instance is not running. In most "
             "cases this just means that the task will probably be scheduled soon "
-            "unless:<br/>\n- The scheduler is down or under heavy load<br/>\n{}\n"
-            "<br/>\nIf this task instance does not start soon please contact your "
+            "unless:<br>\n- The scheduler is down or under heavy load<br>\n{}\n"
+            "<br>\nIf this task instance does not start soon please contact your "
             "Airflow administrator for assistance.".format(
                 "- This task instance already ran and had it's state changed manually "
-                "(e.g. cleared in the UI)<br/>" if ti.state == State.NONE else ""))]
+                "(e.g. cleared in the UI)<br>" if ti.state == State.NONE else ""))]
 
         # Use the scheduler's context to figure out which dependencies are not met
         dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
@@ -1108,6 +1282,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             state=State.RUNNING,
             conf=run_conf,
             external_trigger=True,
+            dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
         )
 
         flash(
@@ -1212,7 +1387,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @provide_session
     def blocked(self, session=None):
         """Mark Dag Blocked."""
-        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids()
+        allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
         if 'all_dags' in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
@@ -1608,32 +1783,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         arrange = request.args.get('arrange', dag.orientation)
 
-        nodes = []
-        edges = []
-        for dag_task in dag.tasks:
-            nodes.append({
-                'id': dag_task.task_id,
-                'value': {
-                    'label': dag_task.task_id,
-                    'labelStyle': "fill:{0};".format(dag_task.ui_fgcolor),
-                    'style': "fill:{0};".format(dag_task.ui_color),
-                    'rx': 5,
-                    'ry': 5,
-                }
-            })
-
-        def get_downstream(task):
-            for downstream_task in task.downstream_list:
-                edge = {
-                    'source_id': task.task_id,
-                    'target_id': downstream_task.task_id,
-                }
-                if edge not in edges:
-                    edges.append(edge)
-                    get_downstream(downstream_task)
-
-        for dag_task in dag.roots:
-            get_downstream(dag_task)
+        nodes = task_group_to_dict(dag.task_group)
+        edges = dag_edges(dag)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dt_nr_dr_data['arrange'] = arrange
@@ -1641,11 +1792,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
             """Graph Form class."""
+
             arrange = SelectField("Layout", choices=(
-                ('LR', "Left->Right"),
-                ('RL', "Right->Left"),
-                ('TB', "Top->Bottom"),
-                ('BT', "Bottom->Top"),
+                ('LR', "Left > Right"),
+                ('RL', "Right > Left"),
+                ('TB', "Top > Bottom"),
+                ('BT', "Bottom > Top"),
             ))
 
         form = GraphForm(data=dt_nr_dr_data)
@@ -1853,6 +2005,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
         tries = sorted(list({ti.try_number for ti in tis}))
         max_date = max([ti.execution_date for ti in tis]) if tries else None
+        chart.create_y_axis('yAxis', format='.02f', custom_format=False, label='Tries')
+        chart.axislist['yAxis']['axisLabelDistance'] = '-15'
 
         session.commit()
 
@@ -2061,13 +2215,13 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             end_date = failed_task_instance.end_date or timezone.utcnow()
             start_date = failed_task_instance.start_date or end_date
             if tf_count != 0 and failed_task_instance.task_id == prev_task_id:
-                try_count = try_count + 1
+                try_count += 1
             else:
                 try_count = 1
             prev_task_id = failed_task_instance.task_id
             gantt_bar_items.append((failed_task_instance.task_id, start_date, end_date, State.FAILED,
                                     try_count))
-            tf_count = tf_count + 1
+            tf_count += 1
             task = dag.get_task(failed_task_instance.task_id)
             task_dict = alchemy_to_dict(failed_task_instance)
             task_dict['state'] = State.FAILED
@@ -2137,7 +2291,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return response
 
         task = dag.get_task(task_id)
-
         try:
             url = task.get_extra_links(dttm, link_name)
         except ValueError as err:
@@ -2176,32 +2329,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         return json.dumps(task_instances)
 
 
-class VersionView(AirflowBaseView):
-    """View to show Airflow Version and optionally Git commit SHA"""
-    default_view = 'version'
-
-    @expose('/version')
-    @has_access
-    def version(self):
-        """Shows Airflow version."""
-        try:
-            airflow_version = airflow.__version__
-        except Exception as e:  # pylint: disable=broad-except
-            airflow_version = None
-            logging.error(e)
-
-        git_version = get_airflow_git_version()
-        # Render information
-        title = "Version Info"
-        return self.render_template(
-            'airflow/version.html',
-            title=title,
-            airflow_version=airflow_version,
-            git_version=git_version)
-
-
 class ConfigurationView(AirflowBaseView):
     """View to show Airflow Configurations"""
+
     default_view = 'conf'
 
     @expose('/configuration')
@@ -2244,6 +2374,7 @@ class ConfigurationView(AirflowBaseView):
 
 class RedocView(AirflowBaseView):
     """Redoc Open API documentation"""
+
     default_view = 'redoc'
 
     @expose('/redoc')
@@ -2259,15 +2390,17 @@ class RedocView(AirflowBaseView):
 
 class DagFilter(BaseFilter):
     """Filter using DagIDs"""
+
     def apply(self, query, func): # noqa pylint: disable=redefined-outer-name,unused-argument
         if current_app.appbuilder.sm.has_all_dags_access():
             return query
-        filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids()
+        filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 
 
 class AirflowModelView(ModelView):  # noqa: D101
     """Airflow Mode View."""
+
     list_widget = AirflowModelListWidget
     page_size = PAGE_SIZE
 
@@ -2276,6 +2409,7 @@ class AirflowModelView(ModelView):  # noqa: D101
 
 class SlaMissModelView(AirflowModelView):
     """View to show SlaMiss table"""
+
     route_base = '/slamiss'
 
     datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)  # noqa # type: ignore
@@ -2299,6 +2433,7 @@ class SlaMissModelView(AirflowModelView):
 
 class XComModelView(AirflowModelView):
     """View to show records from XCom table"""
+
     route_base = '/xcom'
 
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
@@ -2339,6 +2474,7 @@ class XComModelView(AirflowModelView):
 
 class ConnectionModelView(AirflowModelView):
     """View to show records from Connections table"""
+
     route_base = '/connection'
 
     datamodel = AirflowModelView.CustomSQLAInterface(Connection)  # noqa # type: ignore
@@ -2410,6 +2546,7 @@ class ConnectionModelView(AirflowModelView):
 
 class PoolModelView(AirflowModelView):
     """View to show records from Pool table"""
+
     route_base = '/pool'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Pool)  # noqa # type: ignore
@@ -2480,6 +2617,7 @@ class PoolModelView(AirflowModelView):
 
 class VariableModelView(AirflowModelView):
     """View to show records from Variable table"""
+
     route_base = '/variable'
 
     list_template = 'airflow/variable_list.html'
@@ -2578,6 +2716,7 @@ class VariableModelView(AirflowModelView):
 
 class JobModelView(AirflowModelView):
     """View to show records from Job table"""
+
     route_base = '/job'
 
     datamodel = AirflowModelView.CustomSQLAInterface(BaseJob)  # noqa # type: ignore
@@ -2606,6 +2745,7 @@ class JobModelView(AirflowModelView):
 
 class DagRunModelView(AirflowModelView):
     """View to show records from DagRun table"""
+
     route_base = '/dagrun'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.DagRun)  # noqa # type: ignore
@@ -2628,6 +2768,7 @@ class DagRunModelView(AirflowModelView):
         'start_date': wwwutils.datetime_f('start_date'),
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
+        'conf': wwwutils.json_f('conf'),
     }
 
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?",
@@ -2717,9 +2858,36 @@ class DagRunModelView(AirflowModelView):
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
 
+    @action('clear', "Clear the state",
+            "All task instances would be cleared, are you sure?",
+            single=False)
+    @provide_session
+    def action_clear(self, drs, session=None):
+        """Clears the state."""
+        try:
+            count = 0
+            cleared_ti_count = 0
+            dag_to_tis = {}
+            for dr in session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all():
+                count += 1
+                dag = current_app.dag_bag.get_dag(dr.dag_id)
+                tis_to_clear = dag_to_tis.setdefault(dag, [])
+                tis_to_clear += dr.get_task_instances()
+
+            for dag, tis in dag_to_tis.items():
+                cleared_ti_count += len(tis)
+                models.clear_task_instances(tis, session, dag=dag)
+
+            flash("{count} dag runs and {altered_ti_count} task instances "
+                  "were cleared".format(count=count, altered_ti_count=cleared_ti_count))
+        except Exception:  # noqa pylint: disable=broad-except
+            flash('Failed to clear state', 'error')
+        return redirect(self.get_default_url())
+
 
 class LogModelView(AirflowModelView):
     """View to show records from Log table"""
+
     route_base = '/log'
 
     datamodel = AirflowModelView.CustomSQLAInterface(Log)  # noqa # type:ignore
@@ -2743,6 +2911,7 @@ class LogModelView(AirflowModelView):
 
 class TaskRescheduleModelView(AirflowModelView):
     """View to show records from Task Reschedule table"""
+
     route_base = '/taskreschedule'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskReschedule)  # noqa # type: ignore
@@ -2780,6 +2949,7 @@ class TaskRescheduleModelView(AirflowModelView):
 
 class TaskInstanceModelView(AirflowModelView):
     """View to show records from TaskInstance table"""
+
     route_base = '/taskinstance'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskInstance)  # noqa # type: ignore
@@ -2806,9 +2976,8 @@ class TaskInstanceModelView(AirflowModelView):
         """Formats log URL."""
         log_url = self.get('log_url')  # noqa pylint: disable=no-member
         return Markup(  # noqa
-            '<a href="{log_url}">'
-            '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
-            '</span></a>').format(log_url=log_url)
+            '<a href="{log_url}"><span class="material-icons" aria-hidden="true">reorder</span></a>'
+        ).format(log_url=log_url)
 
     def duration_f(self):
         """Formats duration."""
@@ -2904,6 +3073,7 @@ class TaskInstanceModelView(AirflowModelView):
 
 class DagModelView(AirflowModelView):
     """View to show records from DAG table"""
+
     route_base = '/dagmodel'
 
     datamodel = AirflowModelView.CustomSQLAInterface(DagModel)  # noqa # type: ignore
@@ -2969,9 +3139,9 @@ class DagModelView(AirflowModelView):
             dag_ids_query = dag_ids_query.filter(DagModel.is_paused)
             owners_query = owners_query.filter(DagModel.is_paused)
 
-        filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids()
+        filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         # pylint: disable=no-member
-        if 'all_dags' not in filter_dag_ids:
+        if not bool({'all_dags', 'Dag'}.intersection(filter_dag_ids)):
             dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
             owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member

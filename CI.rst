@@ -68,7 +68,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | the container. We mount only selected,          |
 |                                         |             |             |            | important folders. We do not mount the whole    |
 |                                         |             |             |            | project folder in order to avoid accidental     |
-|                                         |             |             |            | use of artifacts (such ass ``.egginfo``         |
+|                                         |             |             |            | use of artifacts (such as ``egg-info``          |
 |                                         |             |             |            | directories) generated locally on the           |
 |                                         |             |             |            | host during development.                        |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
@@ -200,7 +200,8 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | stored in separated "orphan" branches           |
 |                                         |             |             |            | of the airflow repository                       |
 |                                         |             |             |            | ("constraints-master, "constraints-1-10")       |
-|                                         |             |             |            | but when this flag is set, they are not         |
+|                                         |             |             |            | but when this flag is set to anything but false |
+|                                         |             |             |            | (for example commit SHA), they are not used     |
 |                                         |             |             |            | used and "eager" upgrade strategy is used       |
 |                                         |             |             |            | when installing dependencies. We set it         |
 |                                         |             |             |            | to true in case of direct pushes (merges)       |
@@ -209,6 +210,10 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | in case we determine that the tests pass        |
 |                                         |             |             |            | we automatically push latest set of             |
 |                                         |             |             |            | "tested" constraints to the repository.         |
+|                                         |             |             |            |                                                 |
+|                                         |             |             |            | Setting the value to commit SHA is best way     |
+|                                         |             |             |            | to assure that constraints are upgraded even if |
+|                                         |             |             |            | there is no change to setup.py                  |
 |                                         |             |             |            |                                                 |
 |                                         |             |             |            | This way our constraints are automatically      |
 |                                         |             |             |            | tested and updated whenever new versions        |
@@ -256,7 +261,7 @@ Running CI Builds locally
 The following variables are automatically determined based on CI environment variables.
 You can locally by setting ``CI="true"`` and run the ci scripts from the ``scripts/ci`` folder:
 
-* ``backport_packages`` - scripts to build and test backport packages
+* ``provider_packages`` - scripts to build and test provider packages
 * ``constraints`` - scripts to build and publish latest set of valid constraints
 * ``docs`` - scripts to build documentation
 * ``images`` - scripts to build and push CI and PROD images
@@ -305,7 +310,7 @@ Note that you need to set "CI" variable to true in order to get the same results
 +------------------------------+----------------------+-----------------------------------------------------+
 
 
-Github Registry Variables
+GitHub Registry Variables
 =========================
 
 Our CI uses GitHub Registry to pull and push images to/from by default. You can however make it interact with
@@ -315,7 +320,7 @@ DockerHub registry or change the GitHub registry to interact with and use your o
 +--------------------------------+---------------------------+----------------------------------------------+
 | Variable                       | Default                   | Comment                                      |
 +================================+===========================+==============================================+
-| USE_GITHUB_REGISTRY            | true                      | If set to "true", we interact with Github    |
+| USE_GITHUB_REGISTRY            | true                      | If set to "true", we interact with GitHub    |
 |                                |                           | Registry registry not the DockerHub one.     |
 +--------------------------------+---------------------------+----------------------------------------------+
 | GITHUB_REGISTRY                | ``docker.pkg.github.com`` | DNS name of the GitHub registry to           |
@@ -417,7 +422,7 @@ whether it still builds, all tests are green.
 This is needed because some of the conflicting changes from multiple PRs might cause build and test failures
 after merge even if they do not fail in isolation. Also those runs are already reviewed and confirmed by the
 committers so they can be used to do some housekeeping:
-- pushing most recent image build in the PR to the Github Private Registry (for caching)
+- pushing most recent image build in the PR to the GitHub Private Registry (for caching)
 - upgrading to latest constraints and pushing those constraints if all tests succeed
 - refresh latest Python base images in case new patch-level is released
 
@@ -460,10 +465,10 @@ Build Images Workflow
 ---------------------
 
 This workflow has two purposes - it builds images for the CI Workflow but also it cancels duplicate or
-failed builds in order to save job time in Github Actions and allow for faster feedback for developers.
+failed builds in order to save job time in GitHub Actions and allow for faster feedback for developers.
 
 It's a special type of workflow: ``workflow_run`` which means that it is triggered by other workflows (in our
-case it is triggered by the ``CI Build`` workflow. This also means that the workflow has Write permission to
+case it is triggered by the ``CI Build`` workflow). This also means that the workflow has Write permission to
 the Airflow repository and it can - for example - push to the GitHub registry the images used by CI Builds
 which means that the images can be built only once and reused by all the CI jobs (including the matrix jobs).
 We've implemented it in the way that the CI Build running will wait until the images are built by the
@@ -536,7 +541,7 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------+----------------------------------------------+-------+-------+------+
 | CI Images                 | Waits for CI Images (3)                      | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
-| Static checks: no pylint  | Performs static checks without pylint        | Yes   | Yes   | Yes  |
+| Static checks             | Performs static checks without pylint        | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 | Static checks: pylint     | Performs pylint static checks                | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
@@ -615,6 +620,16 @@ This is manually triggered workflow (via GitHub UI manual run) that should only 
 When triggered, it will force-push the "apache/airflow" master to the fork's master. It's the easiest
 way to sync your fork master to the Apache Airflow's one.
 
+Delete old artifacts
+--------------------
+
+This workflow is introduced, to delete old artifacts from the Github Actions build. We set it to
+delete old artifacts that are > 7 days old. It only runs for the 'apache/airflow' repository.
+
+We also have a script that can help to clean-up the old artifacts:
+`remove_artifacts.sh <dev/remove_artifacts.sh>`_
+
+
 Naming conventions for stored images
 ====================================
 
@@ -645,7 +660,7 @@ The image names follow the patterns:
 * <BRANCH> might be either "master" or "v1-10-test"
 * <X.Y> - Python version (Major + Minor). For "master" it should be in ["3.6", "3.7", "3.8"]. For
   v1-10-test it should be in ["2.7", "3.5", "3.6". "3.7", "3.8"].
-* <RUN_ID> - Github Actions RUN_ID. You can get it from CI action job outputs (run id is printed in
+* <RUN_ID> - GitHub Actions RUN_ID. You can get it from CI action job outputs (run id is printed in
   logs and displayed as part of the step name. All PRs belong to some RUN_ID and this way you can
   pull the very exact version of image used in that RUN_ID
 * <COMMIT_SHA> - for images that get merged to "master" of "v1-10-test" the images are also tagged
@@ -673,7 +688,7 @@ you need to reproduce a MySQL environment with kerberos integration enabled for 
 
 .. code-block:: bash
 
-  ./breeze --github-image-id:210056909 --python 3.8 --integration kerberos
+  ./breeze --github-image-id 210056909 --python 3.8 --integration kerberos
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in

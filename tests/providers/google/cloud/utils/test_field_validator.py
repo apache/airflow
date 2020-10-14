@@ -185,7 +185,9 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
                 name="an_union",
                 type="union",
                 optional=False,
-                fields=[dict(name="variant_1", regexp=r'^.+$', optional=False, allow_empty=False),],
+                fields=[
+                    dict(name="variant_1", regexp=r'^.+$', optional=False, allow_empty=False),
+                ],
             )
         ]
         body = {}
@@ -204,7 +206,13 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
     def test_validate_should_interpret_union_with_one_field(self):
         specification = [
-            dict(name="an_union", type="union", fields=[dict(name="variant_1", regexp=r'^.+$'),])
+            dict(
+                name="an_union",
+                type="union",
+                fields=[
+                    dict(name="variant_1", regexp=r'^.+$'),
+                ],
+            )
         ]
         body = {"variant_1": "abc", "variant_2": "def"}
 
@@ -216,7 +224,10 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
             dict(
                 name="an_union",
                 type="union",
-                fields=[dict(name="variant_1", regexp=r'^.+$'), dict(name="variant_2", regexp=r'^.+$'),],
+                fields=[
+                    dict(name="variant_1", regexp=r'^.+$'),
+                    dict(name="variant_2", regexp=r'^.+$'),
+                ],
             )
         ]
         body = {"variant_1": "abc", "variant_2": "def"}
@@ -227,7 +238,13 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
     def test_validate_should_validate_when_value_matches_regex(self):
         specification = [
-            dict(name="an_union", type="union", fields=[dict(name="variant_1", regexp=r'[^a-z]'),])
+            dict(
+                name="an_union",
+                type="union",
+                fields=[
+                    dict(name="variant_1", regexp=r'[^a-z]'),
+                ],
+            )
         ]
         body = {"variant_1": "12"}
 
@@ -236,7 +253,13 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
     def test_validate_should_fail_when_value_does_not_match_regex(self):
         specification = [
-            dict(name="an_union", type="union", fields=[dict(name="variant_1", regexp=r'[^a-z]'),])
+            dict(
+                name="an_union",
+                type="union",
+                fields=[
+                    dict(name="variant_1", regexp=r'[^a-z]'),
+                ],
+            )
         ]
         body = {"variant_1": "abc"}
 

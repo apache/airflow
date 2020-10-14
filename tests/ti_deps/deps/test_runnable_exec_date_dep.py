@@ -17,33 +17,34 @@
 # under the License.
 
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from freezegun import freeze_time
 
+from airflow import settings
 from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.utils.timezone import datetime
-from tests.test_utils.config import conf_vars
 
 
 @freeze_time('2016-11-01')
 @pytest.mark.parametrize("allow_trigger_in_future,schedule_interval,execution_date,is_met", [
-    ('True', None, datetime(2016, 11, 3), True),
-    ('True', "@daily", datetime(2016, 11, 3), False),
-    ('False', None, datetime(2016, 11, 3), False),
-    ('False', "@daily", datetime(2016, 11, 3), False),
-    ('False', "@daily", datetime(2016, 11, 1), True),
-    ('False', None, datetime(2016, 11, 1), True)]
+    (True, None, datetime(2016, 11, 3), True),
+    (True, "@daily", datetime(2016, 11, 3), False),
+    (False, None, datetime(2016, 11, 3), False),
+    (False, "@daily", datetime(2016, 11, 3), False),
+    (False, "@daily", datetime(2016, 11, 1), True),
+    (False, None, datetime(2016, 11, 1), True)]
 )
 def test_exec_date_dep(allow_trigger_in_future, schedule_interval, execution_date, is_met):
     """
     If the dag's execution date is in the future but (allow_trigger_in_future=False or not schedule_interval)
     this dep should fail
     """
-    with conf_vars({('scheduler', 'allow_trigger_in_future'): allow_trigger_in_future}):
+
+    with patch.object(settings, 'ALLOW_FUTURE_EXEC_DATES', allow_trigger_in_future):
         dag = DAG(
             'test_localtaskjob_heartbeat',
             start_date=datetime(2015, 1, 1),

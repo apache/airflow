@@ -35,7 +35,8 @@ from airflow.utils.dates import days_ago
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
 GCP_AUTOML_TRACKING_BUCKET = os.environ.get(
-    "GCP_AUTOML_TRACKING_BUCKET", "gs://automl-video-datasets/youtube_8m_videos_animal_tiny.csv",
+    "GCP_AUTOML_TRACKING_BUCKET",
+    "gs://automl-video-datasets/youtube_8m_videos_animal_tiny.csv",
 )
 
 # Example values

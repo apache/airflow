@@ -46,10 +46,18 @@ default_args = {
     'owner': 'airflow',
 }
 
-dag = DAG('example_snowflake', default_args=default_args, start_date=days_ago(2), tags=['example'],)
+dag = DAG(
+    'example_snowflake',
+    default_args=default_args,
+    start_date=days_ago(2),
+    tags=['example'],
+)
 
 select = SnowflakeOperator(
-    task_id='select', snowflake_conn_id=SNOWFLAKE_CONN_ID, sql=SNOWFLAKE_SELECT_SQL, dag=dag,
+    task_id='select',
+    snowflake_conn_id=SNOWFLAKE_CONN_ID,
+    sql=SNOWFLAKE_SELECT_SQL,
+    dag=dag,
 )
 
 slack_report = SnowflakeToSlackOperator(

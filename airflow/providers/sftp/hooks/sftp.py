@@ -62,7 +62,7 @@ class SFTPHook(SSHHook):
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
                 if 'private_key_pass' in extra_options:
-                    self.private_key_pass = extra_options.get('private_key_pass', None)
+                    self.private_key_pass = extra_options.get('private_key_pass')
 
                 # For backward compatibility
                 # TODO: remove in Airflow 2.1

@@ -35,7 +35,12 @@ if not snakebite_loaded:
 
 
 class TestHDFSHook(unittest.TestCase):
-    @mock.patch.dict('os.environ', {'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',})
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+        },
+    )
     def test_get_client(self):
         client = HDFSHook(proxy_user='foo').get_conn()
         self.assertIsInstance(client, snakebite.client.Client)
@@ -43,7 +48,12 @@ class TestHDFSHook(unittest.TestCase):
         self.assertEqual(8020, client.port)
         self.assertEqual('foo', client.service.channel.effective_user)
 
-    @mock.patch.dict('os.environ', {'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',})
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+        },
+    )
     @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.AutoConfigClient')
     @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook.get_connections')
     def test_get_autoconfig_client(self, mock_get_connections, mock_client):
@@ -59,7 +69,12 @@ class TestHDFSHook(unittest.TestCase):
         HDFSHook(hdfs_conn_id='hdfs').get_conn()
         mock_client.assert_called_once_with(effective_user='foo', use_sasl=False)
 
-    @mock.patch.dict('os.environ', {'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',})
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+        },
+    )
     @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.AutoConfigClient')
     def test_get_autoconfig_client_no_conn(self, mock_client):
         HDFSHook(hdfs_conn_id='hdfs_missing', autoconfig=True).get_conn()

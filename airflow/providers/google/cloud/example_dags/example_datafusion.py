@@ -64,7 +64,11 @@ PIPELINE = {
                     "name": "GCSFile",
                     "type": "batchsource",
                     "label": "GCS",
-                    "artifact": {"name": "google-cloud", "version": "0.14.2", "scope": "SYSTEM",},
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.14.2",
+                        "scope": "SYSTEM",
+                    },
                     "properties": {
                         "project": "auto-detect",
                         "format": "text",
@@ -93,7 +97,11 @@ PIPELINE = {
                     "name": "GCS",
                     "type": "batchsink",
                     "label": "GCS2",
-                    "artifact": {"name": "google-cloud", "version": "0.14.2", "scope": "SYSTEM",},
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.14.2",
+                        "scope": "SYSTEM",
+                    },
                     "properties": {
                         "project": "auto-detect",
                         "suffix": "yyyy-MM-dd-HH-mm",
@@ -138,7 +146,10 @@ with models.DAG(
 ) as dag:
     # [START howto_cloud_data_fusion_create_instance_operator]
     create_instance = CloudDataFusionCreateInstanceOperator(
-        location=LOCATION, instance_name=INSTANCE_NAME, instance=INSTANCE, task_id="create_instance",
+        location=LOCATION,
+        instance_name=INSTANCE_NAME,
+        instance=INSTANCE,
+        task_id="create_instance",
     )
     # [END howto_cloud_data_fusion_create_instance_operator]
 
@@ -182,13 +193,19 @@ with models.DAG(
 
     # [START howto_cloud_data_fusion_start_pipeline]
     start_pipeline = CloudDataFusionStartPipelineOperator(
-        location=LOCATION, pipeline_name=PIPELINE_NAME, instance_name=INSTANCE_NAME, task_id="start_pipeline",
+        location=LOCATION,
+        pipeline_name=PIPELINE_NAME,
+        instance_name=INSTANCE_NAME,
+        task_id="start_pipeline",
     )
     # [END howto_cloud_data_fusion_start_pipeline]
 
     # [START howto_cloud_data_fusion_stop_pipeline]
     stop_pipeline = CloudDataFusionStopPipelineOperator(
-        location=LOCATION, pipeline_name=PIPELINE_NAME, instance_name=INSTANCE_NAME, task_id="stop_pipeline",
+        location=LOCATION,
+        pipeline_name=PIPELINE_NAME,
+        instance_name=INSTANCE_NAME,
+        task_id="stop_pipeline",
     )
     # [END howto_cloud_data_fusion_stop_pipeline]
 

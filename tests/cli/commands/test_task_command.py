@@ -188,7 +188,7 @@ class TestCliTasks(unittest.TestCase):
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_states_for_dag_run(self.parser.parse_args([
-                'tasks', 'states_for_dag_run', 'example_python_operator', defaut_date2.isoformat()]))
+                'tasks', 'states-for-dag-run', 'example_python_operator', defaut_date2.isoformat()]))
         actual_out = stdout.getvalue()
 
         formatted_rows = [('example_python_operator',
@@ -355,7 +355,6 @@ class TestCliTaskBackfill(unittest.TestCase):
 
         self.parser = cli_parser.get_parser()
 
-    @pytest.mark.quarantined
     def test_run_ignores_all_dependencies(self):
         """
         Test that run respects ignore_all_dependencies

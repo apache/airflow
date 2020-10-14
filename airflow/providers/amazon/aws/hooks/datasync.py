@@ -20,6 +20,7 @@ Interact with AWS DataSync, using the AWS ``boto3`` library.
 """
 
 import time
+from typing import List, Optional
 
 from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -52,16 +53,16 @@ class AWSDataSyncHook(AwsBaseHook):
     TASK_EXECUTION_FAILURE_STATES = ("ERROR",)
     TASK_EXECUTION_SUCCESS_STATES = ("SUCCESS",)
 
-    def __init__(self, wait_interval_seconds=5, *args, **kwargs):
-        super().__init__(client_type='datasync', *args, **kwargs)
-        self.locations = []
-        self.tasks = []
+    def __init__(self, wait_interval_seconds: int = 5, *args, **kwargs) -> None:
+        super().__init__(client_type='datasync', *args, **kwargs)  # type: ignore[misc]
+        self.locations: list = []
+        self.tasks: list = []
         # wait_interval_seconds = 0 is used during unit tests
         if wait_interval_seconds < 0 or wait_interval_seconds > 15 * 60:
             raise ValueError("Invalid wait_interval_seconds %s" % wait_interval_seconds)
         self.wait_interval_seconds = wait_interval_seconds
 
-    def create_location(self, location_uri, **create_location_kwargs):
+    def create_location(self, location_uri: str, **create_location_kwargs) -> str:
         r"""Creates a new location.
 
         :param str location_uri: Location URI used to determine the location type (S3, SMB, NFS, EFS).
@@ -84,7 +85,9 @@ class AWSDataSyncHook(AwsBaseHook):
         self._refresh_locations()
         return location["LocationArn"]
 
-    def get_location_arns(self, location_uri, case_sensitive=False, ignore_trailing_slash=True):
+    def get_location_arns(
+        self, location_uri: str, case_sensitive: bool = False, ignore_trailing_slash: bool = True
+    ) -> List[str]:
         """
         Return all LocationArns which match a LocationUri.
 
@@ -116,7 +119,7 @@ class AWSDataSyncHook(AwsBaseHook):
                 result.append(location_from_aws["LocationArn"])
         return result
 
-    def _refresh_locations(self):
+    def _refresh_locations(self) -> None:
         """Refresh the local list of Locations."""
         self.locations = []
         next_token = None
@@ -130,7 +133,9 @@ class AWSDataSyncHook(AwsBaseHook):
                 break
             next_token = locations["NextToken"]
 
-    def create_task(self, source_location_arn, destination_location_arn, **create_task_kwargs):
+    def create_task(
+        self, source_location_arn: str, destination_location_arn: str, **create_task_kwargs
+    ) -> str:
         r"""Create a Task between the specified source and destination LocationArns.
 
         :param str source_location_arn: Source LocationArn. Must exist already.
@@ -147,7 +152,7 @@ class AWSDataSyncHook(AwsBaseHook):
         self._refresh_tasks()
         return task["TaskArn"]
 
-    def update_task(self, task_arn, **update_task_kwargs):
+    def update_task(self, task_arn: str, **update_task_kwargs) -> None:
         r"""Update a Task.
 
         :param str task_arn: The TaskArn to update.
@@ -155,14 +160,14 @@ class AWSDataSyncHook(AwsBaseHook):
         """
         self.get_conn().update_task(TaskArn=task_arn, **update_task_kwargs)
 
-    def delete_task(self, task_arn):
+    def delete_task(self, task_arn: str) -> None:
         r"""Delete a Task.
 
         :param str task_arn: The TaskArn to delete.
         """
         self.get_conn().delete_task(TaskArn=task_arn)
 
-    def _refresh_tasks(self):
+    def _refresh_tasks(self) -> None:
         """Refreshes the local list of Tasks"""
         self.tasks = []
         next_token = None
@@ -176,7 +181,11 @@ class AWSDataSyncHook(AwsBaseHook):
                 break
             next_token = tasks["NextToken"]
 
-    def get_task_arns_for_location_arns(self, source_location_arns, destination_location_arns):
+    def get_task_arns_for_location_arns(
+        self,
+        source_location_arns: list,
+        destination_location_arns: list,
+    ) -> list:
         """
         Return list of TaskArns for which use any one of the specified
         source LocationArns and any one of the specified destination LocationArns.
@@ -203,7 +212,7 @@ class AWSDataSyncHook(AwsBaseHook):
                     result.append(task_arn)
         return result
 
-    def start_task_execution(self, task_arn, **kwargs):
+    def start_task_execution(self, task_arn: str, **kwargs) -> str:
         r"""
         Start a TaskExecution for the specified task_arn.
         Each task can have at most one TaskExecution.
@@ -220,7 +229,7 @@ class AWSDataSyncHook(AwsBaseHook):
         task_execution = self.get_conn().start_task_execution(TaskArn=task_arn, **kwargs)
         return task_execution["TaskExecutionArn"]
 
-    def cancel_task_execution(self, task_execution_arn):
+    def cancel_task_execution(self, task_execution_arn: str) -> None:
         """
         Cancel a TaskExecution for the specified ``task_execution_arn``.
 
@@ -231,7 +240,7 @@ class AWSDataSyncHook(AwsBaseHook):
             raise AirflowBadRequest("task_execution_arn not specified")
         self.get_conn().cancel_task_execution(TaskExecutionArn=task_execution_arn)
 
-    def get_task_description(self, task_arn):
+    def get_task_description(self, task_arn: str) -> dict:
         """
         Get description for the specified ``task_arn``.
 
@@ -244,7 +253,7 @@ class AWSDataSyncHook(AwsBaseHook):
             raise AirflowBadRequest("task_arn not specified")
         return self.get_conn().describe_task(TaskArn=task_arn)
 
-    def describe_task_execution(self, task_execution_arn):
+    def describe_task_execution(self, task_execution_arn: str) -> dict:
         """
         Get description for the specified ``task_execution_arn``.
 
@@ -255,7 +264,7 @@ class AWSDataSyncHook(AwsBaseHook):
         """
         return self.get_conn().describe_task_execution(TaskExecutionArn=task_execution_arn)
 
-    def get_current_task_execution_arn(self, task_arn):
+    def get_current_task_execution_arn(self, task_arn: str) -> Optional[str]:
         """
         Get current TaskExecutionArn (if one exists) for the specified ``task_arn``.
 
@@ -271,7 +280,7 @@ class AWSDataSyncHook(AwsBaseHook):
             return task_description["CurrentTaskExecutionArn"]
         return None
 
-    def wait_for_task_execution(self, task_execution_arn, max_iterations=2 * 180):
+    def wait_for_task_execution(self, task_execution_arn: str, max_iterations: int = 2 * 180) -> bool:
         """
         Wait for Task Execution status to be complete (SUCCESS/ERROR).
         The ``task_execution_arn`` must exist, or a boto3 ClientError will be raised.

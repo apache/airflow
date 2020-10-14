@@ -18,4 +18,6 @@
 
 
 [mysqld]
-explicit_defaults_for_timestamp=1
+explicit_defaults_for_timestamp = 1
+secure_file_priv = ""
+local_infile = 1

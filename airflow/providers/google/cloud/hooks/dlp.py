@@ -89,7 +89,9 @@ class CloudDLPHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -132,7 +134,6 @@ class CloudDLPHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-
         client = self.get_conn()
 
         if not dlp_job_id:
@@ -177,7 +178,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
         """
-
         client = self.get_conn()
         # Handle project_id from connection configuration
         project_id = project_id or self.project_id
@@ -241,7 +241,6 @@ class CloudDLPHook(GoogleBaseHook):
             of the operation results. Defaults to 60.
         :type time_to_sleep_in_seconds: int
         """
-
         client = self.get_conn()
 
         parent = DlpServiceClient.project_path(project_id)
@@ -320,7 +319,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.InspectTemplate
         """
-
         client = self.get_conn()
 
         # Handle project_id from connection configuration
@@ -375,7 +373,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.JobTrigger
         """
-
         client = self.get_conn()
 
         parent = DlpServiceClient.project_path(project_id)
@@ -423,7 +420,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.StoredInfoType
         """
-
         client = self.get_conn()
 
         # Handle project_id from connection configuration
@@ -493,7 +489,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.DeidentifyContentResponse
         """
-
         client = self.get_conn()
 
         parent = DlpServiceClient.project_path(project_id)
@@ -534,7 +529,6 @@ class CloudDLPHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-
         client = self.get_conn()
 
         if not template_id:
@@ -581,7 +575,6 @@ class CloudDLPHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-
         client = self.get_conn()
 
         if not dlp_job_id:
@@ -621,7 +614,6 @@ class CloudDLPHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-
         client = self.get_conn()
 
         if not template_id:
@@ -667,7 +659,6 @@ class CloudDLPHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-
         client = self.get_conn()
 
         if not job_trigger_id:
@@ -707,7 +698,6 @@ class CloudDLPHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-
         client = self.get_conn()
 
         if not stored_info_type_id:
@@ -757,7 +747,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
         """
-
         client = self.get_conn()
 
         if not template_id:
@@ -804,7 +793,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.DlpJob
         """
-
         client = self.get_conn()
 
         if not dlp_job_id:
@@ -845,7 +833,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.InspectTemplate
         """
-
         client = self.get_conn()
 
         if not template_id:
@@ -892,7 +879,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.JobTrigger
         """
-
         client = self.get_conn()
 
         if not job_trigger_id:
@@ -933,7 +919,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.StoredInfoType
         """
-
         client = self.get_conn()
 
         if not stored_info_type_id:
@@ -989,7 +974,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.InspectContentResponse
         """
-
         client = self.get_conn()
 
         parent = DlpServiceClient.project_path(project_id)
@@ -1040,7 +1024,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: List[google.cloud.dlp_v2.types.DeidentifyTemplate]
         """
-
         client = self.get_conn()
 
         # Handle project_id from connection configuration
@@ -1104,7 +1087,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: List[google.cloud.dlp_v2.types.DlpJob]
         """
-
         client = self.get_conn()
 
         parent = DlpServiceClient.project_path(project_id)
@@ -1148,7 +1130,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.ListInfoTypesResponse
         """
-
         client = self.get_conn()
 
         return client.list_info_types(
@@ -1196,7 +1177,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: List[google.cloud.dlp_v2.types.InspectTemplate]
         """
-
         client = self.get_conn()
 
         # Handle project_id from connection configuration
@@ -1256,7 +1236,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: List[google.cloud.dlp_v2.types.JobTrigger]
         """
-
         client = self.get_conn()
 
         parent = DlpServiceClient.project_path(project_id)
@@ -1308,7 +1287,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: List[google.cloud.dlp_v2.types.StoredInfoType]
         """
-
         client = self.get_conn()
 
         # Handle project_id from connection configuration
@@ -1376,7 +1354,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.RedactImageResponse
         """
-
         client = self.get_conn()
 
         parent = DlpServiceClient.project_path(project_id)
@@ -1436,7 +1413,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.ReidentifyContentResponse
         """
-
         client = self.get_conn()
 
         parent = DlpServiceClient.project_path(project_id)
@@ -1490,7 +1466,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
         """
-
         client = self.get_conn()
 
         if not template_id:
@@ -1553,7 +1528,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.InspectTemplate
         """
-
         client = self.get_conn()
 
         if not template_id:
@@ -1612,7 +1586,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.JobTrigger
         """
-
         client = self.get_conn()
 
         if not job_trigger_id:
@@ -1667,7 +1640,6 @@ class CloudDLPHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         :rtype: google.cloud.dlp_v2.types.StoredInfoType
         """
-
         client = self.get_conn()
 
         if not stored_info_type_id:

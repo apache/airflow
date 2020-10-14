@@ -20,7 +20,7 @@
 import datetime
 import ftplib
 import os.path
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from airflow.hooks.base_hook import BaseHook
 
@@ -42,7 +42,7 @@ class FTPHook(BaseHook):
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if self.conn is not None:
             self.close_conn()
 
@@ -183,7 +183,7 @@ class FTPHook(BaseHook):
         if is_path and output_handle:
             output_handle.close()
 
-    def store_file(self, remote_full_path, local_full_path_or_buffer):
+    def store_file(self, remote_full_path: str, local_full_path_or_buffer: Any) -> None:
         """
         Transfers a local file to the remote location.
 
@@ -248,7 +248,7 @@ class FTPHook(BaseHook):
         except ValueError:
             return datetime.datetime.strptime(time_val, '%Y%m%d%H%M%S')
 
-    def get_size(self, path):
+    def get_size(self, path: str) -> Optional[int]:
         """
         Returns the size of a file (in bytes)
 
@@ -256,7 +256,8 @@ class FTPHook(BaseHook):
         :type path: str
         """
         conn = self.get_conn()
-        return conn.size(path)
+        size = conn.size(path)
+        return int(size) if size else None
 
 
 class FTPSHook(FTPHook):

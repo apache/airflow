@@ -128,7 +128,10 @@ class TestXComCollectionSchema(TestXComSchemaBase):
         )
         xcom_models_queried = xcom_models_query.all()
         deserialized_xcoms = xcom_collection_schema.dump(
-            XComCollection(xcom_entries=xcom_models_queried, total_entries=xcom_models_query.count(),)
+            XComCollection(
+                xcom_entries=xcom_models_queried,
+                total_entries=xcom_models_query.count(),
+            )
         )
         self.assertEqual(
             deserialized_xcoms,

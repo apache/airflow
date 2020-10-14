@@ -79,7 +79,9 @@ TEST_CREDENTIALS = mock.MagicMock()
 
 
 class TestCloudDataCatalog(TestCase):
-    def setUp(self,) -> None:
+    def setUp(
+        self,
+    ) -> None:
         with mock.patch(
             "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -156,7 +158,9 @@ class TestCloudDataCatalog(TestCase):
 
 
 class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
-    def setUp(self,) -> None:
+    def setUp(
+        self,
+    ) -> None:
         with mock.patch(
             "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -649,7 +653,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
 
 
 class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
-    def setUp(self,) -> None:
+    def setUp(
+        self,
+    ) -> None:
         with mock.patch(
             "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
@@ -1169,7 +1175,9 @@ TEST_MESSAGE = re.escape(
 
 
 class TestCloudDataCatalogMissingProjectIdHook(TestCase):
-    def setUp(self,) -> None:
+    def setUp(
+        self,
+    ) -> None:
         with mock.patch(
             "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

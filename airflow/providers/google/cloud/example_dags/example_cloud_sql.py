@@ -71,7 +71,10 @@ body = {
         "dataDiskSizeGb": 30,
         "dataDiskType": "PD_SSD",
         "databaseFlags": [],
-        "ipConfiguration": {"ipv4Enabled": True, "requireSsl": True,},
+        "ipConfiguration": {
+            "ipv4Enabled": True,
+            "requireSsl": True,
+        },
         "locationPreference": {"zone": "europe-west4-a"},
         "maintenanceWindow": {"hour": 5, "day": 7, "updateTrack": "canary"},
         "pricingPlan": "PER_USE",
@@ -88,7 +91,9 @@ body = {
 
 body2 = {
     "name": INSTANCE_NAME2,
-    "settings": {"tier": "db-n1-standard-1",},
+    "settings": {
+        "tier": "db-n1-standard-1",
+    },
     "databaseVersion": "MYSQL_5_7",
     "region": "europe-west4",
 }
@@ -96,7 +101,9 @@ body2 = {
 # [START howto_operator_cloudsql_create_replica]
 read_replica_body = {
     "name": READ_REPLICA_NAME,
-    "settings": {"tier": "db-n1-standard-1",},
+    "settings": {
+        "tier": "db-n1-standard-1",
+    },
     "databaseVersion": "MYSQL_5_7",
     "region": "europe-west4",
     "masterInstanceName": INSTANCE_NAME,

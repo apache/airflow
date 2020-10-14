@@ -181,5 +181,13 @@ class HiveStatsCollectionOperator(BaseOperator):
         mysql.insert_rows(
             table='hive_stats',
             rows=rows,
-            target_fields=['ds', 'dttm', 'table_name', 'partition_repr', 'col', 'metric', 'value',],
+            target_fields=[
+                'ds',
+                'dttm',
+                'table_name',
+                'partition_repr',
+                'col',
+                'metric',
+                'value',
+            ],
         )

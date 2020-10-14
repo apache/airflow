@@ -33,6 +33,7 @@ TYPED_DECORATORS = {
 
 class TypedDecoratorPlugin(Plugin):
     """Mypy plugin for typed decorators."""
+
     def get_function_hook(self, fullname: str):
         """Check for known typed decorators by name."""
         if fullname in TYPED_DECORATORS:

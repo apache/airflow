@@ -53,7 +53,7 @@ class TableauJobStatusSensor(BaseSensorOperator):
         site_id: Optional[str] = None,
         tableau_conn_id: str = 'tableau_default',
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.tableau_conn_id = tableau_conn_id
         self.job_id = job_id

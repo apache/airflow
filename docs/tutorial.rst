@@ -65,6 +65,9 @@ Airflow DAG object. Let's start by importing the libraries we will need.
     :start-after: [START import_module]
     :end-before: [END import_module]
 
+
+See :doc:`modules_management` for details on how Python and Airflow manage modules.
+
 Default Arguments
 -----------------
 We're about to create a DAG and some tasks, and we have the choice to

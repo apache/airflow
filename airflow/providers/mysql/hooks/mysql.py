@@ -208,7 +208,6 @@ class MySqlHook(DbApiHook):
         :return: The same cell
         :rtype: object
         """
-
         return cell
 
     def get_iam_token(self, conn: Connection) -> Tuple[str, int]:

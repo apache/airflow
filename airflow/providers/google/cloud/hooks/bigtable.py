@@ -48,7 +48,9 @@ class BigtableHook(GoogleBaseHook):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain,
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
         )
         self._client = None
 
@@ -318,7 +320,6 @@ class BigtableHook(GoogleBaseHook):
         :param table_id: The ID of the table in Cloud Bigtable to fetch Column Families
             from.
         """
-
         table = Table(table_id, instance)
         return table.list_column_families()
 
@@ -334,6 +335,5 @@ class BigtableHook(GoogleBaseHook):
         :param table_id: The ID of the table in Cloud Bigtable to fetch Cluster States
             from.
         """
-
         table = Table(table_id, instance)
         return table.get_cluster_states()

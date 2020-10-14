@@ -714,7 +714,7 @@ class TestMLEngineHook(unittest.TestCase):
 
         # fmt: on
         def check_input(existing_job):
-            return existing_job.get('someInput', None) == my_job['someInput']
+            return existing_job.get('someInput') == my_job['someInput']
 
         with self.assertRaises(HttpError):
             self.hook.create_job(project_id=project_id, job=my_job, use_existing_job_fn=check_input)
@@ -748,7 +748,7 @@ class TestMLEngineHook(unittest.TestCase):
 
         # fmt: on
         def check_input(existing_job):
-            return existing_job.get('someInput', None) == my_job['someInput']
+            return existing_job.get('someInput') == my_job['someInput']
 
         create_job_response = self.hook.create_job(
             project_id=project_id, job=my_job, use_existing_job_fn=check_input
@@ -775,7 +775,12 @@ class TestMLEngineHook(unittest.TestCase):
         cancel_job_response = self.hook.cancel_job(job_id=job_id, project_id=project_id)
 
         self.assertEqual(cancel_job_response, job_cancelled)
-        mock_get_conn.assert_has_calls([mock.call().projects().jobs().cancel(name=job_path),], any_order=True)
+        mock_get_conn.assert_has_calls(
+            [
+                mock.call().projects().jobs().cancel(name=job_path),
+            ],
+            any_order=True,
+        )
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_cancel_mlengine_job_nonexistent_job(self, mock_get_conn):
@@ -832,7 +837,12 @@ class TestMLEngineHook(unittest.TestCase):
         cancel_job_response = self.hook.cancel_job(job_id=job_id, project_id=project_id)
 
         self.assertEqual(cancel_job_response, job_cancelled)
-        mock_get_conn.assert_has_calls([mock.call().projects().jobs().cancel(name=job_path),], any_order=True)
+        mock_get_conn.assert_has_calls(
+            [
+                mock.call().projects().jobs().cancel(name=job_path),
+            ],
+            any_order=True,
+        )
 
 
 class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
@@ -913,7 +923,9 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         ) = operation_done
         # fmt: on
         set_default_version_response = self.hook.set_default_version(
-            model_name=model_name, version_name=version_name, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            model_name=model_name,
+            version_name=version_name,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
 
         self.assertEqual(set_default_version_response, operation_done)
@@ -1191,4 +1203,9 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         cancel_job_response = self.hook.cancel_job(job_id=job_id, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
 
         self.assertEqual(cancel_job_response, job_cancelled)
-        mock_get_conn.assert_has_calls([mock.call().projects().jobs().cancel(name=job_path),], any_order=True)
+        mock_get_conn.assert_has_calls(
+            [
+                mock.call().projects().jobs().cancel(name=job_path),
+            ],
+            any_order=True,
+        )

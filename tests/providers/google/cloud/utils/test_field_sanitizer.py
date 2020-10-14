@@ -104,7 +104,14 @@ class TestGcpBodyFieldSanitizer(unittest.TestCase):
         sanitizer.sanitize(body)
 
         self.assertEqual(
-            {"fields": [{"name": "instance"}, {"name": "instance1"}, {"name": "instance2"},]}, body
+            {
+                "fields": [
+                    {"name": "instance"},
+                    {"name": "instance1"},
+                    {"name": "instance2"},
+                ]
+            },
+            body,
         )
 
     def test_sanitize_should_remove_all_fields_in_any_nested_body(self):

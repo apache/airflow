@@ -38,6 +38,7 @@ class FileTaskHandler(logging.Handler):
     :param base_log_folder: Base log folder to place logs.
     :param filename_template: template filename string
     """
+
     def __init__(self, base_log_folder: str, filename_template: str):
         super().__init__()
         self.handler = None  # type: Optional[logging.FileHandler]
@@ -71,14 +72,24 @@ class FileTaskHandler(logging.Handler):
 
     def _render_filename(self, ti, try_number):
         if self.filename_jinja_template:
-            jinja_context = ti.get_template_context()
-            jinja_context['try_number'] = try_number
+            if hasattr(ti, 'task'):
+                jinja_context = ti.get_template_context()
+                jinja_context['try_number'] = try_number
+            else:
+                jinja_context = {
+                    'ti': ti,
+                    'ts': ti.execution_date.isoformat(),
+                    'try_number': try_number,
+                }
             return self.filename_jinja_template.render(**jinja_context)
 
         return self.filename_template.format(dag_id=ti.dag_id,
                                              task_id=ti.task_id,
                                              execution_date=ti.execution_date.isoformat(),
                                              try_number=try_number)
+
+    def _read_grouped_logs(self):
+        return False
 
     def _read(self, ti, try_number, metadata=None):  # pylint: disable=unused-argument
         """
@@ -107,14 +118,26 @@ class FileTaskHandler(logging.Handler):
             except Exception as e:  # pylint: disable=broad-except
                 log = "*** Failed to load local log file: {}\n".format(location)
                 log += "*** {}\n".format(str(e))
-        elif conf.get('core', 'executor') == 'KubernetesExecutor':
-            log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n\n'\
-                .format(ti.hostname)
-
+        elif conf.get('core', 'executor') == 'KubernetesExecutor':   # pylint: disable=too-many-nested-blocks
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
 
                 kube_client = get_kube_client()
+
+                if len(ti.hostname) >= 63:
+                    # Kubernetes takes the pod name and truncates it for the hostname. This truncated hostname
+                    # is returned for the fqdn to comply with the 63 character limit imposed by DNS standards
+                    # on any label of a FQDN.
+                    pod_list = kube_client.list_namespaced_pod(conf.get('kubernetes', 'namespace'))
+                    matches = [pod.metadata.name for pod in pod_list.items
+                               if pod.metadata.name.startswith(ti.hostname)]
+                    if len(matches) == 1:
+                        if len(matches[0]) > len(ti.hostname):
+                            ti.hostname = matches[0]
+
+                log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n\n'\
+                    .format(ti.hostname)
+
                 res = kube_client.read_namespaced_pod_log(
                     name=ti.hostname,
                     namespace=conf.get('kubernetes', 'namespace'),
@@ -168,7 +191,7 @@ class FileTaskHandler(logging.Handler):
                            it returns all logs separated by try_number
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
-        :return: a list of logs
+        :return: a list of listed tuples which order log string by host
         """
         # Task instance increments its try number when it starts to run.
         # So the log for a particular task try will only show up when
@@ -180,7 +203,7 @@ class FileTaskHandler(logging.Handler):
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
             logs = [
-                'Error fetching the logs. Try number {} is invalid.'.format(try_number),
+                [('default_host', 'Error fetching the logs. Try number {} is invalid.'.format(try_number))],
             ]
             return logs
         else:
@@ -190,7 +213,9 @@ class FileTaskHandler(logging.Handler):
         metadata_array = [{}] * len(try_numbers)
         for i, try_number_element in enumerate(try_numbers):
             log, metadata = self._read(task_instance, try_number_element, metadata)
-            logs[i] += log
+            # es_task_handler return logs grouped by host. wrap other handler returning log string
+            # with default/ empty host so that UI can render the response in the same way
+            logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
             metadata_array[i] = metadata
 
         return logs, metadata_array

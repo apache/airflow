@@ -147,7 +147,6 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     >>> round_time(datetime(2015, 9, 13, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
     datetime.datetime(2015, 9, 14, 0, 0)
     """
-
     if isinstance(delta, str):
         # It's cron based, so it's easy
         time_zone = start_date.tzinfo
@@ -166,7 +165,7 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     # which is as close as possible to dt. Since delta could be a relative
     # delta we don't know its exact length in seconds so we cannot rely on
     # division to find i. Instead we employ a binary search algorithm, first
-    # finding an upper and lower limit and then disecting the interval until
+    # finding an upper and lower limit and then dissecting the interval until
     # we have found the closest match.
 
     # We first search an upper limit for i for which start_date + upper * delta

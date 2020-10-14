@@ -28,11 +28,11 @@ class SambaHook(BaseHook):
     Allows for interaction with an samba server.
     """
 
-    def __init__(self, samba_conn_id):
+    def __init__(self, samba_conn_id: str) -> None:
         super().__init__()
         self.conn = self.get_connection(samba_conn_id)
 
-    def get_conn(self):
+    def get_conn(self) -> SambaClient:
         samba = SambaClient(
             server=self.conn.host,
             share=self.conn.schema,
@@ -42,7 +42,7 @@ class SambaHook(BaseHook):
         )
         return samba
 
-    def push_from_local(self, destination_filepath, local_filepath):
+    def push_from_local(self, destination_filepath: str, local_filepath: str) -> None:
         """
         Push local file to samba server
         """
