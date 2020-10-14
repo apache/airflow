@@ -43,7 +43,7 @@ from airflow.utils.session import provide_session
 
 @security.requires_access(
     [
-        ("can_read", "Dag"),
+        ("can_read", "AllDags"),
         ("can_read", "DagRun"),
         ("can_read", "Task"),
     ]
@@ -101,7 +101,7 @@ def _apply_range_filter(query, key, value_range: Tuple[Any, Any]):
 )
 @security.requires_access(
     [
-        ("can_read", "Dag"),
+        ("can_read", "AllDags"),
         ("can_read", "DagRun"),
         ("can_read", "Task"),
     ]
@@ -169,7 +169,7 @@ def get_task_instances(
     )
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task")])
+@security.requires_access([("can_read", "AllDags"), ("can_read", "DagRun"), ("can_read", "Task")])
 @provide_session
 def get_task_instances_batch(session=None):
     """
@@ -223,7 +223,7 @@ def get_task_instances_batch(session=None):
     )
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_edit", "Task")])
+@security.requires_access([("can_read", "AllDags"), ("can_read", "DagRun"), ("can_edit", "Task")])
 @provide_session
 def post_clear_task_instances(dag_id: str, session=None):
     """
@@ -263,7 +263,7 @@ def post_clear_task_instances(dag_id: str, session=None):
     )
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_edit", "Task")])
+@security.requires_access([("can_read", "AllDags"), ("can_read", "DagRun"), ("can_edit", "Task")])
 @provide_session
 def post_set_task_instances_state(dag_id, session):
     """Set a state of task instances."""
