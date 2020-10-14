@@ -381,8 +381,8 @@ class DagBag(BaseDagBag, LoggingMixin):
 
     def _is_system_module(self, module_name):
         """
-        :return: True if the module comes from the platform (and ought to stay loaded) or might come from
-        the actions of a DAG (in which case it's safer to unload it before reloading it)
+        :return True if the module comes from the platform (and ought to stay loaded) or might come from
+          the actions of a DAG (in which case it's safer to unload it before reloading it)
         """
 
         if module_name in ["sys", "types", "__main__", "websocket", "airflow"]:
