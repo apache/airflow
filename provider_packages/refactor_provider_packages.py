@@ -656,7 +656,7 @@ class RefactorBackportPackages:
 
         (
             self.qry.
-            select_class("airflow.kubernetes.pod_generator.PodGenerator").
+            select_class("KubernetesPodOperator").
             select_method("add_xcom_sidecar").
             filter(callback=kubernetes_package_filter).
             rename("add_sidecar")
