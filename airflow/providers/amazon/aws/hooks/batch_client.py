@@ -103,9 +103,9 @@ class AwsBatchProtocol(Protocol):
         jobName: str,
         jobQueue: str,
         jobDefinition: str,
-        arrayProperties: Dict,
-        parameters: Dict,
-        containerOverrides: Dict,
+        arrayProperties: Optional[Dict],
+        parameters: Optional[Dict],
+        containerOverrides: Optional[Dict],
     ) -> Dict:
         """
         Submit a batch job
@@ -120,13 +120,13 @@ class AwsBatchProtocol(Protocol):
         :type jobDefinition: str
 
         :param arrayProperties: the same parameter that boto3 will receive
-        :type arrayProperties: Dict
+        :type arrayProperties: Optional[Dict]
 
         :param parameters: the same parameter that boto3 will receive
-        :type parameters: Dict
+        :type parameters: Optional[Dict]
 
         :param containerOverrides: the same parameter that boto3 will receive
-        :type containerOverrides: Dict
+        :type containerOverrides: Optional[Dict]
 
         :return: an API response
         :rtype: Dict

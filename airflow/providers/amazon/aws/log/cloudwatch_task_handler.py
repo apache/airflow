@@ -39,7 +39,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     :type filename_template: str
     """
 
-    def __init__(self, base_log_folder, log_group_arn, filename_template):
+    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str):
         super().__init__(base_log_folder, filename_template)
         split_arn = log_group_arn.split(':')
 
@@ -99,7 +99,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             {'end_of_log': True},
         )
 
-    def get_cloudwatch_logs(self, stream_name):
+    def get_cloudwatch_logs(self, stream_name: str) -> str:
         """
         Return all logs from the given log stream.
 

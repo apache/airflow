@@ -19,6 +19,7 @@
 
 import logging
 import random
+from typing import Optional, List
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -108,19 +109,19 @@ class AWSDataSyncOperator(BaseOperator):
     def __init__(
         self,
         *,
-        aws_conn_id="aws_default",
-        wait_interval_seconds=5,
-        task_arn=None,
-        source_location_uri=None,
-        destination_location_uri=None,
-        allow_random_task_choice=False,
-        allow_random_location_choice=False,
-        create_task_kwargs=None,
-        create_source_location_kwargs=None,
-        create_destination_location_kwargs=None,
-        update_task_kwargs=None,
-        task_execution_kwargs=None,
-        delete_task_after_execution=False,
+        aws_conn_id: str = "aws_default",
+        wait_interval_seconds: int = 5,
+        task_arn: Optional[str] = None,
+        source_location_uri: Optional[str] = None,
+        destination_location_uri: Optional[str] = None,
+        allow_random_task_choice: bool = False,
+        allow_random_location_choice: bool = False,
+        create_task_kwargs: Optional[dict] = None,
+        create_source_location_kwargs: Optional[dict] = None,
+        create_destination_location_kwargs: Optional[dict] = None,
+        update_task_kwargs: Optional[dict] = None,
+        task_execution_kwargs: Optional[dict] = None,
+        delete_task_after_execution: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -163,27 +164,29 @@ class AWSDataSyncOperator(BaseOperator):
             )
 
         # Others
-        self.hook = None
+        self.hook: Optional[AWSDataSyncHook] = None
         # Candidates - these are found in AWS as possible things
         # for us to use
-        self.candidate_source_location_arns = None
-        self.candidate_destination_location_arns = None
-        self.candidate_task_arns = None
+        self.candidate_source_location_arns: Optional[List[str]] = None
+        self.candidate_destination_location_arns: Optional[List[str]] = None
+        self.candidate_task_arns: Optional[List[str]] = None
         # Actuals
-        self.source_location_arn = None
-        self.destination_location_arn = None
-        self.task_execution_arn = None
+        self.source_location_arn: Optional[str] = None
+        self.destination_location_arn: Optional[str] = None
+        self.task_execution_arn: Optional[str] = None
 
-    def get_hook(self):
+    def get_hook(self) -> AWSDataSyncHook:
         """Create and return AWSDataSyncHook.
 
         :return AWSDataSyncHook: An AWSDataSyncHook instance.
         """
-        if not self.hook:
-            self.hook = AWSDataSyncHook(
-                aws_conn_id=self.aws_conn_id,
-                wait_interval_seconds=self.wait_interval_seconds,
-            )
+        if self.hook:
+            return self.hook
+
+        self.hook = AWSDataSyncHook(
+            aws_conn_id=self.aws_conn_id,
+            wait_interval_seconds=self.wait_interval_seconds,
+        )
         return self.hook
 
     def execute(self, context):
@@ -221,7 +224,7 @@ class AWSDataSyncOperator(BaseOperator):
 
         return {"TaskArn": self.task_arn, "TaskExecutionArn": self.task_execution_arn}
 
-    def _get_tasks_and_locations(self):
+    def _get_tasks_and_locations(self) -> None:
         """Find existing DataSync Task based on source and dest Locations."""
         hook = self.get_hook()
 
@@ -244,7 +247,7 @@ class AWSDataSyncOperator(BaseOperator):
         )
         self.log.info("Found candidate DataSync TaskArns %s", self.candidate_task_arns)
 
-    def choose_task(self, task_arn_list):
+    def choose_task(self, task_arn_list: list) -> Optional[str]:
         """Select 1 DataSync TaskArn from a list"""
         if not task_arn_list:
             return None
@@ -258,7 +261,7 @@ class AWSDataSyncOperator(BaseOperator):
             return random.choice(task_arn_list)
         raise AirflowException("Unable to choose a Task from {}".format(task_arn_list))
 
-    def choose_location(self, location_arn_list):
+    def choose_location(self, location_arn_list: List[str]) -> Optional[str]:
         """Select 1 DataSync LocationArn from a list"""
         if not location_arn_list:
             return None
@@ -272,12 +275,15 @@ class AWSDataSyncOperator(BaseOperator):
             return random.choice(location_arn_list)
         raise AirflowException("Unable to choose a Location from {}".format(location_arn_list))
 
-    def _create_datasync_task(self):
+    def _create_datasync_task(self) -> None:
         """Create a AWS DataSyncTask."""
+        if not self.candidate_source_location_arns or not self.candidate_destination_location_arns:
+            return
+
         hook = self.get_hook()
 
         self.source_location_arn = self.choose_location(self.candidate_source_location_arns)
-        if not self.source_location_arn and self.create_source_location_kwargs:
+        if not self.source_location_arn and self.source_location_uri and self.create_source_location_kwargs:
             self.log.info('Attempting to create source Location')
             self.source_location_arn = hook.create_location(
                 self.source_location_uri, **self.create_source_location_kwargs
@@ -288,7 +294,11 @@ class AWSDataSyncOperator(BaseOperator):
             )
 
         self.destination_location_arn = self.choose_location(self.candidate_destination_location_arns)
-        if not self.destination_location_arn and self.create_destination_location_kwargs:
+        if (
+            not self.destination_location_arn
+            and self.destination_location_uri
+            and self.create_destination_location_kwargs
+        ):
             self.log.info('Attempting to create destination Location')
             self.destination_location_arn = hook.create_location(
                 self.destination_location_uri, **self.create_destination_location_kwargs
@@ -305,18 +315,22 @@ class AWSDataSyncOperator(BaseOperator):
         if not self.task_arn:
             raise AirflowException("Task could not be created")
         self.log.info("Created a Task with TaskArn %s", self.task_arn)
-        return self.task_arn
 
-    def _update_datasync_task(self):
+    def _update_datasync_task(self) -> None:
         """Update a AWS DataSyncTask."""
+        if not self.task_arn:
+            return
+
         hook = self.get_hook()
         self.log.info("Updating TaskArn %s", self.task_arn)
         hook.update_task(self.task_arn, **self.update_task_kwargs)
         self.log.info("Updated TaskArn %s", self.task_arn)
-        return self.task_arn
 
-    def _execute_datasync_task(self):
+    def _execute_datasync_task(self) -> None:
         """Create and monitor an AWSDataSync TaskExecution for a Task."""
+        if not self.task_arn:
+            raise AirflowException("Missing TaskArn")
+
         hook = self.get_hook()
 
         # Create a task execution:
@@ -340,9 +354,8 @@ class AWSDataSyncOperator(BaseOperator):
 
         if not result:
             raise AirflowException("Failed TaskExecutionArn %s" % self.task_execution_arn)
-        return self.task_execution_arn
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         """Cancel the submitted DataSync task."""
         hook = self.get_hook()
         if self.task_execution_arn:
@@ -350,16 +363,18 @@ class AWSDataSyncOperator(BaseOperator):
             hook.cancel_task_execution(task_execution_arn=self.task_execution_arn)
             self.log.info("Cancelled TaskExecutionArn %s", self.task_execution_arn)
 
-    def _delete_datasync_task(self):
+    def _delete_datasync_task(self) -> None:
         """Deletes an AWS DataSync Task."""
+        if not self.task_arn:
+            return
+
         hook = self.get_hook()
         # Delete task:
         self.log.info("Deleting Task with TaskArn %s", self.task_arn)
         hook.delete_task(self.task_arn)
         self.log.info("Task Deleted")
-        return self.task_arn
 
-    def _get_location_arns(self, location_uri):
+    def _get_location_arns(self, location_uri) -> List[str]:
         location_arns = self.get_hook().get_location_arns(location_uri)
         self.log.info("Found LocationArns %s for LocationUri %s", location_arns, location_uri)
         return location_arns
