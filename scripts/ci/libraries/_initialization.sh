@@ -130,7 +130,7 @@ function initialization::initialize_base_variables() {
     # during entering the container
     export INSTALL_WHEELS=${INSTALL_WHEELS:="false"}
 
-    # If set the specified file will be used to initialized Airflow after the environment is created,
+    # If set the specified file will be used to initialize Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
     export INIT_SCRIPT_FILE=${INIT_SCRIPT_FILE:=""}
 
