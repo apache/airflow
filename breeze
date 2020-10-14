@@ -944,6 +944,11 @@ function breeze::parse_arguments() {
             echo "Extras : ${AIRFLOW_EXTRAS}"
             shift 2
             ;;
+        --skip-installing-airflow-providers)
+            export INSTALL_PROVIDERS_FROM_SOURCES="false"
+            echo "Install all Airflow Providers: false"
+            shift
+            ;;
         --additional-extras)
             export ADDITIONAL_AIRFLOW_EXTRAS="${2}"
             echo "Additional extras : ${ADDITIONAL_AIRFLOW_EXTRAS}"
@@ -2323,6 +2328,11 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 
 --image-tag TAG
         Additional tag in the image.
+
+--skip-installing-airflow-providers
+        By default 'pip install' in Airflow 2.0 installs only the provider packages that
+        are needed by the extras but in Breeze (which is development environment) providers are
+        installed by default. You can disable it by adding this flag.
 
 --skip-installing-airflow-via-pip
         Skips installing Airflow via PIP. If you use this flag and want to install

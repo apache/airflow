@@ -43,6 +43,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+  INSTALL_PROVIDERS_FROM_SOURCES: "true"
 
   # You can switch between building the image in "Build Images" workflow or building them in CI workflow
   # Separately for each job.

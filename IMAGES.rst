@@ -388,7 +388,23 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | file has to be in docker context so      |
 |                                          |                                          | it's best to place such file in          |
 |                                          |                                          | one of the folders included in           |
-|                                          |                                          | dockerignore                             |
+|                                          |                                          | .dockerignore                            |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_CONSTRAINTS_REFERENCE``        | ``constraints-master``                   | reference (branch or tag) from GitHub    |
+|                                          |                                          | repository from which constraints are    |
+|                                          |                                          | used. By default it is set to            |
+|                                          |                                          | ``constraints-master`` but can be        |
+|                                          |                                          | ``constraints-1-10`` for 1.10.* versions |
+|                                          |                                          | or it could point to specific version    |
+|                                          |                                          | for example ``constraints-1.10.12``      |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_PROVIDERS_FROM_SOURCES``       | ``true``                                 | If set to false and image is built from  |
+|                                          |                                          | sources, all provider packages are not   |
+|                                          |                                          | installed. By default when building from |
+|                                          |                                          | sources, all provider packages are also  |
+|                                          |                                          | installed together with the core airflow |
+|                                          |                                          | package. It has no effect when           |
+|                                          |                                          | installing from PyPI or GitHub repo.     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_LOCAL_PIP_WHEELS``             | ``false``                                | If set to true, Airflow and it's         |
 |                                          |                                          | dependencies are installed from locally  |

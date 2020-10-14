@@ -1239,6 +1239,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
+  --skip-installing-airflow-providers
+          By default 'pip install' in Airflow 2.0 installs only the provider packages that
+          are needed by the extras but in Breeze (which is development environment) providers are
+          installed by default. You can disable it by adding this flag.
+
   --skip-installing-airflow-via-pip
           Skips installing Airflow via PIP. If you use this flag and want to install
           Airflow, you have to install Airflow from packages placed in
@@ -1758,6 +1763,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --image-tag TAG
           Additional tag in the image.
 
+  --skip-installing-airflow-providers
+          By default 'pip install' in Airflow 2.0 installs only the provider packages that
+          are needed by the extras but in Breeze (which is development environment) providers are
+          installed by default. You can disable it by adding this flag.
+
   --skip-installing-airflow-via-pip
           Skips installing Airflow via PIP. If you use this flag and want to install
           Airflow, you have to install Airflow from packages placed in
@@ -2231,6 +2241,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --image-tag TAG
           Additional tag in the image.
+
+  --skip-installing-airflow-providers
+          By default 'pip install' in Airflow 2.0 installs only the provider packages that
+          are needed by the extras but in Breeze (which is development environment) providers are
+          installed by default. You can disable it by adding this flag.
 
   --skip-installing-airflow-via-pip
           Skips installing Airflow via PIP. If you use this flag and want to install

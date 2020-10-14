@@ -387,6 +387,14 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_BRANCH``                       | ``master``                               | the branch from which PIP dependencies   |
 |                                          |                                          | are pre-installed initially              |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_CONSTRAINTS_LOCATION``         |                                          | If not empty, it will override the       |
+|                                          |                                          | source of the constraints with the       |
+|                                          |                                          | specified URL or file. Note that the     |
+|                                          |                                          | file has to be in docker context so      |
+|                                          |                                          | it's best to place such file in          |
+|                                          |                                          | one of the folders included in           |
+|                                          |                                          | .dockerignore                            |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE``        | ``constraints-master``                   | reference (branch or tag) from GitHub    |
 |                                          |                                          | repository from which constraints are    |
 |                                          |                                          | used. By default it is set to            |
@@ -394,6 +402,14 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | ``constraints-1-10`` for 1.10.* versions |
 |                                          |                                          | or it could point to specific version    |
 |                                          |                                          | for example ``constraints-1.10.12``      |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_PROVIDERS_FROM_SOURCES``       | ``true``                                 | If set to false and image is built from  |
+|                                          |                                          | sources, all provider packages are not   |
+|                                          |                                          | installed. By default when building from |
+|                                          |                                          | sources, all provider packages are also  |
+|                                          |                                          | installed together with the core airflow |
+|                                          |                                          | package. It has no effect when           |
+|                                          |                                          | installing from PyPI or GitHub repo.     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
@@ -650,3 +666,4 @@ This concept is implemented in the development version of the Helm Chart that is
 .. spelling::
 
    pypirc
+   dockerignore

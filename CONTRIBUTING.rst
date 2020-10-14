@@ -495,6 +495,10 @@ Limitations:
 They are optimized for repeatability of tests, maintainability and speed of building rather
 than production performance. The production images are not yet officially published.
 
+
+Airflow dependencies
+====================
+
 Extras
 ------
 
@@ -520,9 +524,94 @@ yandexcloud, all, devel_ci
 
   .. END EXTRAS HERE
 
+Provider packages
+-----------------
 
-Airflow dependencies
---------------------
+Airflow 2.0 is split into core and providers. They are delivered as separate packages:
+
+* ``apache-airflow`` - core of Apache Airflow
+* ``apache-airflow-providers-*`` - More than 50 provider packages to communicate with external services
+
+In Airflow 1.10 all those providers were installed together within one single package and when you installed
+airflow locally, from sources, they were also installed. In Airflow 2.0, providers are separated out,
+and not installed together with the core, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment
+variable to ``true``.
+
+In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
+but you can add ``--skip-installing-airflow-providers`` flag to Breeze to skip installing providers when
+building the images.
+
+One watch-out - providers are still always installed (or rather available) if you install airflow from
+sources using ``-e`` (or ``--editable``) flag. In such case airflow is read directly from the sources
+without copying airflow packages to the usual installation location, and since 'providers' folder is
+in this airflow folder - the providers package is importable.
+
+Some of the packages have cross-dependencies with other providers packages. This typically happens for
+transfer operators where operators use hooks from the other providers in case they are transferring
+data between the providers. The list of dependencies is maintained (automatically with pre-commits)
+in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
+The dependency list is automatically used during pypi packages generation.
+
+Cross-dependencies between provider packages are converted into extras - if you need functionality from
+the other provider package you can install it adding [extra] after the
+``apache-airflow-backport-providers-PROVIDER`` for example:
+``pip install apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP
+transfer operators from Amazon ECS.
+
+If you add a new dependency between different providers packages, it will be detected automatically during
+pre-commit phase and pre-commit will fail - and add entry in dependencies.json so that the package extra
+dependencies are properly added when package is installed.
+
+You can regenerate the whole list of provider dependencies by running this command (you need to have
+``pre-commits`` installed).
+
+.. code-block:: bash
+
+  pre-commit run build-providers-dependencies
+
+
+Here is the list of packages and their extras:
+
+
+  .. START PACKAGE DEPENDENCIES HERE
+
+========================== ===========================
+Package                    Extras
+========================== ===========================
+amazon                     apache.hive,google,imap,mongo,mysql,postgres,ssh
+apache.druid               apache.hive
+apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
+apache.livy                http
+dingding                   http
+discord                    http
+google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,postgres,presto,sftp
+hashicorp                  google
+microsoft.azure            google,oracle
+microsoft.mssql            odbc
+mysql                      amazon,presto,vertica
+opsgenie                   http
+postgres                   amazon
+sftp                       ssh
+slack                      http
+snowflake                  slack
+========================== ===========================
+
+  .. END PACKAGE DEPENDENCIES HERE
+
+Backport providers
+------------------
+
+You can also build backport provider packages for Airflow 1.10. They aim to provide a bridge when users
+of Airflow 1.10 want to migrate to Airflow 2.0. The backport packages are named similarly to the
+provider packages, but with "backport" added:
+
+* ``apache-airflow-backport-provider-*``
+
+Those backport providers are automatically refactored to work with Airflow 1.10.* and have a few
+limitations described in those packages.
+
+Dependency management
+=====================
 
 Airflow is not a standard python project. Most of the python projects fall into one of two types -
 application or library. As described in
@@ -541,7 +630,7 @@ This - seemingly unsolvable - puzzle is solved by having pinned constraints file
 as of airflow 1.10.10 and further improved with 1.10.12 (moved to separate orphan branches)
 
 Pinned constraint files
------------------------
+=======================
 
 By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
 still allowing the apache-airflow package to install. This means that ``apache-airflow`` package might fail to
@@ -592,70 +681,6 @@ use the right file for the right python version.
 The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` will be automatically regenerated by CI cron job
 every time after the ``setup.py`` is updated and pushed if the tests are successful. There are separate
 jobs for each python version.
-
-Backport providers packages
----------------------------
-
-**NOTE:** In case of problems with installation / development of provider packages
-check `troubleshooting installing provider packages <https://github
-.com/apache/airflow#troubleshooting-installing-backport-packages>`_.
-
-Since we are developing new operators in the master branch, we prepared provider packages ready to be
-installed for Airflow 1.10.* series. Those backport operators (the tested ones) are going to be released
-in PyPi and we are going to maintain the list at
-`Backported providers package page <https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series>`_
-
-Some of the packages have cross-dependencies with other providers packages. This typically happens for
-transfer operators where operators use hooks from the other providers in case they are transferring
-data between the providers. The list of dependencies is maintained (automatically with pre-commits)
-in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
-The dependency list is automatically used during pypi packages generation.
-
-Cross-dependencies between provider packages are converted into extras - if you need functionality from
-the other provider package you can install it adding [extra] after the
-apache-airflow-backport-providers-PROVIDER for example ``pip install
-apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP
-transfer operators from Amazon ECS.
-
-If you add a new dependency between different providers packages, it will be detected automatically during
-pre-commit phase and pre-commit will fail - and add entry in dependencies.json so that the package extra
-dependencies are properly added when package is installed.
-
-You can regenerate the whole list of provider dependencies by running this command (you need to have
-``pre-commits`` installed).
-
-.. code-block:: bash
-
-  pre-commit run build-providers-dependencies
-
-
-Here is the list of packages and their extras:
-
-
-  .. START PACKAGE DEPENDENCIES HERE
-
-========================== ===========================
-Package                    Extras
-========================== ===========================
-amazon                     apache.hive,google,imap,mongo,mysql,postgres,ssh
-apache.druid               apache.hive
-apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
-apache.livy                http
-dingding                   http
-discord                    http
-google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,postgres,presto,sftp
-hashicorp                  google
-microsoft.azure            google,oracle
-microsoft.mssql            odbc
-mysql                      amazon,presto,vertica
-opsgenie                   http
-postgres                   amazon
-sftp                       ssh
-slack                      http
-snowflake                  slack
-========================== ===========================
-
-  .. END PACKAGE DEPENDENCIES HERE
 
 Documentation
 =============

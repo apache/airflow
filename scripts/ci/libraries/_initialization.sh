@@ -144,6 +144,9 @@ function initialization::initialize_base_variables() {
     # If no Airflow Home defined - fallback to ${HOME}/airflow
     AIRFLOW_HOME_DIR=${AIRFLOW_HOME:=${HOME}/airflow}
     export AIRFLOW_HOME_DIR
+
+    INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
+    export INSTALL_PROVIDERS_FROM_SOURCES
 }
 
 # Determine current branch
