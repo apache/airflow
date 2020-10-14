@@ -120,3 +120,77 @@ class TestPluginsManager(unittest.TestCase):
             self.assertIn('AirflowTestPropertyPlugin', str(plugins_manager.plugins))
             self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
             self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
+
+    def test_should_warning_about_incompatible_plugins(self):
+        class AirflowAdminViewsPlugin(AirflowPlugin):
+            name = "test_admin_views_plugin"
+
+            admin_views = [mock.MagicMock()]
+
+        class AirflowAdminMenuLinksPlugin(AirflowPlugin):
+            name = "test_menu_links_plugin"
+
+            menu_links = [mock.MagicMock()]
+
+        with mock_plugin_manager(plugins=[
+            AirflowAdminViewsPlugin(),
+            AirflowAdminMenuLinksPlugin()
+        ]):
+            from airflow import plugins_manager
+
+            # assert not logs
+            with self.assertLogs(plugins_manager.log) as cm:
+                plugins_manager.initialize_web_ui_plugins()
+
+        self.assertEqual(cm.output, [
+            'WARNING:airflow.plugins_manager:Plugin \'test_admin_views_plugin\' may not be '
+            'compatible with the current Airflow version. Please contact the author of '
+            'the plugin.',
+            'WARNING:airflow.plugins_manager:Plugin \'test_menu_links_plugin\' may not be '
+            'compatible with the current Airflow version. Please contact the author of '
+            'the plugin.'
+        ])
+
+    def test_should_not_warning_about_fab_plugins(self):
+        class AirflowAdminViewsPlugin(AirflowPlugin):
+            name = "test_admin_views_plugin"
+
+            appbuilder_views = [mock.MagicMock()]
+
+        class AirflowAdminMenuLinksPlugin(AirflowPlugin):
+            name = "test_menu_links_plugin"
+
+            appbuilder_menu_items = [mock.MagicMock()]
+
+        with mock_plugin_manager(plugins=[
+            AirflowAdminViewsPlugin(),
+            AirflowAdminMenuLinksPlugin()
+        ]):
+            from airflow import plugins_manager
+
+            # assert not logs
+            with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
+                plugins_manager.initialize_web_ui_plugins()
+
+    def test_should_not_warning_about_fab_and_flask_admin_plugins(self):
+        class AirflowAdminViewsPlugin(AirflowPlugin):
+            name = "test_admin_views_plugin"
+
+            admin_views = [mock.MagicMock()]
+            appbuilder_views = [mock.MagicMock()]
+
+        class AirflowAdminMenuLinksPlugin(AirflowPlugin):
+            name = "test_menu_links_plugin"
+
+            menu_links = [mock.MagicMock()]
+            appbuilder_menu_items = [mock.MagicMock()]
+
+        with mock_plugin_manager(plugins=[
+            AirflowAdminViewsPlugin(),
+            AirflowAdminMenuLinksPlugin()
+        ]):
+            from airflow import plugins_manager
+
+            # assert not logs
+            with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
+                plugins_manager.initialize_web_ui_plugins()

@@ -45,7 +45,9 @@ macros_modules: Optional[List[Any]] = None
 executors_modules: Optional[List[Any]] = None
 
 # Plugin components to integrate directly
+admin_views: Optional[List[Any]] = None
 flask_blueprints: Optional[List[Any]] = None
+menu_links: Optional[List[Any]] = None
 flask_appbuilder_views: Optional[List[Any]] = None
 flask_appbuilder_menu_links: Optional[List[Any]] = None
 global_operator_extra_links: Optional[List[Any]] = None
@@ -71,7 +73,9 @@ class AirflowPlugin:
     hooks: List[Any] = []
     executors: List[Any] = []
     macros: List[Any] = []
+    admin_views: List[Any] = []
     flask_blueprints: List[Any] = []
+    menu_links: List[Any] = []
     appbuilder_views: List[Any] = []
     appbuilder_menu_items: List[Any] = []
 
@@ -230,7 +234,6 @@ def initialize_web_ui_plugins():
     """Collect extension points for WEB UI"""
     # pylint: disable=global-statement
     global plugins
-
     global flask_blueprints
     global flask_appbuilder_views
     global flask_appbuilder_menu_links
@@ -259,6 +262,14 @@ def initialize_web_ui_plugins():
             'name': plugin.name,
             'blueprint': bp
         } for bp in plugin.flask_blueprints])
+
+        if (plugin.admin_views and not plugin.appbuilder_views) or (
+                plugin.menu_links and not plugin.appbuilder_menu_items):
+            log.warning(
+                "Plugin \'%s\' may not be compatible with the current Airflow version. "
+                "Please contact the author of the plugin.",
+                plugin.name
+            )
 
 
 def initialize_extra_operators_links_plugins():
