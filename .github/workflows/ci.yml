@@ -70,30 +70,43 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
-      pythonVersions: ${{ steps.selective-tests.outputs.python-versions }}
-      defaultPythonVersion: ${{ steps.selective-tests.outputs.default-python-version }}
-      kubernetesVersions: ${{ steps.selective-tests.outputs.kubernetes-versions }}
-      defaultKubernetesVersion: ${{ steps.selective-tests.outputs.default-kubernetes-version }}
-      kubernetesModes: ${{ steps.selective-tests.outputs.kubernetes-modes }}
-      defaultKubernetesMode: ${{ steps.selective-tests.outputs.default-kubernetes-mode }}
-      postgresVersions: ${{ steps.selective-tests.outputs.postgres-versions }}
-      defaultPostgresVersion: ${{ steps.selective-tests.outputs.default-postgres-version }}
-      mysqlVersions: ${{ steps.selective-tests.outputs.mysql-versions }}
-      defaultMySQLVersion: ${{ steps.selective-tests.outputs.default-mysql-version }}
-      helmVersions: ${{ steps.selective-tests.outputs.helm-versions }}
-      defaultHelmVersion: ${{ steps.selective-tests.outputs.default-helm-version }}
-      kindVersions: ${{ steps.selective-tests.outputs.kind-versions }}
-      defaultKindVersion: ${{ steps.selective-tests.outputs.default-kind-version }}
-      testTypes: ${{ steps.selective-tests.outputs.test-types }}
-      postgresExclude: ${{ steps.selective-tests.outputs.postgres-exclude }}
-      mysqlExclude: ${{ steps.selective-tests.outputs.mysql-exclude }}
-      sqliteExclude: ${{ steps.selective-tests.outputs.sqlite-exclude }}
-      kubernetesExclude: ${{ steps.selective-tests.outputs.kubernetes-exclude }}
-      run-tests: ${{ steps.selective-tests.outputs.run-tests }}
-      run-kubernetes-tests: ${{ steps.selective-tests.outputs.run-kubernetes-tests }}
+      pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
+      defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
+      kubernetesVersions: ${{ steps.selective-checks.outputs.kubernetes-versions }}
+      defaultKubernetesVersion: ${{ steps.selective-checks.outputs.default-kubernetes-version }}
+      kubernetesModes: ${{ steps.selective-checks.outputs.kubernetes-modes }}
+      defaultKubernetesMode: ${{ steps.selective-checks.outputs.default-kubernetes-mode }}
+      postgresVersions: ${{ steps.selective-checks.outputs.postgres-versions }}
+      defaultPostgresVersion: ${{ steps.selective-checks.outputs.default-postgres-version }}
+      mysqlVersions: ${{ steps.selective-checks.outputs.mysql-versions }}
+      defaultMySQLVersion: ${{ steps.selective-checks.outputs.default-mysql-version }}
+      helmVersions: ${{ steps.selective-checks.outputs.helm-versions }}
+      defaultHelmVersion: ${{ steps.selective-checks.outputs.default-helm-version }}
+      kindVersions: ${{ steps.selective-checks.outputs.kind-versions }}
+      defaultKindVersion: ${{ steps.selective-checks.outputs.default-kind-version }}
+      testTypes: ${{ steps.selective-checks.outputs.test-types }}
+      postgresExclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
+      mysqlExclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
+      sqliteExclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
+      kubernetesExclude: ${{ steps.selective-checks.outputs.kubernetes-exclude }}
+      run-tests: ${{ steps.selective-checks.outputs.run-tests }}
+      run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
+      basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
+      needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
+      needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      # First fetch the sha of merge commit in case it is pull request so that we can
+      # Run selective tests
+      - name: >
+          Fetch merge commit ${{ github.ref }} ( ${{ github.sha }}:
+          merge_commit ${{ github.event.pull_request.merge_commit_sha }} )
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 2
+        if: github.event_name  == 'pull_request'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
         uses: actions/checkout@v2
       - name: >
           Event: ${{ github.event_name }}
@@ -101,27 +114,41 @@ jobs:
           Branch: ${{ github.head_ref }}
           Run id: ${{ github.run_id }}
           Sha: ${{ github.sha }}
+          Merge commit sha: ${{ github.merge_commit_sha }}
           Ref: ${{ github.ref }}
         run: printenv
       - name: Set wait for image
         id: wait-for-image
         run: |
-          if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
+          if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == 'true' ]]; then
               echo "::set-output name=wait-for-image::true"
           else
               echo "::set-output name=wait-for-image::false"
           fi
-      - name: Selective tests
-        id: selective-tests
-        run: ./scripts/ci/selective_tests.sh
+      - name: Selective checks
+        id: selective-checks
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          MERGE_COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          if [[ ${EVENT_NAME} == "pull_request" ]]; then
+            # Run selective checks
+            ./scripts/ci/selective_ci_checks.sh "${MERGE_COMMIT_SHA}"
+          else
+            # Run all checks
+            ./scripts/ci/selective_ci_checks.sh
+          fi
 
   helm-tests:
     timeout-minutes: 5
     name: "Checks: Helm tests"
     runs-on: ubuntu-latest
-    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    needs: [build-info]
+    if: >
+      needs.build-info.outputs.needs-helm-tests == 'true' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
         uses: actions/checkout@v2
       - name: "Helm Tests"
         run: ./scripts/ci/kubernetes/ci_run_helm_testing.sh
@@ -129,9 +156,11 @@ jobs:
   test-openapi-client-generation:
     name: "Test OpenAPI client generation"
     runs-on: ubuntu-latest
-    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    if: >
+      needs.build-info.outputs.needs-api-tests == 'true' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Generate client codegen diff"
         run: ./scripts/ci/openapi/client_codegen_diff.sh
@@ -141,11 +170,13 @@ jobs:
     name: "Wait for CI images"
     runs-on: ubuntu-latest
     needs: [build-info]
-    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     env:
       BACKEND: sqlite
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
       - name: "Setup python"
@@ -176,11 +207,11 @@ jobs:
       SKIP: "pylint"
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
-      # We want to make sure we have latest sources as only in_container scripts are added
-    # to the image but we want to static-check all of them
+    if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -202,19 +233,70 @@ jobs:
         env:
           VERBOSE: false
 
+  # Those checks are run if no image needs to be built for checks. This is for simple changes that
+  # Do not touch any of the python code or any of the important files that might require building
+  # The CI Docker image and they can be run entirely using the pre-commit virtual environments on host
+  static-checks-basic-checks-only:
+    timeout-minutes: 30
+    name: "Static checks: basic checks only"
+    runs-on: ubuntu-latest
+    needs: [build-info]
+    env:
+      SKIP: "build,mypy,flake8,pylint,bats-in-container-tests"
+      MOUNT_LOCAL_SOURCES: "true"
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+    if: >
+      needs.build-info.outputs.basic-checks-only == 'true' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
+    steps:
+      # First fetch the sha of merge commit. The basic-checks-only can only be true in pull_request event!
+      - name: >
+          Fetch merge commit ${{ github.ref }} ( ${{ github.sha }}:
+          merge_commit ${{ github.event.pull_request.merge_commit_sha }} )
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 2
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+      - name: Cache pre-commit env
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-pre-commit-master-basic-checks-v1
+        with:
+          path: ~/.cache/pre-commit
+          key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Static checks: basic checks only"
+        run: |
+          ./scripts/ci/static_checks/run_basic_static_checks.sh \
+              "${{ github.event.pull_request.merge_commit_sha }}"
+        env:
+          VERBOSE: false
+
+
   static-checks-pylint:
     timeout-minutes: 30
     name: "Pylint"
     runs-on: ubuntu-latest
     needs: [build-info, ci-images]
-    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     env:
       # We want to make sure we have latest sources as only in_container scripts are added
       # to the image but we want to static-check all of them
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -241,9 +323,11 @@ jobs:
     name: "Build docs"
     runs-on: ubuntu-latest
     needs: [ci-images]
-    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
@@ -263,9 +347,11 @@ jobs:
     needs: [build-info, ci-images]
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
         uses: actions/checkout@v2
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
@@ -281,9 +367,11 @@ jobs:
       INSTALL_AIRFLOW_VERSION: "1.10.12"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
-    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -316,9 +404,11 @@ jobs:
     env:
       INSTALL_AIRFLOW_VERSION: "2.0.0-dev"   # Note that this causes local installation
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -365,7 +455,7 @@ jobs:
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -411,7 +501,7 @@ jobs:
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -454,7 +544,7 @@ jobs:
         needs.build-info.outputs.run-tests == 'true' &&
         (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -503,7 +593,7 @@ jobs:
       needs.build-info.outputs.run-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -577,7 +667,9 @@ jobs:
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -622,7 +714,7 @@ jobs:
       needs.build-info.outputs.run-kubernetes-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -727,6 +819,7 @@ jobs:
       - docs
       - docs-spell-check
     if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
       github.event_name != 'schedule'
     strategy:
@@ -736,7 +829,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -768,11 +861,12 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
       github.event_name != 'pull' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -796,6 +890,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-info, constraints]
     if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
       github.event_name != 'pull' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -839,9 +934,11 @@ jobs:
       - tests-kubernetes
       - constraints-push
       - prepare-provider-packages
-    if: github.event_name == 'schedule' &&  github.repository == 'apache/airflow'
+    if: >
+      needs.build-info.outputs.basic-checks-only == 'false' &&
+      github.event_name == 'schedule' &&  github.repository == 'apache/airflow'
     steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }})"
         uses: actions/checkout@v2
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
