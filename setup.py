@@ -39,7 +39,6 @@ spec.loader.exec_module(mod)  # type: ignore
 version = mod.version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
-PY38 = PY3 and sys.version_info[1] >= 8
 
 my_dir = dirname(__file__)
 
@@ -328,7 +327,7 @@ mongo = [
     'pymongo>=3.6.0',
 ]
 mssql = [
-    'pymssql~=2.1.1',
+    'pymssql~=2.1,>=2.1.5',
 ]
 mysql = [
     'mysql-connector-python>=8.0.11, <=8.0.18',
@@ -647,11 +646,6 @@ PACKAGES_EXCLUDED_FOR_ALL = []
 if PY3:
     PACKAGES_EXCLUDED_FOR_ALL.extend([
         'snakebite',
-    ])
-
-if PY38:
-    PACKAGES_EXCLUDED_FOR_ALL.extend([
-        'pymssql',
     ])
 
 # Those packages are excluded because they break tests (downgrading mock) and they are
