@@ -21,6 +21,7 @@ import textwrap
 import unittest
 import sys
 from datetime import datetime, timezone
+from enum import Enum
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest.mock import patch
 from zipfile import ZipFile
@@ -40,6 +41,9 @@ from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 
+class DependencyPosition(Enum):
+    BEFORE = 1
+    AFTER = 2
 
 class TestDagBag(unittest.TestCase):
     @classmethod
@@ -164,20 +168,25 @@ class TestDagBag(unittest.TestCase):
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         self.assertTrue(dagbag.get_dag("test_zip_dag"))
 
-    def _generate_flat_test_dag_zip(self, path: str, dag_id: str, version_lib: str) -> str:
+    def _generate_flat_test_dag_zip(self, path: str, dag_id: str, version_lib: str, dependency_position: DependencyPosition) -> str:
         """
         generate a DAG zip file with a dependency and an import
         """
         dagpack_name = os.path.join(path, "test-dag-%s-with-%s.zip" % (dag_id, version_lib))
         with ZipFile(dagpack_name, mode='w') as zip_file:
-            with zip_file.open("dag_dependency.py", mode='w') as dep:
-                dep.write(("version = '%s'\n" % version_lib).encode())
+            if dependency_position == DependencyPosition.BEFORE:
+                with zip_file.open("dag_dependency.py", mode='w') as dep:
+                    dep.write(("version = '%s'\n" % version_lib).encode())
 
             with zip_file.open("dag.py", mode='w') as dag:
                 dag.write(("from airflow.models import DAG\n").encode())
                 dag.write(("from airflow.operators.dummy_operator import DummyOperator\n").encode())
+                dag.write(("from airflow.utils.log.logging_mixin import LoggingMixin\n").encode())
                 dag.write(("import dag_dependency\n").encode())
                 dag.write(("from datetime import datetime\n").encode())
+                dag.write(("\n").encode())
+                dag.write(("log = LoggingMixin().log\n").encode())
+                dag.write(("log.info('dag_dependency.version=%s' % dag_dependency.version)\n").encode())
                 dag.write(("\n").encode())
                 dag.write(("DEFAULT_DATE = datetime(2020, 1, 1)\n").encode())
                 dag.write(("\n").encode())
@@ -185,17 +194,22 @@ class TestDagBag(unittest.TestCase):
                 dag.write(("dag = DAG(dag_id='%s', description=dag_dependency.version, start_date=DEFAULT_DATE)\n" % dag_id).encode())
                 dag.write(("task = DummyOperator(task_id='test_task', dag=dag)\n").encode())
 
+            if dependency_position == DependencyPosition.AFTER:
+                with zip_file.open("dag_dependency.py", mode='w') as dep:
+                    dep.write(("version = '%s'\n" % version_lib).encode())
+            # please note that we write dag_dependency.py exactly once within the zip archive.
+
         return dagpack_name
 
-    def test_dag_zip_isolate_flat_local_modules(self):
+    def _test_dag_zip_isolate_flat_local_modules_inner(self, dependency_position: DependencyPosition):
         """
         test that in case multiple zips provide a library file, each DAG receives its local copy
         """
         test_dir = mkdtemp()
         try:
-            dagpack_a = self._generate_flat_test_dag_zip(test_dir, "dag-a", "dep-version-a")
-            dagpack_b = self._generate_flat_test_dag_zip(test_dir, "dag-b", "dep-version-b")
-            dagpack_c = self._generate_flat_test_dag_zip(test_dir, "dag-c", "dep-version-c")
+            dagpack_a = self._generate_flat_test_dag_zip(test_dir, "dag-a", "dep-version-a", dependency_position)
+            dagpack_b = self._generate_flat_test_dag_zip(test_dir, "dag-b", "dep-version-b", dependency_position)
+            dagpack_c = self._generate_flat_test_dag_zip(test_dir, "dag-c", "dep-version-c", dependency_position)
 
             dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
             dagbag.process_file(dagpack_a)
@@ -214,32 +228,48 @@ class TestDagBag(unittest.TestCase):
         finally:
             shutil.rmtree(test_dir)
 
-    def test_dag_zip_flat_dependency_overrides_system(self):
+    def test_dag_zip_isolate_flat_local_modules_inner_dep_before(self):
         """
-        test that in case a zip provides a dependency that is already loaded (at the site-packages level) then
-        the system-level dependency is ignored and the dag-provided dependency takes precedence
+        test that in case multiple zips provide a library file, each DAG receives its local copy
+
+        Case where the dependency modules are located in the zip file BEFORE the dag modules
         """
+        self._test_dag_zip_isolate_flat_local_modules_inner(DependencyPosition.BEFORE)
+
+    def test_dag_zip_isolate_flat_local_modules_inner_dep_after(self):
+        """
+        test that in case multiple zips provide a library file, each DAG receives its local copy
+
+        Case where the dependency modules are located in the zip file AFTER the dag modules
+        """
+        self._test_dag_zip_isolate_flat_local_modules_inner(DependencyPosition.AFTER)
+
+
+    def _test_dag_zip_flat_dependency_overrides_external_inner(self, dependency_position: DependencyPosition):
         test_dir = mkdtemp()
         original_modules = set(sys.modules.keys())
-        original_path = sys.path
+        original_path = [x for x in sys.path]
         try:
             with open(os.path.join(test_dir, "dag_dependency.py"), mode='w') as dep:
-                dep.write("version = 'SYSTEM'\n")
+                dep.write("version = 'EXTERNAL-FLAT'\n")
             sys.path.insert(0, test_dir)
-            import dag_dependency # this imports the file we just wrote here
+            import dag_dependency # this imports the file we just wrote here...
+            del sys.path[:1] # this is critical to this test variant: we ensure here the test_dir isn't considered SYSTEM
+
+            assert dag_dependency.version == "EXTERNAL-FLAT" # ... which we prove here
 
             dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
 
-            dagpack_a = self._generate_flat_test_dag_zip(test_dir, "dag-a", "dep-version-a")
-            dagpack_b = self._generate_flat_test_dag_zip(test_dir, "dag-b", "dep-version-b")
+            dagpack_a = self._generate_flat_test_dag_zip(test_dir, "dag-a", "dep-version-a", dependency_position)
+            dagpack_b = self._generate_flat_test_dag_zip(test_dir, "dag-b", "dep-version-b", dependency_position)
 
             dagbag.process_file(dagpack_a)
             dagbag.process_file(dagpack_b)
 
             dag_a = dagbag.get_dag('dag-a')
-            assert dag_a.description == "dep-version-a" # successfully overrides 'SYSTEM'
+            assert dag_a.description == "dep-version-a" # successfully overrides 'EXTERNAL-FLAT'
             dag_b = dagbag.get_dag('dag-b')
-            assert dag_b.description == "dep-version-b" # successfully overrides 'SYSTEM'
+            assert dag_b.description == "dep-version-b" # successfully overrides 'EXTERNAL-FLAT'
 
         finally:
             extra_modules = set(sys.modules.keys()) - original_modules
@@ -247,6 +277,86 @@ class TestDagBag(unittest.TestCase):
                 del sys.modules[extra_module]
             sys.path = original_path
             shutil.rmtree(test_dir)
+
+    def test_dag_zip_flat_dependency_overrides_external_before(self):
+        """
+        test that in case a zip provides a dependency that is already loaded from "not the system" (i.e. somewhere
+        that doesn't stay in sys.path beyond loading that module) then that exernally-provided dependency is ignored
+        and the dag-provided dependency takes precedence
+
+        This case handles the case where the dependency modules are in the zip file BEFORE the DAG module(s)
+        """
+        self._test_dag_zip_flat_dependency_overrides_external_inner(DependencyPosition.BEFORE)
+
+    def test_dag_zip_flat_dependency_overrides_external_after(self):
+        """
+        test that in case a zip provides a dependency that is already loaded from "not the system" (i.e. somewhere
+        that doesn't stay in sys.path beyond loading that module) then that exernally-provided dependency is ignored
+        and the dag-provided dependency takes precedence
+
+        This case handles the case where the dependency modules are in the zip file AFTER the DAG module(s)
+        """
+        self._test_dag_zip_flat_dependency_overrides_system_inner(DependencyPosition.AFTER)
+
+    def _test_dag_zip_flat_dependency_overrides_system_inner(self, dependency_position: DependencyPosition):
+        test_dir = mkdtemp()
+        original_modules = set(sys.modules.keys())
+        original_path = [x for x in sys.path]
+        try:
+            with open(os.path.join(test_dir, "dag_dependency.py"), mode='w') as dep:
+                dep.write("version = 'SYSTEM-FLAT'\n")
+            sys.path.insert(0, test_dir)
+            import dag_dependency # this imports the file we just wrote here...
+            assert dag_dependency.version == "SYSTEM-FLAT" # ... which we prove here
+
+            assert "dag_dependency" in list(sys.modules.keys())
+
+            # Note that "test_dir" stays in the path at the creation of the DagBag. It is therefore considered "system"
+
+            dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+
+            from airflow.utils.log.logging_mixin import LoggingMixin
+            log = LoggingMixin().log
+
+            log.warning("about to generate dagbags")
+
+            dagpack_a = self._generate_flat_test_dag_zip(test_dir, "dag-a", "dep-version-a", dependency_position)
+            dagpack_b = self._generate_flat_test_dag_zip(test_dir, "dag-b", "dep-version-b", dependency_position)
+
+            log.warning("about to load dagpack A")
+            dagbag.process_file(dagpack_a)
+            log.warning("about to load dagpack B")
+            dagbag.process_file(dagpack_b)
+
+            dag_a = dagbag.get_dag('dag-a')
+            assert dag_a.description == "dep-version-a" # overriding the system-provided module
+            dag_b = dagbag.get_dag('dag-b')
+            assert dag_b.description == "dep-version-b" # overriding the system-provided module
+
+        finally:
+            extra_modules = set(sys.modules.keys()) - original_modules
+            for extra_module in extra_modules:
+                del sys.modules[extra_module]
+            sys.path = original_path
+            shutil.rmtree(test_dir)
+
+    def test_dag_zip_flat_dependency_overrides_system_before(self):
+        """
+        test that in case a zip provides a dependency that is already loaded (at the site-packages level) then
+        the system-level dependency is ignored and the dag-provided dependency takes precedence
+
+        This case handles the case where the dependency modules are in the zip file BEFORE the DAG module(s)
+        """
+        self._test_dag_zip_flat_dependency_overrides_system_inner(DependencyPosition.BEFORE)
+
+    def test_dag_zip_flat_dependency_overrides_system_after(self):
+        """
+        test that in case a zip provides a dependency that is already loaded (at the site-packages level) then
+        the system-level dependency is ignored and the dag-provided dependency takes precedence
+
+        This case handles the case where the dependency modules are in the zip file AFTER the DAG module(s)
+        """
+        self._test_dag_zip_flat_dependency_overrides_system_inner(DependencyPosition.AFTER)
 
     def _generate_nested_test_dag_zip(self, path: str, dag_id: str, version_lib: str) -> str:
         """
@@ -313,7 +423,7 @@ class TestDagBag(unittest.TestCase):
         try:
             os.mkdir(os.path.join(test_dir, "dag_module"))
             with open(os.path.join(test_dir, "dag_module", "dag_dependency.py"), mode='w') as dep:
-                dep.write("version = 'SYSTEM'\n")
+                dep.write("version = 'SYSTEM-NESTED'\n")
             with open(os.path.join(test_dir, "dag_module", "__init__.py"), mode='w') as init:
                 init.write("# empty\n")
 
@@ -321,7 +431,9 @@ class TestDagBag(unittest.TestCase):
             dagpack_b = self._generate_nested_test_dag_zip(test_dir, "dag-b", "dep-version-b")
 
             sys.path.insert(0, test_dir)
+            import dag_module
             from dag_module.dag_dependency import version # this imports the file we just wrote here
+            assert version == "SYSTEM-NESTED" # prove we imported our module into the 'system' path
 
             dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
             dagbag.process_file(dagpack_a)
