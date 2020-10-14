@@ -258,10 +258,8 @@ with models.DAG(
     start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag:
-    pass
-
     # [START howto_operator_create_instance_memcached]
-    create_instance = CloudMemorystoreMemcachedCreateInstanceOperator(
+    create_memcached_instance = CloudMemorystoreMemcachedCreateInstanceOperator(
         task_id="create-instance",
         location="europe-north1",
         instance_id=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
@@ -271,7 +269,7 @@ with models.DAG(
     # [END howto_operator_create_instance_memcached]
 
     # [START howto_operator_delete_instance_memcached]
-    delete_instance = CloudMemorystoreMemcachedDeleteInstanceOperator(
+    delete_memcached_instance = CloudMemorystoreMemcachedDeleteInstanceOperator(
         task_id="delete-instance",
         location="europe-north1",
         instance=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
@@ -280,7 +278,7 @@ with models.DAG(
     # [END howto_operator_delete_instance_memcached]
 
     # [START howto_operator_get_instance_memcached]
-    get_instance = CloudMemorystoreMemcachedGetInstanceOperator(
+    get_memcached_instance = CloudMemorystoreMemcachedGetInstanceOperator(
         task_id="get-instance",
         location="europe-north1",
         instance=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
@@ -289,48 +287,44 @@ with models.DAG(
     # [END howto_operator_get_instance_memcached]
 
     # [START howto_operator_list_instances_memcached]
-    list_instances = CloudMemorystoreMemcachedListInstancesOperator(
+    list_memcached_instances = CloudMemorystoreMemcachedListInstancesOperator(
         task_id="list-instances", location="-", project_id=GCP_PROJECT_ID
     )
     # [END howto_operator_list_instances_memcached]
 
     # # [START howto_operator_update_instance_memcached]
-    mask = cloud_memcache.field_mask.FieldMask(paths=["displayName", "New Name"])
-
-    update_instance = CloudMemorystoreMemcachedUpdateInstanceOperator(
+    update_memcached_instance = CloudMemorystoreMemcachedUpdateInstanceOperator(
         task_id="update-instance",
         location="europe-north1",
         instance_id=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
         project_id=GCP_PROJECT_ID,
-        update_mask=mask,
-        instance={"memory_size_gb": 2},
+        update_mask=cloud_memcache.field_mask.FieldMask(paths=["node_count"]),
+        instance={"node_count": 2},
     )
     # [END howto_operator_update_instance_memcached]
 
     # [START howto_operator_update_and_apply_parameters_memcached]
-
-    update_parameters = CloudMemorystoreMemcachedUpdateParametersOperator(
+    update_memcached_parameters = CloudMemorystoreMemcachedUpdateParametersOperator(
         task_id="update-parameters",
         location="europe-north1",
         instance_id=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
         project_id=GCP_PROJECT_ID,
-        update_mask="protocol,hash_algorithm",
-        parameters={"protocol": "ascii", "hash_algorithm": "jenkins"},
+        update_mask={"paths": ["params"]},
+        parameters={"params": {"protocol": "ascii", "hash_algorithm": "jenkins"}},
     )
 
-    apply_parameters = CloudMemorystoreMemcachedApplyParametersOperator(
+    apply_memcached_parameters = CloudMemorystoreMemcachedApplyParametersOperator(
         task_id="apply-parameters",
         location="europe-north1",
         instance_id=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
         project_id=GCP_PROJECT_ID,
-        node_ids=["node-1", "node-2"],
+        node_ids=["node-a-1"],
         apply_all=False,
     )
 
     # update_parameters >> apply_parameters
     # [END howto_operator_update_and_apply_parameters_memcached]
 
-    # create_instance >> update_instance >> [list_instances, get_instance] >> update_parameters
-    create_instance >> [list_instances, get_instance] >> update_parameters
-    update_parameters >> apply_parameters
-    apply_parameters >> delete_instance
+    create_memcached_instance >> [list_memcached_instances, get_memcached_instance]
+    create_memcached_instance >> update_memcached_instance >> update_memcached_parameters
+    update_memcached_parameters >> apply_memcached_parameters >> delete_memcached_instance
