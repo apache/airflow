@@ -143,7 +143,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         :param return_error: if True, returns a string error message if an
             error occurs. Otherwise returns '' when an error occurs.
         :type return_error: bool
-        :return the log found at the remote_log_location
+        :return: the log found at the remote_log_location
         """
         try:
             return self.hook.read_key(remote_log_location)
