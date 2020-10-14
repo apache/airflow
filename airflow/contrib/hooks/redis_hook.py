@@ -22,6 +22,7 @@ RedisHook module
 """
 from redis import Redis
 from airflow.hooks.base_hook import BaseHook
+from rediscluster import RedisCluster
 
 
 class RedisHook(BaseHook):
@@ -43,6 +44,7 @@ class RedisHook(BaseHook):
         self.password = None
         self.db = None
         self.health_check_interval = health_check_interval
+        self.startup_nodes = []
 
     def get_conn(self) -> Redis:
         """
@@ -53,17 +55,19 @@ class RedisHook(BaseHook):
         self.port = conn.port
         self.password = None if str(conn.password).lower() in ['none', 'false', ''] else conn.password
         self.db = conn.extra_dejson.get('db', None)
+        self.startup_nodes = conn.extra_dejson.get('startup_nodes', [])
 
         if not self.redis:
             self.log.debug(
                 'Initializing redis object for conn_id "%s" on %s:%s:%s',
                 self.redis_conn_id, self.host, self.port, self.db
             )
-            self.redis = Redis(
+            self.redis = RedisCluster(
                 health_check_interval=self.health_check_interval,
                 host=self.host,
                 port=self.port,
                 password=self.password,
-                db=self.db)
+                db=self.db,
+                startup_nodes=self.startup_nodes)
 
         return self.redis

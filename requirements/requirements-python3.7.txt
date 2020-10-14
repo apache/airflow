@@ -314,3 +314,4 @@ yamllint==1.20.0
 zdesk==2.7.1
 zipp==3.1.0
 zope.deprecation==4.4.0
+redis-py-cluster==2.1.0
