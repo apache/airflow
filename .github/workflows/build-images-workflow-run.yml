@@ -184,9 +184,12 @@ jobs:
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
-      pythonVersions: ${{ steps.versions.outputs.python-versions }}
-      allPythonVersions: ${{ steps.versions.outputs.all-python-versions }}
-      defaultPythonVersion: ${{ steps.versions.outputs.default-python-version }}
+      pythonVersions: ${{ steps.selective-tests.python-versions }}
+      allPythonVersions: ${{ steps.selective-tests.outputs.all-python-versions }}
+      defaultPythonVersion: ${{ steps.selective-tests.outputs.default-python-version }}
+      run-tests: ${{ steps.selective-tests.outputs.run-tests }}
+      run-kubernetes-tests: ${{ steps.selective-tests.outputs.run-kubernetes-tests }}
+      needs-image-build: ${{ steps.selective-tests.outputs.needs-image-build }}
     if: >
       needs.cancel-workflow-runs.outputs.buildImages == 'true' &&
       (github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule')
@@ -205,17 +208,9 @@ jobs:
           Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
         run: |
           printenv
-      - name: Set versions
-        id: versions
-        run: |
-          . ./scripts/ci/libraries/_script_init.sh
-
-          initialization::ga_output python-versions \
-              "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
-          initialization::ga_output default-python-version "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[0]}"
-
-          initialization::ga_output all-python-versions \
-              "$(initialization::parameters_to_json "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
+      - name: Selective tests
+        id: selective-tests
+        run: ./scripts/ci/selective_tests.sh ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
 
   build-images:
     timeout-minutes: 80
@@ -230,6 +225,7 @@ jobs:
         image-type: [CI, PROD]
       fail-fast: true
     if: >
+      needs.build-info.outputs.needs-image-build &&
       needs.cancel-workflow-runs.outputs.buildImages == 'true' &&
       (github.repository == 'apache/airflow' || github.event.workflow_run.event != 'schedule')
     env:

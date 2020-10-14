@@ -24,6 +24,8 @@ function output_all_basic_variables() {
     initialization::ga_output python-versions \
         "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
     initialization::ga_output default-python-version "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+    initialization::ga_output all-python-versions \
+        "$(initialization::parameters_to_json "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
 
     initialization::ga_output kubernetes-versions \
         "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_VERSIONS[@]}")"
@@ -58,28 +60,57 @@ function output_all_basic_variables() {
     initialization::ga_output kubernetes-exclude '[]'
 }
 
-function set_outputs_run_all_tests() {
+function run_tests() {
     initialization::ga_output run-tests "true"
+}
+
+function skip_running_tests() {
+    initialization::ga_output run-tests "false"
+}
+
+function run_kubernetes_tests() {
     initialization::ga_output run-kubernetes-tests "true"
+}
+
+function skip_running_kubernetes_tests() {
+    initialization::ga_output run-kubernetes-tests "false"
+}
+
+function needs_image_build() {
+    initialization::ga_output needs-image-build "true"
+    initialization::ga_output skip-for-static-checks "pylint"
+}
+
+function does_not_need_image_build() {
+    initialization::ga_output needs-image-build "false"
+    initialization::ga_output skip-for-static-checks "build,mypy,flake8,pylint"
+}
+
+function set_outputs_run_all_tests() {
+    needs_image_build
+    run_tests
+    run_kubernetes_tests
     initialization::ga_output test-types "Core Other API CLI Providers WWW Integration Heisentests"
+    exit
 }
 
 function set_output_skip_all_tests() {
-    initialization::ga_output run-tests "false"
-    initialization::ga_output run-kubernetes-tests "false"
+    does_not_need_image_build
+    skip_running_tests
+    skip_running_kubernetes_tests
     initialization::ga_output test-types ""
+    exit
 }
 
-function initialize_git_repo() {
-    git remote add target "https://github.com/${CI_TARGET_REPO}"
-    git fetch target "${CI_TARGET_BRANCH}:${CI_TARGET_BRANCH}" --depth=1
+function get_changed_files() {
+    local commit_sha=${1}
     echo
-    echo "My commit SHA: ${COMMIT_SHA}"
+    echo "Merge commit SHA: ${commit_sha}"
     echo
     echo
-    echo "Retrieved changed files from ${COMMIT_SHA} comparing to ${CI_TARGET_BRANCH} in ${CI_TARGET_REPO}"
+    echo "Retrieved changed files from ${commit_sha}"
     echo
-    CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${COMMIT_SHA}" "${CI_TARGET_BRANCH}" || true)
+    CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${commit_sha}" || true)
     echo
     echo "Changed files:"
     echo
@@ -131,12 +162,28 @@ function run_all_tests_when_push_or_schedule() {
         echo "Always run all tests in case of push/schedule events"
         echo
         set_outputs_run_all_tests
-        exit
+    fi
+}
+
+function check_if_docs_should_be_generated() {
+    DOC_TRIGGERING_PATTERNS=(
+        "\.rst$"
+        "\.py$"
+    )
+    readonly DOC_TRIGGERING_PATTERNS
+
+    pattern_array=("${DOC_TRIGGERING_PATTERNS[@]}")
+    show_changed_files "$(get_regexp_from_patterns)"
+
+    if [[ $(count_changed_files) == "0" ]]; then
+        echo "None of the docs changed"
+    else
+        image_build_needed="true"
     fi
 }
 
 function check_if_tests_should_be_run_at_all() {
-    TEST_TRIGGERING_PATTERNS=(
+    DOC_TRIGGERING_PATTERNS=(
         "^airflow"
         "^.github/workflows/"
         "^Dockerfile"
@@ -146,17 +193,17 @@ function check_if_tests_should_be_run_at_all() {
         "^tests"
         "^kubernetes_tests"
     )
-    readonly TEST_TRIGGERING_PATTERNS
+    readonly DOC_TRIGGERING_PATTERNS
 
-    pattern_array=("${TEST_TRIGGERING_PATTERNS[@]}")
+    pattern_array=("${DOC_TRIGGERING_PATTERNS[@]}")
     show_changed_files "$(get_regexp_from_patterns)"
 
     if [[ $(count_changed_files) == "0" ]]; then
         echo "None of the important files changed, Skipping tests"
         set_output_skip_all_tests
-        exit
     else
-        initialization::ga_output run-tests "true"
+        image_build_needed="true"
+        tests_needed="true"
     fi
 }
 
@@ -175,7 +222,6 @@ function check_if_environment_files_changed() {
     if [[ $(count_changed_files) != "0" ]]; then
         echo "Important environment files changed. Running all tests"
         set_outputs_run_all_tests
-        exit
     fi
 }
 
@@ -284,9 +330,7 @@ function calculate_test_types_to_run() {
     echo
     echo "Count Core/Other files"
     echo
-    COUNT_CORE_OTHER_CHANGED_FILES=$((COUNT_ALL_CHANGED_FILES - COUNT_WWW_CHANGED_FILES - \
-        COUNT_PROVIDERS_CHANGED_FILES - COUNT_CLI_CHANGED_FILES - COUNT_API_CHANGED_FILES - \
-        COUNT_KUBERNETES_CHANGED_FILES))
+    COUNT_CORE_OTHER_CHANGED_FILES=$((COUNT_ALL_CHANGED_FILES - COUNT_WWW_CHANGED_FILES - COUNT_PROVIDERS_CHANGED_FILES - COUNT_CLI_CHANGED_FILES - COUNT_API_CHANGED_FILES - COUNT_KUBERNETES_CHANGED_FILES))
 
     readonly COUNT_CORE_OTHER_CHANGED_FILES
     echo
@@ -301,11 +345,9 @@ function calculate_test_types_to_run() {
         set_outputs_run_all_tests
     else
         if [[ ${COUNT_KUBERNETES_CHANGED_FILES} != "0" ]]; then
-            initialization::ga_output run-kubernetes-tests "true"
-        else
-            initialization::ga_output run-kubernetes-tests "false"
+            kubernetes_tests_needed="true"
         fi
-        initialization::ga_output run-tests "true"
+        tests_needed="true"
         SELECTED_TESTS=""
         if [[ ${COUNT_API_CHANGED_FILES} != "0" ]]; then
             echo
@@ -336,8 +378,23 @@ function calculate_test_types_to_run() {
 }
 
 output_all_basic_variables
+
+if (( $# < 1 )); then
+    echo
+    echo "Did not receive commit SHA - running all tests"
+    echo
+    set_outputs_run_all_tests
+fi
+
+COMMIT_SHA="${1}"
+readonly COMMIT_SHA
+
+image_build_needed="false"
+tests_needed="false"
+kubernetes_tests_needed="false"
+
 run_all_tests_when_push_or_schedule
-initialize_git_repo
+get_changed_files "${COMMIT_SHA}"
 check_if_tests_should_be_run_at_all
 check_if_environment_files_changed
 get_count_all_files
@@ -347,3 +404,21 @@ get_count_providers_files
 get_count_www_files
 get_count_kubernetes_files
 calculate_test_types_to_run
+
+if [[ ${image_build_needed} == "true" ]]; then
+    needs_image_build
+else
+    does_not_need_image_build
+fi
+
+if [[ ${tests_needed} == "true" ]]; then
+    run_tests
+else
+    skip_running_tests
+fi
+
+if [[ ${kubernetes_tests_needed} == "true" ]]; then
+    run_kubernetes_tests
+else
+    skip_running_kubernetes_tests
+fi
