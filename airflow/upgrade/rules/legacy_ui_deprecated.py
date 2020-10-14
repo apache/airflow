@@ -23,10 +23,8 @@ from airflow.upgrade.rules.base_rule import BaseRule
 DESCRIPTION = """\
 Previously we were using two versions of UI, which were hard to maintain as we
 need to implement/update the same feature in both versions. With this release
-we've removed the older UI in favor of Flask App Builder RBAC UI. No need to
-set the RBAC UI explicitly in the configuration now as this is the only default
-UI. We did it to avoid the huge maintenance burden of two independent user
-interfaces.\
+we've removed the older UI in favor of Flask App Builder RBAC UI. We did it
+to avoid the huge maintenance burden of two independent user interfaces.\
 
 Before upgrading to this release, we recommend activating the new FAB RBAC UI.
 For that, you should set the ``rbac`` options in ``[webserver]`` in
