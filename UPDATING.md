@@ -1002,7 +1002,7 @@ called `my_plugin` then your configuration looks like this
 
 ```ini
 [core]
-executor = my_plguin.MyCustomExecutor
+executor = my_plugin.MyCustomExecutor
 ```
 And now it should look like this:
 ```ini
