@@ -43,7 +43,7 @@ class TestCassandraHook(unittest.TestCase):
                 host='host-1,host-2',
                 port='9042',
                 schema='test_keyspace',
-                extra='{"load_balancing_policy":"TokenAwarePolicy"}',
+                extra='{"load_balancing_policy":"TokenAwarePolicy","protocol_version":4}',
             )
         )
         db.merge_conn(
@@ -84,6 +84,7 @@ class TestCassandraHook(unittest.TestCase):
             cluster = hook.get_cluster()
             self.assertEqual(cluster.contact_points, ['host-1', 'host-2'])
             self.assertEqual(cluster.port, 9042)
+            self.assertEqual(cluster.protocol_version, 4)
             self.assertTrue(isinstance(cluster.load_balancing_policy, TokenAwarePolicy))
 
     def test_get_lb_policy_with_no_args(self):

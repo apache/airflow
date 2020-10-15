@@ -16,10 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated due to the discontinuation of the pymssql project.
-See https://github.com/pymssql/pymssql/issues/668.
-Support for pymssql will be removed in Airflow 2.0.
-Please use :mod:`~airflow.providers.odbc.hooks.odbc`.
+Microsoft SQLServer hook module
 """
 
 import warnings
@@ -28,25 +25,9 @@ import pymssql
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
-warnings.warn(
-    (
-        "This module is deprecated due to the discontinuation of the pymssql project.\n"
-        "See https://github.com/pymssql/pymssql/issues/668.\n"
-        "Support for pymssql will be removed in airflow 2.0.\n"
-        "Please use `airflow.providers.odbc.hooks.odbc`.\n"
-    ),
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 
 class MsSqlHook(DbApiHook):
     """
-    .. warning::
-
-        This class is deprecated.
-        Please use :py:class:`~airflow.providers.odbc.hooks.odbc.OdbcHook`.
-
     Interact with Microsoft SQL Server.
     """
 
