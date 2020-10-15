@@ -2337,7 +2337,7 @@ class GreatExpectationsBigQueryOperator(GreatExpectationsBaseOperator):
             batch_kwargs["table"] = self.validation_type_input
             batch_kwargs["data_asset_name"] = self.bq_dataset_name
 
-        log.info("batch_kwargs: " + str(batch_kwargs))
+        self.log.info("batch_kwargs: " + str(batch_kwargs))
 
         return batch_kwargs
 
