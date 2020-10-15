@@ -103,7 +103,7 @@ def dag_backfill(args, dag=None):
     args.start_date = args.start_date or args.end_date
 
     if args.task_regex:
-        dag = dag.sub_dag(
+        dag = dag.partial_subset(
             task_regex=args.task_regex,
             include_upstream=not args.ignore_dependencies)
 

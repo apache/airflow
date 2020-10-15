@@ -393,11 +393,18 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_LOCAL_PIP_WHEELS``             | ``false``                                | If set to true, Airflow and it's         |
 |                                          |                                          | dependencies are installed from locally  |
 |                                          |                                          | downloaded .whl files placed in the      |
-|                                          |                                          | ``docker-context-files``. Implies        |
-|                                          |                                          | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      |
-|                                          |                                          | to be false.                             |
+|                                          |                                          | ``docker-context-files``.                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | ``all``                                  | extras to install                        |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_AIRFLOW_VIA_PIP``              | ``false``                                | If set to true, Airflow is installed via |
+|                                          |                                          | pip install. if you want to install      |
+|                                          |                                          | Airflow from externally provided binary  |
+|                                          |                                          | package you can set it to false, place   |
+|                                          |                                          | the package in ``docker-context-files``  |
+|                                          |                                          | and set ``AIRFLOW_LOCAL_PIP_WHEELS`` to  |
+|                                          |                                          | true. You have to also set to true the   |
+|                                          |                                          | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES`` flag |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
 |                                          |                                          | from the GitHub of Apache Airflow        |
