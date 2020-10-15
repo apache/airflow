@@ -47,7 +47,7 @@ class ClsRedisConnection(ClsEntity):
 
     @property
     def pipeline(self) -> Pipeline:
-        return self.redis.pipeline(transaction=True)
+        return self.redis.pipeline()
 
     def doSubscribe(self):
         if not self.pubsub:
@@ -79,7 +79,7 @@ class ClsRedisConnection(ClsEntity):
             for key, val in templates.items():
                 _logger.debug("storing template, key: {} ...".format(key))
                 channel = gen_template_key(key)
-                p.set(channel, value=json.dumps(val))
+                p.set(channel, value=val)
             p.execute()
 
     def run(self):

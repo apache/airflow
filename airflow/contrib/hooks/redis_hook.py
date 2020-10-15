@@ -23,6 +23,12 @@ RedisHook module
 from redis import Redis
 from airflow.hooks.base_hook import BaseHook
 from rediscluster import RedisCluster
+import logging
+
+logging.basicConfig()
+logger = logging.getLogger('rediscluster')
+logger.setLevel(logging.DEBUG)
+logger.propagate = True
 
 
 class RedisHook(BaseHook):
@@ -77,8 +83,7 @@ class RedisHook(BaseHook):
                     port=self.port,
                     startup_nodes=self.startup_nodes,
                     health_check_interval=self.health_check_interval,
-                    password=self.password,
-                    db=self.db
+                    password=self.password
                 )
 
         return self.redis
