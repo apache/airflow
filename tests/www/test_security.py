@@ -106,21 +106,21 @@ class TestSecurity(unittest.TestCase):
     def assert_user_has_dag_perms(self, perms, dag_id, user=None):
         for perm in perms:
             self.assertTrue(
-                self._has_dag_perm(perm, dag_id, user), "User should have '{}' on DAG '{}'".format(perm, dag_id)
+                self._has_dag_perm(perm, dag_id, user),
+                "User should have '{}' on DAG '{}'".format(perm, dag_id),
             )
 
     def assert_user_does_not_have_dag_perms(self, dag_id, perms, user=None):
         for perm in perms:
             self.assertFalse(
-                self._has_dag_perm(perm, dag_id, user), "User should not have '{}' on DAG '{}'".format(perm, dag_id)
+                self._has_dag_perm(perm, dag_id, user),
+                "User should not have '{}' on DAG '{}'".format(perm, dag_id),
             )
 
     def _has_dag_perm(self, perm, dag_id, user):
         # if not user:
         #     user = self.user
-        return self.security_manager.has_access(
-            perm, self.security_manager.prefixed_dag_id(dag_id), user
-        )
+        return self.security_manager.has_access(perm, self.security_manager.prefixed_dag_id(dag_id), user)
 
     def tearDown(self):
         clear_db_runs()
@@ -177,20 +177,11 @@ class TestSecurity(unittest.TestCase):
         username = 'get_all_permissions_views'
 
         with self.app.app_context():
-            user = fab_utils.create_user(
-                self.app,
-                username,
-                role_name,
-                permissions=[
-                    (role_perm, role_vm),
-                ],
-            )
+            user = fab_utils.create_user(self.app, username, role_name, permissions=[(role_perm, role_vm),],)
             role = user.roles[0]
             mock_get_user_roles.return_value = [role]
 
-            self.assertEqual(
-                self.security_manager.get_all_permissions_views(), {(role_perm, role_vm)}
-            )
+            self.assertEqual(self.security_manager.get_all_permissions_views(), {(role_perm, role_vm)})
 
             mock_get_user_roles.return_value = []
             self.assertEqual(len(self.security_manager.get_all_permissions_views()), 0)
@@ -202,14 +193,14 @@ class TestSecurity(unittest.TestCase):
         username = "ElUser"
 
         user = fab_utils.create_user(
-                self.app,
-                username,
-                role_name,
-                permissions=[
-                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
-                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
-                ],
-            )
+            self.app,
+            username,
+            role_name,
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+            ],
+        )
 
         dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
         self.session.add(dag_model)
@@ -274,9 +265,7 @@ class TestSecurity(unittest.TestCase):
                 ],
             )
             self.assertTrue(
-                self.security_manager.has_access(
-                    permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS, user
-                )
+                self.security_manager.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS, user)
             )
             self.assertFalse(self.security_manager.has_access(permissions.ACTION_CAN_READ, 'Task', user))
 
@@ -286,11 +275,7 @@ class TestSecurity(unittest.TestCase):
             'can_eat_pudding',  # clearly not a real permission
         ]
         username = "LaUser"
-        user = fab_utils.create_user(
-            self.app,
-            username=username,
-            role_name='team-a',
-        )
+        user = fab_utils.create_user(self.app, username=username, role_name='team-a',)
         for permission in invalid_permissions:
             self.expect_user_is_in_role(user, rolename='team-a')
             with self.assertRaises(AirflowException) as context:
@@ -303,12 +288,7 @@ class TestSecurity(unittest.TestCase):
         username = 'access_control_is_set_on_init'
         role_name = 'team-a'
         with self.app.app_context():
-            user = fab_utils.create_user(
-                    self.app,
-                    username,
-                    role_name,
-                    permissions=[],
-                )
+            user = fab_utils.create_user(self.app, username, role_name, permissions=[],)
             self.expect_user_is_in_role(user, rolename='team-a')
             self.security_manager.sync_perm_for_dag(
                 'access_control_test', access_control={'team-a': ['can_edit', 'can_read']}
@@ -326,22 +306,17 @@ class TestSecurity(unittest.TestCase):
         username = 'access_control_stale_perms_are_revoked'
         role_name = 'team-a'
         with self.app.app_context():
-            user = fab_utils.create_user(
-                    self.app,
-                    username,
-                    role_name,
-                    permissions=[],
-                )
+            user = fab_utils.create_user(self.app, username, role_name, permissions=[],)
             self.expect_user_is_in_role(user, rolename='team-a')
-            self.security_manager.sync_perm_for_dag('access_control_test', access_control={'team-a': READ_WRITE})
-            self.assert_user_has_dag_perms(
-                perms=READ_WRITE, dag_id='access_control_test', user=user
+            self.security_manager.sync_perm_for_dag(
+                'access_control_test', access_control={'team-a': READ_WRITE}
             )
+            self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id='access_control_test', user=user)
 
-            self.security_manager.sync_perm_for_dag('access_control_test', access_control={'team-a': READ_ONLY})
-            self.assert_user_has_dag_perms(
-                perms=['can_read'], dag_id='access_control_test', user=user
+            self.security_manager.sync_perm_for_dag(
+                'access_control_test', access_control={'team-a': READ_ONLY}
             )
+            self.assert_user_has_dag_perms(perms=['can_read'], dag_id='access_control_test', user=user)
             self.assert_user_does_not_have_dag_perms(
                 perms=['can_edit'], dag_id='access_control_test', user=user
             )

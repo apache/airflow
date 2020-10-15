@@ -1654,7 +1654,6 @@ class TestDagACLView(TestBase):
             if user:
                 cls.appbuilder.sm.del_register_user(user)
 
-
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
         self.bash_dag = dagbag.dags['example_bash_operator']
