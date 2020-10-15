@@ -80,20 +80,16 @@
       <input type="search" class="form-control" id="searchbox" placeholder="Find Task…">
     </div>
   </div>
-  <div>
-    {% for op in operators %}
-      <div class="legend_item" style="border-width:1px;float:left;background:{{ op.ui_color }};color:{{ op.ui_fgcolor }};">
-        {{ op.task_type }}
-      </div>
-    {% endfor %}
 
+  <div class="legend-row">
     <div>
-      <div class="legend_item state" style="border-color:white;">no_status</div>
-      {% for state, state_color in state_color_mapping.items() %}
-        <div class="legend_item state" style="border-color:{{state_color}};">{{state}}</div>
-      {% endfor %}
+      {% for op in operators %}<span class="legend-item" style="color: {{ op.ui_fgcolor }};background: {{ op.ui_color }};">
+        {{ op.task_type }}</span>{% endfor %}
     </div>
-    <div style="clear:both;"></div>
+    <div>
+      {% for state, state_color in state_color_mapping.items() %}<span class="legend-item js-state-legend-item" data-state="{{state}}" style="border-color: {{state_color}};">
+        {{state}}</span>{% endfor %}<span class="legend-item legend-item--no-border js-state-legend-item" data-state="no_status" style="border-color:white;">no_status</span>
+    </div>
   </div>
   <div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
     <span class="material-icons" aria-hidden="true">error</span>
@@ -306,11 +302,11 @@
       d3.selectAll("text").attr("class", "blur");
       {% endif %}
 
-      d3.selectAll("div.legend_item.state")
+      d3.selectAll('.js-state-legend-item')
           .style("cursor", "pointer")
           .on("mouseover", function(){
               if(!stateIsSet()){
-                  state = d3.select(this).text();
+                  state = $(this).data('state');
                   focusState(state);
               }
           })
@@ -320,16 +316,15 @@
               }
           });
 
-      d3.selectAll("div.legend_item.state")
+      d3.selectAll('.js-state-legend-item')
           .on("click", function(){
-              state = d3.select(this).text();
+              state = $(this).data('state');
               color = d3.select(this).style("border-color");
 
               if (!stateFocusMap[state]){
                   clearFocus();
                   focusState(state, this, color);
                   setFocusMap(state);
-
               } else {
                   clearFocus();
                   setFocusMap();
@@ -427,7 +422,7 @@
           d3.select("g.edgePaths")
               .transition().duration(duration)
               .style("opacity", 1);
-          d3.selectAll("div.legend_item.state")
+          d3.selectAll('.js-state-legend-item')
               .style("background-color", null);
       }
 
