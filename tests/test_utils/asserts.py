@@ -32,7 +32,6 @@ log = logging.getLogger(__name__)
 def assert_equal_ignore_multiple_spaces(case, first, second, msg=None):
     def _trim(s):
         return re.sub(r"\s+", " ", s.strip())
-
     return case.assertEqual(_trim(first), _trim(second), msg)
 
 
@@ -43,7 +42,6 @@ class CountQueries:
     Does not support multiple processes. When a new process is started in context, its queries will
     not be included.
     """
-
     def __init__(self):
         self.result = Counter()
 
@@ -57,11 +55,10 @@ class CountQueries:
 
     def after_cursor_execute(self, *args, **kwargs):
         stack = [
-            f
-            for f in traceback.extract_stack()
-            if 'sqlalchemy' not in f.filename
-            and __file__ != f.filename
-            and ('session.py' not in f.filename and f.name != 'wrapper')
+            f for f in traceback.extract_stack()
+            if 'sqlalchemy' not in f.filename and
+               __file__ != f.filename and
+               ('session.py' not in f.filename and f.name != 'wrapper')
         ]
         stack_info = ">".join([f"{f.filename.rpartition('/')[-1]}:{f.name}" for f in stack][-3:])
         lineno = stack[-1].lineno
@@ -77,16 +74,11 @@ def assert_queries_count(expected_count, message_fmt=None):
         yield None
 
     count = sum(result.values())
-    if count != expected_count:
-        message_fmt = (
-            message_fmt
-            or "The expected number of db queries is {expected_count}. "
-            "The current number is {current_count}.\n\n"
-            "Recorded query locations:"
-        )
-        message = message_fmt.format(
-            current_count=count, expected_count=expected_count
-        )
+    if expected_count != count:
+        message_fmt = message_fmt or "The expected number of db queries is {expected_count}. " \
+                                     "The current number is {current_count}.\n\n" \
+                                     "Recorded query locations:"
+        message = message_fmt.format(current_count=count, expected_count=expected_count)
 
         for location, count in result.items():
             message += f'\n\t{location}:\t{count}'
