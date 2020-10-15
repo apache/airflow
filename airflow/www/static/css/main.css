@@ -255,31 +255,49 @@ body div.panel {
   filter: url(#blur-effect-1);
 }
 
-div.legend_item {
-  border-radius: 5px;
-  float: right;
-  margin: 0 3px 0 0;
+.legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  border-radius: 4px;
+  border: solid 2px #cbcbcb;
   padding: 0 3px;
-  border: solid 2px grey;
   font-size: 11px;
 }
 
-div.legend_circle {
-  border-radius: 10px;
-  width: 15px;
-  height: 15px;
-  border: 1px solid grey;
-  float: left;
-  margin-top: 2px;
+.legend-item--no-border {
+  border-color: transparent;
+  padding: 0;
+}
+
+.legend-item:last-child {
   margin-right: 0;
 }
 
-div.square {
+.legend-item__swatch {
+  display: inline-block;
+  margin-right: 3px;
   width: 12px;
   height: 12px;
-  float: right;
-  margin-top: 2px;
-  border: 1px solid #000;
+  border-radius: 2px;
+  border: solid 1px #8e8e8d;
+  background: #fff;
+}
+
+.legend-item__swatch--circle {
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+}
+
+.legend-item__swatch--no-border {
+  border-color: transparent;
 }
 
 label[for="timezone-other"],
