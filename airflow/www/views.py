@@ -1842,7 +1842,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             nodes=nodes,
             edges=edges,
             show_external_log_redirect=task_log_reader.supports_external_link,
-            external_log_name=external_log_name)
+            external_log_name=external_log_name,
+            dag_run_state=dt_nr_dr_data['dr_state'])
 
     @expose('/duration')
     @has_dag_access(can_dag_read=True)
