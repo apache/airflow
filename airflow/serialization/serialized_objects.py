@@ -25,14 +25,6 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Union
 import cattr
 import pendulum
 from dateutil import relativedelta
-
-try:
-    from kubernetes.client import models as k8s
-    from airflow.kubernetes.pod_generator import PodGenerator
-    has_kubernetes = True
-except ImportError:
-    has_kubernetes = False
-
 from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowException
@@ -46,6 +38,16 @@ from airflow.settings import json
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.module_loading import import_string
 from airflow.utils.task_group import TaskGroup
+
+try:
+    # isort: off
+    from kubernetes.client import models as k8s
+    from airflow.kubernetes.pod_generator import PodGenerator
+    # isort: on
+    has_kubernetes = True
+except ImportError:
+    has_kubernetes = False
+
 
 log = logging.getLogger(__name__)
 FAILED = 'serialization_failed'
