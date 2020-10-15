@@ -70,7 +70,7 @@ class SnowflakeToS3Operator(BaseOperator):
         autocommit: bool = True,
         include_header: bool = False,
         **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.file_format = file_format
