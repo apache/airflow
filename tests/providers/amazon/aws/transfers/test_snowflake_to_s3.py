@@ -36,6 +36,7 @@ class TestSnowflakeToS3Transfer(unittest.TestCase):
         unload_options = [
             'OVERWRITE = TRUE',
         ]
+        file_format= "file_format"
         sql = None
 
         SnowflakeToS3Operator(
@@ -43,7 +44,7 @@ class TestSnowflakeToS3Transfer(unittest.TestCase):
             table=table,
             s3_bucket=s3_bucket,
             s3_key=s3_key,
-            file_format='file_format',
+            file_format="file_format",
             unload_options=unload_options,
             include_header=True,
             task_id="task_id",
