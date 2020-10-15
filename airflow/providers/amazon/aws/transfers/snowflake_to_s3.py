@@ -18,7 +18,7 @@
 """
 Transfers data from Snowflake into a S3 Bucket.
 """
-from typing import List, Optional, Union
+from typing import List, Optional
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -51,9 +51,15 @@ class SnowflakeToS3Operator(BaseOperator):
     :type unload_options: list
     """
 
-    template_fields = ('s3_key', 's3_bucket', 'sql', 'table', 'snowflake_conn_id',)
+    template_fields = (
+        's3_key',
+        's3_bucket',
+        'sql',
+        'table',
+        'snowflake_conn_id',
+    )
     template_ext = ('.sql',)
-    ui_color = '#ededed'
+    ui_color = '#005e5a'
 
     @apply_defaults
     def __init__(
@@ -69,7 +75,8 @@ class SnowflakeToS3Operator(BaseOperator):
         unload_options: Optional[list] = None,
         autocommit: bool = True,
         include_header: bool = False,
-        **kwargs) -> None:
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
