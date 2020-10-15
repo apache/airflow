@@ -19,6 +19,7 @@
 Hooks for Cloud Memorystore service
 """
 from typing import Dict, Optional, Sequence, Tuple, Union
+import json
 
 from google.api_core.exceptions import NotFound
 from google.api_core import path_template
@@ -29,6 +30,7 @@ from google.cloud.redis_v1 import CloudRedisClient
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
 from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, OutputConfig
 from google.protobuf.json_format import ParseDict
+import proto
 
 from airflow import version
 from airflow.exceptions import AirflowException
@@ -576,6 +578,11 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance.labels.update({key: val})
         return instance
 
+    @staticmethod
+    def proto_message_to_dict(message: proto.Message) -> dict:
+        """Helper method to parse protobuf message to dictionary."""
+        return json.loads(message.__class__.to_json(message))
+
     @GoogleBaseHook.fallback_to_default_project_id
     def apply_parameters(
         self,
@@ -586,7 +593,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Will update current set of Parameters to the set of specified nodes of the Memcached Instance.
@@ -614,7 +621,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-
+        metadata = metadata or ()
         name = CloudMemcacheClient.instance_path(project_id, location, instance_id)
 
         self.log.info("Applying update to instance: %s", instance_id)
@@ -633,7 +640,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Creates a Memcached instance based on the specified tier and memory size.
@@ -670,6 +677,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
         parent = path_template.expand(
             "projects/{project}/locations/{location}", project=project_id, location=location
         )
@@ -684,7 +692,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             self.log.info("Instance not exists.")
 
         if isinstance(instance, dict):
-            instance = ParseDict(instance, cloud_memcache.Instance())
+            instance = cloud_memcache.Instance(instance)
         elif not isinstance(instance, cloud_memcache.Instance):
             raise AirflowException("instance is not instance of Instance type or python dict")
 
@@ -710,7 +718,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Deletes a specific Memcached instance.  Instance stops serving and data is deleted.
@@ -732,6 +740,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
         name = CloudMemcacheClient.instance_path(project_id, location, instance)
         self.log.info("Fetching Instance: %s", name)
         instance = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata)
@@ -774,6 +783,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
         name = CloudMemcacheClient.instance_path(project_id, location, instance)
         result = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata or ())
         self.log.info("Fetched Instance: %s", name)
@@ -786,7 +796,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Lists all Memcached instances owned by a project in either the specified location (region) or all
@@ -810,6 +820,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
         parent = path_template.expand(
             "projects/{project}/locations/{location}", project=project_id, location=location
         )
@@ -827,7 +838,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Updates the metadata and configuration of a specific Memcached instance.
@@ -863,9 +874,10 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
 
         if isinstance(instance, dict):
-            instance = ParseDict(instance, cloud_memcache.Instance())
+            instance = cloud_memcache.Instance(instance)
         elif not isinstance(instance, cloud_memcache.Instance):
             raise AirflowException("instance is not instance of Instance type or python dict")
 
@@ -890,7 +902,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Updates the defined Memcached Parameters for an existing Instance. This method only stages the
@@ -923,9 +935,10 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
+        metadata = metadata or ()
 
         if isinstance(parameters, dict):
-            parameters = ParseDict(parameters, cloud_memcache.MemcacheParameters())
+            parameters = cloud_memcache.MemcacheParameters(parameters)
         elif not isinstance(parameters, cloud_memcache.MemcacheParameters):
             raise AirflowException("instance is not instance of MemcacheParameters type or python dict")
 

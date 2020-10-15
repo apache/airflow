@@ -45,8 +45,12 @@ class CloudMemorystoreSystemTest(GoogleSystemTest):
         self.create_gcs_bucket(GCP_BUCKET_NAME, location="europe-north1")
 
     @provide_gcp_context(GCP_MEMORYSTORE)
-    def test_run_example_dag(self):
-        self.run_dag('gcp_cloud_memorystore', CLOUD_DAG_FOLDER)
+    def test_run_example_dag_memorystore_redis(self):
+        self.run_dag('gcp_cloud_memorystore_redis', CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_MEMORYSTORE)
+    def test_run_example_dag_memorystore_memcached(self):
+        self.run_dag('gcp_cloud_memorystore_memcached', CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_MEMORYSTORE)
     def tearDown(self):
