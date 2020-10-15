@@ -24,8 +24,8 @@ Create Date: 2020-10-13 15:13:24.911486
 
 """
 import sqlalchemy as sa
-from sqlalchemy.dialects import mssql
 from alembic import op
+from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = '52d53670a240'
@@ -38,26 +38,7 @@ TABLE_NAME = 'rendered_task_instance_fields'
 
 def upgrade():
     """
-        Recreate RenderedTaskInstanceFields table changing timestamp to datetime2(6) when using MSSQL as backend
-    """
-    conn = op.get_bind()
-    if conn.dialect.name == "mssql":
-            json_type = sa.Text
-            op.drop_table(TABLE_NAME)  # pylint: disable=no-member
-
-            op.create_table(
-                TABLE_NAME,  # pylint: disable=no-member
-                sa.Column('dag_id', sa.String(length=250), nullable=False),
-                sa.Column('task_id', sa.String(length=250), nullable=False),
-                sa.Column('execution_date', mssql.DATETIME2, nullable=False),
-                sa.Column('rendered_fields', json_type(), nullable=False),
-                sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date')
-            )
-
-
-def downgrade():
-    """
-        Recreate RenderedTaskInstanceFields table changing datetime2(6) to timestamp when using MSSQL as backend
+    Recreate RenderedTaskInstanceFields table changing timestamp to datetime2(6) when using MSSQL as backend
     """
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
@@ -65,10 +46,29 @@ def downgrade():
         op.drop_table(TABLE_NAME)  # pylint: disable=no-member
 
         op.create_table(
-                TABLE_NAME,  # pylint: disable=no-member
-                sa.Column('dag_id', sa.String(length=250), nullable=False),
-                sa.Column('task_id', sa.String(length=250), nullable=False),
-                sa.Column('execution_date', sa.TIMESTAMP, nullable=False),
-                sa.Column('rendered_fields', json_type(), nullable=False),
-                sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date')
-            )
+            TABLE_NAME,  # pylint: disable=no-member
+            sa.Column('dag_id', sa.String(length=250), nullable=False),
+            sa.Column('task_id', sa.String(length=250), nullable=False),
+            sa.Column('execution_date', mssql.DATETIME2, nullable=False),
+            sa.Column('rendered_fields', json_type(), nullable=False),
+            sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date')
+        )
+
+
+def downgrade():
+    """
+    Recreate RenderedTaskInstanceFields table changing datetime2(6) to timestamp when using MSSQL as backend
+    """
+    conn = op.get_bind()
+    if conn.dialect.name == "mssql":
+        json_type = sa.Text
+        op.drop_table(TABLE_NAME)  # pylint: disable=no-member
+
+        op.create_table(
+            TABLE_NAME,  # pylint: disable=no-member
+            sa.Column('dag_id', sa.String(length=250), nullable=False),
+            sa.Column('task_id', sa.String(length=250), nullable=False),
+            sa.Column('execution_date', sa.TIMESTAMP, nullable=False),
+            sa.Column('rendered_fields', json_type(), nullable=False),
+            sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date')
+        )
