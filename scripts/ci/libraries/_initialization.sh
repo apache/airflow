@@ -765,6 +765,10 @@ function initialization::ga_output() {
     echo "${1}=${2}"
 }
 
+function initialization::ga_env() {
+    echo "${1}=${2}" >> "${GITHUB_ENV}"
+}
+
 function initialization::set_mysql_encoding() {
     export MYSQL_ENCODING="utf8mb4"
 
