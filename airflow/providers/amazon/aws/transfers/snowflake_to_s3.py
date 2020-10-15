@@ -1,3 +1,20 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 """
 Transfers data from Snowflake into a S3 Bucket.
 """
@@ -28,11 +45,9 @@ class SnowflakeToS3Operator(BaseOperator):
     :type sql: str
     :param snowflake_conn_id: reference to a specific snowflake database
     :type snowflake_conn_id: str
-    :param unload_options: reference to a str of UNLOAD options. For instance, a valid string would be:
-          ``SINGLE=TRUE
-           MAX_FILE_SIZE = 5368709119
-           OVERWRITE = TRUE``
-    :type unload_options: str
+    :param unload_options: reference to a list of UNLOAD options (SINGLE, MAX_FILE_SIZE, OVERWRITE etc). Each element
+    of the list has to be a string
+    :type unload_options: list
     """
 
     template_fields = ('s3_key', 's3_bucket', 'sql', 'table', 'snowflake_conn_id',)
@@ -50,8 +65,9 @@ class SnowflakeToS3Operator(BaseOperator):
         table: Optional[str] = None,
         sql: Optional[str] = None,
         snowflake_conn_id: str = "snowflake_default",
-        unload_options: Optional[str] = None,
+        unload_options: Optional[list] = None,
         autocommit: bool = True,
+        include_header: bool = False,
         **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.s3_bucket = s3_bucket
@@ -61,11 +77,13 @@ class SnowflakeToS3Operator(BaseOperator):
         self.schema = schema
         self.table = table
         self.sql = sql
-        self.unload_options = unload_options
+        self.unload_options = unload_options or []  # type: List
         self.autocommit = autocommit
+        self.include_header = include_header
 
     def execute(self, context):
         snowflake_hook = SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id)
+        unload_options = '\n\t\t\t'.join(self.unload_options)
 
         if not self.sql:
             self.sql = self.schema + '.' + self.table
@@ -75,7 +93,8 @@ class SnowflakeToS3Operator(BaseOperator):
                     FROM ({self.sql})
                     STORAGE_INTEGRATION = S3
                     FILE_FORMAT = ({self.file_format})
-                    {self.unload_options};
+                    {unload_options}
+                    HEADER = {self.include_header};
                     """
 
         self.log.info('Executing UNLOAD command...')
