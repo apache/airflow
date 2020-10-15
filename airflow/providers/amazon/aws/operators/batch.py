@@ -121,9 +121,9 @@ class AwsBatchOperator(BaseOperator):
         self.job_name = job_name
         self.job_definition = job_definition
         self.job_queue = job_queue
-        self.overrides = overrides
+        self.overrides = overrides or {}
         self.array_properties = array_properties or {}
-        self.parameters = parameters
+        self.parameters = parameters or {}
         self.waiters = waiters
         self.hook = AwsBatchClientHook(
             max_retries=max_retries,

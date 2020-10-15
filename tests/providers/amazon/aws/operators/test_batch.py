@@ -86,7 +86,7 @@ class TestAwsBatchOperator(unittest.TestCase):
         self.assertEqual(self.batch.waiters, None)
         self.assertEqual(self.batch.hook.max_retries, self.MAX_RETRIES)
         self.assertEqual(self.batch.hook.status_retries, self.STATUS_RETRIES)
-        self.assertEqual(self.batch.parameters, None)
+        self.assertEqual(self.batch.parameters, {})
         self.assertEqual(self.batch.overrides, {})
         self.assertEqual(self.batch.array_properties, {})
         self.assertEqual(self.batch.hook.region_name, "eu-west-1")
@@ -121,7 +121,7 @@ class TestAwsBatchOperator(unittest.TestCase):
             containerOverrides={},
             jobDefinition="hello-world",
             arrayProperties={},
-            parameters=None,
+            parameters={},
         )
 
         self.assertEqual(self.batch.job_id, JOB_ID)
@@ -140,7 +140,7 @@ class TestAwsBatchOperator(unittest.TestCase):
             containerOverrides={},
             jobDefinition="hello-world",
             arrayProperties={},
-            parameters=None,
+            parameters={},
         )
 
     @mock.patch.object(AwsBatchClientHook, "check_job_success")

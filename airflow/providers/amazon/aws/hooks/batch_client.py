@@ -103,9 +103,9 @@ class AwsBatchProtocol(Protocol):
         jobName: str,
         jobQueue: str,
         jobDefinition: str,
-        arrayProperties: Optional[Dict],
-        parameters: Optional[Dict],
-        containerOverrides: Optional[Dict],
+        arrayProperties: Dict,
+        parameters: Dict,
+        containerOverrides: Dict,
     ) -> Dict:
         """
         Submit a batch job
