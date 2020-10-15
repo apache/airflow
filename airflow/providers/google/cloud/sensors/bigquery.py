@@ -85,7 +85,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         table_uri = '{0}:{1}.{2}'.format(self.project_id, self.dataset_id, self.table_id)
         self.log.info('Sensor checks existence of table: %s', table_uri)
         hook = BigQueryHook(
@@ -163,7 +163,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         table_uri = '{0}:{1}.{2}'.format(self.project_id, self.dataset_id, self.table_id)
         self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
         hook = BigQueryHook(

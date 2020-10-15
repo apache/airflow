@@ -91,7 +91,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.run_id = run_id
         self.transfer_config_id = transfer_config_id
@@ -105,7 +105,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         self.gcp_cloud_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         hook = BiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,

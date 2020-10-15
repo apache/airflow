@@ -131,7 +131,7 @@ Here are the guidelines that you should follow to make validation forward-compat
 """
 
 import re
-from typing import Callable, Dict, Sequence
+from typing import Callable, Dict, Sequence, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -421,7 +421,7 @@ class GcpBodyFieldValidator(LoggingMixin):
             )
         return True
 
-    def validate(self, body_to_validate):
+    def validate(self, body_to_validate: dict) -> None:
         """
         Validates if the body (dictionary) follows specification that the validator was
         instantiated with. Raises ValidationSpecificationException or

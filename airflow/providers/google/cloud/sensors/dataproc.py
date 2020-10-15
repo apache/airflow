@@ -62,7 +62,7 @@ class DataprocJobSensor(BaseSensorOperator):
         self.dataproc_job_id = dataproc_job_id
         self.location = location
 
-    def poke(self, context):
+    def poke(self, context: dict) -> bool:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
         job = hook.get_job(job_id=self.dataproc_job_id, location=self.location, project_id=self.project_id)
         state = job.status.state

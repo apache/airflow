@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Dict
 
+from prestodb.client import PrestoResult
 from prestodb.dbapi import Cursor as PrestoCursor
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
@@ -76,7 +77,7 @@ class _PrestoToGCSPrestoCursorAdapter:
         """Close the cursor now"""
         self.cursor.close()
 
-    def execute(self, *args, **kwargs):
+    def execute(self, *args, **kwargs) -> PrestoResult:
         """Prepare and execute a database operation (query or command)."""
         self.initialized = False
         self.rows = []
@@ -109,7 +110,7 @@ class _PrestoToGCSPrestoCursorAdapter:
             return self.rows.pop(0)
         return self.cursor.fetchone()
 
-    def fetchmany(self, size=None) -> List[Any]:
+    def fetchmany(self, size=None) -> list:
         """
         Fetch the next set of rows of a query result, returning a sequence of sequences
         (e.g. a list of tuples). An empty sequence is returned when no more rows are available.
@@ -194,7 +195,7 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql)
         return _PrestoToGCSPrestoCursorAdapter(cursor)
 
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         """Convert presto field type to BigQuery field type."""
         clear_field_type = field[1].upper()
         # remove type argument e.g. DECIMAL(2, 10) => DECIMAL

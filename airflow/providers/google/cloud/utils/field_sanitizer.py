@@ -160,7 +160,7 @@ class GcpBodyFieldSanitizer(LoggingMixin):
                     child,
                 )
 
-    def sanitize(self, body):
+    def sanitize(self, body) -> None:
         """
         Sanitizes the body according to specification.
         """

@@ -23,6 +23,7 @@ import base64
 import calendar
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from typing import Dict
 
 from MySQLdb.constants import FIELD_TYPE
 
@@ -84,7 +85,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql)
         return cursor
 
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         field_type = self.type_map.get(field[1], "STRING")
         # Always allow TIMESTAMP to be nullable. MySQLdb returns None types
         # for required fields because some MySQL timestamps can't be
@@ -96,7 +97,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
             'mode': field_mode,
         }
 
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type: str):
         """
         Takes a value from MySQLdb, and converts it to a value that's safe for
         JSON/Google Cloud Storage/BigQuery.
