@@ -113,6 +113,10 @@ class CassandraHook(BaseHook, LoggingMixin):
         if ssl_options:
             conn_config['ssl_options'] = ssl_options
 
+        protocol_version = conn.extra_dejson.get('protocol_version', None)
+        if protocol_version:
+            conn_config['protocol_version'] = protocol_version
+
         self.cluster = Cluster(**conn_config)
         self.keyspace = conn.schema
         self.session = None

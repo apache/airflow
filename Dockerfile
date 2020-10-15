@@ -203,6 +203,9 @@ ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 ARG AIRFLOW_LOCAL_PIP_WHEELS=""
 ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
 
+ARG INSTALL_AIRFLOW_VIA_PIP="true"
+ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
+
 ARG SLUGIFY_USES_TEXT_UNIDECODE=""
 ENV SLUGIFY_USES_TEXT_UNIDECODE=${SLUGIFY_USES_TEXT_UNIDECODE}
 
@@ -212,17 +215,20 @@ WORKDIR /opt/airflow
 RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
     fi; \
-    if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} != "true" ]]; then \
+    if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
         pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-        if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then \
-            pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-        fi; \
-    else \
-        pip install --user /docker-context-files/*.whl; \
-    fi \
-    && find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r \
-    && find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
+    fi; \
+    if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
+        pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+    fi; \
+    if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} == "true" ]]; then \
+        if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \
+            pip install --user --no-deps /docker-context-files/*.whl; \
+        fi ; \
+    fi; \
+    find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
+    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true
 
 RUN AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow"; \
     if [[ -f "${AIRFLOW_SITE_PACKAGE}/www_rbac/package.json" ]]; then \
