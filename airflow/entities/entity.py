@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*-
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from airflow.utils.logger import generate_logger
 
 _logger = generate_logger(__name__)
@@ -9,6 +9,14 @@ _logger = generate_logger(__name__)
 class ClsEntity(object):
     def __init__(self, *args, **kwargs):
         self._metadata = None  # type: Optional[Dict]
+        self._channels = dict()  # type: Dict[Any]
+
+    @property
+    def channels(self) -> Dict[Any]:
+        return self._channels
+
+    def set_channel_handler(self, channel: str, handlerFn):
+        self._channels[channel] = handlerFn
 
     @property
     def metadata(self):

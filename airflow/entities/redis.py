@@ -28,18 +28,13 @@ class ClsRedisConnection(ClsEntity):
         self.end = False
         self.poke_interval = 5
 
-    def set_channel_handler(self, channel, handlerFn):
-        self._channels[channel] = handlerFn
-
+    
     @property
     def redis(self):
         if not self._redis:
             raise Exception('请先初始化redis连接')
         return self._redis
 
-    @property
-    def channels(self):
-        return self._channels
 
     @property
     def pubsub(self):
