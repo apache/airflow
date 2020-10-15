@@ -60,7 +60,19 @@ class ClsResultMQ(ClsEntity):
         self._connect()
         channel = self._connection.channel()
         channel.confirm_delivery()
-        channel.queue_declare(queue, **kwargs)
+        passive = kwargs.get('passive', False)
+        durable = kwargs.get('durable', False)
+        exclusive = kwargs.get('exclusive', False)
+        auto_delete = kwargs.get('auto_delete', False)
+        arguments = kwargs.get('arguments', None)
+        channel.queue_declare(
+            queue,
+            passive=passive,
+            durable=durable,
+            exclusive=exclusive,
+            auto_delete=auto_delete,
+            arguments=arguments
+        )
         exchange = kwargs.get('exchange', None)
         exchange_type = kwargs.get('exchange_type', 'fanout')
         if exchange and exchange_type:
@@ -68,7 +80,7 @@ class ClsResultMQ(ClsEntity):
             channel.queue_bind(exchange=exchange,
                                queue=queue,
                                routing_key=kwargs.get('routing_key', '#'))  # 匹配python.后所有单词
-        self.channels[queue] = channel # 将channel加入到字典对象中
+        self.channels[queue] = channel  # 将channel加入到字典对象中
         return channel
 
     def _disconnect(self):
@@ -86,7 +98,7 @@ class ClsResultMQ(ClsEntity):
         if not queue:
             raise Exception(u'订阅的队列未指定')
         channel = self.get_channel(queue=queue, **kwargs)
-        channel.basic_consume(queue, on_message_callback=message_handler, auto_ack=kwargs.get('auto_ack',True))
+        channel.basic_consume(queue, on_message_callback=message_handler, auto_ack=kwargs.get('auto_ack', True))
 
     def doUnsubscribe(self, queue, **kwargs):
         channel = self.get_channel(queue=queue, **kwargs)

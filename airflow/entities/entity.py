@@ -12,7 +12,7 @@ class ClsEntity(object):
         self._channels = dict()  # type: Dict[Any]
 
     @property
-    def channels(self) -> Dict[Any]:
+    def channels(self):
         return self._channels
 
     def set_channel_handler(self, channel: str, handlerFn):
