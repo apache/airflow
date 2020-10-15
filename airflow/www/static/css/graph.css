@@ -105,22 +105,25 @@ g.node.skipped rect {
   stroke: pink;
 }
 
-div#svg_container {
+.svg-wrapper {
   border-radius: 4px;
   background-color: #f0f0f0;
   cursor: move;
 }
 
-#refresh_button {
-  top: 15px;
-  right: 15px;
+.refresh-actions {
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  top: 10px;
+  right: 10px;
   position: relative;
 }
 
-#loading {
-  margin: auto;
+.refresh-actions > .switch-label {
+  margin: 0 10px 0 20px;
+}
+
+.loading-dots.refresh-loading {
   display: none;
-  position: relative;
-  width: 100px;
-  top: -550px;
 }

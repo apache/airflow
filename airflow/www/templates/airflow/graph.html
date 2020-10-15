@@ -24,6 +24,7 @@
 {% block head_css %}
   {{ super() }}
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('graph.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('loadingDots.css') }}">
   <style type="text/css">
     {% for state, state_color in state_color_mapping.items() %}
       g.node.{{state}} rect {
@@ -99,17 +100,30 @@
     <span id="error_msg">Oops.</span>
   </div>
   <br>
-  <button class="btn btn-default pull-right" id="refresh_button">
-    <span class="material-icons" aria-hidden="true">refresh</span>
-  </button>
-  <div id="svg_container">
-    <svg id="graph-svg" width="{{ width }}" height="{{ height }}">
-      <g id='dig' transform="translate(20,20)"></g>
-      <filter id="blur-effect-1">
-        <feGaussianBlur stdDeviation="3"></feGaussianBlur>
-      </filter>
-    </svg>
-    <img id="loading" alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
+  <div class="refresh-actions">
+    <span class="loading-dots refresh-loading" id="loading-dots" >
+      <span class="loading-dot"></span>
+      <span class="loading-dot"></span>
+      <span class="loading-dot"></span>
+    </span>
+    <label class="switch-label">
+      <input class="switch-input" id="auto_refresh" type="checkbox" checked>
+      <span class="switch" aria-hidden="true"></span>
+      Auto-refresh
+    </label>
+    <button class="btn btn-default btn-sm" id="refresh_button">
+      <span class="material-icons" aria-hidden="true">refresh</span>
+    </button>
+  </div>
+  <div class="svg-wrapper">
+    <div class="graph-svg-wrap">
+      <svg id="graph-svg" width="{{ width }}" height="{{ height }}">
+        <g id="dig" transform="translate(20,20)"></g>
+        <filter id="blur-effect-1">
+          <feGaussianBlur stdDeviation="3"></feGaussianBlur>
+        </filter>
+      </svg>
+    </div>
   </div>
 {% endblock %}
 
@@ -453,27 +467,54 @@
           return false
       }
 
-      function initRefreshButton() {
-        d3.select("#refresh_button").on("click", () => {
-          $("#loading").css("display", "block");
-          $("div#svg_container").css("opacity", "0.2");
-          $.get(getTaskInstanceURL)
-            .done(
-              (tis) => {
-                task_instances = JSON.parse(tis)
-                updateNodesStates(task_instances);
-                $("#loading").hide();
-                $("div#svg_container").css("opacity", "1");
-                $('#error').hide();
-              }
-            ).fail((_, textStatus, err) => {
-              $('#error_msg').html(`${textStatus}: ${err}`);
-              $('#error').show();
-              $('#loading').hide();
-              $('#chart_section').hide(1000);
-              $('#datatable_section').hide(1000);
-            });
-        });
+      function handleRefresh() {
+        $('#loading-dots').css('display', 'inline-block');
+        $.get(getTaskInstanceURL)
+          .done(
+            (tis) => {
+              task_instances = JSON.parse(tis)
+              updateNodesStates(task_instances);
+              setTimeout(function() { $('#loading-dots').hide(); }, 500);
+              $('#error').hide();
+            }
+          ).fail((_, textStatus, err) => {
+            $('#error_msg').text(`${textStatus}: ${err}`);
+            $('#error').show();
+            setTimeout(function() { $('#loading-dots').hide(); }, 500);
+            $('#chart_section').hide(1000);
+            $('#datatable_section').hide(1000);
+          });
+      }
+
+      var refreshInterval;
+
+      function startOrStopRefresh() {
+        if ($('#auto_refresh').is(':checked')) {
+          refreshInterval = setInterval(function() {
+            handleRefresh();
+          }, 3000); // run refresh every 3 seconds
+        } else {
+          clearInterval(refreshInterval);
+        }
+      }
+
+      $('#auto_refresh').change(function() {
+        if ($('#auto_refresh').is(':checked')) {
+          // Run an initial refesh before starting interval if manually turned on
+          handleRefresh();
+          localStorage.removeItem('disableAutoRefresh');
+        } else {
+          localStorage.setItem('disableAutoRefresh', 'true');
+        }
+        startOrStopRefresh();
+      });
+
+      function initRefresh() {
+        if (!!localStorage.getItem('disableAutoRefresh')) {
+          $('#auto_refresh').removeAttr('checked');
+        }
+        startOrStopRefresh();
+        d3.select('#refresh_button').on('click', () => handleRefresh());
       }
 
       // Generate tooltip for a group node
@@ -715,7 +756,6 @@
 
       expand_group(null, nodes)
 
-      initRefreshButton();
-
+      initRefresh();
   </script>
 {% endblock %}
