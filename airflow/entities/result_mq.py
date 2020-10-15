@@ -55,10 +55,20 @@ class ClsResultMQ(ClsEntity):
         )
 
     def get_channel(self, queue, **kwargs) -> pika.adapters.blocking_connection.BlockingChannel:
+        if queue in self.channels.keys():
+            return self.channels.get(queue)
         self._connect()
         channel = self._connection.channel()
         channel.confirm_delivery()
         channel.queue_declare(queue, **kwargs)
+        exchange = kwargs.get('exchange', None)
+        exchange_type = kwargs.get('exchange_type', 'fanout')
+        if exchange and exchange_type:
+            channel.exchange_declare(exchange=exchange, exchange_type=exchange_type)
+            channel.queue_bind(exchange=exchange,
+                               queue=queue,
+                               routing_key=kwargs.get('routing_key', '#'))  # 匹配python.后所有单词
+        self.channels[queue] = channel # 将channel加入到字典对象中
         return channel
 
     def _disconnect(self):
@@ -67,6 +77,20 @@ class ClsResultMQ(ClsEntity):
             return
         self._connection.close()
         self._connection = None
+
+    def run(self, queue):
+        channel = self.get_channel(queue=queue, **kwargs)
+        channel.start_consuming()
+
+    def doSubscribe(self, queue, message_handler, **kwargs):
+        if not queue or not exchange:
+            raise Exception(u'订阅的队列或者，exchange 未指定')
+        channel = self.get_channel(queue=queue, **kwargs )
+        channel.basic_consume(queue, on_message_callback=message_handler, auto_ack=kwargs.get('auto_ack',True))
+
+    def doUnsubscribe(self, queue, **kwargs):
+        channel = self.get_channel(queue=queue, **kwargs)
+        channel.stop_consuming()
 
     def send_message(self, body, queue, **kwargs):
         if queue is None:
