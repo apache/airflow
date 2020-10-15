@@ -20,6 +20,7 @@ MsSQL to GCS operator.
 """
 
 import decimal
+import datetime
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
@@ -52,7 +53,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
 
     ui_color = '#e0a98c'
 
-    type_map = {3: 'INTEGER', 4: 'TIMESTAMP', 5: 'NUMERIC'}
+    type_map = {2: 'DATETIME', 3: 'INTEGER', 4: 'TIMESTAMP', 5: 'NUMERIC'}
 
     @apply_defaults
     def __init__(self, *, mssql_conn_id='mssql_default', **kwargs):
@@ -86,4 +87,9 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
         """
         if isinstance(value, decimal.Decimal):
             return float(value)
-        return value
+        elif isinstance(value, datetime.datetime):
+            return str(value)
+        elif isinstance(value, datetime.date):
+            return str(value)
+        else:
+            return value
