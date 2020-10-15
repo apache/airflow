@@ -1824,6 +1824,11 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         else:
             external_log_name = None
 
+        active_runs = models.DagRun.find(
+            dag_id=dag_id,
+            state=State.RUNNING
+        )
+
         return self.render_template(
             'airflow/graph.html',
             dag=dag,
@@ -1842,7 +1847,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             nodes=nodes,
             edges=edges,
             show_external_log_redirect=task_log_reader.supports_external_link,
-            external_log_name=external_log_name)
+            external_log_name=external_log_name,
+            active_runs=active_runs)
 
     @expose('/duration')
     @has_dag_access(can_dag_read=True)
