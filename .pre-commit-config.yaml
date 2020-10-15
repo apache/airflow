@@ -63,7 +63,7 @@ repos:
         exclude: ^\.github/.*$
         args:
           - --comment-style
-          - "/**| *| */"
+          - "/*!| *| */"
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
