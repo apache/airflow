@@ -42,6 +42,7 @@ class SnowflakeToS3Operator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         s3_bucket: str,
         s3_key: str,
         file_format: str,
@@ -51,7 +52,7 @@ class SnowflakeToS3Operator(BaseOperator):
         snowflake_conn_id: str = "snowflake_default",
         unload_options: Optional[str] = None,
         autocommit: bool = True,
-        *args, **kwargs) -> None:
+        **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
