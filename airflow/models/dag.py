@@ -89,12 +89,14 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     return query.first()
 
 
-def replace_outdated_dag_actions(access_control):
+def replace_outdated_dag_actions(access_control=None):
     """
     Looks for outdated dag level permissions (can_dag_read and can_dag_edit) in DAG
     access_controls (for example, {'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}})
     and replaces them with updated permissions (can_read and can_edit).
     """
+    if not access_control:
+        return {}
     new_perm_mapping = {
         permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
         permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,

@@ -370,7 +370,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         if not user:
             user = g.user
-
+        # breakpoint()
         if user.is_anonymous:
             return self.is_item_public(permission, resource)
 

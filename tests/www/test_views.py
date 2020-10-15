@@ -1649,6 +1649,11 @@ class TestDagACLView(TestBase):
         super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
         DAG.bulk_write_to_db(dagbag.dags.values())
+        for username in ['all_dag_user', 'dag_read_only', 'dag_faker', 'dag_tester']:
+            user = cls.appbuilder.sm.find_user(username=username)
+            if user:
+                cls.appbuilder.sm.del_register_user(user)
+
 
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
