@@ -43,6 +43,7 @@ class TestSnowflakeToS3Transfer(unittest.TestCase):
             table=table,
             s3_bucket=s3_bucket,
             s3_key=s3_key,
+            file_format='file_format',
             unload_options=unload_options,
             include_header=True,
             task_id="task_id",
@@ -59,7 +60,7 @@ class TestSnowflakeToS3Transfer(unittest.TestCase):
                         STORAGE_INTEGRATION = S3
                         FILE_FORMAT = {file_format}
                         {unload_options}
-                        HEADER = {include_header};
+                        HEADER = True;
                         """
 
         assert mock_run.call_count == 1
