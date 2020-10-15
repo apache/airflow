@@ -78,14 +78,14 @@ class ClsResultMQ(ClsEntity):
         self._connection.close()
         self._connection = None
 
-    def run(self, queue):
+    def run(self, queue, **kwargs):
         channel = self.get_channel(queue=queue, **kwargs)
         channel.start_consuming()
 
     def doSubscribe(self, queue, message_handler, **kwargs):
-        if not queue or not exchange:
-            raise Exception(u'订阅的队列或者，exchange 未指定')
-        channel = self.get_channel(queue=queue, **kwargs )
+        if not queue:
+            raise Exception(u'订阅的队列未指定')
+        channel = self.get_channel(queue=queue, **kwargs)
         channel.basic_consume(queue, on_message_callback=message_handler, auto_ack=kwargs.get('auto_ack',True))
 
     def doUnsubscribe(self, queue, **kwargs):
