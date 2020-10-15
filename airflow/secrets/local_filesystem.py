@@ -48,7 +48,7 @@ def get_connection_parameter_names() -> Set[str]:
 
 def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
     """
-    Parse a file in the ``.env '' format.
+    Parse a file in the ``.env`` format.
 
     .. code-block:: text
 
