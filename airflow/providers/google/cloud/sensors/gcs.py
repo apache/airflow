@@ -222,7 +222,7 @@ class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
         self.prefix = prefix
         self.google_cloud_conn_id = google_cloud_conn_id
         self.delegate_to = delegate_to
-        self._matches:List[str] = []
+        self._matches: List[str] = []
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: dict) -> bool:
@@ -418,7 +418,5 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
 
     def poke(self, context: dict) -> bool:
         return self.is_bucket_updated(
-            set(self._get_gcs_hook().list(  # type: ignore[union-attr]
-                self.bucket, prefix=self.prefix
-            ))
+            set(self._get_gcs_hook().list(self.bucket, prefix=self.prefix))  # type: ignore[union-attr]
         )
