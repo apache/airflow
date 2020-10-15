@@ -120,13 +120,13 @@ class AwsBatchProtocol(Protocol):
         :type jobDefinition: str
 
         :param arrayProperties: the same parameter that boto3 will receive
-        :type arrayProperties: Optional[Dict]
+        :type arrayProperties: Dict
 
         :param parameters: the same parameter that boto3 will receive
-        :type parameters: Optional[Dict]
+        :type parameters: Dict
 
         :param containerOverrides: the same parameter that boto3 will receive
-        :type containerOverrides: Optional[Dict]
+        :type containerOverrides: Dict
 
         :return: an API response
         :rtype: Dict
