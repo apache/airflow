@@ -27,6 +27,7 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 class SnowflakeToS3Operator(BaseOperator):
     """
     UNLOAD a query or a table from Snowflake to S3
+
     :param schema: reference to a specific schema in snowflake database
     :type schema: str
     :param table: reference to a specific table in snowflake database
@@ -59,7 +60,7 @@ class SnowflakeToS3Operator(BaseOperator):
         'snowflake_conn_id',
     )
     template_ext = ('.sql',)
-    ui_color = '#005e5a'
+    ui_color = '#ffebb2'
 
     @apply_defaults
     def __init__(
