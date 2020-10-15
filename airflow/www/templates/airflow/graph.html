@@ -469,18 +469,16 @@
 
       function handleRefresh() {
         $('#loading-dots').css('display', 'inline-block');
-        $('.graph-svg-wrap').fadeTo(400, 0.5);
         $.get(getTaskInstanceURL)
           .done(
             (tis) => {
               task_instances = JSON.parse(tis)
               updateNodesStates(task_instances);
               setTimeout(function() { $('#loading-dots').hide(); }, 500);
-              $('.graph-svg-wrap').fadeTo(400, 1);
               $('#error').hide();
             }
           ).fail((_, textStatus, err) => {
-            $('#error_msg').html(`${textStatus}: ${err}`);
+            $('#error_msg').text(`${textStatus}: ${err}`);
             $('#error').show();
             setTimeout(function() { $('#loading-dots').hide(); }, 500);
             $('#chart_section').hide(1000);
