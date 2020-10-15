@@ -254,6 +254,12 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 
+ARG AIRFLOW_LOCAL_PIP_WHEELS=""
+ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
+
+ARG INSTALL_AIRFLOW_VIA_PIP="true"
+ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
+
 # In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
 # This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
@@ -295,11 +301,22 @@ ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
 # Usually we will install versions based on the dependencies in setup.py and upgraded only if needed.
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
-RUN \
-    if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" != "false" ]]; then \
-        pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
-    else \
-        pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy only-if-needed; \
+RUN if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
+        if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" != "false" ]]; then \
+            pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
+        else \
+            pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy only-if-needed; \
+        fi; \
+    fi
+
+# If wheel files are found in /docker-context-files sduring installation
+# they are also installed additionally to whatever is installed from Airflow.
+COPY docker-context-files /docker-context-files
+
+RUN if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} != "true" ]]; then \
+        if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \
+            pip install --no-deps /docker-context-files/*.whl; \
+        fi ; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY
@@ -319,10 +336,10 @@ RUN chmod a+x /entrypoint
 # add it with ! in .dockerignore next to the airflow, test etc. directories there
 COPY . ${AIRFLOW_SOURCES}/
 
-
-
 # Install autocomplete for airflow
-RUN register-python-argcomplete airflow >> ~/.bashrc
+RUN if command -v airflow; then \
+        register-python-argcomplete airflow >> ~/.bashrc ; \
+    fi
 
 # Install autocomplete for Kubectl
 RUN echo "source /etc/bash_completion" >> ~/.bashrc

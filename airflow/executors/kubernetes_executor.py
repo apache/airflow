@@ -317,7 +317,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def _health_check_kube_watcher(self):
         if self.kube_watcher.is_alive():
-            pass
+            self.log.debug("KubeJobWatcher alive, continuing")
         else:
             self.log.error(
                 'Error while health checking kube watcher process. '
@@ -368,6 +368,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
     def delete_pod(self, pod_id: str, namespace: str) -> None:
         """Deletes POD"""
         try:
+            self.log.debug("Deleting pod %s in namespace %s", pod_id, namespace)
             self.kube_client.delete_namespaced_pod(
                 pod_id, namespace, body=client.V1DeleteOptions(**self.kube_config.delete_option_kwargs),
                 **self.kube_config.kube_client_request_args)
@@ -385,11 +386,13 @@ class AirflowKubernetesScheduler(LoggingMixin):
         :return:
 
         """
+        self.log.debug("Syncing KubernetesExecutor")
         self._health_check_kube_watcher()
         while True:
             try:
                 task = self.watcher_queue.get_nowait()
                 try:
+                    self.log.debug("Processing task %s", task)
                     self.process_watcher_task(task)
                 finally:
                     self.watcher_queue.task_done()
@@ -409,6 +412,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             self.result_queue.put((key, state, pod_id, namespace, resource_version))
 
     def _annotations_to_key(self, annotations: Dict[str, str]) -> Optional[TaskInstanceKey]:
+        self.log.debug("Creating task key for annotations %s", annotations)
         dag_id = annotations['dag_id']
         task_id = annotations['task_id']
         try_number = int(annotations['try_number'])
@@ -519,6 +523,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         proper support
         for State.LAUNCHED
         """
+        self.log.debug("Clearing tasks that have not been launched")
         if not self.kube_client:
             raise AirflowException(NOT_STARTED_MESSAGE)
         queued_tasks = session \
@@ -531,6 +536,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
         for task in queued_tasks:
             # pylint: disable=protected-access
+            self.log.debug("Checking task %s", task)
             dict_string = (
                 "dag_id={},task_id={},execution_date={},airflow-worker={}".format(
                     pod_generator.make_safe_label_value(task.dag_id),

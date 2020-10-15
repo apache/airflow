@@ -268,11 +268,44 @@ function kind::load_image_to_kind_cluster() {
     kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_PROD_IMAGE_KUBERNETES}"
 }
 
+MAX_NUM_TRIES_FOR_PORT_FORWARD=12
+readonly MAX_NUM_TRIES_FOR_PORT_FORWARD
+
+SLEEP_TIME_FOR_PORT_FORWARD=10
+readonly SLEEP_TIME_FOR_PORT_FORWARD
+
+forwarded_port_number=8080
+
+function kind::start_kubectl_forward() {
+    echo
+    echo "Trying to forward port ${forwarded_port_number} to 8080 on server"
+    echo
+    kubectl port-forward svc/airflow-webserver "${forwarded_port_number}:8080" --namespace airflow >/dev/null &
+}
+
+function kind::stop_kubectl() {
+    echo
+    echo "Stops all kubectl instances"
+    echo
+    killall kubectl || true
+    sleep 10
+    killall -s KILL kubectl || true
+
+}
+
 function kind::forward_port_to_kind_webserver() {
     num_tries=0
     set +e
-    while ! curl http://localhost:8080/health -s | grep -q healthy; do
-        if [[ ${num_tries} == 6 ]]; then
+    kind::start_kubectl_forward
+    sleep "${SLEEP_TIME_FOR_PORT_FORWARD}"
+    while ! curl "http://localhost:${forwarded_port_number}/health" -s | grep -q healthy; do
+        echo
+        echo "Trying to establish port forwarding to 'airflow webserver'"
+        echo
+        if [[ ${INCREASE_PORT_NUMBER_FOR_KUBERNETES} == "true" ]] ; then
+            forwarded_port_number=$(( forwarded_port_number + 1 ))
+        fi
+        if [[ ${num_tries} == "${MAX_NUM_TRIES_FOR_PORT_FORWARD}" ]]; then
             echo >&2
             echo >&2 "ERROR! Could not setup a forward port to Airflow's webserver after ${num_tries}! Exiting."
             echo >&2
@@ -281,11 +314,15 @@ function kind::forward_port_to_kind_webserver() {
         echo
         echo "Trying to establish port forwarding to 'airflow webserver'"
         echo
-        kubectl port-forward svc/airflow-webserver 8080:8080 --namespace airflow >/dev/null &
-        sleep 10
+        kind::start_kubectl_forward
+        sleep "${SLEEP_TIME_FOR_PORT_FORWARD}"
         num_tries=$(( num_tries + 1))
     done
-    echo "Connection to 'airflow webserver' established"
+    echo
+    echo "Connection to 'airflow webserver' established on port ${forwarded_port_number}"
+    echo
+    initialization::ga_env CLUSTER_FORWARDED_PORT "${forwarded_port_number}"
+    export CLUSTER_FORWARDED_PORT="${forwarded_port_number}"
     set -e
 }
 

@@ -1347,8 +1347,18 @@ class DAG(BaseDag, LoggingMixin):
             result._log = self._log
         return result
 
-    def sub_dag(self, task_regex, include_downstream=False,
-                include_upstream=True):
+    def sub_dag(self, *args, **kwargs):
+        """This method is deprecated in favor of partial_subset"""
+        warnings.warn(
+            "This method is deprecated and will be removed in a future version. Please use partial_subset",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.partial_subset(*args, **kwargs)
+
+    def partial_subset(
+        self, task_regex, include_downstream=False, include_upstream=True
+    ):
         """
         Returns a subset of the current dag as a deep copy of the current dag
         based on a regex that should match one or many tasks, and includes
