@@ -31,6 +31,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pendulum
+import pytest
 from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
 from parameterized import parameterized
@@ -1656,9 +1657,13 @@ class TestDag(unittest.TestCase):
     def test_replace_outdated_access_control_actions(self):
         outdated_permissions = {'role1': {'can_read', 'can_edit'}, 'role2': {'can_dag_read', 'can_dag_edit'}}
         updated_permissions = {'role1': {'can_read', 'can_edit'}, 'role2': {'can_read', 'can_edit'}}
-        dag = DAG(dag_id='dag_with_outdated_perms', access_control=outdated_permissions)
+
+        with pytest.warns(DeprecationWarning):
+            dag = DAG(dag_id='dag_with_outdated_perms', access_control=outdated_permissions)
         self.assertEqual(dag.access_control, updated_permissions)
-        dag.access_control = outdated_permissions
+
+        with pytest.warns(DeprecationWarning):
+            dag.access_control = outdated_permissions
         self.assertEqual(dag.access_control, updated_permissions)
 
 
