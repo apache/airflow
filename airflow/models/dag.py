@@ -391,7 +391,7 @@ class DAG(BaseDag, LoggingMixin):
         and replaces them with updated permissions (can_read and can_edit).
         """
         if not access_control:
-            return {}
+            return None
         new_perm_mapping = {
             permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
             permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,
