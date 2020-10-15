@@ -30,6 +30,10 @@ class MesosExecutorRemovedRule(BaseRule):
     """
 
     def check(self):
-        mesos_config = conf.getsection("mesos")
-        if mesos_config:
-            return "The Mesos Executor has been deprecated as it was not widely used and not maintained."
+        executor_key = conf.get(section="core", key="executor")
+        if executor_key == "MesosExecutor":
+            return (
+                "The Mesos Executor has been deprecated as it was not widely used and not maintained."
+                "Please migrate to any of the supported executors."
+                "See https://airflow.apache.org/docs/stable/executor/index.html for more details."
+            )

@@ -21,14 +21,28 @@ from tests.test_utils.config import conf_vars
 
 
 class TestMesosExecutorRemovedRule(TestCase):
-    @conf_vars({("mesos", "description"): "mesos description"})
+    @conf_vars({("core", "executor"): "MesosExecutor"})
+    def test_invalid_check(self):
+        rule = MesosExecutorRemovedRule()
+
+        assert isinstance(rule.description, str)
+        assert isinstance(rule.title, str)
+
+        msg = (
+            "The Mesos Executor has been deprecated as it was not widely used and not maintained."
+            "Please migrate to any of the supported executors."
+            "See https://airflow.apache.org/docs/stable/executor/index.html for more details."
+        )
+
+        response = rule.check()
+        assert response == msg
+
+    @conf_vars({("core", "executor"): "SequentialExecutor"})
     def test_check(self):
         rule = MesosExecutorRemovedRule()
 
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
 
-        msg = "The Mesos Executor has been deprecated as it was not widely used and not maintained."
-
         response = rule.check()
-        assert response == msg
+        assert response is None
