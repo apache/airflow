@@ -16,16 +16,15 @@
 # under the License.
 
 ################################
-## Airflow Create User Job
+## Airflow Run Migrations
 #################################
-{{- if .Values.webserver.defaultUser.enabled }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Release.Name }}-create-user
+  name: {{ .Release.Name }}-run-airflow-migrations
   labels:
     tier: airflow
-    component: create-user-job
+    component: run-airflow-migrations
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
@@ -33,15 +32,15 @@ metadata:
 {{ toYaml . | indent 4 }}
 {{- end }}
   annotations:
-    "helm.sh/hook": post-install
-    "helm.sh/hook-weight": "2"
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "1"
     "helm.sh/hook-delete-policy": hook-succeeded
 spec:
   template:
     metadata:
       labels:
         tier: airflow
-        component: create-user-job
+        component: run-airflow-migrations
         release: {{ .Release.Name }}
     spec:
       securityContext:
@@ -58,27 +57,11 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       containers:
-        - name: create-user
+        - name: run-airflow-migrations
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args:
-            - "bash"
-            - "-c"
-            # Support running against 1.10.x and 2.0.0dev/master
-            - 'airflow create_user "$@" || airflow users create "$@"'
-            - --
-            - "-r"
-            - {{ .Values.webserver.defaultUser.role }}
-            - "-u"
-            - {{ .Values.webserver.defaultUser.username }}
-            - "-e"
-            - {{ .Values.webserver.defaultUser.email }}
-            - "-f"
-            - {{ .Values.webserver.defaultUser.firstName }}
-            - "-l"
-            - {{ .Values.webserver.defaultUser.lastName }}
-            - "-p"
-            - {{ .Values.webserver.defaultUser.password }}
+          # Support running against 1.10.x and 2.0.0dev/master
+          args: ["bash", "-c", "airflow upgradedb || airflow db upgrade"]
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
@@ -91,4 +74,3 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-{{- end }}
