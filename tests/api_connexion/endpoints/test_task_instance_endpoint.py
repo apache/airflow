@@ -21,6 +21,7 @@ from unittest import mock
 from parameterized import parameterized
 
 from airflow.models import DagBag, DagRun, TaskInstance, SlaMiss
+from airflow.security import permissions
 from airflow.utils.types import DagRunType
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -46,7 +47,7 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ('can_read', 'Dag'),
+                ('can_read', permissions.RESOURCE_DAGS),
                 ('can_read', 'DagRun'),
                 ('can_read', 'Task'),
                 ('can_edit', 'Task'),

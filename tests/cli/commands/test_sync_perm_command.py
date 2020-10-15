@@ -38,7 +38,7 @@ class TestCliSyncPerm(unittest.TestCase):
         self.expect_dagbag_contains([
             DAG('has_access_control',
                 access_control={
-                    'Public': {'can_dag_read'}
+                    'Public': {'can_read'}
                 }),
             DAG('no_access_control')
         ], dagbag_mock)
@@ -56,7 +56,7 @@ class TestCliSyncPerm(unittest.TestCase):
         self.assertEqual(2, len(appbuilder.sm.sync_perm_for_dag.mock_calls))
         appbuilder.sm.sync_perm_for_dag.assert_any_call(
             'has_access_control',
-            {'Public': {'can_dag_read'}}
+            {'Public': {'can_read'}}
         )
         appbuilder.sm.sync_perm_for_dag.assert_any_call(
             'no_access_control',

@@ -27,6 +27,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
+from airflow.security import permissions
 from airflow.utils.dates import days_ago
 from airflow.utils.session import provide_session
 from airflow.utils.timezone import datetime
@@ -51,7 +52,7 @@ class TestGetExtraLinks(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ('can_read', 'Dag'),
+                ('can_read', permissions.RESOURCE_DAGS),
                 ('can_read', 'DagRun'),
                 ('can_read', 'Task'),
                 ('can_read', 'TaskInstance'),

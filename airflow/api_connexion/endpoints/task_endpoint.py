@@ -21,9 +21,10 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
 from airflow.exceptions import TaskNotFound
+from airflow.security import permissions
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "Task")])
+@security.requires_access([("can_read", permissions.RESOURCE_DAGS), ("can_read", "Task")])
 def get_task(dag_id, task_id):
     """
     Get simplified representation of a task.
@@ -39,7 +40,7 @@ def get_task(dag_id, task_id):
     return task_schema.dump(task)
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "Task")])
+@security.requires_access([("can_read", permissions.RESOURCE_DAGS), ("can_read", "Task")])
 def get_tasks(dag_id):
     """
     Get tasks for DAG

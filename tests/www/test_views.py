@@ -52,6 +52,7 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
@@ -141,7 +142,6 @@ class TestBase(unittest.TestCase):
                 role=self.appbuilder.sm.find_role('Admin'),
                 password='test',
             )
-
         if username == 'test_user' and not self.appbuilder.sm.find_user(username='test_user'):
             self.appbuilder.sm.add_user(
                 username='test_user',
@@ -1649,6 +1649,10 @@ class TestDagACLView(TestBase):
         super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
         DAG.bulk_write_to_db(dagbag.dags.values())
+        for username in ['all_dag_user', 'dag_read_only', 'dag_faker', 'dag_tester']:
+            user = cls.appbuilder.sm.find_user(username=username)
+            if user:
+                cls.appbuilder.sm.del_register_user(user)
 
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
@@ -1729,21 +1733,28 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='test',
                    password='test')
-        perm_on_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_dag_edit', 'example_bash_operator')
         dag_tester_role = self.appbuilder.sm.find_role('dag_acl_tester')
-        self.appbuilder.sm.add_permission_role(dag_tester_role, perm_on_dag)
+        edit_perm_on_dag = self.appbuilder.sm.\
+            find_permission_view_menu('can_edit', 'DAG:example_bash_operator')
+        self.appbuilder.sm.add_permission_role(dag_tester_role, edit_perm_on_dag)
+        read_perm_on_dag = self.appbuilder.sm.\
+            find_permission_view_menu('can_read', 'DAG:example_bash_operator')
+        self.appbuilder.sm.add_permission_role(dag_tester_role, read_perm_on_dag)
 
-        perm_on_all_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_dag_edit', 'all_dags')
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
-        self.appbuilder.sm.add_permission_role(all_dag_role, perm_on_all_dag)
+        edit_perm_on_all_dag = self.appbuilder.sm.\
+            find_permission_view_menu('can_edit', permissions.RESOURCE_DAGS)
+        self.appbuilder.sm.add_permission_role(all_dag_role, edit_perm_on_all_dag)
+        read_perm_on_all_dag = self.appbuilder.sm.\
+            find_permission_view_menu('can_read', permissions.RESOURCE_DAGS)
+        self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_all_dag)
 
         role_user = self.appbuilder.sm.find_role('User')
-        self.appbuilder.sm.add_permission_role(role_user, perm_on_all_dag)
+        self.appbuilder.sm.add_permission_role(role_user, read_perm_on_all_dag)
+        self.appbuilder.sm.add_permission_role(role_user, edit_perm_on_all_dag)
 
         read_only_perm_on_dag = self.appbuilder.sm.\
-            find_permission_view_menu('can_dag_read', 'example_bash_operator')
+            find_permission_view_menu('can_read', 'DAG:example_bash_operator')
         dag_read_only_role = self.appbuilder.sm.find_role('dag_acl_read_only')
         self.appbuilder.sm.add_permission_role(dag_read_only_role, read_only_perm_on_dag)
 
@@ -1751,19 +1762,17 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='test',
                    password='test')
-        test_view_menu = self.appbuilder.sm.find_view_menu('example_bash_operator')
+        test_view_menu = self.appbuilder.sm.find_view_menu('DAG:example_bash_operator')
         perms_views = self.appbuilder.sm.find_permissions_view_menu(test_view_menu)
-        self.assertEqual(len(perms_views), 4)
+        self.assertEqual(len(perms_views), 2)
 
-        permissions = [str(perm) for perm in perms_views]
-        expected_permissions = [
-            'can read on example_bash_operator',
-            'can dag edit on example_bash_operator',
-            'can dag read on example_bash_operator',
-            'can edit on example_bash_operator',
+        perms = [str(perm) for perm in perms_views]
+        expected_perms = [
+            'can read on DAG:example_bash_operator',
+            'can edit on DAG:example_bash_operator',
         ]
-        for perm in expected_permissions:
-            self.assertIn(perm, permissions)
+        for perm in expected_perms:
+            self.assertIn(perm, perms)
 
     def test_role_permission_associate(self):
         self.logout()
@@ -1771,8 +1780,8 @@ class TestDagACLView(TestBase):
                    password='test')
         test_role = self.appbuilder.sm.find_role('dag_acl_tester')
         perms = {str(perm) for perm in test_role.permissions}
-        self.assertIn('can dag edit on example_bash_operator', perms)
-        self.assertNotIn('can dag read on example_bash_operator', perms)
+        self.assertIn('can edit on DAG:example_bash_operator', perms)
+        self.assertIn('can read on DAG:example_bash_operator', perms)
 
     def test_index_success(self):
         self.logout()
@@ -2175,7 +2184,7 @@ class TestDagACLView(TestBase):
         self.check_content_not_in_response('example_bash_operator', resp)
 
     def test_success_fail_for_read_only_role(self):
-        # success endpoint need can_dag_edit, which read only role can not access
+        # success endpoint need can_edit, which read only role can not access
         self.logout()
         self.login(username='dag_read_only',
                    password='dag_read_only')
@@ -2193,7 +2202,7 @@ class TestDagACLView(TestBase):
         self.check_content_not_in_response('Wait a minute', resp, resp_code=302)
 
     def test_tree_success_for_read_only_role(self):
-        # tree view only allows can_dag_read, which read only role could access
+        # tree view only allows can_read, which read only role could access
         self.logout()
         self.login(username='dag_read_only',
                    password='dag_read_only')

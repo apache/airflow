@@ -19,6 +19,7 @@ import unittest
 from parameterized import parameterized
 
 from airflow.models import DagModel, DagRun as DR, XCom
+from airflow.security import permissions
 from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
@@ -40,7 +41,7 @@ class TestXComEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_read", "Dag"),
+                ("can_read", permissions.RESOURCE_DAGS),
                 ("can_read", "DagRun"),
                 ("can_read", "Task"),
                 ("can_read", "XCom"),

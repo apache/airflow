@@ -25,6 +25,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -52,10 +53,10 @@ class TestDagEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_create", "Dag"),
-                ("can_read", "Dag"),
-                ("can_edit", "Dag"),
-                ("can_delete", "Dag"),
+                ("can_create", permissions.RESOURCE_DAGS),
+                ("can_read", permissions.RESOURCE_DAGS),
+                ("can_edit", permissions.RESOURCE_DAGS),
+                ("can_delete", permissions.RESOURCE_DAGS),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore

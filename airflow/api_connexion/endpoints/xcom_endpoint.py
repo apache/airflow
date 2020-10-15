@@ -31,11 +31,17 @@ from airflow.api_connexion.schemas.xcom_schema import (
     xcom_collection_schema,
 )
 from airflow.models import DagRun as DR, XCom
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
 @security.requires_access(
-    [("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")]
+    [
+        ("can_read", permissions.RESOURCE_DAGS),
+        ("can_read", "DagRun"),
+        ("can_read", "Task"),
+        ("can_read", "XCom"),
+    ]
 )
 @format_parameters({'limit': check_limit})
 @provide_session
@@ -71,7 +77,12 @@ def get_xcom_entries(
 
 
 @security.requires_access(
-    [("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task"), ("can_read", "XCom")]
+    [
+        ("can_read", permissions.RESOURCE_DAGS),
+        ("can_read", "DagRun"),
+        ("can_read", "Task"),
+        ("can_read", "XCom"),
+    ]
 )
 @provide_session
 def get_xcom_entry(
