@@ -21,6 +21,7 @@
 kind::make_sure_kubernetes_tools_are_installed
 kind::get_kind_cluster_name
 
+traps::add_trap kind::stop_kubectl EXIT HUP INT TERM
 traps::add_trap kind::dump_kind_logs EXIT HUP INT TERM
 
 interactive="false"
