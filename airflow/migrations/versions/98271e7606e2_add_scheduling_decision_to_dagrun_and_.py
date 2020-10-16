@@ -64,7 +64,7 @@ def upgrade():
     # Set it to true here as it makes us take the slow/more complete path, and when it's next parsed by the
     # DagParser it will get set to correct value.
     op.execute(
-        "UPDATE dag SET concurrency={}, has_task_concurrency_limits=true where concurrency IS NULL".format(
+        "UPDATE dag SET concurrency={}, has_task_concurrency_limits=1 where concurrency IS NULL".format(
             concurrency
         )
     )
