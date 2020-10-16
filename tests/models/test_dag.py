@@ -1801,8 +1801,9 @@ class TestDagDecorator:
                 return num
 
             return_num(4)
-
-        assert noop_pipeline().dag_id, 'test'
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id, 'test'
 
     def test_arg_not_set_fail(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
@@ -1823,8 +1824,9 @@ class TestDagDecorator:
                 return num
 
             return_num(4)
-
-        assert noop_pipeline().dag_id, 'noop_pipeline'
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id, 'noop_pipeline'
 
     def test_xcom_pass_to_op(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
