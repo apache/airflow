@@ -696,6 +696,13 @@ class DAG(BaseDag, LoggingMixin):
         self._pickle_id = value
 
     def param(self, name, default):
+        """
+        Return a DagParam object for current dag.
+
+        :param name: dag parameter name.
+        :param default: fallback value for dag parameter.
+        :return: DagParam instance for specified name and current dag.
+        """
         return DagParam(self, name, default)
 
     @property
