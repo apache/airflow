@@ -173,16 +173,16 @@ to use ``{{ foo }}`` in your templates. Moreover, specifying
 passing ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
 you to use ``{{ 'world' | hello }}`` in your templates. For more information
 regarding custom filters have a look at the
-`Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
+`Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_.
 
 For more information on the variables and macros that can be referenced
-in templates, make sure to read through the :doc:`macros-ref`
+in templates, make sure to read through the :doc:`macros-ref`.
 
 Adding DAG and Tasks documentation
 ----------------------------------
 We can add documentation for DAG or each single task. DAG documentation only support
 markdown so far and task documentation support plain text, markdown, reStructuredText,
-json, yaml
+json, yaml.
 
 .. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
@@ -247,7 +247,7 @@ Running the Script
 Time to run some tests. First, let's make sure the pipeline
 is parsed successfully.
 
-Let's assume we're saving the code from the previous step in
+Let's assume we are saving the code from the previous step in
 ``tutorial.py`` in the DAGs folder referenced in your ``airflow.cfg``.
 The default location for your DAGs is ``~/airflow/dags``.
 
@@ -255,7 +255,7 @@ The default location for your DAGs is ``~/airflow/dags``.
 
     python ~/airflow/dags/tutorial.py
 
-If the script does not raise an exception it means that you haven't done
+If the script does not raise an exception it means that you have not done
 anything horribly wrong, and that your Airflow environment is somewhat
 sound.
 
@@ -308,8 +308,8 @@ This should result in displaying a verbose log of events and ultimately
 running your bash command and printing the result.
 
 Note that the ``airflow tasks test`` command runs task instances locally, outputs
-their log to stdout (on screen), doesn't bother with dependencies, and
-doesn't communicate state (running, success, failed, ...) to the database.
+their log to stdout (on screen), does not bother with dependencies, and
+does not communicate state (running, success, failed, ...) to the database.
 It simply allows testing a single task instance.
 
 The same applies to ``airflow dags test [dag_id] [execution_date]``, but on a DAG level. It performs a single
@@ -321,7 +321,7 @@ Backfill
 ''''''''
 Everything looks like it's running fine so let's run a backfill.
 ``backfill`` will respect your dependencies, emit logs into files and talk to
-the database to record status. If you do have a webserver up, you'll be able
+the database to record status. If you do have a webserver up, you will be able
 to track the progress. ``airflow webserver`` will start a web server if you
 are interested in tracking the progress visually as your backfill progresses.
 
