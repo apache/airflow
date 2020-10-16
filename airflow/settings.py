@@ -36,7 +36,6 @@ from sqlalchemy.pool import NullPool
 
 from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
 from airflow.logging_config import configure_logging
-from airflow.utils.module_loading import import_string
 from airflow.utils.sqlalchemy import setup_event_handlers
 
 log = logging.getLogger(__name__)
@@ -233,12 +232,38 @@ def configure_orm(disable_connection_pool=False):
     log.debug("Setting up DB connection pool (PID %s)" % os.getpid())
     global engine
     global Session
-    engine_args = {}
+    engine_args = prepare_engine_args(disable_connection_pool)
 
+    # Allow the user to specify an encoding for their DB otherwise default
+    # to utf-8 so jobs & users with non-latin1 characters can still use us.
+    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
+
+    # For Python2 we get back a newstr and need a str
+    engine_args['encoding'] = engine_args['encoding'].__str__()
+
+    if conf.has_option('core', 'sql_alchemy_connect_args'):
+        connect_args = conf.getimport('core', 'sql_alchemy_connect_args')
+    else:
+        connect_args = {}
+
+    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args)
+    setup_event_handlers(engine)
+
+    Session = scoped_session(sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=engine,
+        expire_on_commit=False,
+    ))
+
+
+def prepare_engine_args(disable_connection_pool=False):
+    """Prepare SQLAlchemy engine args"""
+    engine_args = {}
     pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED')
     if disable_connection_pool or not pool_connections:
         engine_args['poolclass'] = NullPool
-        log.debug("settings.configure_orm(): Using NullPool")
+        log.debug("settings.prepare_engine_args(): Using NullPool")
     elif 'sqlite' not in SQL_ALCHEMY_CONN:
         # Pool size engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.
@@ -270,35 +295,13 @@ def configure_orm(disable_connection_pool=False):
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
-        log.debug("settings.configure_orm(): Using pool settings. pool_size=%d, max_overflow=%d, "
+        log.debug("settings.prepare_engine_args(): Using pool settings. pool_size=%d, max_overflow=%d, "
                   "pool_recycle=%d, pid=%d", pool_size, max_overflow, pool_recycle, os.getpid())
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
         engine_args['pool_pre_ping'] = pool_pre_ping
         engine_args['max_overflow'] = max_overflow
-
-    # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use
-    # us.
-    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
-    # For Python2 we get back a newstr and need a str
-    engine_args['encoding'] = engine_args['encoding'].__str__()
-
-    if conf.has_option('core', 'sql_alchemy_connect_args'):
-        connect_args = import_string(
-            conf.get('core', 'sql_alchemy_connect_args')
-        )
-    else:
-        connect_args = {}
-
-    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args)
-    setup_event_handlers(engine)
-
-    Session = scoped_session(
-        sessionmaker(autocommit=False,
-                     autoflush=False,
-                     bind=engine,
-                     expire_on_commit=False))
+    return engine_args
 
 
 def dispose_orm():
