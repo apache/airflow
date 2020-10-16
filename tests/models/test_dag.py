@@ -1805,7 +1805,7 @@ class TestDagDecorator:
         assert isinstance(dag, DAG)
         assert dag.dag_id, 'test'
 
-    def test_arg_not_set_fail(self):
+    def test_fails_if_arg_not_set(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def noop_pipeline(value):
             @task
@@ -1813,6 +1813,8 @@ class TestDagDecorator:
                 return num
 
             return_num(value)
+
+        # Test that if arg is not passed it raises a type error as expected.
         with pytest.raises(TypeError):
             noop_pipeline()
 
