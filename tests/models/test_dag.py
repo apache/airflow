@@ -1856,7 +1856,7 @@ class TestDagDecorator:
         assert ti.xcom_pull() == self.VALUE
 
     @conf_vars({("core", "executor"): "DebugExecutor"})
-    def test_xcom_pass_to_op(self):
+    def test_end_to_end(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def pipeline(some_param, other_param=self.VALUE):
             @task
@@ -1867,9 +1867,14 @@ class TestDagDecorator:
             def another_task(param):
                 return param
 
-            some_task(some_param)
+            ret = some_task(some_param)
             another_task(other_param)
+            op = DummyOperator(task_id='dummy')
 
-        d = pipeline(self.VALUE)
+            ret >> op
 
-        d.run()
+        dag = pipeline(self.VALUE)
+
+        assert set(dag.task_ids) == {'some_task', 'another_task', 'dummy'}
+
+        dag.run()
