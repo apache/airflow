@@ -87,7 +87,8 @@ class PythonOperator(BaseOperator):
         **kwargs
     ) -> None:
         if kwargs.get("provide_context"):
-            warnings.warn("provide_context is deprecated as of 2.0 and is no longer required", DeprecationWarning, stacklevel=2)
+            warnings.warn("provide_context is deprecated as of 2.0 and is no longer required",
+                          DeprecationWarning, stacklevel=2)
             kwargs.pop('provide_context', None)
         super().__init__(**kwargs)
         if not callable(python_callable):
