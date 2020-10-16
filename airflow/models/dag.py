@@ -2204,6 +2204,7 @@ class DagModel(Base):
 
         log.info("Setting next_dagrun for %s to %s", dag.dag_id, self.next_dagrun)
 
+
 def dag(*dag_args, **dag_kwargs):
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
@@ -2239,7 +2240,7 @@ def dag(*dag_args, **dag_kwargs):
                     dag_obj.doc_md = f.__doc__
 
                 # Generate DAGParam for each function arg/kwarg and replace it for calling the function.
-                # All args/kwargs for function will be DAGParam object and  will be replaced on execution time.
+                # All args/kwargs for function will be DAGParam object and replaced on execution time.
                 f_kwargs = {}
                 for name, value in f_sig.arguments.items():
                     f_kwargs[name] = dag_obj.param(name, value)
