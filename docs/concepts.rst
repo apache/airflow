@@ -170,7 +170,7 @@ DAG decorator
 In addition to creating DAGs using context managed, in Airflow 2.0 you can also create DAGs from a function.
 DAG decorator creates a DAG generator function. This function when called returns a DAG.
 
-DAG decorator also sets up the parameters you have in the function as DAG params. This allows you to parametrize
+DAG decorator also sets up the parameters you have in the function as DAG params. This allows you to parameterize
 your DAGs and set the parameters when triggering the DAG manually. See
 :ref:`Passing Parameters when triggering dags <dagrun:parameters>` to learn how to pass parameters when triggering DAGs.
 
@@ -181,7 +181,7 @@ Example DAG with decorator:
     :start-after: [START dag_decorator_usage]
     :end-before: [END dag_decorator_usage]
 
-.. note:: Note that Airflow will only load DAGs that appear in``globals()``. Which means you need to make sure to have
+.. note:: Note that Airflow will only load DAGs that appear in ``globals()``. Which means you need to make sure to have
   a variable for your returned DAG in the module scope. Otherwise Airflow won't detect your decorated DAG. In addition,
   you may want to make your dag variable named ``DAG`` such that Airflow doesn't skip this module when the
   ``DAG_DISCOVERY_SAFE_MODE`` is activated.

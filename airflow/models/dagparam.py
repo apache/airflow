@@ -22,7 +22,7 @@ class DagParam:
     """
     Class that represents a DAG run parameter.
 
-    It can be used to parametrized your dags.
+    It can be used to parameterize your dags.
 
     **Example**:
 
