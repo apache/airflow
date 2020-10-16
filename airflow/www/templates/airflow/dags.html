@@ -64,7 +64,7 @@
               <label for="dag_query" class="sr-only">Search DAGs</label>
               <input type="search" id="dag_query" class="typeahead form-control search-input__input" data-provide="typeahead" style="width:100%;" value="{{search_query}}" autocomplete="off" placeholder="Search DAGs">
               {% if search_query %}
-                <button type="reset" class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel</button>
+                <button type="reset" aria-label="Clear DAG Search Term" class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel</button>
               {% endif %}
             </div>
           </form>
