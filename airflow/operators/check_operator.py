@@ -40,7 +40,7 @@ class CheckOperator(SQLCheckOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLCheckOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(**kwargs)
 
@@ -55,7 +55,7 @@ class IntervalCheckOperator(SQLIntervalCheckOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLIntervalCheckOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(**kwargs)
 
@@ -70,7 +70,7 @@ class ThresholdCheckOperator(SQLThresholdCheckOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLThresholdCheckOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(**kwargs)
 
@@ -85,6 +85,6 @@ class ValueCheckOperator(SQLValueCheckOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLValueCheckOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(**kwargs)

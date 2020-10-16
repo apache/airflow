@@ -88,7 +88,8 @@ def _apply_defaults(func: T) -> T:
             msg = "Argument {0} is required".format(missing_args)
             raise AirflowException(msg)
 
-        kwargs['params'] = dag_params
+        if dag_params:
+            kwargs['params'] = dag_params
 
         result = func(*args, **kwargs)
         return result

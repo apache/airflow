@@ -37,6 +37,6 @@ class MySqlToGoogleCloudStorageOperator(MySQLToGCSOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.transfers.mysql_to_gcs.MySQLToGCSOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(*args, **kwargs)

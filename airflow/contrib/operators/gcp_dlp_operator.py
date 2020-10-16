@@ -52,7 +52,7 @@ class CloudDLPDeleteDlpJobOperator(CloudDLPDeleteDLPJobOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDLPJobOperator`.""",
 
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(*args, **kwargs)
 
@@ -67,7 +67,7 @@ class CloudDLPGetDlpJobOperator(CloudDLPGetDLPJobOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.dlp.CloudDLPGetDLPJobOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(*args, **kwargs)
 
@@ -82,7 +82,7 @@ class CloudDLPGetJobTripperOperator(CloudDLPGetDLPJobTriggerOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.dlp.CloudDLPGetDLPJobTriggerOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(*args, **kwargs)
 
@@ -97,6 +97,6 @@ class CloudDLPListDlpJobsOperator(CloudDLPListDLPJobsOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.dlp.CloudDLPListDLPJobsOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(*args, **kwargs)

@@ -39,6 +39,6 @@ class GoogleCloudStorageDeleteOperator(GCSDeleteObjectsOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.gcs.GCSDeleteObjectsOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(*args, **kwargs)

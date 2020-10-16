@@ -42,6 +42,6 @@ class VerticaToHiveTransfer(VerticaToHiveOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.apache.hive.transfers.vertica_to_hive.VerticaToHiveOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(*args, **kwargs)

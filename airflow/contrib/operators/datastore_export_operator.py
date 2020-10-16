@@ -38,6 +38,6 @@ class DatastoreExportOperator(CloudDatastoreExportEntitiesOperator):
             """This class is deprecated.l
             Please use
             `airflow.providers.google.cloud.operators.datastore.CloudDatastoreExportEntitiesOperator`.""",
-            DeprecationWarning, stacklevel=3
+            DeprecationWarning, stacklevel=4
         )
         super().__init__(*args, **kwargs)
