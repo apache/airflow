@@ -31,6 +31,7 @@ from typing import (
     TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union,
     cast,
 )
+from inspect import signature
 
 import jinja2
 import pendulum
@@ -2202,6 +2203,33 @@ class DagModel(Base):
             self.next_dagrun_create_after = None
 
         log.info("Setting next_dagrun for %s to %s", dag.dag_id, self.next_dagrun)
+
+def dag(*dag_args, **dag_kwargs):
+    """
+    Python dag decorator. Wraps a function into an Airflow DAG.
+    Accepts kwargs for operator kwarg. Can be used to parametrize DAGs.
+
+    :param dag_args: Arguments for DAG object
+    :type dag_args: list
+    :param dag_kwargs: Kwargs for DAG object.
+    :type dag_kwargs: dict
+    """
+    def wrapper(f: Callable):
+        dag_sig = signature(DAG.__init__)
+        dag_sig = dag_sig.bind_partial(*dag_args, **dag_kwargs)
+
+        @functools.wraps(f)
+        def factory(*args, **kwargs):
+            f_sig = signature(f).bind(*args, **kwargs)
+            f_sig.apply_defaults()
+            with DAG(*dag_sig.args, dag_id=f.__name__, **dag_sig.kwargs) as dag_obj:
+                f_kwargs = {}
+                for name, value in f_sig.arguments.items():
+                    f_kwargs[name] = dag_obj.param(name, value)
+                f(**f_kwargs)
+            return dag_obj
+        return factory
+    return wrapper
 
 
 STATICA_HACK = True

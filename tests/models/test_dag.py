@@ -40,9 +40,11 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
+from airflow.models.dag import dag as dag_decorator
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python import task
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.security import permissions
 from airflow.utils import timezone
@@ -54,6 +56,7 @@ from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.asserts import assert_queries_count
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
@@ -1769,3 +1772,34 @@ class TestQueries(unittest.TestCase):
                 state=State.RUNNING,
                 execution_date=TEST_DATE,
             )
+
+
+class TestDagDecorator:
+    DEFAULT_ARGS = {
+        "owner": "test",
+        "depends_on_past": True,
+        "start_date": timezone.utcnow(),
+        "retries": 1,
+        "retry_delay": timedelta(minutes=1),
+    }
+
+    VALUE = 42
+
+    @conf_vars({("core", "executor"): "DebugExecutor"})
+    def test_xcom_pass_to_op(self):
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def test_pipeline(some_param, other_param=self.VALUE):
+            @task
+            def some_task(param):
+                return param
+
+            @task
+            def another_task(param):
+                return param
+
+            some_task(some_param)
+            another_task(other_param)
+
+        d = test_pipeline(self.VALUE)
+
+        d.run()

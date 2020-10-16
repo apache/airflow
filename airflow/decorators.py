@@ -16,3 +16,4 @@
 # under the License.
 
 from airflow.operators.python import task  # noqa # pylint: disable=unused-import
+from airflow.models.dag import dag  # noqa # pylint: disable=unused-import
