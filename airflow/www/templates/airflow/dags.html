@@ -60,9 +60,12 @@
         </div>
         <div class="col-sm-4">
           <form id="search_form" class="form-inline">
-            <div class="form-group" style="width: 100%;">
+            <div class="form-group search-input" style="width: 100%;">
               <label for="dag_query" class="sr-only">Search DAGs</label>
-              <input type="search" id="dag_query" class="typeahead form-control" data-provide="typeahead" style="width:100%;" value="{{search_query}}" autocomplete="off" placeholder="Search DAGs">
+              <input type="search" id="dag_query" class="typeahead form-control search-input__input" data-provide="typeahead" style="width:100%;" value="{{search_query}}" autocomplete="off" placeholder="Search DAGs">
+              {% if search_query %}
+                <button type="reset" class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel</button>
+              {% endif %}
             </div>
           </form>
         </div>
@@ -311,6 +314,12 @@
           window.location = DAGS_INDEX + "?" + query;
         }
       }
+    });
+
+    $('#search_form').on('reset', function() {
+      var query = new URLSearchParams(window.location.search);
+      query.delete('search');
+      window.location = DAGS_INDEX + "?" + query;
     });
 
     $('#main_content').show(250);

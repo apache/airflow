@@ -416,3 +416,18 @@ label[for="timezone-other"],
   top: 15px;
   right: 15px;
 }
+
+.search-input {
+  position: relative;
+}
+
+.search-input__input {
+  padding-right: 40px;
+}
+
+.search-input__clear-btn {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  border: 0;
+}
