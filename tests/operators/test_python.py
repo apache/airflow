@@ -617,7 +617,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         with self.dag:
             ret = add_2(test_number)
 
-        assert ret.operator.doc_md.strip(), "Adds 2 to number."
+        assert ret.operator.doc_md.strip(), "Adds 2 to number."  # pylint: disable=maybe-no-member
 
 
 class TestBranchOperator(unittest.TestCase):
