@@ -2234,6 +2234,9 @@ def dag(*dag_args, **dag_kwargs):
 
             # Initialize DAG with bound arguments
             with DAG(*dag_bound_args.args, **dag_bound_args.kwargs) as dag_obj:
+                # Set DAG documentation from function documentation.
+                if f.__doc__:
+                    dag_obj.doc_md = f.__doc__
 
                 # Generate DAGParam for each function arg/kwarg and replace it for calling the function.
                 # All args/kwargs for function will be DAGParam object and  will be replaced on execution time.

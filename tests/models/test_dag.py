@@ -44,7 +44,7 @@ from airflow.models.dag import dag as dag_decorator
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python import task
+from airflow.operators.python import task as task_decorator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.security import permissions
 from airflow.utils import timezone
@@ -1774,7 +1774,7 @@ class TestQueries(unittest.TestCase):
             )
 
 
-class TestDagDecorator:
+class TestDagDecorator(unittest.TestCase):
     DEFAULT_ARGS = {
         "owner": "test",
         "depends_on_past": True,
@@ -1796,7 +1796,7 @@ class TestDagDecorator:
     def test_set_dag_id(self):
         @dag_decorator('test', default_args=self.DEFAULT_ARGS)
         def noop_pipeline():
-            @task
+            @task_decorator
             def return_num(num):
                 return num
 
@@ -1808,7 +1808,7 @@ class TestDagDecorator:
     def test_default_dag_id(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def noop_pipeline():
-            @task
+            @task_decorator
             def return_num(num):
                 return num
 
@@ -1817,10 +1817,26 @@ class TestDagDecorator:
         assert isinstance(dag, DAG)
         assert dag.dag_id, 'noop_pipeline'
 
+    def test_documentation_added(self):
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            """
+            Regular DAG documentation
+            """
+            @task_decorator
+            def return_num(num):
+                return num
+
+            return_num(4)
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id, 'test'
+        assert dag.doc_md.strip(), "Regular DAG documentation"
+
     def test_fails_if_arg_not_set(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def noop_pipeline(value):
-            @task
+            @task_decorator
             def return_num(num):
                 return num
 
@@ -1828,12 +1844,12 @@ class TestDagDecorator:
 
         # Test that if arg is not passed it raises a type error as expected.
         with pytest.raises(TypeError):
-            noop_pipeline()
+            noop_pipeline()  # pylint: ignore
 
     def test_xcom_pass_to_op(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def xcom_pass_to_op(value=self.VALUE):
-            @task
+            @task_decorator
             def return_num(num):
                 return num
 
@@ -1857,11 +1873,11 @@ class TestDagDecorator:
     def test_end_to_end(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def pipeline(some_param, other_param=self.VALUE):
-            @task
+            @task_decorator
             def some_task(param):
                 return param
 
-            @task
+            @task_decorator
             def another_task(param):
                 return param
 

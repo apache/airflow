@@ -37,6 +37,12 @@ DEFAULT_ARGS = {
 # [START dag_decorator_usage]
 @dag(default_args=DEFAULT_ARGS, schedule_interval=None)
 def send_server_ip(email: str = 'example@example.com'):
+    """
+    DAG to send server IP to email.
+
+    :param email: Email to send IP to. Defaults to example@example.com.
+    :type email: str
+    """
     # Using default connection as it's set to httpbin.org by default
     get_ip = SimpleHttpOperator(
         task_id='get_ip', endpoint='get', method='GET', xcom_push=True
@@ -47,7 +53,7 @@ def send_server_ip(email: str = 'example@example.com'):
         external_ip = json.loads(raw_json)['origin']
         return {
             'subject': f'Server connected from {external_ip}',
-            'body': f'Seems like today your server executing Airflow is connected from the external IP {external_ip}<br>'
+            'body': f'Seems like today your server executing Airflow is connected from the IP {external_ip}<br>'
         }
 
     email_info = prepare_email(get_ip.output)
