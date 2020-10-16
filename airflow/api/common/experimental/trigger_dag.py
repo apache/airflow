@@ -28,19 +28,17 @@ from airflow.utils.types import DagRunType
 
 
 def _trigger_dag(
-        dag_id: str,
-        dag_bag: DagBag,
-        dag_run: DagModel,
-        run_id: Optional[str],
-        conf: Optional[Union[dict, str]],
-        execution_date: Optional[datetime],
-        replace_microseconds: bool,
+    dag_id: str,
+    dag_bag: DagBag,
+    run_id: Optional[str] = None,
+    conf: Optional[Union[dict, str]] = None,
+    execution_date: Optional[datetime] = None,
+    replace_microseconds: bool = True,
 ) -> List[DagRun]:  # pylint: disable=too-many-arguments
     """Triggers DAG run.
 
     :param dag_id: DAG ID
     :param dag_bag: DAG Bag model
-    :param dag_run: DAG Run model
     :param run_id: ID of the dag_run
     :param conf: configuration
     :param execution_date: date of execution
@@ -69,7 +67,7 @@ def _trigger_dag(
                     min_dag_start_date.isoformat()))
 
     run_id = run_id or DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
-    dag_run = dag_run.find(dag_id=dag_id, run_id=run_id)
+    dag_run = DagRun.find(dag_id=dag_id, run_id=run_id)
 
     if dag_run:
         raise DagRunAlreadyExists(
@@ -123,10 +121,8 @@ def trigger_dag(
         dag_folder=dag_model.fileloc,
         read_dags_from_db=read_store_serialized_dags()
     )
-    dag_run = DagRun()
     triggers = _trigger_dag(
         dag_id=dag_id,
-        dag_run=dag_run,
         dag_bag=dagbag,
         run_id=run_id,
         conf=conf,
