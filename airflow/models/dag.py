@@ -27,11 +27,11 @@ import traceback
 import warnings
 from collections import OrderedDict
 from datetime import datetime, timedelta
+from inspect import signature
 from typing import (
     TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union,
     cast,
 )
-from inspect import signature
 
 import jinja2
 import pendulum
@@ -49,8 +49,8 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
-from airflow.models.dagpickle import DagPickle
 from airflow.models.dagparam import DagParam
+from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
 from airflow.security import permissions
@@ -704,7 +704,7 @@ class DAG(BaseDag, LoggingMixin):
         :param default: fallback value for dag parameter.
         :return: DagParam instance for specified name and current dag.
         """
-        return DagParam(current_dag=self, name=name, default=default)
+        return DagParam(name=name, default=default)
 
     @property
     def tasks(self) -> List[BaseOperator]:

@@ -40,8 +40,9 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
-from airflow.models.dag import dag as dag_decorator
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import dag as dag_decorator
+from airflow.models.dagparam import DagParam
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import task as task_decorator
@@ -1794,6 +1795,7 @@ class TestDagDecorator(unittest.TestCase):
         clear_db_runs()
 
     def test_set_dag_id(self):
+        """Test that checks you can set dag_id from decorator."""
         @dag_decorator('test', default_args=self.DEFAULT_ARGS)
         def noop_pipeline():
             @task_decorator
@@ -1806,6 +1808,7 @@ class TestDagDecorator(unittest.TestCase):
         assert dag.dag_id, 'test'
 
     def test_default_dag_id(self):
+        """Test that @dag uses function name as default dag id."""
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def noop_pipeline():
             @task_decorator
@@ -1818,6 +1821,7 @@ class TestDagDecorator(unittest.TestCase):
         assert dag.dag_id, 'noop_pipeline'
 
     def test_documentation_added(self):
+        """Test that @dag uses function docs as doc_md for DAG object"""
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def noop_pipeline():
             """
@@ -1834,6 +1838,7 @@ class TestDagDecorator(unittest.TestCase):
         assert dag.doc_md.strip(), "Regular DAG documentation"
 
     def test_fails_if_arg_not_set(self):
+        """Test that @dag decorated function fails if positional argument is not set"""
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def noop_pipeline(value):
             @task_decorator
@@ -1846,7 +1851,8 @@ class TestDagDecorator(unittest.TestCase):
         with pytest.raises(TypeError):
             noop_pipeline()  # pylint: ignore
 
-    def test_xcom_pass_to_op(self):
+    def test_dag_param_resolves(self):
+        """Test that dag param is correctly resolved by operator"""
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def xcom_pass_to_op(value=self.VALUE):
             @task_decorator
@@ -1854,7 +1860,7 @@ class TestDagDecorator(unittest.TestCase):
                 return num
 
             xcom_arg = return_num(value)
-            self.operator = xcom_arg.operator
+            self.operator = xcom_arg.operator  # pylint: disable=maybe-no-member
 
         dag = xcom_pass_to_op()
 
@@ -1869,8 +1875,35 @@ class TestDagDecorator(unittest.TestCase):
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == self.VALUE
 
+    def test_dag_param_dagrun_parameterized(self):
+        """Test that dag param is correctly overwritten when set in dag run"""
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def xcom_pass_to_op(value=self.VALUE):
+            @task_decorator
+            def return_num(num):
+                return num
+            assert isinstance(value, DagParam)
+
+            xcom_arg = return_num(value)
+            self.operator = xcom_arg.operator  # pylint: disable=maybe-no-member
+
+        dag = xcom_pass_to_op()
+        new_value = 52
+        dr = dag.create_dagrun(
+            run_id=DagRunType.MANUAL.value,
+            start_date=timezone.utcnow(),
+            execution_date=self.DEFAULT_DATE,
+            state=State.RUNNING,
+            conf={'value': new_value}
+        )
+
+        self.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
+        ti = dr.get_task_instances()[0]
+        assert ti.xcom_pull(), new_value
+
     @conf_vars({("core", "executor"): "DebugExecutor"})
     def test_end_to_end(self):
+        """Test end to end execution of DAG"""
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def pipeline(some_param, other_param=self.VALUE):
             @task_decorator

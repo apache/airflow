@@ -22,25 +22,21 @@ class DagParam:
     """
     Class that represents a DAG run parameter.
 
-    It can be used to parameterize your dags.
+    It can be used to parameterize your dags. You can overwrite its value by setting it on conf
+    when you trigger your DagRun.
 
     **Example**:
 
         with DAG(...) as dag:
           EmailOperator(subject=dag.param('subject', 'Hi from Airflow!'))
 
-    This object can be used in legacy Operators via Jinja.
-
-    :param current_dag: Dag that will be used to pull the parameter from.
-    :type current_dag: airflow.models.dag.DAG
     :param name: key value which is used to set the parameter
     :type name: str
     :param default: Default value used if no parameter was set.
     :type default: Any
     """
 
-    def __init__(self, current_dag, name: str, default: Any):
-        current_dag.params[name] = default
+    def __init__(self, name: str, default: Any):
         self._name = name
         self._default = default
 
@@ -49,4 +45,4 @@ class DagParam:
         Pull DagParam value from DagRun context. This method is run during ``op.execute()``
         in respectable context.
         """
-        return context.get('params', {}).get(self._name, self._default)
+        return context['dag_run'].conf.get(self._name, self._default)

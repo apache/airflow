@@ -18,21 +18,16 @@
 
 
 import json
-from datetime import timedelta
 from typing import Dict
 
 from airflow.decorators import dag, task
 from airflow.operators.email import EmailOperator
 from airflow.providers.http.operators.http import SimpleHttpOperator
-from airflow.utils import timezone
 
 DEFAULT_ARGS = {
-    "owner": "test",
-    "depends_on_past": True,
-    "start_date": timezone.utcnow(),
-    "retries": 1,
-    "retry_delay": timedelta(minutes=1),
+    "owner": "airflow",
 }
+
 
 # [START dag_decorator_usage]
 @dag(default_args=DEFAULT_ARGS, schedule_interval=None)
@@ -53,7 +48,7 @@ def send_server_ip(email: str = 'example@example.com'):
         external_ip = json.loads(raw_json)['origin']
         return {
             'subject': f'Server connected from {external_ip}',
-            'body': f'Seems like today your server executing Airflow is connected from the IP {external_ip}<br>'
+            'body': f'Seems like today your server executing Airflow is connected from IP {external_ip}<br>'
         }
 
     email_info = prepare_email(get_ip.output)
