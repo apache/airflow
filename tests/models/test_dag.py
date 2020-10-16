@@ -1830,8 +1830,6 @@ class TestDagDecorator:
         with pytest.raises(TypeError):
             noop_pipeline()
 
-
-
     def test_xcom_pass_to_op(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def xcom_pass_to_op(value=self.VALUE):
