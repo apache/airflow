@@ -46,6 +46,7 @@ csrf = CSRFProtect()
 
 log = logging.getLogger(__name__)
 
+
 def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
@@ -75,6 +76,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
     if config:
         app.config.from_mapping(config)
+
+    if 'SQLALCHEMY_ENGINE_OPTIONS' not in app.config:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = settings.prepare_engine_args()
 
     csrf.init_app(app)
 
