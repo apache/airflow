@@ -162,6 +162,52 @@ Example DAG with decorated style
         html_content=email_info['body']
     )
 
+DAG decorator
+-------------
+
+.. versionadded:: 2.0.0
+
+In addition to creating DAGs using context managed, in Airflow 2.0 you can create DAGs from a function.
+DAG decorator is effectively a DAG generator function. Function arguments are parsed as
+around creating PythonOperators, managing dependencies between task and accessing XCom values. (During
+development this feature was called "Functional DAGs", so if you see or hear any references to that, it's the
+same thing)
+
+Outputs and inputs are sent between tasks using :ref:`XCom values <concepts:xcom>`. In addition, you can wrap
+functions as tasks using the :ref:`task decorator <concepts:task_decorator>`. Airflow will also automatically
+add dependencies between tasks to ensure that XCom messages are available when operators are executed.
+
+Example DAG with decorated style
+
+.. code-block:: python
+
+  with DAG(
+      'send_server_ip', default_args=default_args, schedule_interval=None
+  ) as dag:
+
+    # Using default connection as it's set to httpbin.org by default
+    get_ip = SimpleHttpOperator(
+        task_id='get_ip', endpoint='get', method='GET', xcom_push=True
+    )
+
+    @dag.task(multiple_outputs=True)
+    def prepare_email(raw_json: str) -> Dict[str, str]:
+      external_ip = json.loads(raw_json)['origin']
+      return {
+        'subject':f'Server connected from {external_ip}',
+        'body': f'Seems like today your server executing Airflow is connected from the external IP {external_ip}<br>'
+      }
+
+    email_info = prepare_email(get_ip.output)
+
+    send_email = EmailOperator(
+        task_id='send_email',
+        to='example@example.com',
+        subject=email_info['subject'],
+        html_content=email_info['body']
+    )
+
+
 .. _concepts:executor_config:
 
 executor_config

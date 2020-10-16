@@ -1782,8 +1782,39 @@ class TestDagDecorator:
         "retries": 1,
         "retry_delay": timedelta(minutes=1),
     }
-
+    DEFAULT_DATE = timezone.datetime(2016, 1, 1)
     VALUE = 42
+
+    def setUp(self):
+        super().setUp()
+        self.operator = None
+
+    def tearDown(self):
+        super().tearDown()
+        clear_db_runs()
+
+    def test_xcom_pass_to_op(self):
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def test_xcom_pass_to_op(value=self.VALUE):
+            @task
+            def return_num(num):
+                return num
+
+            xcom_arg = return_num(value)
+            self.operator = xcom_arg.operator
+
+        dag = test_xcom_pass_to_op()
+
+        dr = dag.create_dagrun(
+            run_id=DagRunType.MANUAL.value,
+            start_date=timezone.utcnow(),
+            execution_date=self.DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        self.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
+        ti = dr.get_task_instances()[0]
+        assert ti.xcom_pull() == self.VALUE
 
     @conf_vars({("core", "executor"): "DebugExecutor"})
     def test_xcom_pass_to_op(self):

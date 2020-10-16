@@ -18,9 +18,7 @@ class TestDagParamRuntime(unittest.TestCase):
         "retries": 1,
         "retry_delay": timedelta(minutes=1),
     }
-
     VALUE = 42
-
     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
     def tearDown(self):
