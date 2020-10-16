@@ -2606,6 +2606,7 @@ function breeze::check_and_save_all_params() {
 
     parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
 
+
     # Can't verify those - they can be anything, so let's just save them
     parameters::save_to_file DOCKERHUB_USER
     parameters::save_to_file DOCKERHUB_REPO
@@ -2917,8 +2918,6 @@ function breeze::run_breeze_command() {
             "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
         else
             "${dc_run_file}" run --service-ports --rm airflow "${@}"
-            "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
-            "${SCRIPTS_CI_DIR}/tools/ci_clear_tmp.sh"
         fi
         ;;
     run_exec)

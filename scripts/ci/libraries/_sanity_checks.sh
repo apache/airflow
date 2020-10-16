@@ -24,7 +24,6 @@ function sanity_checks::sanitize_file() {
         rm -rf "${1}"
     fi
     touch "${1}"
-
 }
 
 # Those files are mounted into container when run locally
