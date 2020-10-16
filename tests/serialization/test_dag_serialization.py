@@ -878,10 +878,10 @@ class TestStringifiedDAGs(unittest.TestCase):
 def test_kubernetes_optional():
     """Serialisation / deserialisation continues to work without kubernetes installed"""
 
-    def mock__import__(name, globals=None, locals=None, fromlist=(), level=0):
+    def mock__import__(name, globals_=None, locals_=None, fromlist=(), level=0):
         if level == 0 and name.partition('.')[0] == 'kubernetes':
             raise ImportError("No module named 'kubernetes'")
-        return importlib.__import__(name, globals=globals, locals=locals, fromlist=fromlist, level=level)
+        return importlib.__import__(name, globals=globals_, locals=locals_, fromlist=fromlist, level=level)
 
     with mock.patch('builtins.__import__', side_effect=mock__import__) as import_mock:
         # load module from scratch, this does not replace any already imported
