@@ -177,7 +177,7 @@ class AutoMLPredictOperator(BaseOperator):
         model_id: str,
         location: str,
         payload: dict,
-        params: Optional[Dict[str, str]] = None,
+        operation_params: Optional[Dict[str, str]] = None,
         project_id: Optional[str] = None,
         metadata: Optional[MetaData] = None,
         timeout: Optional[float] = None,
@@ -189,7 +189,7 @@ class AutoMLPredictOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.model_id = model_id
-        self.params = params  # type: ignore
+        self.operation_params = operation_params  # type: ignore
         self.location = location
         self.project_id = project_id
         self.metadata = metadata
@@ -209,7 +209,7 @@ class AutoMLPredictOperator(BaseOperator):
             payload=self.payload,
             location=self.location,
             project_id=self.project_id,
-            params=self.params,
+            params=self.operation_params,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,

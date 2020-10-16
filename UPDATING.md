@@ -49,6 +49,10 @@ assists users migrating to a new version.
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Airflow Master
+### Change in `AutoMLPredictOperator`
+
+The `params` parameter in ``airflow.providers.google.cloud.operators.automl.AutoMLPredictOperator`` class
+was renamed `operation_params` because it conflicted with a ``param`` parameter in the ``BaseOperator`` class.
 
 ### Change to Permissions
 
