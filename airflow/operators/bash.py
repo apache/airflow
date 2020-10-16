@@ -72,6 +72,10 @@ class BashOperator(BaseOperator):
         users in the Web UI. Most of the default template variables are not at
         risk.
 
+        Add a space after the script name when directly calling a Bash script with the
+        ``bash_command`` argument.  This is because Airflow tries to apply a Jinja template to it,
+        which will fail.
+
     For example, do **not** do this:
 
     .. code-block:: python
