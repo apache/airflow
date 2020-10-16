@@ -1793,9 +1793,42 @@ class TestDagDecorator:
         super().tearDown()
         clear_db_runs()
 
+    def test_set_dag_id(self):
+        @dag_decorator('test', default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            @task
+            def return_num(num):
+                return num
+
+            return_num(4)
+
+        assert noop_pipeline().dag_id, 'test'
+
+    def test_arg_not_set_fail(self):
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def noop_pipeline(value):
+            @task
+            def return_num(num):
+                return num
+
+            return_num(value)
+        with pytest.raises(TypeError):
+            noop_pipeline()
+
+    def test_dag_id_function_name(self):
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            @task
+            def return_num(num):
+                return num
+
+            return_num(4)
+
+        assert noop_pipeline().dag_id, 'noop_pipeline'
+
     def test_xcom_pass_to_op(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def test_xcom_pass_to_op(value=self.VALUE):
+        def xcom_pass_to_op(value=self.VALUE):
             @task
             def return_num(num):
                 return num
@@ -1803,7 +1836,7 @@ class TestDagDecorator:
             xcom_arg = return_num(value)
             self.operator = xcom_arg.operator
 
-        dag = test_xcom_pass_to_op()
+        dag = xcom_pass_to_op()
 
         dr = dag.create_dagrun(
             run_id=DagRunType.MANUAL.value,
@@ -1819,7 +1852,7 @@ class TestDagDecorator:
     @conf_vars({("core", "executor"): "DebugExecutor"})
     def test_xcom_pass_to_op(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def test_pipeline(some_param, other_param=self.VALUE):
+        def pipeline(some_param, other_param=self.VALUE):
             @task
             def some_task(param):
                 return param
@@ -1831,6 +1864,6 @@ class TestDagDecorator:
             some_task(some_param)
             another_task(other_param)
 
-        d = test_pipeline(self.VALUE)
+        d = pipeline(self.VALUE)
 
         d.run()

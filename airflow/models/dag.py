@@ -2215,18 +2215,36 @@ def dag(*dag_args, **dag_kwargs):
     :type dag_kwargs: dict
     """
     def wrapper(f: Callable):
+        # Get dag initializer signature and bind it to validate that dag_args, and dag_kwargs are correct
         dag_sig = signature(DAG.__init__)
-        dag_sig = dag_sig.bind_partial(*dag_args, **dag_kwargs)
+        dag_bound_args = dag_sig.bind_partial(*dag_args, **dag_kwargs)
 
         @functools.wraps(f)
         def factory(*args, **kwargs):
+            # Generate signature for decorated function and bind the arguments when called
+            # we do this to extract parameters so we can annotate them on the DAG object.
+            # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
             f_sig = signature(f).bind(*args, **kwargs)
+            # Apply defaults to capture default values if set.
             f_sig.apply_defaults()
-            with DAG(*dag_sig.args, dag_id=f.__name__, **dag_sig.kwargs) as dag_obj:
+
+            # Set function name as dag_id if not set
+            dag_id = dag_bound_args.arguments.get('dag_id', f.__name__)
+            dag_bound_args.arguments['dag_id'] = dag_id
+
+            # Initialize DAG with bound arguments
+            with DAG(*dag_bound_args.args, **dag_bound_args.kwargs) as dag_obj:
+
+                # Generate DAGParam for each function arg/kwarg and replace it for calling the function.
+                # All args/kwargs for function will be DAGParam object and  will be replaced on execution time.
                 f_kwargs = {}
                 for name, value in f_sig.arguments.items():
                     f_kwargs[name] = dag_obj.param(name, value)
+
+                # Invoke function to create operators in the DAG scope.
                 f(**f_kwargs)
+
+            # Return dag object such that it's accessible in Globals.
             return dag_obj
         return factory
     return wrapper
