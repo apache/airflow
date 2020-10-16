@@ -15,36 +15,58 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Callable
 
-from airflow.exceptions import AirflowException
-from airflow.models.dag import DAG  # pylint: disable=R0401
-from airflow.models.xcom import XCOM_RETURN_KEY
-from inspect import signature, Parameter
-from airflow.exceptions import AirflowException
+from inspect import signature
 from airflow.models.dag import DAG
 
 import functools
 
+
 class DagParam:
     """
-    
+    Class that represents a DAG run parameter.
+
+    It can be used to parametrized your dags.
+
+    **Example**:
+
+        with DAG(...) as dag:
+          EmailOperator(subject=dag.param('subject', 'Hi from Airflow!'))
+
+    This object can be used in legacy Operators via Jinja.
+
+    :param current_dag: Dag that will be used to pull the parameter from.
+    :type current_dag: airflow.models.dag.DAG
+    :param name: key value which is used to set the parameter
+    :type name: str
+    :param default: Default value used if no parameter was set.
+    :type default: Any
     """
 
-    def __init__(self, dag: DAG, name: str, default: Any):
-        dag.params[name] = default
+    def __init__(self, current_dag: DAG, name: str, default: Any):
+        current_dag.params[name] = default
         self._name = name
         self._default = default
 
     def resolve(self, context: Dict) -> Any:
         """
-        Pull XCom value for the existing arg. This method is run during ``op.execute()``
+        Pull DagParam value from DagRun context. This method is run during ``op.execute()``
         in respectable context.
         """
-        return self.context.get('params', {}).get(self._name, self._default)
+        return context.get('params', {}).get(self._name, self._default)
 
 
 def dag(*dag_args, **dag_kwargs):
+    """
+    Python dag decorator. Wraps a function into an Airflow DAG.
+    Accepts kwargs for operator kwarg. Can be used to parametrize DAGs.
+
+    :param dag_args: Arguments for DAG object
+    :type dag_args: list
+    :param dag_kwargs: Kwargs for DAG object.
+    :type dag_kwargs: dict
+    """
     def wrapper(f: Callable):
         dag_sig = signature(DAG.__init__).bind(dag_id=f.__name__)
         dag_sig = dag_sig.bind(*dag_args, **dag_kwargs)
