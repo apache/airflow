@@ -1748,7 +1748,7 @@ table th[class*="col-"] {
   background-color: #ebcccc;
 }
 .table-responsive {
-  overflow-x: auto;
+  overflow: visible;
   min-height: 0.01%;
 }
 
@@ -1756,8 +1756,6 @@ table th[class*="col-"] {
   .table-responsive {
     width: 100%;
     margin-bottom: 15px;
-    overflow-y: hidden;
-    -ms-overflow-style: -ms-autohiding-scrollbar;
     border: 1px solid #ddd;
   }
   .table-responsive > .table {
