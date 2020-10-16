@@ -1849,7 +1849,7 @@ class TestDagDecorator(unittest.TestCase):
 
         # Test that if arg is not passed it raises a type error as expected.
         with pytest.raises(TypeError):
-            noop_pipeline()  # pylint: ignore
+            noop_pipeline()  # pylint: disable=no-value-for-parameter
 
     def test_dag_param_resolves(self):
         """Test that dag param is correctly resolved by operator"""
