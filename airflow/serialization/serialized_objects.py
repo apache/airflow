@@ -44,9 +44,9 @@ try:
     from kubernetes.client import models as k8s
     from airflow.kubernetes.pod_generator import PodGenerator
     # isort: on
-    has_kubernetes = True
+    HAS_KUBERNETES = True
 except ImportError:
-    has_kubernetes = False
+    HAS_KUBERNETES = False
 
 
 log = logging.getLogger(__name__)
@@ -190,12 +190,12 @@ class BaseSerialization:
                     {str(k): cls._serialize(v) for k, v in var.items()},
                     type_=DAT.DICT
                 )
-            elif has_kubernetes and isinstance(var, k8s.V1Pod):
+            elif HAS_KUBERNETES and isinstance(var, k8s.V1Pod):
                 json_pod = PodGenerator.serialize_pod(var)
                 return cls._encode(json_pod, type_=DAT.POD)
             elif isinstance(var, list):
                 return [cls._serialize(v) for v in var]
-            elif has_kubernetes and isinstance(var, k8s.V1Pod):
+            elif HAS_KUBERNETES and isinstance(var, k8s.V1Pod):
                 json_pod = PodGenerator.serialize_pod(var)
                 return cls._encode(json_pod, type_=DAT.POD)
             elif isinstance(var, DAG):
@@ -259,7 +259,11 @@ class BaseSerialization:
             return SerializedBaseOperator.deserialize_operator(var)
         elif type_ == DAT.DATETIME:
             return pendulum.from_timestamp(var)
-        elif has_kubernetes and type_ == DAT.POD:
+        elif type_ == DAT.POD:
+            if not HAS_KUBERNETES:
+                raise RuntimeError(
+                    "Cannot deserialize POD objects without kubernetes libraries installed!"
+                )
             pod = PodGenerator.deserialize_model_dict(var)
             return pod
         elif type_ == DAT.TIMEDELTA:
