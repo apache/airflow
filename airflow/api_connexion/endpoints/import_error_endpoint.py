@@ -32,9 +32,7 @@ from airflow.utils.session import provide_session
 @security.requires_access([('can_read', 'ImportError')])
 @provide_session
 def get_import_error(import_error_id, session):
-    """
-    Get an import error
-    """
+    """Get an import error"""
     error = session.query(ImportError).filter(ImportError.id == import_error_id).one_or_none()
 
     if error is None:

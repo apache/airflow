@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains operator for uploading local file(s) to GCS.
-"""
+"""This module contains operator for uploading local file(s) to GCS."""
 import os
 import warnings
 from glob import glob
@@ -111,9 +109,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        """
-        Uploads a file or list of files to Google Cloud Storage
-        """
+        """Uploads a file or list of files to Google Cloud Storage"""
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

@@ -286,9 +286,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     @classmethod
     def convert_array_types(cls, value: Union[List[Any], SortedSet]) -> List[Any]:
-        """
-        Maps convert_value over array.
-        """
+        """Maps convert_value over array."""
         return [cls.convert_value(nested_value) for nested_value in value]
 
     @classmethod

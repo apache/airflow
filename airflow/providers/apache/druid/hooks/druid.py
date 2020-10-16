@@ -62,9 +62,7 @@ class DruidHook(BaseHook):
             raise ValueError("Druid timeout should be equal or greater than 1")
 
     def get_conn_url(self) -> str:
-        """
-        Get Druid connection url
-        """
+        """Get Druid connection url"""
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
@@ -89,9 +87,7 @@ class DruidHook(BaseHook):
             return None
 
     def submit_indexing_job(self, json_index_spec: Dict[str, Any]) -> None:
-        """
-        Submit Druid ingestion job
-        """
+        """Submit Druid ingestion job"""
         url = self.get_conn_url()
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
@@ -147,9 +143,7 @@ class DruidDbApiHook(DbApiHook):
     supports_autocommit = False
 
     def get_conn(self) -> connect:
-        """
-        Establish a connection to druid broker.
-        """
+        """Establish a connection to druid broker."""
         conn = self.get_connection(self.conn_name_attr)
         druid_broker_conn = connect(
             host=conn.host,

@@ -35,9 +35,7 @@ from airflow.models.taskinstance import TaskInstanceKey
 
 
 class DaskExecutor(BaseExecutor):
-    """
-    DaskExecutor submits tasks to a Dask Distributed cluster.
-    """
+    """DaskExecutor submits tasks to a Dask Distributed cluster."""
 
     def __init__(self, cluster_address=None):
         super().__init__(parallelism=0)

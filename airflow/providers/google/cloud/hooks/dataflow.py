@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Dataflow Hook.
-"""
+"""This module contains a Google Dataflow Hook."""
 import functools
 import json
 import re
@@ -94,9 +92,7 @@ _fallback_to_project_id_from_variables = _fallback_variable_parameter('project_i
 
 
 class DataflowJobStatus:
-    """
-    Helper class with Dataflow job statuses.
-    """
+    """Helper class with Dataflow job statuses."""
 
     JOB_STATE_DONE = "JOB_STATE_DONE"
     JOB_STATE_RUNNING = "JOB_STATE_RUNNING"
@@ -109,9 +105,7 @@ class DataflowJobStatus:
 
 
 class DataflowJobType:
-    """
-    Helper class with Dataflow job types.
-    """
+    """Helper class with Dataflow job types."""
 
     JOB_TYPE_UNKNOWN = "JOB_TYPE_UNKNOWN"
     JOB_TYPE_BATCH = "JOB_TYPE_BATCH"
@@ -297,9 +291,7 @@ class _DataflowJobsController(LoggingMixin):
         return self._jobs
 
     def cancel(self) -> None:
-        """
-        Cancels current job
-        """
+        """Cancels current job"""
         jobs = self._get_current_jobs()
         batch = self._dataflow.new_batch_http_request()
         job_ids = [job['id'] for job in jobs]
@@ -428,9 +420,7 @@ class DataflowHook(GoogleBaseHook):
         )
 
     def get_conn(self) -> build:
-        """
-        Returns a Google Cloud Dataflow service object.
-        """
+        """Returns a Google Cloud Dataflow service object."""
         http_authorized = self._authorize()
         return build('dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 

@@ -30,9 +30,7 @@ from airflow.utils import timezone
 
 
 class AzureBatchHook(BaseHook):
-    """
-    Hook for Azure Batch APIs
-    """
+    """Hook for Azure Batch APIs"""
 
     def __init__(self, azure_batch_conn_id: str = 'azure_batch_default') -> None:
         super().__init__()
@@ -41,9 +39,7 @@ class AzureBatchHook(BaseHook):
         self.extra = self._connection().extra_dejson
 
     def _connection(self) -> Connection:
-        """
-        Get connected to azure batch service
-        """
+        """Get connected to azure batch service"""
         conn = self.get_connection(self.conn_id)
         return conn
 

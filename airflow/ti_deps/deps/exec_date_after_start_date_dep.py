@@ -21,9 +21,7 @@ from airflow.utils.session import provide_session
 
 
 class ExecDateAfterStartDateDep(BaseTIDep):
-    """
-    Determines whether a task's execution date is after start date.
-    """
+    """Determines whether a task's execution date is after start date."""
 
     NAME = "Execution Date"
     IGNOREABLE = True

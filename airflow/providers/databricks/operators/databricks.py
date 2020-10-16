@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Databricks operators.
-"""
+"""This module contains Databricks operators."""
 
 import time
 from typing import Union, Optional, Any, Dict, List
@@ -268,9 +266,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         do_xcom_push: bool = False,
         **kwargs,
     ) -> None:
-        """
-        Creates a new ``DatabricksSubmitRunOperator``.
-        """
+        """Creates a new ``DatabricksSubmitRunOperator``."""
         super().__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id
@@ -476,9 +472,7 @@ class DatabricksRunNowOperator(BaseOperator):
         do_xcom_push: bool = False,
         **kwargs,
     ) -> None:
-        """
-        Creates a new ``DatabricksRunNowOperator``.
-        """
+        """Creates a new ``DatabricksRunNowOperator``."""
         super().__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id
