@@ -1257,7 +1257,7 @@ def get_all_providers() -> List[str]:
     Returns all providers for regular packages.
     :return: list of providers that are considered for provider packages
     """
-    return [prov for prov in PROVIDERS_REQUIREMENTS.keys()]
+    return list(PROVIDERS_REQUIREMENTS.keys())
 
 
 if __name__ == "__main__":
