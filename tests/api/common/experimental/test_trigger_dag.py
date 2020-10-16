@@ -65,7 +65,7 @@ class TestTriggerDag(unittest.TestCase):
         dag2 = mock.MagicMock(subdags=[])
         dag_mock.subdags = [dag1, dag2]
 
-        triggers = _trigger_dag(dag_id, dag_bag_mock) 
+        triggers = _trigger_dag(dag_id, dag_bag_mock)
 
         self.assertEqual(3, len(triggers))
 
