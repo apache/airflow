@@ -1805,6 +1805,18 @@ class TestDagDecorator:
         assert isinstance(dag, DAG)
         assert dag.dag_id, 'test'
 
+    def test_default_dag_id(self):
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            @task
+            def return_num(num):
+                return num
+
+            return_num(4)
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id, 'noop_pipeline'
+
     def test_fails_if_arg_not_set(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def noop_pipeline(value):
@@ -1818,17 +1830,7 @@ class TestDagDecorator:
         with pytest.raises(TypeError):
             noop_pipeline()
 
-    def test_dag_id_function_name(self):
-        @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def noop_pipeline():
-            @task
-            def return_num(num):
-                return num
 
-            return_num(4)
-        dag = noop_pipeline()
-        assert isinstance(dag, DAG)
-        assert dag.dag_id, 'noop_pipeline'
 
     def test_xcom_pass_to_op(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
