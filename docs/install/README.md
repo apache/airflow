@@ -14,7 +14,7 @@ We will deploy Apache Airflow on an IBM Cloud Kubernetes Cluster
 * Click the **Catalog** button on the top 
 * Select **Service** from the left in the catalog
 * Search for **Kubernetes Service** and click on it
-![Kubernetes](/kubernetes-select.png)
+![Kubernetes](/docs/install/kubernetes-select.png)
 * At the Kubernetes deployment page, we will specify our deployment details
 * Choose a plan **standard** or **free**, the free plan only has one worker node and no subnet, to provision a standard cluster, you will need to upgrade you account to Pay-As-You-Go 
   * To upgrade to a Pay-As-You-Go account, complete the following steps:
@@ -23,35 +23,35 @@ We will deploy Apache Airflow on an IBM Cloud Kubernetes Cluster
   * Select Account settings, and click Add credit card.
   * Enter your payment information, click Next, and submit your information
 * Choose **classic** or **VPC**, read the [docs] and choose the most suitable type for yourself 
- ![VPC](/infra-select.png)
+ ![VPC](/docs/install/infra-select.png)
 * Please decide on your deployment's location parameters , for more information please visit [Locations]
   * Choose **Geography** (continent)
-![continent](/location-geo.png)
+![continent](/docs/install/location-geo.png)
   * Choose **Single** or **Multizone**, in single zone your data is only kept in one datacenter, with Multizone your data is kept on multiple sites for more security
-![avail](/location-avail.png)
+![avail](/docs/install/location-avail.png)
   * Choose a **Worker Zone** if using Single zones or **Metro** if Multizone
- ![worker](/location-worker.png) 
+ ![worker](/docs/install/location-worker.png) 
     * If you wish to use Multizone please set up your account with [VRF] or [enable Vlan spanning]
     * At your current location selection, it is possible there is no Virtual LAN  currently available, then a new Vlan will be created for you
  
 * Choose a **Worker node setup** or use the preselected one, set **Worker node amount per zone**
-![worker-pool](/worker-pool.png)
+![worker-pool](/docs/install/worker-pool.png)
 * Choose **Master Service Endpoint**, In VRF-enabled accounts, you can choose private-only to make your master accessible on the private network or via VPN tunnel. Choose public-only to make your master publicly accessible. When you have a VRF-enabled account, your cluster is set up by default to use both private and public endpoints. For more information visit [endpoints].
-![endpoints](/endpoints.png)
+![endpoints](/docs/install/endpoints.png)
 * Give cluster a **name**
 
-![name-new](/name-new.png)
+![name-new](/docs/install/name-new.png)
 * Give desired **tags** to your cluster, for more information visit [tags]
 
-![tags-new](/tasg-new.png)
+![tags-new](/docs/install/tasg-new.png)
 * Click **create**
-![create-new](/create-new.png)
+![create-new](/docs/install/create-new.png)
 
 * Wait for you cluster to be provisioned 
 ![cluster-prepare](/cluster-prepare.png)
 * Your cluster is ready for usage 
 
-![cluster-ready](/cluster-done.png)
+![cluster-ready](/docs/install/cluster-done.png)
 
 ## Step 2 deploy IBM Cloud Block Storage plug-in
 The Block Storage plug-in is a persistent, high-performance iSCSI storage that you can add to your apps by using Kubernetes Persistent Volumes (PVs).
@@ -59,14 +59,14 @@ The Block Storage plug-in is a persistent, high-performance iSCSI storage that y
 * Click the **Catalog** button on the top 
 * Select **Software** from the catalog
 * Search for **IBM Cloud Block Storage plug-in** and click on it
-![Block](/block-search.png)
+![Block](/docs/install/block-search.png)
 
 * On the application page Click in the _dot_ next to the cluster, you wish to use
 * Click on  **Enter or Select Namespace** and choose the default Namespace or use a custom one (if you get error please wait 30 minutes for the cluster to finalize)
-![block-c](/block-cluster.png)
+![block-c](/docs/install/block-cluster.png)
 * Give a **name** to this workspace 
 * Click **install** and wait for the deployment
-![block-create](/block-storage-create.png)
+![block-create](/docs/install/block-storage-create.png)
 
 ## Step 3 Deploy Apache Airflow
 
@@ -75,55 +75,55 @@ In this step we will deploy Apache Airflow on our cluster
 * Click the **Catalog** button on the top 
 * Select **Software** from the left in the catalog
 * Search for **Apache Aifrlow** and click on it
-![Search](/search.png)
+![Search](/docs/install/search.png)
 
 
 * On the application page Click in the _dot_ next to the cluster we just created or use an existing one
-![Cluster](/cluster-select.png)
+![Cluster](/docs/install/cluster-select.png)
 * Click on  **Enter or Select Namespace** and choose one of the default Namespaces or use a custom one
-![Namespace](/details-namespace.png)
+![Namespace](/docs/install/details-namespace.png)
 * Give a unique **name** to your workspace
 
-![Name](/details-name.png)
+![Name](/docs/install/details-name.png)
 * Select which resource group you want to use, it is for access controll and billing purposes. For more information please visit [resource groups]
 
-![apache-resource](/details-resource.png)
+![apache-resource](/docs/install/details-resource.png)
 
 * Here you can give **tags** to your apache airflow workspace, which will affect your deployment. For more information visit [tags]
 
-![apache-tags](/details-tags.png)
+![apache-tags](/docs/install/details-tags.png)
 
 * Click on **Parameters with default values**, You can set deployment values or use the default ones
 
-![def-val](/parameters.png)
+![def-val](/docs/install/parameters.png)
 
 * Please **tick** the box next to the agreements and click **install**
 
-![Install](/aggreement-create.png)
+![Install](/docs/install/aggreement-create.png)
 
 * Your apache airflow workspace will start installing, please wait a couple of minutes for the deployment to finish 
 
-![airflow-progress](/in-progress.png)
+![airflow-progress](/docs/install/in-progress.png)
 
 * You apache airflow workspace has been successfully deployed
 
-![airflow-finsihed](/airflow-done.png)
+![airflow-finsihed](/docs/install/airflow-done.png)
 
 ## Verify Apache Airflow installation
 
 * Go to [Resources] in your browser 
 * Click on **Clusters**
 * Click on your Cluster
-![Resourcelect](/resource-select.png)
+![Resourcelect](/docs/install/resource-select.png)
 
 * Now you are at you cluster's overview, here Click on **Actions** on the top right and  click on **Web terminal** from the dropdown menu
 
 
-![Actions](/cluster-main.png)
+![Actions](/docs/install/cluster-main.png)
 
 * Click **install**, then wait couple of minutes 
 
-![terminal-install](/terminal-install.jpg)
+![terminal-install](/docs/install/terminal-install.jpg)
 
 * Click on **Actions**
 * Click **Web terminal** --> a terminal will open up
@@ -133,19 +133,19 @@ In this step we will deploy Apache Airflow on our cluster
  ```sh
 $ kubectl get ns
 ```
-![get-ns](/get-ns.png)
+![get-ns](/docs/install/get-ns.png)
 
 
  ```sh
 $ kubectl get pod -n NAMESPACE -o wide 
 ```
-![get-pod](/get-pod.png)
+![get-pod](/docs/install/get-pod.png)
 
 
  ```sh
 $ kubectl get service -n NAMESPACE
 ```
-![get-service](/get-service.png)
+![get-service](/docs/install/get-service.png)
 
 
 * Your running Apache Airflow services will be visible 
