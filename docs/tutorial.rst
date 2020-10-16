@@ -45,7 +45,7 @@ The actual tasks defined here will run in a different context from
 the context of this script. Different tasks run on different workers
 at different points in time, which means that this script cannot be used
 to cross communicate between tasks. Note that for this
-purpose we have a more advanced feature called ``XCom``.
+purpose we have a more advanced feature called :ref:`XComs <concepts:xcom>`.
 
 People sometimes think of the DAG definition file as a place where they
 can do some actual data processing - that is not the case at all!
