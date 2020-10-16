@@ -89,16 +89,81 @@ fi
 python3 refactor_provider_packages.py
 
 VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
-VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
+readonly VERSION_SUFFIX_FOR_PYPI
 
-echo "Version suffix for PyPI= ${VERSION_SUFFIX_FOR_PYPI}"
-echo "Version suffix for SVN = ${VERSION_SUFFIX_FOR_SVN}"
+VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
+readonly VERSION_SUFFIX_FOR_SVN
+
+if [[ ${VERSION_SUFFIX_FOR_PYPI} != "" ]]; then
+    echo
+    echo "Version suffix for PyPI = ${VERSION_SUFFIX_FOR_PYPI}"
+    echo
+fi
+if [[ ${VERSION_SUFFIX_FOR_SVN} != "" ]]; then
+    echo
+    echo "Version suffix for SVN  = ${VERSION_SUFFIX_FOR_SVN}"
+    echo
+fi
+
+if [[ ${VERSION_SUFFIX_FOR_PYPI} != '' && ${VERSION_SUFFIX_FOR_SVN} != '' ]]; then
+    if [[ ${VERSION_SUFFIX_FOR_PYPI} != "${VERSION_SUFFIX_FOR_SVN}" ]]; then
+        >&2 echo
+        >&2 echo "If you specify both version suffixes they must match"
+        >&2 echo "However they are different: '${VERSION_SUFFIX_FOR_PYPI}' vs. '${VERSION_SUFFIX_FOR_SVN}'"
+        >&2 echo
+        exit 1
+    else
+        if [[ ${VERSION_SUFFIX_FOR_PYPI} =~ ^rc ]]; then
+            >&2 echo
+            >&2 echo "If you prepare an RC candidate, you need to specify only one of the PyPI/SVN suffixes"
+            >&2 echo "However you specified both: '${VERSION_SUFFIX_FOR_PYPI}' vs. '${VERSION_SUFFIX_FOR_SVN}'"
+            >&2 echo
+            exit 2
+        fi
+        # Just use one of them - they are both the same:
+        TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}
+    fi
+else
+    if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' && ${VERSION_SUFFIX_FOR_SVN} == '' ]]; then
+        # Preparing "official version"
+        TARGET_VERSION_SUFFIX=""
+    else
+        TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}${VERSION_SUFFIX_FOR_SVN}
+        if [[ ! ${TARGET_VERSION_SUFFIX} =~ rc.* ]]; then
+            >&2 echo
+            >&2 echo "If you prepare an alpha/beta release, you need to specify both PyPI/SVN suffixes"
+            >&2 echo "And they have to match. You specified only one."
+            >&2 echo
+            exit 2
+        fi
+    fi
+fi
+
+readonly TARGET_VERSION_SUFFIX
 
 for PROVIDER_PACKAGE in ${PROVIDER_PACKAGES}
 do
     LOG_FILE=$(mktemp)
     echo "==================================================================================="
-    echo " Preparing ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE}"
+    echo " Preparing ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} "
+    if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' && "${VERSION_SUFFIX_FOR_SVN}" == '' ]]; then
+        echo
+        echo " Official version"
+        echo
+    elif [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' ]]; then
+        echo
+        echo " Package Version for SVN release candidate: ${TARGET_VERSION_SUFFIX}"
+        echo
+    elif [[ "${VERSION_SUFFIX_FOR_SVN}" == '' ]]; then
+        echo
+        echo " Package Version for PyPI release candidate: ${TARGET_VERSION_SUFFIX}"
+        echo
+    else
+        # Both SV/PYPI are set to the same version here!
+        echo
+        echo " Pre-release version: ${TARGET_VERSION_SUFFIX}"
+        echo
+    fi
     echo "-----------------------------------------------------------------------------------"
     set +e
     python3 setup_provider_packages.py "${PROVIDER_PACKAGE}" clean --all >"${LOG_FILE}" 2>&1
@@ -160,7 +225,8 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 
 pushd dist
 
-if [[ -n ${VERSION_SUFFIX_FOR_SVN=} ]]; then
+if [[ ${VERSION_SUFFIX_FOR_PYPI} != "${TARGET_VERSION_SUFFIX}" ]]; then
+    # In case we prepare different suffix for SVN and PYPI, rename the generated files
     for FILE in *.tar.gz
     do
         mv "${FILE}" "${FILE//\.tar\.gz/${VERSION_SUFFIX_FOR_SVN}-bin.tar.gz}"
@@ -173,7 +239,7 @@ fi
 
 popd
 
-AIRFLOW_PACKAGES_TGZ_FILE="/files/airflow-packages-$(date +"%Y%m%d-%H%M%S")-${VERSION_SUFFIX_FOR_SVN}${VERSION_SUFFIX_FOR_PYPI}.tar.gz"
+AIRFLOW_PACKAGES_TGZ_FILE="/files/airflow-packages-$(date +"%Y%m%d-%H%M%S")-${TARGET_VERSION_SUFFIX}.tar.gz"
 
 tar -cvzf "${AIRFLOW_PACKAGES_TGZ_FILE}" dist/*.whl dist/*.tar.gz
 echo
