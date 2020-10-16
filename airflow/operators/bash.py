@@ -64,7 +64,7 @@ class BashOperator(BaseOperator):
 
     .. note::
 
-        Add a space after the script name when directly calling a a ``.sh`` script with the
+        Add a space after the script name when directly calling a ``.sh`` script with the
         ``bash_command`` argument -- for example ``bash_command="my_script.sh "``.  This
         is because Airflow tries to apply load this file and process it as a Jinja template to
         it ends with ``.sh``, which will likely not be what most users want.
