@@ -178,7 +178,6 @@ Example DAG with decorator:
 
 .. exampleinclude:: /../airflow/example_dags/example_dag_decorator.py
     :language: python
-    :dedent: 4
     :start-after: [START dag_decorator_usage]
     :end-before: [END dag_decorator_usage]
 
