@@ -703,7 +703,7 @@ class DAG(BaseDag, LoggingMixin):
         :param default: fallback value for dag parameter.
         :return: DagParam instance for specified name and current dag.
         """
-        return DagParam(self, name, default)
+        return DagParam(dag=self, name=name, default=default)
 
     @property
     def tasks(self) -> List[BaseOperator]:
