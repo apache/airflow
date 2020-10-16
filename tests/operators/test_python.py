@@ -603,6 +603,22 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
         assert 'add_2' in self.dag.task_ids
 
+    def test_task_documentation(self):
+        """Tests that task_decorator loads doc_md from function doc"""
+
+        @task_decorator
+        def add_2(number: int):
+            """
+            Adds 2 to number.
+            """
+            return number + 2
+
+        test_number = 10
+        with self.dag:
+            ret = add_2(test_number)
+
+        assert ret.operator.doc_md.strip(), "Adds 2 to number."
+
 
 class TestBranchOperator(unittest.TestCase):
     @classmethod

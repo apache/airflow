@@ -289,6 +289,8 @@ def task(
         def factory(*args, **f_kwargs):
             op = _PythonDecoratedOperator(python_callable=f, op_args=args, op_kwargs=f_kwargs,
                                           multiple_outputs=multiple_outputs, **kwargs)
+            if f.__doc__:
+                op.doc_md = f.__doc__
             return XComArg(op)
         return cast(T, factory)
     if callable(python_callable):
