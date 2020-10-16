@@ -275,6 +275,31 @@ class TestPythonOperator(TestPythonBase):
             python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             self.assertTrue('dag' in context.exception, "'dag' not found in the exception")
 
+    def test_provide_context_does_not_fail(self):
+        """
+        ensures that provide_context doesn't break dags in 2.0
+        """
+        self.dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def func(custom, dag):
+            self.assertEqual(1, custom, "custom should be 1")
+            self.assertIsNotNone(dag, "dag should be set")
+
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            op_kwargs={'custom': 1},
+            python_callable=func,
+            provide_context=True,
+            dag=self.dag
+        )
+        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
     def test_context_with_conflicting_op_args(self):
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
