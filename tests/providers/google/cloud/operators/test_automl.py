@@ -125,7 +125,7 @@ class TestAutoMLPredictOperator(unittest.TestCase):
             location=GCP_LOCATION,
             metadata=None,
             model_id=MODEL_ID,
-            params={},
+            params=None,
             payload=PAYLOAD,
             project_id=GCP_PROJECT_ID,
             retry=None,
