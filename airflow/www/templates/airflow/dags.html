@@ -319,6 +319,7 @@
     $('#search_form').on('reset', function() {
       var query = new URLSearchParams(window.location.search);
       query.delete('search');
+      query.set('page', '0');
       window.location = DAGS_INDEX + "?" + query;
     });
 
