@@ -35,9 +35,7 @@ log = logging.getLogger(__name__)
 def send_email(to: Union[List[str], Iterable[str]], subject: str, html_content: str,
                files=None, dryrun=False, cc=None, bcc=None,
                mime_subtype='mixed', mime_charset='utf-8', **kwargs):
-    """
-    Send email using backend specified in EMAIL_BACKEND.
-    """
+    """Send email using backend specified in EMAIL_BACKEND."""
     backend = conf.getimport('email', 'EMAIL_BACKEND')
     to_list = get_email_address_list(to)
     to_comma_separated = ", ".join(to_list)
@@ -150,9 +148,7 @@ def build_mime_message(
 
 
 def send_mime_email(e_from: str, e_to: List[str], mime_msg: MIMEMultipart, dryrun: bool = False) -> None:
-    """
-    Send MIME email.
-    """
+    """Send MIME email."""
     smtp_host = conf.get('smtp', 'SMTP_HOST')
     smtp_port = conf.getint('smtp', 'SMTP_PORT')
     smtp_starttls = conf.getboolean('smtp', 'SMTP_STARTTLS')
@@ -178,9 +174,7 @@ def send_mime_email(e_from: str, e_to: List[str], mime_msg: MIMEMultipart, dryru
 
 
 def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
-    """
-    Get list of email addresses.
-    """
+    """Get list of email addresses."""
     if isinstance(addresses, str):
         return _get_email_list_from_str(addresses)
 

@@ -31,9 +31,7 @@ warnings.warn(
 
 @runtime_checkable
 class ECSProtocol(NewECSProtocol, Protocol):
-    """
-    This class is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs.ECSProtocol`.
-    """
+    """This class is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs.ECSProtocol`."""
 
     # A Protocol cannot be instantiated
 

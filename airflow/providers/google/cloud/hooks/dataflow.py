@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Dataflow Hook.
-"""
+"""This module contains a Google Dataflow Hook."""
 import functools
 import json
 import re
@@ -94,10 +92,7 @@ _fallback_to_project_id_from_variables = _fallback_variable_parameter('project_i
 
 
 class DataflowJobStatus:
-    """
-    Helper class with Dataflow job statuses.
-    Reference: https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
-    """
+    """Helper class with Dataflow job statuses."""
 
     JOB_STATE_DONE = "JOB_STATE_DONE"
     JOB_STATE_UNKNOWN = "JOB_STATE_UNKNOWN"
@@ -125,9 +120,7 @@ class DataflowJobStatus:
 
 
 class DataflowJobType:
-    """
-    Helper class with Dataflow job types.
-    """
+    """Helper class with Dataflow job types."""
 
     JOB_TYPE_UNKNOWN = "JOB_TYPE_UNKNOWN"
     JOB_TYPE_BATCH = "JOB_TYPE_BATCH"
@@ -310,25 +303,21 @@ class _DataflowJobsController(LoggingMixin):
         return self._jobs
 
     def cancel(self) -> None:
-        """
-        Cancels current job
-        """
-        jobs = self.get_jobs()
-        job_ids = [job['id'] for job in jobs if job['currentState'] not in DataflowJobStatus.TERMINAL_STATES]
-        if job_ids:
-            batch = self._dataflow.new_batch_http_request()
-            self.log.info("Canceling jobs: %s", ", ".join(job_ids))
-            for job_id in job_ids:
-                batch.add(
-                    self._dataflow.projects()
-                    .locations()
-                    .jobs()
-                    .update(
-                        projectId=self._project_number,
-                        location=self._job_location,
-                        jobId=job_id,
-                        body={"requestedState": DataflowJobStatus.JOB_STATE_CANCELLED},
-                    )
+        """Cancels current job"""
+        jobs = self._get_current_jobs()
+        batch = self._dataflow.new_batch_http_request()
+        job_ids = [job['id'] for job in jobs]
+        self.log.info("Canceling jobs: %s", ", ".join(job_ids))
+        for job_id in job_ids:
+            batch.add(
+                self._dataflow.projects()
+                .locations()
+                .jobs()
+                .update(
+                    projectId=self._project_number,
+                    location=self._job_location,
+                    jobId=job_id,
+                    body={"requestedState": DataflowJobStatus.JOB_STATE_CANCELLED},
                 )
             batch.execute()
         else:
@@ -444,9 +433,7 @@ class DataflowHook(GoogleBaseHook):
         )
 
     def get_conn(self) -> build:
-        """
-        Returns a Google Cloud Dataflow service object.
-        """
+        """Returns a Google Cloud Dataflow service object."""
         http_authorized = self._authorize()
         return build('dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 

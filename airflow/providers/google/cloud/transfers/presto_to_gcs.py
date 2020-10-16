@@ -93,9 +93,7 @@ class _PrestoToGCSPrestoCursorAdapter:
         return self.cursor.executemany(*args, **kwargs)
 
     def peekone(self) -> Any:
-        """
-        Return the next row without consuming it.
-        """
+        """Return the next row without consuming it."""
         self.initialized = True
         element = self.cursor.fetchone()
         self.rows.insert(0, element)
@@ -110,9 +108,8 @@ class _PrestoToGCSPrestoCursorAdapter:
             return self.rows.pop(0)
         return self.cursor.fetchone()
 
-    def fetchmany(self, size=None) -> list:
-        """
-        Fetch the next set of rows of a query result, returning a sequence of sequences
+    def fetchmany(self, size=None) -> List[Any]:
+        """Fetch the next set of rows of a query result, returning a sequence of sequences
         (e.g. a list of tuples). An empty sequence is returned when no more rows are available.
         """
         if size is None:
@@ -128,8 +125,7 @@ class _PrestoToGCSPrestoCursorAdapter:
         return result
 
     def __next__(self) -> Any:
-        """
-        Return the next row from the currently executing SQL statement using the same semantics as
+        """ Return the next row from the currently executing SQL statement using the same semantics as
         ``.fetchone()``.  A ``StopIteration`` exception is raised when the result set is exhausted.
         :return:
         """

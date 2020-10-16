@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Base operator for all operators.
-"""
+"""Base operator for all operators."""
 import abc
 import copy
 import functools
@@ -68,9 +66,7 @@ TaskStateChangeCallback = Callable[[Context], None]
 
 
 class BaseOperatorMeta(abc.ABCMeta):
-    """
-    Base metaclass of BaseOperator.
-    """
+    """Base metaclass of BaseOperator."""
 
     def __call__(cls, *args, **kwargs):
         """
@@ -570,34 +566,24 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             self.set_xcomargs_dependencies()
 
     def add_inlets(self, inlets: Iterable[Any]):
-        """
-        Sets inlets to this operator
-        """
+        """Sets inlets to this operator"""
         self._inlets.extend(inlets)
 
     def add_outlets(self, outlets: Iterable[Any]):
-        """
-        Defines the outlets of this operator
-        """
+        """Defines the outlets of this operator"""
         self._outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """
-        :return: list of inlets defined for this operator
-        """
+        """:return: list of inlets defined for this operator"""
         return self._inlets
 
     def get_outlet_defs(self):
-        """
-        :return: list of outlets defined for this operator
-        """
+        """:return: list of outlets defined for this operator"""
         return self._outlets
 
     @property
     def dag(self) -> Any:
-        """
-        Returns the Operator's DAG if set, otherwise raises an error
-        """
+        """Returns the Operator's DAG if set, otherwise raises an error"""
         if self.has_dag():
             return self._dag
         else:
@@ -606,10 +592,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     @dag.setter
     def dag(self, dag: Any):
-        """
-        Operators can be assigned to one DAG, one time. Repeat assignments to
-        that same DAG are ok.
-        """
+        """Operators can be assigned to one DAG, one time. Repeat assignments to that same DAG are ok."""
         from airflow.models.dag import DAG
         if dag is None:
             self._dag = None

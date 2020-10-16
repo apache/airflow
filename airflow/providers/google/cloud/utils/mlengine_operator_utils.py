@@ -16,9 +16,7 @@
 # under the License.
 
 #
-"""
-This module contains helper functions for MLEngine operators.
-"""
+"""This module contains helper functions for MLEngine operators."""
 
 import base64
 import json

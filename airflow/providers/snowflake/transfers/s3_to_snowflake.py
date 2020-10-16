@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS S3 to Snowflake operator.
-"""
+"""This module contains AWS S3 to Snowflake operator."""
 from typing import Any, Optional
 
 from airflow.models import BaseOperator

@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Dataproc operators.
-"""
+"""This module contains Google Dataproc operators."""
 # pylint: disable=C0302
 
 import inspect

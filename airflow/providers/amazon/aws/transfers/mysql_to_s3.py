@@ -101,10 +101,8 @@ class MySQLToS3Operator(BaseOperator):
         if "header" not in self.pd_csv_kwargs:
             self.pd_csv_kwargs["header"] = header
 
-    def _fix_int_dtypes(self, df: pd.DataFrame) -> None:
-        """
-        Mutate DataFrame to set dtypes for int columns containing NaN values."
-        """
+    def _fix_int_dtypes(self, df):
+        """Mutate DataFrame to set dtypes for int columns containing NaN values.""""
         for col in df:
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
