@@ -1952,7 +1952,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti.state, expected_task_state)
         self.assertIsNotNone(ti.start_date)
-        if expected_task_state in State.finished():
+        if expected_task_state in State.finished:
             self.assertIsNotNone(ti.end_date)
             self.assertEqual(ti.start_date, ti.end_date)
             self.assertIsNotNone(ti.duration)

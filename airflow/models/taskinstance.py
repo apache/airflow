@@ -295,7 +295,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """
         # This is designed so that task logs end up in the right file.
         # TODO: whether we need sensing here or not (in sensor and task_instance state machine)
-        if self.state in State.running():
+        if self.state in State.running:
             return self._try_number
         return self._try_number + 1
 
@@ -623,7 +623,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
         self.start_date = current_time
-        if self.state in State.finished():
+        if self.state in State.finished:
             self.end_date = current_time
             self.duration = 0
         session.merge(self)

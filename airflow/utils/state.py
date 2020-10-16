@@ -99,45 +99,39 @@ class State:
             return 'white'
         return 'black'
 
-    @classmethod
-    def running(cls):
-        """
-        A list of states indicating that a task is being executed.
-        """
-        return [
-            cls.RUNNING,
-            cls.SENSING
-        ]
+    running = frozenset([
+        RUNNING,
+        SENSING
+    ])
+    """
+    A list of states indicating that a task is being executed.
+    """
 
-    @classmethod
-    def finished(cls):
-        """
-        A list of states indicating that a task started and completed a
-        run attempt. Note that the attempt could have resulted in failure or
-        have been interrupted; in any case, it is no longer running.
-        """
-        return [
-            cls.SUCCESS,
-            cls.FAILED,
-            cls.SKIPPED,
-        ]
+    finished = frozenset([
+        SUCCESS,
+        FAILED,
+        SKIPPED,
+    ])
+    """
+    A list of states indicating that a task started and completed a
+    run attempt. Note that the attempt could have resulted in failure or
+    have been interrupted; in any case, it is no longer running.
+    """
 
-    @classmethod
-    def unfinished(cls):
-        """
-        A list of states indicating that a task either has not completed
-        a run or has not even started.
-        """
-        return [
-            cls.NONE,
-            cls.SCHEDULED,
-            cls.QUEUED,
-            cls.RUNNING,
-            cls.SENSING,
-            cls.SHUTDOWN,
-            cls.UP_FOR_RETRY,
-            cls.UP_FOR_RESCHEDULE,
-        ]
+    unfinished = frozenset([
+        NONE,
+        SCHEDULED,
+        QUEUED,
+        RUNNING,
+        SENSING,
+        SHUTDOWN,
+        UP_FOR_RETRY,
+        UP_FOR_RESCHEDULE,
+    ])
+    """
+    A list of states indicating that a task either has not completed
+    a run or has not even started.
+    """
 
 
 class PokeState:
