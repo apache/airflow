@@ -103,7 +103,7 @@
       <span class="loading-dot"></span>
     </span>
     <label class="switch-label">
-      <input class="switch-input" id="auto_refresh" type="checkbox" checked>
+      <input class="switch-input" id="auto_refresh" type="checkbox" {% if dag_run_state == 'running' %}checked{% endif %}>
       <span class="switch" aria-hidden="true"></span>
       Auto-refresh
     </label>

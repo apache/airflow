@@ -51,6 +51,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -176,7 +177,7 @@ class DAG(BaseDag, LoggingMixin):
         that it is executed when the dag succeeds.
     :type on_success_callback: callable
     :param access_control: Specify optional DAG-level permissions, e.g.,
-        "{'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}}"
+        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit'}}"
     :type access_control: dict
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
@@ -332,7 +333,7 @@ class DAG(BaseDag, LoggingMixin):
         self.on_failure_callback = on_failure_callback
         self.doc_md = doc_md
 
-        self._access_control = access_control
+        self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
@@ -381,6 +382,32 @@ class DAG(BaseDag, LoggingMixin):
         DagContext.pop_context_managed_dag()
 
     # /Context Manager ----------------------------------------------
+
+    @staticmethod
+    def _upgrade_outdated_dag_access_control(access_control=None):
+        """
+        Looks for outdated dag level permissions (can_dag_read and can_dag_edit) in DAG
+        access_controls (for example, {'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}})
+        and replaces them with updated permissions (can_read and can_edit).
+        """
+        if not access_control:
+            return None
+        new_perm_mapping = {
+            permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
+            permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,
+        }
+        updated_access_control = {}
+        for role, perms in access_control.items():
+            updated_access_control[role] = {new_perm_mapping.get(perm, perm) for perm in perms}
+
+        if access_control != updated_access_control:
+            warnings.warn(
+                "The 'can_dag_read' and 'can_dag_edit' permissions are deprecated. "
+                "Please use 'can_read' and 'can_edit', respectively.",
+                DeprecationWarning, stacklevel=3
+            )
+
+        return updated_access_control
 
     def date_range(
         self,
@@ -651,7 +678,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @access_control.setter
     def access_control(self, value):
-        self._access_control = value
+        self._access_control = DAG._upgrade_outdated_dag_access_control(value)
 
     @property
     def description(self) -> Optional[str]:

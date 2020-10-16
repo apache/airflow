@@ -21,6 +21,7 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagModel, DagRun
+from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.types import DagRunType
@@ -42,7 +43,7 @@ class TestDagRunEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_read", "Dag"),
+                ("can_read", permissions.RESOURCE_DAGS),
                 ("can_create", "DagRun"),
                 ("can_read", "DagRun"),
                 ("can_edit", "DagRun"),

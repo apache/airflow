@@ -132,8 +132,8 @@ serialized_simple_dag_ground_truth = {
                 "test_role": {
                     "__type": "set",
                     "__var": [
-                        "can_dag_read",
-                        "can_dag_edit"
+                        "can_read",
+                        "can_edit"
                     ]
                 }
             }
@@ -164,7 +164,7 @@ def make_simple_dag():
         start_date=datetime(2019, 8, 1),
         is_paused_upon_creation=False,
         access_control={
-            "test_role": {"can_dag_read", "can_dag_edit"}
+            "test_role": {"can_read", "can_edit"}
         }
     ) as dag:
         CustomOperator(task_id='custom_task')

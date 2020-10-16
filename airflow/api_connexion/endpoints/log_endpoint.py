@@ -23,11 +23,14 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
 from airflow.models import DagRun
+from airflow.security import permissions
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
 
 
-@security.requires_access([('can_read', 'Dag'), ('can_read', 'DagRun'), ('can_read', 'Task')])
+@security.requires_access(
+    [('can_read', permissions.RESOURCE_DAGS), ('can_read', 'DagRun'), ('can_read', 'Task')]
+)
 @provide_session
 def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=False, token=None):
     """

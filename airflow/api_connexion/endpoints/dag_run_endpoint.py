@@ -28,11 +28,12 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagruns_batch_form_schema,
 )
 from airflow.models import DagModel, DagRun
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 
-@security.requires_access([("can_read", "Dag"), ("can_delete", "DagRun")])
+@security.requires_access([("can_read", permissions.RESOURCE_DAGS), ("can_delete", "DagRun")])
 @provide_session
 def delete_dag_run(dag_id, dag_run_id, session):
     """
@@ -43,7 +44,7 @@ def delete_dag_run(dag_id, dag_run_id, session):
     return NoContent, 204
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
+@security.requires_access([("can_read", permissions.RESOURCE_DAGS), ("can_read", "DagRun")])
 @provide_session
 def get_dag_run(dag_id, dag_run_id, session):
     """
@@ -58,7 +59,7 @@ def get_dag_run(dag_id, dag_run_id, session):
     return dagrun_schema.dump(dag_run)
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
+@security.requires_access([("can_read", permissions.RESOURCE_DAGS), ("can_read", "DagRun")])
 @format_parameters(
     {
         'start_date_gte': format_datetime,
@@ -157,7 +158,7 @@ def _apply_date_filters_to_query(
     return query
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
+@security.requires_access([("can_read", permissions.RESOURCE_DAGS), ("can_read", "DagRun")])
 @provide_session
 def get_dag_runs_batch(session):
     """
@@ -193,7 +194,7 @@ def get_dag_runs_batch(session):
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
 
 
-@security.requires_access([("can_read", "Dag"), ("can_create", "DagRun")])
+@security.requires_access([("can_read", permissions.RESOURCE_DAGS), ("can_create", "DagRun")])
 @provide_session
 def post_dag_run(dag_id, session):
     """
