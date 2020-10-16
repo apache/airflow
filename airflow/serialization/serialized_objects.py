@@ -190,9 +190,6 @@ class BaseSerialization:
                     {str(k): cls._serialize(v) for k, v in var.items()},
                     type_=DAT.DICT
                 )
-            elif HAS_KUBERNETES and isinstance(var, k8s.V1Pod):
-                json_pod = PodGenerator.serialize_pod(var)
-                return cls._encode(json_pod, type_=DAT.POD)
             elif isinstance(var, list):
                 return [cls._serialize(v) for v in var]
             elif HAS_KUBERNETES and isinstance(var, k8s.V1Pod):
