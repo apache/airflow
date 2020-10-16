@@ -167,30 +167,28 @@ DAG decorator
 
 .. versionadded:: 2.0.0
 
-In addition to creating DAGs using context managed, in Airflow 2.0 you can create DAGs from a function.
-DAG decorator is effectively a DAG generator function. Function arguments are parsed as
-around creating PythonOperators, managing dependencies between task and accessing XCom values. (During
-development this feature was called "Functional DAGs", so if you see or hear any references to that, it's the
-same thing)
+In addition to creating DAGs using context managed, in Airflow 2.0 you can also create DAGs from a function.
+DAG decorator creates a DAG generator function. This function when called returns a DAG.
 
-Outputs and inputs are sent between tasks using :ref:`XCom values <concepts:xcom>`. In addition, you can wrap
-functions as tasks using the :ref:`task decorator <concepts:task_decorator>`. Airflow will also automatically
-add dependencies between tasks to ensure that XCom messages are available when operators are executed.
+DAG decorator also sets up the parameters you have in the function as DAG params. This allows you to parametrize
+your DAGs and set the parameters when triggering the DAG manually. See
+:ref:`Passing Parameters when triggering dags <dagrun:parameters>` to learn how to pass parameters when triggering DAGs.
 
-Example DAG with decorated style
+Example DAG with decorator:
 
 .. code-block:: python
 
-  with DAG(
-      'send_server_ip', default_args=default_args, schedule_interval=None
-  ) as dag:
+  from airflow.decorators import dag, task
+
+  @dag(default_args=default_args, schedule_interval=None)
+  def send_server_ip(email: 'example@example.com')
 
     # Using default connection as it's set to httpbin.org by default
     get_ip = SimpleHttpOperator(
         task_id='get_ip', endpoint='get', method='GET', xcom_push=True
     )
 
-    @dag.task(multiple_outputs=True)
+    @task(multiple_outputs=True)
     def prepare_email(raw_json: str) -> Dict[str, str]:
       external_ip = json.loads(raw_json)['origin']
       return {
@@ -202,10 +200,12 @@ Example DAG with decorated style
 
     send_email = EmailOperator(
         task_id='send_email',
-        to='example@example.com',
+        to=email,
         subject=email_info['subject'],
         html_content=email_info['body']
     )
+
+  my_dag = send_server_ip()
 
 
 .. _concepts:executor_config:
