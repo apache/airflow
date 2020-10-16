@@ -862,7 +862,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 return jinja_env.get_template(content).render(**context)
             else:
                 return jinja_env.from_string(content).render(**context)
-        elif isinstance(content, (XComArg, DagParam):
+        elif isinstance(content, (XComArg, DagParam)):
             return content.resolve(context)
 
         if isinstance(content, tuple):

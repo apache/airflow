@@ -18,7 +18,7 @@
 from typing import Any, Dict, Callable
 
 from inspect import signature
-from airflow.models.dag import DAG
+
 
 import functools
 
@@ -44,7 +44,7 @@ class DagParam:
     :type default: Any
     """
 
-    def __init__(self, current_dag: DAG, name: str, default: Any):
+    def __init__(self, current_dag, name: str, default: Any):
         current_dag.params[name] = default
         self._name = name
         self._default = default
@@ -68,16 +68,18 @@ def dag(*dag_args, **dag_kwargs):
     :type dag_kwargs: dict
     """
     def wrapper(f: Callable):
-        dag_sig = signature(DAG.__init__).bind(dag_id=f.__name__)
-        dag_sig = dag_sig.bind(*dag_args, **dag_kwargs)
+        from airflow.models.dag import DAG
+        dag_sig = signature(DAG.__init__)
+        dag_sig = dag_sig.bind_partial(*dag_args, **dag_kwargs)
         @functools.wraps(f)
         def factory(*args, **kwargs):
-            sig = signature(f).bind(*args, **kwargs).apply_defaults()
-            with DAG(*dag_sig.args, **dag_sig.kwargs) as dag:
+            f_sig = signature(f).bind(*args, **kwargs)
+            f_sig.apply_defaults()
+            with DAG(*dag_sig.args, dag_id=f.__name__, **dag_sig.kwargs) as dag_obj:
                 f_kwargs = {}
-                for name, value in sig.arguments.items():
-                    f_kwargs[name] = dag.param(name, value)
+                for name, value in f_sig.arguments.items():
+                    f_kwargs[name] = dag_obj.param(name, value)
                 f(**f_kwargs)
-            return dag
+            return dag_obj
         return factory
     return wrapper
