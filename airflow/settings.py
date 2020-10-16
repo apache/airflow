@@ -393,3 +393,7 @@ CHECK_SLAS = conf.getboolean('core', 'check_slas', fallback=True)
 MAX_DB_RETRIES = conf.getint('core', 'max_db_retries', fallback=3)
 
 USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=True)
+
+# By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
+# if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
+LAZY_LOAD_PLUGINS = conf.getboolean('core', 'lazy_load_plugins', fallback=True)

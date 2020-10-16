@@ -400,6 +400,14 @@
       type: string
       example: "path.to.CustomXCom"
       default: "airflow.models.xcom.BaseXCom"
+    - name: lazy_load_plugins
+      description: |
+        By default Airflow plugins are lazily-loaded (only loaded when required). Set it to ``False``,
+        if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
+      version_added: 2.0.0
+      type: boolean
+      example: ~
+      default: "True"
 
 - name: logging
   description: ~
