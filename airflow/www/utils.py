@@ -29,6 +29,7 @@ from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 
+from airflow.models import DagModel
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
@@ -304,6 +305,36 @@ def dag_run_link(attr):
     execution_date = attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, run_id=run_id, execution_date=execution_date)
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
+
+
+def dag_sorting_query(sorting_key, sorting_order, session):
+    """Builds a DAG sorting query based on the variables passed to the view (presumably as URL params)."""
+    dag_query_key_map = {
+        'dag_id': DagModel.dag_id,
+        'owner': DagModel.owners,
+        'schedule': DagModel.next_dagrun,
+        # <- add any extra (URL param)->(DagModel attr) mappings here
+    }
+
+    query_key = dag_query_key_map.get(
+        (sorting_key or '').lower(),
+        DagModel.dag_id)  # default to original default behavior
+
+    sorting_map = {
+        # not the biggest map in the world, but it's extensible and gives us nice default-handling
+        'asc': query_key.asc,
+        'desc': query_key.desc,
+    }
+
+    # asc/desc are functions, but the mapping should be lazily evaluated after decide what to call...
+    _query_with_sorting_raw = sorting_map.get(
+        (sorting_order or '').lower(),
+        query_key.asc)  # default to original default behavior
+
+    # ...so we do that here:
+    query_with_sorting = _query_with_sorting_raw()
+
+    return query_with_sorting
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):

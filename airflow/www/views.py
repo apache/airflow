@@ -126,6 +126,7 @@ from airflow.www.forms import (
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
 )
+from airflow.www.utils import dag_sorting_query
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -567,6 +568,8 @@ class Airflow(AirflowBaseView):
         arg_search_query = request.args.get('search')
         arg_tags_filter = request.args.getlist('tags')
         arg_status_filter = request.args.get('status')
+        arg_sorting_key = request.args.get('sortBy')
+        arg_orderby_key = request.args.get('orderBy')
 
         if request.args.get('reset_tags') is not None:
             flask_session[FILTER_TAGS_COOKIE] = None
@@ -637,8 +640,14 @@ class Airflow(AirflowBaseView):
                 current_dags = all_dags
                 num_of_all_dags = all_dags_count
 
+            order_by_query = dag_sorting_query(
+                sorting_key=arg_sorting_key,
+                sorting_order=arg_orderby_key,
+                session=session
+            )
+
             dags = (
-                current_dags.order_by(DagModel.dag_id)
+                current_dags.order_by(order_by_query)
                 .options(joinedload(DagModel.tags))
                 .offset(start)
                 .limit(dags_per_page)
