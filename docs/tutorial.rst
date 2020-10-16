@@ -104,7 +104,7 @@ define a ``schedule_interval`` of 1 day for the DAG.
 Tasks
 -----
 Tasks are generated when instantiating operator objects. An object
-instantiated from an operator is called a constructor. The first argument
+instantiated from an operator is called a task. The first argument
 ``task_id`` acts as a unique identifier for the task.
 
 .. exampleinclude:: /../airflow/example_dags/tutorial.py
