@@ -2398,5 +2398,3 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -h, --help
           Shows detailed help message for the command specified.
-
- .. END BREEZE HELP MARKER
