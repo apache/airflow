@@ -2207,6 +2207,7 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         If specified, installs Airflow directly from reference in GitHub. This happens at
         image building time in production image and at container entering time for CI image.
+        This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
 --no-rbac-ui
         Disables RBAC UI when Airflow 1.10.* is installed.
