@@ -176,37 +176,16 @@ your DAGs and set the parameters when triggering the DAG manually. See
 
 Example DAG with decorator:
 
-.. code-block:: python
+.. exampleinclude:: /../airflow/example_dags/example_dag_decorator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START dag_decorator_usage]
+    :end-before: [END dag_decorator_usage]
 
-  from airflow.decorators import dag, task
-
-  @dag(default_args=default_args, schedule_interval=None)
-  def send_server_ip(email: 'example@example.com')
-
-    # Using default connection as it's set to httpbin.org by default
-    get_ip = SimpleHttpOperator(
-        task_id='get_ip', endpoint='get', method='GET', xcom_push=True
-    )
-
-    @task(multiple_outputs=True)
-    def prepare_email(raw_json: str) -> Dict[str, str]:
-      external_ip = json.loads(raw_json)['origin']
-      return {
-        'subject':f'Server connected from {external_ip}',
-        'body': f'Seems like today your server executing Airflow is connected from the external IP {external_ip}<br>'
-      }
-
-    email_info = prepare_email(get_ip.output)
-
-    send_email = EmailOperator(
-        task_id='send_email',
-        to=email,
-        subject=email_info['subject'],
-        html_content=email_info['body']
-    )
-
-  my_dag = send_server_ip()
-
+.. note:: Note that Airflow will only load DAGs that appear in``globals()``. Which means you need to make sure to have
+  a variable for your returned DAG in the module scope. Otherwise Airflow won't detect your decorated DAG. In addition,
+  you may want to make your dag variable named ``DAG`` such that Airflow doesn't skip this module when the
+  ``DAG_DISCOVERY_SAFE_MODE`` is activated.
 
 .. _concepts:executor_config:
 
