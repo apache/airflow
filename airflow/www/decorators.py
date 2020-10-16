@@ -116,7 +116,8 @@ def has_dag_access(**dag_kwargs) -> Callable[[T], T]:
                 if self.appbuilder.sm.can_read_dag(dag_id):
                     return f(self, *args, **kwargs)
             flash("Access is Denied", "danger")
-            return redirect(url_for(self.appbuilder.sm.auth_view.__class__.__name__ + ".login"))
+            return redirect(url_for(self.appbuilder.sm.auth_view.__class__.__name__ + ".login",
+                                    next=request.url))
 
         return cast(T, wrapper)
 
