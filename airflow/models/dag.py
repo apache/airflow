@@ -1655,7 +1655,8 @@ class DAG(BaseDag, LoggingMixin):
         conf=None,
         run_type=None,
         session=None,
-        dag_hash=None
+        dag_hash=None,
+        creating_job_id=None,
     ):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
@@ -1675,6 +1676,8 @@ class DAG(BaseDag, LoggingMixin):
         :type external_trigger: bool
         :param conf: Dict containing configuration/parameters to pass to the DAG
         :type conf: dict
+        :param creating_job_id: id of the job creating this DagRun
+        :type creating_job_id: int
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         :param dag_hash: Hash of Serialized DAG
@@ -1702,7 +1705,8 @@ class DAG(BaseDag, LoggingMixin):
             conf=conf,
             state=state,
             run_type=run_type.value,
-            dag_hash=dag_hash
+            dag_hash=dag_hash,
+            creating_job_id=creating_job_id
         )
         session.add(run)
         session.flush()

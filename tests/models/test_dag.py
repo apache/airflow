@@ -1348,6 +1348,14 @@ class TestDag(unittest.TestCase):
         dr = dag.create_dagrun(run_id="custom_is_set_to_manual", state=State.NONE)
         assert dr.run_type == DagRunType.MANUAL.value
 
+    def test_create_dagrun_job_id_is_set(self):
+        job_id = 42
+        dag = DAG(dag_id="test_create_dagrun_job_id_is_set")
+        dr = dag.create_dagrun(
+            run_id="test_create_dagrun_job_id_is_set", state=State.NONE, creating_job_id=job_id
+        )
+        assert dr.creating_job_id == job_id
+
     @parameterized.expand(
         [
             (State.NONE,),

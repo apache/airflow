@@ -1563,7 +1563,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 state=State.RUNNING,
                 external_trigger=False,
                 session=session,
-                dag_hash=dag_hash
+                dag_hash=dag_hash,
+                creating_job_id=self.id,
             )
 
         self._update_dag_next_dagruns(dag_models, session)
@@ -1657,9 +1658,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     currently_active_runs,
                 )
                 return 0
-
-        # This DagRun will be schedule by this job so we set up the creating_job_id
-        dag_run.creating_job_id = self.id
 
         self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session)
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?

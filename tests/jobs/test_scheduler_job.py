@@ -3505,21 +3505,15 @@ class TestSchedulerJob(unittest.TestCase):
         )
         dagbag.bag_dag(dag=dag, root_dag=dag)
         dagbag.sync_to_db()
-
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        dag_model = DagModel.get_dagmodel(dag.dag_id)
 
         scheduler = SchedulerJob(executor=self.null_exec)
         scheduler.processor_agent = mock.MagicMock()
 
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=State.NONE,
-        )
         with create_session() as session:
-            scheduler._schedule_dag_run(dr, 0, session)
+            scheduler._create_dag_runs([dag_model], session)
 
-        assert dr.creating_job_id == scheduler.id
+        assert dag.get_last_dagrun().creating_job_id == scheduler.id
 
 
 @pytest.mark.xfail(reason="Work out where this goes")
