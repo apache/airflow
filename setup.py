@@ -308,6 +308,9 @@ jenkins = [
 jira = [
     'JIRA>1.0.7',
 ]
+kafka = [
+    'kafka>=1.3.5',
+]
 kerberos = [
     'pykerberos>=1.1.13',
     'requests_kerberos>=0.10.0',
@@ -316,9 +319,6 @@ kerberos = [
 kubernetes = [
     'cryptography>=2.0.0',
     'kubernetes>=3.0.0',
-]
-kafka = [
-    'kafka>=1.3.5',
 ]
 kylin = [
     'kylinpy>=2.6'
@@ -602,6 +602,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'hive': hive,  # TODO: remove this in Airflow 2.1
     'jdbc': jdbc,
     'jira': jira,
+    'kafka': kafka,
     'kerberos': kerberos,
     'kubernetes': kubernetes,   # TODO: remove this in Airflow 2.1
     'ldap': ldap,

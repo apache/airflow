@@ -19,11 +19,11 @@
     "samba",
     "vertica"
   ],
-  "apache.livy": [
-    "http"
-  ],
   "apache.kafka": [
     "kafka"
+  ],
+  "apache.livy": [
+    "http"
   ],
   "dingding": [
     "http"
