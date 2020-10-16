@@ -119,7 +119,7 @@ class TestAutoMLPredictOperator(unittest.TestCase):
             project_id=GCP_PROJECT_ID,
             payload=PAYLOAD,
             task_id=TASK_ID,
-            operation_params={"TEST_KEY": "TEST_VALUE"}
+            operation_params={"TEST_KEY": "TEST_VALUE"},
         )
         op.execute(context=None)
         mock_hook.return_value.predict.assert_called_once_with(
