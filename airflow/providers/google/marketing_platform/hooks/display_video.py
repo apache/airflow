@@ -96,7 +96,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         """
         return [f"gdbm-{partner_id}/entity/{{{{ ds_nodash }}}}.*.{entity_type}.json"]
 
-    def create_query(self, query: Dict[str, Any]) -> Dict:
+    def create_query(self, query: Dict[str, Any]) -> dict:
         """
         Creates a query.
 
@@ -125,7 +125,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    def get_query(self, query_id: str) -> Dict:
+    def get_query(self, query_id: str) -> dict:
         """
         Retrieves a stored query.
 

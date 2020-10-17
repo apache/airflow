@@ -103,7 +103,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         scope: Optional[str] = None,
         sort_field: Optional[str] = None,
         sort_order: Optional[str] = None,
-    ) -> List[Dict]:
+    ) -> List[dict]:
         """
         Retrieves list of reports.
 
@@ -118,7 +118,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :param sort_order: Order of sorted results.
         :type sort_order: Optional[str]
         """
-        reports = []  # type: List[Dict]
+        reports: List[dict] = []
         conn = self.get_conn()
         request = conn.reports().list(  # pylint: disable=no-member
             profileId=profile_id,
@@ -136,7 +136,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
         return reports
 
-    def patch_report(self, profile_id: str, report_id: str, update_mask: Dict) -> Any:
+    def patch_report(self, profile_id: str, report_id: str, update_mask: dict) -> Any:
         """
         Updates a report. This method supports patch semantics.
 

@@ -103,7 +103,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
 
         self.source_bucket = source_bucket

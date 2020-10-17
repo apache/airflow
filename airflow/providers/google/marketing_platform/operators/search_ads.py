@@ -78,7 +78,7 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.report = report
         self.api_version = api_version
@@ -92,7 +92,7 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
             with open(self.report, 'r') as file:
                 self.report = json.load(file)
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -202,7 +202,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
             return fragment_records[1]
         return b""
 
-    def execute(self, context: Dict):
+    def execute(self, context: dict):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

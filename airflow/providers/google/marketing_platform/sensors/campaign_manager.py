@@ -94,7 +94,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         poke_interval: int = 60 * 5,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.mode = mode
         self.poke_interval = poke_interval

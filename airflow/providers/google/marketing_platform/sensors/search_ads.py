@@ -18,7 +18,7 @@
 """
 This module contains Google Search Ads sensor.
 """
-from typing import Dict, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -75,7 +75,7 @@ class GoogleSearchAdsReportSensor(BaseSensorOperator):
         poke_interval: int = 5 * 60,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(mode=mode, poke_interval=poke_interval, **kwargs)
         self.report_id = report_id
         self.api_version = api_version
@@ -83,7 +83,7 @@ class GoogleSearchAdsReportSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: Dict):
+    def poke(self, context: dict):
         hook = GoogleSearchAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

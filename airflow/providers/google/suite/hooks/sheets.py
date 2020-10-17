@@ -90,7 +90,7 @@ class GSheetsHook(GoogleBaseHook):
         major_dimension: str = 'DIMENSION_UNSPECIFIED',
         value_render_option: str = 'FORMATTED_VALUE',
         date_time_render_option: str = 'SERIAL_NUMBER',
-    ) -> List:
+    ) -> list:
         """
         Gets values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get
@@ -135,7 +135,7 @@ class GSheetsHook(GoogleBaseHook):
         major_dimension: str = 'DIMENSION_UNSPECIFIED',
         value_render_option: str = 'FORMATTED_VALUE',
         date_time_render_option: str = 'SERIAL_NUMBER',
-    ) -> Dict:
+    ) -> dict:
         """
         Gets values from Google Sheet from a list of ranges
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchGet
@@ -183,7 +183,7 @@ class GSheetsHook(GoogleBaseHook):
         include_values_in_response: bool = False,
         value_render_option: str = 'FORMATTED_VALUE',
         date_time_render_option: str = 'SERIAL_NUMBER',
-    ) -> Dict:
+    ) -> dict:
         """
         Updates values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/update
@@ -242,7 +242,7 @@ class GSheetsHook(GoogleBaseHook):
         include_values_in_response: bool = False,
         value_render_option: str = 'FORMATTED_VALUE',
         date_time_render_option: str = 'SERIAL_NUMBER',
-    ) -> Dict:
+    ) -> dict:
         """
         Updates values from Google Sheet for multiple ranges
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchUpdate
@@ -312,7 +312,7 @@ class GSheetsHook(GoogleBaseHook):
         include_values_in_response: bool = False,
         value_render_option: str = 'FORMATTED_VALUE',
         date_time_render_option: str = 'SERIAL_NUMBER',
-    ) -> Dict:
+    ) -> dict:
         """
         Append values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/append
@@ -365,7 +365,7 @@ class GSheetsHook(GoogleBaseHook):
 
         return response
 
-    def clear(self, spreadsheet_id: str, range_: str) -> Dict:
+    def clear(self, spreadsheet_id: str, range_: str) -> dict:
         """
         Clear values from Google Sheet from a single range
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/clear
@@ -388,7 +388,7 @@ class GSheetsHook(GoogleBaseHook):
 
         return response
 
-    def batch_clear(self, spreadsheet_id: str, ranges: List) -> Dict:
+    def batch_clear(self, spreadsheet_id: str, ranges: list) -> dict:
         """
         Clear values from Google Sheet from a list of ranges
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchClear

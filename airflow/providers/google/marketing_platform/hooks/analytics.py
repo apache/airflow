@@ -33,9 +33,9 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         self.api_version = api_version
         self._conn = None
 
-    def _paginate(self, resource: Resource, list_args: Optional[Dict[str, Any]] = None):
+    def _paginate(self, resource: Resource, list_args: Optional[Dict[str, Any]] = None) -> List[dict]:
         list_args = list_args or {}
-        result: List[Dict] = []
+        result: List[dict] = []
         while True:
             # start index has value 1
             request = resource.list(start_index=len(result) + 1, **list_args)  # pylint: disable=no-member
