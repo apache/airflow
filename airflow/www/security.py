@@ -618,7 +618,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
-            {permissions.ACTION_CAN_READ}
+            {'can_read'}
         :type access_control: dict
         :return:
         """
@@ -638,7 +638,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
-            {permissions.ACTION_CAN_READ}
+            {'can_read'}
         :type access_control: dict
         """
         prefixed_dag_id = self.prefixed_dag_id(dag_id)
