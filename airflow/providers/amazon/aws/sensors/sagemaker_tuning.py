@@ -35,7 +35,7 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self, *, job_name, **kwargs):
+    def __init__(self, *, job_name: str, **kwargs):
         super().__init__(**kwargs)
         self.job_name = job_name
 
@@ -49,8 +49,8 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
         self.log.info('Poking Sagemaker Tuning Job %s', self.job_name)
         return self.get_hook().describe_tuning_job(self.job_name)
 
-    def get_failed_reason_from_response(self, response):
+    def get_failed_reason_from_response(self, response: dict):
         return response['FailureReason']
 
-    def state_from_response(self, response):
+    def state_from_response(self, response: dict):
         return response['HyperParameterTuningJobStatus']

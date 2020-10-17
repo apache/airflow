@@ -22,7 +22,7 @@ import tempfile
 import time
 import warnings
 from functools import partial
-from typing import Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from botocore.exceptions import ClientError
 
@@ -51,7 +51,7 @@ class LogState:
 Position = collections.namedtuple('Position', ['timestamp', 'skip'])
 
 
-def argmin(arr, f) -> Optional[int]:
+def argmin(arr: List, f: Callable) -> Optional[int]:
     """Return the index, i, in arr that minimizes f(arr[i])"""
     min_value = None
     min_idx = None
@@ -94,7 +94,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
     return message != last_message
 
 
-def secondary_training_status_message(job_description, prev_description):
+def secondary_training_status_message(job_description: Optional[dict], prev_description: Optional[dict]):
     """
     Returns a string contains start time and the secondary training job status message.
 
@@ -105,18 +105,18 @@ def secondary_training_status_message(job_description, prev_description):
 
     :return: Job status string to be printed.
     """
-    if (
-        job_description is None
-        or job_description.get('SecondaryStatusTransitions') is None
-        or len(job_description.get('SecondaryStatusTransitions')) == 0
-    ):
+    if job_description is None:
+        return ''
+
+    secondary_status_transitions = job_description.get('SecondaryStatusTransitions')
+    if secondary_status_transitions is None or len(secondary_status_transitions) == 0:
         return ''
 
     prev_description_secondary_transitions = (
         prev_description.get('SecondaryStatusTransitions') if prev_description is not None else None
     )
     prev_transitions_num = (
-        len(prev_description['SecondaryStatusTransitions'])
+        len(prev_description_secondary_transitions)
         if prev_description_secondary_transitions is not None
         else 0
     )
@@ -262,7 +262,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
         return self.logs_hook.get_conn()
 
-    def log_stream(self, log_group, stream_name, start_time=0, skip=0):
+    def log_stream(self, log_group: str, stream_name: str, start_time: int = 0, skip: int = 0):
         """
         This method is deprecated.
         Please use
@@ -278,7 +278,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
         return self.logs_hook.get_log_events(log_group, stream_name, start_time, skip)
 
-    def multi_stream_iter(self, log_group, streams, positions=None):
+    def multi_stream_iter(self, log_group: str, streams: List[str], positions=None):
         """
         Iterate over the available events coming from a set of log streams in a single log group
         interleaving the events from each stream so they're yielded in timestamp order.
@@ -298,7 +298,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             self.logs_hook.get_log_events(log_group, s, positions[s].timestamp, positions[s].skip)
             for s in streams
         ]
-        events = []
+        events: List[Optional[Any]] = []
         for event_stream in event_iters:
             if not event_stream:
                 events.append(None)
@@ -310,6 +310,8 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
         while any(events):
             i = argmin(events, lambda x: x['timestamp'] if x else 9999999999)
+            if i is None:
+                continue
             yield (i, events[i])
             try:
                 events[i] = next(event_iters[i])
@@ -323,7 +325,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         print_log: bool = True,
         check_interval: int = 30,
         max_ingestion_time: Optional[int] = None,
-    ):
+    ) -> dict:
         """
         Create a training job
 
@@ -374,7 +376,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         wait_for_completion: bool = True,
         check_interval: int = 30,
         max_ingestion_time: Optional[int] = None,
-    ):
+    ) -> dict:
         """
         Create a tuning job
 
@@ -410,7 +412,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         wait_for_completion: bool = True,
         check_interval: int = 30,
         max_ingestion_time: Optional[int] = None,
-    ):
+    ) -> dict:
         """
         Create a transform job
 
@@ -446,7 +448,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         wait_for_completion: bool = True,
         check_interval: int = 30,
         max_ingestion_time: Optional[int] = None,
-    ):
+    ) -> dict:
         """
         Create a processing job
 
@@ -474,7 +476,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             )
         return response
 
-    def create_model(self, config: dict):
+    def create_model(self, config: dict) -> dict:
         """
         Create a model job
 
@@ -484,7 +486,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().create_model(**config)
 
-    def create_endpoint_config(self, config: dict):
+    def create_endpoint_config(self, config: dict) -> dict:
         """
         Create an endpoint config
 
@@ -500,7 +502,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         wait_for_completion: bool = True,
         check_interval: int = 30,
         max_ingestion_time: Optional[int] = None,
-    ):
+    ) -> dict:
         """
         Create an endpoint
 
@@ -535,7 +537,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         wait_for_completion: bool = True,
         check_interval: int = 30,
         max_ingestion_time: Optional[int] = None,
-    ):
+    ) -> dict:
         """
         Update an endpoint
 
@@ -564,7 +566,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             )
         return response
 
-    def describe_training_job(self, name: str):
+    def describe_training_job(self, name: str) -> dict:
         """
         Return the training job info associated with the name
 
@@ -576,13 +578,13 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
     def describe_training_job_with_log(
         self,
-        job_name,
+        job_name: str,
         positions,
-        stream_names,
-        instance_count,
-        state,
-        last_description,
-        last_describe_job_call,
+        stream_names: List[str],
+        instance_count: int,
+        state: int,
+        last_description: dict,
+        last_describe_job_call: float,
     ):
         """
         Return the training job info associated with job_name and print CloudWatch logs
@@ -637,7 +639,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
                 state = LogState.JOB_COMPLETE
         return state, last_description, last_describe_job_call
 
-    def describe_tuning_job(self, name: str):
+    def describe_tuning_job(self, name: str) -> dict:
         """
         Return the tuning job info associated with the name
 
@@ -647,7 +649,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().describe_hyper_parameter_tuning_job(HyperParameterTuningJobName=name)
 
-    def describe_model(self, name: str):
+    def describe_model(self, name: str) -> dict:
         """
         Return the SageMaker model info associated with the name
 
@@ -657,7 +659,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().describe_model(ModelName=name)
 
-    def describe_transform_job(self, name: str):
+    def describe_transform_job(self, name: str) -> dict:
         """
         Return the transform job info associated with the name
 
@@ -667,7 +669,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().describe_transform_job(TransformJobName=name)
 
-    def describe_processing_job(self, name: str):
+    def describe_processing_job(self, name: str) -> dict:
         """
         Return the processing job info associated with the name
 
@@ -677,7 +679,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().describe_processing_job(ProcessingJobName=name)
 
-    def describe_endpoint_config(self, name: str):
+    def describe_endpoint_config(self, name: str) -> dict:
         """
         Return the endpoint config info associated with the name
 
@@ -687,7 +689,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         return self.get_conn().describe_endpoint_config(EndpointConfigName=name)
 
-    def describe_endpoint(self, name: str):
+    def describe_endpoint(self, name: str) -> dict:
         """
         :param name: the name of the endpoint
         :type name: str
@@ -699,7 +701,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         self,
         job_name: str,
         key: str,
-        describe_function,
+        describe_function: Callable,
         check_interval: int,
         max_ingestion_time: Optional[int] = None,
         non_terminal_states: Optional[Set] = None,
@@ -768,7 +770,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         wait_for_completion: bool,
         check_interval: int,
         max_ingestion_time: Optional[int] = None,
-    ):
+    ) -> None:
         """
         Display the logs for a given training job, optionally tailing them until the
         job is complete.

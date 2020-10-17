@@ -43,7 +43,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
             self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         return self.hook
 
-    def poke(self, context):
+    def poke(self, context: dict):
         response = self.get_sagemaker_response()
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
@@ -74,10 +74,10 @@ class SageMakerBaseSensor(BaseSensorOperator):
         """Placeholder for checking status of a SageMaker task."""
         raise NotImplementedError('Please implement get_sagemaker_response() in subclass')
 
-    def get_failed_reason_from_response(self, response):  # pylint: disable=unused-argument
+    def get_failed_reason_from_response(self, response: dict):  # pylint: disable=unused-argument
         """Placeholder for extracting the reason for failure from an AWS response."""
         return 'Unknown'
 
-    def state_from_response(self, response):
+    def state_from_response(self, response: dict):
         """Placeholder for extracting the state from an AWS response."""
         raise NotImplementedError('Please implement state_from_response() in subclass')

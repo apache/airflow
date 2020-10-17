@@ -18,6 +18,7 @@
 
 import time
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker_base import SageMakerBaseSensor
 from airflow.utils.decorators import apply_defaults
@@ -50,10 +51,12 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         self.last_describe_job_call = None
         self.log_resource_inited = False
 
-    def init_log_resource(self, hook):
+    def init_log_resource(self, hook: SageMakerHook):
         """Set tailing LogState for associated training job."""
         description = hook.describe_training_job(self.job_name)
-        self.instance_count = description['ResourceConfig']['InstanceCount']
+        instance_count = description['ResourceConfig']['InstanceCount']
+        if isinstance(instance_count, int):
+            self.instance_count = instance_count
 
         status = description['TrainingJobStatus']
         job_already_completed = status not in self.non_terminal_states()
@@ -72,6 +75,15 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         if self.print_log:
             if not self.log_resource_inited:
                 self.init_log_resource(self.get_hook())
+            if (
+                self.instance_count is None
+                or self.state is None
+                or self.last_description is None
+                or self.last_describe_job_call is None
+            ):
+                raise AirflowException(
+                    "instance_count, state, last_description, last_describe_job_call must be specified"
+                )
             (
                 self.state,
                 self.last_description,
@@ -97,8 +109,8 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
 
         return self.last_description
 
-    def get_failed_reason_from_response(self, response):
+    def get_failed_reason_from_response(self, response: dict):
         return response['FailureReason']
 
-    def state_from_response(self, response):
+    def state_from_response(self, response: dict):
         return response['TrainingJobStatus']

@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Optional
+
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
@@ -74,11 +76,11 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     def __init__(
         self,
         *,
-        config,
-        wait_for_completion=True,
-        check_interval=30,
-        max_ingestion_time=None,
-        operation='create',
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+        operation: str = 'create',
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
@@ -105,7 +107,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         if 'ExecutionRoleArn' in config:
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
-    def execute(self, context):
+    def execute(self, context: dict):
         self.preprocess_config()
 
         model_info = self.config.get('Model')

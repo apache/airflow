@@ -41,12 +41,12 @@ class SageMakerBaseOperator(BaseOperator):
     integer_fields = []  # type: Iterable[Iterable[str]]
 
     @apply_defaults
-    def __init__(self, *, config, aws_conn_id='aws_default', **kwargs):
+    def __init__(self, *, config: dict, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
         self.config = config
-        self.hook = None
+        self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
 
     def parse_integer(self, config, field):
         """Recursive method for parsing string fields holding integer values to integers."""
@@ -95,5 +95,5 @@ class SageMakerBaseOperator(BaseOperator):
             json.dumps(self.config, sort_keys=True, indent=4, separators=(",", ": ")),
         )
 
-    def execute(self, context):
+    def execute(self, context: dict):
         raise NotImplementedError('Please implement execute() in sub class!')
