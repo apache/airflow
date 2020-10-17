@@ -117,6 +117,7 @@ function kind {
     ${KIND_BINARY_PATH} "${@}"
 }
 
+
 # Prints verbose information in case VERBOSE variable is set
 function verbosity::print_info() {
     if [[ ${VERBOSE:="false"} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
