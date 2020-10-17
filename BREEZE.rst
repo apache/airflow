@@ -1197,11 +1197,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
-                 master v1-10-test
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
+          This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
@@ -2183,11 +2183,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image. One of:
 
                  1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
-                 master v1-10-test
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
+          This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.

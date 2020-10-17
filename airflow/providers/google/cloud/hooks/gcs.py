@@ -260,7 +260,9 @@ class GCSHook(GoogleBaseHook):
             destination_bucket.name,  # type: ignore[attr-defined]
         )
 
-    def download(self, object_name: str, bucket_name: Optional[str], filename: Optional[str] = None) -> str:
+    def download(
+        self, object_name: str, bucket_name: Optional[str], filename: Optional[str] = None
+    ) -> Union[str, bytes]:
         """
         Downloads a file from Google Cloud Storage.
 

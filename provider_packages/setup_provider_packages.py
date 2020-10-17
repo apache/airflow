@@ -279,7 +279,7 @@ def do_setup_package_providers(provider_package_id: str,
         airflow_dependency = 'apache-airflow~=1.10' if provider_package_id != 'cncf.kubernetes' \
             else 'apache-airflow>=1.10.12, <2.0.0'
     else:
-        airflow_dependency = 'apache-airflow>=2.0.0'
+        airflow_dependency = 'apache-airflow>=2.0.0a0'
 
     install_requires = [
         airflow_dependency
@@ -1257,7 +1257,7 @@ def get_all_providers() -> List[str]:
     Returns all providers for regular packages.
     :return: list of providers that are considered for provider packages
     """
-    return [prov for prov in PROVIDERS_REQUIREMENTS.keys()]
+    return list(PROVIDERS_REQUIREMENTS.keys())
 
 
 if __name__ == "__main__":

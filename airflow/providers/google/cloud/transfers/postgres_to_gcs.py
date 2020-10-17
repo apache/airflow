@@ -23,6 +23,7 @@ import datetime
 import json
 import time
 from decimal import Decimal
+from typing import Dict
 
 import pendulum
 
@@ -73,7 +74,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql, self.parameters)
         return cursor
 
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         return {
             'name': field[0],
             'type': self.type_map.get(field[1], "STRING"),

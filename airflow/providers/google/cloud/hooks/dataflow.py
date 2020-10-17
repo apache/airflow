@@ -96,16 +96,32 @@ _fallback_to_project_id_from_variables = _fallback_variable_parameter('project_i
 class DataflowJobStatus:
     """
     Helper class with Dataflow job statuses.
+    Reference: https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
     """
 
     JOB_STATE_DONE = "JOB_STATE_DONE"
+    JOB_STATE_UNKNOWN = "JOB_STATE_UNKNOWN"
+    JOB_STATE_STOPPED = "JOB_STATE_STOPPED"
     JOB_STATE_RUNNING = "JOB_STATE_RUNNING"
     JOB_STATE_FAILED = "JOB_STATE_FAILED"
     JOB_STATE_CANCELLED = "JOB_STATE_CANCELLED"
+    JOB_STATE_UPDATED = "JOB_STATE_UPDATED"
+    JOB_STATE_DRAINING = "JOB_STATE_DRAINING"
+    JOB_STATE_DRAINED = "JOB_STATE_DRAINED"
     JOB_STATE_PENDING = "JOB_STATE_PENDING"
+    JOB_STATE_CANCELLING = "JOB_STATE_CANCELLING"
+    JOB_STATE_QUEUED = "JOB_STATE_QUEUED"
     FAILED_END_STATES = {JOB_STATE_FAILED, JOB_STATE_CANCELLED}
-    SUCCEEDED_END_STATES = {JOB_STATE_DONE}
-    END_STATES = SUCCEEDED_END_STATES | FAILED_END_STATES
+    SUCCEEDED_END_STATES = {JOB_STATE_DONE, JOB_STATE_UPDATED, JOB_STATE_DRAINED}
+    TERMINAL_STATES = SUCCEEDED_END_STATES | FAILED_END_STATES
+    AWAITING_STATES = {
+        JOB_STATE_RUNNING,
+        JOB_STATE_PENDING,
+        JOB_STATE_QUEUED,
+        JOB_STATE_CANCELLING,
+        JOB_STATE_DRAINING,
+        JOB_STATE_STOPPED,
+    }
 
 
 class DataflowJobType:
@@ -170,7 +186,7 @@ class _DataflowJobsController(LoggingMixin):
             return False
 
         for job in self._jobs:
-            if job['currentState'] not in DataflowJobStatus.END_STATES:
+            if job['currentState'] not in DataflowJobStatus.TERMINAL_STATES:
                 return True
         return False
 
@@ -261,10 +277,7 @@ class _DataflowJobsController(LoggingMixin):
             and DataflowJobType.JOB_TYPE_STREAMING == job['type']
         ):
             return True
-        elif job['currentState'] in {
-            DataflowJobStatus.JOB_STATE_RUNNING,
-            DataflowJobStatus.JOB_STATE_PENDING,
-        }:
+        elif job['currentState'] in DataflowJobStatus.AWAITING_STATES:
             return False
         self.log.debug("Current job: %s", str(job))
         raise Exception(
@@ -282,14 +295,14 @@ class _DataflowJobsController(LoggingMixin):
             time.sleep(self._poll_sleep)
             self._refresh_jobs()
 
-    def get_jobs(self) -> List[dict]:
+    def get_jobs(self, refresh=False) -> List[dict]:
         """
         Returns Dataflow jobs.
 
         :return: list of jobs
         :rtype: list
         """
-        if not self._jobs:
+        if not self._jobs or refresh:
             self._refresh_jobs()
         if not self._jobs:
             raise ValueError("Could not read _jobs")
@@ -300,23 +313,26 @@ class _DataflowJobsController(LoggingMixin):
         """
         Cancels current job
         """
-        jobs = self._get_current_jobs()
-        batch = self._dataflow.new_batch_http_request()
-        job_ids = [job['id'] for job in jobs]
-        self.log.info("Canceling jobs: %s", ", ".join(job_ids))
-        for job_id in job_ids:
-            batch.add(
-                self._dataflow.projects()
-                .locations()
-                .jobs()
-                .update(
-                    projectId=self._project_number,
-                    location=self._job_location,
-                    jobId=job_id,
-                    body={"requestedState": DataflowJobStatus.JOB_STATE_CANCELLED},
+        jobs = self.get_jobs()
+        job_ids = [job['id'] for job in jobs if job['currentState'] not in DataflowJobStatus.TERMINAL_STATES]
+        if job_ids:
+            batch = self._dataflow.new_batch_http_request()
+            self.log.info("Canceling jobs: %s", ", ".join(job_ids))
+            for job_id in job_ids:
+                batch.add(
+                    self._dataflow.projects()
+                    .locations()
+                    .jobs()
+                    .update(
+                        projectId=self._project_number,
+                        location=self._job_location,
+                        jobId=job_id,
+                        body={"requestedState": DataflowJobStatus.JOB_STATE_CANCELLED},
+                    )
                 )
-            )
-        batch.execute()
+            batch.execute()
+        else:
+            self.log.info("No jobs to cancel")
 
 
 class _DataflowRunner(LoggingMixin):
@@ -631,6 +647,52 @@ class DataflowHook(GoogleBaseHook):
         jobs_controller.wait_for_done()
         return response["job"]
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def start_flex_template(
+        self,
+        body: dict,
+        location: str,
+        project_id: str,
+        on_new_job_id_callback: Optional[Callable[[str], None]] = None,
+    ):
+        """
+        Starts flex templates with the Dataflow  pipeline.
+
+        :param body: The request body. See:
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.locations.flexTemplates/launch#request-body
+        :param location: The location of the Dataflow job (for example europe-west1)
+        :type location: str
+        :param project_id: The ID of the GCP project that owns the job.
+            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :type project_id: Optional[str]
+        :param on_new_job_id_callback: A callback that is called when a Job ID is detected.
+        :return: the Job
+        """
+        service = self.get_conn()
+        request = (
+            service.projects()  # pylint: disable=no-member
+            .locations()
+            .flexTemplates()
+            .launch(projectId=project_id, body=body, location=location)
+        )
+        response = request.execute(num_retries=self.num_retries)
+        job_id = response['job']['id']
+
+        if on_new_job_id_callback:
+            on_new_job_id_callback(job_id)
+
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            job_id=job_id,
+            location=location,
+            poll_sleep=self.poll_sleep,
+            num_retries=self.num_retries,
+        )
+        jobs_controller.wait_for_done()
+
+        return jobs_controller.get_jobs(refresh=True)[0]
+
     @_fallback_to_location_from_variables
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
@@ -659,6 +721,9 @@ class DataflowHook(GoogleBaseHook):
         :type dataflow: str
         :param py_options: Additional options.
         :type py_options: List[str]
+        :param project_id: The ID of the GCP project that owns the job.
+            If set to ``None`` or missing, the default project_id from the GCP connection is used.
+        :type project_id: Optional[str]
         :param py_interpreter: Python version of the beam pipeline.
             If None, this defaults to the python3.
             To track python versions supported by beam and related

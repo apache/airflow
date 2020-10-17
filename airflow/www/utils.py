@@ -233,9 +233,12 @@ def task_instance_link(attr):
 def state_token(state):
     """Returns a formatted string with HTML for a given State"""
     color = State.color(state)
+    fg_color = State.color_fg(state)
     return Markup(  # noqa
-        '<span class="label" style="background-color:{color};" title="Current State: {state}">'
-        '{state}</span>').format(color=color, state=state)
+        """
+        <span class="label" style="color:{fg_color}; background-color:{color};"
+            title="Current State: {state}">{state}</span>
+        """).format(color=color, state=state, fg_color=fg_color)
 
 
 def state_f(attr):

@@ -22,6 +22,7 @@ import pickle
 import re
 import sys
 import types
+import warnings
 from inspect import signature
 from itertools import islice
 from tempfile import TemporaryDirectory
@@ -85,6 +86,10 @@ class PythonOperator(BaseOperator):
         templates_exts: Optional[List[str]] = None,
         **kwargs
     ) -> None:
+        if kwargs.get("provide_context"):
+            warnings.warn("provide_context is deprecated as of 2.0 and is no longer required",
+                          DeprecationWarning, stacklevel=2)
+            kwargs.pop('provide_context', None)
         super().__init__(**kwargs)
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
@@ -289,6 +294,8 @@ def task(
         def factory(*args, **f_kwargs):
             op = _PythonDecoratedOperator(python_callable=f, op_args=args, op_kwargs=f_kwargs,
                                           multiple_outputs=multiple_outputs, **kwargs)
+            if f.__doc__:
+                op.doc_md = f.__doc__
             return XComArg(op)
         return cast(T, factory)
     if callable(python_callable):

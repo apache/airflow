@@ -25,16 +25,9 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Union
 import cattr
 import pendulum
 from dateutil import relativedelta
-
-try:
-    from kubernetes.client import models as k8s
-except ImportError:
-    k8s = None
-
 from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -45,6 +38,16 @@ from airflow.settings import json
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.module_loading import import_string
 from airflow.utils.task_group import TaskGroup
+
+try:
+    # isort: off
+    from kubernetes.client import models as k8s
+    from airflow.kubernetes.pod_generator import PodGenerator
+    # isort: on
+    HAS_KUBERNETES = True
+except ImportError:
+    HAS_KUBERNETES = False
+
 
 log = logging.getLogger(__name__)
 FAILED = 'serialization_failed'
@@ -187,12 +190,9 @@ class BaseSerialization:
                     {str(k): cls._serialize(v) for k, v in var.items()},
                     type_=DAT.DICT
                 )
-            elif isinstance(var, k8s.V1Pod):
-                json_pod = PodGenerator.serialize_pod(var)
-                return cls._encode(json_pod, type_=DAT.POD)
             elif isinstance(var, list):
                 return [cls._serialize(v) for v in var]
-            elif isinstance(var, k8s.V1Pod):
+            elif HAS_KUBERNETES and isinstance(var, k8s.V1Pod):
                 json_pod = PodGenerator.serialize_pod(var)
                 return cls._encode(json_pod, type_=DAT.POD)
             elif isinstance(var, DAG):
@@ -257,6 +257,10 @@ class BaseSerialization:
         elif type_ == DAT.DATETIME:
             return pendulum.from_timestamp(var)
         elif type_ == DAT.POD:
+            if not HAS_KUBERNETES:
+                raise RuntimeError(
+                    "Cannot deserialize POD objects without kubernetes libraries installed!"
+                )
             pod = PodGenerator.deserialize_model_dict(var)
             return pod
         elif type_ == DAT.TIMEDELTA:

@@ -2207,6 +2207,7 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         If specified, installs Airflow directly from reference in GitHub. This happens at
         image building time in production image and at container entering time for CI image.
+        This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
 --no-rbac-ui
         Disables RBAC UI when Airflow 1.10.* is installed.
@@ -2760,6 +2761,7 @@ function breeze::check_and_save_all_params() {
 
     parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
 
+
     # Can't verify those - they can be anything, so let's just save them
     parameters::save_to_file DOCKERHUB_USER
     parameters::save_to_file DOCKERHUB_REPO
@@ -3077,8 +3079,6 @@ function breeze::run_breeze_command() {
             "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
         else
             "${dc_run_file}" run --service-ports --rm airflow "${@}"
-            "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
-            "${SCRIPTS_CI_DIR}/tools/ci_clear_tmp.sh"
         fi
         ;;
     run_exec)

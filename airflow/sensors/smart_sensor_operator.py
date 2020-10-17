@@ -436,7 +436,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         def mark_state(ti, sensor_instance):
             ti.state = state
             sensor_instance.state = state
-            if state in State.finished():
+            if state in State.finished:
                 ti.end_date = end_date
                 ti.set_duration()
 

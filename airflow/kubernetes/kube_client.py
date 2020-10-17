@@ -78,9 +78,9 @@ def _enable_tcp_keepalive() -> None:
 
     from urllib3.connection import HTTPConnection, HTTPSConnection
 
-    tcp_keep_idle = conf.get('kubernetes', 'tcp_keep_idle', fallback=120)
-    tcp_keep_intvl = conf.get('kubernetes', 'tcp_keep_intvl', fallback=30)
-    tcp_keep_cnt = conf.get('kubernetes', 'tcp_keep_cnt', fallback=6)
+    tcp_keep_idle = conf.getint('kubernetes', 'tcp_keep_idle', fallback=120)
+    tcp_keep_intvl = conf.getint('kubernetes', 'tcp_keep_intvl', fallback=30)
+    tcp_keep_cnt = conf.getint('kubernetes', 'tcp_keep_cnt', fallback=6)
 
     socket_options = [
         (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),

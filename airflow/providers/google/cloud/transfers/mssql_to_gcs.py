@@ -20,6 +20,7 @@ MsSQL to GCS operator.
 """
 
 import decimal
+from typing import Dict
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
@@ -71,7 +72,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql)
         return cursor
 
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         return {
             'name': field[0].replace(" ", "_"),
             'type': self.type_map.get(field[1], "STRING"),

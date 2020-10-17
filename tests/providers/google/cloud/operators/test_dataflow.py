@@ -26,11 +26,13 @@ from airflow.providers.google.cloud.operators.dataflow import (
     DataflowCreateJavaJobOperator,
     DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
+    DataflowStartFlexTemplateOperator,
 )
 from airflow.version import version
 
 TASK_ID = 'test-dataflow-operator'
-JOB_NAME = 'test-dataflow-pipeline'
+JOB_ID = 'test-dataflow-pipeline-id'
+JOB_NAME = 'test-dataflow-pipeline-name'
 TEMPLATE = 'gs://dataflow-templates/wordcount/template_file'
 PARAMETERS = {
     'inputFile': 'gs://dataflow-samples/shakespeare/kinglear.txt',
@@ -59,7 +61,16 @@ EXPECTED_ADDITIONAL_OPTIONS = {
 }
 POLL_SLEEP = 30
 GCS_HOOK_STRING = 'airflow.providers.google.cloud.operators.dataflow.{}'
-TEST_LOCATION = "custom-location"
+TEST_FLEX_PARAMETERS = {
+    "containerSpecGcsPath": "gs://test-bucket/test-file",
+    "jobName": 'test-job-name',
+    "parameters": {
+        "inputSubscription": 'test-subsription',
+        "outputTable": "test-project:test-dataset.streaming_beam_sql",
+    },
+}
+TEST_LOCATION = 'custom-location'
+TEST_PROJECT_ID = 'test-project-id'
 
 
 class TestDataflowPythonOperator(unittest.TestCase):
@@ -289,4 +300,38 @@ class TestDataflowTemplateOperator(unittest.TestCase):
             project_id=None,
             location=TEST_LOCATION,
             environment={'maxWorkers': 2},
+        )
+
+
+class TestDataflowStartFlexTemplateOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
+    def test_execute(self, mock_dataflow):
+        start_flex_template = DataflowStartFlexTemplateOperator(
+            task_id="start_flex_template_streaming_beam_sql",
+            body={"launchParameter": TEST_FLEX_PARAMETERS},
+            do_xcom_push=True,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        start_flex_template.execute(mock.MagicMock())
+        mock_dataflow.return_value.start_flex_template.assert_called_once_with(
+            body={"launchParameter": TEST_FLEX_PARAMETERS},
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+            on_new_job_id_callback=mock.ANY,
+        )
+
+    def test_on_kill(self):
+        start_flex_template = DataflowStartFlexTemplateOperator(
+            task_id="start_flex_template_streaming_beam_sql",
+            body={"launchParameter": TEST_FLEX_PARAMETERS},
+            do_xcom_push=True,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+        )
+        start_flex_template.hook = mock.MagicMock()
+        start_flex_template.job_id = JOB_ID
+        start_flex_template.on_kill()
+        start_flex_template.hook.cancel_job.assert_called_once_with(
+            job_id='test-dataflow-pipeline-id', project_id=TEST_PROJECT_ID
         )

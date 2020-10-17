@@ -60,9 +60,12 @@
         </div>
         <div class="col-sm-4">
           <form id="search_form" class="form-inline">
-            <div class="form-group" style="width: 100%;">
+            <div class="form-group search-input" style="width: 100%;">
               <label for="dag_query" class="sr-only">Search DAGs</label>
-              <input type="search" id="dag_query" class="typeahead form-control" data-provide="typeahead" style="width:100%;" value="{{search_query}}" autocomplete="off" placeholder="Search DAGs">
+              <input type="search" id="dag_query" class="typeahead form-control search-input__input" data-provide="typeahead" style="width:100%;" value="{{search_query}}" autocomplete="off" placeholder="Search DAGs">
+              {% if search_query %}
+                <button type="reset" aria-label="Clear DAG Search Term" class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel</button>
+              {% endif %}
             </div>
           </form>
         </div>
@@ -172,7 +175,7 @@
                   <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id) }}" class="js-tooltip" title="Gantt View" aria-label="Gantt">
                     <span class="material-icons" aria-hidden="true" data-original-title="Gantt">vertical_distribute</span>
                   </a>
-                  <a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}" class="js-tooltip" title="DAG Dtails" aria-label="DAG Details">
+                  <a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}" class="js-tooltip" title="DAG Details" aria-label="DAG Details">
                     <span class="material-icons" aria-hidden="true">details</span>
                   </a>
                   <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id) }}" class="js-tooltip" title="Code View" aria-label="Code">
@@ -311,6 +314,13 @@
           window.location = DAGS_INDEX + "?" + query;
         }
       }
+    });
+
+    $('#search_form').on('reset', function() {
+      var query = new URLSearchParams(window.location.search);
+      query.delete('search');
+      query.delete('page');
+      window.location = DAGS_INDEX + "?" + query;
     });
 
     $('#main_content').show(250);

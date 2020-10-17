@@ -19,7 +19,7 @@
 This module contains Google Cloud Storage to S3 operator.
 """
 import warnings
-from typing import Iterable, Optional, Sequence, Union, Dict
+from typing import Iterable, Optional, Sequence, Union, Dict, List, cast
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -100,21 +100,21 @@ class GCSToS3Operator(BaseOperator):
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments
-        bucket,
-        prefix=None,
-        delimiter=None,
-        gcp_conn_id='google_cloud_default',
-        google_cloud_storage_conn_id=None,
-        delegate_to=None,
-        dest_aws_conn_id=None,
-        dest_s3_key=None,
-        dest_verify=None,
-        replace=False,
+        bucket: str,
+        prefix: Optional[str] = None,
+        delimiter: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        google_cloud_storage_conn_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        dest_aws_conn_id: str = 'aws_default',
+        dest_s3_key: str,
+        dest_verify: Optional[Union[str, bool]] = None,
+        replace: bool = False,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         dest_s3_extra_args: Optional[Dict] = None,
         s3_acl_policy: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
@@ -139,7 +139,7 @@ class GCSToS3Operator(BaseOperator):
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.s3_acl_policy = s3_acl_policy
 
-    def execute(self, context):
+    def execute(self, context) -> List[str]:
         # list all files in an Google Cloud Storage bucket
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
@@ -183,7 +183,7 @@ class GCSToS3Operator(BaseOperator):
                 self.log.info("Saving file to %s", dest_key)
 
                 s3_hook.load_bytes(
-                    file_bytes, key=dest_key, replace=self.replace, acl_policy=self.s3_acl_policy
+                    cast(bytes, file_bytes), key=dest_key, replace=self.replace, acl_policy=self.s3_acl_policy
                 )
 
             self.log.info("All done, uploaded %d files to S3", len(files))

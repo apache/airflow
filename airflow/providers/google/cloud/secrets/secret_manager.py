@@ -85,7 +85,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         project_id: Optional[str] = None,
         sep: str = "-",
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.connections_prefix = connections_prefix
         self.variables_prefix = variables_prefix

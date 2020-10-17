@@ -23,7 +23,7 @@ import json
 import logging
 import tempfile
 from contextlib import ExitStack, contextmanager
-from typing import Collection, Dict, Optional, Sequence, Tuple, Union
+from typing import Collection, Dict, Optional, Sequence, Tuple, Union, Generator
 from urllib.parse import urlencode
 
 import google.auth
@@ -113,7 +113,7 @@ def provide_gcp_connection(
     key_file_path: Optional[str] = None,
     scopes: Optional[Sequence] = None,
     project_id: Optional[str] = None,
-):
+) -> Generator:
     """
     Context manager that provides a temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`
     connection. It build a new connection that includes path to provided service json,
@@ -140,7 +140,7 @@ def provide_gcp_conn_and_credentials(
     key_file_path: Optional[str] = None,
     scopes: Optional[Sequence] = None,
     project_id: Optional[str] = None,
-):
+) -> Generator:
     """
     Context manager that provides both:
 
@@ -212,7 +212,7 @@ class _CredentialProvider(LoggingMixin):
         disable_logging: bool = False,
         target_principal: Optional[str] = None,
         delegates: Optional[Sequence[str]] = None,
-    ):
+    ) -> None:
         super().__init__()
         if key_path and keyfile_dict:
             raise AirflowException(
@@ -227,7 +227,7 @@ class _CredentialProvider(LoggingMixin):
         self.target_principal = target_principal
         self.delegates = delegates
 
-    def get_credentials_and_project(self):
+    def get_credentials_and_project(self) -> Tuple[google.auth.credentials.Credentials, str]:
         """
         Get current credentials and project ID.
 
@@ -295,11 +295,11 @@ class _CredentialProvider(LoggingMixin):
         credentials, project_id = google.auth.default(scopes=self.scopes)
         return credentials, project_id
 
-    def _log_info(self, *args, **kwargs):
+    def _log_info(self, *args, **kwargs) -> None:
         if not self.disable_logging:
             self.log.info(*args, **kwargs)
 
-    def _log_debug(self, *args, **kwargs):
+    def _log_debug(self, *args, **kwargs) -> None:
         if not self.disable_logging:
             self.log.debug(*args, **kwargs)
 

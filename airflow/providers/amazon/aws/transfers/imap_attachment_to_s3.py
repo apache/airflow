@@ -57,16 +57,16 @@ class ImapAttachmentToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        imap_attachment_name,
-        s3_key,
-        imap_check_regex=False,
-        imap_mail_folder='INBOX',
-        imap_mail_filter='All',
-        s3_overwrite=False,
-        imap_conn_id='imap_default',
-        s3_conn_id='aws_default',
+        imap_attachment_name: str,
+        s3_key: str,
+        imap_check_regex: bool = False,
+        imap_mail_folder: str = 'INBOX',
+        imap_mail_filter: str = 'All',
+        s3_overwrite: bool = False,
+        imap_conn_id: str = 'imap_default',
+        s3_conn_id: str = 'aws_default',
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.imap_attachment_name = imap_attachment_name
         self.s3_key = s3_key
@@ -77,7 +77,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         self.imap_conn_id = imap_conn_id
         self.s3_conn_id = s3_conn_id
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         """
         This function executes the transfer from the email server (via imap) into s3.
 

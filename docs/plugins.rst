@@ -71,7 +71,9 @@ Airflow has many components that can be reused when building an application:
 When are plugins (re)loaded?
 ----------------------------
 
-Plugins are loaded once at the start of every Airflow process, and never reloaded.
+Plugins are by default lazily loaded and once loaded, they are never reloaded (except the UI plugins are
+automatically loaded in Webserver). To load them at the
+start of each Airflow process, set ``[core] lazy_load_plugins = False`` in ``airflow.cfg``.
 
 This means that if you make any changes to plugins and you want the webserver or scheduler to use that new
 code you will need to restart those processes.

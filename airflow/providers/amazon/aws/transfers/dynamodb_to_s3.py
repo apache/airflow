@@ -25,7 +25,7 @@ import json
 from copy import copy
 from os.path import getsize
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, IO
 from uuid import uuid4
 
 from airflow.models import BaseOperator
@@ -34,11 +34,11 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 
 
-def _convert_item_to_json_bytes(item):
+def _convert_item_to_json_bytes(item: Dict[str, Any]) -> bytes:
     return (json.dumps(item) + '\n').encode('utf-8')
 
 
-def _upload_file_to_s3(file_obj, bucket_name, s3_key_prefix):
+def _upload_file_to_s3(file_obj: IO, bucket_name: str, s3_key_prefix: str) -> None:
     s3_client = S3Hook().get_conn()
     file_obj.seek(0)
     s3_client.upload_file(
@@ -102,7 +102,7 @@ class DynamoDBToS3Operator(BaseOperator):
         s3_key_prefix: str = '',
         process_func: Callable[[Dict[str, Any]], bytes] = _convert_item_to_json_bytes,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.file_size = file_size
         self.process_func = process_func
@@ -111,7 +111,7 @@ class DynamoDBToS3Operator(BaseOperator):
         self.s3_bucket_name = s3_bucket_name
         self.s3_key_prefix = s3_key_prefix
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         table = AwsDynamoDBHook().get_conn().Table(self.dynamodb_table_name)
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
@@ -126,7 +126,7 @@ class DynamoDBToS3Operator(BaseOperator):
                 _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix)
             f.close()
 
-    def _scan_dynamodb_and_upload_to_s3(self, temp_file, scan_kwargs, table):
+    def _scan_dynamodb_and_upload_to_s3(self, temp_file: IO, scan_kwargs: dict, table: Any) -> IO:
         while True:
             response = table.scan(**scan_kwargs)
             items = response['Items']

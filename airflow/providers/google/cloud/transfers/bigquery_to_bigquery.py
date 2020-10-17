@@ -127,7 +127,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.log.info(
             'Executing copy of %s into: %s',
             self.source_project_dataset_tables,

@@ -126,7 +126,7 @@ class DagRun(Base, LoggingMixin):
     def set_state(self, state):
         if self._state != state:
             self._state = state
-            self.end_date = timezone.utcnow() if self._state in State.finished() else None
+            self.end_date = timezone.utcnow() if self._state in State.finished else None
 
     @declared_attr
     def state(self):
@@ -385,8 +385,8 @@ class DagRun(Base, LoggingMixin):
         for ti in tis:
             ti.task = dag.get_task(ti.task_id)
 
-        unfinished_tasks = [t for t in tis if t.state in State.unfinished()]
-        finished_tasks = [t for t in tis if t.state in State.finished() + [State.UPSTREAM_FAILED]]
+        unfinished_tasks = [t for t in tis if t.state in State.unfinished]
+        finished_tasks = [t for t in tis if t.state in State.finished | {State.UPSTREAM_FAILED}]
         none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
         none_task_concurrency = all(t.task.task_concurrency is None for t in unfinished_tasks)
         if unfinished_tasks:

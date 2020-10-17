@@ -870,7 +870,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             }
 
             # Only add end_date and duration if the new_state is 'success', 'failed' or 'skipped'
-            if new_state in State.finished():
+            if new_state in State.finished:
                 ti_prop_update.update({
                     models.TaskInstance.end_date: current_time,
                     models.TaskInstance.duration: 0,
@@ -1484,7 +1484,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 func.count(TI.execution_date.distinct()),
             ).filter(
                 TI.dag_id.in_(list({dag_run.dag_id for dag_run in dag_runs})),
-                TI.state.notin_(State.finished())
+                TI.state.notin_(list(State.finished))
             ).group_by(TI.dag_id).all())
 
             for dag_run in dag_runs:

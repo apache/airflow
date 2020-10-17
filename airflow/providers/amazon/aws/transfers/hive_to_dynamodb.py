@@ -21,6 +21,7 @@ This module contains operator to move data from Hive to DynamoDB.
 """
 
 import json
+from typing import Optional, Callable
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
@@ -64,18 +65,18 @@ class HiveToDynamoDBOperator(BaseOperator):
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
-        sql,
-        table_name,
-        table_keys,
-        pre_process=None,
-        pre_process_args=None,
-        pre_process_kwargs=None,
-        region_name=None,
-        schema='default',
-        hiveserver2_conn_id='hiveserver2_default',
-        aws_conn_id='aws_default',
+        sql: str,
+        table_name: str,
+        table_keys: list,
+        pre_process: Optional[Callable] = None,
+        pre_process_args: Optional[list] = None,
+        pre_process_kwargs: Optional[list] = None,
+        region_name: Optional[str] = None,
+        schema: str = 'default',
+        hiveserver2_conn_id: str = 'hiveserver2_default',
+        aws_conn_id: str = 'aws_default',
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
         self.table_name = table_name

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+from typing import Optional, Any, Iterable, Union, cast
 
 from bson import json_util
 
@@ -44,16 +45,16 @@ class MongoToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        mongo_conn_id,
-        s3_conn_id,
-        mongo_collection,
-        mongo_query,
-        s3_bucket,
-        s3_key,
-        mongo_db=None,
-        replace=False,
+        mongo_conn_id: str,
+        s3_conn_id: str,
+        mongo_collection: str,
+        mongo_query: Union[list, dict],
+        s3_bucket: str,
+        s3_key: str,
+        mongo_db: Optional[str] = None,
+        replace: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         # Conn Ids
         self.mongo_conn_id = mongo_conn_id
@@ -70,7 +71,7 @@ class MongoToS3Operator(BaseOperator):
         self.s3_key = s3_key
         self.replace = replace
 
-    def execute(self, context):
+    def execute(self, context) -> bool:
         """
         Executed by task_instance at runtime
         """
@@ -80,13 +81,15 @@ class MongoToS3Operator(BaseOperator):
         if self.is_pipeline:
             results = MongoHook(self.mongo_conn_id).aggregate(
                 mongo_collection=self.mongo_collection,
-                aggregate_query=self.mongo_query,
+                aggregate_query=cast(list, self.mongo_query),
                 mongo_db=self.mongo_db,
             )
 
         else:
             results = MongoHook(self.mongo_conn_id).find(
-                mongo_collection=self.mongo_collection, query=self.mongo_query, mongo_db=self.mongo_db
+                mongo_collection=self.mongo_collection,
+                query=cast(dict, self.mongo_query),
+                mongo_db=self.mongo_db,
             )
 
         # Performs transform then stringifies the docs results into json format
@@ -100,7 +103,7 @@ class MongoToS3Operator(BaseOperator):
         return True
 
     @staticmethod
-    def _stringify(iterable, joinable='\n'):
+    def _stringify(iterable: Iterable, joinable: str = '\n') -> str:
         """
         Takes an iterable (pymongo Cursor or Array) containing dictionaries and
         returns a stringified version using python join
@@ -108,7 +111,7 @@ class MongoToS3Operator(BaseOperator):
         return joinable.join([json.dumps(doc, default=json_util.default) for doc in iterable])
 
     @staticmethod
-    def transform(docs):
+    def transform(docs: Any) -> Any:
         """
         Processes pyMongo cursor and returns an iterable with each element being
                 a JSON serializable dictionary

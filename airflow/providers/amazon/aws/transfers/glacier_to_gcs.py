@@ -72,17 +72,17 @@ class GlacierToGCSOperator(BaseOperator):
     def __init__(
         self,
         *,
-        aws_conn_id="aws_default",
-        gcp_conn_id="google_cloud_default",
+        aws_conn_id: str = "aws_default",
+        gcp_conn_id: str = "google_cloud_default",
         vault_name: str,
         bucket_name: str,
         object_name: str,
         gzip: bool,
-        chunk_size=1024,
-        delegate_to=None,
+        chunk_size: int = 1024,
+        delegate_to: Optional[str] = None,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
@@ -94,7 +94,7 @@ class GlacierToGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = google_impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context) -> str:
         glacier_hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
