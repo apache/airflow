@@ -1704,7 +1704,7 @@ class DAG(BaseDag, LoggingMixin):
             external_trigger=external_trigger,
             conf=conf,
             state=state,
-            run_type=run_type.value,
+            run_type=run_type,
             dag_hash=dag_hash,
             creating_job_id=creating_job_id
         )
@@ -1773,8 +1773,8 @@ class DAG(BaseDag, LoggingMixin):
         most_recent_dag_runs = dict(session.query(DagRun.dag_id, func.max_(DagRun.execution_date)).filter(
             DagRun.dag_id.in_(existing_dag_ids),
             or_(
-                DagRun.run_type == DagRunType.BACKFILL_JOB.value,
-                DagRun.run_type == DagRunType.SCHEDULED.value,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+                DagRun.run_type == DagRunType.SCHEDULED,
                 DagRun.external_trigger.is_(True),
             ),
         ).group_by(DagRun.dag_id).all())

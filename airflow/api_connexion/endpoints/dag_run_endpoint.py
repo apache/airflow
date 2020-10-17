@@ -208,7 +208,7 @@ def post_dag_run(dag_id, session):
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"]).first()
     )
     if not dagrun_instance:
-        dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL.value, **post_body)
+        dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL, **post_body)
         session.add(dag_run)
         session.commit()
         return dagrun_schema.dump(dag_run)

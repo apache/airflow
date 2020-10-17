@@ -2409,8 +2409,8 @@ class TestTriggerDag(TestBase):
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
-        self.assertIn(DagRunType.MANUAL.value, run.run_id)
-        self.assertEqual(run.run_type, DagRunType.MANUAL.value)
+        self.assertIn(DagRunType.MANUAL, run.run_id)
+        self.assertEqual(run.run_type, DagRunType.MANUAL)
 
     @pytest.mark.quarantined
     def test_trigger_dag_conf(self):
@@ -2426,8 +2426,8 @@ class TestTriggerDag(TestBase):
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
-        self.assertIn(DagRunType.MANUAL.value, run.run_id)
-        self.assertEqual(run.run_type, DagRunType.MANUAL.value)
+        self.assertIn(DagRunType.MANUAL, run.run_id)
+        self.assertEqual(run.run_type, DagRunType.MANUAL)
         self.assertEqual(run.conf, conf_dict)
 
     def test_trigger_dag_conf_malformed(self):

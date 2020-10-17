@@ -955,7 +955,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .query(TI)
             .outerjoin(TI.dag_run)
             .filter(or_(DR.run_id.is_(None),
-                        DR.run_type != DagRunType.BACKFILL_JOB.value))
+                        DR.run_type != DagRunType.BACKFILL_JOB))
             .join(TI.dag_model)
             .filter(not_(DM.is_paused))
             .filter(TI.state == State.SCHEDULED)
@@ -1790,7 +1790,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .outerjoin(TI.queued_by_job)
             .filter(or_(TI.queued_by_job_id.is_(None), SchedulerJob.state != State.RUNNING))
             .join(TI.dag_run)
-            .filter(DagRun.run_type != DagRunType.BACKFILL_JOB.value,
+            .filter(DagRun.run_type != DagRunType.BACKFILL_JOB,
                     # pylint: disable=comparison-with-callable
                     DagRun.state == State.RUNNING)
             .options(load_only(TI.dag_id, TI.task_id, TI.execution_date))

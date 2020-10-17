@@ -84,7 +84,7 @@ class TestGetLog(unittest.TestCase):
         dagrun_model = DagRun(
             dag_id=self.DAG_ID,
             run_id='TEST_DAG_RUN_ID',
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,

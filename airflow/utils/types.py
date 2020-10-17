@@ -17,7 +17,7 @@
 import enum
 
 
-class DagRunType(enum.Enum):
+class DagRunType(str, enum.Enum):
     """Class with DagRun types"""
 
     BACKFILL_JOB = "backfill"

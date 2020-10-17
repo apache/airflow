@@ -80,7 +80,7 @@ class TestGetExtraLinks(unittest.TestCase):
             dag_id=self.dag.dag_id,
             run_id="TEST_DAG_RUN_ID",
             execution_date=self.default_time,
-            run_type=DagRunType.MANUAL.value,
+            run_type=DagRunType.MANUAL,
         )
         session.add(dr)
         session.commit()
