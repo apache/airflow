@@ -1115,6 +1115,13 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     :param job_dir: A Google Cloud Storage path in which to store training
         outputs and other data needed for training. (templated)
     :type job_dir: str
+    :param service_account: Optional service account to use when running the training application.
+        (templated)
+        The specified service account must have the `iam.serviceAccounts.actAs` role. The
+        Google-managed Cloud ML Engine service account must have the `iam.serviceAccountAdmin` role
+        for the specified service account.
+        If set to None or missing, the Google-managed Cloud ML Engine service account will be used.
+    :type service_account: str
     :param project_id: The Google Cloud project name within which MLEngine training job should run.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
@@ -1156,6 +1163,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         '_runtime_version',
         '_python_version',
         '_job_dir',
+        '_service_account',
         '_impersonation_chain',
     ]
 
@@ -1176,6 +1184,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         runtime_version: Optional[str] = None,
         python_version: Optional[str] = None,
         job_dir: Optional[str] = None,
+        service_account: Optional[str] = None,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
@@ -1197,6 +1206,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._runtime_version = runtime_version
         self._python_version = python_version
         self._job_dir = job_dir
+        self._service_account = service_account
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
         self._mode = mode
@@ -1243,6 +1253,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
         if self._job_dir:
             training_request['trainingInput']['jobDir'] = self._job_dir
+
+        if self._service_account:
+            training_request['trainingInput']['serviceAccount'] = self._service_account
 
         if self._scale_tier is not None and self._scale_tier.upper() == "CUSTOM":
             training_request['trainingInput']['masterType'] = self._master_type
