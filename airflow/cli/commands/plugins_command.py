@@ -49,6 +49,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = [
     "appbuilder_menu_items",
     "global_operator_extra_links",
     "operator_extra_links",
+    "source",
 ]
 
 
