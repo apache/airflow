@@ -44,6 +44,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
+from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
@@ -1655,8 +1656,14 @@ class TestDag(unittest.TestCase):
         assert next_subdag_date is None, "SubDags should never have DagRuns created by the scheduler"
 
     def test_replace_outdated_access_control_actions(self):
-        outdated_permissions = {'role1': {'can_read', 'can_edit'}, 'role2': {'can_dag_read', 'can_dag_edit'}}
-        updated_permissions = {'role1': {'can_read', 'can_edit'}, 'role2': {'can_read', 'can_edit'}}
+        outdated_permissions = {
+            'role1': {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
+            'role2': {permissions.DEPRECATED_ACTION_CAN_DAG_READ, permissions.DEPRECATED_ACTION_CAN_DAG_EDIT}
+        }
+        updated_permissions = {
+            'role1': {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
+            'role2': {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
+        }
 
         with pytest.warns(DeprecationWarning):
             dag = DAG(dag_id='dag_with_outdated_perms', access_control=outdated_permissions)

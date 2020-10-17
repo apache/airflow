@@ -54,7 +54,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'Airflow',
         'DagModelView',
         'Browse',
-        'Config',
+        permissions.RESOURCE_CONFIG,
         'DAG Runs',
         'DagRunModelView',
         'Task Instances',
@@ -131,8 +131,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'can_run',
         'can_trigger',
         'can_add',
-        'can_edit',
-        'can_delete',
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
         'can_failed',
         'can_paused',
         'can_refresh',
@@ -630,7 +630,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
-            {'can_read'}
+            {permissions.ACTION_CAN_READ}
         :type access_control: dict
         :return:
         """
@@ -650,7 +650,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
-            {'can_read'}
+            {permissions.ACTION_CAN_READ}
         :type access_control: dict
         """
         prefixed_dag_id = self.prefixed_dag_id(dag_id)

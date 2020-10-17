@@ -43,21 +43,22 @@ class TestDagRunEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ("can_read", permissions.RESOURCE_DAGS),
-                ("can_create", "DagRun"),
-                ("can_read", "DagRun"),
-                ("can_edit", "DagRun"),
-                ("can_delete", "DagRun"),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
             ],
         )
         create_user(
             cls.app,  # type: ignore
             username="test_granular_permissions",
             role_name="TestGranularDag",
-            permissions=[("can_read", "DagRun")],
+            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN)],
         )
         cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
-            "TEST_DAG_ID", access_control={'TestGranularDag': ['can_edit', 'can_read']}
+            "TEST_DAG_ID",
+            access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 

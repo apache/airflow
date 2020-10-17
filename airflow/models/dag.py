@@ -387,7 +387,7 @@ class DAG(BaseDag, LoggingMixin):
     def _upgrade_outdated_dag_access_control(access_control=None):
         """
         Looks for outdated dag level permissions (can_dag_read and can_dag_edit) in DAG
-        access_controls (for example, {'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}})
+        access_controls (for example, {'role1': {"can_dag_read"}, 'role2': {"can_dag_read", "can_dag_edit"}})
         and replaces them with updated permissions (can_read and can_edit).
         """
         if not access_control:

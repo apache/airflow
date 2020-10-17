@@ -58,9 +58,9 @@ class TestGetLog(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ('can_read', permissions.RESOURCE_DAGS),
-                ('can_read', 'DagRun'),
-                ('can_read', 'Task'),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")

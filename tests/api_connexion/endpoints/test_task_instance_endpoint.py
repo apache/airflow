@@ -16,6 +16,7 @@
 # under the License.
 import unittest
 import datetime as dt
+import getpass
 from unittest import mock
 
 from parameterized import parameterized
@@ -47,10 +48,10 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
             username="test",
             role_name="Test",
             permissions=[
-                ('can_read', permissions.RESOURCE_DAGS),
-                ('can_read', 'DagRun'),
-                ('can_read', 'Task'),
-                ('can_edit', 'Task'),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK),
             ],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -163,7 +164,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "state": "running",
                 "task_id": "print_the_context",
                 "try_number": 0,
-                "unixname": "root",
+                "unixname": getpass.getuser(),
             },
         )
 
@@ -215,7 +216,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "state": "running",
                 "task_id": "print_the_context",
                 "try_number": 0,
-                "unixname": "root",
+                "unixname": getpass.getuser(),
             },
         )
 

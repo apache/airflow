@@ -25,6 +25,7 @@ import pendulum
 from flask import after_this_request, flash, g, redirect, request, url_for
 
 from airflow.models import Log
+from airflow.security import permissions
 from airflow.utils.session import create_session
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
@@ -112,7 +113,7 @@ def has_dag_access(**dag_kwargs) -> Callable[[T], T]:
         @functools.wraps(f)
         def wrapper(self, *args, **kwargs):
             dag_id = request.values.get('dag_id')
-            needs_edit_access = dag_kwargs.get('can_dag_edit', False)
+            needs_edit_access = dag_kwargs.get(permissions.DEPRECATED_ACTION_CAN_DAG_EDIT, False)
 
             if needs_edit_access:
                 if self.appbuilder.sm.can_edit_dag(dag_id):

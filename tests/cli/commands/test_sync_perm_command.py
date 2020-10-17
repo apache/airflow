@@ -23,6 +23,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import sync_perm_command
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
+from airflow.security import permissions
 
 
 class TestCliSyncPerm(unittest.TestCase):
@@ -38,7 +39,7 @@ class TestCliSyncPerm(unittest.TestCase):
         self.expect_dagbag_contains([
             DAG('has_access_control',
                 access_control={
-                    'Public': {'can_read'}
+                    'Public': {permissions.ACTION_CAN_READ}
                 }),
             DAG('no_access_control')
         ], dagbag_mock)
@@ -56,7 +57,7 @@ class TestCliSyncPerm(unittest.TestCase):
         self.assertEqual(2, len(appbuilder.sm.sync_perm_for_dag.mock_calls))
         appbuilder.sm.sync_perm_for_dag.assert_any_call(
             'has_access_control',
-            {'Public': {'can_read'}}
+            {'Public': {permissions.ACTION_CAN_READ}}
         )
         appbuilder.sm.sync_perm_for_dag.assert_any_call(
             'no_access_control',
