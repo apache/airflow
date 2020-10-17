@@ -20,6 +20,4 @@ include NOTICE
 include LICENSE
 include CHANGELOG.txt
 include README.md
-include ../airflow/git_version
-graft licenses
 global-exclude __pycache__  *.pyc
