@@ -1173,7 +1173,7 @@ First copy all the provider packages .whl files to the `dist` folder.
 
 ```shell script
 ./breeze start-airflow --install-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --instal-wheels
+    --python 3.7 --backend postgres --install-wheels
 ```
 
 For 1.10 releases you can also use `--no-rbac-ui` flag disable RBAC UI of Airflow:
