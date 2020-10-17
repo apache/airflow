@@ -94,6 +94,7 @@ def init_appbuilder_views(app):
     appbuilder.add_view(
         views.XComModelView, permissions.RESOURCE_XCOM, category=permissions.RESOURCE_ADMIN_MENU
     )
+    appbuilder.add_view(views.StatsView, "Executor Stats", category="Admin")
     # add_view_no_menu to change item position.
     # I added link in extensions.init_appbuilder_links.init_appbuilder_links
     appbuilder.add_view_no_menu(views.RedocView)

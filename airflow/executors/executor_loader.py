@@ -19,6 +19,7 @@ import logging
 from contextlib import suppress
 from typing import Optional
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import (
@@ -124,3 +125,6 @@ UNPICKLEABLE_EXECUTORS = (
     SEQUENTIAL_EXECUTOR,
     DASK_EXECUTOR,
 )
+
+CELERY_EXECUTORS = (ExecutorLoader.CELERY_EXECUTOR, ExecutorLoader.CELERY_KUBERNETES_EXECUTOR)
+USING_CELERY_EXECUTOR = conf.get("core", "executor") in CELERY_EXECUTORS

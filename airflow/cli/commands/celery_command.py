@@ -140,6 +140,7 @@ def worker(args):
         'hostname': args.celery_hostname,
         'loglevel': conf.get('logging', 'LOGGING_LEVEL'),
         'pidfile': pid_file_path,
+        'task_events': True,
     }
 
     if conf.has_option("celery", "pool"):

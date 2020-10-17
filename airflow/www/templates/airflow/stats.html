@@ -1,0 +1,96 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+{% extends base_template %}
+{% block page_title %}Airflow Executor Stats{% endblock %}
+
+{% block content %}
+<h2>Airflow Summary</h2>
+<p>If you are interested in more detailed statistics please consider using
+  <a href="https://airflow.apache.org/docs/stable/metrics.html" target="_blank">statsd integration</a>.
+</p>
+<h3>Task instances</h3>
+ <table class="table table-bordered table-striped" style="width: auto; min-width: 50%";>
+  <thead>
+    <tr>
+        <th>{{ State.RUNNING | upper }}</th>
+        <th>{{ State.QUEUED | upper }}</th>
+        <th>{{ State.SCHEDULED | upper }}</th>
+        <th>{{ State.UP_FOR_RESCHEDULE | upper }}</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td>{{ ti_info.get(State.RUNNING, 0) }}</td>
+        <td>{{ ti_info.get(State.QUEUED, 0) }}</td>
+        <td>{{ ti_info.get(State.SCHEDULED, 0) }}</td>
+        <td>{{ ti_info.get(State.UP_FOR_RESCHEDULE, 0) }}</td>
+      </tr>
+  </tbody>
+</table>
+
+<h3>Dag runs</h3>
+ <table class="table table-bordered table-striped" style="width: 50%">
+  <thead>
+    <tr>
+        <th>{{ State.RUNNING | upper }}</th>
+        <th>{{ State.SUCCESS | upper }}</th>
+        <th>{{ State.FAILED | upper }}</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td>{{ dr_info.get(State.RUNNING, 0) }}</td>
+        <td>{{ dr_info.get(State.QUEUED, 0) }}</td>
+        <td>{{ dr_info.get(State.SCHEDULED, 0) }}</td>
+      </tr>
+  </tbody>
+</table>
+
+{% if celery %}
+<h2>Celery workers</h2>
+<p>This information is limited. For more insight use
+  <a href="https://airflow.apache.org/docs/stable/cli-ref.html#flower" target="_blank">Flower</a>.
+</p>
+<table class="table table-bordered table-striped">
+  <thead>
+    <tr>
+        <th>Worker Name</th>
+        <th>Active</th>
+        <th>Processed</th>
+        <th>Max concurrency</th>
+        <th>Active queues</th>
+        <th>Uptime</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for worker in workers %}
+      <tr>
+        <td>{{ worker.id }}</td>
+        <td>{{ worker.active_task }}</td>
+        <td>{{ worker.total_task }}</td>
+        <td>{{ worker.max_concurrency }}</td>
+        <td>{{ worker.active_queues }}</td>
+        <td>{{ worker.uptime }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

@@ -69,7 +69,7 @@ from airflow.api.common.experimental.mark_tasks import (
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.exceptions import AirflowException
-from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.executor_loader import USING_CELERY_EXECUTOR, ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
@@ -2607,6 +2607,45 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         task_instances = {ti.task_id: alchemy_to_dict(ti) for ti in dag.get_task_instances(dttm, dttm)}
 
         return json.dumps(task_instances, cls=utils_json.AirflowJsonEncoder)
+
+
+class StatsView(AirflowBaseView):
+    """View to show statistics about Airflow"""
+
+    default_view = 'stats'
+
+    @expose('/stats')
+    @has_access
+    @provide_session
+    def stats(self, session=None):
+        """Shows Airflow stats"""
+        # TaskInstance summary
+        TI = TaskInstance
+        ti_info = dict(session.query(
+            TI.state, func.count(TI.execution_date.distinct())
+        ).filter(TI.state.notin_(list(State.finished))).group_by(TI.state).all())
+
+        # DagRuns summary
+        DR = DagRun
+        dr_info = dict(session.query(
+            DR.state, func.count(DR.execution_date.distinct())
+        ).group_by(DR.state).all())
+
+        # Celery workers info
+        worker_info = []
+
+        if USING_CELERY_EXECUTOR:
+            from airflow.executors.celery_executor import CeleryExecutor  # noqa
+            worker_info = CeleryExecutor.get_stats()
+
+        return self.render_template(
+            'airflow/stats.html',
+            workers=worker_info,
+            State=State,
+            ti_info=ti_info,
+            dr_info=dr_info,
+            celery=USING_CELERY_EXECUTOR,
+        )
 
 
 class ConfigurationView(AirflowBaseView):

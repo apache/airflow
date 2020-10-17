@@ -21,6 +21,7 @@
     For more information on how the CeleryExecutor works, take a look at the guide:
     :ref:`executor:CeleryExecutor`
 """
+import collections
 import datetime
 import logging
 import math
@@ -30,8 +31,9 @@ import subprocess
 import time
 import traceback
 from collections import OrderedDict
+from functools import partial
 from multiprocessing import Pool, cpu_count
-from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Mapping, MutableMapping, NamedTuple, Optional, Set, Tuple, Union
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
@@ -72,7 +74,16 @@ if conf.has_option('celery', 'celery_config_options'):
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
-app = Celery(conf.get('celery', 'CELERY_APP_NAME'), config_source=celery_configuration)
+
+def create_app():
+    """Creates default Airflow celery app"""
+    return Celery(
+        conf.get('celery', 'CELERY_APP_NAME'),
+        config_source=celery_configuration
+    )
+
+
+app = create_app()
 
 
 @app.task
@@ -190,9 +201,69 @@ def on_celery_import_modules(*args, **kwargs):
         import kubernetes.client  # noqa: F401
     except ImportError:
         pass
-
-
 # pylint: enable=unused-import
+
+
+class WorkerInfo(NamedTuple):
+    """Information about single Celery worker"""
+
+    id: str
+    active_task: int
+    total_task: int
+    uptime: str
+    max_concurrency: int
+    active_queues: List[str]
+
+    @classmethod
+    def from_dict(cls, worker_id: str, raw_info: dict):
+        """Creates WorkerInfo from dictionary"""
+        stats = raw_info.get("stats", {})
+        return cls(
+            id=worker_id,
+            active_task=len(raw_info.get("active", [])),
+            total_task=sum(stats.get("total", {}).values()),
+            max_concurrency=stats.get("pool", {}).get("max-concurrency", 0),
+            uptime=cls._ts_to_readable_format(stats.get("uptime", 0)),
+            active_queues=[q["name"] for q in raw_info.get("active_queues", [])],
+        )
+
+    @staticmethod
+    def _ts_to_readable_format(timestamp) -> str:
+        day = timestamp // (24 * 3600)
+        timestamp = timestamp % (24 * 3600)
+        hour = timestamp // 3600
+        timestamp %= 3600
+        minutes = timestamp // 60
+        timestamp %= 60
+        seconds = timestamp
+        return f"{day}d {hour}h {minutes}m {seconds}s"
+
+
+class CeleryControlHandler:
+    """Class to access Celery workers information using inspect"""
+
+    INSPECT_METHODS = ('stats', 'active_queues', 'active')
+    worker_cache: Dict[str, dict] = collections.defaultdict(dict)
+
+    @classmethod
+    def _update_workers(cls):
+        capp: Celery = create_app()
+        inspect = capp.control.inspect(timeout=0.5)
+        for method in cls.INSPECT_METHODS:
+            result = partial(getattr(inspect, method))()
+            if result is None:
+                continue
+            for worker, response in result.items():
+                if response is not None:
+                    CeleryControlHandler.worker_cache[worker][method] = response
+        capp.close()
+
+    @classmethod
+    def get_information(cls):
+        """Return basic information about Celery workers"""
+        cls._update_workers()
+        for worked, raw_info in cls.worker_cache.items():
+            yield WorkerInfo.from_dict(worked, raw_info)
 
 
 class CeleryExecutor(BaseExecutor):
@@ -204,6 +275,8 @@ class CeleryExecutor(BaseExecutor):
     vast amounts of messages, while providing operations with the tools
     required to maintain such a system.
     """
+
+    control: Optional[CeleryControlHandler] = None
 
     def __init__(self):
         super().__init__()
@@ -496,6 +569,13 @@ class CeleryExecutor(BaseExecutor):
             )
 
         return not_adopted_tis
+
+    @classmethod
+    def get_stats(cls) -> Any:
+        """Return information about currently running Celery workers"""
+        if not cls.control:
+            cls.control = CeleryControlHandler()
+        return cls.control.get_information()
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, ExceptionWithTraceback], Any]:
