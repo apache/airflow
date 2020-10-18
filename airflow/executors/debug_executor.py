@@ -110,8 +110,9 @@ class DebugExecutor(BaseExecutor):
 
     def trigger_tasks(self, open_slots: int) -> None:
         """
-        Triggers tasks. Instead of calling exec_async we just
-        add task instance to tasks_to_run queue.
+        Triggers tasks.
+
+        Instead of calling exec_async we just add task instance to tasks_to_run queue.
 
         :param open_slots: Number of open slots
         """
@@ -128,6 +129,8 @@ class DebugExecutor(BaseExecutor):
 
     def end(self) -> None:
         """
+        Just set states of queued tasks to UPSTREAM_FAILED marking them as not executed.
+
         When the method is called we just set states of queued tasks
         to UPSTREAM_FAILED marking them as not executed.
         """

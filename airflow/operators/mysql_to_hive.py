@@ -31,6 +31,7 @@ warnings.warn(
 class MySqlToHiveTransfer(MySqlToHiveOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.apache.hive.transfers.mysql_to_hive.MySqlToHiveOperator`.
     """
 

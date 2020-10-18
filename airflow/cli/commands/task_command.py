@@ -65,8 +65,9 @@ def _run_task_by_selected_method(args, dag, ti):
 
 def _run_task_by_executor(args, dag, ti):
     """
-    Sends the task to the executor for execution. This can result in the task being started by another host
-    if the executor implementation does
+    Sends the task to the executor for execution.
+
+    This can result in the task being started by another host if the executor implementation does
     """
     pickle_id = None
     if args.ship_dag:
@@ -225,6 +226,8 @@ def task_run(args, dag=None):
 @cli_utils.action_logging
 def task_failed_deps(args):
     """
+    List which dependencies are failing (stopping execution) for a given TaskInstance.
+
     Returns the unmet dependencies for a task instance from the perspective of the
     scheduler (i.e. why a task instance doesn't get scheduled and then queued by the
     scheduler, and then run by an executor).
@@ -253,6 +256,7 @@ def task_failed_deps(args):
 def task_state(args):
     """
     Returns the state of a TaskInstance at the command line.
+
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
@@ -283,8 +287,9 @@ SUPPORTED_DEBUGGER_MODULES: List[str] = [
 
 def _guess_debugger():
     """
-    Trying to guess the debugger used by the user. When it doesn't find any user-installed debugger,
-    returns ``pdb``.
+    Trying to guess the debugger used by the user.
+
+    When it doesn't find any user-installed debugger, returns ``pdb``.
 
     List of supported debuggers:
 

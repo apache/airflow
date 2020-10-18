@@ -98,8 +98,9 @@ class CloudAutoMLHook(GoogleBaseHook):
         retry: Optional[Retry] = None,
     ) -> Operation:
         """
-        Creates a model_id. Returns a Model in the `response` field when it
-        completes. When you create a model, several model evaluations are
+        Creates a model_id. Returns a Model in the `response` field when it completes.
+
+        When you create a model, several model evaluations are
         created for it: a global evaluation, and one evaluation for each
         annotation spec.
 
@@ -142,8 +143,9 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Operation:
         """
-        Perform a batch prediction. Unlike the online `Predict`, batch
-        prediction result won't be immediately available in the response.
+        Perform a batch prediction.
+
+        Unlike the online `Predict`, batch prediction result won't be immediately available in the response.
         Instead, a long running operation object is returned.
 
         :param model_id: Name of the model_id requested to serve the batch prediction.
@@ -201,8 +203,9 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> PredictResponse:
         """
-        Perform an online prediction. The prediction result will be directly
-        returned in the response.
+        Perform an online prediction.
+
+        The prediction result will be directly returned in the response.
 
         :param model_id: Name of the model_id requested to serve the prediction.
         :type model_id: str
@@ -517,7 +520,9 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Operation:
         """
-        Deploys a model. If a model is already deployed, deploying it with the same parameters
+        Deploys a model.
+
+        If a model is already deployed, deploying it with the same parameters
         has no effect. Deploying with different parameters (as e.g. changing node_number) will
         reset the deployment state without pausing the model_id’s availability.
 

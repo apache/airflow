@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigtable`
+This module is deprecated.
+
+Please use `airflow.providers.google.cloud.operators.bigtable`
 or `airflow.providers.google.cloud.sensors.bigtable`.
 """
 
@@ -42,6 +44,7 @@ warnings.warn(
 class BigtableClusterUpdateOperator(BigtableUpdateClusterOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.bigtable.BigtableUpdateClusterOperator`.
     """
 
@@ -58,6 +61,7 @@ class BigtableClusterUpdateOperator(BigtableUpdateClusterOperator):
 class BigtableInstanceCreateOperator(BigtableCreateInstanceOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.bigtable.BigtableCreateInstanceOperator`.
     """
 
@@ -74,6 +78,7 @@ class BigtableInstanceCreateOperator(BigtableCreateInstanceOperator):
 class BigtableInstanceDeleteOperator(BigtableDeleteInstanceOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.bigtable.BigtableDeleteInstanceOperator`.
     """
 
@@ -90,6 +95,7 @@ class BigtableInstanceDeleteOperator(BigtableDeleteInstanceOperator):
 class BigtableTableCreateOperator(BigtableCreateTableOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.bigtable.BigtableCreateTableOperator`.
     """
 
@@ -106,6 +112,7 @@ class BigtableTableCreateOperator(BigtableCreateTableOperator):
 class BigtableTableDeleteOperator(BigtableDeleteTableOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.bigtable.BigtableDeleteTableOperator`.
     """
 
@@ -123,6 +130,7 @@ class BigtableTableDeleteOperator(BigtableDeleteTableOperator):
 class BigtableTableWaitForReplicationSensor(BigtableTableReplicationCompletedSensor):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor`.
     """
 

@@ -36,6 +36,7 @@ from airflow.utils import timezone
 class LogState:
     """
     Enum-style class holding all possible states of CloudWatch log streams.
+
     https://sagemaker.readthedocs.io/en/stable/session.html#sagemaker.session.LogState
     """
 
@@ -245,6 +246,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
     def get_log_conn(self):
         """
         This method is deprecated.
+
         Please use :py:meth:`airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_conn` instead.
         """
         warnings.warn(
@@ -259,6 +261,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
     def log_stream(self, log_group, stream_name, start_time=0, skip=0):
         """
         This method is deprecated.
+
         Please use
         :py:meth:`airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events` instead.
         """
@@ -274,6 +277,8 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
     def multi_stream_iter(self, log_group: str, streams: list, positions=None) -> Generator:
         """
+        Multi stream iterator
+
         Iterate over the available events coming from a set of log streams in a single log group
         interleaving the events from each stream so they're yielded in timestamp order.
 
@@ -681,6 +686,8 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
     def describe_endpoint(self, name: str) -> dict:
         """
+        Describe endpoint.
+
         :param name: the name of the endpoint
         :type name: str
         :return: A dict contains all the endpoint info
@@ -762,8 +769,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         max_ingestion_time: Optional[int] = None,
     ):
         """
-        Display the logs for a given training job, optionally tailing them until the
-        job is complete.
+        Display the logs for a given training job, optionally tailing them until the job is complete.
 
         :param job_name: name of the training job to check status and display logs for
         :type job_name: str
@@ -852,8 +858,10 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         self, name_contains: Optional[str] = None, max_results: Optional[int] = None, **kwargs
     ) -> List[Dict]:  # noqa: D402
         """
-        This method wraps boto3's list_training_jobs(). The training job name and max results are configurable
-        via arguments. Other arguments are not, and should be provided via kwargs. Note boto3 expects these in
+        This method wraps boto3's list_training_jobs().
+
+        The training job name and max results are configurable via arguments.
+        Other arguments are not, and should be provided via kwargs. Note boto3 expects these in
         CamelCase format, for example:
 
         .. code-block:: python
@@ -891,7 +899,9 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
     def list_processing_jobs(self, **kwargs) -> List[Dict]:  # noqa: D402
         """
-        This method wraps boto3's list_processing_jobs(). All arguments should be provided via kwargs.
+        This method wraps boto3's list_processing_jobs().
+
+        All arguments should be provided via kwargs.
         Note boto3 expects these in CamelCase format, for example:
 
         .. code-block:: python
@@ -914,6 +924,8 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         self, partial_func: Callable, result_key: str, max_results: Optional[int] = None
     ) -> List[Dict]:
         """
+        All AWS boto3 list_* requests return results in batches.
+
         All AWS boto3 list_* requests return results in batches (if the key "NextToken" is contained in the
         result, there are more results to fetch). The default AWS batch size is 10, and configurable up to
         100. This function iteratively loads all results (or up to a given maximum).

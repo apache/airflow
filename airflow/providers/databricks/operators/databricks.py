@@ -32,8 +32,9 @@ XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
 
 def _deep_string_coerce(content, json_path: str = 'json') -> Union[str, list, dict]:
     """
-    Coerces content or all values of content if it is a dict to a string. The
-    function will throw if content contains non-string or non-numeric types.
+    Coerces content or all values of content if it is a dict to a string.
+
+    The function will throw if content contains non-string or non-numeric types.
 
     The reason why we have this function is because the ``self.json`` field must be a
     dict with only string values. This is because ``render_template`` will fail
@@ -95,6 +96,8 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """
+    Submits a Spark job run to Databricks.
+
     Submits a Spark job run to Databricks using the
     `api/2.0/jobs/runs/submit
     <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_
@@ -319,6 +322,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
 class DatabricksRunNowOperator(BaseOperator):
     """
+    Runs an existing Spark job run to Databricks.
+
     Runs an existing Spark job run to Databricks using the
     `api/2.0/jobs/run-now
     <https://docs.databricks.com/api/latest/jobs.html#run-now>`_

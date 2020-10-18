@@ -25,7 +25,9 @@ from airflow.utils.decorators import apply_defaults
 
 class DruidCheckOperator(CheckOperator):
     """
-    Performs checks against Druid. The ``DruidCheckOperator`` expects
+    Performs checks against Druid.
+
+    The ``DruidCheckOperator`` expects
     a sql query that will return a single row. Each value on that
     first row is evaluated using python ``bool`` casting. If any of the
     values return ``False`` the check is failed and errors out.

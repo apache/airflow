@@ -320,6 +320,8 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
 
 class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
     """
+    CloudMemorystore Failover Instance Operator class.
+
     Initiates a failover of the master node to current replica node for a specific STANDARD tier Cloud
     Memorystore for Redis instance.
 
@@ -886,6 +888,8 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
 
 class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
     """
+    Cloud Memorystore Create Instance And Import Operator class.
+
     Creates a Redis instance based on the specified tier and memory size and import a Redis RDB snapshot file
     from Cloud Storage into a this instance.
 
@@ -1010,7 +1014,9 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
 
 class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
     """
-    Export Redis instance data into a Redis RDB format file in Cloud Storage. In next step, deletes a this
+    Export Redis instance data into a Redis RDB format file in Cloud Storage.
+
+    In next step, deletes a this
     instance.
 
     Redis will continue serving during this operation.
@@ -1443,6 +1449,8 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
 
 class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
     """
+    Cloud Memorystore Memcached List Instances Operator class.
+
     Lists all Memcached instances owned by a project in either the specified location (region) or all
         locations.
 
@@ -1633,7 +1641,9 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
 
 class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
     """
-    Updates the defined Memcached Parameters for an existing Instance. This method only stages the
+    Updates the defined Memcached Parameters for an existing Instance.
+
+    This method only stages the
         parameters, it must be followed by apply_parameters to apply the parameters to nodes of
         the Memcached Instance.
 

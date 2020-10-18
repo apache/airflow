@@ -23,8 +23,7 @@ from airflow.utils.decorators import apply_defaults
 
 class AzureCosmosDocumentSensor(BaseSensorOperator):
     """
-    Checks for the existence of a document which
-    matches the given query in CosmosDB. Example:
+    Checks for the existence of a document which matches the given query in CosmosDB. Example:
 
     >>> azure_cosmos_sensor = AzureCosmosDocumentSensor(database_name="somedatabase_name",
     ...                            collection_name="somecollection_name",

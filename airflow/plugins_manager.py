@@ -137,6 +137,7 @@ class AirflowPlugin:
     def on_load(cls, *args, **kwargs):
         """
         Executed when the plugin is loaded.
+
         This method is only called once during runtime.
 
         :param args: If future arguments are passed in on call.
@@ -146,8 +147,7 @@ class AirflowPlugin:
 
 def is_valid_plugin(plugin_obj):
     """
-    Check whether a potential object is a subclass of
-    the AirflowPlugin class.
+    Check whether a potential object is a subclass of the AirflowPlugin class.
 
     :param plugin_obj: potential subclass of AirflowPlugin
     :return: Whether or not the obj is a valid subclass of
@@ -168,6 +168,7 @@ def is_valid_plugin(plugin_obj):
 def load_entrypoint_plugins():
     """
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
+
     The entry_point group should be 'airflow.plugins'.
     """
     global import_errors  # pylint: disable=global-statement

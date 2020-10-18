@@ -832,6 +832,7 @@ class PubSubPublishMessageOperator(BaseOperator):
 
 class PubSubPullOperator(BaseOperator):
     """Pulls messages from a PubSub subscription and passes them through XCom.
+
     If the queue is empty, returns empty list - never waits for messages.
     If you do need to wait, please use :class:`airflow.providers.google.cloud.sensors.PubSubPullSensor`
     instead.
@@ -951,6 +952,7 @@ class PubSubPullOperator(BaseOperator):
     ) -> list:
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
+
         This default implementation converts `ReceivedMessage` objects into JSON-serializable dicts.
 
         :param pulled_messages: messages received from the topic.

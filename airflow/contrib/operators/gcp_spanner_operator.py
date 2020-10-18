@@ -38,6 +38,7 @@ warnings.warn(
 class CloudSpannerInstanceDatabaseDeleteOperator(SpannerDeleteDatabaseInstanceOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.spanner.SpannerDeleteDatabaseInstanceOperator`.
     """
 
@@ -53,6 +54,7 @@ class CloudSpannerInstanceDatabaseDeleteOperator(SpannerDeleteDatabaseInstanceOp
 class CloudSpannerInstanceDatabaseDeployOperator(SpannerDeployDatabaseInstanceOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.spanner.SpannerDeployDatabaseInstanceOperator`.
     """
 
@@ -68,6 +70,7 @@ class CloudSpannerInstanceDatabaseDeployOperator(SpannerDeployDatabaseInstanceOp
 class CloudSpannerInstanceDatabaseQueryOperator(SpannerQueryDatabaseInstanceOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.spanner.SpannerQueryDatabaseInstanceOperator`.
     """
 
@@ -83,6 +86,7 @@ class CloudSpannerInstanceDatabaseQueryOperator(SpannerQueryDatabaseInstanceOper
 class CloudSpannerInstanceDatabaseUpdateOperator(SpannerUpdateDatabaseInstanceOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.spanner.SpannerUpdateDatabaseInstanceOperator`.
     """
 
@@ -98,6 +102,7 @@ class CloudSpannerInstanceDatabaseUpdateOperator(SpannerUpdateDatabaseInstanceOp
 class CloudSpannerInstanceDeleteOperator(SpannerDeleteInstanceOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.spanner.SpannerDeleteInstanceOperator`.
     """
 
@@ -113,6 +118,7 @@ class CloudSpannerInstanceDeleteOperator(SpannerDeleteInstanceOperator):
 class CloudSpannerInstanceDeployOperator(SpannerDeployInstanceOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.spanner.SpannerDeployInstanceOperator`.
     """
 

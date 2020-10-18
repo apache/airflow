@@ -30,6 +30,7 @@ warnings.warn(
 class PrestoCheckOperator(SQLCheckOperator):
     """
     This class is deprecated.
+
     Please use `airflow.operators.sql.SQLCheckOperator`.
     """
 
@@ -46,6 +47,7 @@ class PrestoCheckOperator(SQLCheckOperator):
 class PrestoIntervalCheckOperator(SQLIntervalCheckOperator):
     """
     This class is deprecated.
+
     Please use `airflow.operators.sql.SQLIntervalCheckOperator`.
     """
 
@@ -64,6 +66,7 @@ class PrestoIntervalCheckOperator(SQLIntervalCheckOperator):
 class PrestoValueCheckOperator(SQLValueCheckOperator):
     """
     This class is deprecated.
+
     Please use `airflow.operators.sql.SQLValueCheckOperator`.
     """
 

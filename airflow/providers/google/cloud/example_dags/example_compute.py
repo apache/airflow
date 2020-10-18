@@ -17,8 +17,7 @@
 # under the License.
 
 """
-Example Airflow DAG that starts, stops and sets the machine type of a Google Compute
-Engine instance.
+Example Airflow DAG that starts, stops and sets the machine type of a Google Compute Engine instance.
 
 This DAG relies on the following OS environment variables
 

@@ -31,6 +31,7 @@ warnings.warn(
 class MySqlToGoogleCloudStorageOperator(MySQLToGCSOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.transfers.mysql_to_gcs.MySQLToGCSOperator`.
     """
 

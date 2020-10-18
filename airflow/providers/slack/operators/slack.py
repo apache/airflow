@@ -26,7 +26,8 @@ from airflow.utils.decorators import apply_defaults
 
 class SlackAPIOperator(BaseOperator):
     """
-    Base Slack Operator
+    Base Slack Operator.
+
     The SlackAPIPostOperator is derived from this operator.
     In the future additional Slack API Operators will be derived from this class as well
     Only one of `slack_conn_id` and `token` is required.
@@ -63,8 +64,9 @@ class SlackAPIOperator(BaseOperator):
 
     def construct_api_call_params(self) -> Any:
         """
-        Used by the execute function. Allows templating on the source fields
-        of the api_call_params dict before construction
+        Used by the execute function.
+
+        Allows templating on the source fields of the api_call_params dict before construction.
 
         Override in child classes.
         Each SlackAPIOperator child class is responsible for
@@ -79,6 +81,7 @@ class SlackAPIOperator(BaseOperator):
     def execute(self, **kwargs):  # noqa: D403
         """
         SlackAPIOperator calls will not fail even if the call is not unsuccessful.
+
         It should not prevent a DAG from completing in success
         """
         if not self.api_params:
@@ -87,9 +90,10 @@ class SlackAPIOperator(BaseOperator):
         slack.call(self.method, json=self.api_params)
 
 
-class SlackAPIPostOperator(SlackAPIOperator):
+class SlackAPIPostOperator(SlackAPIOperator):  # noqa: D412
     """
-    Posts messages to a slack channel
+    Posts messages to a slack channel.
+
     Examples:
 
     .. code-block:: python
@@ -156,9 +160,10 @@ class SlackAPIPostOperator(SlackAPIOperator):
         }
 
 
-class SlackAPIFileOperator(SlackAPIOperator):
+class SlackAPIFileOperator(SlackAPIOperator):  # noqa: D412
     """
     Send a file to a slack channel
+
     Examples:
 
     .. code-block:: python

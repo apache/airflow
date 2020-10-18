@@ -31,6 +31,7 @@ warnings.warn(
 class MsSqlToGoogleCloudStorageOperator(MSSQLToGCSOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.transfers.mssql_to_gcs.MSSQLToGCSOperator`.
     """
 

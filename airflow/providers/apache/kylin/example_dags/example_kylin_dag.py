@@ -18,6 +18,7 @@
 
 """
 This is an example DAG which uses the KylinCubeOperator.
+
 The tasks below include kylin build, refresh, merge operation.
 """
 from airflow import DAG
@@ -40,7 +41,8 @@ dag = DAG(
 
 def gen_build_time(**kwargs):
     """
-    Gen build time and push to xcom
+    Gen build time and push to xcom.
+
     :param kwargs:
     :return:
     """

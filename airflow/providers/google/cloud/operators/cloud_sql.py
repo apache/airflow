@@ -265,6 +265,7 @@ class CloudSQLBaseOperator(BaseOperator):
 class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
     """
     Creates a new Cloud SQL instance.
+
     If an instance with the same name exists, no action will be taken and
     the operator will succeed.
 
@@ -631,6 +632,8 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
     """
+    CloudSQL Patch Instance Database Operator class.
+
     Updates a resource containing information about a database inside a Cloud SQL
     instance using patch semantics.
     See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
@@ -825,8 +828,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
     """
-    Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
-    or CSV file.
+    Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump or CSV file.
 
     Note: This operator is idempotent. If executed multiple times with the same
     export file URI, the export file in GCS will simply be overridden.
@@ -1023,8 +1025,9 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
 class CloudSQLExecuteQueryOperator(BaseOperator):
     """
-    Performs DML or DDL query on an existing Cloud Sql instance. It optionally uses
-    cloud-sql-proxy to establish secure connection with the database.
+    Performs DML or DDL query on an existing Cloud Sql instance.
+
+    It optionally uses cloud-sql-proxy to establish secure connection with the database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

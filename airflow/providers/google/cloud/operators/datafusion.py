@@ -30,6 +30,7 @@ from airflow.utils.decorators import apply_defaults
 class CloudDataFusionRestartInstanceOperator(BaseOperator):
     """
     Restart a single Data Fusion instance.
+
     At the end of an operation instance is fully restarted.
 
     .. seealso::

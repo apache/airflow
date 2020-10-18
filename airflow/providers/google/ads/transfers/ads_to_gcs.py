@@ -29,6 +29,7 @@ from airflow.utils.decorators import apply_defaults
 class GoogleAdsToGcsOperator(BaseOperator):
     """
     Fetches the daily results from the Google Ads API for 1-n clients
+
     Converts and saves the data as a temporary CSV file
     Uploads the CSV to Google Cloud Storage
 

@@ -26,8 +26,7 @@ from airflow.utils.decorators import apply_defaults
 
 class BashSensor(BaseSensorOperator):
     """
-    Executes a bash command/script and returns True if and only if the
-    return code is 0.
+    Executes a bash command/script and returns True if and only if the return code is 0.
 
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed.
@@ -52,10 +51,7 @@ class BashSensor(BaseSensorOperator):
         self.output_encoding = output_encoding
 
     def poke(self, context):
-        """
-        Execute the bash command in a temporary directory
-        which will be cleaned afterwards
-        """
+        """Execute the bash command in a temporary directory which will be cleaned afterwards"""
         bash_command = self.bash_command
         self.log.info("Tmp dir root location: \n %s", gettempdir())
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:

@@ -36,6 +36,7 @@ warnings.warn(
 class GoogleCloudStorageObjectSensor(GCSObjectExistenceSensor):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor`.
     """
 
@@ -52,6 +53,7 @@ class GoogleCloudStorageObjectSensor(GCSObjectExistenceSensor):
 class GoogleCloudStorageObjectUpdatedSensor(GCSObjectUpdateSensor):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor`.
     """
 
@@ -68,6 +70,7 @@ class GoogleCloudStorageObjectUpdatedSensor(GCSObjectUpdateSensor):
 class GoogleCloudStoragePrefixSensor(GCSObjectsWtihPrefixExistenceSensor):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor`.
     """
 
@@ -84,6 +87,7 @@ class GoogleCloudStoragePrefixSensor(GCSObjectsWtihPrefixExistenceSensor):
 class GoogleCloudStorageUploadSessionCompleteSensor(GCSUploadSessionCompleteSensor):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor`.
     """
 

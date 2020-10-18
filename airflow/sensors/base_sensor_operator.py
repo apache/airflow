@@ -129,10 +129,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             )
 
     def poke(self, context: Dict) -> bool:
-        """
-        Function that the sensors defined while deriving this class should
-        override.
-        """
+        """Function that the sensors defined while deriving this class should override."""
         raise AirflowException('Override me.')
 
     def is_smart_sensor_compatible(self):
@@ -164,8 +161,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     def get_poke_context(self, context):
         """
-        Return a dictionary with all attributes in poke_context_fields. The
-        poke_context with operator class can be used to identify a unique
+        Return a dictionary with all attributes in poke_context_fields.
+
+        The poke_context with operator class can be used to identify a unique
         sensor job.
 
         :param context: TaskInstance template context.
@@ -180,8 +178,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     def get_execution_context(self, context):
         """
-        Return a dictionary with all attributes in execution_fields. The
-        execution_context include execution requirement for each sensor task
+        Return a dictionary with all attributes in execution_fields.
+
+        The execution_context include execution requirement for each sensor task
         such as timeout setup, email_alert setup.
 
         :param context: TaskInstance template context.
@@ -267,6 +266,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     @property
     def deps(self):
         """
+        Return dependency.
+
         Adds one additional dependency for all sensor operators that
         checks if a sensor task instance can be rescheduled.
         """
@@ -277,6 +278,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
 def poke_mode_only(cls):
     """
+    Class Decorator to indicate that it is only safe to use poke mode.
+
     Class Decorator for child classes of BaseSensorOperator to indicate
     that instances of this class are only safe to use poke mode.
 

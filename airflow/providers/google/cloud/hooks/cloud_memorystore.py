@@ -273,6 +273,8 @@ class CloudMemorystoreHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
+        Initiates a failover.
+
         Initiates a failover of the master node to current replica node for a specific STANDARD tier Cloud
         Memorystore for Redis instance.
 
@@ -403,6 +405,8 @@ class CloudMemorystoreHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
+        Lists all Redis instances.
+
         Lists all Redis instances owned by a project in either the specified location (region) or all
         locations.
 
@@ -783,6 +787,8 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
+        Lists all Memcached instances.
+
         Lists all Memcached instances owned by a project in either the specified location (region) or all
         locations.
 
@@ -889,7 +895,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
-        Updates the defined Memcached Parameters for an existing Instance. This method only stages the
+        Updates the defined Memcached Parameters for an existing Instance.
+
+        This method only stages the
             parameters, it must be followed by apply_parameters to apply the parameters to nodes of
             the Memcached Instance.
 

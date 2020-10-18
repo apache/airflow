@@ -79,10 +79,7 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
 def apply_lineage(func: T) -> T:
-    """
-    Saves the lineage to XCom and if configured to do so sends it
-    to the backend.
-    """
+    """Saves the lineage to XCom and if configured to do so sends it to the backend."""
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):

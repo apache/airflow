@@ -31,6 +31,7 @@ from airflow.utils.decorators import apply_defaults
 class SqoopOperator(BaseOperator):
     """
     Execute a Sqoop job.
+
     Documentation for Apache Sqoop can be found here:
     https://sqoop.apache.org/docs/1.4.2/SqoopUserGuide.html
 

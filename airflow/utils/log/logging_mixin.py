@@ -27,8 +27,9 @@ ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
 
 def remove_escape_codes(text: str) -> str:
     """
-    Remove ANSI escapes codes from string. It's used to remove
-    "colors" from log messages.
+    Remove ANSI escapes codes from string.
+
+    It's used to remove "colors" from log messages.
     """
     return ANSI_ESCAPE.sub("", text)
 
@@ -74,6 +75,8 @@ class StreamLogWriter:
 
     def __init__(self, logger, level):
         """
+        __init__ of StreamLogWriter.
+
         :param log: The log level method to write to, ie. log.debug, log.warning
         :return:
         """
@@ -91,6 +94,8 @@ class StreamLogWriter:
     @property
     def closed(self):  # noqa: D402
         """
+        Returns False to indicate that the stream is not closed.
+
         Returns False to indicate that the stream is not closed (as it will be
         open for the duration of Airflow's lifecycle).
 
@@ -124,6 +129,7 @@ class StreamLogWriter:
     def isatty(self):
         """
         Returns False to indicate the fd is not connected to a tty(-like) device.
+
         For compatibility reasons.
         """
         return False
@@ -131,6 +137,8 @@ class StreamLogWriter:
 
 class RedirectStdHandler(StreamHandler):
     """
+    Redirect Std Handler class
+
     This class is like a StreamHandler using sys.stderr/stdout, but always uses
     whatever sys.stderr/stderr is currently set to rather than the value of
     sys.stderr/stdout at handler construction time.

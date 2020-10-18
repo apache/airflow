@@ -72,8 +72,9 @@ def set_state(
     session=None,
 ):  # pylint: disable=too-many-arguments,too-many-locals
     """
-    Set the state of a task instance and if needed its relatives. Can set state
-    for future tasks (calculated from execution_date) and retroactively
+    Set the state of a task instance and if needed its relatives.
+
+    Can set state for future tasks (calculated from execution_date) and retroactively
     for past tasks. Will verify integrity of past dag runs in order to create
     tasks that did not exist. It will not create dag runs that are missing
     on the schedule (but it will as for subdag dag runs if needed).
@@ -160,7 +161,9 @@ def get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates):
 
 
 def get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates):
-    """Go through subdag operators and create dag runs. We will only work
+    """Go through subdag operators and create dag runs.
+
+    We will only work
     within the scope of the subdag. We wont propagate to the parent dag,
     but we will propagate from parent to subdag.
     """
@@ -211,6 +214,8 @@ def verify_dagruns(dag_runs, commit, state, session, current_task):
 
 def verify_dag_run_integrity(dag, dates):
     """
+    Verify the integrity of the dag runs.
+
     Verify the integrity of the dag runs in case a task was added or removed
     set the confirmed execution dates as they might be different
     from what was provided
@@ -287,8 +292,7 @@ def _set_dag_run_state(dag_id, execution_date, state, session=None):
 @provide_session
 def set_dag_run_state_to_success(dag, execution_date, commit=False, session=None):
     """
-    Set the dag run for a specific execution date and its task instances
-    to success.
+    Set the dag run for a specific execution date and its task instances to success.
 
     :param dag: the DAG of which to alter state
     :param execution_date: the execution date from which to start looking
@@ -316,8 +320,7 @@ def set_dag_run_state_to_success(dag, execution_date, commit=False, session=None
 @provide_session
 def set_dag_run_state_to_failed(dag, execution_date, commit=False, session=None):
     """
-    Set the dag run for a specific execution date and its running task instances
-    to failed.
+    Set the dag run for a specific execution date and its running task instances to failed.
 
     :param dag: the DAG of which to alter state
     :param execution_date: the execution date from which to start looking

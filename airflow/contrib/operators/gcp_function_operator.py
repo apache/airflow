@@ -34,6 +34,7 @@ warnings.warn(
 class GcfFunctionDeleteOperator(CloudFunctionDeleteFunctionOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.function.CloudFunctionDeleteFunctionOperator`.
     """
 
@@ -51,6 +52,7 @@ class GcfFunctionDeleteOperator(CloudFunctionDeleteFunctionOperator):
 class GcfFunctionDeployOperator(CloudFunctionDeployFunctionOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.function.CloudFunctionDeployFunctionOperator`.
     """
 

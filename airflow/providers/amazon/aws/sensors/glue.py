@@ -24,8 +24,7 @@ from airflow.utils.decorators import apply_defaults
 
 class AwsGlueJobSensor(BaseSensorOperator):
     """
-    Waits for an AWS Glue Job to reach any of the status below
-    'FAILED', 'STOPPED', 'SUCCEEDED'
+    Waits for an AWS Glue Job to reach any of the status below 'FAILED', 'STOPPED', 'SUCCEEDED'.
 
     :param job_name: The AWS Glue Job unique name
     :type job_name: str

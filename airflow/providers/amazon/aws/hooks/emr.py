@@ -23,8 +23,9 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class EmrHook(AwsBaseHook):
     """
-    Interact with AWS EMR. emr_conn_id is only necessary for using the
-    create_job_flow method.
+    Interact with AWS EMR.
+
+    emr_conn_id is only necessary for using the create_job_flow method.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
@@ -41,6 +42,7 @@ class EmrHook(AwsBaseHook):
     def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: List[str]) -> Optional[str]:
         """
         Fetch id of EMR cluster with given name and (optional) states.
+
         Will return only if single id is found.
 
         :param emr_cluster_name: Name of a cluster to find
@@ -68,6 +70,7 @@ class EmrHook(AwsBaseHook):
     def create_job_flow(self, job_flow_overrides: Dict[str, Any]) -> Dict[str, Any]:
         """
         Creates a job flow using the config from the EMR connection.
+
         Keys of the json extra hash may have the arguments of the boto3
         run_job_flow method.
         Overrides for this config may be passed as the job_flow_overrides.

@@ -28,6 +28,7 @@ from airflow.utils.decorators import apply_defaults
 class AthenaSensor(BaseSensorOperator):
     """
     Asks for the state of the Query until it reaches a failure state or success state.
+
     If the query fails, the task will fail.
 
     :param query_execution_id: query_execution_id to check the state of

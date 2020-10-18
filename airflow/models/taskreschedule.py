@@ -87,8 +87,7 @@ class TaskReschedule(Base):
     @provide_session
     def find_for_task_instance(task_instance, session=None):
         """
-        Returns all task reschedules for the task instance and try number,
-        in ascending order.
+        Returns all task reschedules for the task instance and try number, in ascending order.
 
         :param session: the database session object
         :type session: sqlalchemy.orm.session.Session

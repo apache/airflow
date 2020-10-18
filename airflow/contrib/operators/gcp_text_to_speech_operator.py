@@ -31,6 +31,7 @@ warnings.warn(
 class GcpTextToSpeechSynthesizeOperator(CloudTextToSpeechSynthesizeOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator`.
     """
 

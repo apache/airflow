@@ -170,8 +170,9 @@ def send_task_to_executor(
 @celery_import_modules.connect
 def on_celery_import_modules(*args, **kwargs):
     """
-    Preload some "expensive" airflow modules so that every task process doesn't have to import it again and
-    again.
+    Preload some "expensive" airflow modules.
+
+    So that every task process doesn't have to import it again and again.
 
     Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long running tasks this
     doesn't matter, but for short tasks this starts to be a noticeable impact.
@@ -196,8 +197,9 @@ def on_celery_import_modules(*args, **kwargs):
 
 class CeleryExecutor(BaseExecutor):
     """
-    CeleryExecutor is recommended for production use of Airflow. It allows
-    distributing the execution of task instances to multiple worker nodes.
+    CeleryExecutor is recommended for production use of Airflow.
+
+    It allows distributing the execution of task instances to multiple worker nodes.
 
     Celery is a simple, flexible and reliable distributed system to process
     vast amounts of messages, while providing operations with the tools
@@ -316,6 +318,8 @@ class CeleryExecutor(BaseExecutor):
 
     def _check_for_stalled_adopted_tasks(self):
         """
+        Check for stalled adopted tasks.
+
         See if any of the tasks we adopted from another Executor run have not
         progressed after the configured timeout.
 
@@ -465,8 +469,9 @@ class CeleryExecutor(BaseExecutor):
 
 def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, ExceptionWithTraceback], Any]:
     """
-    Fetch and return the state of the given celery task. The scope of this function is
-    global so that it can be called by subprocesses in the pool.
+    Fetch and return the state of the given celery task.
+
+    The scope of this function is global so that it can be called by subprocesses in the pool.
 
     :param async_result: a tuple of the Celery task key and the async Celery object used
         to fetch the task's state

@@ -380,6 +380,7 @@ class ClusterGenerator:
     def make(self):
         """
         Helper method for easier migration.
+
         :return: Dict representing Dataproc cluster.
         """
         return self._build_cluster_data()
@@ -388,9 +389,10 @@ class ClusterGenerator:
 # pylint: disable=too-many-instance-attributes
 class DataprocCreateClusterOperator(BaseOperator):
     """
-    Create a new cluster on Google Cloud Dataproc. The operator will wait until the
-    creation is successful or an error occurs in the creation process. If the cluster
-    already exists and ``use_if_exists`` is True then the operator will:
+    Create a new cluster on Google Cloud Dataproc.
+
+    The operator will wait until the creation is successful or an error occurs in the creation process.
+    If the cluster already exists and ``use_if_exists`` is True then the operator will:
 
     - if cluster state is ERROR then delete it if specified and raise error
     - if cluster state is CREATING wait for it and then check for ERROR state
@@ -630,6 +632,7 @@ class DataprocCreateClusterOperator(BaseOperator):
 class DataprocScaleClusterOperator(BaseOperator):
     """
     Scale, up or down, a cluster on Google Cloud Dataproc.
+
     The operator will wait until the cluster is re-scaled.
 
     **Example**: ::
@@ -996,6 +999,7 @@ class DataprocJobBaseOperator(BaseOperator):
     def on_kill(self) -> None:
         """
         Callback called when the operator is killed.
+
         Cancel any running job.
         """
         if self.dataproc_job_id:
@@ -1006,9 +1010,9 @@ class DataprocJobBaseOperator(BaseOperator):
 
 class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     """
-    Start a Pig query Job on a Cloud DataProc cluster. The parameters of the operation
-    will be passed to the cluster.
+    Start a Pig query Job on a Cloud DataProc cluster.
 
+    The parameters of the operation will be passed to the cluster.
     It's a good practice to define dataproc_* parameters in the default_args of the dag
     like the cluster name and UDFs.
 
@@ -1087,6 +1091,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         self.create_job_template()
@@ -1164,6 +1169,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         self.create_job_template()
@@ -1239,6 +1245,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         self.create_job_template()
@@ -1321,6 +1328,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         self.create_job_template()
@@ -1401,6 +1409,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         self.create_job_template()
@@ -1508,6 +1517,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         self.create_job_template()
@@ -1547,8 +1557,9 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
 class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     """
-    Instantiate a WorkflowTemplate on Google Cloud Dataproc. The operator will wait
-    until the WorkflowTemplate is finished executing.
+    Instantiate a WorkflowTemplate on Google Cloud Dataproc.
+
+    The operator will wait until the WorkflowTemplate is finished executing.
 
     .. seealso::
         Please refer to:
@@ -1649,8 +1660,9 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
 
 class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     """
-    Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc. The operator will
-    wait until the WorkflowTemplate is finished executing.
+    Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc.
+
+    The operator will wait until the WorkflowTemplate is finished executing.
 
     .. seealso::
         Please refer to:

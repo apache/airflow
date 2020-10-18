@@ -246,6 +246,7 @@ class _SessionFactory(LoggingMixin):
 class AwsBaseHook(BaseHook):
     """
     Interact with AWS.
+
     This class is a thin wrapper around the boto3 python library.
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -409,6 +410,7 @@ class AwsBaseHook(BaseHook):
     def expand_role(self, role: str) -> str:
         """
         If the IAM role is a role name, get the Amazon Resource Name (ARN) for the role.
+
         If IAM role is already an IAM role ARN, no change is made.
 
         :param role: IAM role name or ARN
@@ -424,8 +426,7 @@ def _parse_s3_config(
     config_file_name: str, config_format: Optional[str] = "boto", profile: Optional[str] = None
 ) -> Tuple[Optional[str], Optional[str]]:
     """
-    Parses a config file for s3 credentials. Can currently
-    parse boto, s3cmd.conf and AWS SDK config formats
+    Parses a config file for s3 credentials. Can currently parse boto, s3cmd.conf and AWS SDK config formats.
 
     :param config_file_name: path to the config file
     :type config_file_name: str

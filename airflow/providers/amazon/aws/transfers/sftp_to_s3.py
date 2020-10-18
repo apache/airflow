@@ -26,8 +26,7 @@ from airflow.utils.decorators import apply_defaults
 
 class SFTPToS3Operator(BaseOperator):
     """
-    This operator enables the transferring of files from a SFTP server to
-    Amazon S3.
+    This operator enables the transferring of files from a SFTP server to Amazon S3.
 
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.

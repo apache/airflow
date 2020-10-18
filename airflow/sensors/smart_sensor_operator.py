@@ -53,8 +53,9 @@ dictConfigurator = DictConfigurator(config)
 
 class SensorWork:
     """
-    This class stores a sensor work with decoded context value. It is only used
-    inside of smart sensor. Create a sensor work based on sensor instance record.
+    This class stores a sensor work with decoded context value.
+
+    It is only used　inside of smart sensor. Create a sensor work based on sensor instance record.
     A sensor work object has the following attributes:
     `dag_id`: sensor_instance dag_id.
     `task_id`: sensor_instance task_id.
@@ -105,6 +106,7 @@ class SensorWork:
     def create_new_task_handler():
         """
         Create task log handler for a sensor work.
+
         :return: log handler
         """
         handler_config_copy = {k: handler_config[k] for k in handler_config}
@@ -158,8 +160,9 @@ class SensorWork:
 
 class CachedPokeWork:
     """
-    Wrapper class for the poke work inside smart sensor. It saves
-    the sensor_task used to poke and recent poke result state.
+    Wrapper class for the poke work inside smart sensor.
+
+    It saves the sensor_task used to poke and recent poke result state.
     state: poke state.
     sensor_task: The cached object for executing the poke function.
     last_poke_time: The latest time this cached work being called.
@@ -175,6 +178,7 @@ class CachedPokeWork:
     def set_state(self, state):
         """
         Set state for cached poke work.
+
         :param state: The sensor_instance state.
         """
         self.state = state
@@ -191,6 +195,7 @@ class CachedPokeWork:
     def is_expired(self):
         """
         The cached task object expires if there is no poke for 20 minutes.
+
         :return: Boolean
         """
         return self.to_flush or (timezone.utcnow() - self.last_poke_time).total_seconds() > 1200
@@ -198,8 +203,9 @@ class CachedPokeWork:
 
 class SensorExceptionInfo:
     """
-    Hold sensor exception information and the type of exception. For possible transient
-    infra failure, give the task more chance to retry before fail it.
+    Hold sensor exception information and the type of exception.
+
+    For possible transient infra failure, give the task more chance to retry before fail it.
     """
 
     def __init__(
@@ -218,10 +224,11 @@ class SensorExceptionInfo:
 
     def set_latest_exception(self, exception_info, is_infra_failure=False):
         """
-        This function set the latest exception information for sensor exception. If the exception
-        implies an infra failure, this function will check the recorded infra failure timeout
-        which was set at the first infra failure exception arrives. There is a 6 hours window
-        for retry without failing current run.
+        This function set the latest exception information for sensor exception.
+
+        If the exception implies an infra failure, this function will check
+        the recorded infra failure timeout which was set at the first infra
+        failure exception arrives. There is a 6 hours window for retry without failing current run.
 
         :param exception_info: Details of the exception information.
         :param is_infra_failure: If current exception was caused by transient infra failure.
@@ -236,8 +243,8 @@ class SensorExceptionInfo:
 
     def set_infra_failure_timeout(self):
         """
-        Set the time point when the sensor should be failed if it kept getting infra
-        failure.
+        Set the time point when the sensor should be failed if it kept getting infra failure.
+
         :return:
         """
         # Only set the infra_failure_timeout if there is no existing one
@@ -248,6 +255,8 @@ class SensorExceptionInfo:
 
     def should_fail_current_run(self):
         """
+        shouldfail_current_run.
+
         :return: Should the sensor fail
         :type: boolean
         """
@@ -261,6 +270,7 @@ class SensorExceptionInfo:
     @property
     def is_infra_failure(self):
         """
+        True if the exception is an infra failure otherwise false.
 
         :return: If the exception is an infra failure
         :type: boolean
@@ -269,6 +279,8 @@ class SensorExceptionInfo:
 
     def is_expired(self):
         """
+        True if it is expired otherwise false.
+
         :return: If current exception need to be kept.
         :type: boolean
         """
@@ -343,8 +355,9 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
     @provide_session
     def _load_sensor_works(self, session=None):
         """
-        Refresh sensor instances need to be handled by this operator. Create smart sensor
-        internal object based on the information persisted in the sensor_instance table.
+        Refresh sensor instances need to be handled by this operator.
+
+        Create smart sensor internal object based on the information persisted in the sensor_instance table.
 
         """
         SI = SensorInstance
@@ -411,6 +424,8 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
     @provide_session
     def _mark_multi_state(self, operator, poke_hash, encoded_poke_context, state, session=None):
         """
+        Mark state for multiple tasks in the task_instance table.
+
         Mark state for multiple tasks in the task_instance table to a new state if they have
         the same signature as the poke_hash.
 
@@ -474,6 +489,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
     def _retry_or_fail_task(self, sensor_work, error, session=None):
         """
         Change single task state for sensor task. For final state, set the end_date.
+
         Since smart sensor take care all retries in one process. Failed sensor tasks
         logically experienced all retries and the try_number should be set to max_tries.
 
@@ -558,8 +574,9 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
     def _check_and_handle_ti_timeout(self, sensor_work):
         """
-        Check if a sensor task in smart sensor is timeout. Could be either sensor operator timeout
-        or general operator execution_timeout.
+        Check if a sensor task in smart sensor is timeout.
+
+        Could be either sensor operator timeout or general operator execution_timeout.
 
         :param sensor_work: SensorWork
         """
@@ -684,11 +701,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 self.cached_sensor_exceptions.pop(ti_key, None)
 
     def poke(self, sensor_work):
-        """
-        Function that the sensors defined while deriving this class should
-        override.
-
-        """
+        """Function that the sensors defined while deriving this class should override."""
         cached_work = self.cached_dedup_works[sensor_work.cache_key]
         if not cached_work.sensor_task:
             init_args = dict(list(sensor_work.poke_context.items()) + [('task_id', sensor_work.task_id)])

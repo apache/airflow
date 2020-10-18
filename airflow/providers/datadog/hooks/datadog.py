@@ -28,6 +28,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class DatadogHook(BaseHook, LoggingMixin):
     """
+    Datadog hook class.
+
     Uses datadog API to send metrics of practically anything measurable,
     so it's possible to track # of db records inserted/deleted, records read
     from file and many other useful metrics.
@@ -93,6 +95,8 @@ class DatadogHook(BaseHook, LoggingMixin):
 
     def query_metric(self, query: str, from_seconds_ago: int, to_seconds_ago: int) -> Dict[str, Any]:
         """
+        Queries datadog for a specific metric.
+
         Queries datadog for a specific metric, potentially with some
         function applied to it and returns the results.
 
@@ -125,9 +129,9 @@ class DatadogHook(BaseHook, LoggingMixin):
         device_name: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
-        Posts an event to datadog (processing finished, potentially alerts, other issues)
-        Think about this as a means to maintain persistence of alerts, rather than
-        alerting itself.
+        Posts an event to datadog (processing finished, potentially alerts, other issues).
+
+        Think about this as a means to maintain persistence of alerts, rather than alerting itself.
 
         :param title: The title of the event
         :type title: str

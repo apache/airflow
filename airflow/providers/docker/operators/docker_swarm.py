@@ -29,6 +29,7 @@ from airflow.utils.strings import get_random_string
 class DockerSwarmOperator(DockerOperator):
     """
     Execute a command as an ephemeral docker swarm service.
+
     Example use-case - Using Docker Swarm orchestration to make one-time
     scripts highly available.
 

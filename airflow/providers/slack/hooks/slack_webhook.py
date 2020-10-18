@@ -26,6 +26,7 @@ from airflow.providers.http.hooks.http import HttpHook
 class SlackWebhookHook(HttpHook):
     """
     This hook allows you to post messages to Slack using incoming webhooks.
+
     Takes both Slack webhook token directly and connection that has Slack webhook token.
     If both supplied, http_conn_id will be used as base_url,
     and webhook_token will be taken as endpoint, the relative path of the url.
@@ -111,8 +112,9 @@ class SlackWebhookHook(HttpHook):
 
     def _build_slack_message(self) -> str:
         """
-        Construct the Slack message. All relevant parameters are combined here to a valid
-        Slack json message.
+        Construct the Slack message.
+
+        All relevant parameters are combined here to a valid Slack json message.
 
         :return: Slack message to send
         :rtype: str

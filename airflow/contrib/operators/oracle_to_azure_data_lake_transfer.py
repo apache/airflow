@@ -17,6 +17,7 @@
 # under the License.
 """
 This module is deprecated.
+
 Please use `airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake`.
 """
 

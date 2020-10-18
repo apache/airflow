@@ -53,6 +53,7 @@ def configure_manifest_files(app):
     def get_url_for_asset():  # pylint: disable=unused-variable
         """
         Template tag to return the asset URL.
+
         WebPack renders the assets after minification and modification
         under the static/dist folder.
         This template tag reads the asset name in manifest.json and returns

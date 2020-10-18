@@ -137,8 +137,7 @@ class HttpHook(BaseHook):
 
     def check_response(self, response: requests.Response) -> None:
         """
-        Checks the status code and raise an AirflowException exception on non 2XX or 3XX
-        status codes
+        Checks the status code and raise an AirflowException exception on non 2XX or 3XX status codes.
 
         :param response: A requests response object
         :type response: requests.response
@@ -157,8 +156,7 @@ class HttpHook(BaseHook):
         extra_options: Dict[Any, Any],
     ) -> Any:
         """
-        Grabs extra options like timeout and actually runs the request,
-        checking for the result
+        Grabs extra options like timeout and actually runs the request, checking for the result.
 
         :param session: the session to be used to execute the request
         :type session: requests.Session
@@ -192,9 +190,10 @@ class HttpHook(BaseHook):
 
     def run_with_advanced_retry(self, _retry_args: Dict[Any, Any], *args: Any, **kwargs: Any) -> Any:
         """
-        Runs Hook.run() with a Tenacity decorator attached to it. This is useful for
-        connectors which might be disturbed by intermittent issues and should not
-        instantly fail.
+        Runs Hook.run() with a Tenacity decorator attached to it.
+
+        This is useful for connectors which might be disturbed by intermittent issues
+        and should not instantly fail.
 
         :param _retry_args: Arguments which define the retry behaviour.
             See Tenacity documentation at https://github.com/jd/tenacity

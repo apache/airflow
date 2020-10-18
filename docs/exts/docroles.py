@@ -69,6 +69,7 @@ def template_field_role(
 ):  # pylint: disable=unused-argument
     """
     A role that allows you to include a list of template fields in the middle of the text. This is especially
+
     useful when writing guides describing how to use the operator.
     The result is a list of fields where each field is shorted in the literal block.
 

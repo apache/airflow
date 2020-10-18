@@ -31,6 +31,7 @@ warnings.warn(
 class GCPTextToSpeechHook(CloudTextToSpeechHook):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook`.
     """
 

@@ -41,8 +41,9 @@ class ZendeskHook(BaseHook):
 
     def __handle_rate_limit_exception(self, rate_limit_exception: ZendeskError) -> None:
         """
-        Sleep for the time specified in the exception. If not specified, wait
-        for 60 seconds.
+        Sleep for the time specified in the exception.
+
+        If not specified, wait for 60 seconds.
         """
         retry_after = int(rate_limit_exception.response.headers.get('Retry-After', 60))
         self.log.info("Hit Zendesk API rate limit. Pausing for %s seconds", retry_after)

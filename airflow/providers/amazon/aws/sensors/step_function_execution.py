@@ -26,6 +26,8 @@ from airflow.utils.decorators import apply_defaults
 
 class StepFunctionExecutionSensor(BaseSensorOperator):
     """
+    Step function execution sensor class.
+
     Asks for the state of the Step Function State Machine Execution until it
     reaches a failure state or success state.
     If it fails, failing the task.

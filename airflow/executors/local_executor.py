@@ -50,8 +50,9 @@ ExecutorWorkType = Tuple[Optional[TaskInstanceKey], Optional[CommandType]]
 
 class LocalWorkerBase(Process, LoggingMixin):
     """
-    LocalWorkerBase implementation to run airflow commands. Executes the given
-    command and puts the result into a result queue when done, terminating execution.
+    LocalWorkerBase implementation to run airflow commands.
+
+    Executes the given command and puts the result into a result queue when done, terminating execution.
 
     :param result_queue: the queue to store result state
     """
@@ -155,6 +156,8 @@ class LocalWorker(LocalWorkerBase):
 
 class QueuedLocalWorker(LocalWorkerBase):
     """
+    QueuedLocalWorker
+
     LocalWorker implementation that is waiting for tasks from a queue and will
     continue executing commands as they become available in the queue.
     It will terminate execution once the poison token is found.
@@ -182,6 +185,7 @@ class QueuedLocalWorker(LocalWorkerBase):
 class LocalExecutor(BaseExecutor):
     """
     LocalExecutor executes tasks locally in parallel.
+
     It uses the multiprocessing Python library and queues to parallelize the execution
     of tasks.
 
@@ -201,8 +205,7 @@ class LocalExecutor(BaseExecutor):
 
     class UnlimitedParallelism:
         """
-        Implements LocalExecutor with unlimited parallelism, starting one process
-        per each command to execute.
+        Implements LocalExecutor with unlimited parallelism, starting one process per each command to execute.
 
         :param executor: the executor instance to implement.
         """
@@ -250,6 +253,8 @@ class LocalExecutor(BaseExecutor):
 
         def end(self) -> None:
             """
+            End
+
             This method is called when the caller is done submitting job and
             wants to wait synchronously for the job submitted previously to be
             all done.
@@ -259,8 +264,7 @@ class LocalExecutor(BaseExecutor):
 
     class LimitedParallelism:
         """
-        Implements LocalExecutor with limited parallelism using a task queue to
-        coordinate work distribution.
+        Implements LocalExecutor with limited parallelism using a task queue to coordinate work distribution.
 
         :param executor: the executor instance to implement.
         """
@@ -365,6 +369,7 @@ class LocalExecutor(BaseExecutor):
     def end(self) -> None:
         """
         Ends the executor.
+
         :return:
         """
         if not self.impl:

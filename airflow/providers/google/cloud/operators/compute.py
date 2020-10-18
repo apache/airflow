@@ -228,8 +228,7 @@ SET_MACHINE_TYPE_VALIDATION_SPECIFICATION = [
 
 class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     """
-    Changes the machine type for a stopped instance to the machine type specified in
-        the request.
+    Changes the machine type for a stopped instance to the machine type specified in the request.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -522,8 +521,9 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
 
 class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseOperator):
     """
-    Patches the Instance Group Manager, replacing source template URL with the
-    destination one. API V1 does not have update/patch operations for Instance
+    Patches the Instance Group Manager, replacing source template URL with the destination one.
+
+    API V1 does not have update/patch operations for Instance
     Group Manager, so you must use beta or newer API version. Beta is the default.
 
     .. seealso::

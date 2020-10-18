@@ -31,6 +31,7 @@ warnings.warn(
 class GoogleCloudStorageListOperator(GCSListObjectsOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.gcs.GCSListObjectsOperator`.
     """
 

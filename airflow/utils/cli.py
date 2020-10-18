@@ -44,8 +44,9 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 def action_logging(f: T) -> T:
     """
-    Decorates function to execute function at the same time submitting action_logging
-    but in CLI context. It will call action logger callbacks twice,
+    Decorates function to execute function at the same time submitting action_logging but in CLI context.
+
+    It will call action logger callbacks twice,
     one for pre-execution and the other one for post-execution.
 
     Action logger will be called with below keyword parameters:
@@ -67,8 +68,9 @@ def action_logging(f: T) -> T:
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         """
-        An wrapper for cli functions. It assumes to have Namespace instance
-        at 1st positional argument
+        An wrapper for cli functions.
+
+        It assumes to have Namespace instance at 1st positional argument.
 
         :param args: Positional argument. It assumes to have Namespace instance
             at 1st positional argument
@@ -96,7 +98,8 @@ def action_logging(f: T) -> T:
 
 def _build_metrics(func_name, namespace):
     """
-    Builds metrics dict from function args
+    Builds metrics dict from function args.
+
     It assumes that function arguments is from airflow.bin.cli module's function
     and has Namespace instance where it optionally contains "dag_id", "task_id",
     and "execution_date".
@@ -235,7 +238,8 @@ def setup_logging(filename):
 def sigint_handler(sig, frame):  # pylint: disable=unused-argument
     """
     Returns without error on SIGINT or SIGTERM signals in interactive command mode
-    e.g. CTRL+C or kill <PID>
+
+    E.g. CTRL+C or kill <PID>
     """
     sys.exit(0)
 
@@ -243,7 +247,8 @@ def sigint_handler(sig, frame):  # pylint: disable=unused-argument
 def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
     """
     Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
-    e.g. kill -s QUIT <PID> or CTRL+\
+
+    E.g. kill -s QUIT <PID> or CTRL+\
     """
     print(f"Dumping stack traces for all threads in PID {os.getpid()}")
     id_to_name = {th.ident: th.name for th in threading.enumerate()}

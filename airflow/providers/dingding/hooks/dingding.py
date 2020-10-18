@@ -29,6 +29,7 @@ from airflow.providers.http.hooks.http import HttpHook
 class DingdingHook(HttpHook):
     """
     This hook allows you send Dingding message using Dingding custom bot.
+
     Get Dingding token from conn_id.password. And prefer set domain to
     conn_id.host, if not will use default ``https://oapi.dingtalk.com``.
 
@@ -76,7 +77,8 @@ class DingdingHook(HttpHook):
 
     def _build_message(self) -> str:
         """
-        Build different type of Dingding message
+        Build different type of Dingding message.
+
         As most commonly used type, text message just need post message content
         rather than a dict like ``{'content': 'message'}``
         """
@@ -92,8 +94,7 @@ class DingdingHook(HttpHook):
 
     def get_conn(self, headers: Optional[dict] = None) -> Session:
         """
-        Overwrite HttpHook get_conn because just need base_url and headers and
-        not don't need generic params
+        Overwrite HttpHook get_conn because just need base_url and headers and not don't need generic params.
 
         :param headers: additional headers to be passed through as a dictionary
         :type headers: dict

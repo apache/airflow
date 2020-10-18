@@ -47,7 +47,8 @@ with DAG(
 
     def grab_artifact_from_jenkins(**context):
         """
-        Grab an artifact from the previous job
+        Grab an artifact from the previous job.
+
         The python-jenkins library doesn't expose a method for that
         But it's totally possible to build manually the request for that
         """

@@ -36,6 +36,7 @@ class SFTPOperation:
 class SFTPOperator(BaseOperator):
     """
     SFTPOperator for transferring files from remote host to local or vice a versa.
+
     This operator uses ssh_hook to open sftp transport channel that serve as basis
     for file transfer.
 

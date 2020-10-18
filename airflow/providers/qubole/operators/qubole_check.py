@@ -28,6 +28,8 @@ from airflow.utils.decorators import apply_defaults
 
 class QuboleCheckOperator(CheckOperator, QuboleOperator):
     """
+    Qubole Check Operator class.
+
     Performs checks against Qubole Commands. ``QuboleCheckOperator`` expects
     a command that will be executed on QDS.
     By default, each value on first row of the result of this Qubole Command
@@ -121,6 +123,7 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
 class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
     """
     Performs a simple value check using Qubole command.
+
     By default, each value on the first row of this
     Qubole command is compared with a pre-defined value.
     The check fails and errors out if the output of the command

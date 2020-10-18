@@ -84,6 +84,8 @@ class GKEHook(GoogleBaseHook):
 
     def wait_for_operation(self, operation: Operation, project_id: Optional[str] = None) -> Operation:
         """
+        Wait for operation with continuously fetching status.
+
         Given an operation, continuously fetches the status from Google Cloud until either
         completion or an error occurring
 
@@ -144,8 +146,9 @@ class GKEHook(GoogleBaseHook):
         self, name: str, project_id: str, retry: Retry = DEFAULT, timeout: float = DEFAULT
     ) -> Optional[str]:
         """
-        Deletes the cluster, including the Kubernetes endpoint and all
-        worker nodes. Firewalls and routes that were configured during
+        Deletes the cluster, including the Kubernetes endpoint and all worker nodes.
+
+        Firewalls and routes that were configured during
         cluster creation are also deleted. Other Google Compute Engine
         resources that might be in use by the cluster (e.g. load balancer
         resources) will not be deleted if they were not present at the
@@ -182,8 +185,7 @@ class GKEHook(GoogleBaseHook):
         self, cluster: Union[Dict, Cluster], project_id: str, retry: Retry = DEFAULT, timeout: float = DEFAULT
     ) -> str:
         """
-        Creates a cluster, consisting of the specified number and type of Google Compute
-        Engine instances.
+        Creates a cluster, consisting of the specified number and type of Google Compute Engine instances.
 
         :param cluster: A Cluster protobuf or dict. If dict is provided, it must
             be of the same form as the protobuf message

@@ -26,7 +26,8 @@ from airflow.utils.decorators import apply_defaults
 
 class SQSSensor(BaseSensorOperator):
     """
-    Get messages from an SQS queue and then deletes  the message from the SQS queue.
+    Get messages from an SQS queue and then deletes the message from the SQS queue.
+
     If deletion of messages fails an AirflowException is thrown otherwise, the message
     is pushed through XCom with the key ``message``.
 

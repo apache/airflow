@@ -27,6 +27,7 @@ from airflow.utils.decorators import apply_defaults
 class JiraOperator(BaseOperator):
     """
     JiraOperator to interact and perform action on Jira issue tracking system.
+
     This operator is designed to use Jira Python SDK: http://jira.readthedocs.io
 
     :param jira_conn_id: reference to a pre-defined Jira Connection

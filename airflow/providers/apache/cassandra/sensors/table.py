@@ -16,10 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains sensor that check the existence
-of a table in a Cassandra cluster.
-"""
+"""This module contains sensor that check the existence　of a table in a Cassandra cluster."""
 
 from typing import Any, Dict
 

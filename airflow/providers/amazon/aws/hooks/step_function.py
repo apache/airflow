@@ -44,6 +44,7 @@ class StepFunctionHook(AwsBaseHook):
     ) -> str:
         """
         Start Execution of the State Machine.
+
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/stepfunctions.html#SFN.Client.start_execution
 
         :param state_machine_arn: AWS Step Function State Machine ARN
@@ -72,6 +73,7 @@ class StepFunctionHook(AwsBaseHook):
     def describe_execution(self, execution_arn: str) -> dict:
         """
         Describes a State Machine Execution
+
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/stepfunctions.html#SFN.Client.describe_execution
 
         :param execution_arn: ARN of the State Machine Execution

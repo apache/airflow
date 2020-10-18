@@ -43,6 +43,7 @@ warnings.warn(
 class BigQueryOperator(BigQueryExecuteQueryOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator`.
     """
 

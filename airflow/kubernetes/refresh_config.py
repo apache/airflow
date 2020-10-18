@@ -17,6 +17,7 @@
 
 """
 NOTE: this module can be removed once upstream client supports token refresh
+
 see: https://github.com/kubernetes-client/python/issues/741
 """
 
@@ -40,6 +41,8 @@ def _parse_timestamp(ts_str: str) -> int:
 
 class RefreshKubeConfigLoader(KubeConfigLoader):
     """
+    Patched KubeConfigLoader.
+
     Patched KubeConfigLoader, this subclass takes expirationTimestamp into
     account and sets api key refresh callback hook in Configuration object
     """
@@ -50,6 +53,8 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
 
     def _load_from_exec_plugin(self):
         """
+        Override of _load_from_exec_plugin method.
+
         We override _load_from_exec_plugin method to also read and store
         expiration timestamp for aws-iam-authenticator. It will be later
         used for api token refresh.
@@ -80,10 +85,7 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
 
 
 class RefreshConfiguration(Configuration):
-    """
-    Patched Configuration, this subclass taskes api key refresh callback hook
-    into account
-    """
+    """Patched Configuration, this subclass taskes api key refresh callback hook into account"""
 
     def __init__(self, *args, **kwargs):
         Configuration.__init__(self, *args, **kwargs)
@@ -97,6 +99,8 @@ class RefreshConfiguration(Configuration):
 
 def _get_kube_config_loader_for_yaml_file(filename, **kwargs) -> Optional[RefreshKubeConfigLoader]:
     """
+    Get RefreshKubeConfigLoader for yaml file.
+
     Adapted from the upstream _get_kube_config_loader_for_yaml_file function, changed
     KubeConfigLoader to RefreshKubeConfigLoader
     """
@@ -110,6 +114,8 @@ def _get_kube_config_loader_for_yaml_file(filename, **kwargs) -> Optional[Refres
 
 def load_kube_config(client_configuration, config_file=None, context=None):
     """
+    Load kube config.
+
     Adapted from the upstream load_kube_config function, changes:
         - removed persist_config argument since it's not being used
         - remove `client_configuration is None` branch since we always pass

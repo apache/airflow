@@ -17,8 +17,9 @@
 # under the License.
 # pylint: disable=missing-function-docstring
 """
-This sample "listen to directory". move the new file and print it,
-using docker-containers.
+This sample "listen to directory".
+
+move the new file and print it, using docker-containers.
 The following operators are being used: DockerOperator,
 BashOperator & ShortCircuitOperator.
 TODO: Review the workflow, change it accordingly to

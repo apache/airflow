@@ -32,7 +32,9 @@ SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
 class _SecretManagerClient(LoggingMixin):
     """
-    Retrieves Secrets object from Google Cloud Secrets Manager. This is a common class reused between
+    Retrieves Secrets object from Google Cloud Secrets Manager.
+
+    This is a common class reused between
     SecretsManager and Secrets Hook that provides the shared authentication and verification mechanisms.
     This class should not be used directly, use SecretsManager or SecretsHook instead
 
@@ -52,6 +54,7 @@ class _SecretManagerClient(LoggingMixin):
     def is_valid_secret_name(secret_name: str) -> bool:
         """
         Returns true if the secret name is valid.
+
         :param secret_name: name of the secret
         :type secret_name: str
         :return:

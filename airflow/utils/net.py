@@ -27,8 +27,5 @@ def get_host_ip_address():
 
 
 def get_hostname():
-    """
-    Fetch the hostname using the callable from the config or using
-    `socket.getfqdn` as a fallback.
-    """
+    """Fetch the hostname using the callable from the config or using `socket.getfqdn` as a fallback."""
     return conf.getimport('core', 'hostname_callable', fallback='socket.getfqdn')()

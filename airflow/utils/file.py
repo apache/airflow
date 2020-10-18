@@ -42,8 +42,9 @@ def TemporaryDirectory(*args, **kwargs):  # pylint: disable=invalid-name
 
 def mkdirs(path, mode):
     """
-    Creates the directory specified by path, creating intermediate directories
-    as necessary. If directory already exists, this is a no-op.
+    Creates the directory specified by path, creating intermediate directories as necessary.
+
+    If directory already exists, this is a no-op.
 
     :param path: The directory to create
     :type path: str
@@ -65,6 +66,8 @@ ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
 
 def correct_maybe_zipped(fileloc):
     """
+    Correct the given file.
+
     If the path contains a folder with a .zip suffix, then
     the folder is treated as a zip archive and path to zip is returned.
     """
@@ -77,7 +80,9 @@ def correct_maybe_zipped(fileloc):
 
 def open_maybe_zipped(fileloc, mode='r'):
     """
-    Opens the given file. If the path contains a folder with a .zip suffix, then
+    Opens the given file.
+
+    If the path contains a folder with a .zip suffix, then
     the folder is treated as a zip archive, opening the file inside the archive.
 
     :return: a file object, as in `open`, or as in `ZipFile.open`.
@@ -92,6 +97,7 @@ def open_maybe_zipped(fileloc, mode='r'):
 def find_path_from_directory(base_dir_path: str, ignore_file_name: str) -> Generator[str, None, None]:
     """
     Search the file and return the path of the file that should not be ignored.
+
     :param base_dir_path: the base path to be searched for.
     :param ignore_file_name: the file name in which specifies a regular expression pattern is written.
 

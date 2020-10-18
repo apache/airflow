@@ -130,8 +130,9 @@ class GrpcHook(BaseHook):
 
     def _get_field(self, field_name: str) -> str:
         """
-        Fetches a field from extras, and returns it. This is some Airflow
-        magic. The grpc hook type adds custom UI elements
+        Fetches a field from extras, and returns it.
+
+        This is some Airflow magic. The grpc hook type adds custom UI elements
         to the hook page, which allow admins to specify scopes, credential pem files, etc.
         They get formatted as shown below.
         """

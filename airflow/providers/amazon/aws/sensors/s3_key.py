@@ -27,6 +27,7 @@ from airflow.utils.decorators import apply_defaults
 class S3KeySensor(BaseSensorOperator):
     """
     Waits for a key (a file-like instance on S3) to be present in a S3 bucket.
+
     S3 being a key/value it does not support folders. The path is just a key
     a resource.
 

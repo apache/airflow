@@ -24,6 +24,7 @@ from airflow.utils.decorators import apply_defaults
 class SageMakerTransformSensor(SageMakerBaseSensor):
     """
     Asks for the state of the transform state until it reaches a terminal state.
+
     The sensor will error if the job errors, throwing a AirflowException
     containing the failure reason.
 

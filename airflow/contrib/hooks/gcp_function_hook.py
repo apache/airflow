@@ -30,8 +30,9 @@ warnings.warn(
 
 class GcfHook(CloudFunctionsHook):
     """
-    This class is deprecated. Please use
-    `airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook`.
+    This class is deprecated.
+
+    Please use `airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook`.
     """
 
     def __init__(self, *args, **kwargs):

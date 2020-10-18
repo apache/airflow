@@ -360,8 +360,9 @@ class DataprocHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
-        Gets cluster diagnostic information. After the operation completes GCS uri to
-        diagnose is returned
+        Gets cluster diagnostic information.
+
+        After the operation completes GCS uri to diagnose is returned.
 
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
         :type project_id: str

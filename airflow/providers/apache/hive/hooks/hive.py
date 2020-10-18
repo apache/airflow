@@ -41,8 +41,10 @@ HIVE_QUEUE_PRIORITIES = ['VERY_HIGH', 'HIGH', 'NORMAL', 'LOW', 'VERY_LOW']
 
 def get_context_from_env_var() -> Dict[Any, Any]:
     """
-    Extract context from env variable, e.g. dag_id, task_id and execution_date,
-    so that they can be used inside BashOperator and PythonOperator.
+    Extract context from env variable.
+
+    e.g. dag_id, task_id and execution_date, so that they can be used inside
+    BashOperator and PythonOperator.
 
     :return: The context of interest.
     """
@@ -159,8 +161,7 @@ class HiveCliHook(BaseHook):
     @staticmethod
     def _prepare_hiveconf(d: Dict[Any, Any]) -> List[Any]:
         """
-        This function prepares a list of hiveconf params
-        from a dictionary of key value pairs.
+        This function prepares a list of hiveconf params from a dictionary of key value pairs.
 
         :param d:
         :type d: dict
@@ -184,9 +185,10 @@ class HiveCliHook(BaseHook):
         hive_conf: Optional[Dict[Any, Any]] = None,
     ) -> Any:
         """
-        Run an hql statement using the hive cli. If hive_conf is specified
-        it should be a dict and the entries will be set as key/value pairs
-        in HiveConf
+        Run an hql statement using the hive cli.
+
+        If hive_conf is specified it should be a dict and the entries will
+        be set as key/value pairs in HiveConf.
 
 
         :param hive_conf: if specified these key value pairs will be passed
@@ -619,8 +621,9 @@ class HiveMetastoreHook(BaseHook):
         self, schema: str, table_name: str, partition_filter: Optional[str] = None
     ) -> List[Any]:
         """
-        Returns a list of all partitions in a table. Works only
-        for tables with less than 32767 (java short max val).
+        Returns a list of all partitions in a table.
+
+        Works only for tables with less than 32767 (java short max val).
         For subpartitioned table, the number might easily exceed this.
 
         >>> hh = HiveMetastoreHook()
@@ -656,8 +659,9 @@ class HiveMetastoreHook(BaseHook):
         part_specs: List[Any], partition_key: Optional[str], filter_map: Optional[Dict[str, Any]]
     ) -> Any:
         """
-        Helper method to get max partition of partitions with partition_key
-        from part specs. key:value pair in filter_map will be used to
+        Helper method to get max partition of partitions with partition_key from part specs.
+
+        key:value pair in filter_map will be used to
         filter out partitions.
 
         :param part_specs: list of partition specs.
@@ -709,6 +713,7 @@ class HiveMetastoreHook(BaseHook):
     ) -> Any:
         """
         Returns the maximum value for all partitions with given field in a table.
+
         If only one partition key exist in the table, the key will be used as field.
         filter_map should be a partition_key:partition_value map and will be used to
         filter out partitions.
@@ -799,7 +804,7 @@ class HiveServer2Hook(DbApiHook):
     """
     Wrapper around the pyhive library
 
-    Notes:
+    Notes
     * the default authMechanism is PLAIN, to override it you
     can specify it in the ``extra`` of your connection in the UI
     * the default for run_set_variable_statements is true, if you

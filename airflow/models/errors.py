@@ -24,7 +24,9 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 class ImportError(Base):  # pylint: disable=redefined-builtin
     """
-    A table to store all Import Errors. The ImportErrors are recorded when parsing DAGs.
+    A table to store all Import Errors.
+
+    The ImportErrors are recorded when parsing DAGs.
     This errors are displayed on the Webserver.
     """
 

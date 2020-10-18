@@ -17,9 +17,7 @@
 # under the License.
 
 """
-Example Airflow DAG that translates text in Google Cloud Translate
-service in the Google Cloud.
-
+Example Airflow DAG that translates text in Google Cloud Translate service in the Google Cloud.
 """
 
 from airflow import models

@@ -27,8 +27,9 @@ from airflow.utils.decorators import apply_defaults
 
 class StackdriverListAlertPoliciesOperator(BaseOperator):
     """
-    Fetches all the Alert Policies identified by the filter passed as
-    filter parameter. The desired return type can be specified by the
+    Fetches all the Alert Policies identified by the filter passed as filter parameter.
+
+    The desired return type can be specified by the
     format parameter, the supported formats are "dict", "json" and None
     which returns python dictionary, stringified JSON and protobuf
     respectively.
@@ -153,8 +154,9 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
 
 class StackdriverEnableAlertPoliciesOperator(BaseOperator):
     """
-    Enables one or more disabled alerting policies identified by filter
-    parameter. Inoperative in case the policy is already enabled.
+    Enables one or more disabled alerting policies identified by filter parameter.
+
+    Inoperative in case the policy is already enabled.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -244,8 +246,9 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
 # Disable Alert Operator
 class StackdriverDisableAlertPoliciesOperator(BaseOperator):
     """
-    Disables one or more enabled alerting policies identified by filter
-    parameter. Inoperative in case the policy is already disabled.
+    Disables one or more enabled alerting policies identified by filter parameter.
+
+    Inoperative in case the policy is already disabled.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -334,8 +337,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
 
 class StackdriverUpsertAlertOperator(BaseOperator):
     """
-    Creates a new alert or updates an existing policy identified
-    the name field in the alerts parameter.
+    Creates a new alert or updates an existing policy identified the name field in the alerts parameter.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -515,8 +517,9 @@ class StackdriverDeleteAlertOperator(BaseOperator):
 
 class StackdriverListNotificationChannelsOperator(BaseOperator):
     """
-    Fetches all the Notification Channels identified by the filter passed as
-    filter parameter. The desired return type can be specified by the
+    Fetches all the Notification Channels identified by the filter passed as filter parameter.
+
+    The desired return type can be specified by the
     format parameter, the supported formats are "dict", "json" and None
     which returns python dictionary, stringified JSON and protobuf
     respectively.
@@ -641,8 +644,9 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
 
 class StackdriverEnableNotificationChannelsOperator(BaseOperator):
     """
-    Enables one or more disabled alerting policies identified by filter
-    parameter. Inoperative in case the policy is already enabled.
+    Enables one or more disabled alerting policies identified by filter parameter.
+
+    Inoperative in case the policy is already enabled.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -734,8 +738,9 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
 
 class StackdriverDisableNotificationChannelsOperator(BaseOperator):
     """
-    Disables one or more enabled notification channels identified by filter
-    parameter. Inoperative in case the policy is already disabled.
+    Disables one or more enabled notification channels identified by filter parameter.
+
+    Inoperative in case the policy is already disabled.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -827,6 +832,8 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
 
 class StackdriverUpsertNotificationChannelOperator(BaseOperator):
     """
+    Stackdriver Upsert Notification Channel Operator class.
+
     Creates a new notification or updates an existing notification channel
     identified the name field in the alerts parameter.
 

@@ -130,7 +130,9 @@ class AWSAthenaHook(AwsBaseHook):
         self, query_execution_id: str, next_token_id: Optional[str] = None, max_results: int = 1000
     ) -> Optional[dict]:
         """
-        Fetch submitted athena query results. returns none if query is in intermediate state or
+        Fetch submitted athena query results.
+
+        Returns none if query is in intermediate state or
         failed/cancelled state else dict of query output
 
         :param query_execution_id: Id of submitted athena query
@@ -161,7 +163,9 @@ class AWSAthenaHook(AwsBaseHook):
         starting_token: Optional[str] = None,
     ) -> Optional[PageIterator]:
         """
-        Fetch submitted athena query results. returns none if query is in intermediate state or
+        Fetch submitted athena query results.
+
+        Returns none if query is in intermediate state or
         failed/cancelled state else a paginator to iterate through pages of results. If you
         wish to get all results at once, call build_full_result() on the returned PageIterator
 
@@ -196,6 +200,7 @@ class AWSAthenaHook(AwsBaseHook):
     def poll_query_status(self, query_execution_id: str, max_tries: Optional[int] = None) -> Optional[str]:
         """
         Poll the status of submitted athena query until query state reaches final state.
+
         Returns one of the final states
 
         :param query_execution_id: Id of submitted athena query

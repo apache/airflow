@@ -44,7 +44,9 @@ VALID_AUTH_TYPES: List[str] = [
 
 class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attributes
     """
-    Retrieves Authenticated client from Hashicorp Vault. This is purely internal class promoting
+    Retrieves Authenticated client from Hashicorp Vault.
+
+    This is purely internal class promoting
     authentication code reuse between the Hook and the SecretBackend, it should not be used directly in
     Airflow DAGs. Use VaultBackend for backend integration and Hook in case you want to communicate
     with VaultHook using standard Airflow Connection definition.

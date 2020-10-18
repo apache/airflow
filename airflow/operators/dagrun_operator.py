@@ -30,8 +30,9 @@ from airflow.utils.types import DagRunType
 
 class TriggerDagRunLink(BaseOperatorLink):
     """
-    Operator link for TriggerDagRunOperator. It allows users to access
-    DAG triggered by task using TriggerDagRunOperator.
+    Operator link for TriggerDagRunOperator.
+
+    It allows users to access DAG triggered by task using TriggerDagRunOperator.
     """
 
     name = 'Triggered DAG'

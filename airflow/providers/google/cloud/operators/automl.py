@@ -896,7 +896,9 @@ class AutoMLDeleteModelOperator(BaseOperator):
 
 class AutoMLDeployModelOperator(BaseOperator):
     """
-    Deploys a model. If a model is already deployed, deploying it with the same parameters
+    Deploys a model.
+
+    If a model is already deployed, deploying it with the same parameters
     has no effect. Deploying with different parameters (as e.g. changing node_number) will
     reset the deployment state without pausing the model_id’s availability.
 

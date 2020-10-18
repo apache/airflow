@@ -40,10 +40,12 @@ ALLOWED_CONN_TYPE = {
 
 class SQLCheckOperator(BaseOperator):
     """
-    Performs checks against a db. The ``SQLCheckOperator`` expects
-    a sql query that will return a single row. Each value on that
-    first row is evaluated using python ``bool`` casting. If any of the
-    values return ``False`` the check is failed and errors out.
+    Performs checks against a db.
+
+    The ``SQLCheckOperator`` expects a sql query that will return
+    a single row. Each value on that first row is evaluated using
+    python ``bool`` casting. If any of the values return ``False``
+    the check is failed and errors out.
 
     Note that Python bool casting evals the following as ``False``:
 
@@ -107,8 +109,7 @@ class SQLCheckOperator(BaseOperator):
 
 def _convert_to_float_if_possible(s):
     """
-    A small helper function to convert a string to a numeric value
-    if appropriate
+    A small helper function to convert a string to a numeric value if appropriate
 
     :param s: the string to be converted
     :type s: str
@@ -224,6 +225,8 @@ class SQLValueCheckOperator(BaseOperator):
 
 class SQLIntervalCheckOperator(BaseOperator):
     """
+    SQL interval check operator class.
+
     Checks that the values of metrics given as SQL expressions are within
     a certain tolerance of the ones from days_back before.
 
@@ -378,8 +381,9 @@ class SQLIntervalCheckOperator(BaseOperator):
 
 class SQLThresholdCheckOperator(BaseOperator):
     """
-    Performs a value check using sql code against a minimum threshold
-    and a maximum threshold. Thresholds can be in the form of a numeric
+    Performs a value check using sql code against a minimum threshold　and a maximum threshold.
+
+    Thresholds can be in the form of a numeric
     value OR a sql statement that results a numeric.
 
     Note that this is an abstract class and get_db_hook
@@ -454,7 +458,8 @@ class SQLThresholdCheckOperator(BaseOperator):
 
     def push(self, meta_data):
         """
-        Optional: Send data check info and metadata to an external database.
+        Send data check info and metadata to an external database.
+
         Default functionality will log metadata.
         """
         info = "\n".join([f"""{key}: {item}""" for key, item in meta_data.items()])

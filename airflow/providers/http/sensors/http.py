@@ -26,6 +26,8 @@ from airflow.utils.decorators import apply_defaults
 
 class HttpSensor(BaseSensorOperator):
     """
+    Http Sensor class
+
     Executes a HTTP GET statement and returns False on failure caused by
     404 Not Found or `response_check` returning False.
 

@@ -17,6 +17,8 @@
 # under the License.
 
 """
+Example Airflow DAG about Google Cloud Vision.
+
 Example Airflow DAG that creates, gets, updates and deletes Products and Product Sets in the Google Cloud
 Vision service.
 

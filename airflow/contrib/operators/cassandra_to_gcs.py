@@ -31,6 +31,7 @@ warnings.warn(
 class CassandraToGoogleCloudStorageOperator(CassandraToGCSOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator`.
     """
 

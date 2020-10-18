@@ -33,6 +33,7 @@ from airflow.version import version
 class CheckJobRunning(Enum):
     """
     Helper enum for choosing what to do if job is already running
+
     IgnoreJob - do not check if running
     FinishIfRunning - finish current dag run with no action
     WaitForRun - wait for job to finish and then continue with new job
@@ -45,8 +46,7 @@ class CheckJobRunning(Enum):
 
 class DataflowCreateJavaJobOperator(BaseOperator):
     """
-    Start a Java Cloud DataFlow batch job. The parameters of the operation
-    will be passed to the job.
+    Start a Java Cloud DataFlow batch job. The parameters of the operation will be passed to the job.
 
     **Example**: ::
 
@@ -273,8 +273,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
 class DataflowTemplatedJobStartOperator(BaseOperator):
     """
-    Start a Templated Cloud DataFlow batch job. The parameters of the operation
-    will be passed to the job.
+    Start a Templated Cloud DataFlow batch job. The parameters of the operation will be passed to the job.
 
     :param template: The reference to the DataFlow template.
     :type template: str
@@ -525,8 +524,9 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 # pylint: disable=too-many-instance-attributes
 class DataflowCreatePythonJobOperator(BaseOperator):
     """
-    Launching Cloud Dataflow jobs written in python. Note that both
-    dataflow_default_options and options will be merged to specify pipeline
+    Launching Cloud Dataflow jobs written in python.
+
+    Note that both dataflow_default_options and options will be merged to specify pipeline
     execution parameter, and dataflow_default_options is expected to save
     high-level options, for instances, project and zone information, which
     apply to all dataflow operators in the DAG.

@@ -48,8 +48,9 @@ Base = declarative_base()
 
 class DagRun(Base):  # type: ignore
     """
-    DagRun describes an instance of a Dag. It can be created
-    by the scheduler (for regular runs) or by an external trigger
+    DagRun describes an instance of a Dag.
+
+    It can be created by the scheduler (for regular runs) or by an external trigger
     """
 
     __tablename__ = "dag_run"

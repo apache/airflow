@@ -18,6 +18,7 @@
 
 """
 Example Airflow DAG that displays interactions with Google Cloud Functions.
+
 It creates a function and then deletes it.
 
 This DAG relies on the following OS environment variables

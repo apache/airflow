@@ -94,6 +94,7 @@ _fallback_to_project_id_from_variables = _fallback_variable_parameter('project_i
 class DataflowJobStatus:
     """
     Helper class with Dataflow job statuses.
+
     Reference: https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
     """
 
@@ -259,8 +260,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _check_dataflow_job_state(self, job) -> bool:
         """
-        Helper method to check the state of one job in dataflow for this task
-        if job failed raise exception
+        Helper method to check the state of one job in dataflow for this task if job failed raise exception.
 
         :return: True if job is done.
         :rtype: bool

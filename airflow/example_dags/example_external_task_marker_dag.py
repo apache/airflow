@@ -17,8 +17,7 @@
 # under the License.
 
 """
-Example DAG demonstrating setting up inter-DAG dependencies using ExternalTaskSensor and
-ExternalTaskMarker
+Example DAG demonstrating setting up inter-DAG dependencies using ExternalTaskSensor and ExternalTaskMarker
 
 In this example, child_task1 in example_external_task_marker_child depends on parent_task in
 example_external_task_marker_parent. When parent_task is cleared with "Recursive" selected,

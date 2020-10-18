@@ -26,6 +26,7 @@ from airflow.utils.decorators import apply_defaults
 class SageMakerBaseSensor(BaseSensorOperator):
     """
     Contains general sensor behavior for SageMaker.
+
     Subclasses should implement get_sagemaker_response()
     and state_from_response() methods.
     Subclasses should also implement NON_TERMINAL_STATES and FAILED_STATE methods.

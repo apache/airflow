@@ -15,10 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains an operator to run downstream tasks only for the
-latest scheduled DagRun
-"""
+"""This module contains an operator to run downstream tasks only for the latest scheduled DagRun."""
 from typing import Dict, Iterable, Union
 
 import pendulum
@@ -28,8 +25,7 @@ from airflow.operators.branch_operator import BaseBranchOperator
 
 class LatestOnlyOperator(BaseBranchOperator):
     """
-    Allows a workflow to skip tasks that are not running during the most
-    recent schedule interval.
+    Allows a workflow to skip tasks that are not running during the most recent schedule interval.
 
     If the task is run outside of the latest schedule interval (i.e. external_trigger),
     all directly downstream tasks will be skipped.

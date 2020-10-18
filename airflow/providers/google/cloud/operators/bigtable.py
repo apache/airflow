@@ -43,6 +43,7 @@ class BigtableValidationMixin:
 class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     """
     Creates a new Cloud Bigtable instance.
+
     If the Cloud Bigtable instance with the given ID exists, the operator does not
     compare its configuration
     and immediately succeeds. No changes are made to the existing instance.

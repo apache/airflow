@@ -32,7 +32,9 @@ from airflow.utils.decorators import apply_defaults
 
 class GCSCreateBucketOperator(BaseOperator):
     """
-    Creates a new bucket. Google Cloud Storage uses a flat namespace,
+    Creates a new bucket.
+
+    Google Cloud Storage uses a flat namespace,
     so you can't create a bucket with a name that is already in use.
 
         .. seealso::
@@ -276,6 +278,8 @@ class GCSListObjectsOperator(BaseOperator):
 
 class GCSDeleteObjectsOperator(BaseOperator):
     """
+    GCS Delete Objects Operator class.
+
     Deletes objects from a Google Cloud Storage bucket, either
     from an explicit list of object names or all objects
     matching a prefix.
@@ -559,8 +563,9 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
 
 class GCSFileTransformOperator(BaseOperator):
     """
-    Copies data from a source GCS location to a temporary location on the
-    local filesystem. Runs a transformation on this file as specified by
+    Copies data from a source GCS location to a temporary location on the local filesystem.
+
+    Runs a transformation on this file as specified by
     the transformation script and uploads the output to a destination bucket.
     If the output bucket is not specified the original file will be
     overwritten.

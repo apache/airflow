@@ -28,6 +28,7 @@ from airflow.utils.decorators import apply_defaults
 class SparkSubmitOperator(BaseOperator):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
+
     It requires that the "spark-submit" binary is in the PATH or the spark-home is set
     in the extra on the connection.
 

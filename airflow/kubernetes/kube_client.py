@@ -69,7 +69,9 @@ except ImportError as e:
 
 def _enable_tcp_keepalive() -> None:
     """
-    This function enables TCP keepalive mechanism. This prevents urllib3 connection
+    This function enables TCP keepalive mechanism.
+
+    This prevents urllib3 connection
     to hang indefinitely when idle connection is time-outed on services like cloud
     load balancers or firewalls.
 

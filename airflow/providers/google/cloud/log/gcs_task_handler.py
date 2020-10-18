@@ -36,8 +36,9 @@ _DEFAULT_SCOPESS = frozenset(
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     """
-    GCSTaskHandler is a python log handler that handles and reads
-    task instance logs. It extends airflow FileTaskHandler and
+    GCSTaskHandler is a python log handler that handles and reads task instance logs.
+
+    It extends airflow FileTaskHandler and
     uploads to and reads from GCS remote storage. Upon log reading
     failure, it reads from host machine's local disk.
 
@@ -137,6 +138,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from GCS.
+
         If failed, read the log from task instance host machine.
 
         :param ti: task instance object
@@ -164,8 +166,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def gcs_write(self, log, remote_log_location):
         """
-        Writes the log to the remote_log_location. Fails silently if no log
-        was created.
+        Writes the log to the remote_log_location. Fails silently if no log was created.
 
         :param log: the log to write to the remote_log_location
         :type log: str

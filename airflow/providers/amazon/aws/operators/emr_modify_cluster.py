@@ -27,6 +27,7 @@ from airflow.utils.decorators import apply_defaults
 class EmrModifyClusterOperator(BaseOperator):
     """
     An operator that modifies an existing EMR cluster.
+
     :param cluster_id: cluster identifier
     :type cluster_id: str
     :param step_concurrency_level: Concurrency of the cluster

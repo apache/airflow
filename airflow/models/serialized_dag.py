@@ -102,6 +102,7 @@ class SerializedDagModel(Base):
     @provide_session
     def write_dag(cls, dag: DAG, min_update_interval: Optional[int] = None, session: Session = None):
         """Serializes a DAG and writes it into database.
+
         If the record already exists, it checks if the Serialized DAG changed or not. If it is
         changed, it updates the record, ignores otherwise.
 
@@ -217,6 +218,7 @@ class SerializedDagModel(Base):
     def get(cls, dag_id: str, session: Session = None) -> Optional['SerializedDagModel']:
         """
         Get the SerializedDAG for the given dag ID.
+
         It will cope with being passed the ID of a subdag by looking up the
         root dag_id from the DAG table.
 
@@ -237,8 +239,9 @@ class SerializedDagModel(Base):
     @provide_session
     def bulk_sync_to_db(dags: List[DAG], session: Session = None):
         """
-        Saves DAGs as Serialized DAG objects in the database. Each
-        DAG is saved in a separate database query.
+        Saves DAGs as Serialized DAG objects in the database.
+
+        Each DAG is saved in a separate database query.
 
         :param dags: the DAG objects to save to the DB
         :type dags: List[airflow.models.dag.DAG]
@@ -256,8 +259,7 @@ class SerializedDagModel(Base):
     @provide_session
     def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> datetime:
         """
-        Get the date when the Serialized DAG associated to DAG was last updated
-        in serialized_dag table
+        Get the date when the Serialized DAG associated to DAG was last updated in serialized_dag table.
 
         :param dag_id: DAG ID
         :type dag_id: str

@@ -60,8 +60,7 @@ class RenderedTaskInstanceFields(Base):
     @provide_session
     def get_templated_fields(cls, ti: TaskInstance, session: Session = None) -> Optional[dict]:
         """
-        Get templated field for a TaskInstance from the RenderedTaskInstanceFields
-        table.
+        Get templated field for a TaskInstance from the RenderedTaskInstanceFields table.
 
         :param ti: Task Instance
         :param session: SqlAlchemy Session

@@ -40,6 +40,8 @@ using_mysql = conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql')
 # pylint: enable=unused-argument
 class UtcDateTime(TypeDecorator):
     """
+    Utc Date Time class.
+
     Almost equivalent to :class:`~sqlalchemy.types.DateTime` with
     ``timezone=True`` option, but it differs from that by:
 
@@ -76,8 +78,9 @@ class UtcDateTime(TypeDecorator):
 
     def process_result_value(self, value, dialect):
         """
-        Processes DateTimes from the DB making sure it is always
-        returning UTC. Not using timezone.convert_to_utc as that
+        Processes DateTimes from the DB making sure it is always returning UTC.
+
+        Not using timezone.convert_to_utc as that
         converts to configured TIMEZONE while the DB might be
         running with some other setting. We assume UTC datetimes
         in the database.
@@ -175,8 +178,10 @@ def nowait(session: Session) -> Dict[str, Any]:
 
 def nulls_first(col, session: Session) -> Dict[str, Any]:
     """
-    Adds a nullsfirst construct to the column ordering. Currently only Postgres supports it.
-    In MySQL & Sqlite NULL values are considered lower than any non-NULL value, therefore, NULL values
+    Adds a nullsfirst construct to the column ordering.
+
+    Currently only Postgres supports it. In MySQL & Sqlite NULL values
+    are considered lower than any non-NULL value, therefore, NULL values
     appear first when the order is ASC (ascending)
     """
     if session.bind.dialect.name == "postgresql":

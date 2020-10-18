@@ -58,8 +58,7 @@ class GlacierHook(AwsBaseHook):
 
     def describe_job(self, vault_name: str, job_id: str) -> Dict[str, Any]:
         """
-        Retrieve the status of an Amazon S3 Glacier job, such as an
-        inventory-retrieval job
+        Retrieve the status of an Amazon S3 Glacier job, such as an inventory-retrieval job.
 
         :param vault_name: the Glacier vault on which job is executed
         :type vault_name: string

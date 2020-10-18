@@ -33,7 +33,9 @@ from airflow.utils.decorators import apply_defaults
 @runtime_checkable
 class ECSProtocol(Protocol):
     """
-    A structured Protocol for ``boto3.client('ecs')``. This is used for type hints on
+    A structured Protocol for ``boto3.client('ecs')``.
+
+    This is used for type hints on
     :py:meth:`.ECSOperator.client`.
 
     .. seealso::

@@ -31,6 +31,7 @@ warnings.warn(
 class BigQueryTableSensor(BigQueryTableExistenceSensor):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor`.
     """
 

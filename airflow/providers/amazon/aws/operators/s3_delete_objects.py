@@ -24,8 +24,7 @@ from airflow.utils.decorators import apply_defaults
 
 class S3DeleteObjectsOperator(BaseOperator):
     """
-    To enable users to delete single object or multiple objects from
-    a bucket using a single HTTP request.
+    To enable users to delete single object or multiple objects from a bucket using a single HTTP request.
 
     Users may specify up to 1000 keys to delete.
 

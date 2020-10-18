@@ -24,6 +24,7 @@ from airflow.utils.decorators import apply_defaults
 class SageMakerTuningSensor(SageMakerBaseSensor):
     """
     Asks for the state of the tuning state until it reaches a terminal state.
+
     The sensor will error if the job errors, throwing a AirflowException
     containing the failure reason.
 

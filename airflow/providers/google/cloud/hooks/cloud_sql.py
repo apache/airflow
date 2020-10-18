@@ -308,8 +308,7 @@ class CloudSQLHook(GoogleBaseHook):
     @GoogleBaseHook.operation_in_progress_retry()
     def export_instance(self, instance: str, body: Dict, project_id: str) -> None:
         """
-        Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
-        or CSV file.
+        Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump or CSV file.
 
         :param instance: Database instance ID of the Cloud SQL instance. This does not include the
             project ID.
@@ -334,8 +333,7 @@ class CloudSQLHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def import_instance(self, instance: str, body: Dict, project_id: str) -> None:
         """
-        Imports data into a Cloud SQL instance from a SQL dump or CSV file in
-        Cloud Storage.
+        Imports data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
 
         :param instance: Database instance ID. This does not include the
             project ID.
@@ -362,8 +360,7 @@ class CloudSQLHook(GoogleBaseHook):
 
     def _wait_for_operation_to_complete(self, project_id: str, operation_name: str) -> None:
         """
-        Waits for the named operation to complete - checks status of the
-        asynchronous call.
+        Waits for the named operation to complete - checks status of the asynchronous call.
 
         :param project_id: Project ID of the project that contains the instance.
         :type project_id: str
@@ -820,6 +817,8 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
     @staticmethod
     def _generate_unique_path() -> str:
         """
+        Generate unique path.
+
         We are not using mkdtemp here as the path generated with mkdtemp
         can be close to 60 characters and there is a limitation in
         length of socket path to around 100 characters in total.
@@ -910,6 +909,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
     def create_connection(self) -> Connection:
         """
         Create Connection object, according to whether it uses proxy, TCP, UNIX sockets, SSL.
+
         Connection ID will be randomly generated.
         """
         uri = self._generate_connection_uri()
@@ -919,8 +919,9 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
 
     def get_sqlproxy_runner(self) -> CloudSqlProxyRunner:
         """
-        Retrieve Cloud SQL Proxy runner. It is used to manage the proxy
-        lifecycle per task.
+        Retrieve Cloud SQL Proxy runner.
+
+        It is used to manage the proxy lifecycle per task.
 
         :return: The Cloud SQL Proxy runner.
         :rtype: CloudSqlProxyRunner
@@ -940,7 +941,9 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
 
     def get_database_hook(self, connection: Connection) -> Union[PostgresHook, MySqlHook]:
         """
-        Retrieve database hook. This is the actual Postgres or MySQL database hook
+        Retrieve database hook.
+
+        This is the actual Postgres or MySQL database hook
         that uses proxy or connects directly to the Google Cloud SQL database.
         """
         if self.database_type == 'postgres':

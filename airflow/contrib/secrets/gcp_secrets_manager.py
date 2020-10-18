@@ -33,6 +33,7 @@ warnings.warn(
 class CloudSecretsManagerBackend(CloudSecretManagerBackend):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend`.
     """
 

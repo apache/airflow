@@ -29,6 +29,7 @@ from airflow.utils.decorators import apply_defaults
 
 class PubSubPullSensor(BaseSensorOperator):
     """Pulls messages from a PubSub subscription and passes them through XCom.
+
     Always waits for at least one message to be returned from the subscription.
 
     .. seealso::
@@ -193,6 +194,7 @@ class PubSubPullSensor(BaseSensorOperator):
     ):
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
+
         This default implementation converts `ReceivedMessage` objects into JSON-serializable dicts.
 
         :param pulled_messages: messages received from the topic.

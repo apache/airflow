@@ -35,7 +35,9 @@ from airflow.utils.decorators import apply_defaults
 
 class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
-    Moves data from S3 to Hive. The operator downloads a file from S3,
+    Moves data from S3 to Hive.
+
+    The operator downloads a file from S3,
     stores the file locally before loading it into a Hive table.
     If the ``create`` or ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.

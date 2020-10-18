@@ -26,6 +26,7 @@ from airflow.utils.decorators import apply_defaults
 class OpsgenieAlertOperator(BaseOperator):
     """
     This operator allows you to post alerts to Opsgenie.
+
     Accepts a connection that has an Opsgenie API key as the connection's password.
     This operator sets the domain to conn_id.host, and if not set will default
     to ``https://api.opsgenie.com``.
@@ -110,8 +111,9 @@ class OpsgenieAlertOperator(BaseOperator):
 
     def _build_opsgenie_payload(self) -> Dict[str, Any]:
         """
-        Construct the Opsgenie JSON payload. All relevant parameters are combined here
-        to a valid Opsgenie JSON payload.
+        Construct the Opsgenie JSON payload.
+
+        All relevant parameters are combined here to a valid Opsgenie JSON payload.
 
         :return: Opsgenie payload (dict) to send
         """

@@ -28,6 +28,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 class CeleryKubernetesExecutor(LoggingMixin):
     """
     CeleryKubernetesExecutor consists of CeleryExecutor and KubernetesExecutor.
+
     It chooses an executor to use based on the queue defined on the task.
     When the queue is `kubernetes`, KubernetesExecutor is selected to run the task,
     otherwise, CeleryExecutor is used.

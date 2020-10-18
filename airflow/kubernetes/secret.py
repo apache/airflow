@@ -30,8 +30,7 @@ class Secret(K8SModel):
 
     def __init__(self, deploy_type, deploy_target, secret, key=None, items=None):
         """
-        Initialize a Kubernetes Secret Object. Used to track requested secrets from
-        the user.
+        Initialize a Kubernetes Secret Object. Used to track requested secrets from the user.
 
         :param deploy_type: The type of secret deploy in Kubernetes, either `env` or
             `volume`

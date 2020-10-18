@@ -119,7 +119,10 @@ ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + '_.-')
 
 
 def stat_name_default_handler(stat_name, max_length=250) -> str:
-    """A function that validate the statsd stat name, apply changes to the stat name
+    """
+    stat_name_default_handler
+
+    A function that validate the statsd stat name, apply changes to the stat name
     if necessary and return the transformed stat name.
     """
     if not isinstance(stat_name, str):
@@ -157,7 +160,9 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
 def validate_stat(fn: T) -> T:
-    """Check if stat name contains invalid characters.
+    """
+    Check if stat name contains invalid characters.
+
     Log and not emit stats if name is invalid
     """
 

@@ -31,6 +31,7 @@ warnings.warn(
 class GceHook(ComputeEngineHook):
     """
     This class is deprecated.
+
     Please use ``airflow.providers.google.cloud.hooks.compute.ComputeEngineHook``.
     """
 

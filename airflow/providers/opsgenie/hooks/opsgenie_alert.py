@@ -29,6 +29,7 @@ from airflow.providers.http.hooks.http import HttpHook
 class OpsgenieAlertHook(HttpHook):
     """
     This hook allows you to post alerts to Opsgenie.
+
     Accepts a connection that has an Opsgenie API key as the connection's password.
     This hook sets the domain to conn_id.host, and if not set will default
     to ``https://api.opsgenie.com``.
@@ -56,6 +57,8 @@ class OpsgenieAlertHook(HttpHook):
 
     def get_conn(self, headers: Optional[dict] = None) -> requests.Session:
         """
+        Overwrite of HttpHook get_conn.
+
         Overwrite HttpHook get_conn because this hook just needs base_url
         and headers, and does not need generic params
 

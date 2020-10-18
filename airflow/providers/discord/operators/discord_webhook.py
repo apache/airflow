@@ -27,6 +27,7 @@ from airflow.utils.decorators import apply_defaults
 class DiscordWebhookOperator(SimpleHttpOperator):
     """
     This operator allows you to post messages to Discord using incoming webhooks.
+
     Takes a Discord connection ID with a default relative webhook endpoint. The
     default endpoint can be overridden using the webhook_endpoint parameter
     (https://discordapp.com/developers/docs/resources/webhook).

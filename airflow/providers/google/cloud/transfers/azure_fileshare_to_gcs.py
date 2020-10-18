@@ -28,6 +28,8 @@ from airflow.utils.decorators import apply_defaults
 
 class AzureFileShareToGCSOperator(BaseOperator):
     """
+    Synchronizes a Azure FileShare directory content.
+
     Synchronizes a Azure FileShare directory content (excluding subdirectories),
     possibly filtered by a prefix, with a Google Cloud Storage destination path.
 

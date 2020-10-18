@@ -18,6 +18,7 @@
 
 """
 Example Airflow DAG that uses IGM-type compute operations:
+
 * copy of Instance Template
 * update template in Instance Group Manager
 

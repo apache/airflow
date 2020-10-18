@@ -31,8 +31,9 @@ from airflow.utils.decorators import apply_defaults
 
 class KylinCubeOperator(BaseOperator):
     """
-    This operator is used to submit request about kylin build/refresh/merge,
-    and can track job status . so users can easier to build kylin job
+    This operator is used to submit request about kylin build/refresh/merge, and can track job status.
+
+    So users can easier to build kylin job.
 
     For more detail information in
     `Apache Kylin <http://kylin.apache.org/>`_

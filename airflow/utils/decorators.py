@@ -32,8 +32,7 @@ T = TypeVar('T', bound=Callable)  # pylint: disable=invalid-name
 
 def apply_defaults(func: T) -> T:
     """
-    Function decorator that Looks for an argument named "default_args", and
-    fills the unspecified arguments from it.
+    Decorator that Looks for an argument named "default_args", and fills the unspecified arguments from it.
 
     Since python2.* isn't clear about which arguments are missing when
     calling a function, and that this can be quite confusing with multi-level

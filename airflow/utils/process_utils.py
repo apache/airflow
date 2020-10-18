@@ -46,8 +46,9 @@ DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint('core', 'KILLED_TASK_CLEANUP_TI
 
 def reap_process_group(pgid, logger, sig=signal.SIGTERM, timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
     """
-    Tries really hard to terminate all processes in the group (including grandchildren). Will send
-    sig (SIGTERM) to the process group of pid. If any process is alive after timeout
+    Tries really hard to terminate all processes in the group (including grandchildren).
+
+    Will send sig (SIGTERM) to the process group of pid. If any process is alive after timeout
     a SIGKILL will be send.
 
     :param pgid: process group id to kill
@@ -142,6 +143,8 @@ def execute_in_subprocess(cmd: List[str]):
 
 def execute_interactive(cmd: List[str], **kwargs):
     """
+    Execute interactive.
+
     Runs the new command as a subprocess and ensures that the terminal's state is restored to its original
     state after the process is completed e.g. if the subprocess hides the cursor, it will be restored after
     the process is completed.
@@ -241,6 +244,7 @@ def patch_environ(new_env_variables: Dict[str, str]):
 def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
     """
     Checks if a pidfile already exists and process is still running.
+
     If process is dead then pidfile is removed.
 
     :param pid_file: path to the pidfile

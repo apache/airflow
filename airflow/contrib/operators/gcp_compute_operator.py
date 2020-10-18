@@ -38,6 +38,7 @@ warnings.warn(
 class GceBaseOperator(ComputeEngineBaseOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator`.
     """
 
@@ -54,6 +55,7 @@ class GceBaseOperator(ComputeEngineBaseOperator):
 class GceInstanceGroupManagerUpdateTemplateOperator(ComputeEngineInstanceGroupUpdateManagerTemplateOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.compute
     .ComputeEngineInstanceGroupUpdateManagerTemplateOperator`.
     """
@@ -72,6 +74,7 @@ class GceInstanceGroupManagerUpdateTemplateOperator(ComputeEngineInstanceGroupUp
 class GceInstanceStartOperator(ComputeEngineStartInstanceOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators
     .compute.ComputeEngineStartInstanceOperator`.
     """
@@ -90,6 +93,7 @@ class GceInstanceStartOperator(ComputeEngineStartInstanceOperator):
 class GceInstanceStopOperator(ComputeEngineStopInstanceOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.compute.ComputeEngineStopInstanceOperator`.
     """
 
@@ -107,6 +111,7 @@ class GceInstanceStopOperator(ComputeEngineStopInstanceOperator):
 class GceInstanceTemplateCopyOperator(ComputeEngineCopyInstanceTemplateOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.compute.ComputeEngineCopyInstanceTemplateOperator`.
     """
 
@@ -124,6 +129,7 @@ class GceInstanceTemplateCopyOperator(ComputeEngineCopyInstanceTemplateOperator)
 class GceSetMachineTypeOperator(ComputeEngineSetMachineTypeOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.compute.ComputeEngineSetMachineTypeOperator`.
     """
 

@@ -28,8 +28,8 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class GSheetsHook(GoogleBaseHook):
     """
-    Interact with Google Sheets via Google Cloud connection
-    Reading and writing cells in Google Sheet:
+    Interact with Google Sheets via Google Cloud connection Reading and writing cells in Google Sheet:
+
     https://developers.google.com/sheets/api/guides/values
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
@@ -91,6 +91,7 @@ class GSheetsHook(GoogleBaseHook):
     ) -> list:
         """
         Gets values from Google Sheet from a single range
+
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get
 
         :param spreadsheet_id: The Google Sheet ID to interact with
@@ -136,6 +137,7 @@ class GSheetsHook(GoogleBaseHook):
     ) -> dict:
         """
         Gets values from Google Sheet from a list of ranges
+
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchGet
 
         :param spreadsheet_id: The Google Sheet ID to interact with
@@ -184,6 +186,7 @@ class GSheetsHook(GoogleBaseHook):
     ) -> dict:
         """
         Updates values from Google Sheet from a single range
+
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/update
 
         :param spreadsheet_id: The Google Sheet ID to interact with.
@@ -243,6 +246,7 @@ class GSheetsHook(GoogleBaseHook):
     ) -> dict:
         """
         Updates values from Google Sheet for multiple ranges
+
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchUpdate
 
         :param spreadsheet_id: The Google Sheet ID to interact with
@@ -313,6 +317,7 @@ class GSheetsHook(GoogleBaseHook):
     ) -> dict:
         """
         Append values from Google Sheet from a single range
+
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/append
 
         :param spreadsheet_id: The Google Sheet ID to interact with
@@ -366,6 +371,7 @@ class GSheetsHook(GoogleBaseHook):
     def clear(self, spreadsheet_id: str, range_: str) -> dict:
         """
         Clear values from Google Sheet from a single range
+
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/clear
 
         :param spreadsheet_id: The Google Sheet ID to interact with
@@ -389,6 +395,7 @@ class GSheetsHook(GoogleBaseHook):
     def batch_clear(self, spreadsheet_id: str, ranges: list) -> dict:
         """
         Clear values from Google Sheet from a list of ranges
+
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchClear
 
         :param spreadsheet_id: The Google Sheet ID to interact with

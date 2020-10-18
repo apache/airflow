@@ -91,6 +91,8 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> AnalyzeEntitiesResponse:
         """
+        Analyze entities.
+
         Finds named entities in the text along with entity types,
         salience, mentions for each entity, and other properties.
 
@@ -125,6 +127,8 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> AnalyzeEntitySentimentResponse:
         """
+        Analyze entity sentiment.
+
         Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
         entity and its mentions.
 
@@ -192,6 +196,8 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> AnalyzeSyntaxResponse:
         """
+        Analyze syntax.
+
         Analyzes the syntax of the text and provides sentence boundaries and tokenization along with part
         of speech tags, dependency trees, and other properties.
 
@@ -227,6 +233,8 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> AnnotateTextResponse:
         """
+        Annotate text.
+
         A convenience method that provides all the features that analyzeSentiment,
         analyzeEntities, and analyzeSyntax provide in one call.
 

@@ -19,7 +19,6 @@
 """
 Example Airflow DAG that demonstrates interactions with Google Cloud Transfer.
 
-
 This DAG relies on the following OS environment variables
 
 * GCP_PROJECT_ID - Google Cloud Project to use for the Google Cloud Transfer Service.

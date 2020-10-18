@@ -126,7 +126,8 @@ class GKEDeleteClusterOperator(BaseOperator):
 
 class GKECreateClusterOperator(BaseOperator):
     """
-    Create a Google Kubernetes Engine Cluster of specified dimensions
+    Create a Google Kubernetes Engine Cluster of specified dimensions.
+
     The operator will wait until the cluster is created.
 
     The **minimum** required to define a cluster to create is:
@@ -238,8 +239,7 @@ KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
 class GKEStartPodOperator(KubernetesPodOperator):
     """
-    Executes a task in a Kubernetes pod in the specified Google Kubernetes
-    Engine cluster
+    Executes a task in a Kubernetes pod in the specified Google Kubernetes Engine cluster.
 
     This Operator assumes that the system has gcloud installed and has configured a
     connection id with a service account.

@@ -25,10 +25,7 @@ from airflow.utils.trigger_rule import TriggerRule as TR
 
 
 class TriggerRuleDep(BaseTIDep):
-    """
-    Determines if a task's upstream tasks are in a state that allows a given task instance
-    to run.
-    """
+    """Determines if a task's upstream tasks are in a state that allows a given task instance to run."""
 
     NAME = "Trigger Rule"
     IGNOREABLE = True
@@ -37,6 +34,8 @@ class TriggerRuleDep(BaseTIDep):
     @staticmethod
     def _get_states_count_upstream_ti(ti, finished_tasks):
         """
+        Returns the states of the upstream tis.
+
         This function returns the states of the upstream tis for a specific ti in order to determine
         whether this ti can run in this iteration
 
@@ -85,8 +84,7 @@ class TriggerRuleDep(BaseTIDep):
         self, ti, successes, skipped, failed, upstream_failed, done, flag_upstream_failed, session
     ):
         """
-        Yields a dependency status that indicate whether the given task instance's trigger
-        rule was met.
+        Yields a dependency status that indicate whether the given task instance's trigger rule was met.
 
         :param ti: the task instance to evaluate the trigger rule of
         :type ti: airflow.models.TaskInstance

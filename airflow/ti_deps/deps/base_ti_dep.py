@@ -24,8 +24,9 @@ from airflow.utils.session import provide_session
 
 class BaseTIDep:
     """
-    Abstract base class for dependencies that must be satisfied in order for task
-    instances to run. For example, a task that can only run if a certain number of its
+    Abstract base class for dependencies that must be satisfied in order for task instances to run.
+
+    For example, a task that can only run if a certain number of its
     upstream tasks succeed. This is an abstract class and must be subclassed to be used.
     """
 
@@ -52,13 +53,17 @@ class BaseTIDep:
     @property
     def name(self):
         """
-        The human-readable name for the dependency. Use the classname as the default name
+        The human-readable name for the dependency.
+
+        Use the classname as the default name
         if this method is not overridden in the subclass.
         """
         return getattr(self, 'NAME', self.__class__.__name__)
 
     def _get_dep_statuses(self, ti, session, dep_context):
         """
+        Abstract method that returns an iterable of TIDepStatus objects.
+
         Abstract method that returns an iterable of TIDepStatus objects that describe
         whether the given task instance has this dependency met.
 
@@ -77,6 +82,8 @@ class BaseTIDep:
     @provide_session
     def get_dep_statuses(self, ti, session, dep_context=None):
         """
+        Returns an iterable of TIDepStatus objects.
+
         Wrapper around the private _get_dep_statuses method that contains some global
         checks for all dependencies.
 
@@ -103,8 +110,9 @@ class BaseTIDep:
     @provide_session
     def is_met(self, ti, session, dep_context=None):
         """
-        Returns whether or not this dependency is met for a given task instance. A
-        dependency is considered met if all of the dependency statuses it reports are
+        Returns whether or not this dependency is met for a given task instance.
+
+        A dependency is considered met if all of the dependency statuses it reports are
         passing.
 
         :param ti: the task instance to see if this dependency is met for
@@ -143,6 +151,8 @@ class BaseTIDep:
 
 class TIDepStatus(NamedTuple):
     """
+    Dependency status for a specific task instance.
+
     Dependency status for a specific task instance indicating whether or not the task
     instance passed the dependency.
     """

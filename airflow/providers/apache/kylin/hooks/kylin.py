@@ -26,6 +26,8 @@ from airflow.hooks.base_hook import BaseHook
 
 class KylinHook(BaseHook):
     """
+    Kylin Hook class.
+
     :param kylin_conn_id: The connection id as configured in Airflow administration.
     :type kylin_conn_id: str
     :param project: project name

@@ -17,6 +17,7 @@
 
 """
 Example Airflow DAG that creates and performs following operations on Cloud Bigtable:
+
 - creates an Instance
 - creates a Table
 - updates Cluster

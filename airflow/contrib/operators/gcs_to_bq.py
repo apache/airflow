@@ -31,6 +31,7 @@ warnings.warn(
 class GoogleCloudStorageToBigQueryOperator(GCSToBigQueryOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.transfers.gcs_to_bq.GCSToBigQueryOperator`.
     """
 

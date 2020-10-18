@@ -114,8 +114,9 @@ class SkipMixin(LoggingMixin):
 
     def skip_all_except(self, ti: TaskInstance, branch_task_ids: Union[str, Iterable[str]]):
         """
-        This method implements the logic for a branching operator; given a single
-        task ID or list of task IDs to follow, this skips all other tasks
+        This method implements the logic for a branching operator;
+
+        given a single task ID or list of task IDs to follow, this skips all other tasks
         immediately downstream of this operator.
 
         branch_task_ids is stored to XCom so that NotPreviouslySkippedDep knows skipped tasks or

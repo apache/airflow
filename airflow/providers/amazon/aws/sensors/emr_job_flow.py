@@ -24,8 +24,8 @@ from airflow.utils.decorators import apply_defaults
 
 class EmrJobFlowSensor(EmrBaseSensor):
     """
-    Asks for the state of the EMR JobFlow (Cluster) until it reaches
-    any of the target states.
+    Asks for the state of the EMR JobFlow (Cluster) until it reaches any of the target states.
+
     If it fails the sensor errors, failing the task.
 
     With the default target states, sensor waits cluster to be terminated.

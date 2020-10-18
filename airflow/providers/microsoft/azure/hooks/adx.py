@@ -124,8 +124,9 @@ class AzureDataExplorerHook(BaseHook):
 
     def run_query(self, query: str, database: str, options: Optional[Dict] = None) -> KustoResponseDataSetV2:
         """
-        Run KQL query using provided configuration, and return
-        `azure.kusto.data.response.KustoResponseDataSet` instance.
+        Run KQL query using provided configuration.
+
+        Return `azure.kusto.data.response.KustoResponseDataSet` instance.
         If query is unsuccessful AirflowException is raised.
 
         :param query: KQL query to run

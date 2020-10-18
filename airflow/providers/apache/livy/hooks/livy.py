@@ -274,6 +274,7 @@ class LivyHook(HttpHook, LoggingMixin):
     ) -> Any:
         """
         Build the post batch request body.
+
         For more information about the format refer to
         .. seealso:: https://livy.apache.org/docs/latest/rest-api.html
 

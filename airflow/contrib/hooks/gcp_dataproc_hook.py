@@ -31,6 +31,7 @@ warnings.warn(
 class DataProcHook(DataprocHook):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.hooks.dataproc.DataprocHook`.
     """
 

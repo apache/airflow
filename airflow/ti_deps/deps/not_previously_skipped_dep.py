@@ -19,10 +19,7 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
 
 class NotPreviouslySkippedDep(BaseTIDep):
-    """
-    Determines if any of the task's direct upstream relatives have decided this task should
-    be skipped.
-    """
+    """Determines if any of the task's direct upstream relatives have decided this task should be skipped."""
 
     NAME = "Not Previously Skipped"
     IGNORABLE = True

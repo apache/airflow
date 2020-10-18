@@ -30,6 +30,7 @@ utc = pendulum.tz.timezone('UTC')
 def is_localized(value):
     """
     Determine if a given datetime.datetime is aware.
+
     The concept is defined in Python's docs:
     http://docs.python.org/library/datetime.html#datetime.tzinfo
     Assuming value.tzinfo is either None or a proper datetime.tzinfo,
@@ -41,6 +42,7 @@ def is_localized(value):
 def is_naive(value):
     """
     Determine if a given datetime.datetime is naive.
+
     The concept is defined in Python's docs:
     http://docs.python.org/library/datetime.html#datetime.tzinfo
     Assuming value.tzinfo is either None or a proper datetime.tzinfo,
@@ -81,8 +83,7 @@ def utc_epoch() -> dt.datetime:
 
 def convert_to_utc(value):
     """
-    Returns the datetime with the default timezone added if timezone
-    information was not associated
+    Returns the datetime with the default timezone added if timezone information was not associated
 
     :param value: datetime
     :return: datetime with tzinfo

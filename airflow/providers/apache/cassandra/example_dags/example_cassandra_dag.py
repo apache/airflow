@@ -17,8 +17,9 @@
 # under the License.
 
 """
-Example Airflow DAG to check if a Cassandra Table and a Records exists
-or not using `CassandraTableSensor` and `CassandraRecordSensor`.
+Example Airflow DAG to check if a Cassandra Table and a Records exists or not.
+
+Use `CassandraTableSensor` and `CassandraRecordSensor`.
 """
 from airflow.models import DAG
 from airflow.providers.apache.cassandra.sensors.record import CassandraRecordSensor

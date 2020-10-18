@@ -26,7 +26,9 @@ CYCLE_DONE = 2
 
 def test_cycle(dag):
     """
-    Check to see if there are any cycles in the DAG. Returns False if no cycle found,
+    Check to see if there are any cycles in the DAG.
+
+    Returns False if no cycle found,
     otherwise raises exception.
     """
     # default of int is 0 which corresponds to CYCLE_NEW

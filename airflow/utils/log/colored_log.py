@@ -38,6 +38,8 @@ BOLD_OFF = esc('22')
 
 class CustomTTYColoredFormatter(TTYColoredFormatter):
     """
+    Custom TTY Colored Formatter class.
+
     Custom log formatter which extends `colored.TTYColoredFormatter`
     by adding attributes to message arguments and coloring error
     traceback.

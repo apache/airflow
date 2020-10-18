@@ -27,6 +27,7 @@ warnings.warn(
 class BranchSqlOperator(BranchSQLOperator):
     """
     This class is deprecated.
+
     Please use `airflow.operators.sql.BranchSQLOperator`.
     """
 

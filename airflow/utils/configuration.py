@@ -25,8 +25,8 @@ from airflow.configuration import conf
 
 def tmp_configuration_copy(chmod=0o600):
     """
-    Returns a path for a temporary file including a full copy of the configuration
-    settings.
+    Returns a path for a temporary file including a full copy of the configuration settings.
+
     :return: a path to a temporary file
     """
     cfg_dict = conf.as_dict(display_sensitive=True, raw=True)

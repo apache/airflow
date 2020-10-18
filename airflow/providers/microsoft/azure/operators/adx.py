@@ -69,6 +69,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
     def execute(self, context: dict) -> KustoResultTable:
         """
         Run KQL Query on Azure Data Explorer (Kusto).
+
         Returns `PrimaryResult` of Query v2 HTTP response contents
         (https://docs.microsoft.com/en-us/azure/kusto/api/rest/response2)
         """

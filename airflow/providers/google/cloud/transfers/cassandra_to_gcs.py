@@ -15,10 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains operator for copying
-data from Cassandra to Google Cloud Storage in JSON format.
-"""
+"""This module contains operator for copying data from Cassandra to Google Cloud Storage in JSON format."""
 
 import json
 import warnings
@@ -213,8 +210,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     def _write_local_schema_file(self, cursor):
         """
-        Takes a cursor, and writes the BigQuery schema for the results to a
-        local file system.
+        Takes a cursor, and writes the BigQuery schema for the results to a local file system.
 
         :return: A dictionary where key is a filename to be used as an object
             name in GCS, and values are file handles to local files that
@@ -288,8 +284,9 @@ class CassandraToGCSOperator(BaseOperator):
     @classmethod
     def convert_user_type(cls, value: Any) -> Dict[str, Any]:
         """
-        Converts a user type to RECORD that contains n fields, where n is the
-        number of attributes. Each element in the user type class will be converted to its
+        Converts a user type to RECORD that contains n fields, where n is the number of attributes.
+
+        Each element in the user type class will be converted to its
         corresponding data type in BQ.
         """
         names = value._fields
@@ -299,6 +296,8 @@ class CassandraToGCSOperator(BaseOperator):
     @classmethod
     def convert_tuple_type(cls, values: Tuple[Any]) -> Dict[str, Any]:
         """
+        Converts a tuple to RECORD.
+
         Converts a tuple to RECORD that contains n fields, each will be converted
         to its corresponding data type in bq and will be named 'field_<index>', where
         index is determined by the order of the tuple elements defined in cassandra.
@@ -309,6 +308,8 @@ class CassandraToGCSOperator(BaseOperator):
     @classmethod
     def convert_map_type(cls, value: OrderedMapSerializedKey) -> List[Dict[str, Any]]:
         """
+        Converts a map to a repeated RECORD.
+
         Converts a map to a repeated RECORD that contains two fields: 'key' and 'value',
         each will be converted to its corresponding data type in BQ.
         """

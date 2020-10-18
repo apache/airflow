@@ -50,8 +50,9 @@ class TaskMixin:
 
     def update_relative(self, other: "TaskMixin", upstream=True) -> None:
         """
-        Update relationship information about another TaskMixin. Default is no-op.
-        Override if necessary.
+        Update relationship information about another TaskMixin.
+
+        Default is no-op. Override if necessary.
         """
 
     def __lshift__(self, other: Union["TaskMixin", Sequence["TaskMixin"]]):

@@ -28,6 +28,7 @@ from airflow.utils.platform import is_tty
 class AirflowException(Exception):
     """
     Base class for all Airflow's errors.
+
     Each custom exception should be derived from this class
     """
 
@@ -69,7 +70,8 @@ class AirflowRescheduleException(AirflowException):
 
 class AirflowSmartSensorException(AirflowException):
     """
-    Raise after the task register itself in the smart sensor service
+    Raise after the task register itself in the smart sensor service.
+
     It should exit without failing a task
     """
 

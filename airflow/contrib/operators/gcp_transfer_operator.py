@@ -17,6 +17,7 @@
 # under the License.
 """
 This module is deprecated.
+
 Please use `airflow.providers.google.cloud.operators.cloud_storage_transfer_service`.
 """
 
@@ -46,6 +47,7 @@ warnings.warn(
 class GcpTransferServiceJobCreateOperator(CloudDataTransferServiceCreateJobOperator):
     """
     This class is deprecated.
+
     Please use
     `airflow.providers.google.cloud.operators.data_transfer.CloudDataTransferServiceCreateJobOperator`.
     """
@@ -64,6 +66,7 @@ class GcpTransferServiceJobCreateOperator(CloudDataTransferServiceCreateJobOpera
 class GcpTransferServiceJobDeleteOperator(CloudDataTransferServiceDeleteJobOperator):
     """
     This class is deprecated.
+
     Please use
     `airflow.providers.google.cloud.operators.data_transfer.CloudDataTransferServiceDeleteJobOperator`.
     """
@@ -82,6 +85,7 @@ class GcpTransferServiceJobDeleteOperator(CloudDataTransferServiceDeleteJobOpera
 class GcpTransferServiceJobUpdateOperator(CloudDataTransferServiceUpdateJobOperator):
     """
     This class is deprecated.
+
     Please use
     `airflow.providers.google.cloud.operators.data_transfer.CloudDataTransferServiceUpdateJobOperator`.
     """
@@ -100,6 +104,7 @@ class GcpTransferServiceJobUpdateOperator(CloudDataTransferServiceUpdateJobOpera
 class GcpTransferServiceOperationCancelOperator(CloudDataTransferServiceCancelOperationOperator):
     """
     This class is deprecated.
+
     Please use
     `airflow.providers.google.cloud.operators.data_transfer.CloudDataTransferServiceCancelOperationOperator`.
     """
@@ -119,6 +124,7 @@ class GcpTransferServiceOperationCancelOperator(CloudDataTransferServiceCancelOp
 class GcpTransferServiceOperationGetOperator(CloudDataTransferServiceGetOperationOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.data_transfer
     .CloudDataTransferServiceGetOperationOperator`.
     """
@@ -137,6 +143,7 @@ class GcpTransferServiceOperationGetOperator(CloudDataTransferServiceGetOperatio
 class GcpTransferServiceOperationPauseOperator(CloudDataTransferServicePauseOperationOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.data_transfer
     .CloudDataTransferServicePauseOperationOperator`.
     """
@@ -156,6 +163,7 @@ class GcpTransferServiceOperationPauseOperator(CloudDataTransferServicePauseOper
 class GcpTransferServiceOperationResumeOperator(CloudDataTransferServiceResumeOperationOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.data_transfer
     .CloudDataTransferServiceResumeOperationOperator`.
     """
@@ -175,6 +183,7 @@ class GcpTransferServiceOperationResumeOperator(CloudDataTransferServiceResumeOp
 class GcpTransferServiceOperationsListOperator(CloudDataTransferServiceListOperationsOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.data_transfer
     .CloudDataTransferServiceListOperationsOperator`.
     """
@@ -194,6 +203,7 @@ class GcpTransferServiceOperationsListOperator(CloudDataTransferServiceListOpera
 class GoogleCloudStorageToGoogleCloudStorageTransferOperator(CloudDataTransferServiceGCSToGCSOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.data_transfer
     .CloudDataTransferServiceGCSToGCSOperator`.
     """
@@ -213,6 +223,7 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(CloudDataTransferSe
 class S3ToGoogleCloudStorageTransferOperator(CloudDataTransferServiceS3ToGCSOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.data_transfer
     .CloudDataTransferServiceS3ToGCSOperator`.
     """

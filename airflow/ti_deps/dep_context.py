@@ -24,6 +24,8 @@ from airflow.utils.state import State
 
 class DepContext:
     """
+    A base class for contexts that specifies which dependencies should be evaluated.
+
     A base class for contexts that specifies which dependencies should be evaluated in
     the context for a task instance to satisfy the requirements of the context. Also
     stores state related to the context that can be used by dependency classes.
@@ -88,6 +90,7 @@ class DepContext:
     def ensure_finished_tasks(self, dag, execution_date: pendulum.DateTime, session: Session):
         """
         This method makes sure finished_tasks is populated if it's currently None.
+
         This is for the strange feature of running tasks without dag_run.
 
         :param dag: The DAG for which to find finished tasks

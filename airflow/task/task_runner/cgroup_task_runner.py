@@ -33,8 +33,9 @@ from airflow.utils.process_utils import reap_process_group
 
 class CgroupTaskRunner(BaseTaskRunner):
     """
-    Runs the raw Airflow task in a cgroup that has containment for memory and
-    cpu. It uses the resource requirements defined in the task to construct
+    Runs the raw Airflow task in a cgroup that has containment for memory and cpu.
+
+    It uses the resource requirements defined in the task to construct
     the settings for the cgroup.
 
     Cgroup must be mounted first otherwise CgroupTaskRunner
@@ -200,6 +201,8 @@ class CgroupTaskRunner(BaseTaskRunner):
     @staticmethod
     def _get_cgroup_names():
         """
+        A mapping between the subsystem name to the cgroup name
+
         :return: a mapping between the subsystem name to the cgroup name
         :rtype: dict[str, str]
         """

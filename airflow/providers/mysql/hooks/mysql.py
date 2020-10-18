@@ -122,6 +122,8 @@ class MySqlHook(DbApiHook):
 
     def get_conn(self):
         """
+        Establishes a connection to a mysql database.
+
         Establishes a connection to a mysql database
         by extracting the connection configuration from the Airflow connection.
 
@@ -190,8 +192,9 @@ class MySqlHook(DbApiHook):
         cell: object, conn: Optional[Connection] = None
     ) -> object:  # pylint: disable=signature-differs   # noqa: D403
         """
-        MySQLdb converts an argument to a literal
-        when passing those separately to execute. Hence, this method does nothing.
+        MySQLdb converts an argument to a literal when passing those separately to execute.
+
+        Hence, this method does nothing.
 
         :param cell: The cell to insert into the table
         :type cell: object
@@ -204,8 +207,9 @@ class MySqlHook(DbApiHook):
 
     def get_iam_token(self, conn: Connection) -> Tuple[str, int]:
         """
-        Uses AWSHook to retrieve a temporary password to connect to MySQL
-        Port is required. If none is provided, default 3306 is used
+        Uses AWSHook to retrieve a temporary password to connect to MySQL Port is required.
+
+        If none is provided, default 3306 is used
         """
         from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 

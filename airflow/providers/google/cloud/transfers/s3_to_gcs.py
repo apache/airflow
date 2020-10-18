@@ -28,8 +28,7 @@ from airflow.utils.decorators import apply_defaults
 
 class S3ToGCSOperator(S3ListOperator):
     """
-    Synchronizes an S3 key, possibly a prefix, with a Google Cloud Storage
-    destination path.
+    Synchronizes an S3 key, possibly a prefix, with a Google Cloud Storage destination path.
 
     :param bucket: The S3 bucket where to find the objects. (templated)
     :type bucket: str

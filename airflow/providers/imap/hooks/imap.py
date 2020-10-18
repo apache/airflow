@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
+Imap module.
+
 This module provides everything to be able to search in mails for a specific attachment
 and also to download it.
 It uses the imaplib library that is already integrated in python 2 and 3.

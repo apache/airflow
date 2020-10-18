@@ -33,7 +33,9 @@ from airflow.utils.decorators import apply_defaults
 
 class MySqlToHiveOperator(BaseOperator):
     """
-    Moves data from MySql to Hive. The operator runs your query against
+    Moves data from MySql to Hive.
+
+    The operator runs your query against
     MySQL, stores the file locally before loading it into a Hive table.
     If the ``create`` or ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.

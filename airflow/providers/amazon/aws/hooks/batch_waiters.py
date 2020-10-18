@@ -42,9 +42,9 @@ from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
 
 class AwsBatchWaitersHook(AwsBatchClientHook):
     """
-    A utility to manage waiters for AWS batch services
-    Examples:
+    A utility to manage waiters for AWS batch services.
 
+    Examples:
     .. code-block:: python
 
         import random
@@ -127,8 +127,10 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
     @property
     def waiter_config(self) -> Dict:
         """
-        An immutable waiter configuration for this instance; a ``deepcopy`` is returned by this
-        property. During the init for AwsBatchWaiters, the waiter_config is used to build a
+        An immutable waiter configuration for this instance.
+
+        A ``deepcopy`` is returned by this property.
+        During the init for AwsBatchWaiters, the waiter_config is used to build a
         waiter_model and this only occurs during the class init, to avoid any accidental
         mutations of waiter_config leaking into the waiter_model.
 
@@ -191,7 +193,9 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
 
     def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
-        Wait for batch job to complete.  This assumes that the ``.waiter_model`` is configured
+        Wait for batch job to complete.
+
+        This assumes that the ``.waiter_model`` is configured
         using some variation of the ``.default_config`` so that it can generate waiters with the
         following names: "JobExists", "JobRunning" and "JobComplete".
 

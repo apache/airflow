@@ -27,8 +27,9 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 
 class SFTPHook(SSHHook):
     """
-    This hook is inherited from SSH hook. Please refer to SSH hook for the input
-    arguments.
+    This hook is inherited from SSH hook.
+
+    Please refer to SSH hook for the input arguments.
 
     Interact with SFTP. Aims to be interchangeable with FTPHook.
 
@@ -127,6 +128,8 @@ class SFTPHook(SSHHook):
 
     def describe_directory(self, path: str) -> Dict[str, Dict[str, str]]:
         """
+        Returns a dictionary of for all files on the remote system.
+
         Returns a dictionary of {filename: {attributes}} for all files
         on the remote system (where the MLSD command is supported).
 
@@ -180,6 +183,7 @@ class SFTPHook(SSHHook):
     def retrieve_file(self, remote_full_path: str, local_full_path: str) -> None:
         """
         Transfers the remote file to a local location.
+
         If local_full_path is a string path, the file will be put
         at that location
 
@@ -196,6 +200,7 @@ class SFTPHook(SSHHook):
     def store_file(self, remote_full_path: str, local_full_path: str) -> None:
         """
         Transfers a local file to the remote location.
+
         If local_full_path_or_buffer is a string path, the file will be read
         from that location
 
@@ -262,6 +267,7 @@ class SFTPHook(SSHHook):
     ) -> Tuple[List[str], List[str], List[str]]:
         """
         Return tuple with recursive lists of files, directories and unknown paths from given path.
+
         It is possible to filter results by giving prefix and/or delimiter parameters.
 
         :param path: path from which tree will be built

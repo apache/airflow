@@ -26,6 +26,7 @@ from airflow.utils.decorators import apply_defaults
 class SlackWebhookOperator(SimpleHttpOperator):
     """
     This operator allows you to post messages to Slack using incoming webhooks.
+
     Takes both Slack webhook token directly and connection that has Slack webhook token.
     If both supplied, http_conn_id will be used as base_url,
     and webhook_token will be taken as endpoint, the relative path of the url.

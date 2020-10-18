@@ -15,10 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Azure Data Lake Storage to
-Google Cloud Storage operator.
-"""
+"""This module contains Azure Data Lake Storage to Google Cloud Storage operator."""
 import os
 import warnings
 from tempfile import NamedTemporaryFile

@@ -27,6 +27,7 @@ from airflow.utils import timezone
 def format_datetime(value: str):
     """
     Datetime format parser for args since connexion doesn't parse datetimes
+
     https://github.com/zalando/connexion/issues/476
 
     This should only be used within connection views because it raises 400
@@ -41,10 +42,7 @@ def format_datetime(value: str):
 
 
 def check_limit(value: int):
-    """
-    This checks the limit passed to view and raises BadRequest if
-    limit exceed user configured value
-    """
+    """This checks the limit passed to view and raises BadRequest if limit exceed user configured value."""
     max_val = conf.getint("api", "maximum_page_limit")  # user configured max page limit
     fallback = conf.getint("api", "fallback_page_limit")
 

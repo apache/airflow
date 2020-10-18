@@ -28,8 +28,9 @@ log = logging.getLogger(__name__)
 
 class BaseHook(LoggingMixin):
     """
-    Abstract base class for hooks, hooks are meant as an interface to
-    interact with external systems. MySqlHook, HiveHook, PigHook return
+    Abstract base class for hooks, hooks are meant as an interface to interact with external systems.
+
+    MySqlHook, HiveHook, PigHook return
     object that can handle the connection and interaction to specific
     instances of these systems, and expose consistent methods to interact
     with them.

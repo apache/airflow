@@ -25,8 +25,9 @@ from airflow.hooks.base_hook import BaseHook
 
 class SparkSqlHook(BaseHook):
     """
-    This hook is a wrapper around the spark-sql binary. It requires that the
-    "spark-sql" binary is in the PATH.
+    This hook is a wrapper around the spark-sql binary.
+
+    It requires that the　"spark-sql" binary is in the PATH.
 
     :param sql: The SQL query to execute
     :type sql: str
@@ -94,8 +95,9 @@ class SparkSqlHook(BaseHook):
 
     def _prepare_command(self, cmd: Union[str, List[str]]) -> List[str]:
         """
-        Construct the spark-sql command to execute. Verbose output is enabled
-        as default.
+        Construct the spark-sql command to execute.
+
+        Verbose output is enabled as default.
 
         :param cmd: command to append to the spark-sql command
         :type cmd: str or list[str]

@@ -26,8 +26,10 @@ from airflow.hooks.base_hook import BaseHook
 
 class AzureBaseHook(BaseHook):
     """
-    This hook acts as a base hook for azure services. It offers several authentication mechanisms to
-    authenticate the client library used for upstream azure hooks.
+    This hook acts as a base hook for azure services.
+
+    It offers several authentication mechanisms to authenticate the client library used for
+    upstream azure hooks.
 
     :param sdk_client: The SDKClient to use.
     :param conn_id: The azure connection id which refers to the information to connect to the service.

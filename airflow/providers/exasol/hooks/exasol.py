@@ -28,6 +28,7 @@ from airflow.hooks.dbapi_hook import DbApiHook
 class ExasolHook(DbApiHook):
     """
     Interact with Exasol.
+
     You can specify the pyexasol ``compression``, ``encryption``, ``json_lib``
     and ``client_name``  parameters in the extra field of your connection
     as ``{"compression": True, "json_lib": "rapidjson", etc}``.
@@ -108,9 +109,9 @@ class ExasolHook(DbApiHook):
 
     def run(self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None) -> None:
         """
-        Runs a command or a list of commands. Pass a list of sql
-        statements to the sql parameter to get them to execute
-        sequentially
+        Runs a command or a list of commands.
+
+        Pass a list of sql statements to the sql parameter to get them to execute sequentially.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -156,6 +157,7 @@ class ExasolHook(DbApiHook):
     def get_autocommit(self, conn) -> bool:
         """
         Get autocommit setting for the provided connection.
+
         Return True if autocommit is set.
         Return False if autocommit is not set or set to False or conn
         does not support autocommit.
@@ -173,6 +175,8 @@ class ExasolHook(DbApiHook):
     @staticmethod
     def _serialize_cell(cell, conn=None) -> object:
         """
+        Cell without any conversion.
+
         Exasol will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
 

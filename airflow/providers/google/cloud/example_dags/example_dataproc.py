@@ -16,8 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG that show how to use various Dataproc
-operators to manage a cluster and submit jobs.
+Example Airflow DAG that show how to use various Dataproc operators to manage a cluster and submit jobs.
 """
 
 import os

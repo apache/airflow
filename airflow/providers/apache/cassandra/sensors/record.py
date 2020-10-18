@@ -15,10 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains sensor that check the existence
-of a record in a Cassandra cluster.
-"""
+"""This module contains sensor that check the existence of a record in a Cassandra cluster."""
 
 from typing import Any, Dict
 

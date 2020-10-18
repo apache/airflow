@@ -119,6 +119,8 @@ class DatabricksHook(BaseHook):  # noqa
     @staticmethod
     def _parse_host(host: str) -> str:
         """
+        Parse host.
+
         The purpose of this function is to be robust to improper connections
         settings provided by users, specifically in the host field.
 
@@ -325,8 +327,9 @@ RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKI
 
 class _TokenAuth(AuthBase):
     """
-    Helper class for requests Auth field. AuthBase requires you to implement the __call__
-    magic function.
+    Helper class for requests Auth field.
+
+    AuthBase requires you to implement the __call__ magic function.
     """
 
     def __init__(self, token: str) -> None:

@@ -34,8 +34,9 @@ from airflow.utils.state import State
 
 class ExternalTaskSensorLink(BaseOperatorLink):
     """
-    Operator link for ExternalTaskSensor. It allows users to access
-    DAG waited with ExternalTaskSensor.
+    Operator link for ExternalTaskSensor.
+
+    It allows users to access DAG waited with ExternalTaskSensor.
     """
 
     name = 'External DAG'
@@ -46,8 +47,7 @@ class ExternalTaskSensorLink(BaseOperatorLink):
 
 class ExternalTaskSensor(BaseSensorOperator):
     """
-    Waits for a different DAG or a task in a different DAG to complete for a
-    specific execution_date
+    Waits for a different DAG or a task in a different DAG to complete for a specific execution_date.
 
     :param external_dag_id: The dag_id that contains the task you want to
         wait for
@@ -230,6 +230,8 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     def _handle_execution_date_fn(self, context):
         """
+        Call execution_date_fn with backwards compatibility.
+
         This function is to handle backwards compatibility with how this operator was
         previously where it only passes the execution date, but also allow for the newer
         implementation to pass all context through as well, to allow for more sophisticated
@@ -250,6 +252,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 class ExternalTaskMarker(DummyOperator):
     """
     Use this operator to indicate that a task on a different DAG depends on this task.
+
     When this task is cleared with "Recursive" selected, Airflow will clear the task on
     the other DAG and its downstream tasks recursively. Transitive dependencies are followed
     until the recursion_depth is reached.

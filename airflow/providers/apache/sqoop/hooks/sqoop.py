@@ -28,8 +28,9 @@ from airflow.hooks.base_hook import BaseHook
 
 class SqoopHook(BaseHook):
     """
-    This hook is a wrapper around the sqoop 1 binary. To be able to use the hook
-    it is required that "sqoop" is in the PATH.
+    This hook is a wrapper around the sqoop 1 binary.
+
+    To be able to use the hook it is required that "sqoop" is in the PATH.
 
     Additional arguments that can be passed via the 'extra' JSON field of the
     sqoop connection:
@@ -221,8 +222,9 @@ class SqoopHook(BaseHook):
         extra_import_options: Optional[Dict[str, Any]] = None,
     ) -> Any:
         """
-        Imports table from remote location to target dir. Arguments are
-        copies of direct sqoop command line arguments
+        Imports table from remote location to target dir.
+
+        Arguments are copies of direct sqoop command line arguments
 
         :param table: Table to read
         :param target_dir: HDFS destination dir
@@ -367,8 +369,9 @@ class SqoopHook(BaseHook):
         extra_export_options: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
-        Exports Hive table to remote location. Arguments are copies of direct
-        sqoop command line Arguments
+        Exports Hive table to remote location.
+
+        Arguments are copies of direct sqoop command line Arguments.
 
         :param table: Table remote destination
         :param export_dir: Hive table to export

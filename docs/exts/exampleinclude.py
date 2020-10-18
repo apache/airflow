@@ -49,6 +49,7 @@ class ExampleHeader(nodes.reference, nodes.FixedTextElement):  # pylint: disable
 class ExampleInclude(SphinxDirective):
     """
     Like ``.. literalinclude:: ``, but it does not support caption option.
+
     Adds a header with a reference to  the full source code
 
     Based on:

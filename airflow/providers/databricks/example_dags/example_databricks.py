@@ -17,6 +17,7 @@
 # under the License.
 """
 This is an example DAG which uses the DatabricksSubmitRunOperator.
+
 In this example, we create two tasks which execute sequentially.
 The first task is to run a notebook at the workspace path "/test"
 and the second task is to run a JAR uploaded to DBFS. Both,

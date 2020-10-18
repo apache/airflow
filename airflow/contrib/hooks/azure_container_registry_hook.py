@@ -17,6 +17,7 @@
 # under the License.
 """
 This module is deprecated.
+
 Please use `airflow.providers.microsoft.azure.hooks.azure_container_registry`.
 """
 

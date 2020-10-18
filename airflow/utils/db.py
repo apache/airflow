@@ -578,6 +578,7 @@ def _get_alembic_config():
 def check_migrations(timeout):
     """
     Function to wait for all airflow migrations to complete.
+
     @param timeout:
     @return:
     """
@@ -629,6 +630,7 @@ def resetdb():
 def drop_airflow_models(connection):
     """
     Drops all airflow models.
+
     @param connection:
     @return: None
     """
@@ -663,6 +665,7 @@ def drop_airflow_models(connection):
 def drop_flask_models(connection):
     """
     Drops all Flask models.
+
     @param connection:
     @return:
     """
@@ -675,6 +678,7 @@ def drop_flask_models(connection):
 def check(session=None):
     """
     Checks if the database works.
+
     :param session: session of the sqlalchemy
     """
     session.execute('select 1 as is_alive;')

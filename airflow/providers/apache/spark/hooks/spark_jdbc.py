@@ -26,6 +26,8 @@ from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 # pylint: disable=too-many-instance-attributes
 class SparkJDBCHook(SparkSubmitHook):
     """
+    Hook extending the SparkSubmitHook.
+
     This hook extends the SparkSubmitHook specifically for performing data
     transfers to/from JDBC-based databases with Apache Spark.
 

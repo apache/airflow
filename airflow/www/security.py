@@ -321,6 +321,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def has_access(self, permission, resource, user=None) -> bool:
         """
+        Verify whether a given user could perform certain permission on the given resource.
+
         Verify whether a given user could perform certain permission
         (e.g can_read, can_write) on the given resource.
 
@@ -371,6 +373,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def has_all_dags_access(self):
         """
+        Check it has all dags access.
+
         Has all the dag access in any of the 3 cases:
         1. Role needs to be in (Admin, Viewer, User, Op).
         2. Has can_read permission on dags view.
@@ -407,6 +411,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def _merge_perm(self, permission_name, view_menu_name):
         """
         Add the new (permission, view_menu) to assoc_permissionview_role if it doesn't exist.
+
         It will add the related entry to ab_permission
         and ab_view_menu two meta tables as well.
 
@@ -431,6 +436,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     @provide_session
     def create_custom_dag_permission_view(self, session=None):
         """
+        Create custom dag permission view.
+
         Workflow:
         1. Fetch all the existing (permissions, view-menu) from Airflow DB.
         2. Fetch all the existing dag models that are either active or paused.
@@ -515,6 +522,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def update_admin_perm_view(self):
         """
         Admin should have all the permission-views, except the dag views.
+
         because Admin already has Dags permission.
         Add the missing ones to the table for admin.
 
@@ -547,6 +555,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def sync_roles(self):
         """
+        Sync roles.
+
         1. Init the default role(Admin, Viewer, User, Op, public)
            with related permissions.
         2. Init the custom role(dag-user) with related permissions.
@@ -577,7 +587,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def sync_perm_for_dag(self, dag_id, access_control=None):
         """
-        Sync permissions for given dag id. The dag id surely exists in our dag bag
+        Sync permissions for given dag id.
+
+        The dag id surely exists in our dag bag
         as only / refresh button or cli.sync_perm will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated

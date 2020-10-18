@@ -166,8 +166,9 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
 
 def task_group_to_dict(task_group):
     """
-    Create a nested dict representation of this TaskGroup and its children used to construct
-    the Graph View.
+    task_group_to_dict
+
+    Create a nested dict representation of this TaskGroup and its children used to construct the Graph View.
     """
     if isinstance(task_group, BaseOperator):
         return {
@@ -392,6 +393,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/health')
     def health(self):
         """
+        An endpoint for health check.
+
         An endpoint helping check the health status of the Airflow instance,
         including metadatabase and scheduler.
         """
@@ -2495,7 +2498,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
               execution_date: The date of execution of the task
               link_name: The name of the link reference to find the actual URL for
 
-        Returns:
+        Returns
             200: {url: <url of link>, error: None} - returned when there was no problem
                 finding the URL
             404: {url: None, error: <error message>} - returned when the operator does

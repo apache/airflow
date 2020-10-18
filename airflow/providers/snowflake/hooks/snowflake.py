@@ -30,6 +30,7 @@ from airflow.hooks.dbapi_hook import DbApiHook
 class SnowflakeHook(DbApiHook):
     """
     Interact with Snowflake.
+
     get_sqlalchemy_engine() depends on snowflake-sqlalchemy
     """
 
@@ -48,10 +49,7 @@ class SnowflakeHook(DbApiHook):
         self.authenticator = kwargs.pop("authenticator", None)
 
     def _get_conn_params(self) -> Dict[str, Optional[str]]:
-        """
-        One method to fetch connection params as a dict
-        used in get_uri() and get_connection()
-        """
+        """One method to fetch connection params as a dict used in get_uri() and get_connection()."""
         conn = self.get_connection(
             self.snowflake_conn_id  # type: ignore[attr-defined] # pylint: disable=no-member
         )
@@ -119,8 +117,7 @@ class SnowflakeHook(DbApiHook):
 
     def _get_aws_credentials(self) -> Tuple[Optional[Any], Optional[Any]]:
         """
-        Returns aws_access_key_id, aws_secret_access_key
-        from extra
+        Returns aws_access_key_id, aws_secret_access_key from extra.
 
         intended to be used by external import and export statements
         """

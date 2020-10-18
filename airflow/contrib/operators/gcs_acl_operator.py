@@ -34,6 +34,7 @@ warnings.warn(
 class GoogleCloudStorageBucketCreateAclEntryOperator(GCSBucketCreateAclEntryOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator`.
     """
 
@@ -50,6 +51,7 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(GCSBucketCreateAclEntryOper
 class GoogleCloudStorageObjectCreateAclEntryOperator(GCSObjectCreateAclEntryOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.gcs.GCSObjectCreateAclEntryOperator`.
     """
 

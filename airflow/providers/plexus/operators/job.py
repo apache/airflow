@@ -133,8 +133,7 @@ class PlexusJobOperator(BaseOperator):
 
     def construct_job_params(self, hook: Any) -> Dict[Any, Optional[Any]]:
         """
-        Creates job_params dict for api call to
-        launch a Plexus job.
+        Creates job_params dict for api call to launch a Plexus job.
 
         Some parameters required to launch a job
         are not available to the user in the Plexus

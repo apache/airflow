@@ -38,6 +38,7 @@ except ImportError:
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
+
     It requires that the "spark-submit" binary is in the PATH or the spark_home to be
     supplied.
 
@@ -181,6 +182,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _resolve_should_track_driver_status(self) -> bool:
         """
+        Determines whether or not this hook should poll the spark driver status.
+
         Determines whether or not this hook should poll the spark driver status through
         subsequent spark-submit status requests after the initial spark-submit request
         :return: if the driver status should be tracked
@@ -536,6 +539,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _start_driver_status_tracking(self) -> None:
         """
         Polls the driver based on self._driver_id to get the status.
+
         Finish successfully when the status is FINISHED.
         Finish failed when the status is ERROR/UNKNOWN/KILLED/FAILED.
 
@@ -601,6 +605,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _build_spark_driver_kill_command(self) -> List[str]:
         """
         Construct the spark-submit command to kill a driver.
+
         :return: full command to kill a driver
         """
         # If the spark_home is passed then build the spark-submit executable path using

@@ -28,6 +28,7 @@ class PodRuntimeInfoEnv(K8SModel):
     def __init__(self, name, field_path):
         """
         Adds Kubernetes pod runtime information as environment variables such as namespace, pod IP, pod name.
+
         Full list of options can be found in kubernetes documentation.
 
         :param name: the name of the environment variable

@@ -18,6 +18,7 @@
 
 """
 This module is deprecated.
+
 Please use `airflow.providers.sendgrid.utils.emailer`.
 """
 

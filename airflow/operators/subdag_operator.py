@@ -43,8 +43,10 @@ class SkippedStatePropagationOptions(Enum):
 
 class SubDagOperator(BaseSensorOperator):
     """
-    This runs a sub dag. By convention, a sub dag's dag_id
-    should be prefixed by its parent and a dot. As in `parent.child`.
+    This runs a sub dag.
+
+    By convention, a sub dag's dag_id should be prefixed by its parent
+    and a dot. As in `parent.child`.
 
     Although SubDagOperator can occupy a pool/concurrency slot,
     user can specify the mode=reschedule so that the slot will be
@@ -121,6 +123,8 @@ class SubDagOperator(BaseSensorOperator):
 
     def _reset_dag_run_and_task_instances(self, dag_run, execution_date):
         """
+        Reset state for scheduler to pick up.
+
         Set the DagRun state to RUNNING and set the failed TaskInstances to None state
         for scheduler to pick up.
 

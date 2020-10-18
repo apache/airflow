@@ -26,8 +26,7 @@ from airflow.utils.decorators import apply_defaults
 
 class EC2InstanceStateSensor(BaseSensorOperator):
     """
-    Check the state of the AWS EC2 instance until
-    state of the instance become equal to the target state.
+    Check the state of the AWS EC2 instance until state of the instance become equal to the target state.
 
     :param target_state: target state of instance
     :type target_state: str

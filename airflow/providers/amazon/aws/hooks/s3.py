@@ -42,6 +42,8 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 def provide_bucket_name(func: T) -> T:
     """
+    Function decorator that provides a bucket name.
+
     Function decorator that provides a bucket name taken from the connection
     in case no bucket name has been passed to the function.
     """
@@ -65,6 +67,8 @@ def provide_bucket_name(func: T) -> T:
 
 def unify_bucket_name_and_key(func: T) -> T:
     """
+    Function decorator that unifies bucket name and key.
+
     Function decorator that unifies bucket name and key taken from the key
     in case no bucket name and at least a key has been passed to the function.
     """

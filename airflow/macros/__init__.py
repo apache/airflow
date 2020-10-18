@@ -48,8 +48,7 @@ def ds_add(ds, days):
 
 def ds_format(ds, input_format, output_format):
     """
-    Takes an input string and outputs another string
-    as specified in the output format
+    Takes an input string and outputs another string as specified in the output format
 
     :param ds: input string which contains a date
     :type ds: str
@@ -68,8 +67,7 @@ def ds_format(ds, input_format, output_format):
 
 def datetime_diff_for_humans(dt, since=None):
     """
-    Return a human-readable/approximate difference between two datetimes, or
-    one and now.
+    Return a human-readable/approximate difference between two datetimes, or one and now.
 
     :param dt: The datetime to display the diff for
     :type dt: datetime.datetime

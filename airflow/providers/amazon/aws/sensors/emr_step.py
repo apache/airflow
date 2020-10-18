@@ -25,6 +25,7 @@ from airflow.utils.decorators import apply_defaults
 class EmrStepSensor(EmrBaseSensor):
     """
     Asks for the state of the step until it reaches any of the target states.
+
     If it fails the sensor errors, failing the task.
 
     With the default target states, sensor waits step to be completed.

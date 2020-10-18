@@ -29,6 +29,7 @@ from airflow.utils.decorators import apply_defaults
 class FacebookAdsReportToGcsOperator(BaseOperator):
     """
     Fetches the results from the Facebook Ads API as desired in the params
+
     Converts and saves the data as a temporary JSON file
     Uploads the JSON to Google Cloud Storage
 

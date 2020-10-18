@@ -20,10 +20,7 @@ from airflow.settings import STATE_COLORS
 
 
 class State:
-    """
-    Static class with task instance states constants and color method to
-    avoid hardcoding.
-    """
+    """Static class with task instance states constants and color method to avoid hardcoding."""
 
     # scheduler
     NONE = None  # type: None

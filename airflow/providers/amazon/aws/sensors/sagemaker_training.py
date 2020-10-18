@@ -26,6 +26,7 @@ from airflow.utils.decorators import apply_defaults
 class SageMakerTrainingSensor(SageMakerBaseSensor):
     """
     Asks for the state of the training state until it reaches a terminal state.
+
     If it fails the sensor errors, failing the task.
 
     :param job_name: name of the SageMaker training job to check the state of

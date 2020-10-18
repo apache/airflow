@@ -195,8 +195,9 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
 
 class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
     """
-    Start manual transfer runs to be executed now with schedule_time equal
-    to current time. The transfer runs can be created for a time range where
+    Start manual transfer runs to be executed now with schedule_time equal to current time.
+
+    The transfer runs can be created for a time range where
     the run_time is between start_time (inclusive) and end_time
     (exclusive), or for a specific run_time.
 

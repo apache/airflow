@@ -16,10 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module provides helper code to make type annotation within Airflow
-codebase easier.
-"""
+"""This module provides helper code to make type annotation within Airflow codebase easier."""
 
 try:
     # Protocol and TypedDict are only added to typing module starting from

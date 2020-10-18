@@ -31,6 +31,7 @@ warnings.warn(
 class DatastoreExportOperator(CloudDatastoreExportEntitiesOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.datastore.CloudDatastoreExportEntitiesOperator`.
     """
 

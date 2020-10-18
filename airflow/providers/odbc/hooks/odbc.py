@@ -48,6 +48,8 @@ class OdbcHook(DbApiHook):
         **kwargs,
     ) -> None:
         """
+        __init__ of OdbcHook.
+
         :param args: passed to DbApiHook
         :param database: database to use -- overrides connection ``schema``
         :param driver: name of driver or path to driver. overrides driver supplied in connection ``extra``
@@ -117,7 +119,8 @@ class OdbcHook(DbApiHook):
     @property
     def odbc_connection_string(self):
         """
-        ODBC connection string
+        ODBC connection string.
+
         We build connection string instead of using ``pyodbc.connect`` params because, for example, there is
         no param representing ``ApplicationIntent=ReadOnly``.  Any key-value pairs provided in
         ``Connection.extra`` will be added to the connection string.
@@ -153,6 +156,8 @@ class OdbcHook(DbApiHook):
     @property
     def connect_kwargs(self) -> dict:
         """
+        Returns effective kwargs to be passed to ``pyodbc.connect``.
+
         Returns effective kwargs to be passed to ``pyodbc.connect`` after merging between conn extra,
         ``connect_kwargs`` and hook init.
 

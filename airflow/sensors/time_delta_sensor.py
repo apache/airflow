@@ -24,6 +24,7 @@ from airflow.utils.decorators import apply_defaults
 class TimeDeltaSensor(BaseSensorOperator):
     """
     Waits for a timedelta after the task's execution_date + schedule_interval.
+
     In Airflow, the daily task stamped with ``execution_date``
     2016-01-01 can only start running on 2016-01-02. The timedelta here
     represents the time after the execution period has closed.

@@ -44,7 +44,9 @@ from airflow.utils.state import State
 
 class BaseJob(Base, LoggingMixin):
     """
-    Abstract class to be derived for jobs. Jobs are processing items with state
+    Abstract class to be derived for jobs.
+
+    Jobs are processing items with state
     and duration that aren't task instances. For instance a BackfillJob is
     a collection of task instance runs, but should have its own state, start
     and end time.
@@ -110,8 +112,7 @@ class BaseJob(Base, LoggingMixin):
     @provide_session
     def most_recent_job(cls, session=None) -> Optional['BaseJob']:
         """
-        Return the most recent job of this type, if any, based on last
-        heartbeat received.
+        Return the most recent job of this type, if any, based on last heartbeat received.
 
         This method should be called on a subclass (i.e. on SchedulerJob) to
         return jobs of that type.
@@ -160,11 +161,11 @@ class BaseJob(Base, LoggingMixin):
 
     def heartbeat(self, only_if_necessary: bool = False):
         """
+        This allows at the system level to monitor what is actually active.
+
         Heartbeats update the job's entry in the database with a timestamp
         for the latest_heartbeat and allows for the job to be killed
-        externally. This allows at the system level to monitor what is
-        actually active.
-
+        externally.
         For instance, an old heartbeat for SchedulerJob would mean something
         is wrong.
 

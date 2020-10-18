@@ -43,9 +43,9 @@ EsLogMsgType = List[Tuple[str, str]]
 
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     """
-    ElasticsearchTaskHandler is a python log handler that
-    reads logs from Elasticsearch. Note logs are not directly
-    indexed into Elasticsearch. Instead, it flushes logs
+    ElasticsearchTaskHandler is a python log handler that reads logs from Elasticsearch.
+
+    Note logs are not directly indexed into Elasticsearch. Instead, it flushes logs
     into local files. Additional software setup is required
     to index the log into Elasticsearch, such as using
     Filebeat and Logstash.
@@ -76,6 +76,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         es_kwargs: Optional[dict] = conf.getsection("elasticsearch_configs"),
     ):
         """
+        __init__ of ElasticsearchTaskHandler.
+
         :param base_log_folder: base folder to store logs locally
         :param log_id_template: log id template
         :param host: Elasticsearch host name
@@ -114,6 +116,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     @staticmethod
     def _clean_execution_date(execution_date: datetime) -> str:
         """
+        Clean up an execution data.
+
         Clean up an execution date so that it is safe to query in elasticsearch
         by removing reserved characters.
         # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
@@ -203,6 +207,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     def es_read(self, log_id: str, offset: str, metadata: dict) -> list:
         """
         Returns the logs matching log_id in Elasticsearch and next offset.
+
         Returns '' if no log is found or there was an error.
 
         :param log_id: the log_id of the log to read.

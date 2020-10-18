@@ -114,8 +114,9 @@ def _parse_netloc_to_hostname(uri_parts):
 
 class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attributes
     """
-    Placeholder to store information about different database instances
-    connection information. The idea here is that scripts use references to
+    Placeholder to store information about different database instances connection information.
+
+    The idea here is that scripts use references to
     database instances (conn_id) instead of hard coding hostname, logins and
     passwords when using operators or hooks.
 
@@ -328,8 +329,9 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
     def log_info(self):
         """
-        This method is deprecated. You can read each field individually or use the
-        default representation (`__repr__`).
+        This method is deprecated.
+
+        You can read each field individually or use the default representation (`__repr__`).
         """
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
@@ -349,8 +351,9 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
     def debug_info(self):
         """
-        This method is deprecated. You can read each field individually or use the
-        default representation (`__repr__`).
+        This method is deprecated.
+
+        You can read each field individually or use the default representation (`__repr__`).
         """
         warnings.warn(
             "This method is deprecated. You can read each field individually or "

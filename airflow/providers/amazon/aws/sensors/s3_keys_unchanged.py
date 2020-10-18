@@ -30,6 +30,8 @@ from airflow.utils.decorators import apply_defaults
 @poke_mode_only
 class S3KeysUnchangedSensor(BaseSensorOperator):
     """
+    S3 Keys Unchanged Sensor class.
+
     Checks for changes in the number of objects at prefix in AWS S3
     bucket and returns True if the inactivity period has passed with no
     increase in the number of objects. Note, this sensor will not behave correctly
@@ -108,6 +110,8 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     def is_keys_unchanged(self, current_objects: Set[str]) -> bool:
         """
+        Checks whether new objects have been uploaded.
+
         Checks whether new objects have been uploaded and the inactivity_period
         has passed and updates the state of the sensor accordingly.
 

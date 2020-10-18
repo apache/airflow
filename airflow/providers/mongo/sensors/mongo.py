@@ -22,9 +22,9 @@ from airflow.utils.decorators import apply_defaults
 
 class MongoSensor(BaseSensorOperator):
     """
-    Checks for the existence of a document which
-    matches the given query in MongoDB. Example:
+    Checks for the existence of a document which matches the given query in MongoDB.
 
+    Example:
     >>> mongo_sensor = MongoSensor(collection="coll",
     ...                            query={"key": "value"},
     ...                            mongo_conn_id="mongo_default",

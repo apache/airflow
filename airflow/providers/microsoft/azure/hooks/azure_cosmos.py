@@ -188,6 +188,8 @@ class AzureCosmosDBHook(BaseHook):
 
     def upsert_document(self, document, database_name=None, collection_name=None, document_id=None):
         """
+        Upsert document.
+
         Inserts a new document (or updates an existing one) into an existing
         collection in the CosmosDB database.
         """

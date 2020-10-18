@@ -26,6 +26,7 @@ from airflow.models.xcom import XCOM_RETURN_KEY
 class XComArg(TaskMixin):
     """
     Class that represents a XCom push from a previous operator.
+
     Defaults to "return_value" as only key.
 
     Current implementation supports
@@ -120,8 +121,9 @@ class XComArg(TaskMixin):
 
     def resolve(self, context: Dict) -> Any:
         """
-        Pull XCom value for the existing arg. This method is run during ``op.execute()``
-        in respectable context.
+        Pull XCom value for the existing arg.
+
+        This method is run during ``op.execute()`` in respectable context.
         """
         resolved_value = self.operator.xcom_pull(
             context=context,

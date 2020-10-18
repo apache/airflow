@@ -27,6 +27,7 @@ from airflow.utils.decorators import apply_defaults
 class EmrCreateJobFlowOperator(BaseOperator):
     """
     Creates an EMR JobFlow, reading the config from the EMR connection.
+
     A dictionary of JobFlow overrides can be passed that override
     the config from the connection.
 

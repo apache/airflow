@@ -31,8 +31,9 @@ from airflow.utils.decorators import apply_defaults
 
 class VerticaToHiveOperator(BaseOperator):
     """
-    Moves data from Vertica to Hive. The operator runs
-    your query against Vertica, stores the file locally
+    Moves data from Vertica to Hive.
+
+    The operator runs your query against Vertica, stores the file locally
     before loading it into a Hive table. If the ``create`` or
     ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
@@ -98,6 +99,7 @@ class VerticaToHiveOperator(BaseOperator):
     def type_map(cls, vertica_type):
         """
         Vertica-python datatype.py does not provide the full type mapping access.
+
         Manual hack. Reference:
         https://github.com/uber/vertica-python/blob/master/vertica_python/vertica/column.py
         """

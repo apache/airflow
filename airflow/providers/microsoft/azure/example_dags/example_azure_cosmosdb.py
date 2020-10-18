@@ -17,6 +17,8 @@
 # under the License.
 
 """
+AzureCosmosDocumentSensor Example DAG.
+
 This is only an example DAG to highlight usage of AzureCosmosDocumentSensor to detect
 if a document now exists.
 

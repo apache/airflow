@@ -28,7 +28,8 @@ class BaseDag(metaclass=ABCMeta):
     @abstractmethod
     def dag_id(self):
         """
-        :return: the DAG ID
+        The DAG ID
+
         :rtype: unicode
         """
         raise NotImplementedError()
@@ -37,7 +38,8 @@ class BaseDag(metaclass=ABCMeta):
     @abstractmethod
     def task_ids(self):
         """
-        :return: A list of task IDs that are in this DAG
+        A list of task IDs that are in this DAG
+
         :rtype: List[unicode]
         """
         raise NotImplementedError()
@@ -46,7 +48,8 @@ class BaseDag(metaclass=ABCMeta):
     @abstractmethod
     def full_filepath(self):
         """
-        :return: The absolute path to the file that contains this DAG's definition
+        The absolute path to the file that contains this DAG's definition
+
         :rtype: unicode
         """
         raise NotImplementedError()
@@ -55,7 +58,8 @@ class BaseDag(metaclass=ABCMeta):
     @abstractmethod
     def concurrency(self):
         """
-        :return: maximum number of tasks that can run simultaneously from this DAG
+        Maximum number of tasks that can run simultaneously from this DAG
+
         :rtype: int
         """
         raise NotImplementedError()
@@ -63,7 +67,8 @@ class BaseDag(metaclass=ABCMeta):
     @abstractmethod
     def pickle_id(self):
         """
-        :return: The pickle ID for this DAG, if it has one. Otherwise None.
+        The pickle ID for this DAG, if it has one, otherwise None.
+
         :rtype: unicode
         """
         raise NotImplementedError
@@ -76,7 +81,8 @@ class BaseDagBag:
     @abstractmethod
     def dag_ids(self):
         """
-        :return: a list of DAG IDs in this bag
+        A list of DAG IDs in this bag
+
         :rtype: List[unicode]
         """
         raise NotImplementedError()
@@ -84,7 +90,8 @@ class BaseDagBag:
     @abstractmethod
     def get_dag(self, dag_id):
         """
-        :return: whether the task exists in this bag
+        Get a DAG from this bag, if it exists, or else return None.
+
         :rtype: airflow.dag.base_dag.BaseDag
         """
         raise NotImplementedError()

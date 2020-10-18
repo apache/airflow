@@ -67,6 +67,7 @@ class JdbcHook(DbApiHook):
     def get_autocommit(self, conn: jaydebeapi.Connection) -> bool:
         """
         Get autocommit setting for the provided connection.
+
         Return True if conn.autocommit is set to True.
         Return False if conn.autocommit is not set or set to False
 

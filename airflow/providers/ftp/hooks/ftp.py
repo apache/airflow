@@ -58,8 +58,9 @@ class FTPHook(BaseHook):
 
     def close_conn(self):
         """
-        Closes the connection. An error will occur if the
-        connection wasn't ever opened.
+        Closes the connection.
+
+        An error will occur if the connection wasn't ever opened.
         """
         conn = self.conn
         conn.quit()
@@ -67,6 +68,8 @@ class FTPHook(BaseHook):
 
     def describe_directory(self, path: str) -> dict:
         """
+        Returns a dictionary for all files on the remote system.
+
         Returns a dictionary of {filename: {attributes}} for all files
         on the remote system (where the MLSD command is supported).
 

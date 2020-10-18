@@ -92,8 +92,9 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
 
 def ts_function(context):
     """
-    Default callback for the GoogleCloudStorageObjectUpdatedSensor. The default
-    behaviour is check for the object being updated after execution_date +
+    Default callback for the GoogleCloudStorageObjectUpdatedSensor.
+
+    The default behaviour is check for the object being updated after execution_date +
     schedule_interval.
     """
     return context['dag'].following_schedule(context['execution_date'])
@@ -240,16 +241,15 @@ class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
 
 
 def get_time():
-    """
-    This is just a wrapper of datetime.datetime.now to simplify mocking in the
-    unittests.
-    """
+    """This is just a wrapper of datetime.datetime.now to simplify mocking in the unittests."""
     return datetime.now()
 
 
 @poke_mode_only
 class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     """
+    GCS Upload Session Complete Sensor class.
+
     Checks for changes in the number of objects at prefix in Google Cloud Storage
     bucket and returns True if the inactivity period has passed with no
     increase in the number of objects. Note, this sensor will no behave correctly
@@ -343,6 +343,8 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
 
     def is_bucket_updated(self, current_objects: Set[str]) -> bool:
         """
+        Checks whether new objects have been uploaded.
+
         Checks whether new objects have been uploaded and the inactivity_period
         has passed and updates the state of the sensor accordingly.
 

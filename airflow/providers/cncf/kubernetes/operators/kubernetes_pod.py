@@ -305,6 +305,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self, labels: dict, try_numbers_match: bool, launcher: Any, pod: k8s.V1Pod
     ) -> Tuple[State, Optional[str]]:
         """
+        Handle pop overlap.
 
         In cases where the Scheduler restarts while a KubernetesPodOperator task is running,
         this function will either continue to monitor the existing pod or launch a new pod
@@ -352,8 +353,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     def create_pod_request_obj(self) -> k8s.V1Pod:
         """
-        Creates a V1Pod based on user parameters. Note that a `pod` or `pod_template_file`
-        will supersede all other values.
+        Creates a V1Pod based on user parameters.
+
+        Note that a `pod` or `pod_template_file` will supersede all other values.
 
         """
         self.log.debug("Creating pod for K8sPodOperator task %s", self.task_id)

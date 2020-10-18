@@ -124,8 +124,7 @@ class CloudBuildHook(GoogleBaseHook):
 
     def _wait_for_operation_to_complete(self, operation_name: str) -> None:
         """
-        Waits for the named operation to complete - checks status of the
-        asynchronous call.
+        Waits for the named operation to complete - checks status of the asynchronous call.
 
         :param operation_name: The name of the operation.
         :type operation_name: str

@@ -30,8 +30,9 @@ from airflow.utils.helpers import parse_template_string
 
 class FileTaskHandler(logging.Handler):
     """
-    FileTaskHandler is a python log handler that handles and reads
-    task instance logs. It creates and delegates log handling
+    FileTaskHandler is a python log handler that handles and reads task instance logs.
+
+    It creates and delegates log handling
     to `logging.FileHandler` after receiving task instance context.
     It reads logs from task instance's host machine.
 
@@ -94,8 +95,7 @@ class FileTaskHandler(logging.Handler):
 
     def _read(self, ti, try_number, metadata=None):  # pylint: disable=unused-argument
         """
-        Template method that contains custom logic of reading
-        logs given the try_number.
+        Template method that contains custom logic of reading logs given the try_number.
 
         :param ti: task instance record
         :param try_number: current try_number to read log from

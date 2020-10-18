@@ -29,6 +29,7 @@ from airflow.utils.decorators import apply_defaults
 class LocalFilesystemToGCSOperator(BaseOperator):
     """
     Uploads a file or list of files to Google Cloud Storage.
+
     Optionally can compress the file for upload.
 
     .. seealso::

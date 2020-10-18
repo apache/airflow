@@ -81,6 +81,7 @@ log = logging.getLogger(__name__)
 def set_current_context(context: Context):
     """
     Sets the current execution context to the provided context object.
+
     This method should be called once per Task execution, before calling operator.execute.
     """
     _CURRENT_CONTEXT.append(context)
@@ -103,8 +104,7 @@ def clear_task_instances(
     dag=None,
 ):
     """
-    Clears a set of task instances, but makes sure the running ones
-    get killed.
+    Clears a set of task instances, but makes sure the running ones get killed.
 
     :param tis: a list of task instances
     :param session: current session
@@ -187,9 +187,10 @@ class TaskInstanceKey(NamedTuple):
 
 class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     """
-    Task instances store the state of a task instance. This table is the
-    authority and single source of truth around what tasks have run and the
-    state they are in.
+    Task instances store the state of a task instance.
+
+    This table is the authority and single source of truth around
+    what tasks have run and the　state they are in.
 
     The SqlAlchemy model doesn't have a SqlAlchemy foreign key to the task or
     dag model deliberately to have more control over transactions.
@@ -287,8 +288,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     @property
     def try_number(self):
         """
-        Return the try number that this task number will be when it is actually
-        run.
+        Return the try number that this task number will be when it is actually run.
 
         If the TaskInstance is currently running, this will match the column in the
         database, in all other cases this will be incremented.
@@ -306,6 +306,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     @property
     def prev_attempted_tries(self):
         """
+        The number of previously attempted tries.
+
         Based on this instance's try_number, this will calculate
         the number of previously attempted tries, defaulting to 0.
         """
@@ -337,8 +339,9 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         cfg_path=None,
     ):
         """
-        Returns a command that can be executed anywhere where airflow is
-        installed. This command is part of the message sent to executors by
+        Returns a command that can be executed anywhere where airflow is installed.
+
+        This command is part of the message sent to executors by
         the orchestrator.
         """
         dag = self.task.dag
@@ -488,6 +491,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     @provide_session
     def current_state(self, session=None) -> str:
         """
+        Get the very latest state from the database.
+
         Get the very latest state from the database, if a session is passed,
         we use and looking up the state becomes part of the session, otherwise
         a new session is used.
@@ -633,10 +638,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
     @property
     def is_premature(self):
-        """
-        Returns whether a task is in UP_FOR_RETRY state and its retry interval
-        has elapsed.
-        """
+        """Returns whether a task is in UP_FOR_RETRY state and its retry interval has elapsed."""
         # is the task still in the retry waiting period?
         return self.state == State.UP_FOR_RETRY and not self.ready_for_retry()
 
@@ -644,6 +646,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     def are_dependents_done(self, session=None):
         """
         Checks whether the immediate dependents of this task instance have succeeded or have been skipped.
+
         This is meant to be used by wait_for_downstream.
 
         This is useful when you do not want to start processing the next
@@ -710,6 +713,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     def previous_ti(self):
         """
         This attribute is deprecated.
+
         Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
         """
         warnings.warn(
@@ -726,6 +730,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     def previous_ti_success(self) -> Optional['TaskInstance']:
         """
         This attribute is deprecated.
+
         Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
         """
         warnings.warn(
@@ -772,6 +777,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     def previous_start_date_success(self) -> Optional[pendulum.DateTime]:
         """
         This attribute is deprecated.
+
         Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
         """
         warnings.warn(
@@ -787,6 +793,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     @provide_session
     def are_dependencies_met(self, dep_context=None, session=None, verbose=False):
         """
+        Returns if all the conditions are met for this task instance to be run.
+
         Returns whether or not all the conditions are met for this task instance to be run
         given the context for the dependencies (e.g. a task instance being force run from
         the UI will ignore some dependencies).
@@ -844,8 +852,9 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
     def next_retry_datetime(self):
         """
-        Get datetime of the next retry if the task instance fails. For exponential
-        backoff, retry_delay is used as base and will be converted to seconds.
+        Get datetime of the next retry if the task instance fails.
+
+        For exponential backoff, retry_delay is used as base and will be converted to seconds.
         """
         delay = self.task.retry_delay
         if self.task.retry_exponential_backoff:
@@ -876,10 +885,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         return self.end_date + delay
 
     def ready_for_retry(self):
-        """
-        Checks on whether the task instance is in the right state and timeframe
-        to be retried.
-        """
+        """Checks on whether the task instance is in the right state and timeframe to be retried."""
         return self.state == State.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
 
     @provide_session
@@ -915,8 +921,9 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         session=None,
     ) -> bool:
         """
-        Checks dependencies and then sets state to RUNNING if they are met. Returns
-        True if and only if state is set to RUNNING, which implies that task should be
+        Checks dependencies and then sets state to RUNNING if they are met.
+
+        Returns True if and only if state is set to RUNNING, which implies that task should be
         executed, in preparation for _run_raw_task
 
         :param verbose: whether to turn on more verbose logging
@@ -1051,6 +1058,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         session=None,
     ) -> None:
         """
+        Immediately runs the task.
+
         Immediately runs the task (without checking or changing db state
         before execution) and then sets the appropriate final state after
         completion and runs any post-execute callbacks. Meant to be called
@@ -1539,7 +1548,9 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
         class VariableAccessor:
             """
-            Wrapper around Variable. This way you can get variables in
+            Wrapper around Variable.
+
+            This way you can get variables in
             templates by using ``{{ var.value.variable_name }}`` or
             ``{{ var.value.get('variable_name', 'fallback') }}``.
             """
@@ -1568,7 +1579,9 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
         class VariableJsonAccessor:
             """
-            Wrapper around Variable. This way you can get variables in
+            Wrapper around Variable.
+
+            This way you can get variables in
             templates by using ``{{ var.json.variable_name }}`` or
             ``{{ var.json.get('variable_name', {'fall': 'back'}) }}``.
             """

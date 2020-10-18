@@ -66,6 +66,7 @@ class BigtableHook(GoogleBaseHook):
     def get_instance(self, instance_id: str, project_id: str) -> Instance:
         """
         Retrieves and returns the specified Cloud Bigtable instance if it exists.
+
         Otherwise, returns None.
 
         :param instance_id: The ID of the Cloud Bigtable instance.
@@ -84,6 +85,7 @@ class BigtableHook(GoogleBaseHook):
     def delete_instance(self, instance_id: str, project_id: str) -> None:
         """
         Deletes the specified Cloud Bigtable instance.
+
         Raises google.api_core.exceptions.NotFound if the Cloud Bigtable instance does
         not exist.
 
@@ -251,6 +253,7 @@ class BigtableHook(GoogleBaseHook):
     ) -> None:
         """
         Creates the specified Cloud Bigtable table.
+
         Raises ``google.api_core.exceptions.AlreadyExists`` if the table exists.
 
         :type instance: Instance
@@ -276,6 +279,7 @@ class BigtableHook(GoogleBaseHook):
     def delete_table(self, instance_id: str, table_id: str, project_id: str) -> None:
         """
         Deletes the specified table in Cloud Bigtable.
+
         Raises google.api_core.exceptions.NotFound if the table does not exist.
 
         :type instance_id: str
@@ -294,6 +298,7 @@ class BigtableHook(GoogleBaseHook):
     def update_cluster(instance: Instance, cluster_id: str, nodes: int) -> None:
         """
         Updates number of nodes in the specified Cloud Bigtable cluster.
+
         Raises google.api_core.exceptions.NotFound if the cluster does not exist.
 
         :type instance: Instance
@@ -325,6 +330,7 @@ class BigtableHook(GoogleBaseHook):
     def get_cluster_states_for_table(instance: Instance, table_id: str) -> Dict[str, ClusterState]:
         """
         Fetches Cluster States for the specified table in Cloud Bigtable.
+
         Raises google.api_core.exceptions.NotFound if the table does not exist.
 
         :type instance: Instance

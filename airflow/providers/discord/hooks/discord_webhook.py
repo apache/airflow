@@ -27,6 +27,7 @@ from airflow.providers.http.hooks.http import HttpHook
 class DiscordWebhookHook(HttpHook):
     """
     This hook allows you to post messages to Discord using incoming webhooks.
+
     Takes a Discord connection ID with a default relative webhook endpoint. The
     default endpoint can be overridden using the webhook_endpoint parameter
     (https://discordapp.com/developers/docs/resources/webhook).
@@ -77,6 +78,8 @@ class DiscordWebhookHook(HttpHook):
 
     def _get_webhook_endpoint(self, http_conn_id: Optional[str], webhook_endpoint: Optional[str]) -> str:
         """
+        Return the default webhook endpoint.
+
         Given a Discord http_conn_id, return the default webhook endpoint or override if a
         webhook_endpoint is manually supplied.
 
@@ -105,8 +108,9 @@ class DiscordWebhookHook(HttpHook):
 
     def _build_discord_payload(self) -> str:
         """
-        Construct the Discord JSON payload. All relevant parameters are combined here
-        to a valid Discord JSON payload.
+        Construct the Discord JSON payload.
+
+        All relevant parameters are combined here to a valid Discord JSON payload.
 
         :return: Discord payload (str) to send
         """

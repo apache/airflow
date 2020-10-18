@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use
-`airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`.
+This module is deprecated.
+
+Please use `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`.
 """
 
 import warnings
@@ -34,8 +35,10 @@ warnings.warn(
 
 class GCPTransferServiceHook(CloudDataTransferServiceHook):
     """
-    This class is deprecated. Please use
-    `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook`.
+    This class is deprecated.
+
+    Please use `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.
+    CloudDataTransferServiceHook`.
     """
 
     def __init__(self, *args, **kwargs):
