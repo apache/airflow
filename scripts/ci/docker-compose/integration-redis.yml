@@ -21,6 +21,7 @@ services:
     image: redis:5.0.1
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - redis-db-volume:/data/presto
     ports:
       - "${REDIS_HOST_PORT}:6379"
   airflow:
@@ -28,3 +29,5 @@ services:
       - INTEGRATION_REDIS=true
     depends_on:
       - redis
+volumes:
+  redis-db-volume:
