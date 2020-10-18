@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from enum import Enum
-from typing import Optional
+from typing import Optional, Any
 
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
 from tableauserverclient.server import Auth
@@ -30,6 +30,7 @@ class TableauJobFinishCode(Enum):
     .. seealso:: https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_ref.htm#query_job
 
     """
+
     PENDING = -1
     SUCCESS = 0
     ERROR = 1
@@ -50,7 +51,7 @@ class TableauHook(BaseHook):
     :type tableau_conn_id: str
     """
 
-    def __init__(self, site_id: Optional[str] = None, tableau_conn_id: str = 'tableau_default'):
+    def __init__(self, site_id: Optional[str] = None, tableau_conn_id: str = 'tableau_default') -> None:
         super().__init__()
         self.tableau_conn_id = tableau_conn_id
         self.conn = self.get_connection(self.tableau_conn_id)
@@ -63,7 +64,7 @@ class TableauHook(BaseHook):
             self.tableau_conn = self.get_conn()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.server.auth.sign_out()
 
     def get_conn(self) -> Auth.contextmgr:
@@ -81,9 +82,7 @@ class TableauHook(BaseHook):
 
     def _auth_via_password(self) -> Auth.contextmgr:
         tableau_auth = TableauAuth(
-            username=self.conn.login,
-            password=self.conn.password,
-            site_id=self.site_id
+            username=self.conn.login, password=self.conn.password, site_id=self.site_id
         )
         return self.server.auth.sign_in(tableau_auth)
 
@@ -91,7 +90,7 @@ class TableauHook(BaseHook):
         tableau_auth = PersonalAccessTokenAuth(
             token_name=self.conn.extra_dejson['token_name'],
             personal_access_token=self.conn.extra_dejson['personal_access_token'],
-            site_id=self.site_id
+            site_id=self.site_id,
         )
         return self.server.auth.sign_in_with_personal_access_token(tableau_auth)
 

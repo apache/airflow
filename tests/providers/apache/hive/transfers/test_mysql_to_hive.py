@@ -108,14 +108,16 @@ class TestTransfer(unittest.TestCase):
         }
 
         with MySqlHook().get_conn() as cur:
-            cur.execute('''
+            cur.execute(
+                '''
             CREATE TABLE IF NOT EXISTS baby_names (
               org_year integer(4),
               baby_name VARCHAR(25),
               rate FLOAT(7,6),
               sex VARCHAR(4)
             )
-            ''')
+            '''
+            )
 
         for row in rows:
             cur.execute("INSERT INTO baby_names VALUES(%s, %s, %s, %s);", row)
@@ -141,25 +143,42 @@ class TestTransfer(unittest.TestCase):
                 hive_table='test_mysql_to_hive',
                 recreate=True,
                 delimiter=",",
-                dag=self.dag)
-            op.run(start_date=DEFAULT_DATE,
-                   end_date=DEFAULT_DATE, ignore_ti_state=True)
+                dag=self.dag,
+            )
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        hive_cmd = ['beeline', '-u', '"jdbc:hive2://localhost:10000/default"', '-hiveconf',
-                    'airflow.ctx.dag_id=unit_test_dag', '-hiveconf', 'airflow.ctx.task_id=test_m2h',
-                    '-hiveconf', 'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00', '-hiveconf',
-                    'airflow.ctx.dag_run_id=55', '-hiveconf', 'airflow.ctx.dag_owner=airflow',
-                    '-hiveconf', 'airflow.ctx.dag_email=test@airflow.com', '-hiveconf',
-                    'mapreduce.job.queuename=airflow', '-hiveconf', 'mapred.job.queue.name=airflow',
-                    '-hiveconf', 'tez.queue.name=airflow', '-f',
-                    '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive']
+        hive_cmd = [
+            'beeline',
+            '-u',
+            '"jdbc:hive2://localhost:10000/default"',
+            '-hiveconf',
+            'airflow.ctx.dag_id=unit_test_dag',
+            '-hiveconf',
+            'airflow.ctx.task_id=test_m2h',
+            '-hiveconf',
+            'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00',
+            '-hiveconf',
+            'airflow.ctx.dag_run_id=55',
+            '-hiveconf',
+            'airflow.ctx.dag_owner=airflow',
+            '-hiveconf',
+            'airflow.ctx.dag_email=test@airflow.com',
+            '-hiveconf',
+            'mapreduce.job.queuename=airflow',
+            '-hiveconf',
+            'mapred.job.queue.name=airflow',
+            '-hiveconf',
+            'tez.queue.name=airflow',
+            '-f',
+            '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive',
+        ]
 
         mock_popen.assert_called_with(
             hive_cmd,
             stdout=mock_subprocess.PIPE,
             stderr=mock_subprocess.STDOUT,
             cwd="/tmp/airflow_hiveop_test_mysql_to_hive",
-            close_fds=True
+            close_fds=True,
         )
 
     @mock.patch('tempfile.tempdir', '/tmp/')
@@ -181,25 +200,42 @@ class TestTransfer(unittest.TestCase):
                 recreate=False,
                 create=True,
                 delimiter=",",
-                dag=self.dag)
-            op.run(start_date=DEFAULT_DATE,
-                   end_date=DEFAULT_DATE, ignore_ti_state=True)
+                dag=self.dag,
+            )
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        hive_cmd = ['beeline', '-u', '"jdbc:hive2://localhost:10000/default"', '-hiveconf',
-                    'airflow.ctx.dag_id=unit_test_dag', '-hiveconf', 'airflow.ctx.task_id=test_m2h',
-                    '-hiveconf', 'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00', '-hiveconf',
-                    'airflow.ctx.dag_run_id=55', '-hiveconf', 'airflow.ctx.dag_owner=airflow',
-                    '-hiveconf', 'airflow.ctx.dag_email=test@airflow.com', '-hiveconf',
-                    'mapreduce.job.queuename=airflow', '-hiveconf', 'mapred.job.queue.name=airflow',
-                    '-hiveconf', 'tez.queue.name=airflow', '-f',
-                    '/tmp/airflow_hiveop_test_mysql_to_hive_partition/tmptest_mysql_to_hive_partition']
+        hive_cmd = [
+            'beeline',
+            '-u',
+            '"jdbc:hive2://localhost:10000/default"',
+            '-hiveconf',
+            'airflow.ctx.dag_id=unit_test_dag',
+            '-hiveconf',
+            'airflow.ctx.task_id=test_m2h',
+            '-hiveconf',
+            'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00',
+            '-hiveconf',
+            'airflow.ctx.dag_run_id=55',
+            '-hiveconf',
+            'airflow.ctx.dag_owner=airflow',
+            '-hiveconf',
+            'airflow.ctx.dag_email=test@airflow.com',
+            '-hiveconf',
+            'mapreduce.job.queuename=airflow',
+            '-hiveconf',
+            'mapred.job.queue.name=airflow',
+            '-hiveconf',
+            'tez.queue.name=airflow',
+            '-f',
+            '/tmp/airflow_hiveop_test_mysql_to_hive_partition/tmptest_mysql_to_hive_partition',
+        ]
 
         mock_popen.assert_called_with(
             hive_cmd,
             stdout=mock_subprocess.PIPE,
             stderr=mock_subprocess.STDOUT,
             cwd="/tmp/airflow_hiveop_test_mysql_to_hive_partition",
-            close_fds=True
+            close_fds=True,
         )
 
     @mock.patch('tempfile.tempdir', '/tmp/')
@@ -220,25 +256,42 @@ class TestTransfer(unittest.TestCase):
                 recreate=True,
                 delimiter=",",
                 tblproperties={'test_property': 'test_value'},
-                dag=self.dag)
-            op.run(start_date=DEFAULT_DATE,
-                   end_date=DEFAULT_DATE, ignore_ti_state=True)
+                dag=self.dag,
+            )
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        hive_cmd = ['beeline', '-u', '"jdbc:hive2://localhost:10000/default"', '-hiveconf',
-                    'airflow.ctx.dag_id=unit_test_dag', '-hiveconf', 'airflow.ctx.task_id=test_m2h',
-                    '-hiveconf', 'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00', '-hiveconf',
-                    'airflow.ctx.dag_run_id=55', '-hiveconf', 'airflow.ctx.dag_owner=airflow',
-                    '-hiveconf', 'airflow.ctx.dag_email=test@airflow.com', '-hiveconf',
-                    'mapreduce.job.queuename=airflow', '-hiveconf', 'mapred.job.queue.name=airflow',
-                    '-hiveconf', 'tez.queue.name=airflow',
-                    '-f', '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive']
+        hive_cmd = [
+            'beeline',
+            '-u',
+            '"jdbc:hive2://localhost:10000/default"',
+            '-hiveconf',
+            'airflow.ctx.dag_id=unit_test_dag',
+            '-hiveconf',
+            'airflow.ctx.task_id=test_m2h',
+            '-hiveconf',
+            'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00',
+            '-hiveconf',
+            'airflow.ctx.dag_run_id=55',
+            '-hiveconf',
+            'airflow.ctx.dag_owner=airflow',
+            '-hiveconf',
+            'airflow.ctx.dag_email=test@airflow.com',
+            '-hiveconf',
+            'mapreduce.job.queuename=airflow',
+            '-hiveconf',
+            'mapred.job.queue.name=airflow',
+            '-hiveconf',
+            'tez.queue.name=airflow',
+            '-f',
+            '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive',
+        ]
 
         mock_popen.assert_called_with(
             hive_cmd,
             stdout=mock_subprocess.PIPE,
             stderr=mock_subprocess.STDOUT,
             cwd="/tmp/airflow_hiveop_test_mysql_to_hive",
-            close_fds=True
+            close_fds=True,
         )
 
     @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.load_file')
@@ -250,7 +303,8 @@ class TestTransfer(unittest.TestCase):
         try:
             with hook.get_conn() as conn:
                 conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
-                conn.execute("""
+                conn.execute(
+                    """
                     CREATE TABLE {} (
                         c0 TINYINT,
                         c1 SMALLINT,
@@ -259,16 +313,19 @@ class TestTransfer(unittest.TestCase):
                         c4 BIGINT,
                         c5 TIMESTAMP
                     )
-                """.format(mysql_table))
+                """.format(
+                        mysql_table
+                    )
+                )
 
             op = MySqlToHiveOperator(
                 task_id='test_m2h',
                 hive_cli_conn_id='hive_cli_default',
                 sql="SELECT * FROM {}".format(mysql_table),
                 hive_table='test_mysql_to_hive',
-                dag=self.dag)
-            op.run(start_date=DEFAULT_DATE,
-                   end_date=DEFAULT_DATE, ignore_ti_state=True)
+                dag=self.dag,
+            )
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
             assert mock_load_file.call_count == 1
             ordered_dict = OrderedDict()
@@ -278,8 +335,7 @@ class TestTransfer(unittest.TestCase):
             ordered_dict["c3"] = "BIGINT"
             ordered_dict["c4"] = "DECIMAL(38,0)"
             ordered_dict["c5"] = "TIMESTAMP"
-            self.assertEqual(
-                mock_load_file.call_args[1]["field_dict"], ordered_dict)
+            self.assertEqual(mock_load_file.call_args[1]["field_dict"], ordered_dict)
         finally:
             with hook.get_conn() as conn:
                 conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
@@ -298,26 +354,32 @@ class TestTransfer(unittest.TestCase):
         hook = MySqlHook()
 
         try:
-            db_record = (
-                'c0',
-                '["true"]'
-            )
+            db_record = ('c0', '["true"]')
             with hook.get_conn() as conn:
                 conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
-                conn.execute("""
+                conn.execute(
+                    """
                     CREATE TABLE {} (
                         c0 VARCHAR(25),
                         c1 VARCHAR(25)
                     )
-                """.format(mysql_table))
-                conn.execute("""
+                """.format(
+                        mysql_table
+                    )
+                )
+                conn.execute(
+                    """
                     INSERT INTO {} VALUES (
                         '{}', '{}'
                     )
-                """.format(mysql_table, *db_record))
+                """.format(
+                        mysql_table, *db_record
+                    )
+                )
 
             with mock.patch.dict('os.environ', self.env_vars):
                 import unicodecsv as csv
+
                 op = MySqlToHiveOperator(
                     task_id='test_m2h',
                     hive_cli_conn_id='hive_cli_default',
@@ -328,33 +390,49 @@ class TestTransfer(unittest.TestCase):
                     quoting=csv.QUOTE_NONE,
                     quotechar='',
                     escapechar='@',
-                    dag=self.dag)
-                op.run(start_date=DEFAULT_DATE,
-                       end_date=DEFAULT_DATE, ignore_ti_state=True)
+                    dag=self.dag,
+                )
+                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
                 mock_cursor = MockConnectionCursor()
                 mock_cursor.iterable = [('c0', '["true"]'), (2, 2)]
                 hive_hook = MockHiveServer2Hook(connection_cursor=mock_cursor)
 
-                result = hive_hook.get_records(
-                    "SELECT * FROM {}".format(hive_table))
+                result = hive_hook.get_records("SELECT * FROM {}".format(hive_table))
             self.assertEqual(result[0], db_record)
 
-            hive_cmd = ['beeline', '-u', '"jdbc:hive2://localhost:10000/default"', '-hiveconf',
-                        'airflow.ctx.dag_id=unit_test_dag', '-hiveconf', 'airflow.ctx.task_id=test_m2h',
-                        '-hiveconf', 'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00', '-hiveconf',
-                        'airflow.ctx.dag_run_id=55', '-hiveconf', 'airflow.ctx.dag_owner=airflow',
-                        '-hiveconf', 'airflow.ctx.dag_email=test@airflow.com', '-hiveconf',
-                        'mapreduce.job.queuename=airflow', '-hiveconf', 'mapred.job.queue.name=airflow',
-                        '-hiveconf', 'tez.queue.name=airflow', '-f',
-                        '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive']
+            hive_cmd = [
+                'beeline',
+                '-u',
+                '"jdbc:hive2://localhost:10000/default"',
+                '-hiveconf',
+                'airflow.ctx.dag_id=unit_test_dag',
+                '-hiveconf',
+                'airflow.ctx.task_id=test_m2h',
+                '-hiveconf',
+                'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00',
+                '-hiveconf',
+                'airflow.ctx.dag_run_id=55',
+                '-hiveconf',
+                'airflow.ctx.dag_owner=airflow',
+                '-hiveconf',
+                'airflow.ctx.dag_email=test@airflow.com',
+                '-hiveconf',
+                'mapreduce.job.queuename=airflow',
+                '-hiveconf',
+                'mapred.job.queue.name=airflow',
+                '-hiveconf',
+                'tez.queue.name=airflow',
+                '-f',
+                '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive',
+            ]
 
             mock_popen.assert_called_with(
                 hive_cmd,
                 stdout=mock_subprocess.PIPE,
                 stderr=mock_subprocess.STDOUT,
                 cwd="/tmp/airflow_hiveop_test_mysql_to_hive",
-                close_fds=True
+                close_fds=True,
             )
         finally:
             with hook.get_conn() as conn:
@@ -384,12 +462,13 @@ class TestTransfer(unittest.TestCase):
                 -32768,
                 -8388608,
                 -2147483648,
-                -9223372036854775808
+                -9223372036854775808,
             )
 
             with hook.get_conn() as conn:
                 conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
-                conn.execute("""
+                conn.execute(
+                    """
                     CREATE TABLE {} (
                         c0 TINYINT   UNSIGNED,
                         c1 SMALLINT  UNSIGNED,
@@ -402,12 +481,19 @@ class TestTransfer(unittest.TestCase):
                         c8 INT,
                         c9 BIGINT
                     )
-                """.format(mysql_table))
-                conn.execute("""
+                """.format(
+                        mysql_table
+                    )
+                )
+                conn.execute(
+                    """
                     INSERT INTO {} VALUES (
                         {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
                     )
-                """.format(mysql_table, *minmax))
+                """.format(
+                        mysql_table, *minmax
+                    )
+                )
 
             with mock.patch.dict('os.environ', self.env_vars):
                 op = MySqlToHiveOperator(
@@ -417,33 +503,49 @@ class TestTransfer(unittest.TestCase):
                     hive_table=hive_table,
                     recreate=True,
                     delimiter=",",
-                    dag=self.dag)
-                op.run(start_date=DEFAULT_DATE,
-                       end_date=DEFAULT_DATE, ignore_ti_state=True)
+                    dag=self.dag,
+                )
+                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
                 mock_cursor = MockConnectionCursor()
                 mock_cursor.iterable = [minmax]
                 hive_hook = MockHiveServer2Hook(connection_cursor=mock_cursor)
 
-                result = hive_hook.get_records(
-                    "SELECT * FROM {}".format(hive_table))
+                result = hive_hook.get_records("SELECT * FROM {}".format(hive_table))
                 self.assertEqual(result[0], minmax)
 
-                hive_cmd = ['beeline', '-u', '"jdbc:hive2://localhost:10000/default"', '-hiveconf',
-                            'airflow.ctx.dag_id=unit_test_dag', '-hiveconf', 'airflow.ctx.task_id=test_m2h',
-                            '-hiveconf', 'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00', '-hiveconf',
-                            'airflow.ctx.dag_run_id=55', '-hiveconf', 'airflow.ctx.dag_owner=airflow',
-                            '-hiveconf', 'airflow.ctx.dag_email=test@airflow.com', '-hiveconf',
-                            'mapreduce.job.queuename=airflow', '-hiveconf', 'mapred.job.queue.name=airflow',
-                            '-hiveconf', 'tez.queue.name=airflow', '-f',
-                            '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive']
+                hive_cmd = [
+                    'beeline',
+                    '-u',
+                    '"jdbc:hive2://localhost:10000/default"',
+                    '-hiveconf',
+                    'airflow.ctx.dag_id=unit_test_dag',
+                    '-hiveconf',
+                    'airflow.ctx.task_id=test_m2h',
+                    '-hiveconf',
+                    'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00',
+                    '-hiveconf',
+                    'airflow.ctx.dag_run_id=55',
+                    '-hiveconf',
+                    'airflow.ctx.dag_owner=airflow',
+                    '-hiveconf',
+                    'airflow.ctx.dag_email=test@airflow.com',
+                    '-hiveconf',
+                    'mapreduce.job.queuename=airflow',
+                    '-hiveconf',
+                    'mapred.job.queue.name=airflow',
+                    '-hiveconf',
+                    'tez.queue.name=airflow',
+                    '-f',
+                    '/tmp/airflow_hiveop_test_mysql_to_hive/tmptest_mysql_to_hive',
+                ]
 
                 mock_popen.assert_called_with(
                     hive_cmd,
                     stdout=mock_subprocess.PIPE,
                     stderr=mock_subprocess.STDOUT,
                     cwd="/tmp/airflow_hiveop_test_mysql_to_hive",
-                    close_fds=True
+                    close_fds=True,
                 )
 
         finally:

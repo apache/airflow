@@ -26,9 +26,15 @@ from urllib.parse import urlparse
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
-    BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator, BigQueryGetDatasetOperator,
-    BigQueryGetDatasetTablesOperator, BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator,
+    BigQueryDeleteTableOperator,
+    BigQueryGetDatasetOperator,
+    BigQueryGetDatasetTablesOperator,
+    BigQueryPatchDatasetOperator,
+    BigQueryUpdateDatasetOperator,
     BigQueryUpsertTableOperator,
 )
 from airflow.utils.dates import days_ago
@@ -117,9 +123,7 @@ with models.DAG(
     # [END howto_operator_bigquery_upsert_table]
 
     # [START howto_operator_bigquery_create_dataset]
-    create_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create-dataset", dataset_id=DATASET_NAME
-    )
+    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
     # [END howto_operator_bigquery_create_dataset]
 
     # [START howto_operator_bigquery_get_dataset_tables]
@@ -129,9 +133,7 @@ with models.DAG(
     # [END howto_operator_bigquery_get_dataset_tables]
 
     # [START howto_operator_bigquery_get_dataset]
-    get_dataset = BigQueryGetDatasetOperator(
-        task_id="get-dataset", dataset_id=DATASET_NAME
-    )
+    get_dataset = BigQueryGetDatasetOperator(task_id="get-dataset", dataset_id=DATASET_NAME)
     # [END howto_operator_bigquery_get_dataset]
 
     get_dataset_result = BashOperator(

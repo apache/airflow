@@ -26,6 +26,7 @@ class NotInRetryPeriodDep(BaseTIDep):
     """
     Determines whether a task is not in retry period.
     """
+
     NAME = "Not In Retry Period"
     IGNOREABLE = True
     IS_TASK_DEP = True

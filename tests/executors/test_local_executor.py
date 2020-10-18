@@ -20,6 +20,8 @@ import subprocess
 import unittest
 from unittest import mock
 
+from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.executors.local_executor import LocalExecutor
 from airflow.utils.state import State
 
@@ -29,9 +31,9 @@ class TestLocalExecutor(unittest.TestCase):
     TEST_SUCCESS_COMMANDS = 5
 
     @mock.patch('airflow.executors.local_executor.subprocess.check_call')
-    def execution_parallelism(self, mock_check_call, parallelism=0):
-        success_command = ['airflow', 'tasks', 'run', 'true', 'some_parameter']
-        fail_command = ['airflow', 'tasks', 'run', 'false']
+    def execution_parallelism_subprocess(self, mock_check_call, parallelism=0):
+        success_command = ['airflow', 'tasks', 'run', 'true', 'some_parameter', '2020-10-07']
+        fail_command = ['airflow', 'tasks', 'run', 'false', 'task_id', '2020-10-07']
 
         def fake_execute_command(command, close_fds=True):  # pylint: disable=unused-argument
             if command != success_command:
@@ -40,6 +42,23 @@ class TestLocalExecutor(unittest.TestCase):
                 return 0
 
         mock_check_call.side_effect = fake_execute_command
+
+        self._test_execute(parallelism, success_command, fail_command)
+
+    @mock.patch('airflow.cli.commands.task_command.task_run')
+    def execution_parallelism_fork(self, mock_run, parallelism=0):
+        success_command = ['airflow', 'tasks', 'run', 'success', 'some_parameter', '2020-10-07']
+        fail_command = ['airflow', 'tasks', 'run', 'failure', 'some_parameter', '2020-10-07']
+
+        def fake_task_run(args):
+            if args.dag_id != 'success':
+                raise AirflowException('Simulate failed task')
+
+        mock_run.side_effect = fake_task_run
+
+        self._test_execute(parallelism, success_command, fail_command)
+
+    def _test_execute(self, parallelism, success_command, fail_command):
 
         executor = LocalExecutor(parallelism=parallelism)
         executor.start()
@@ -71,12 +90,25 @@ class TestLocalExecutor(unittest.TestCase):
         expected = self.TEST_SUCCESS_COMMANDS + 1 if parallelism == 0 else parallelism
         self.assertEqual(executor.workers_used, expected)
 
-    def test_execution_unlimited_parallelism(self):
-        self.execution_parallelism(parallelism=0)  # pylint: disable=no-value-for-parameter
+    def test_execution_subprocess_unlimited_parallelism(self):
+        with mock.patch.object(settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER',
+                               new_callable=mock.PropertyMock) as option:
+            option.return_value = True
+            self.execution_parallelism_subprocess(parallelism=0)  # pylint: disable=no-value-for-parameter
 
-    def test_execution_limited_parallelism(self):
-        test_parallelism = 2
-        self.execution_parallelism(parallelism=test_parallelism)  # pylint: disable=no-value-for-parameter
+    def test_execution_subprocess_limited_parallelism(self):
+        with mock.patch.object(settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER',
+                               new_callable=mock.PropertyMock) as option:
+            option.return_value = True
+            self.execution_parallelism_subprocess(parallelism=2)  # pylint: disable=no-value-for-parameter
+
+    @mock.patch.object(settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', False)
+    def test_execution_unlimited_parallelism_fork(self):
+        self.execution_parallelism_fork(parallelism=0)  # pylint: disable=no-value-for-parameter
+
+    @mock.patch.object(settings, 'EXECUTE_TASKS_NEW_PYTHON_INTERPRETER', False)
+    def test_execution_limited_parallelism_fork(self):
+        self.execution_parallelism_fork(parallelism=2)  # pylint: disable=no-value-for-parameter
 
     @mock.patch('airflow.executors.local_executor.LocalExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')

@@ -30,7 +30,6 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 
 
 class TestS3KeysUnchangedSensor(TestCase):
-
     def setUp(self):
         args = {
             'owner': 'airflow',
@@ -48,7 +47,7 @@ class TestS3KeysUnchangedSensor(TestCase):
             poke_interval=0.1,
             min_objects=1,
             allow_delete=True,
-            dag=self.dag
+            dag=self.dag,
         )
 
     def test_reschedule_mode_not_allowed(self):
@@ -59,7 +58,7 @@ class TestS3KeysUnchangedSensor(TestCase):
                 prefix='test-prefix/path',
                 poke_interval=0.1,
                 mode='reschedule',
-                dag=self.dag
+                dag=self.dag,
             )
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
@@ -69,16 +68,18 @@ class TestS3KeysUnchangedSensor(TestCase):
         with self.assertRaises(AirflowException):
             self.sensor.is_keys_unchanged({'a'})
 
-    @parameterized.expand([
-        # Test: resetting inactivity period after key change
-        (({'a'}, {'a', 'b'}, {'a', 'b', 'c'}), (False, False, False), (0, 0, 0)),
-        # ..and in case an item was deleted with option `allow_delete=True`
-        (({'a', 'b'}, {'a'}, {'a', 'c'}), (False, False, False), (0, 0, 0)),
-        # Test: passes after inactivity period was exceeded
-        (({'a'}, {'a'}, {'a'}), (False, False, True), (0, 10, 20)),
-        # ..and do not pass if empty key is given
-        ((set(), set(), set()), (False, False, False), (0, 10, 20))
-    ])
+    @parameterized.expand(
+        [
+            # Test: resetting inactivity period after key change
+            (({'a'}, {'a', 'b'}, {'a', 'b', 'c'}), (False, False, False), (0, 0, 0)),
+            # ..and in case an item was deleted with option `allow_delete=True`
+            (({'a', 'b'}, {'a'}, {'a', 'c'}), (False, False, False), (0, 0, 0)),
+            # Test: passes after inactivity period was exceeded
+            (({'a'}, {'a'}, {'a'}), (False, False, True), (0, 10, 20)),
+            # ..and do not pass if empty key is given
+            ((set(), set(), set()), (False, False, False), (0, 10, 20)),
+        ]
+    )
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_key_changes(self, current_objects, expected_returns, inactivity_periods):
         self.assertEqual(self.sensor.is_keys_unchanged(current_objects[0]), expected_returns[0])

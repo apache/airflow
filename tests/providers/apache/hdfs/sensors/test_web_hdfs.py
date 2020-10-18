@@ -26,7 +26,6 @@ TEST_HDFS_PATH = 'hdfs://user/hive/warehouse/airflow.db/static_babynames'
 
 
 class TestWebHdfsSensor(TestHiveEnvironment):
-
     @mock.patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook')
     def test_poke(self, mock_hook):
         sensor = WebHdfsSensor(

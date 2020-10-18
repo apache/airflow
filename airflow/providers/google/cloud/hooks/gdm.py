@@ -19,7 +19,7 @@
 
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build, Resource
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -27,8 +27,8 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-method
     """
-    Interact with Google Cloud Deployment Manager using the Google Cloud Platform connection.
-    This allows for scheduled and programatic inspection and deletion fo resources managed by GDM.
+    Interact with Google Cloud Deployment Manager using the Google Cloud connection.
+    This allows for scheduled and programmatic inspection and deletion fo resources managed by GDM.
     """
 
     def __init__(
@@ -43,7 +43,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
             impersonation_chain=impersonation_chain,
         )
 
-    def get_conn(self):
+    def get_conn(self) -> Resource:
         """
         Returns a Google Deployment Manager service object.
 
@@ -53,9 +53,12 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         return build('deploymentmanager', 'v2', http=http_authorized, cache_discovery=False)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def list_deployments(self, project_id: Optional[str] = None,  # pylint: disable=too-many-arguments
-                         deployment_filter: Optional[str] = None,
-                         order_by: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_deployments(
+        self,
+        project_id: Optional[str] = None,  # pylint: disable=too-many-arguments
+        deployment_filter: Optional[str] = None,
+        order_by: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Lists deployments in a google cloud project.
 
@@ -69,9 +72,8 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         """
         deployments = []  # type: List[Dict]
         conn = self.get_conn()
-        request = conn.deployments().list(project=project_id,    # pylint: disable=no-member
-                                          filter=deployment_filter,
-                                          orderBy=order_by)
+        # pylint: disable=no-member
+        request = conn.deployments().list(project=project_id, filter=deployment_filter, orderBy=order_by)
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
@@ -83,10 +85,9 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         return deployments
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_deployment(self,
-                          project_id: Optional[str],
-                          deployment: Optional[str] = None,
-                          delete_policy: Optional[str] = None):
+    def delete_deployment(
+        self, project_id: Optional[str], deployment: Optional[str] = None, delete_policy: Optional[str] = None
+    ) -> None:
         """
         Deletes a deployment and all associated resources in a google cloud project.
 
@@ -100,10 +101,12 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         :rtype: None
         """
         conn = self.get_conn()
-        request = conn.deployments().delete(project=project_id,  # pylint: disable=no-member
-                                            deployment=deployment,
-                                            deletePolicy=delete_policy)
+        # pylint: disable=no-member
+        request = conn.deployments().delete(
+            project=project_id, deployment=deployment, deletePolicy=delete_policy
+        )
         resp = request.execute()
         if 'error' in resp.keys():
-            raise AirflowException('Errors deleting deployment: ',
-                                   ', '.join([err['message'] for err in resp['error']['errors']]))
+            raise AirflowException(
+                'Errors deleting deployment: ', ', '.join([err['message'] for err in resp['error']['errors']])
+            )

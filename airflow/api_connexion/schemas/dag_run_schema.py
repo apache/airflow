@@ -29,7 +29,8 @@ from airflow.utils.types import DagRunType
 
 
 class ConfObject(fields.Field):
-    """ The conf field"""
+    """The conf field"""
+
     def _serialize(self, value, attr, obj, **kwargs):
         if not value:
             return {}
@@ -47,7 +48,7 @@ class DAGRunSchema(SQLAlchemySchema):
     """
 
     class Meta:
-        """ Meta """
+        """Meta"""
 
         model = DagRun
         dateformat = "iso"
@@ -90,10 +91,11 @@ class DAGRunCollectionSchema(Schema):
 
 
 class DagRunsBatchFormSchema(Schema):
-    """ Schema to validate and deserialize the Form(request payload) submitted to DagRun Batch endpoint"""
+    """Schema to validate and deserialize the Form(request payload) submitted to DagRun Batch endpoint"""
 
     class Meta:
-        """ Meta """
+        """Meta"""
+
         datetimeformat = 'iso'
         strict = True
 

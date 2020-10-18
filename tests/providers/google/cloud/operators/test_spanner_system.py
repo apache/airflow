@@ -29,14 +29,22 @@ GCP_SPANNER_INSTANCE_ID = os.environ.get('GCP_SPANNER_INSTANCE_ID', 'testinstanc
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_SPANNER_KEY)
 class CloudSpannerExampleDagsTest(GoogleSystemTest):
-
     @provide_gcp_context(GCP_SPANNER_KEY)
     def tearDown(self):
-        self.execute_with_ctx([
-            'gcloud', 'spanner', '--project', GCP_PROJECT_ID,
-            '--quiet', '--verbosity=none',
-            'instances', 'delete', GCP_SPANNER_INSTANCE_ID
-        ], key=GCP_SPANNER_KEY)
+        self.execute_with_ctx(
+            [
+                'gcloud',
+                'spanner',
+                '--project',
+                GCP_PROJECT_ID,
+                '--quiet',
+                '--verbosity=none',
+                'instances',
+                'delete',
+                GCP_SPANNER_INSTANCE_ID,
+            ],
+            key=GCP_SPANNER_KEY,
+        )
         super().tearDown()
 
     @provide_gcp_context(GCP_SPANNER_KEY)

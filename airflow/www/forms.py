@@ -44,6 +44,7 @@ class DateTimeWithTimezoneField(Field):
     """
     A text field which stores a `datetime.datetime` matching a format.
     """
+
     widget = widgets.TextInput()
 
     def __init__(self, label=None, validators=None, datetime_format='%Y-%m-%d %H:%M:%S%Z', **kwargs):
@@ -88,6 +89,7 @@ class DateTimeForm(FlaskForm):
     """
     Date filter form needed for task views
     """
+
     execution_date = DateTimeWithTimezoneField(
         "Execution date", widget=AirflowDateTimePickerWidget())
 
@@ -113,11 +115,13 @@ class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
     """
     Date time and number of runs and dag runs form for graph and gantt view
     """
+
     execution_date = SelectField("DAG run")
 
 
 class DagRunForm(DynamicForm):
     """Form for editing and adding DAG Run"""
+
     dag_id = StringField(
         lazy_gettext('Dag Id'),
         validators=[DataRequired()],
@@ -149,7 +153,7 @@ class DagRunForm(DynamicForm):
     def populate_obj(self, item):
         """Populates the attributes of the passed obj with data from the form’s fields."""
         super().populate_obj(item)  # pylint: disable=no-member
-        item.run_type = DagRunType.from_run_id(item.run_id).value
+        item.run_type = DagRunType.from_run_id(item.run_id)
         if item.conf:
             item.conf = json.loads(item.conf)
 
@@ -161,7 +165,7 @@ _connection_types = [
     ('facebook_social', 'Facebook Social'),
     ('fs', 'File (path)'),
     ('ftp', 'FTP'),
-    ('google_cloud_platform', 'Google Cloud Platform'),
+    ('google_cloud_platform', 'Google Cloud'),
     ('hdfs', 'HDFS'),
     ('http', 'HTTP'),
     ('pig_cli', 'Pig Client Wrapper'),
@@ -205,10 +209,11 @@ _connection_types = [
     ('yandexcloud', 'Yandex Cloud'),
     ('livy', 'Apache Livy'),
     ('tableau', 'Tableau'),
-    ('kubernetes', 'Kubernetes cluster Connection'),
+    ('kubernetes', 'Kubernetes Cluster Connection'),
     ('spark', 'Spark'),
     ('imap', 'IMAP'),
     ('vault', 'Hashicorp Vault'),
+    ('azure', 'Azure'),
 ]
 
 
@@ -311,6 +316,9 @@ class ConnectionForm(DynamicForm):
     )
     extra__kubernetes__in_cluster = BooleanField(
         lazy_gettext('In cluster configuration'))
+    extra__kubernetes__kube_config_path = StringField(
+        lazy_gettext('Kube config path'),
+        widget=BS3TextFieldWidget())
     extra__kubernetes__kube_config = StringField(
         lazy_gettext('Kube config (JSON format)'),
         widget=BS3TextFieldWidget())

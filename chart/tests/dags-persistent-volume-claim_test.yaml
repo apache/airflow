@@ -51,7 +51,7 @@ tests:
           enabled: true
           size: 1G
           existingClaim: ~
-          storageClass: "MyStorageClass"
+          storageClassName: "MyStorageClass"
           accessMode: ReadWriteMany
     asserts:
       - equal:

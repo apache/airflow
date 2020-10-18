@@ -28,6 +28,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.external_task_sensor import ExternalTaskMarker, ExternalTaskSensor
 from airflow.sensors.time_sensor import TimeSensor
+from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
@@ -396,6 +397,26 @@ exit 0
             )
 
 
+class TestExternalTaskMarker(unittest.TestCase):
+    def test_serialized_fields(self):
+        self.assertTrue({"recursion_depth"}.issubset(ExternalTaskMarker.get_serialized_fields()))
+
+    def test_serialized_external_task_marker(self):
+        dag = DAG('test_serialized_external_task_marker', start_date=DEFAULT_DATE)
+        task = ExternalTaskMarker(
+            task_id="parent_task",
+            external_dag_id="external_task_marker_child",
+            external_task_id="child_task1",
+            dag=dag
+        )
+
+        serialized_op = SerializedBaseOperator.serialize_operator(task)
+        deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
+        self.assertEqual(deserialized_op.task_type, 'ExternalTaskMarker')
+        self.assertEqual(getattr(deserialized_op, 'external_dag_id'), 'external_task_marker_child')
+        self.assertEqual(getattr(deserialized_op, 'external_task_id'), 'child_task1')
+
+
 @pytest.fixture
 def dag_bag_ext():
     """
@@ -551,7 +572,7 @@ def test_external_task_marker_exception(dag_bag_ext):
 @pytest.fixture
 def dag_bag_cyclic():
     """
-    Create a DagBag with DAGs having cyclic dependenceis set up by ExternalTaskMarker and
+    Create a DagBag with DAGs having cyclic dependencies set up by ExternalTaskMarker and
     ExternalTaskSensor.
 
     dag_0:   task_a_0 >> task_b_0

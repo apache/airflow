@@ -38,10 +38,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self, *,
-                 job_name,
-                 print_log=True,
-                 **kwargs):
+    def __init__(self, *, job_name, print_log=True, **kwargs):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.print_log = print_log
@@ -75,20 +72,27 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         if self.print_log:
             if not self.log_resource_inited:
                 self.init_log_resource(self.get_hook())
-            self.state, self.last_description, self.last_describe_job_call = \
-                self.get_hook().describe_training_job_with_log(self.job_name,
-                                                               self.positions, self.stream_names,
-                                                               self.instance_count, self.state,
-                                                               self.last_description,
-                                                               self.last_describe_job_call)
+            (
+                self.state,
+                self.last_description,
+                self.last_describe_job_call,
+            ) = self.get_hook().describe_training_job_with_log(
+                self.job_name,
+                self.positions,
+                self.stream_names,
+                self.instance_count,
+                self.state,
+                self.last_description,
+                self.last_describe_job_call,
+            )
         else:
             self.last_description = self.get_hook().describe_training_job(self.job_name)
 
         status = self.state_from_response(self.last_description)
         if status not in self.non_terminal_states() and status not in self.failed_states():
-            billable_time = \
-                (self.last_description['TrainingEndTime'] - self.last_description['TrainingStartTime']) * \
-                self.last_description['ResourceConfig']['InstanceCount']
+            billable_time = (
+                self.last_description['TrainingEndTime'] - self.last_description['TrainingStartTime']
+            ) * self.last_description['ResourceConfig']['InstanceCount']
             self.log.info('Billable seconds: %s', int(billable_time.total_seconds()) + 1)
 
         return self.last_description

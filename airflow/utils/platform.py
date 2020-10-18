@@ -57,6 +57,6 @@ def get_airflow_git_version():
     try:
         git_version = str(pkgutil.get_data('airflow', 'git_version'), encoding="UTF-8")
     except Exception as e:  # pylint: disable=broad-except
-        log.error(e)
+        log.debug(e)
 
     return git_version

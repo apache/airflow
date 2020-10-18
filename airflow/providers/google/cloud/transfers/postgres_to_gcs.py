@@ -23,6 +23,7 @@ import datetime
 import json
 import time
 from decimal import Decimal
+from typing import Dict
 
 import pendulum
 
@@ -38,6 +39,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
     :param postgres_conn_id: Reference to a specific Postgres hook.
     :type postgres_conn_id: str
     """
+
     ui_color = '#a0e08c'
 
     type_map = {
@@ -58,9 +60,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
     }
 
     @apply_defaults
-    def __init__(self, *,
-                 postgres_conn_id='postgres_default',
-                 **kwargs):
+    def __init__(self, *, postgres_conn_id='postgres_default', **kwargs):
         super().__init__(**kwargs)
         self.postgres_conn_id = postgres_conn_id
 
@@ -74,12 +74,11 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql, self.parameters)
         return cursor
 
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         return {
             'name': field[0],
             'type': self.type_map.get(field[1], "STRING"),
-            'mode': 'REPEATED' if field[1] in (1009, 1005, 1007,
-                                               1016) else 'NULLABLE'
+            'mode': 'REPEATED' if field[1] in (1009, 1005, 1007, 1016) else 'NULLABLE',
         }
 
     def convert_type(self, value, schema_type):
@@ -92,10 +91,11 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
             return pendulum.parse(value.isoformat()).float_timestamp
         if isinstance(value, datetime.time):
             formated_time = time.strptime(str(value), "%H:%M:%S")
-            return int(datetime.timedelta(
-                hours=formated_time.tm_hour,
-                minutes=formated_time.tm_min,
-                seconds=formated_time.tm_sec).total_seconds())
+            return int(
+                datetime.timedelta(
+                    hours=formated_time.tm_hour, minutes=formated_time.tm_min, seconds=formated_time.tm_sec
+                ).total_seconds()
+            )
         if isinstance(value, dict):
             return json.dumps(value)
         if isinstance(value, Decimal):

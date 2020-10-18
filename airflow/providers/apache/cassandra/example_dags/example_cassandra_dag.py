@@ -34,7 +34,7 @@ with DAG(
     default_args=args,
     schedule_interval=None,
     start_date=days_ago(2),
-    tags=['example']
+    tags=['example'],
 ) as dag:
     # [START howto_operator_cassandra_table_sensor]
     table_sensor = CassandraTableSensor(

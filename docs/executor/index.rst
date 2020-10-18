@@ -48,3 +48,4 @@ Supported Backends
     dask
     celery
     kubernetes
+    celery_kubernetes

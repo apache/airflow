@@ -32,6 +32,7 @@ except ImportError:
     # fool the pre-commit check that looks for old imports...
     # TODO remove this once we don't need to test this on 1.10
     import importlib
+
     db_module = importlib.import_module("airflow.utils.db")
     create_session = getattr(db_module, "create_session")
 
@@ -148,9 +149,10 @@ class PrestoToGCSSystemTest(GoogleSystemTest):
         with suppress(Exception):
             self.drop_db()
         self.init_db()
-        self.execute_with_ctx([
-            "bq", "rm", "--recursive", "--force", f"{self._project_id()}:{DATASET_NAME}"
-        ], key=GCP_BIGQUERY_KEY)
+        self.execute_with_ctx(
+            ["bq", "rm", "--recursive", "--force", f"{self._project_id()}:{DATASET_NAME}"],
+            key=GCP_BIGQUERY_KEY,
+        )
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def test_run_example_dag(self):
@@ -160,7 +162,8 @@ class PrestoToGCSSystemTest(GoogleSystemTest):
     def tearDown(self):
         self.delete_gcs_bucket(GCS_BUCKET)
         self.drop_db()
-        self.execute_with_ctx([
-            "bq", "rm", "--recursive", "--force", f"{self._project_id()}:{DATASET_NAME}"
-        ], key=GCP_BIGQUERY_KEY)
+        self.execute_with_ctx(
+            ["bq", "rm", "--recursive", "--force", f"{self._project_id()}:{DATASET_NAME}"],
+            key=GCP_BIGQUERY_KEY,
+        )
         super().tearDown()

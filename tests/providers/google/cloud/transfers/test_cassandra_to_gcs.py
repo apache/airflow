@@ -28,9 +28,7 @@ TMP_FILE_NAME = "temp-file"
 
 class TestCassandraToGCS(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.NamedTemporaryFile")
-    @mock.patch(
-        "airflow.providers.google.cloud.transfers.cassandra_to_gcs.GCSHook.upload"
-    )
+    @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.GCSHook.upload")
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraHook")
     def test_execute(self, mock_hook, mock_upload, mock_tempfile):
         test_bucket = "test-bucket"
@@ -50,10 +48,20 @@ class TestCassandraToGCS(unittest.TestCase):
         operator.execute(None)
         mock_hook.return_value.get_conn.assert_called_once_with()
 
-        call_schema = call(bucket_name=test_bucket, object_name=schema,
-                           filename=TMP_FILE_NAME, mime_type="application/json", gzip=gzip)
-        call_data = call(bucket_name=test_bucket, object_name=filename,
-                         filename=TMP_FILE_NAME, mime_type="application/json", gzip=gzip)
+        call_schema = call(
+            bucket_name=test_bucket,
+            object_name=schema,
+            filename=TMP_FILE_NAME,
+            mime_type="application/json",
+            gzip=gzip,
+        )
+        call_data = call(
+            bucket_name=test_bucket,
+            object_name=filename,
+            filename=TMP_FILE_NAME,
+            mime_type="application/json",
+            gzip=gzip,
+        )
         mock_upload.assert_has_calls([call_schema, call_data], any_order=True)
 
     def test_convert_value(self):

@@ -30,7 +30,7 @@ DEFAULT_ARGS = {
     'depends_on_past': False,
     'email': ['airflow@example.com'],
     'email_on_failure': False,
-    'email_on_retry': False
+    'email_on_retry': False,
 }
 
 # [START howto_operator_emr_automatic_steps_config]
@@ -40,12 +40,8 @@ SPARK_STEPS = [
         'ActionOnFailure': 'CONTINUE',
         'HadoopJarStep': {
             'Jar': 'command-runner.jar',
-            'Args': [
-                '/usr/lib/spark/bin/run-example',
-                'SparkPi',
-                '10'
-            ]
-        }
+            'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+        },
     }
 ]
 
@@ -85,13 +81,13 @@ with DAG(
         task_id='create_job_flow',
         job_flow_overrides=JOB_FLOW_OVERRIDES,
         aws_conn_id='aws_default',
-        emr_conn_id='emr_default'
+        emr_conn_id='emr_default',
     )
 
     job_sensor = EmrJobFlowSensor(
         task_id='check_job_flow',
         job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
-        aws_conn_id='aws_default'
+        aws_conn_id='aws_default',
     )
 
     job_flow_creator >> job_sensor

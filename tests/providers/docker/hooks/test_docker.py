@@ -39,7 +39,7 @@ class TestDockerHook(unittest.TestCase):
                 conn_type='docker',
                 host='some.docker.registry.com',
                 login='some_user',
-                password='some_p4$$w0rd'
+                password='some_p4$$w0rd',
             )
         )
         db.merge_conn(
@@ -50,46 +50,34 @@ class TestDockerHook(unittest.TestCase):
                 port=9876,
                 login='some_user',
                 password='some_p4$$w0rd',
-                extra='{"email": "some@example.com", "reauth": "no"}'
+                extra='{"email": "some@example.com", "reauth": "no"}',
             )
         )
 
     def test_init_fails_when_no_base_url_given(self, _):
         with self.assertRaises(AirflowException):
-            DockerHook(
-                docker_conn_id='docker_default',
-                version='auto',
-                tls=None
-            )
+            DockerHook(docker_conn_id='docker_default', version='auto', tls=None)
 
     def test_init_fails_when_no_api_version_given(self, _):
         with self.assertRaises(AirflowException):
-            DockerHook(
-                docker_conn_id='docker_default',
-                base_url='unix://var/run/docker.sock',
-                tls=None
-            )
+            DockerHook(docker_conn_id='docker_default', base_url='unix://var/run/docker.sock', tls=None)
 
     def test_get_conn_override_defaults(self, docker_client_mock):
         hook = DockerHook(
             docker_conn_id='docker_default',
             base_url='https://index.docker.io/v1/',
             version='1.23',
-            tls='someconfig'
+            tls='someconfig',
         )
         hook.get_conn()
         docker_client_mock.assert_called_once_with(
-            base_url='https://index.docker.io/v1/',
-            version='1.23',
-            tls='someconfig'
+            base_url='https://index.docker.io/v1/', version='1.23', tls='someconfig'
         )
 
     def test_get_conn_with_standard_config(self, _):
         try:
             hook = DockerHook(
-                docker_conn_id='docker_default',
-                base_url='unix://var/run/docker.sock',
-                version='auto'
+                docker_conn_id='docker_default', base_url='unix://var/run/docker.sock', version='auto'
             )
             client = hook.get_conn()
             self.assertIsNotNone(client)
@@ -99,9 +87,7 @@ class TestDockerHook(unittest.TestCase):
     def test_get_conn_with_extra_config(self, _):
         try:
             hook = DockerHook(
-                docker_conn_id='docker_with_extras',
-                base_url='unix://var/run/docker.sock',
-                version='auto'
+                docker_conn_id='docker_with_extras', base_url='unix://var/run/docker.sock', version='auto'
             )
             client = hook.get_conn()
             self.assertIsNotNone(client)
@@ -110,9 +96,7 @@ class TestDockerHook(unittest.TestCase):
 
     def test_conn_with_standard_config_passes_parameters(self, _):
         hook = DockerHook(
-            docker_conn_id='docker_default',
-            base_url='unix://var/run/docker.sock',
-            version='auto'
+            docker_conn_id='docker_default', base_url='unix://var/run/docker.sock', version='auto'
         )
         client = hook.get_conn()
         client.login.assert_called_once_with(  # pylint: disable=no-member
@@ -120,14 +104,12 @@ class TestDockerHook(unittest.TestCase):
             password='some_p4$$w0rd',
             registry='some.docker.registry.com',
             reauth=True,
-            email=None
+            email=None,
         )
 
     def test_conn_with_extra_config_passes_parameters(self, _):
         hook = DockerHook(
-            docker_conn_id='docker_with_extras',
-            base_url='unix://var/run/docker.sock',
-            version='auto'
+            docker_conn_id='docker_with_extras', base_url='unix://var/run/docker.sock', version='auto'
         )
         client = hook.get_conn()
         client.login.assert_called_once_with(  # pylint: disable=no-member
@@ -135,7 +117,7 @@ class TestDockerHook(unittest.TestCase):
             password='some_p4$$w0rd',
             registry='another.docker.registry.com:9876',
             reauth=False,
-            email='some@example.com'
+            email='some@example.com',
         )
 
     def test_conn_with_broken_config_missing_username_fails(self, _):
@@ -145,28 +127,23 @@ class TestDockerHook(unittest.TestCase):
                 conn_type='docker',
                 host='some.docker.registry.com',
                 password='some_p4$$w0rd',
-                extra='{"email": "some@example.com"}'
+                extra='{"email": "some@example.com"}',
             )
         )
         with self.assertRaises(AirflowException):
             DockerHook(
                 docker_conn_id='docker_without_username',
                 base_url='unix://var/run/docker.sock',
-                version='auto'
+                version='auto',
             )
 
     def test_conn_with_broken_config_missing_host_fails(self, _):
         db.merge_conn(
             Connection(
-                conn_id='docker_without_host',
-                conn_type='docker',
-                login='some_user',
-                password='some_p4$$w0rd'
+                conn_id='docker_without_host', conn_type='docker', login='some_user', password='some_p4$$w0rd'
             )
         )
         with self.assertRaises(AirflowException):
             DockerHook(
-                docker_conn_id='docker_without_host',
-                base_url='unix://var/run/docker.sock',
-                version='auto'
+                docker_conn_id='docker_without_host', base_url='unix://var/run/docker.sock', version='auto'
             )

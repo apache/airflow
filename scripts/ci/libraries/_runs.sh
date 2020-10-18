@@ -17,38 +17,38 @@
 # under the License.
 
 # Docker command to build documentation
-function run_docs() {
+function runs::run_docs() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/docs/build_docs.py" "${@}"
+            "--" "/opt/airflow/scripts/in_container/run_docs_build.sh" "${@}"
 }
 
 
 # Docker command to generate constraint files.
-function run_generate_constraints() {
+function runs::run_generate_constraints() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_generate_constraints.sh"
+        "--" "/opt/airflow/scripts/in_container/run_generate_constraints.sh"
 }
 
-# Docker command to prepare backport packages
-function run_prepare_backport_packages() {
+# Docker command to prepare provider packages
+function runs::run_prepare_provider_packages() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_prepare_backport_packages.sh" "${@}"
+        "--" "/opt/airflow/scripts/in_container/run_prepare_provider_packages.sh" "${@}"
 }
 
-# Docker command to generate release notes for backport packages
-function run_prepare_backport_readme() {
+# Docker command to generate release notes for provider packages
+function runs::run_prepare_provider_readme() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_prepare_backport_readme.sh" "${@}"
+        "--" "/opt/airflow/scripts/in_container/run_prepare_provider_readme.sh" "${@}"
 }

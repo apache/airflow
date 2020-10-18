@@ -180,6 +180,8 @@ All operators are in the following packages:
 
   airflow/providers/papermill/operators/index
 
+  airflow/providers/plexus/operators/index
+
   airflow/providers/postgres/operators/index
 
   airflow/providers/qubole/operators/index
@@ -325,6 +327,8 @@ All hooks are in the following packages:
 
   airflow/providers/pagerduty/hooks/index
 
+  airflow/providers/plexus/hooks/index
+
   airflow/providers/postgres/hooks/index
 
   airflow/providers/presto/hooks/index
@@ -410,6 +414,7 @@ All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
   airflow/providers/amazon/aws/secrets/index
   airflow/providers/hashicorp/secrets/index
   airflow/providers/google/cloud/secrets/index
+  airflow/providers/microsoft/azure/secrets/index
 
 Task Log Handlers
 -----------------

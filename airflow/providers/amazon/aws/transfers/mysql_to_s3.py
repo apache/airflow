@@ -35,11 +35,11 @@ class MySQLToS3Operator(BaseOperator):
     Saves data from an specific MySQL query into a file in S3.
 
     :param query: the sql query to be executed. If you want to execute a file, place the absolute path of it,
-        ending with .sql extension.
+        ending with .sql extension. (templated)
     :type query: str
-    :param s3_bucket: bucket where the data will be stored
+    :param s3_bucket: bucket where the data will be stored. (templated)
     :type s3_bucket: str
-    :param s3_key: desired key for the file. It includes the name of the file
+    :param s3_key: desired key for the file. It includes the name of the file. (templated)
     :type s3_key: str
     :param mysql_conn_id: reference to a specific mysql database
     :type mysql_conn_id: str
@@ -63,22 +63,28 @@ class MySQLToS3Operator(BaseOperator):
     :type header: bool
     """
 
-    template_fields = ('s3_key', 'query',)
+    template_fields = (
+        's3_bucket',
+        's3_key',
+        'query',
+    )
     template_ext = ('.sql',)
 
     @apply_defaults
     def __init__(
-            self, *,
-            query: str,
-            s3_bucket: str,
-            s3_key: str,
-            mysql_conn_id: str = 'mysql_default',
-            aws_conn_id: str = 'aws_default',
-            verify: Optional[Union[bool, str]] = None,
-            pd_csv_kwargs: Optional[dict] = None,
-            index: Optional[bool] = False,
-            header: Optional[bool] = False,
-            **kwargs) -> None:
+        self,
+        *,
+        query: str,
+        s3_bucket: str,
+        s3_key: str,
+        mysql_conn_id: str = 'mysql_default',
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[bool, str]] = None,
+        pd_csv_kwargs: Optional[dict] = None,
+        index: bool = False,
+        header: bool = False,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.query = query
         self.s3_bucket = s3_bucket
@@ -95,7 +101,7 @@ class MySQLToS3Operator(BaseOperator):
         if "header" not in self.pd_csv_kwargs:
             self.pd_csv_kwargs["header"] = header
 
-    def _fix_int_dtypes(self, df):
+    def _fix_int_dtypes(self, df: pd.DataFrame) -> None:
         """
         Mutate DataFrame to set dtypes for int columns containing NaN values."
         """
@@ -108,7 +114,7 @@ class MySQLToS3Operator(BaseOperator):
                     df[col] = np.where(df[col].isnull(), None, df[col])
                     df[col] = df[col].astype(pd.Int64Dtype())
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         mysql_hook = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = mysql_hook.get_pandas_df(self.query)
@@ -117,9 +123,7 @@ class MySQLToS3Operator(BaseOperator):
         self._fix_int_dtypes(data_df)
         with NamedTemporaryFile(mode='r+', suffix='.csv') as tmp_csv:
             data_df.to_csv(tmp_csv.name, **self.pd_csv_kwargs)
-            s3_conn.load_file(filename=tmp_csv.name,
-                              key=self.s3_key,
-                              bucket_name=self.s3_bucket)
+            s3_conn.load_file(filename=tmp_csv.name, key=self.s3_key, bucket_name=self.s3_bucket)
 
         if s3_conn.check_for_key(self.s3_key, bucket_name=self.s3_bucket):
             file_location = os.path.join(self.s3_bucket, self.s3_key)

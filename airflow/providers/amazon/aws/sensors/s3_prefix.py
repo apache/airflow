@@ -51,16 +51,13 @@ class S3PrefixSensor(BaseSensorOperator):
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
     """
+
     template_fields = ('prefix', 'bucket_name')
 
     @apply_defaults
-    def __init__(self, *,
-                 bucket_name,
-                 prefix,
-                 delimiter='/',
-                 aws_conn_id='aws_default',
-                 verify=None,
-                 **kwargs):
+    def __init__(
+        self, *, bucket_name, prefix, delimiter='/', aws_conn_id='aws_default', verify=None, **kwargs
+    ):
         super().__init__(**kwargs)
         # Parse
         self.bucket_name = bucket_name
@@ -74,9 +71,8 @@ class S3PrefixSensor(BaseSensorOperator):
     def poke(self, context):
         self.log.info('Poking for prefix : %s in bucket s3://%s', self.prefix, self.bucket_name)
         return self.get_hook().check_for_prefix(
-            prefix=self.prefix,
-            delimiter=self.delimiter,
-            bucket_name=self.bucket_name)
+            prefix=self.prefix, delimiter=self.delimiter, bucket_name=self.bucket_name
+        )
 
     def get_hook(self):
         """Create and return an S3Hook"""

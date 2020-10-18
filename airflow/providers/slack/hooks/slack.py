@@ -24,8 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
-# noinspection PyAbstractClass
-class SlackHook(BaseHook):
+class SlackHook(BaseHook):  # noqa
     """
     Creates a Slack connection, to be used for calls. Takes both Slack API token directly and
     connection that has Slack API token. If both supplied, Slack API token will be used.
@@ -70,7 +69,7 @@ class SlackHook(BaseHook):
         self.token = self.__get_token(token, slack_conn_id)
         self.client = WebClient(self.token, **client_args)
 
-    def __get_token(self, token, slack_conn_id):
+    def __get_token(self, token: Any, slack_conn_id: Any) -> str:
         if token is not None:
             return token
 
@@ -81,10 +80,9 @@ class SlackHook(BaseHook):
                 raise AirflowException('Missing token(password) in Slack connection')
             return conn.password
 
-        raise AirflowException('Cannot get token: '
-                               'No valid Slack token nor slack_conn_id supplied.')
+        raise AirflowException('Cannot get token: ' 'No valid Slack token nor slack_conn_id supplied.')
 
-    def call(self, api_method, *args, **kwargs) -> None:
+    def call(self, api_method: str, *args, **kwargs) -> None:
         """
         Calls Slack WebClient `WebClient.api_call` with given arguments.
 
@@ -102,5 +100,4 @@ class SlackHook(BaseHook):
         :param json: JSON for the body to attach to the request. Optional.
         :type json: dict
         """
-
         self.client.api_call(api_method, *args, **kwargs)

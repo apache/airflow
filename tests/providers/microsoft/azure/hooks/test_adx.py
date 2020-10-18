@@ -36,42 +36,48 @@ class TestAzureDataExplorerHook(unittest.TestCase):
     def tearDown(self):
         super().tearDown()
         with create_session() as session:
-            session.query(Connection).filter(
-                Connection.conn_id == ADX_TEST_CONN_ID).delete()
+            session.query(Connection).filter(Connection.conn_id == ADX_TEST_CONN_ID).delete()
 
     def test_conn_missing_method(self):
         db.merge_conn(
-            Connection(conn_id=ADX_TEST_CONN_ID,
-                       conn_type='azure_data_explorer',
-                       login='client_id',
-                       password='client secret',
-                       host='https://help.kusto.windows.net',
-                       extra=json.dumps({})))
+            Connection(
+                conn_id=ADX_TEST_CONN_ID,
+                conn_type='azure_data_explorer',
+                login='client_id',
+                password='client secret',
+                host='https://help.kusto.windows.net',
+                extra=json.dumps({}),
+            )
+        )
         with self.assertRaises(AirflowException) as e:
             AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
-            self.assertIn('missing required parameter: `auth_method`',
-                          str(e.exception))
+            self.assertIn('missing required parameter: `auth_method`', str(e.exception))
 
     def test_conn_unknown_method(self):
         db.merge_conn(
-            Connection(conn_id=ADX_TEST_CONN_ID,
-                       conn_type='azure_data_explorer',
-                       login='client_id',
-                       password='client secret',
-                       host='https://help.kusto.windows.net',
-                       extra=json.dumps({'auth_method': 'AAD_OTHER'})))
+            Connection(
+                conn_id=ADX_TEST_CONN_ID,
+                conn_type='azure_data_explorer',
+                login='client_id',
+                password='client secret',
+                host='https://help.kusto.windows.net',
+                extra=json.dumps({'auth_method': 'AAD_OTHER'}),
+            )
+        )
         with self.assertRaises(AirflowException) as e:
             AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
-        self.assertIn('Unknown authentication method: AAD_OTHER',
-                      str(e.exception))
+        self.assertIn('Unknown authentication method: AAD_OTHER', str(e.exception))
 
     def test_conn_missing_cluster(self):
         db.merge_conn(
-            Connection(conn_id=ADX_TEST_CONN_ID,
-                       conn_type='azure_data_explorer',
-                       login='client_id',
-                       password='client secret',
-                       extra=json.dumps({})))
+            Connection(
+                conn_id=ADX_TEST_CONN_ID,
+                conn_type='azure_data_explorer',
+                login='client_id',
+                password='client secret',
+                extra=json.dumps({}),
+            )
+        )
         with self.assertRaises(AirflowException) as e:
             AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
         self.assertIn('Host connection option is required', str(e.exception))
@@ -80,90 +86,97 @@ class TestAzureDataExplorerHook(unittest.TestCase):
     def test_conn_method_aad_creds(self, mock_init):
         mock_init.return_value = None
         db.merge_conn(
-            Connection(conn_id=ADX_TEST_CONN_ID,
-                       conn_type='azure_data_explorer',
-                       login='client_id',
-                       password='client secret',
-                       host='https://help.kusto.windows.net',
-                       extra=json.dumps({
-                           'tenant': 'tenant',
-                           'auth_method': 'AAD_CREDS'
-                       })))
+            Connection(
+                conn_id=ADX_TEST_CONN_ID,
+                conn_type='azure_data_explorer',
+                login='client_id',
+                password='client secret',
+                host='https://help.kusto.windows.net',
+                extra=json.dumps({'tenant': 'tenant', 'auth_method': 'AAD_CREDS'}),
+            )
+        )
         AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
         assert mock_init.called_with(
             KustoConnectionStringBuilder.with_aad_user_password_authentication(
-                'https://help.kusto.windows.net', 'client_id', 'client secret',
-                'tenant'))
+                'https://help.kusto.windows.net', 'client_id', 'client secret', 'tenant'
+            )
+        )
 
     @mock.patch.object(KustoClient, '__init__')
     def test_conn_method_aad_app(self, mock_init):
         mock_init.return_value = None
         db.merge_conn(
-            Connection(conn_id=ADX_TEST_CONN_ID,
-                       conn_type='azure_data_explorer',
-                       login='app_id',
-                       password='app key',
-                       host='https://help.kusto.windows.net',
-                       extra=json.dumps({
-                           'tenant': 'tenant',
-                           'auth_method': 'AAD_APP'
-                       })))
+            Connection(
+                conn_id=ADX_TEST_CONN_ID,
+                conn_type='azure_data_explorer',
+                login='app_id',
+                password='app key',
+                host='https://help.kusto.windows.net',
+                extra=json.dumps({'tenant': 'tenant', 'auth_method': 'AAD_APP'}),
+            )
+        )
         AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
         assert mock_init.called_with(
-            KustoConnectionStringBuilder.
-            with_aad_application_key_authentication(
-                'https://help.kusto.windows.net', 'app_id', 'app key',
-                'tenant'))
+            KustoConnectionStringBuilder.with_aad_application_key_authentication(
+                'https://help.kusto.windows.net', 'app_id', 'app key', 'tenant'
+            )
+        )
 
     @mock.patch.object(KustoClient, '__init__')
     def test_conn_method_aad_app_cert(self, mock_init):
         mock_init.return_value = None
         db.merge_conn(
-            Connection(conn_id=ADX_TEST_CONN_ID,
-                       conn_type='azure_data_explorer',
-                       login='client_id',
-                       host='https://help.kusto.windows.net',
-                       extra=json.dumps({
-                           'tenant': 'tenant',
-                           'auth_method': 'AAD_APP_CERT',
-                           'certificate': 'PEM',
-                           'thumbprint': 'thumbprint'
-                       })))
+            Connection(
+                conn_id=ADX_TEST_CONN_ID,
+                conn_type='azure_data_explorer',
+                login='client_id',
+                host='https://help.kusto.windows.net',
+                extra=json.dumps(
+                    {
+                        'tenant': 'tenant',
+                        'auth_method': 'AAD_APP_CERT',
+                        'certificate': 'PEM',
+                        'thumbprint': 'thumbprint',
+                    }
+                ),
+            )
+        )
         AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
         assert mock_init.called_with(
-            KustoConnectionStringBuilder.
-            with_aad_application_certificate_authentication(
-                'https://help.kusto.windows.net', 'client_id', 'PEM',
-                'thumbprint', 'tenant'))
+            KustoConnectionStringBuilder.with_aad_application_certificate_authentication(
+                'https://help.kusto.windows.net', 'client_id', 'PEM', 'thumbprint', 'tenant'
+            )
+        )
 
     @mock.patch.object(KustoClient, '__init__')
     def test_conn_method_aad_device(self, mock_init):
         mock_init.return_value = None
         db.merge_conn(
-            Connection(conn_id=ADX_TEST_CONN_ID,
-                       conn_type='azure_data_explorer',
-                       host='https://help.kusto.windows.net',
-                       extra=json.dumps({'auth_method': 'AAD_DEVICE'})))
+            Connection(
+                conn_id=ADX_TEST_CONN_ID,
+                conn_type='azure_data_explorer',
+                host='https://help.kusto.windows.net',
+                extra=json.dumps({'auth_method': 'AAD_DEVICE'}),
+            )
+        )
         AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
         assert mock_init.called_with(
-            KustoConnectionStringBuilder.with_aad_device_authentication(
-                'https://help.kusto.windows.net'))
+            KustoConnectionStringBuilder.with_aad_device_authentication('https://help.kusto.windows.net')
+        )
 
     @mock.patch.object(KustoClient, 'execute')
     def test_run_query(self, mock_execute):
         mock_execute.return_value = None
         db.merge_conn(
-            Connection(conn_id=ADX_TEST_CONN_ID,
-                       conn_type='azure_data_explorer',
-                       host='https://help.kusto.windows.net',
-                       extra=json.dumps({'auth_method': 'AAD_DEVICE'})))
-        hook = AzureDataExplorerHook(
-            azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
-        hook.run_query('Database',
-                       'Logs | schema',
-                       options={'option1': 'option_value'})
+            Connection(
+                conn_id=ADX_TEST_CONN_ID,
+                conn_type='azure_data_explorer',
+                host='https://help.kusto.windows.net',
+                extra=json.dumps({'auth_method': 'AAD_DEVICE'}),
+            )
+        )
+        hook = AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
+        hook.run_query('Database', 'Logs | schema', options={'option1': 'option_value'})
         properties = ClientRequestProperties()
         properties.set_option('option1', 'option_value')
-        assert mock_execute.called_with('Database',
-                                        'Logs | schema',
-                                        properties=properties)
+        assert mock_execute.called_with('Database', 'Logs | schema', properties=properties)

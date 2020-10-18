@@ -34,23 +34,25 @@ class DruidOperator(BaseOperator):
         accepts index jobs
     :type druid_ingest_conn_id: str
     """
+
     template_fields = ('json_index_file',)
     template_ext = ('.json',)
 
     @apply_defaults
-    def __init__(self, *, json_index_file: str,
-                 druid_ingest_conn_id: str = 'druid_ingest_default',
-                 max_ingestion_time: Optional[int] = None,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        json_index_file: str,
+        druid_ingest_conn_id: str = 'druid_ingest_default',
+        max_ingestion_time: Optional[int] = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self.json_index_file = json_index_file
         self.conn_id = druid_ingest_conn_id
         self.max_ingestion_time = max_ingestion_time
 
     def execute(self, context: Dict[Any, Any]) -> None:
-        hook = DruidHook(
-            druid_ingest_conn_id=self.conn_id,
-            max_ingestion_time=self.max_ingestion_time
-        )
+        hook = DruidHook(druid_ingest_conn_id=self.conn_id, max_ingestion_time=self.max_ingestion_time)
         self.log.info("Submitting %s", self.json_index_file)
         hook.submit_indexing_job(json.loads(self.json_index_file))

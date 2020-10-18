@@ -38,11 +38,11 @@ class CallableClass:
     Class that is callable.
     """
     def __call__(self):
-        """ A __call__ method """
+        """A __call__ method """
 
 
 def a_function(_, __):
-    """ A function with two args """
+    """A function with two args """
 
 
 partial_function = functools.partial(a_function, arg_x=1)

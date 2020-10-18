@@ -52,25 +52,28 @@ class AwsGlueJobOperator(BaseOperator):
     :param iam_role_name: AWS IAM Role for Glue Job Execution
     :type iam_role_name: Optional[str]
     """
+
     template_fields = ()
     template_ext = ()
     ui_color = '#ededed'
 
     @apply_defaults
-    def __init__(self, *,
-                 job_name='aws_glue_default_job',
-                 job_desc='AWS Glue Job with Airflow',
-                 script_location=None,
-                 concurrent_run_limit=None,
-                 script_args=None,
-                 retry_limit=None,
-                 num_of_dpus=6,
-                 aws_conn_id='aws_default',
-                 region_name=None,
-                 s3_bucket=None,
-                 iam_role_name=None,
-                 **kwargs
-                 ):  # pylint: disable=too-many-arguments
+    def __init__(
+        self,
+        *,
+        job_name='aws_glue_default_job',
+        job_desc='AWS Glue Job with Airflow',
+        script_location=None,
+        concurrent_run_limit=None,
+        script_args=None,
+        retry_limit=None,
+        num_of_dpus=6,
+        aws_conn_id='aws_default',
+        region_name=None,
+        s3_bucket=None,
+        iam_role_name=None,
+        **kwargs,
+    ):  # pylint: disable=too-many-arguments
         super(AwsGlueJobOperator, self).__init__(**kwargs)
         self.job_name = job_name
         self.job_desc = job_desc
@@ -96,20 +99,25 @@ class AwsGlueJobOperator(BaseOperator):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
             s3_hook.load_file(self.script_location, self.s3_bucket, self.s3_artifcats_prefix + script_name)
-        glue_job = AwsGlueJobHook(job_name=self.job_name,
-                                  desc=self.job_desc,
-                                  concurrent_run_limit=self.concurrent_run_limit,
-                                  script_location=self.script_location,
-                                  retry_limit=self.retry_limit,
-                                  num_of_dpus=self.num_of_dpus,
-                                  aws_conn_id=self.aws_conn_id,
-                                  region_name=self.region_name,
-                                  s3_bucket=self.s3_bucket,
-                                  iam_role_name=self.iam_role_name)
+        glue_job = AwsGlueJobHook(
+            job_name=self.job_name,
+            desc=self.job_desc,
+            concurrent_run_limit=self.concurrent_run_limit,
+            script_location=self.script_location,
+            retry_limit=self.retry_limit,
+            num_of_dpus=self.num_of_dpus,
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            s3_bucket=self.s3_bucket,
+            iam_role_name=self.iam_role_name,
+        )
         self.log.info("Initializing AWS Glue Job: %s", self.job_name)
         glue_job_run = glue_job.initialize_job(self.script_args)
         glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'])
         self.log.info(
             "AWS Glue Job: %s status: %s. Run Id: %s",
-            self.job_name, glue_job_run['JobRunState'], glue_job_run['JobRunId'])
+            self.job_name,
+            glue_job_run['JobRunState'],
+            glue_job_run['JobRunId'],
+        )
         return glue_job_run['JobRunId']

@@ -227,7 +227,7 @@ class TestCliWebServer(unittest.TestCase):
         self._check_processes()
         self._clean_pidfiles()
 
-    def _check_processes(self):
+    def _check_processes(self, ignore_running=False):
         # Confirm that webserver hasn't been launched.
         # pgrep returns exit status 1 if no process matched.
         exit_code_pgrep_webserver = subprocess.Popen(["pgrep", "-c", "-f", "airflow webserver"]).wait()
@@ -238,13 +238,13 @@ class TestCliWebServer(unittest.TestCase):
                 subprocess.Popen(["pkill", "-9", "-f", "airflow webserver"]).wait()
             if exit_code_pgrep_gunicorn != 1:
                 subprocess.Popen(["pkill", "-9", "-f", "gunicorn"]).wait()
-
-            raise AssertionError(
-                "Background processes are running that prevent the test from passing successfully."
-            )
+            if not ignore_running:
+                raise AssertionError(
+                    "Background processes are running that prevent the test from passing successfully."
+                )
 
     def tearDown(self) -> None:
-        self._check_processes()
+        self._check_processes(ignore_running=True)
         self._clean_pidfiles()
 
     def _clean_pidfiles(self):

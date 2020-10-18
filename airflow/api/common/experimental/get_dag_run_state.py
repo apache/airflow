@@ -29,7 +29,6 @@ def get_dag_run_state(dag_id: str, execution_date: datetime) -> Dict[str, str]:
     :param execution_date: execution date
     :return: Dictionary storing state of the object
     """
-
     dag = check_and_get_dag(dag_id=dag_id)
 
     dagrun = check_and_get_dagrun(dag, execution_date)

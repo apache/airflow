@@ -58,11 +58,7 @@ class DruidCheckOperator(CheckOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        *,
-        sql: str,
-        druid_broker_conn_id: str = 'druid_broker_default',
-        **kwargs: Any
+        self, *, sql: str, druid_broker_conn_id: str = 'druid_broker_default', **kwargs: Any
     ) -> None:
         super().__init__(sql=sql, **kwargs)
         self.druid_broker_conn_id = druid_broker_conn_id

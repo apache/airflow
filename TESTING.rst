@@ -30,7 +30,7 @@ Airflow Test Infrastructure
   marked as integration tests but soon they will be separated by ``pytest`` annotations.
 
 * **System tests** are automatic tests that use external systems like
-  Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
+  Google Cloud. These tests are intended for an end-to-end DAG execution.
   The tests can be executed on both the current version of Apache Airflow and any of the older
   versions from 1.10.* series.
 
@@ -131,23 +131,70 @@ Running Tests for a Specified Target Using Breeze from the Host
 ---------------------------------------------------------------
 
 If you wish to only run tests and not to drop into shell, apply the
-``tests`` command. You can add extra targets and pytest flags after the ``tests`` command.
+``tests`` command. You can add extra targets and pytest flags after the ``--`` command. Note that
+often you want to run the tests with a clean/reset db, so usually you want to add ``--db-reset`` flag
+to breeze.
 
 .. code-block:: bash
 
-     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --logging-level=DEBUG
+     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --db-reset -- --logging-level=DEBUG
 
-You can run the whole test suite with a 'tests' test target:
+You can run the whole test suite without adding the test target:
 
 .. code-block:: bash
 
-    ./breeze tests tests
+    ./breeze tests --db-reset
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze tests tests/test_core.py::TestCore
+    ./breeze tests --db-reset tests/test_core.py::TestCore
+
+
+Running Tests of a specified type from the Host
+-----------------------------------------------
+
+You can also run tests for a specific test type. For the stability and performance point of view
+we separated tests to different test types so that they can be run separately.
+
+You can select the test type by adding ``--test-type TEST_TYPE`` before the test command. There are two
+kinds of test types:
+
+* Per-directories types are added to select subset of the tests based on sub-directories in ``tests`` folder.
+  Example test types there - Core, Providers, CLI. The only action that happens when you choose the right
+  test folders are pre-selected. For those types of tests it is only useful to choose the test type
+  when you do not specify test to run.
+
+Runs all core tests:
+
+.. code-block:: bash
+
+     ./breeze --test-type Core  --db-reset tests
+
+Runs all provider tests:
+
+.. code-block:: bash
+
+     ./breeze --test-type Providers --db-reset tests
+
+* Special kinds of tests - Integration, Heisentests, Quarantined, Postgres, MySQL which are marked with pytest
+  marks and for those you need to select the type using test-type switch. If you want to run such tests
+  using breeze, you need to pass appropriate ``--test-type`` otherwise the test will be skipped.
+  Similarly to the per-directory tests if you do not specify the test or tests to run,
+  all tests of a given type are run
+
+Run quarantined test_task_command.py test:
+
+.. code-block:: bash
+
+     ./breeze --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
+
+Run all Quarantined tests:
+
+.. code-block:: bash
+
+     ./breeze --test-type Quarantined tests --db-reset
 
 
 Airflow Integration Tests
@@ -324,6 +371,18 @@ Those tests are marked with ``@pytest.mark.quarantined`` annotation.
 Those tests are skipped by default. You can enable them with ``--include-quarantined`` flag. You
 can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
 
+Heisen tests
+------------
+
+Some of our tests are Heisentests. This means that they run fine in isolation but when they run together with
+others they might fail the tests (this is likely due to resource consumptions). Therefore we run those tests
+in isolation.
+
+Those tests are marked with ``@pytest.mark.heisentests`` annotation.
+Those tests are skipped by default. You can enable them with ``--include-heisentests`` flag. You
+can also decide to only run tests with ``-m heisentests`` flag to run only those tests.
+
+
 Running Tests with Kubernetes
 =============================
 
@@ -498,7 +557,7 @@ Once you enter the environment you receive this information:
     You can run kubernetes testing via 'pytest kubernetes_tests/....'
     You can add -s to see the output of your tests on screen
 
-    The webserver is available at http://localhost:30809/
+    The webserver is available at http://localhost:8080/
 
     User/password: admin/admin
 
@@ -612,7 +671,7 @@ visible to anything that you have installed inside the Docker container.
 Currently forwarded credentials are:
   * credentials stored in ``${HOME}/.aws`` for the aws Amazon Web Services client
   * credentials stored in ``${HOME}/.azure`` for the az Microsoft Azure client
-  * credentials stored in ``${HOME}/.config`` for gcloud Google Cloud Platform client (among others)
+  * credentials stored in ``${HOME}/.config`` for gcloud Google Cloud client (among others)
   * credentials stored in ``${HOME}/.docker`` for docker client
 
 Adding a New System Test
@@ -656,16 +715,16 @@ A simple example of a system test is available in:
 It runs two DAGs defined in ``airflow.providers.google.cloud.example_dags.example_compute.py`` and
 ``airflow.providers.google.cloud.example_dags.example_compute_igm.py``.
 
-Preparing backport packages for System Tests for Airflow 1.10.* series
+Preparing provider packages for System Tests for Airflow 1.10.* series
 ----------------------------------------------------------------------
 
-To run system tests with old Airflow version you need to prepare backport packages. This
-can be done by running ``./breeze prepare-backport-packages -- <PACKAGES TO BUILD>``. For
+To run system tests with old Airflow version you need to prepare provider packages. This
+can be done by running ``./breeze prepare-provider-packages -- <PACKAGES TO BUILD>``. For
 example the below command will build google postgres and mysql packages:
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google postgres mysql
+  ./breeze prepare-provider-packages -- google postgres mysql
 
 Those packages will be prepared in ./dist folder. This folder is mapped to /dist folder
 when you enter Breeze, so it is easy to automate installing those packages for testing.
@@ -688,11 +747,11 @@ Airflow is removed and the released version of Airflow from ``Pypi`` is installe
 are not removed and they can be used to run tests (unit tests and system tests) against the
 freshly installed version.
 
-You should automate installing of the backport packages in your own
+You should automate installing of the provider packages in your own
 ``./files/airflow-breeze-config/variables.env`` file. You should make it depend on
 ``RUN_AIRFLOW_1_10`` variable value equals to "true" so that
-the installation of backport packages is only performed when you install airflow 1.10.*.
-The backport packages are available in ``/dist`` directory if they were prepared as described
+the installation of provider packages is only performed when you install airflow 1.10.*.
+The provider packages are available in ``/dist`` directory if they were prepared as described
 in the previous chapter.
 
 Typically the command in you variables.env file will be similar to:
@@ -723,11 +782,11 @@ The typical system test session
 
 Here is the typical session that you need to do to run system tests:
 
-1. Prepare backport packages
+1. Prepare provider packages
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google postgres mysql
+  ./breeze prepare-provider-packages -- google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
    backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
@@ -787,7 +846,7 @@ Breeze session. They are usually expensive to run.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Important !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Note that in case you have to update your backported operators or system tests (they are part of
-the backport packageS) you need to rebuild the packages outside of breeze and
+the provider packageS) you need to rebuild the packages outside of breeze and
 ``pip remove/pip install`` those packages to get them installed. This is not needed
 if you run system tests with ``current`` airflow version, so it is better to iterate with the
 system tests with the ``current`` version and fix all problems there and only afterwards run
@@ -795,11 +854,11 @@ the tests with Airflow 1.10.*
 
 The typical session then looks as follows:
 
-1. Prepare backport packages
+1. Prepare provider packages
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google postgres mysql
+  ./breeze prepare-provider-packages -- google postgres mysql
 
 2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
    backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
@@ -821,7 +880,7 @@ The typical session then looks as follows:
    pytest -o faulthandler_timeout=2400 \
       --system=google tests/providers/google/cloud/operators/test_compute_system.py
 
-5. In case you are running backport packages tests you need to rebuild and reinstall a package
+5. In case you are running provider packages tests you need to rebuild and reinstall a package
    every time you change the operators/hooks or example_dags. The example below shows reinstallation
    of the google package:
 
@@ -829,7 +888,7 @@ In the host:
 
 .. code-block:: bash
 
-  ./breeze prepare-backport-packages -- google
+  ./breeze prepare-provider-packages -- google
 
 In the container:
 
@@ -878,7 +937,7 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
 Setup VM on GCP with SSH forwarding
 -----------------------------------
 
-Below are the steps you need to take to set up your virtual machine in the Google Cloud Platform.
+Below are the steps you need to take to set up your virtual machine in the Google Cloud.
 
 1. The next steps will assume that you have configured environment variables with the name of the network and
    a virtual machine, project ID and the zone where the virtual machine will be created

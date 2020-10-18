@@ -23,10 +23,18 @@ from airflow.api_connexion.exceptions import NotFound
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
-@security.requires_authentication
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+    ]
+)
 @provide_session
 def get_extra_links(dag_id: str, dag_run_id: str, task_id: str, session):
     """

@@ -34,14 +34,14 @@ class TestDiscordWebhookHook(unittest.TestCase):
         'username': 'Airflow Webhook',
         'avatar_url': 'https://static-cdn.avatars.com/my-avatar-path',
         'tts': False,
-        'proxy': 'https://proxy.proxy.com:8888'
+        'proxy': 'https://proxy.proxy.com:8888',
     }
 
     expected_payload_dict = {
         'username': _config['username'],
         'avatar_url': _config['avatar_url'],
         'tts': _config['tts'],
-        'content': _config['message']
+        'content': _config['message'],
     }
 
     expected_payload = json.dumps(expected_payload_dict)
@@ -52,7 +52,8 @@ class TestDiscordWebhookHook(unittest.TestCase):
                 conn_id='default-discord-webhook',
                 conn_type='http',
                 host='https://discordapp.com/api/',
-                extra='{"webhook_endpoint": "webhooks/00000/some-discord-token_000"}')
+                extra='{"webhook_endpoint": "webhooks/00000/some-discord-token_000"}',
+            )
         )
 
     def test_get_webhook_endpoint_manual_token(self):

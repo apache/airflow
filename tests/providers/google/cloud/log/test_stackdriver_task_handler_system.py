@@ -37,13 +37,13 @@ from tests.test_utils.gcp_system_helpers import provide_gcp_context, resolve_ful
 @pytest.mark.system("google")
 @pytest.mark.credential_file(GCP_STACKDDRIVER)
 class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
-
     def setUp(self) -> None:
         clear_db_runs()
         self.log_name = 'stackdriver-tests-'.join(random.sample(string.ascii_lowercase, 16))
 
     def tearDown(self) -> None:
         from airflow.config_templates import airflow_local_settings
+
         importlib.reload(airflow_local_settings)
         settings.configure_logging()
         clear_db_runs()
@@ -56,14 +56,10 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
             AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=f"stackdriver://{self.log_name}",
             AIRFLOW__LOGGING__GOOGLE_KEY_PATH=resolve_full_gcp_key_path(GCP_STACKDDRIVER),
             AIRFLOW__CORE__LOAD_EXAMPLES="false",
-            AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__
+            AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
         ):
-            self.assertEqual(0, subprocess.Popen(
-                ["airflow", "dags", "trigger", "example_complex"]
-            ).wait())
-            self.assertEqual(0, subprocess.Popen(
-                ["airflow", "scheduler", "--num-runs", "1"]
-            ).wait())
+            self.assertEqual(0, subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait())
+            self.assertEqual(0, subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait())
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
 
         self.assert_remote_logs("INFO - Task exited with return code 0", ti)
@@ -76,24 +72,23 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
             AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=f"stackdriver://{self.log_name}",
             AIRFLOW__CORE__LOAD_EXAMPLES="false",
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
-            GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_STACKDDRIVER)
+            GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_STACKDDRIVER),
         ):
-            self.assertEqual(0, subprocess.Popen(
-                ["airflow", "dags", "trigger", "example_complex"]
-            ).wait())
-            self.assertEqual(0, subprocess.Popen(
-                ["airflow", "scheduler", "--num-runs", "1"]
-            ).wait())
+            self.assertEqual(0, subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait())
+            self.assertEqual(0, subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait())
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
 
         self.assert_remote_logs("INFO - Task exited with return code 0", ti)
 
     def assert_remote_logs(self, expected_message, ti):
-        with provide_gcp_context(GCP_STACKDDRIVER), conf_vars({
-            ('logging', 'remote_logging'): 'True',
-            ('logging', 'remote_base_log_folder'): f"stackdriver://{self.log_name}",
-        }):
+        with provide_gcp_context(GCP_STACKDDRIVER), conf_vars(
+            {
+                ('logging', 'remote_logging'): 'True',
+                ('logging', 'remote_base_log_folder'): f"stackdriver://{self.log_name}",
+            }
+        ):
             from airflow.config_templates import airflow_local_settings
+
             importlib.reload(airflow_local_settings)
             settings.configure_logging()
 

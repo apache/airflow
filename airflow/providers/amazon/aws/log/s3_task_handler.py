@@ -30,6 +30,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     task instance logs. It extends airflow FileTaskHandler and
     uploads to and reads from S3 remote storage.
     """
+
     def __init__(self, base_log_folder, s3_log_folder, filename_template):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = s3_log_folder
@@ -46,12 +47,14 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
             return S3Hook(remote_conn_id)
         except Exception:  # pylint: disable=broad-except
             self.log.exception(
                 'Could not create an S3Hook with connection id "%s". '
                 'Please make sure that airflow[aws] is installed and '
-                'the S3 connection exists.', remote_conn_id
+                'the S3 connection exists.',
+                remote_conn_id,
             )
 
     def set_context(self, ti):
@@ -115,8 +118,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             # local machine even if there are errors reading remote logs, as
             # returned remote_log will contain error messages.
             remote_log = self.s3_read(remote_loc, return_error=True)
-            log = '*** Reading remote log from {}.\n{}\n'.format(
-                remote_loc, remote_log)
+            log = '*** Reading remote log from {}.\n{}\n'.format(remote_loc, remote_log)
             return log, {'end_of_log': True}
         else:
             return super()._read(ti, try_number)

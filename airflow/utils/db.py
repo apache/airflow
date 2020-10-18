@@ -23,15 +23,12 @@ from sqlalchemy import Table
 
 from airflow import settings
 from airflow.configuration import conf
-# noinspection PyUnresolvedReferences
 from airflow.jobs.base_job import BaseJob  # noqa: F401 # pylint: disable=unused-import
-# noinspection PyUnresolvedReferences
 from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
     DAG, XCOM_RETURN_KEY, BaseOperator, BaseOperatorLink, Connection, DagBag, DagModel, DagPickle, DagRun,
     DagTag, Log, Pool, SkipMixin, SlaMiss, TaskFail, TaskInstance, TaskReschedule, Variable, XCom,
 )
 # We need to add this model manually to get reset working well
-# noinspection PyUnresolvedReferences
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
@@ -94,10 +91,9 @@ def create_default_connections(session=None):
         Connection(
             conn_id="azure_batch_default",
             conn_type="azure_batch",
-            extra='''{"account_name": "<ACCOUNT_NAME>", "account_key": "<ACCOUNT_KEY>",
-                      "account_url": "<ACCOUNT_URL>", "vm_publisher": "<VM_PUBLISHER>",
-                      "vm_offer": "<VM_OFFER>", "vm_sku": "<VM_SKU>",
-                      "vm_version": "<VM_VERSION>", "node_agent_sku_id": "<NODE_AGENT_SKU_ID>"}'''
+            login="<ACCOUNT_NAME>",
+            password="",
+            extra='''{"account_url": "<ACCOUNT_URL>"}'''
         )
     )
     merge_conn(
@@ -628,7 +624,6 @@ def resetdb():
     """
     Clear out the database
     """
-
     log.info("Dropping tables that exist")
 
     connection = settings.engine.connect()
@@ -665,11 +660,9 @@ def drop_airflow_models(connection):
     Base.metadata.remove(user)
     Base.metadata.remove(chart)
     # alembic adds significant import time, so we import it lazily
-    # noinspection PyUnresolvedReferences
-    from alembic.migration import MigrationContext
+    from alembic.migration import MigrationContext  # noqa
     migration_ctx = MigrationContext.configure(connection)
-    # noinspection PyProtectedMember
-    version = migration_ctx._version  # pylint: disable=protected-access
+    version = migration_ctx._version  # noqa pylint: disable=protected-access
     if version.exists(connection):
         version.drop(connection)
 

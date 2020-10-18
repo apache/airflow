@@ -18,7 +18,7 @@
 
 import json
 import unittest
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from freezegun import freeze_time
 
@@ -71,7 +71,8 @@ class TestLocalClient(unittest.TestCase):
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=None,
-                                         external_trigger=True)
+                                         external_trigger=True,
+                                         dag_hash=ANY)
             mock.reset_mock()
 
             # execution date with microseconds cutoff
@@ -80,7 +81,8 @@ class TestLocalClient(unittest.TestCase):
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=None,
-                                         external_trigger=True)
+                                         external_trigger=True,
+                                         dag_hash=ANY)
             mock.reset_mock()
 
             # run id
@@ -90,7 +92,8 @@ class TestLocalClient(unittest.TestCase):
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=None,
-                                         external_trigger=True)
+                                         external_trigger=True,
+                                         dag_hash=ANY)
             mock.reset_mock()
 
             # test conf
@@ -100,7 +103,8 @@ class TestLocalClient(unittest.TestCase):
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=json.loads(conf),
-                                         external_trigger=True)
+                                         external_trigger=True,
+                                         dag_hash=ANY)
             mock.reset_mock()
 
     def test_delete_dag(self):

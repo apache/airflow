@@ -26,13 +26,14 @@ from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
 
 
 class TestAthenaSensor(unittest.TestCase):
-
     def setUp(self):
-        self.sensor = AthenaSensor(task_id='test_athena_sensor',
-                                   query_execution_id='abc',
-                                   sleep_time=5,
-                                   max_retries=1,
-                                   aws_conn_id='aws_default')
+        self.sensor = AthenaSensor(
+            task_id='test_athena_sensor',
+            query_execution_id='abc',
+            sleep_time=5,
+            max_retries=1,
+            aws_conn_id='aws_default',
+        )
 
     @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("SUCCEEDED",))
     def test_poke_success(self, mock_poll_query_status):

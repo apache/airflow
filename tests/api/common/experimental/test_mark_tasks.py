@@ -104,10 +104,10 @@ class TestMarkTasks(unittest.TestCase):
         self.assertTrue(len(tis) > 0)
 
         for ti in tis:  # pylint: disable=too-many-nested-blocks
-            self.assertEqual(ti.operator, dag.get_task(ti.task_id).__class__.__name__)
+            self.assertEqual(ti.operator, dag.get_task(ti.task_id).task_type)
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
                 self.assertEqual(ti.state, state)
-                if state in State.finished():
+                if state in State.finished:
                     self.assertIsNotNone(ti.end_date)
             else:
                 for old_ti in old_tis:
@@ -271,7 +271,7 @@ class TestMarkTasks(unittest.TestCase):
         self.assertEqual(len(altered), 14)
 
         # cannot use snapshot here as that will require drilling down the
-        # the sub dag tree essentially recreating the same code as in the
+        # sub dag tree essentially recreating the same code as in the
         # tested logic.
         self.verify_state(self.dag2, task_ids, [self.execution_dates[0]],
                           State.SUCCESS, [])

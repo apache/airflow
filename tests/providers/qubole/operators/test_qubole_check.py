@@ -30,13 +30,11 @@ from airflow.providers.qubole.operators.qubole_check import QuboleValueCheckOper
 
 
 class TestQuboleValueCheckOperator(unittest.TestCase):
-
     def setUp(self):
         self.task_id = 'test_task'
         self.conn_id = 'default_conn'
 
-    def __construct_operator(self, query, pass_value, tolerance=None,
-                             results_parser_callable=None):
+    def __construct_operator(self, query, pass_value, tolerance=None, results_parser_callable=None):
 
         dag = DAG('test_dag', start_date=datetime(2017, 1, 1))
 
@@ -48,7 +46,8 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
             pass_value=pass_value,
             results_parser_callable=results_parser_callable,
             command_type='hivecmd',
-            tolerance=tolerance)
+            tolerance=tolerance,
+        )
 
     def test_pass_value_template(self):
         pass_value_str = "2018-03-22"
@@ -79,8 +78,7 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
         mock_cmd = mock.Mock()
         mock_cmd.status = 'done'
         mock_cmd.id = 123
-        mock_cmd.is_success = mock.Mock(
-            return_value=HiveCommand.is_success(mock_cmd.status))
+        mock_cmd.is_success = mock.Mock(return_value=HiveCommand.is_success(mock_cmd.status))
 
         mock_hook = mock.Mock()
         mock_hook.get_first.return_value = [11]
@@ -89,8 +87,7 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
 
         operator = self.__construct_operator('select value from tab1 limit 1;', 5, 1)
 
-        with self.assertRaisesRegex(AirflowException,
-                                    'Qubole Command Id: ' + str(mock_cmd.id)):
+        with self.assertRaisesRegex(AirflowException, 'Qubole Command Id: ' + str(mock_cmd.id)):
             operator.execute()
 
         mock_cmd.is_success.assert_called_once_with(mock_cmd.status)
@@ -101,8 +98,7 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
         mock_cmd = mock.Mock()
         mock_cmd.status = 'error'
         mock_cmd.id = 123
-        mock_cmd.is_success = mock.Mock(
-            return_value=HiveCommand.is_success(mock_cmd.status))
+        mock_cmd.is_success = mock.Mock(return_value=HiveCommand.is_success(mock_cmd.status))
 
         mock_hook = mock.Mock()
         mock_hook.get_first.return_value = [11]
@@ -129,7 +125,8 @@ class TestQuboleValueCheckOperator(unittest.TestCase):
         results_parser_callable = mock.Mock()
         results_parser_callable.return_value = [pass_value]
 
-        operator = self.__construct_operator('select value from tab1 limit 1;',
-                                             pass_value, None, results_parser_callable)
+        operator = self.__construct_operator(
+            'select value from tab1 limit 1;', pass_value, None, results_parser_callable
+        )
         operator.execute()
         results_parser_callable.assert_called_once_with([pass_value])

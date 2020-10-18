@@ -70,7 +70,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         config_prefix: str = 'airflow/config',
         profile_name: Optional[str] = None,
         sep: str = "/",
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         self.connections_prefix = connections_prefix.rstrip("/")
@@ -136,6 +136,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             self.log.debug(
                 "An error occurred (ResourceNotFoundException) when calling the "
                 "get_secret_value operation: "
-                "Secret %s not found.", secrets_path
+                "Secret %s not found.",
+                secrets_path,
             )
             return None

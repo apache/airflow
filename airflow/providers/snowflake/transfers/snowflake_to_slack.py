@@ -62,6 +62,7 @@ class SnowflakeToSlackOperator(BaseOperator):
         'webhook_token' attribute needs to be specified in the 'Extra' JSON field against the slack_conn_id
     :type slack_token: Optional[str]
     """
+
     template_fields = ['sql', 'slack_message']
     template_ext = ['.sql', '.jinja', '.j2']
     times_rendered = 0
@@ -81,7 +82,7 @@ class SnowflakeToSlackOperator(BaseOperator):
         schema: Optional[str] = None,
         role: Optional[str] = None,
         slack_token: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super(SnowflakeToSlackOperator, self).__init__(**kwargs)
 
@@ -114,13 +115,18 @@ class SnowflakeToSlackOperator(BaseOperator):
         slack_hook.execute()
 
     def _get_snowflake_hook(self) -> SnowflakeHook:
-        return SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id,
-                             warehouse=self.warehouse, database=self.database,
-                             role=self.role, schema=self.schema)
+        return SnowflakeHook(
+            snowflake_conn_id=self.snowflake_conn_id,
+            warehouse=self.warehouse,
+            database=self.database,
+            role=self.role,
+            schema=self.schema,
+        )
 
     def _get_slack_hook(self) -> SlackWebhookHook:
-        return SlackWebhookHook(http_conn_id=self.slack_conn_id, message=self.slack_message,
-                                webhook_token=self.slack_token)
+        return SlackWebhookHook(
+            http_conn_id=self.slack_conn_id, message=self.slack_message, webhook_token=self.slack_token
+        )
 
     def render_template_fields(self, context, jinja_env=None) -> None:
         # If this is the first render of the template fields, exclude slack_message from rendering since

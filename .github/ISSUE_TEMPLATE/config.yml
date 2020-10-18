@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question or get support
+    url: https://s.apache.org/airflow-slack
+    about: Ask a question or request support for using Apache Airflow

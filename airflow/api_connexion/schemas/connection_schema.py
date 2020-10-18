@@ -29,7 +29,8 @@ class ConnectionCollectionItemSchema(SQLAlchemySchema):
     """
 
     class Meta:
-        """ Meta """
+        """Meta"""
+
         model = Connection
 
     connection_id = auto_field('conn_id', required=True)
@@ -50,13 +51,15 @@ class ConnectionSchema(ConnectionCollectionItemSchema):  # pylint: disable=too-m
 
 
 class ConnectionCollection(NamedTuple):
-    """ List of Connections with meta"""
+    """List of Connections with meta"""
+
     connections: List[Connection]
     total_entries: int
 
 
 class ConnectionCollectionSchema(Schema):
-    """ Connection Collection Schema"""
+    """Connection Collection Schema"""
+
     connections = fields.List(fields.Nested(ConnectionCollectionItemSchema))
     total_entries = fields.Int()
 

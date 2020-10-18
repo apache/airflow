@@ -18,7 +18,9 @@ import unittest
 
 from parameterized import parameterized
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Connection
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -30,16 +32,25 @@ class TestConnectionEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with conf_vars(
-            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        # TODO: Add new role for each view to test permission.
-        create_user(cls.app, username="test", role="Admin")  # type: ignore
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION),
+            ],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -50,18 +61,15 @@ class TestConnectionEndpoint(unittest.TestCase):
         clear_db_connections()
 
     def _create_connection(self, session):
-        connection_model = Connection(conn_id='test-connection-id',
-                                      conn_type='test_type')
+        connection_model = Connection(conn_id='test-connection-id', conn_type='test_type')
         session.add(connection_model)
         session.commit()
 
 
 class TestDeleteConnection(TestConnectionEndpoint):
-
     @provide_session
     def test_delete_should_response_204(self, session):
-        connection_model = Connection(conn_id='test-connection',
-                                      conn_type='test_type')
+        connection_model = Connection(conn_id='test-connection', conn_type='test_type')
 
         session.add(connection_model)
         session.commit()
@@ -82,11 +90,11 @@ class TestDeleteConnection(TestConnectionEndpoint):
         self.assertEqual(
             response.json,
             {
-                'detail': None,
+                'detail': "The Connection with connection_id: `test-connection` was not found",
                 'status': 404,
                 'title': 'Connection not found',
-                'type': 'about:blank'
-            }
+                'type': EXCEPTIONS_LINK_MAP[404],
+            },
         )
 
     def test_should_raises_401_unauthenticated(self):
@@ -94,18 +102,24 @@ class TestDeleteConnection(TestConnectionEndpoint):
 
         assert_401(response)
 
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get(
+            "/api/v1/connections/test-connection-id", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
+
 
 class TestGetConnection(TestConnectionEndpoint):
-
     @provide_session
     def test_should_response_200(self, session):
-        connection_model = Connection(conn_id='test-connection-id',
-                                      conn_type='mysql',
-                                      host='mysql',
-                                      login='login',
-                                      schema='testschema',
-                                      port=80
-                                      )
+        connection_model = Connection(
+            conn_id='test-connection-id',
+            conn_type='mysql',
+            host='mysql',
+            login='login',
+            schema='testschema',
+            port=80,
+        )
         session.add(connection_model)
         session.commit()
         result = session.query(Connection).all()
@@ -122,7 +136,7 @@ class TestGetConnection(TestConnectionEndpoint):
                 "host": 'mysql',
                 "login": 'login',
                 'schema': 'testschema',
-                'port': 80
+                'port': 80,
             },
         )
 
@@ -133,12 +147,12 @@ class TestGetConnection(TestConnectionEndpoint):
         assert response.status_code == 404
         self.assertEqual(
             {
-                'detail': None,
+                'detail': "The Connection with connection_id: `invalid-connection` was not found",
                 'status': 404,
                 'title': 'Connection not found',
-                'type': 'about:blank'
+                'type': EXCEPTIONS_LINK_MAP[404],
             },
-            response.json
+            response.json,
         )
 
     def test_should_raises_401_unauthenticated(self):
@@ -148,21 +162,16 @@ class TestGetConnection(TestConnectionEndpoint):
 
 
 class TestGetConnections(TestConnectionEndpoint):
-
     @provide_session
     def test_should_response_200(self, session):
-        connection_model_1 = Connection(conn_id='test-connection-id-1',
-                                        conn_type='test_type')
-        connection_model_2 = Connection(conn_id='test-connection-id-2',
-                                        conn_type='test_type')
+        connection_model_1 = Connection(conn_id='test-connection-id-1', conn_type='test_type')
+        connection_model_2 = Connection(conn_id='test-connection-id-2', conn_type='test_type')
         connections = [connection_model_1, connection_model_2]
         session.add_all(connections)
         session.commit()
         result = session.query(Connection).all()
         assert len(result) == 2
-        response = self.client.get(
-            "/api/v1/connections", environ_overrides={'REMOTE_USER': "test"}
-        )
+        response = self.client.get("/api/v1/connections", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         self.assertEqual(
             response.json,
@@ -174,7 +183,7 @@ class TestGetConnections(TestConnectionEndpoint):
                         "host": None,
                         "login": None,
                         'schema': None,
-                        'port': None
+                        'port': None,
                     },
                     {
                         "connection_id": "test-connection-id-2",
@@ -182,11 +191,11 @@ class TestGetConnections(TestConnectionEndpoint):
                         "host": None,
                         "login": None,
                         'schema': None,
-                        'port': None
-                    }
+                        'port': None,
+                    },
                 ],
-                'total_entries': 2
-            }
+                'total_entries': 2,
+            },
         )
 
     def test_should_raises_401_unauthenticated(self):
@@ -196,7 +205,6 @@ class TestGetConnections(TestConnectionEndpoint):
 
 
 class TestGetConnectionsPagination(TestConnectionEndpoint):
-
     @parameterized.expand(
         [
             ("/api/v1/connections?limit=1", ['TEST_CONN_ID1']),
@@ -281,28 +289,17 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         self.assertEqual(len(response.json['connections']), 150)
 
     def _create_connections(self, count):
-        return [Connection(
-            conn_id='TEST_CONN_ID' + str(i),
-            conn_type='TEST_CONN_TYPE' + str(i)
-        ) for i in range(1, count + 1)]
+        return [
+            Connection(conn_id='TEST_CONN_ID' + str(i), conn_type='TEST_CONN_TYPE' + str(i))
+            for i in range(1, count + 1)
+        ]
 
 
 class TestPatchConnection(TestConnectionEndpoint):
-
     @parameterized.expand(
         [
-            (
-                {
-                    "connection_id": "test-connection-id",
-                    "conn_type": 'test_type',
-                    "extra": "{'key': 'var'}"
-                },
-            ),
-            (
-                {
-                    "extra": "{'key': 'var'}"
-                },
-            )
+            ({"connection_id": "test-connection-id", "conn_type": 'test_type', "extra": "{'key': 'var'}"},),
+            ({"extra": "{'key': 'var'}"},),
         ]
     )
     @provide_session
@@ -310,9 +307,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         self._create_connection(session)
 
         response = self.client.patch(
-            "/api/v1/connections/test-connection-id",
-            json=payload,
-            environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/connections/test-connection-id", json=payload, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
 
@@ -330,7 +325,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         response = self.client.patch(
             "/api/v1/connections/test-connection-id?update_mask=port,login",
             json=payload,
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
         connection = session.query(Connection).filter_by(conn_id=test_connection).first()
@@ -344,9 +339,8 @@ class TestPatchConnection(TestConnectionEndpoint):
                 'login': "login",  # updated
                 "port": 80,  # updated
                 "schema": None,
-                "host": None
-
-            }
+                "host": None,
+            },
         )
 
     @parameterized.expand(
@@ -360,8 +354,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "port": 80,
                 },
                 'update_mask=ports, login',  # posts is unknown
-                "'ports' is unknown or cannot be updated."
-
+                "'ports' is unknown or cannot be updated.",
             ),
             (
                 {
@@ -372,8 +365,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "port": 80,
                 },
                 'update_mask=port, login, conn_id',  # conn_id is unknown
-                "'conn_id' is unknown or cannot be updated."
-
+                "'conn_id' is unknown or cannot be updated.",
             ),
             (
                 {
@@ -384,8 +376,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "port": 80,
                 },
                 'update_mask=port, login, connection_id',  # connection_id cannot be updated
-                "'connection_id' is unknown or cannot be updated."
-
+                "'connection_id' is unknown or cannot be updated.",
             ),
             (
                 {
@@ -394,7 +385,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "login": "login",
                 },
                 '',  # not necessary
-                "The connection_id cannot be updated."
+                "The connection_id cannot be updated.",
             ),
         ]
     )
@@ -406,10 +397,10 @@ class TestPatchConnection(TestConnectionEndpoint):
         response = self.client.patch(
             f"/api/v1/connections/test-connection-id?{update_mask}",
             json=payload,
-            environ_overrides={'REMOTE_USER': "test"}
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 400
-        self.assertEqual(response.json['title'], error_message)
+        self.assertEqual(response.json['detail'], error_message)
 
     @parameterized.expand(
         [
@@ -418,14 +409,16 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "connection_id": "test-connection-id",
                     "conn_type": "test-type",
                     "extra": 0,  # expected string
-                }, "0 is not of type 'string' - 'extra'"
+                },
+                "0 is not of type 'string' - 'extra'",
             ),
             (
                 {
                     "connection_id": "test-connection-id",
                     "conn_type": "test-type",
                     "extras": "{}",  # extras not a known field e.g typo
-                }, "extras"
+                },
+                "extras",
             ),
             (
                 {
@@ -433,43 +426,34 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "conn_type": "test-type",
                     "invalid_field": "invalid field",  # unknown field
                     "_password": "{}",  # _password not a known field
-                }, "_password"
+                },
+                "_password",
             ),
         ]
     )
     @provide_session
-    def test_patch_should_response_400_for_invalid_update(
-        self, payload, error_message, session
-    ):
+    def test_patch_should_response_400_for_invalid_update(self, payload, error_message, session):
         self._create_connection(session)
         response = self.client.patch(
-            "/api/v1/connections/test-connection-id",
-            json=payload,
-            environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/connections/test-connection-id", json=payload, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 400
         self.assertIn(error_message, response.json['detail'])
 
     def test_patch_should_response_404_not_found(self):
-        payload = {
-            "connection_id": "test-connection-id",
-            "conn_type": "test-type",
-            "port": 90
-        }
+        payload = {"connection_id": "test-connection-id", "conn_type": "test-type", "port": 90}
         response = self.client.patch(
-            "/api/v1/connections/test-connection-id",
-            json=payload,
-            environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/connections/test-connection-id", json=payload, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 404
         self.assertEqual(
             {
-                'detail': None,
+                'detail': "The Connection with connection_id: `test-connection-id` was not found",
                 'status': 404,
                 'title': 'Connection not found',
-                'type': 'about:blank'
+                'type': EXCEPTIONS_LINK_MAP[404],
             },
-            response.json
+            response.json,
         )
 
     @provide_session
@@ -478,28 +462,18 @@ class TestPatchConnection(TestConnectionEndpoint):
 
         response = self.client.patch(
             "/api/v1/connections/test-connection-id",
-            json={
-                "connection_id": "test-connection-id",
-                "conn_type": 'test_type',
-                "extra": "{'key': 'var'}"
-            }
+            json={"connection_id": "test-connection-id", "conn_type": 'test_type', "extra": "{'key': 'var'}"},
         )
 
         assert_401(response)
 
 
 class TestPostConnection(TestConnectionEndpoint):
-
     @provide_session
     def test_post_should_response_200(self, session):
-        payload = {
-            "connection_id": "test-connection-id",
-            "conn_type": 'test_type'
-        }
+        payload = {"connection_id": "test-connection-id", "conn_type": 'test_type'}
         response = self.client.post(
-            "/api/v1/connections",
-            json=payload,
-            environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/connections", json=payload, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
         connection = session.query(Connection).all()
@@ -511,47 +485,43 @@ class TestPostConnection(TestConnectionEndpoint):
             "connection_id": "test-connection-id",
         }  # conn_type missing
         response = self.client.post(
-            "/api/v1/connections",
-            json=payload,
-            environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/connections", json=payload, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 400
-        self.assertEqual(response.json,
-                         {'detail': "{'conn_type': ['Missing data for required field.']}",
-                          'status': 400,
-                          'title': 'Bad request',
-                          'type': 'about:blank'}
-                         )
+        self.assertEqual(
+            response.json,
+            {
+                'detail': "{'conn_type': ['Missing data for required field.']}",
+                'status': 400,
+                'title': 'Bad Request',
+                'type': EXCEPTIONS_LINK_MAP[400],
+            },
+        )
 
     def test_post_should_response_409_already_exist(self):
-        payload = {
-            "connection_id": "test-connection-id",
-            "conn_type": 'test_type'
-        }
+        payload = {"connection_id": "test-connection-id", "conn_type": 'test_type'}
         response = self.client.post(
-            "/api/v1/connections", json=payload, environ_overrides={'REMOTE_USER': "test"})
+            "/api/v1/connections", json=payload, environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 200
         # Another request
         response = self.client.post(
-            "/api/v1/connections", json=payload, environ_overrides={'REMOTE_USER': "test"})
+            "/api/v1/connections", json=payload, environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 409
         self.assertEqual(
             response.json,
             {
-                'detail': None,
+                'detail': 'Connection already exist. ID: test-connection-id',
                 'status': 409,
-                'title': 'Connection already exist. ID: test-connection-id',
-                'type': 'about:blank'
-            }
+                'title': 'Conflict',
+                'type': EXCEPTIONS_LINK_MAP[409],
+            },
         )
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
-            "/api/v1/connections",
-            json={
-                "connection_id": "test-connection-id",
-                "conn_type": 'test_type'
-            }
+            "/api/v1/connections", json={"connection_id": "test-connection-id", "conn_type": 'test_type'}
         )
 
         assert_401(response)

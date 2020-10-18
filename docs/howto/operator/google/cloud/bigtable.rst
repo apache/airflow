@@ -45,7 +45,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
@@ -68,7 +68,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
@@ -88,7 +88,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
@@ -108,7 +108,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
@@ -132,7 +132,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
@@ -160,7 +160,7 @@ Using the operator
 """"""""""""""""""
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 .. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
@@ -174,7 +174,7 @@ BigtableTableReplicationCompletedSensor
 ---------------------------------------
 
 You can create the operator with or without project id. If project id is missing
-it will be retrieved from the GCP connection used. Both variants are shown:
+it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
 Use the :class:`~airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor`
 to wait for the table to replicate fully.

@@ -58,9 +58,7 @@ with models.DAG(
     )
     # [START howto_operator_speech_to_text_recognize]
     speech_to_text_recognize_task2 = CloudSpeechToTextRecognizeSpeechOperator(
-        config=CONFIG,
-        audio=AUDIO,
-        task_id="speech_to_text_recognize_task"
+        config=CONFIG, audio=AUDIO, task_id="speech_to_text_recognize_task"
     )
     # [END howto_operator_speech_to_text_recognize]
 

@@ -19,7 +19,12 @@
 import pytest
 
 from airflow.providers.google.cloud.example_dags.example_gcs_to_gcs import (
-    BUCKET_1_DST, BUCKET_1_SRC, BUCKET_2_DST, BUCKET_2_SRC, BUCKET_3_DST, BUCKET_3_SRC,
+    BUCKET_1_DST,
+    BUCKET_1_SRC,
+    BUCKET_2_DST,
+    BUCKET_2_SRC,
+    BUCKET_3_DST,
+    BUCKET_3_SRC,
 )
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
@@ -28,7 +33,6 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_GCS_KEY)
 class GcsToGcsExampleDagsSystemTest(GoogleSystemTest):
-
     def create_buckets(self):
         """Create a buckets in Google Cloud Storage service with sample content."""
 
@@ -45,7 +49,8 @@ class GcsToGcsExampleDagsSystemTest(GoogleSystemTest):
                 "bash",
                 "-c",
                 "cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {}".format(first_parent),
-            ], key=GCP_GCS_KEY
+            ],
+            key=GCP_GCS_KEY,
         )
 
         self.execute_with_ctx(
@@ -53,7 +58,8 @@ class GcsToGcsExampleDagsSystemTest(GoogleSystemTest):
                 "bash",
                 "-c",
                 "cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {}".format(second_parent),
-            ], key=GCP_GCS_KEY
+            ],
+            key=GCP_GCS_KEY,
         )
 
         self.upload_to_gcs(first_parent, f"gs://{BUCKET_1_SRC}/file.bin")

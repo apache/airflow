@@ -24,7 +24,6 @@ from airflow.providers.apache.pig.hooks.pig import PigCliHook
 
 
 class TestPigCliHook(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -66,6 +65,7 @@ class TestPigCliHook(unittest.TestCase):
         hook = self.pig_hook()
 
         from airflow.exceptions import AirflowException
+
         self.assertRaises(AirflowException, hook.run_cli, "")
 
     @mock.patch('subprocess.Popen')

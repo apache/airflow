@@ -27,6 +27,7 @@ from airflow.models.errors import ImportError  # pylint: disable=redefined-built
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
+from airflow.models.sensorinstance import SensorInstance  # noqa: F401
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.slamiss import SlaMiss
 from airflow.models.taskfail import TaskFail
@@ -34,8 +35,3 @@ from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
-
-try:
-    from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier
-except ImportError:
-    pass

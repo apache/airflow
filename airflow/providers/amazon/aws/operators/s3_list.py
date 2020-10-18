@@ -65,17 +65,12 @@ class S3ListOperator(BaseOperator):
                 aws_conn_id='aws_customers_conn'
             )
     """
+
     template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter')
     ui_color = '#ffd700'
 
     @apply_defaults
-    def __init__(self, *,
-                 bucket,
-                 prefix='',
-                 delimiter='',
-                 aws_conn_id='aws_default',
-                 verify=None,
-                 **kwargs):
+    def __init__(self, *, bucket, prefix='', delimiter='', aws_conn_id='aws_default', verify=None, **kwargs):
         super().__init__(**kwargs)
         self.bucket = bucket
         self.prefix = prefix
@@ -88,10 +83,9 @@ class S3ListOperator(BaseOperator):
 
         self.log.info(
             'Getting the list of files from bucket: %s in prefix: %s (Delimiter {%s)',
-            self.bucket, self.prefix, self.delimiter
+            self.bucket,
+            self.prefix,
+            self.delimiter,
         )
 
-        return hook.list_keys(
-            bucket_name=self.bucket,
-            prefix=self.prefix,
-            delimiter=self.delimiter)
+        return hook.list_keys(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)

@@ -24,7 +24,9 @@ from urllib.parse import urlparse
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dataflow import (
-    CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
+    CheckJobRunning,
+    DataflowCreateJavaJobOperator,
+    DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
@@ -65,7 +67,7 @@ with models.DAG(
         poll_sleep=10,
         job_class='org.apache.beam.examples.WordCount',
         check_if_running=CheckJobRunning.IgnoreJob,
-        location='europe-west3'
+        location='europe-west3',
     )
     # [END howto_operator_start_java_job]
 
@@ -106,12 +108,10 @@ with models.DAG(
         options={
             'output': GCS_OUTPUT,
         },
-        py_requirements=[
-            'apache-beam[gcp]==2.21.0'
-        ],
+        py_requirements=['apache-beam[gcp]==2.21.0'],
         py_interpreter='python3',
         py_system_site_packages=False,
-        location='europe-west3'
+        location='europe-west3',
     )
     # [END howto_operator_start_python_job]
 
@@ -123,11 +123,9 @@ with models.DAG(
         options={
             'output': GCS_OUTPUT,
         },
-        py_requirements=[
-            'apache-beam[gcp]==2.14.0'
-        ],
+        py_requirements=['apache-beam[gcp]==2.14.0'],
         py_interpreter='python3',
-        py_system_site_packages=False
+        py_system_site_packages=False,
     )
 
 with models.DAG(
@@ -140,9 +138,6 @@ with models.DAG(
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
         template='gs://dataflow-templates/latest/Word_Count',
-        parameters={
-            'inputFile': "gs://dataflow-samples/shakespeare/kinglear.txt",
-            'output': GCS_OUTPUT
-        },
-        location='europe-west3'
+        parameters={'inputFile': "gs://dataflow-samples/shakespeare/kinglear.txt", 'output': GCS_OUTPUT},
+        location='europe-west3',
     )

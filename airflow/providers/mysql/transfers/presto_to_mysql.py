@@ -50,13 +50,16 @@ class PrestoToMySqlOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self, *,
-                 sql: str,
-                 mysql_table: str,
-                 presto_conn_id: str = 'presto_default',
-                 mysql_conn_id: str = 'mysql_default',
-                 mysql_preoperator: Optional[str] = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        sql: str,
+        mysql_table: str,
+        presto_conn_id: str = 'presto_default',
+        mysql_conn_id: str = 'mysql_default',
+        mysql_preoperator: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
         self.mysql_table = mysql_table

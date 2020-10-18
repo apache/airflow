@@ -62,6 +62,13 @@ class BashOperator(BaseOperator):
 
         bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
 
+    .. note::
+
+        Add a space after the script name when directly calling a ``.sh`` script with the
+        ``bash_command`` argument -- for example ``bash_command="my_script.sh "``.  This
+        is because Airflow tries to apply load this file and process it as a Jinja template to
+        it ends with ``.sh``, which will likely not be what most users want.
+
     .. warning::
 
         Care should be taken with "user" input or when using Jinja templates in the
@@ -93,7 +100,9 @@ class BashOperator(BaseOperator):
         )
 
     """
+
     template_fields = ('bash_command', 'env')
+    template_fields_renderers = {'bash_command': 'bash', 'env': 'json'}
     template_ext = ('.sh', '.bash',)
     ui_color = '#f0ede4'
 

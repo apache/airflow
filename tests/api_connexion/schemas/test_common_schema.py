@@ -21,7 +21,11 @@ import unittest
 from dateutil import relativedelta
 
 from airflow.api_connexion.schemas.common_schema import (
-    CronExpression, CronExpressionSchema, RelativeDeltaSchema, ScheduleIntervalSchema, TimeDeltaSchema,
+    CronExpression,
+    CronExpressionSchema,
+    RelativeDeltaSchema,
+    ScheduleIntervalSchema,
+    TimeDeltaSchema,
 )
 
 
@@ -30,10 +34,7 @@ class TestTimeDeltaSchema(unittest.TestCase):
         instance = datetime.timedelta(days=12)
         schema_instance = TimeDeltaSchema()
         result = schema_instance.dump(instance)
-        self.assertEqual(
-            {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0},
-            result
-        )
+        self.assertEqual({"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0}, result)
 
     def test_should_deserialize(self):
         instance = {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0}
@@ -92,10 +93,7 @@ class TestScheduleIntervalSchema(unittest.TestCase):
         instance = datetime.timedelta(days=12)
         schema_instance = ScheduleIntervalSchema()
         result = schema_instance.dump(instance)
-        self.assertEqual(
-            {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0},
-            result
-        )
+        self.assertEqual({"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0}, result)
 
     def test_should_deserialize_timedelta(self):
         instance = {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0}
@@ -137,9 +135,15 @@ class TestScheduleIntervalSchema(unittest.TestCase):
         expected_instance = relativedelta.relativedelta(days=+12)
         self.assertEqual(expected_instance, result)
 
-    def test_should_serialize_cron_expresssion(self):
+    def test_should_serialize_cron_expression(self):
         instance = "5 4 * * *"
         schema_instance = ScheduleIntervalSchema()
         result = schema_instance.dump(instance)
         expected_instance = {"__type": "CronExpression", "value": "5 4 * * *"}
         self.assertEqual(expected_instance, result)
+
+    def test_should_error_unknown_obj_type(self):
+        instance = 342
+        schema_instance = ScheduleIntervalSchema()
+        with self.assertRaisesRegex(Exception, "Unknown object type: int"):
+            schema_instance.dump(instance)

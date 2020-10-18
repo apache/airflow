@@ -25,7 +25,8 @@ from google.auth import exceptions
 from google.auth.environment_vars import CREDENTIALS
 
 from airflow.providers.google.common.utils.id_token_credentials import (
-    IDTokenCredentialsAdapter, get_default_id_token_credentials,
+    IDTokenCredentialsAdapter,
+    get_default_id_token_credentials,
 )
 
 
@@ -50,7 +51,8 @@ class TestGetDefaultIdTokenCredentials(unittest.TestCase):
         return_value="/tmp/INVALID_PATH.json",
     )
     @mock.patch(
-        "google.auth.compute_engine._metadata.ping", return_value=False,
+        "google.auth.compute_engine._metadata.ping",
+        return_value=False,
     )
     def test_should_raise_exception(self, mock_metadata_ping, mock_gcloud_sdk_path):
         if CREDENTIALS in os.environ:
@@ -71,9 +73,12 @@ class TestGetDefaultIdTokenCredentials(unittest.TestCase):
         return_value="/tmp/INVALID_PATH.json",
     )
     @mock.patch(
-        "google.auth.compute_engine._metadata.ping", return_value=True,
+        "google.auth.compute_engine._metadata.ping",
+        return_value=True,
     )
-    @mock.patch("google.auth.compute_engine.IDTokenCredentials",)
+    @mock.patch(
+        "google.auth.compute_engine.IDTokenCredentials",
+    )
     def test_should_support_metadata_credentials(self, credentials, mock_metadata_ping, mock_gcloud_sdk_path):
         if CREDENTIALS in os.environ:
             del os.environ[CREDENTIALS]

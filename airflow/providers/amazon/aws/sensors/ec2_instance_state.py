@@ -43,12 +43,15 @@ class EC2InstanceStateSensor(BaseSensorOperator):
     valid_states = ["running", "stopped", "terminated"]
 
     @apply_defaults
-    def __init__(self, *,
-                 target_state: str,
-                 instance_id: str,
-                 aws_conn_id: str = "aws_default",
-                 region_name: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        target_state: str,
+        instance_id: str,
+        aws_conn_id: str = "aws_default",
+        region_name: Optional[str] = None,
+        **kwargs,
+    ):
         if target_state not in self.valid_states:
             raise ValueError(f"Invalid target_state: {target_state}")
         super().__init__(**kwargs)
@@ -58,12 +61,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         self.region_name = region_name
 
     def poke(self, context):
-        ec2_hook = EC2Hook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name
-        )
-        instance_state = ec2_hook.get_instance_state(
-            instance_id=self.instance_id
-        )
+        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        instance_state = ec2_hook.get_instance_state(instance_id=self.instance_id)
         self.log.info("instance state: %s", instance_state)
         return instance_state == self.target_state

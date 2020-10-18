@@ -37,32 +37,48 @@ class TestKylinCubeOperator(unittest.TestCase):
         'command': 'build',
         'start_time': datetime(2012, 1, 2, 0, 0).strftime("%s") + '000',
         'end_time': datetime(2012, 1, 3, 0, 0).strftime("%s") + '000',
-
     }
-    cube_command = ['fullbuild', 'build', 'merge', 'refresh',
-                    'delete', 'build_streaming', 'merge_streaming', 'refresh_streaming',
-                    'disable', 'enable', 'purge', 'clone', 'drop']
+    cube_command = [
+        'fullbuild',
+        'build',
+        'merge',
+        'refresh',
+        'delete',
+        'build_streaming',
+        'merge_streaming',
+        'refresh_streaming',
+        'disable',
+        'enable',
+        'purge',
+        'clone',
+        'drop',
+    ]
 
     build_response = {"uuid": "c143e0e4-ac5f-434d-acf3-46b0d15e3dc6"}
 
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)
 
     @patch('airflow.providers.apache.kylin.operators.kylin_cube.KylinHook')
     def test_execute(self, mock_hook):
-        operator = KylinCubeOperator(
-            task_id='kylin_task',
-            dag=self.dag,
-            **self._config
-        )
+        operator = KylinCubeOperator(task_id='kylin_task', dag=self.dag, **self._config)
         hook = MagicMock()
-        hook.invoke_command = ['fullbuild', 'build', 'merge', 'refresh',
-                               'delete', 'build_streaming', 'merge_streaming', 'refresh_streaming',
-                               'disable', 'enable', 'purge', 'clone', 'drop']
+        hook.invoke_command = [
+            'fullbuild',
+            'build',
+            'merge',
+            'refresh',
+            'delete',
+            'build_streaming',
+            'merge_streaming',
+            'refresh_streaming',
+            'disable',
+            'enable',
+            'purge',
+            'clone',
+            'drop',
+        ]
         mock_hook.return_value = hook
         mock_hook.cube_run.return_value = {}
 
@@ -75,28 +91,23 @@ class TestKylinCubeOperator(unittest.TestCase):
         self.assertEqual(self._config['end_time'], operator.end_time)
         operator.execute(None)
         mock_hook.assert_called_once_with(
-            kylin_conn_id=self._config['kylin_conn_id'],
-            project=self._config['project'],
-            dsn=None
+            kylin_conn_id=self._config['kylin_conn_id'], project=self._config['project'], dsn=None
         )
 
-        mock_hook.return_value.cube_run.assert_called_once_with('kylin_sales_cube',
-                                                                'build',
-                                                                end=datetime(2012, 1, 3, 0, 0),
-                                                                name=None,
-                                                                offset_end=None,
-                                                                offset_start=None,
-                                                                start=datetime(2012, 1, 2, 0, 0))
+        mock_hook.return_value.cube_run.assert_called_once_with(
+            'kylin_sales_cube',
+            'build',
+            end=datetime(2012, 1, 3, 0, 0),
+            name=None,
+            offset_end=None,
+            offset_start=None,
+            start=datetime(2012, 1, 2, 0, 0),
+        )
 
     @patch('airflow.providers.apache.kylin.operators.kylin_cube.KylinHook')
     def test_execute_build(self, mock_hook):
         operator = KylinCubeOperator(
-            is_track_job=True,
-            timeout=5,
-            interval=1,
-            task_id='kylin_task',
-            dag=self.dag,
-            **self._config
+            is_track_job=True, timeout=5, interval=1, task_id='kylin_task', dag=self.dag, **self._config
         )
         hook = MagicMock()
         hook.invoke_command = self.cube_command
@@ -109,12 +120,7 @@ class TestKylinCubeOperator(unittest.TestCase):
     @patch('airflow.providers.apache.kylin.operators.kylin_cube.KylinHook')
     def test_execute_build_status_error(self, mock_hook):
         operator = KylinCubeOperator(
-            is_track_job=True,
-            timeout=5,
-            interval=1,
-            task_id='kylin_task',
-            dag=self.dag,
-            **self._config
+            is_track_job=True, timeout=5, interval=1, task_id='kylin_task', dag=self.dag, **self._config
         )
         hook = MagicMock()
         hook.invoke_command = self.cube_command
@@ -127,12 +133,7 @@ class TestKylinCubeOperator(unittest.TestCase):
     @patch('airflow.providers.apache.kylin.operators.kylin_cube.KylinHook')
     def test_execute_build_time_out_error(self, mock_hook):
         operator = KylinCubeOperator(
-            is_track_job=True,
-            timeout=5,
-            interval=1,
-            task_id='kylin_task',
-            dag=self.dag,
-            **self._config
+            is_track_job=True, timeout=5, interval=1, task_id='kylin_task', dag=self.dag, **self._config
         )
         hook = MagicMock()
         hook.invoke_command = self.cube_command

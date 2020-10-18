@@ -35,17 +35,13 @@ S3_KEY = 'example_key'
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 MOCK_MONGO_RETURN = [
     {'example_return_key_1': 'example_return_value_1'},
-    {'example_return_key_2': 'example_return_value_2'}
+    {'example_return_key_2': 'example_return_value_2'},
 ]
 
 
 class TestMongoToS3Operator(unittest.TestCase):
-
     def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
 
         self.dag = DAG('test_dag_id', default_args=args)
 
@@ -57,7 +53,7 @@ class TestMongoToS3Operator(unittest.TestCase):
             mongo_query=MONGO_QUERY,
             s3_bucket=S3_BUCKET,
             s3_key=S3_KEY,
-            dag=self.dag
+            dag=self.dag,
         )
 
     def test_init(self):
@@ -78,10 +74,7 @@ class TestMongoToS3Operator(unittest.TestCase):
 
         expected_rendered_template = {'$lt': '2017-01-01T00:00:00+00:00Z'}
 
-        self.assertDictEqual(
-            expected_rendered_template,
-            getattr(self.mock_operator, 'mongo_query')
-        )
+        self.assertDictEqual(expected_rendered_template, getattr(self.mock_operator, 'mongo_query'))
 
     @mock.patch('airflow.providers.amazon.aws.transfers.mongo_to_s3.MongoHook')
     @mock.patch('airflow.providers.amazon.aws.transfers.mongo_to_s3.S3Hook')
@@ -94,9 +87,7 @@ class TestMongoToS3Operator(unittest.TestCase):
         operator.execute(None)
 
         mock_mongo_hook.return_value.find.assert_called_once_with(
-            mongo_collection=MONGO_COLLECTION,
-            query=MONGO_QUERY,
-            mongo_db=None
+            mongo_collection=MONGO_COLLECTION, query=MONGO_QUERY, mongo_db=None
         )
 
         op_stringify = self.mock_operator._stringify
@@ -105,8 +96,5 @@ class TestMongoToS3Operator(unittest.TestCase):
         s3_doc_str = op_stringify(op_transform(MOCK_MONGO_RETURN))
 
         mock_s3_hook.return_value.load_string.assert_called_once_with(
-            string_data=s3_doc_str,
-            key=S3_KEY,
-            bucket_name=S3_BUCKET,
-            replace=False
+            string_data=s3_doc_str, key=S3_KEY, bucket_name=S3_BUCKET, replace=False
         )

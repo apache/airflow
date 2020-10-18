@@ -37,7 +37,6 @@ TEST_DEPLOYMENT = 'my-deployment'
 
 
 class TestDeploymentManagerHook(unittest.TestCase):
-
     def setUp(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
@@ -60,9 +59,9 @@ class TestDeploymentManagerHook(unittest.TestCase):
             None,
         ]
 
-        deployments = self.gdm_hook.list_deployments(project_id=TEST_PROJECT,
-                                                     deployment_filter='filter',
-                                                     order_by='name')
+        deployments = self.gdm_hook.list_deployments(
+            project_id=TEST_PROJECT, deployment_filter='filter', order_by='name'
+        )
 
         mock_get_conn.assert_called_once_with()
 
@@ -74,17 +73,17 @@ class TestDeploymentManagerHook(unittest.TestCase):
 
         self.assertEqual(mock_get_conn.return_value.deployments.return_value.list_next.call_count, 2)
 
-        self.assertEqual(deployments, [{'id': 'deployment1', 'name': 'test-deploy1'},
-                                       {'id': 'deployment2', 'name': 'test-deploy2'}])
+        self.assertEqual(
+            deployments,
+            [{'id': 'deployment1', 'name': 'test-deploy1'}, {'id': 'deployment2', 'name': 'test-deploy2'}],
+        )
 
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
     def test_delete_deployment(self, mock_get_conn):
         self.gdm_hook.delete_deployment(project_id=TEST_PROJECT, deployment=TEST_DEPLOYMENT)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.deployments().delete.assert_called_once_with(
-            project=TEST_PROJECT,
-            deployment=TEST_DEPLOYMENT,
-            deletePolicy=None
+            project=TEST_PROJECT, deployment=TEST_DEPLOYMENT, deletePolicy=None
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
@@ -99,7 +98,5 @@ class TestDeploymentManagerHook(unittest.TestCase):
 
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.deployments().delete.assert_called_once_with(
-            project=TEST_PROJECT,
-            deployment=TEST_DEPLOYMENT,
-            deletePolicy=None
+            project=TEST_PROJECT, deployment=TEST_DEPLOYMENT, deletePolicy=None
         )

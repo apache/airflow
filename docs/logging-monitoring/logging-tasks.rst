@@ -39,10 +39,31 @@ can not be found or accessed, local logs will be displayed. Note that logs
 are only sent to remote storage once a task is complete (including failure); In other words, remote logs for
 running tasks are unavailable (but local logs are available).
 
+Troubleshooting
+---------------
+
+If you want to check which task handler is currently set, you can use ``airflow info`` command as in
+the example below.
+
+.. code-block:: bash
+
+    $ airflow info
+    ...
+    airflow on PATH: [True]
+
+    Executor: [SequentialExecutor]
+    Task Logging Handlers: [StackdriverTaskHandler]
+    SQL Alchemy Conn: [sqlite://///root/airflow/airflow.db]
+    DAGS Folder: [/root/airflow/dags]
+    Plugins Folder: [/root/airflow/plugins]
+    Base Log Folder: [/root/airflow/logs]
+
+You can also use ``airflow config list`` to check that the logging configuration options have valid values.
+
 .. _write-logs-advanced:
 
 Advanced configuration
-''''''''''''''''''''''
+----------------------
 
 Not all configuration options are available from the ``airflow.cfg`` file. Some configuration options require
 that the logging config class be overwritten. This can be done by ``logging_config_class`` option
@@ -78,17 +99,15 @@ Follow the steps below to enable custom logging config class:
 
 #. Restart the application.
 
-
-Before you begin
-''''''''''''''''
-
-Remote logging uses an existing Airflow connection to read or write logs. If you
-don't have a connection properly setup, this process will fail.
+See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 
 .. _write-logs-amazon-s3:
 
 Writing Logs to Amazon S3
 -------------------------
+
+Remote logging to Amazon S3 uses an existing Airflow connection to read or write logs. If you
+don't have a connection properly setup, this process will fail.
 
 
 Enabling remote logging
@@ -120,9 +139,8 @@ For example, ``{"host": "http://localstack:4572"}``
 Writing Logs to Amazon Cloudwatch
 ---------------------------------
 
-
-Enabling remote logging
-'''''''''''''''''''''''
+Remote logging to Amazon Cloudwatch uses an existing Airflow connection to read or write logs. If you
+don't have a connection properly setup, this process will fail.
 
 To enable this feature, ``airflow.cfg`` must be configured as follows:
 
@@ -143,7 +161,9 @@ In the above example, Airflow will try to use ``AwsLogsHook('MyCloudwatchConn')`
 Writing Logs to Azure Blob Storage
 ----------------------------------
 
-Airflow can be configured to read and write task logs in Azure Blob Storage.
+Airflow can be configured to read and write task logs in Azure Blob Storage. It uses an existing
+Airflow connection to read or write logs. If you don't have a connection properly setup,
+this process will fail.
 
 Follow the steps below to enable Azure Blob Storage logging:
 
@@ -180,6 +200,9 @@ Follow the steps below to enable Azure Blob Storage logging:
 Writing Logs to Google Cloud Storage
 ------------------------------------
 
+Remote logging to Google Cloud Storage uses an existing Airflow connection to read or write logs. If you
+don't have a connection properly setup, this process will fail.
+
 Follow the steps below to enable Google Cloud Storage logging.
 
 To enable this feature, ``airflow.cfg`` must be configured as in this
@@ -197,7 +220,7 @@ example:
 
 #. By default Application Default Credentials are used to obtain credentials. You can also
    set ``google_key_path`` option in ``[logging]`` section, if you want to use your own service account.
-#. Make sure a Google Cloud Platform account have read and write access to the Google Cloud Storage bucket defined above in ``remote_base_log_folder``.
+#. Make sure a Google Cloud account have read and write access to the Google Cloud Storage bucket defined above in ``remote_base_log_folder``.
 #. Install the ``google`` package, like so: ``pip install 'apache-airflow[google]'``.
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
 #. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
@@ -216,7 +239,7 @@ example:
 .. _write-logs-elasticsearch:
 
 Writing Logs to Elasticsearch
-------------------------------------
+-----------------------------
 
 Airflow can be configured to read task logs from Elasticsearch and optionally write logs to stdout in standard or json format. These logs can later be collected and forwarded to the Elasticsearch cluster using tools like fluentd, logstash or others.
 
@@ -263,7 +286,7 @@ To output task logs to stdout in JSON format, the following config could be used
 .. _write-logs-elasticsearch-tls:
 
 Writing Logs to Elasticsearch over TLS
-----------------------------------------
+''''''''''''''''''''''''''''''''''''''
 
 To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, adding a custom self-signed
 cert, etc.) use the ``elasticsearch_configs`` setting in your ``airflow.cfg``

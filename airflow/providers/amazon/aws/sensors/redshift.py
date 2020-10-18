@@ -30,14 +30,11 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
     :param target_status: The cluster status desired.
     :type target_status: str
     """
+
     template_fields = ('cluster_identifier', 'target_status')
 
     @apply_defaults
-    def __init__(self, *,
-                 cluster_identifier,
-                 target_status='available',
-                 aws_conn_id='aws_default',
-                 **kwargs):
+    def __init__(self, *, cluster_identifier, target_status='available', aws_conn_id='aws_default', **kwargs):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.target_status = target_status
@@ -45,8 +42,7 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
         self.hook = None
 
     def poke(self, context):
-        self.log.info('Poking for status : %s\nfor cluster %s',
-                      self.target_status, self.cluster_identifier)
+        self.log.info('Poking for status : %s\nfor cluster %s', self.target_status, self.cluster_identifier)
         return self.get_hook().cluster_status(self.cluster_identifier) == self.target_status
 
     def get_hook(self):

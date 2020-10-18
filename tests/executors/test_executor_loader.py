@@ -46,8 +46,11 @@ class TestExecutorLoader(unittest.TestCase):
         ExecutorLoader._default_executor = None
 
     @parameterized.expand([
-        ("LocalExecutor", ),
+        ("CeleryExecutor", ),
+        ("CeleryKubernetesExecutor", ),
         ("DebugExecutor", ),
+        ("KubernetesExecutor", ),
+        ("LocalExecutor", ),
     ])
     def test_should_support_executor_from_core(self, executor_name):
         with conf_vars({
@@ -55,7 +58,7 @@ class TestExecutorLoader(unittest.TestCase):
         }):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)
-            self.assertIn(executor_name, executor.__class__.__name__)
+            self.assertEqual(executor_name, executor.__class__.__name__)
 
     @mock.patch("airflow.plugins_manager.plugins", [
         FakePlugin()
@@ -67,7 +70,7 @@ class TestExecutorLoader(unittest.TestCase):
         }):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)
-            self.assertIn("FakeExecutor", executor.__class__.__name__)
+            self.assertEqual("FakeExecutor", executor.__class__.__name__)
 
     def test_should_support_custom_path(self):
         with conf_vars({
@@ -75,4 +78,4 @@ class TestExecutorLoader(unittest.TestCase):
         }):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)
-            self.assertIn("FakeExecutor", executor.__class__.__name__)
+            self.assertEqual("FakeExecutor", executor.__class__.__name__)

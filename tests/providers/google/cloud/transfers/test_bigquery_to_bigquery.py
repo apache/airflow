@@ -30,10 +30,8 @@ TEST_TABLE_ID = 'test-table-id'
 class TestBigQueryToBigQueryOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.transfers.bigquery_to_bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
-        source_project_dataset_tables = '{}.{}'.format(
-            TEST_DATASET, TEST_TABLE_ID)
-        destination_project_dataset_table = '{}.{}'.format(
-            TEST_DATASET + '_new', TEST_TABLE_ID)
+        source_project_dataset_tables = '{}.{}'.format(TEST_DATASET, TEST_TABLE_ID)
+        destination_project_dataset_table = '{}.{}'.format(TEST_DATASET + '_new', TEST_TABLE_ID)
         write_disposition = 'WRITE_EMPTY'
         create_disposition = 'CREATE_IF_NEEDED'
         labels = {'k1': 'v1'}
@@ -46,19 +44,15 @@ class TestBigQueryToBigQueryOperator(unittest.TestCase):
             write_disposition=write_disposition,
             create_disposition=create_disposition,
             labels=labels,
-            encryption_configuration=encryption_configuration
+            encryption_configuration=encryption_configuration,
         )
 
         operator.execute(None)
-        mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
-            .run_copy \
-            .assert_called_once_with(
-                source_project_dataset_tables=source_project_dataset_tables,
-                destination_project_dataset_table=destination_project_dataset_table,
-                write_disposition=write_disposition,
-                create_disposition=create_disposition,
-                labels=labels,
-                encryption_configuration=encryption_configuration
-            )
+        mock_hook.return_value.get_conn.return_value.cursor.return_value.run_copy.assert_called_once_with(
+            source_project_dataset_tables=source_project_dataset_tables,
+            destination_project_dataset_table=destination_project_dataset_table,
+            write_disposition=write_disposition,
+            create_disposition=create_disposition,
+            labels=labels,
+            encryption_configuration=encryption_configuration,
+        )

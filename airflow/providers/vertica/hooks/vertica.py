@@ -40,7 +40,7 @@ class VerticaHook(DbApiHook):
             "user": conn.login,
             "password": conn.password or '',
             "database": conn.schema,
-            "host": conn.host or 'localhost'
+            "host": conn.host or 'localhost',
         }
 
         if not conn.port:

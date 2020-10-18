@@ -37,8 +37,9 @@ SNOWFLAKE_LOAD_JSON_PATH = os.environ.get('SNOWFLAKE_LOAD_PATH', 'example.json')
 
 SNOWFLAKE_SELECT_SQL = f"SELECT * FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 100;"
 SNOWFLAKE_SLACK_SQL = f"SELECT O_ORDERKEY, O_CUSTKEY, O_ORDERSTATUS FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 10;"
-SNOWFLAKE_SLACK_MESSAGE = "Results in an ASCII table:\n" \
-                          "```{{ results_df | tabulate(tablefmt='pretty', headers='keys') }}```"
+SNOWFLAKE_SLACK_MESSAGE = (
+    "Results in an ASCII table:\n```{{ results_df | tabulate(tablefmt='pretty', headers='keys') }}```"
+)
 SNOWFLAKE_CREATE_TABLE_SQL = f"CREATE TRANSIENT TABLE IF NOT EXISTS {SNOWFLAKE_LOAD_TABLE}(data VARIANT);"
 
 default_args = {
@@ -65,7 +66,7 @@ slack_report = SnowflakeToSlackOperator(
     slack_message=SNOWFLAKE_SLACK_MESSAGE,
     snowflake_conn_id=SNOWFLAKE_CONN_ID,
     slack_conn_id=SLACK_CONN_ID,
-    dag=dag
+    dag=dag,
 )
 
 create_table = SnowflakeOperator(

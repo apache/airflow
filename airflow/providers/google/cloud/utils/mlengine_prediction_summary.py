@@ -97,6 +97,7 @@ class JsonCoder:
     """
     JSON encoder/decoder.
     """
+
     @staticmethod
     def encode(x):
         """JSON encoder."""
@@ -114,15 +115,17 @@ def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
     Summary PTransofrm used in Dataflow.
     """
     return (
-        pcoll |
-        "ApplyMetricFnPerInstance" >> beam.Map(metric_fn) |
-        "PairWith1" >> beam.Map(lambda tup: tup + (1,)) |
-        "SumTuple" >> beam.CombineGlobally(beam.combiners.TupleCombineFn(
-            *([sum] * (len(metric_keys) + 1)))) |
-        "AverageAndMakeDict" >> beam.Map(
+        pcoll
+        | "ApplyMetricFnPerInstance" >> beam.Map(metric_fn)
+        | "PairWith1" >> beam.Map(lambda tup: tup + (1,))
+        | "SumTuple" >> beam.CombineGlobally(beam.combiners.TupleCombineFn(*([sum] * (len(metric_keys) + 1))))
+        | "AverageAndMakeDict"
+        >> beam.Map(
             lambda tup: dict(
-                [(name, tup[i] / tup[-1]) for i, name in enumerate(metric_keys)] +
-                [("count", tup[-1])])))
+                [(name, tup[i] / tup[-1]) for i, name in enumerate(metric_keys)] + [("count", tup[-1])]
+            )
+        )
+    )
 
 
 def run(argv=None):
@@ -131,26 +134,35 @@ def run(argv=None):
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--prediction_path", required=True,
+        "--prediction_path",
+        required=True,
         help=(
             "The GCS folder that contains BatchPrediction results, containing "
             "prediction.results-NNNNN-of-NNNNN files in the json format. "
             "Output will be also stored in this folder, as a file"
-            "'prediction.summary.json'."))
+            "'prediction.summary.json'."
+        ),
+    )
     parser.add_argument(
-        "--metric_fn_encoded", required=True,
+        "--metric_fn_encoded",
+        required=True,
         help=(
             "An encoded function that calculates and returns a tuple of "
             "metric(s) for a given instance (as a dictionary). It should be "
-            "encoded via base64.b64encode(dill.dumps(fn, recurse=True))."))
+            "encoded via base64.b64encode(dill.dumps(fn, recurse=True))."
+        ),
+    )
     parser.add_argument(
-        "--metric_keys", required=True,
+        "--metric_keys",
+        required=True,
         help=(
             "A comma-separated keys of the aggregated metric(s) in the summary "
             "output. The order and the size of the keys must match to the "
             "output of metric_fn. The summary will have an additional key, "
             "'count', to represent the total number of instances, so this flag "
-            "shouldn't include 'count'."))
+            "shouldn't include 'count'."
+        ),
+    )
     known_args, pipeline_args = parser.parse_known_args(argv)
 
     metric_fn = dill.loads(base64.b64decode(known_args.metric_fn_encoded))
@@ -164,13 +176,15 @@ def run(argv=None):
         prediction_summary_path = os.path.join(known_args.prediction_path, "prediction.summary.json")
         # This is apache-beam ptransform's convention
         _ = (
-            pipe | "ReadPredictionResult" >> beam.io.ReadFromText(
-                    prediction_result_pattern, coder=JsonCoder())
-                 | "Summary" >> MakeSummary(metric_fn, metric_keys)
-                 | "Write" >> beam.io.WriteToText(
-                    prediction_summary_path,
-                    shard_name_template='',  # without trailing -NNNNN-of-NNNNN.
-                    coder=JsonCoder())
+            pipe
+            | "ReadPredictionResult" >> beam.io.ReadFromText(prediction_result_pattern, coder=JsonCoder())
+            | "Summary" >> MakeSummary(metric_fn, metric_keys)
+            | "Write"
+            >> beam.io.WriteToText(
+                prediction_summary_path,
+                shard_name_template='',  # without trailing -NNNNN-of-NNNNN.
+                coder=JsonCoder(),
+            )
         )
 
 

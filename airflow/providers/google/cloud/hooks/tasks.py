@@ -18,7 +18,7 @@
 
 """
 This module contains a CloudTasksHook
-which allows you to connect to GCP Cloud Tasks service,
+which allows you to connect to Google Cloud Tasks service,
 performing actions to queues or tasks.
 """
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -69,30 +69,27 @@ class CloudTasksHook(GoogleBaseHook):
         )
         self._client = None
 
-    def get_conn(self):
+    def get_conn(self) -> CloudTasksClient:
         """
-        Provides a client for interacting with the Cloud Tasks API.
+        Provides a client for interacting with the Google Cloud Tasks API.
 
-        :return: GCP Cloud Tasks API Client
+        :return: Google Cloud Tasks API Client
         :rtype: google.cloud.tasks_v2.CloudTasksClient
         """
         if not self._client:
-            self._client = CloudTasksClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
-            )
+            self._client = CloudTasksClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_queue(
         self,
         location: str,
-        task_queue: Union[Dict, Queue],
+        task_queue: Union[dict, Queue],
         project_id: str,
         queue_name: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Queue:
         """
         Creates a queue in Cloud Tasks.
@@ -103,8 +100,8 @@ class CloudTasksHook(GoogleBaseHook):
             Queue's name cannot be the same as an existing queue.
             If a dict is provided, it must be of the same form as the protobuf message Queue.
         :type task_queue: dict or google.cloud.tasks_v2.types.Queue
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param queue_name: (Optional) The queue's name.
             If provided, it will be used to construct the full queue path.
@@ -120,7 +117,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
-
         client = self.get_conn()
 
         if queue_name:
@@ -150,7 +146,7 @@ class CloudTasksHook(GoogleBaseHook):
         update_mask: Optional[FieldMask] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Queue:
         """
         Updates a queue in Cloud Tasks.
@@ -159,8 +155,8 @@ class CloudTasksHook(GoogleBaseHook):
             This method creates the queue if it does not exist and updates the queue if
             it does exist. The queue's name must be specified.
         :type task_queue: dict or google.cloud.tasks_v2.types.Queue
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param location: (Optional) The location name in which the queue will be updated.
             If provided, it will be used to construct the full queue path.
@@ -183,7 +179,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
-
         client = self.get_conn()
 
         if queue_name and location:
@@ -210,7 +205,7 @@ class CloudTasksHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Queue:
         """
         Gets a queue from Cloud Tasks.
@@ -219,8 +214,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -233,13 +228,10 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Queue
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
-        return client.get_queue(
-            name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
-        )
+        return client.get_queue(name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_queues(
@@ -250,15 +242,15 @@ class CloudTasksHook(GoogleBaseHook):
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> List[Queue]:
         """
         Lists queues from Cloud Tasks.
 
         :param location: The location name in which the queues were created.
         :type location: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param results_filter: (Optional) Filter used to specify a subset of queues.
         :type results_filter: str
@@ -276,7 +268,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_location_path = CloudTasksClient.location_path(project_id, location)
@@ -298,7 +289,7 @@ class CloudTasksHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> None:
         """
         Deletes a queue from Cloud Tasks, even if it has tasks in it.
@@ -307,8 +298,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -320,13 +311,10 @@ class CloudTasksHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: sequence[tuple[str, str]]]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
-        client.delete_queue(
-            name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
-        )
+        client.delete_queue(name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def purge_queue(
@@ -336,7 +324,7 @@ class CloudTasksHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> List[Queue]:
         """
         Purges a queue by deleting all of its tasks from Cloud Tasks.
@@ -345,8 +333,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -359,13 +347,10 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
-        return client.purge_queue(
-            name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
-        )
+        return client.purge_queue(name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def pause_queue(
@@ -375,7 +360,7 @@ class CloudTasksHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> List[Queue]:
         """
         Pauses a queue in Cloud Tasks.
@@ -384,8 +369,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -398,13 +383,10 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
-        return client.pause_queue(
-            name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
-        )
+        return client.pause_queue(name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def resume_queue(
@@ -414,7 +396,7 @@ class CloudTasksHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> List[Queue]:
         """
         Resumes a queue in Cloud Tasks.
@@ -423,8 +405,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -437,13 +419,10 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Queue]
         """
-
         client = self.get_conn()
 
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
-        return client.resume_queue(
-            name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
-        )
+        return client.resume_queue(name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_task(
@@ -456,7 +435,7 @@ class CloudTasksHook(GoogleBaseHook):
         response_view: Optional[enums.Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Task:
         """
         Creates a task in Cloud Tasks.
@@ -468,8 +447,8 @@ class CloudTasksHook(GoogleBaseHook):
         :param task: The task to add.
             If a dict is provided, it must be of the same form as the protobuf message Task.
         :type task: dict or google.cloud.tasks_v2.types.Task
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param task_name: (Optional) The task's name.
             If provided, it will be used to construct the full task path.
@@ -488,13 +467,10 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
-
         client = self.get_conn()
 
         if task_name:
-            full_task_name = CloudTasksClient.task_path(
-                project_id, location, queue_name, task_name
-            )
+            full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
             if isinstance(task, Task):
                 task.name = full_task_name
             elif isinstance(task, dict):
@@ -521,7 +497,7 @@ class CloudTasksHook(GoogleBaseHook):
         response_view: Optional[enums.Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Task:
         """
         Gets a task from Cloud Tasks.
@@ -532,8 +508,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type queue_name: str
         :param task_name: The task's name.
         :type task_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
@@ -549,7 +525,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
-
         client = self.get_conn()
 
         full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
@@ -571,7 +546,7 @@ class CloudTasksHook(GoogleBaseHook):
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> List[Task]:
         """
         Lists the tasks in Cloud Tasks.
@@ -580,8 +555,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type location: str
         :param queue_name: The queue's name.
         :type queue_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
@@ -600,7 +575,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: list[google.cloud.tasks_v2.types.Task]
         """
-
         client = self.get_conn()
         full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
         tasks = client.list_tasks(
@@ -622,7 +596,7 @@ class CloudTasksHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> None:
         """
         Deletes a task from Cloud Tasks.
@@ -633,8 +607,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type queue_name: str
         :param task_name: The task's name.
         :type task_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -646,13 +620,10 @@ class CloudTasksHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: sequence[tuple[str, str]]]
         """
-
         client = self.get_conn()
 
         full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
-        client.delete_task(
-            name=full_task_name, retry=retry, timeout=timeout, metadata=metadata
-        )
+        client.delete_task(name=full_task_name, retry=retry, timeout=timeout, metadata=metadata)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def run_task(
@@ -664,7 +635,7 @@ class CloudTasksHook(GoogleBaseHook):
         response_view: Optional[enums.Task.View] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Task:
         """
         Forces to run a task in Cloud Tasks.
@@ -675,8 +646,8 @@ class CloudTasksHook(GoogleBaseHook):
         :type queue_name: str
         :param task_name: The task's name.
         :type task_name: str
-        :param project_id: (Optional) The ID of the  GCP project that owns the Cloud Tasks.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
@@ -692,7 +663,6 @@ class CloudTasksHook(GoogleBaseHook):
         :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.tasks_v2.types.Task
         """
-
         client = self.get_conn()
 
         full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)

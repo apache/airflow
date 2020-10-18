@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# noinspection LongLine
 """
 Example Airflow DAG that creates and performs following operations on Cloud Bigtable:
 - creates an Instance
@@ -27,7 +26,7 @@ Example Airflow DAG that creates and performs following operations on Cloud Bigt
 
 This DAG relies on the following environment variables:
 
-* GCP_PROJECT_ID - Google Cloud Platform project
+* GCP_PROJECT_ID - Google Cloud project
 * CBT_INSTANCE_ID - desired ID of a Cloud Bigtable instance
 * CBT_INSTANCE_DISPLAY_NAME - desired human-readable display name of the Instance
 * CBT_INSTANCE_TYPE - type of the Instance, e.g. 1 for DEVELOPMENT
@@ -50,8 +49,12 @@ from os import getenv
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigtable import (
-    BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
-    BigtableDeleteTableOperator, BigtableUpdateClusterOperator, BigtableUpdateInstanceOperator,
+    BigtableCreateInstanceOperator,
+    BigtableCreateTableOperator,
+    BigtableDeleteInstanceOperator,
+    BigtableDeleteTableOperator,
+    BigtableUpdateClusterOperator,
+    BigtableUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 from airflow.utils.dates import days_ago
@@ -198,16 +201,9 @@ with models.DAG(
     wait_for_table_replication_task2 >> delete_table_task
     wait_for_table_replication_task >> delete_table_task2
     wait_for_table_replication_task2 >> delete_table_task2
-    create_instance_task \
-        >> create_table_task \
-        >> cluster_update_task \
-        >> update_instance_task \
-        >> delete_table_task
-    create_instance_task2 \
-        >> create_table_task2 \
-        >> cluster_update_task2 \
-        >> delete_table_task2
+    create_instance_task >> create_table_task >> cluster_update_task
+    cluster_update_task >> update_instance_task >> delete_table_task
+    create_instance_task2 >> create_table_task2 >> cluster_update_task2 >> delete_table_task2
 
     # Only delete instances after all tables are deleted
-    [delete_table_task, delete_table_task2] >> \
-        delete_instance_task >> delete_instance_task2
+    [delete_table_task, delete_table_task2] >> delete_instance_task >> delete_instance_task2

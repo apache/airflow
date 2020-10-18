@@ -32,7 +32,7 @@ class TestDagrunRunningDep(unittest.TestCase):
         """
         dagrun = DagRun()
         dagrun.run_id = "anything"
-        dagrun.run_type = DagRunType.BACKFILL_JOB.value
+        dagrun.run_type = DagRunType.BACKFILL_JOB
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
         self.assertFalse(DagrunIdDep().is_met(ti=ti))
 

@@ -57,6 +57,11 @@ def __getattr__(name):
     raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
+if not settings.LAZY_LOAD_PLUGINS:
+    from airflow import plugins_manager
+    plugins_manager.ensure_plugins_loaded()
+
+
 # This is never executed, but tricks static analyzers (PyDev, PyCharm,
 # pylint, etc.) into knowing the types of these symbols, and what
 # they contain.
