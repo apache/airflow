@@ -119,19 +119,19 @@ class AzureBatchHook(BaseHook):
         :type sku_starts_with: Optional[str]
 
         :param vm_sku: The name of the virtual machine sku to use
-        :type vm_sku: str
+        :type vm_sku: Optional[str]
 
         :param vm_version: The version of the virtual machine
         :param vm_version: str
 
         :param vm_node_agent_sku_id: The node agent sku id of the virtual machine
-        :type vm_node_agent_sku_id: str
+        :type vm_node_agent_sku_id: Optional[str]
 
         :param os_family: The Azure Guest OS family to be installed on the virtual machines in the Pool.
-        :type os_family: str
+        :type os_family: Optional[str]
 
         :param os_version: The OS family version
-        :type os_version: str
+        :type os_version: Optional[str]
 
         """
         if use_latest_image_and_sku:
