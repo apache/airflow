@@ -223,10 +223,11 @@ jobs:
         env:
           EVENT_NAME: ${{ needs.cancel-workflow-runs.outputs.sourceEvent }}
           MERGE_COMMIT_SHA: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
+          COMMIT_SHA: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
         run: |
           if [[ ${EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${MERGE_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.sh "${MERGE_COMMIT_SHA}" "${COMMIT_SHA}"
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh

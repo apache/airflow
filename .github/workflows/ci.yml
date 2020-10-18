@@ -106,6 +106,13 @@ jobs:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 2
         if: github.event_name  == 'pull_request'
+      - name: >
+          Fetch commit ${{ github.ref }} ( ${{ github.sha }}
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+        if: github.event_name  == 'pull_request'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} : merge commit ${{ github.merge_commit_sha }} )"
         uses: actions/checkout@v2
       - name: >
@@ -133,7 +140,7 @@ jobs:
         run: |
           if [[ ${EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${MERGE_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.sh "${MERGE_COMMIT_SHA}" "${GITHUB_SHA}"
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh

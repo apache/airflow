@@ -24,7 +24,8 @@
 #      sets all the version outputs that determine that all tests should be run. This happens in case
 #      the even triggering the workflow is 'schedule' or 'push'. Merge commit is only
 #      available in case of 'pull_request' triggered runs.
-#
+# $2 - Commit of the change. It might happen that the merge commit is missing (in simple changes)
+#      In which case the change commit is treated as fallback
 declare -a pattern_array
 
 function output_all_basic_variables() {
@@ -393,11 +394,28 @@ if (($# < 1)); then
 fi
 
 MERGE_COMMIT_SHA="${1}"
+
+if (($# > 1)); then
+    COMMIT_SHA="${2}"
+    echo
+    echo "Commit SHA : ${COMMIT_SHA}"
+    echo
+    if [[ ${MERGE_COMMIT_SHA} == "" ]]; then
+       MERGE_COMMIT_SHA=${COMMIT_SHA}
+    fi
+fi
 readonly MERGE_COMMIT_SHA
 
 echo
 echo "Merge commit SHA: ${MERGE_COMMIT_SHA}"
 echo
+
+if [[ ${MERGE_COMMIT_SHA} == "" ]] ; then
+    echo
+    echo "Merge commit SHA empty - running all tests!"
+    echo
+    set_outputs_run_everything_and_exit
+fi
 
 image_build_needed="false"
 tests_needed="false"
