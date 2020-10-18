@@ -83,7 +83,7 @@ function kind::make_sure_kubernetes_tools_are_installed() {
     if [[ ! -f "${HELM_BINARY_PATH}" || ${DOWNLOADED_HELM_VERSION} != "${HELM_VERSION}" ]]; then
         echo
         echo "Downloading Helm version ${HELM_VERSION}"
-        repeats::repeat_up_to_n_times 4 \
+        repeats::run_with_retry 4 \
             "curl --location '${HELM_URL}' | tar -xvz -O '${SYSTEM}-amd64/helm' >'${HELM_BINARY_PATH}'"
         chmod a+x "${HELM_BINARY_PATH}"
     else
