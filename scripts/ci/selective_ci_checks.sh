@@ -18,12 +18,21 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . ./scripts/ci/libraries/_script_init.sh
 
+# Parameter:
+#
+# $1 - Merge commit SHA. If this parameter is missing, this script does not check anything, it simply
+#      sets all the version outputs that determine that all tests should be run. This happens in case
+#      the even triggering the workflow is 'schedule' or 'push'. Merge commit is only
+#      available in case of 'pull_request' triggered runs.
+#
 declare -a pattern_array
 
 function output_all_basic_variables() {
     initialization::ga_output python-versions \
         "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
     initialization::ga_output default-python-version "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+    initialization::ga_output all-python-versions \
+        "$(initialization::parameters_to_json "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
 
     initialization::ga_output kubernetes-versions \
         "$(initialization::parameters_to_json "${CURRENT_KUBERNETES_VERSIONS[@]}")"
@@ -59,27 +68,26 @@ function output_all_basic_variables() {
 }
 
 function set_outputs_run_all_tests() {
-    initialization::ga_output run-tests "true"
-    initialization::ga_output run-kubernetes-tests "true"
-    initialization::ga_output test-types "Core Integration Heisentests"
+    run_tests "true"
+    run_kubernetes_tests "true"
+    set_test_types "${ALL_TESTS}"
+    set_basic_checks_only "false"
 }
 
-function set_output_skip_all_tests() {
-    initialization::ga_output run-tests "false"
-    initialization::ga_output run-kubernetes-tests "false"
-    initialization::ga_output test-types ""
+function set_output_skip_all_tests_and_exit() {
+    run_tests "false"
+    run_kubernetes_tests "false"
+    set_test_types ""
+    set_basic_checks_only "true"
+    exit
 }
 
-function initialize_git_repo() {
-    git remote add target "https://github.com/${CI_TARGET_REPO}"
-    git fetch target "${CI_TARGET_BRANCH}:${CI_TARGET_BRANCH}" --depth=1
+function get_changed_files() {
+    local commit_sha=${1}
     echo
-    echo "My commit SHA: ${COMMIT_SHA}"
+    echo "Retrieved changed files from ${commit_sha}"
     echo
-    echo
-    echo "Retrieved changed files from ${COMMIT_SHA} comparing to ${CI_TARGET_BRANCH} in ${CI_TARGET_REPO}"
-    echo
-    CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${COMMIT_SHA}" "${CI_TARGET_BRANCH}" || true)
+    CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${commit_sha}" "${commit_sha}^" || true)
     echo
     echo "Changed files:"
     echo
@@ -121,6 +129,7 @@ function show_changed_files() {
 # Output:
 #    Count of changed files matching the patterns
 function count_changed_files() {
+    local count_changed_files
     count_changed_files=$(echo "${CHANGED_FILES}" | grep -c -E "$(get_regexp_from_patterns)" || true)
     echo "${count_changed_files}"
 }
@@ -135,62 +144,75 @@ function run_all_tests_when_push_or_schedule() {
     fi
 }
 
-function check_if_tests_should_be_run_at_all() {
-    TEST_TRIGGERING_PATTERNS=(
-        "^airflow"
-        "^.github/workflows/"
-        "^Dockerfile"
-        "^scripts"
+function check_if_helm_tests_should_be_run() {
+    local pattern_array=(
         "^chart"
-        "^setup.py"
-        "^tests"
-        "^kubernetes_tests"
     )
-    readonly TEST_TRIGGERING_PATTERNS
-
-    pattern_array=("${TEST_TRIGGERING_PATTERNS[@]}")
-    show_changed_files "$(get_regexp_from_patterns)"
+    show_changed_files
 
     if [[ $(count_changed_files) == "0" ]]; then
-        echo "None of the important files changed, Skipping tests"
-        set_output_skip_all_tests
-        exit
+        needs_helm_tests "false"
     else
-        initialization::ga_output run-tests "true"
+        needs_helm_tests "true"
     fi
 }
 
-function check_if_environment_files_changed() {
-    ENVIRONMENT_TRIGGERING_PATTERNS=(
+function check_if_docs_should_be_generated() {
+    local pattern_array=(
+        "^docs$"
+        "\.py$"
+        "^CHANGELOG\.txt"
+    )
+    show_changed_files
+
+    if [[ $(count_changed_files) == "0" ]]; then
+        echo "None of the docs changed"
+    else
+        image_build_needed="true"
+    fi
+}
+
+AIRFLOW_SOURCES_TRIGGERING_TESTS=(
+        "^airflow"
+        "^chart"
+        "^tests"
+        "^kubernetes_tests"
+)
+readonly AIRFLOW_SOURCES_TRIGGERING_TESTS
+
+function check_if_tests_are_needed_at_all() {
+    local pattern_array=("${AIRFLOW_SOURCES_TRIGGERING_TESTS[@]}")
+    show_changed_files
+
+    if [[ $(count_changed_files) == "0" ]]; then
+        echo "None of the important files changed, Skipping tests"
+        set_output_skip_all_tests_and_exit
+    else
+        image_build_needed="true"
+        tests_needed="true"
+    fi
+}
+
+function run_all_tests_if_environment_files_changed() {
+    local pattern_array=(
         "^.github/workflows/"
         "^Dockerfile"
         "^scripts"
         "^setup.py"
     )
-    readonly ENVIRONMENT_TRIGGERING_PATTERNS
-
-    pattern_array=("${ENVIRONMENT_TRIGGERING_PATTERNS[@]}")
-    show_changed_files "$(get_regexp_from_patterns)"
+    show_changed_files
 
     if [[ $(count_changed_files) != "0" ]]; then
-        echo "Important environment files changed. Running all tests"
-        set_outputs_run_all_tests
-        exit
+        echo "Important environment files changed. Running everything"
+        set_outputs_run_everything_and_exit
     fi
 }
 
 function get_count_all_files() {
     echo
-    echo "Count All files"
+    echo "Count All airflow source files"
     echo
-    ALL_TRIGGERING_PATTERNS=(
-        "^airflow"
-        "^chart"
-        "^tests"
-        "^kubernetes_tests"
-    )
-    readonly ALL_TRIGGERING_PATTERNS
-    pattern_array=("${ALL_TRIGGERING_PATTERNS[@]}")
+    local pattern_array=("${AIRFLOW_SOURCES_TRIGGERING_TESTS[@]}")
     show_changed_files
     COUNT_ALL_CHANGED_FILES=$(count_changed_files)
     echo "Files count: ${COUNT_ALL_CHANGED_FILES}"
@@ -201,13 +223,11 @@ function get_count_kubernetes_files() {
     echo
     echo "Count Kubernetes files"
     echo
-    KUBERNETES_TRIGGERING_PATTERNS=(
+    local pattern_array=(
         "^airflow/kubernetes"
         "^chart"
         "^tests/kubernetes_tests"
     )
-    readonly KUBERNETES_TRIGGERING_PATTERNS
-    pattern_array=("${KUBERNETES_TRIGGERING_PATTERNS[@]}")
     show_changed_files
     COUNT_KUBERNETES_CHANGED_FILES=$(count_changed_files)
     echo "Files count: ${COUNT_KUBERNETES_CHANGED_FILES}"
@@ -233,20 +253,56 @@ function calculate_test_types_to_run() {
         set_outputs_run_all_tests
     else
         if [[ ${COUNT_KUBERNETES_CHANGED_FILES} != "0" ]]; then
-            initialization::ga_output run-kubernetes-tests "true"
-        else
-            initialization::ga_output run-kubernetes-tests "false"
+            kubernetes_tests_needed="true"
         fi
-        initialization::ga_output run-tests "true"
+        tests_needed="true"
         initialization::ga_output test-types "Core Integration Heisentests"
     fi
 }
 
 output_all_basic_variables
-run_all_tests_when_push_or_schedule
-initialize_git_repo
-check_if_tests_should_be_run_at_all
-check_if_environment_files_changed
+
+if (($# < 1)); then
+    echo
+    echo "No merge commit SHA - running all tests!"
+    echo
+    set_outputs_run_everything_and_exit
+fi
+
+MERGE_COMMIT_SHA="${1}"
+readonly MERGE_COMMIT_SHA
+
+echo
+echo "Merge commit SHA: ${MERGE_COMMIT_SHA}"
+echo
+
+image_build_needed="false"
+tests_needed="false"
+kubernetes_tests_needed="false"
+
+get_changed_files "${MERGE_COMMIT_SHA}"
+run_all_tests_if_environment_files_changed
+check_if_docs_should_be_generated
+check_if_helm_tests_should_be_run
+check_if_tests_are_needed_at_all
 get_count_all_files
 get_count_kubernetes_files
 calculate_test_types_to_run
+
+if [[ ${image_build_needed} == "true" ]]; then
+    set_basic_checks_only "false"
+else
+    set_basic_checks_only "true"
+fi
+
+if [[ ${tests_needed} == "true" ]]; then
+    run_tests
+else
+    skip_running_tests
+fi
+
+if [[ ${kubernetes_tests_needed} == "true" ]]; then
+    run_kubernetes_tests
+else
+    skip_running_kubernetes_tests
+fi
